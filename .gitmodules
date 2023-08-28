@@ -1,0 +1,5 @@
+
+[submodule "third_party/perception-base"]
+	path = third_party/perception-base
+	url = https://code.hozonauto.com:10443/perception/perception-base.git
+	branch = master

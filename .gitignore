@@ -1,0 +1,9 @@
+.vscode
+build
+release
+third_party/third_party/*
+third_party/nos/*
+third_party/perception-base/release/*
+*.pb.cc
+*.pb.h
+

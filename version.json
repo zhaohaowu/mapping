@@ -1,0 +1,7 @@
+{
+    "ORIN":"20230630",
+    "NOS": "EP40_ORIN_NOS_01.09.01_0731_20230731",
+    "third_party":"v5.1.30_x86_2004_20230726",
+    "PCPBASE" : "PCPBASE_v01.00.02_20230828",
+    "releaseVersion":"PCPLIB_v01.00.00_20230814"
+}

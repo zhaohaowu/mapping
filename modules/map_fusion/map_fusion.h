@@ -5,3 +5,10 @@
  *****************************************************************************/
 #pragma once
 
+namespace hozon {
+namespace mp {
+namespace mf {
+
+}  // namespace mf
+}  // namespace mp
+}  // namespace hozon

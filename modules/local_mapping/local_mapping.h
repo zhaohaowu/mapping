@@ -4,3 +4,11 @@
  *Date: 2023-08-28
  *****************************************************************************/
 #pragma once
+
+namespace hozon {
+namespace mp {
+namespace lm {
+
+}  // namespace lm
+}  // namespace mp
+}  // namespace hozon

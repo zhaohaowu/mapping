@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12.1)
 
-project(perception-lib)
+project(mapping)
 
 unset(BUILD_SHARED_LIBS CACHE)
 option(BUILD_SHARED_LIBS "" ON)
@@ -63,6 +63,8 @@ endif()
 #     ${DEPENDS_LIBS}
 # )
 # install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
+
+add_subdirectory(modules)
 
 INSTALL(FILES version.json DESTINATION ${CMAKE_SOURCE_DIR}/release)
 

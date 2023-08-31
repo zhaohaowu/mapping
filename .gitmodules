@@ -1,5 +1,19 @@
 
-[submodule "third_party/perception-base"]
-	path = third_party/perception-base
+[submodule "depend/perception-base"]
+	path = depend/perception-base
 	url = https://code.hozonauto.com:10443/perception/perception-base.git
-	branch = master
+[submodule "depend/perception-common-onboard"]
+	path = depend/perception-common-onboard
+	url = https://code.hozonauto.com:10443/perception/perception-common-onboard.git
+[submodule "depend/perception-lib"]
+	path = depend/perception-lib
+	url = https://code.hozonauto.com:10443/perception/perception-lib.git
+[submodule "depend/proto"]
+	path = depend/proto
+	url = https://code.hozonauto.com:10443/algorithm/proto.git
+[submodule "depend/map"]
+	path = depend/map
+	url = https://code.hozonauto.com:10443/algorithm/map.git
+[submodule "depend/common"]
+	path = depend/common
+	url = https://code.hozonauto.com:10443/algorithm/common.git

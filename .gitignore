@@ -1,9 +1,10 @@
 .vscode
 build
 release
-third_party/third_party/*
-third_party/nos/*
-third_party/perception-base/release/*
+depend/*
+depend/third_party/*
+depend/nos/*
+depend/perception-base/release/*
 *.pb.cc
 *.pb.h
 

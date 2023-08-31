@@ -10,6 +10,6 @@ if [ -z "$PYTHON_BIN" ]; then
   PYTHON_BIN=$(which python3 || which python || true)
 fi
 
-export LD_LIBRARY_PATH=${WORKSPACE}/third_party/third_party/x86/protobuf/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${WORKSPACE}/depend/third_party/x86/protobuf/lib:$LD_LIBRARY_PATH
 export PYTHONPATH=$WORKSPACE
 $PYTHON_BIN tools/compile.py $@ --workspace $WORKSPACE

@@ -8,6 +8,11 @@ import shutil
 
 from multiprocessing import cpu_count
 
+PKG_ALIAS = ['base', 'comboard', 'lib']
+PKG_DIRS = ['perception-base', 'perception-common-onboard', 'perception-lib']
+PKG_LIBS = ['perception-base', 'perception-onboard-common', 'perception-lib']
+PKG_CMAKE_ENABLES = ['-DMAPPING_ENABLE_COMPILE_BASE', '-DMAPPING_ENABLE_COMPILE_COMBOARD', '-DMAPPING_ENABLE_COMPILE_LIB']
+
 def parse_args():
     p = argparse.ArgumentParser(description='compiling usage and options',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -21,6 +26,8 @@ def parse_args():
     p.add_argument('--gcc', action='store_true', help='build lib with gcc,default llvm')
     p.add_argument('--make', action='store_true', help='directly execute make, will not compile again')
     p.add_argument('--base', action='store_true', help='enable active compile submodule perception-base')
+    p.add_argument('--comboard', action='store_true', help='enable active compile submodule perception-common-board')
+    p.add_argument('--lib', action='store_true', help='enable active compile submodule perception-lib')
     # 默认值类型
     p.add_argument('--workspace', default=None, help='root of code repository')
     p.add_argument('-j', default=max(cpu_count() - 2, 1), dest="jobs", type=int, help='make -j')
@@ -63,11 +70,25 @@ def cmake_build(workspace, platform, build_directory, cmake_args, jobs, verbose=
     verbose: 打开make时的详细信息
     """
 
-    """base 子模块修改后的编译"""
-    if kwargs['base']:
-        sp.run('rm -rf {}'.format(workspace+"/third_party/perception-base/release"), shell=1)
-        copy_header_files_by_path(workspace+"/third_party/perception-base", workspace+"/third_party/perception-base/release/"+platform+"/include/perception-base/")
-        copy_file(workspace+"/third_party/perception-base/version.json", workspace+"/third_party/perception-base/release/")
+    """子模块修改后的编译"""
+    for (pkg, pkg_dir) in zip(PKG_ALIAS, PKG_DIRS):
+        if kwargs[pkg]:
+            sp.run('rm -rf {}'.format(workspace+"/depend/"+pkg_dir+"/release"), shell=1)
+            copy_header_files_by_path(workspace+"/depend/"+pkg_dir, workspace+"/depend/"+pkg_dir+"/release/"+platform+"/include/"+pkg_dir)
+            copy_file(workspace+"/depend/"+pkg_dir+"/version.json", workspace+"/depend/"+pkg_dir+"/release/")
+
+    # if kwargs['base']:
+    #     sp.run('rm -rf {}'.format(workspace+"/depend/perception-base/release"), shell=1)
+    #     copy_header_files_by_path(workspace+"/depend/perception-base", workspace+"/depend/perception-base/release/"+platform+"/include/perception-base/")
+    #     copy_file(workspace+"/depend/perception-base/version.json", workspace+"/depend/perception-base/release/")
+    # if kwargs['comboard']:
+    #     sp.run('rm -rf {}'.format(workspace+"/depend/perception-common-onboard/release"), shell=1)
+    #     copy_header_files_by_path(workspace+"/depend/perception-common-onboard", workspace+"/depend/perception-common-onboard/release/"+platform+"/include/perception-common-onboard/")
+    #     copy_file(workspace+"/depend/perception-common-onboard/version.json", workspace+"/depend/perception-common-onboard/release/")
+    # if kwargs['lib']:
+    #     sp.run('rm -rf {}'.format(workspace+"/depend/perception-lib/release"), shell=1)
+    #     copy_header_files_by_path(workspace+"/depend/perception-lib", workspace+"/depend/perception-lib/release/"+platform+"/include/perception-lib/")
+    #     copy_file(workspace+"/depend/perception-lib/version.json", workspace+"/depend/perception-lib/release/")
 
     date_s = datetime.datetime.now()
     # cmake ..
@@ -82,15 +103,20 @@ def cmake_build(workspace, platform, build_directory, cmake_args, jobs, verbose=
     cmd = 'make -j{}'.format(jobs)
     if verbose:
         cmd += " VERBOSE=1"
-    cmd += "&& make install"
+    cmd += " && make install"
     LOG_INFO(cmd)
     execute_shell(cmd)
     elapsed_time = datetime.datetime.now() - date_s
-    LOG_INFO("build finished. elapsed_time:", str(elapsed_time))
+    LOG_INFO("Build finished, elapse ", str(elapsed_time))
     os.chdir(workspace)
 
-    if kwargs['base']:
-        copy_file(release_directory+"/"+platform+"/lib/libperception-base.so", workspace+"/third_party/perception-base/release/"+platform+"/lib")
+    for (pkg, pkg_dir, pkg_lib) in zip(PKG_ALIAS, PKG_DIRS, PKG_LIBS):
+        if kwargs[pkg]:
+            lib_name = "lib"+pkg_lib+".so"
+            copy_file(release_directory+"/"+platform+"/lib/"+lib_name, workspace+"/depend/"+pkg_dir+"/release/"+platform+"/lib")
+
+    # if kwargs['base']:
+    #     copy_file(release_directory+"/"+platform+"/lib/libperception-base.so", workspace+"/depend/perception-base/release/"+platform+"/lib")
 
 def mdc_build(workspace, platform, build_directory, release_directory, **kwargs):
     # download release package
@@ -113,26 +139,29 @@ def mdc_build(workspace, platform, build_directory, release_directory, **kwargs)
     args['-DCMAKE_BUILD_TYPE'] = "Release" if kwargs['release'] else "Debug"
     args['-DPLATFORM'] = 'MDC'
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
-    args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
+    for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
+        args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
+    # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
     # args['-DENABLE_UT'] = 'FLASE' if not kwargs['ut'] else 'TRUE'
     cmake_build(workspace, platform, build_directory, args, kwargs['jobs'], kwargs['verbose'])
 
 def x86_build(workspace, platform, build_directory, release_directory, **kwargs):
     """x86 编译流程"""
-    print("x86 build")
     sp.run('bash tools/downloadPkg.sh', shell=1)
     set_env('PATH', '/usr/bin')
     set_env('CC', '/usr/bin/x86_64-linux-gnu-gcc')
     set_env('CXX', '/usr/bin/x86_64-linux-gnu-g++')
 
-    set_env('LD_LIBRARY_PATH', osp.join(workspace, 'third_party/third_party/x86/protobuf/lib'))
+    set_env('LD_LIBRARY_PATH', osp.join(workspace, 'depend/third_party/x86/protobuf/lib'))
     args = dict()
     args['-DCMAKE_INSTALL_PREFIX'] = release_directory+"/x86/"
     args['-DCMAKE_BUILD_TYPE'] = "Release" if kwargs['release'] else "Debug"
     args['-DPLATFORM'] = 'X86'
     # args['-DENABLE_UT'] = 'FLASE' if not kwargs['ut'] else 'TRUE'
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
-    args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
+    for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
+        args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
+    # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
 
     cmake_build(workspace, platform, build_directory, args, kwargs['jobs'], kwargs['verbose'])
 
@@ -153,13 +182,15 @@ def orin_build(workspace, platform, build_directory, release_directory, **kwargs
     args['-DPLATFORM'] = 'ORIN'
     # args['-DENABLE_UT'] = 'FLASE' if not kwargs['ut'] else 'TRUE'
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
-    args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
+    for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
+        args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
+    # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
     cmake_build(workspace, platform, build_directory, args, kwargs['jobs'], kwargs['verbose'])
 
 def copy_header_files_by_path(src_path, dst_path):
     header_files = []
     for root, dirs, files in os.walk(src_path):
-        dirs[:] = [d for d in dirs if d not in ['third_party', 'release', 'Debug', 'Release', 'build', 'test']]  # 排除文件夹
+        dirs[:] = [d for d in dirs if d not in ['depend', 'release', 'Debug', 'Release', 'build', 'test']]  # 排除文件夹
         for file in files:
             if file.endswith('.h') or file.endswith('.hpp'):
                 header_files.append(os.path.join(root, file))
@@ -217,9 +248,9 @@ def clean(workspace):
         if os.path.exists(path):
             execute_shell("rm -r {}".format(path))
     # 移除proto生成的.h和.cc文件
-    execute_shell("find . -name *.pb.h | grep -v 'third_party/third_party' |xargs rm -rf")
-    execute_shell("find . -name *.pb.cc | grep -v 'third_party/third_party' |xargs rm -rf")
-    execute_shell("find . -name *.om | grep -v 'third_party/third_party' |xargs rm -rf")
+    execute_shell("find . -name *.pb.h | grep -v 'depend/third_party' |xargs rm -rf")
+    execute_shell("find . -name *.pb.cc | grep -v 'depend/third_party' |xargs rm -rf")
+    execute_shell("find . -name *.om | grep -v 'depend/third_party' |xargs rm -rf")
     LOG_INFO("delete cmake build production success.")
 
 def all_build(workspace, platform, build_directory, release_directory, **kwargs):

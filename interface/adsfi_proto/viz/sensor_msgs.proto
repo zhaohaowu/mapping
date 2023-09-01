@@ -1,0 +1,57 @@
+syntax = "proto2";
+
+package adsfi_proto.viz;
+
+import "adsfi_proto/common/types.proto";
+import "adsfi_proto/viz/geometry_msgs.proto";
+
+message CompressedImage {
+    optional adsfi_proto.hz_Adsfi.AlgHeader header = 1;
+    optional string format = 2;
+    optional bytes data = 3;
+}
+
+message ChannelFloat32 {
+    optional string name = 1;
+    repeated float values = 2;
+}
+
+message PointField {
+    enum DataType {
+        // PLACE_HOLDER is invalid, just for hold 0 because proto3 only
+        // allow enum starts from 0.
+        PLACE_HOLDER = 0;
+
+        INT8    = 1;
+        UINT8   = 2;
+        INT16   = 3;
+        UINT16  = 4;
+        INT32   = 5;
+        UINT32  = 6;
+        FLOAT32 = 7;
+        FLOAT64 = 8;
+    }
+
+    optional string name = 1;
+    optional uint32 offset = 2;
+    optional DataType datatype = 3;
+    optional uint32 count = 4;
+}
+
+message PointCloud {
+    optional adsfi_proto.hz_Adsfi.AlgHeader header = 1;
+    repeated Point32 points = 2;
+    repeated ChannelFloat32 channels = 3;
+}
+
+message PointCloud2 {
+    optional adsfi_proto.hz_Adsfi.AlgHeader header = 1;
+    optional uint32 height = 2;
+    optional uint32 width = 3;
+    repeated PointField fields = 4;
+    optional bool is_bigendian = 5;
+    optional uint32 point_step = 6;
+    optional uint32 row_step = 7;
+    optional bytes data = 8;
+    optional bool is_dense = 9;
+}

@@ -1,0 +1,62 @@
+syntax = "proto2";
+
+package adsfi_proto.hz_Adsfi;
+
+import "adsfi_proto/common/types.proto";
+
+message AlgGNSSPosInfo {
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  optional bool is_valid = 3;
+  optional uint32 gps_week = 4;
+  optional double gps_sec = 5;
+  optional uint32 pos_type = 6;
+  optional double latitude = 7;
+  optional double longitude = 8;
+  optional float undulation = 9;
+  optional float altitude = 10;
+  optional float lat_std = 11;
+  optional float lon_std = 12;
+  optional float hgt_std = 13;
+  optional uint32 svs = 14;
+  optional uint32 soln_svs = 15;
+  optional float diff_age = 16;
+  optional float hDop = 17;
+  optional float vDop = 18;
+  optional float pDop = 19;
+  optional float gDop = 20;
+  optional float tDop = 21;
+}
+
+message AlgGNSSVelInfo {
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  optional bool is_valid = 3;
+  optional uint32 gps_week = 4;
+  optional double gps_sec = 5;
+  optional uint32 sol_status = 6;
+  optional float hor_spd = 7;
+  optional float trk_gnd = 8;
+  optional float vel_x = 9;
+  optional float vel_y = 10;
+  optional float vel_z = 11;
+  optional float vel_x_std = 12;
+  optional float vel_y_std = 13;
+  optional float vel_z_std = 14;
+}
+
+message AlgGNSSHeadingInfo {
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  optional bool is_valid = 3;
+  optional uint32 gps_week = 4;
+  optional double gps_sec = 5;
+  optional uint32 svs = 6;
+  optional uint32 soln_svs = 7;
+  optional uint32 pos_type = 8;
+  optional float length = 9;
+  optional float heading = 10;
+  optional float pitch = 11;
+  optional float hdg_std = 12;
+  optional float pitch_std = 13;
+}

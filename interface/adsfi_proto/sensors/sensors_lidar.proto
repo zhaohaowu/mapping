@@ -1,0 +1,54 @@
+syntax = "proto2";
+
+package adsfi_proto.hz_Adsfi;
+
+import "adsfi_proto/common/types.proto";
+
+message LidarEolCalibStatus {
+  //adsfi meg is uint8
+  optional uint32 calib_status = 1;
+  optional float rotationX = 2;
+  optional float rotationY = 3;
+  optional float rotationZ = 4;
+  optional float rotationW = 5;
+  optional float translationX = 6;
+  optional float translationY = 7;
+  optional float translationZ = 8;
+}
+
+message LidarSN {
+  optional string ecuSerialNumber = 1;
+}
+
+message PointField {
+  optional float x = 1;
+  optional float y = 2;
+  optional float z = 3;
+  optional uint32 time = 4;
+  optional float distance = 5;
+  optional float pitch = 6;
+  optional float yaw = 7;
+  //adsfi meg is uint16 
+  optional uint32 intensity = 8;
+  //adsfi meg is uint16
+  optional uint32 ring = 9;
+  //adsfi meg is uint16
+  optional uint32 block = 10;
+
+  //! NOTE: raw adsfi struct not contain this field
+  optional uint32 label = 11;
+}
+
+message AlgPointCloud {
+  optional AlgHeader header = 1;
+  optional uint32 isBigEndian = 2;
+  optional uint32 height = 3;
+  optional uint32 width = 4;
+  optional uint32 pointStep = 5;
+  optional uint32 rowStep = 6;
+  optional uint32 isDense = 7;
+  repeated PointField points = 8;
+  optional LidarSN lidarSN = 9;
+  optional LidarEolCalibStatus eolCalibStatus = 10;
+  optional uint64 timestamp_us = 11;
+}

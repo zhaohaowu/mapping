@@ -1,0 +1,17 @@
+syntax = "proto2";
+
+package adsfi_proto.hz_Adsfi;
+
+import "adsfi_proto/common/types.proto";
+
+message AlgEhpData {
+  repeated string map_msg = 1;
+  optional int32 send_counter = 2;
+}
+
+message AlgMapMessage {
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  repeated AlgEhpData msg_vec = 3;
+  optional bool is_valid = 4;
+}

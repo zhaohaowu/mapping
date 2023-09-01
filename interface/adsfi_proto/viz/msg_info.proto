@@ -1,0 +1,12 @@
+syntax = "proto2";
+
+package adsfi_proto.viz;
+
+message MsgInfo {
+    optional string topic = 1;
+    optional string alias = 2;
+}
+
+message MsgInfoArray {
+    repeated MsgInfo msgs = 1;
+}

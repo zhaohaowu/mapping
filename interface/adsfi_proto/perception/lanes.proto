@@ -1,0 +1,82 @@
+syntax = "proto2";
+
+package adsfi_proto.hz_Adsfi;
+
+import "adsfi_proto/common/types.proto";
+
+message AlgLaneParam {
+  optional float a = 1;
+  optional float b = 2;
+  optional float c = 3;
+  optional float d = 4;
+  optional float dev_a = 5;
+  optional float dev_b = 6;
+  optional float dev_c = 7;
+  optional float dev_d = 8;
+}
+
+message AlgLanelineFit {
+  optional float x_start_vrf = 1;
+  optional float x_end_vrf = 2;
+  optional AlgLaneParam coefficients = 3;
+}
+
+enum LaneClassType {
+  LaneClass_SOLID_LINE = 0;
+  LaneClass_DASH_LINE = 1;
+  LaneClass_SHORT_DASH_LINE = 2;
+  LaneClass_SOLID_DOUBLE_LINE = 3;
+  LaneClass_DASH_DOUBLE_LINE = 4;
+  LaneClass_LEFT_SOLID_RIGHT_DASH = 5;
+  LaneClass_LEFT_DASH_RIGHT_SOLID = 6;
+  LaneClass_BARRIER = 7;
+  LaneClass_CURB = 8;
+  LaneClass_YUGUXIAN = 9;
+  LaneClass_OTHER = 10;
+}
+
+enum LaneColorType {
+  LaneColor_WHITE = 0;
+  LaneColor_YELLOW = 1;
+  LaneColor_ORANGE = 2;
+  LaneColor_BLUE = 3;
+  LaneColor_GEREEN = 4;
+  LaneColor_GRAY = 5;
+  LaneColor_LEFT_WHITE_RIGHT_YELLOW = 6;
+  LaneColor_LEFT_YELLOW_RIGHT_WHITE = 7;
+  LaneColor_YELLOW_GRAY_FUSION = 8;
+  LaneColor_OTHER = 9;
+}
+
+message AlgLaneDetectionOut {
+  optional int32 laneline_seq = 1;
+  optional float geometry_confidence = 2;
+  optional LaneClassType cls = 3;
+  optional float type_confidence = 4;
+  optional LaneColorType color = 5;
+  optional float color_confidence = 6;
+  optional float laneLine_width = 7;
+  repeated Point3f key_point_vrf = 8;
+  repeated Point3f point_vehicle_coord = 9;
+  repeated Point2f point_image_coord = 10;
+  repeated Point2f fit_point_image_coord = 11;
+  optional AlgLanelineFit lane_fit = 12;
+  optional HafTime time_creation = 13;
+  optional AlgLanelineFit image_lane_fit = 14;
+}
+
+message AlgLaneDetectionOutArray {
+  message AlgLaneDetectionOut1DArray {
+    repeated AlgLaneDetectionOut lane_Detection_Out = 1;
+  }
+
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  optional uint32 count = 3;
+  optional uint32 loc_seq = 4;
+  repeated AlgLaneDetectionOut1DArray lane_detection_front_out = 5;
+  repeated AlgLaneDetectionOut1DArray lane_detection_rear_out = 6;
+  optional bool is_lane_change_to_left = 7;
+  optional bool is_lane_change_to_right = 8;
+  optional bool is_valid = 9;
+}

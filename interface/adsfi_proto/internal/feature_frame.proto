@@ -1,0 +1,66 @@
+syntax = "proto2";
+
+package adsfi_proto.internal;
+
+import "adsfi_proto/common/types.proto";
+
+message TrafficSignAttributes {
+  optional adsfi_proto.hz_Adsfi.Point3f center = 1;
+  optional adsfi_proto.hz_Adsfi.Point3f lwh = 2;
+}
+
+message LaneAttributes {
+  optional adsfi_proto.hz_Adsfi.Point3f avg_y = 1;
+  optional int32 seq = 2;
+}
+
+message SemanticFeature {
+  //! NOTE: These labels are defined from perception's lidar_pipeline,
+  //! SHOULD BE identical to theirs.
+  enum SemanticLabel {
+    UNKNOWN = 0;
+    ROI = 1;
+    GROUND = 2;
+    OBJECT = 3;
+    CURB = 4;
+    LANE = 5;
+    VEGETATION = 6;
+    FENCE = 7;
+    NOISE = 8;
+    BUILDING = 9;
+    VEHICLE = 10;
+    TRAFFICSIGN = 11;
+    SHADOW = 12;
+    LANESNOW = 13;
+    SNOW = 14;
+    PEDESTRIAN = 15;
+    BICYCLIST = 16;
+    TRICYCLIST = 17;
+    CONE = 18;
+    MAX_LABEL = 19;
+  }
+
+  optional uint32 id = 1;
+  optional SemanticLabel label = 2;
+  repeated adsfi_proto.hz_Adsfi.Point3f points = 3;
+  optional TrafficSignAttributes sign_attr = 4;
+  optional LaneAttributes lane_attr = 5;
+}
+
+message GeometricFeature {
+  enum GeometricType {
+    UNKNOWN = 0;
+    EDGE = 1;
+    PLANAR = 2;
+  }
+
+  optional GeometricType type = 1;
+  optional adsfi_proto.hz_Adsfi.Point3f point = 2;
+}
+
+message FeatureFrame {
+  optional adsfi_proto.hz_Adsfi.AlgHeader header = 1;
+
+  repeated SemanticFeature semantic = 2;
+  repeated GeometricFeature geometric = 3;
+}

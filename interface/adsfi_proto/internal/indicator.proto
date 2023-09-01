@@ -1,0 +1,19 @@
+syntax = "proto2";
+
+package adsfi_proto.internal;
+
+message Indicator {
+    enum IndicatorType {
+        OK = 0;
+        WARNING = 1;
+        ERROR = 2;
+    }
+
+    optional double stamp = 1;
+    optional IndicatorType type = 2;
+    optional string description = 3;
+}
+
+message Heartbeat {
+    optional double stamp = 1;
+}

@@ -1,0 +1,365 @@
+syntax = "proto2";
+
+package adsfi_proto.hz_Adsfi;
+
+import "adsfi_proto/common/types.proto";
+
+message AlgVcuInfo {
+  optional bool vcu_ready_sts = 1;
+  optional bool vcu_sys_ready = 2;
+  optional uint32 vcu_act_gear_position = 3;
+  optional bool vcu_act_gear_position_valid = 4;
+  optional uint32 vcu_real_throttle_position = 5;
+  optional bool vcu_real_throttle_pos_valid = 6;
+  optional uint32 vcu_apa_response = 7;
+  optional uint32 vcu_apa_fail_code = 8;
+}
+
+message AlgSteeringInfo {
+  optional float steering_angle = 1;
+  optional bool steering_angle_valid = 2;
+  optional uint32 steering_angle_speed = 3;
+  optional bool steering_angle_speed_valid = 4;
+  optional bool failure_sts = 5;
+  optional bool sas_calibrated = 6;
+  optional uint32 eps_avail_sts = 7;
+}
+
+message AlgWheelInfo {
+  optional float esc_fl_wheel_speed = 1;
+  optional bool esc_fl_wheel_speed_valid = 2;
+  optional uint32 esc_fl_wheel_direction = 3;
+  optional bool esc_fl_wheel_direction_valid = 4;
+  optional float esc_fl_whl_brk_pressure = 5;
+  optional float esc_fr_wheel_speed = 6;
+  optional bool esc_fr_wheel_speed_valid = 7;
+  optional uint32 esc_fr_wheel_direction = 8;
+  optional bool esc_fr_wheel_direction_valid = 9;
+  optional float esc_fr_whl_brk_pressure = 10;
+  optional float esc_rl_wheel_speed = 11;
+  optional bool esc_rl_wheel_speed_valid = 12;
+  optional uint32 esc_rl_wheel_direction = 13;
+  optional bool esc_rl_wheel_direction_valid = 14;
+  optional float esc_rr_wheel_speed = 15;
+  optional bool esc_rr_wheel_speed_valid = 16;
+  optional uint32 esc_rr_wheel_direction = 17;
+  optional bool esc_rr_wheel_direction_valid = 18;
+  optional float esc_fl_whl_pul_cnt = 19;
+  optional float esc_fr_whl_pul_cnt = 20;
+  optional float esc_rl_whl_pul_cnt = 21;
+  optional float esc_rr_whl_pul_cnt = 22;
+  optional bool esc_fl_whl_pul_cnt_valid = 23;
+  optional bool esc_fr_whl_pul_cnt_valid = 24;
+  optional bool esc_rl_whl_pul_cnt_valid = 25;
+  optional bool esc_rr_whl_pul_cnt_valid = 26;
+}
+
+message AlgEscDrivingInfo {
+  optional float esc_vehicle_speed = 1;
+  optional bool esc_vehicle_speed_valid = 2;
+  optional bool esc_brake_pedal_switch_status = 3;
+  optional bool esc_brake_pedal_switch_valid = 4;
+  optional float vehicle_spd_display = 5;
+  optional bool vehicle_spd_display_valid = 6;
+  optional float esc_long_acc_value = 7;
+  optional bool esc_long_acc_value_offset = 8;
+  optional bool esc_long_acc_value_valid = 9;
+  optional bool esc_long_acc_value_offset_valid = 10;
+  optional float esc_lat_acc_value = 11;
+  optional bool esc_lat_acc_value_offset = 12;
+  optional bool esc_lat_acc_value_valid = 13;
+  optional bool esc_lat_acc_value_offset_valid = 14;
+  optional float esc_yaw_rate = 15;
+  optional float esc_yaw_rate_offset = 16;
+  optional bool esc_yaw_rate_valid = 17;
+  optional bool esc_yaw_rate_offset_valid = 18;
+  optional float motor_speed = 19;
+  optional uint32 esc_apa_sts = 20;
+  optional bool esc_apa_stand_still = 21;
+}
+
+message AlgBodyStateInfo {
+  optional uint32 bcm_fl_dr_opn = 1;
+  optional uint32 bcm_fr_dr_opn = 2;
+  optional uint32 bcm_rl_dr_opn = 3;
+  optional uint32 bcm_rr_dr_opn = 4;
+  optional uint32 bcm_tg_opn = 5;
+  optional bool bcm_hod_open = 6;
+  optional uint32 bcm_drv_seatbelt_buckle_sta = 7;
+  optional uint32 bcm_front_wiper_st = 8;
+  optional uint32 bcm_high_beam_st = 9;
+  optional uint32 bcm_low_beam_st = 10;
+  optional uint32 hazard_lamp_st = 11;
+  optional bool bcm_front_fog_lamp_st = 12;
+  optional bool bcm_rear_fog_lamp_st = 13;
+  optional bool bcm_left_turn_light_st = 14;
+  optional bool bcm_right_turn_light_st = 15;
+  optional uint32 bcm_turn_light_sw = 16;
+  optional bool turn_left_lamp_failed_sts = 17;
+  optional bool turn_right_lamp_failed_sts = 18;
+}
+
+message AlgCenterConsoleInfo {
+  optional bool fcw_on_off_sw = 1;
+  optional bool fcw_on_off_sw_valid = 2;
+  optional bool aeb_on_off_sw = 3;
+  optional bool aeb_on_off_sw_valid = 4;
+  optional uint32 fcw_warn_distance_set = 5;
+  optional bool fcw_warn_distance_set_valid = 6;
+}
+
+message AlgParkInfo {
+  optional uint32 epb_status = 1;
+  optional uint32 eps_inhibit_code = 2;
+  optional bool eps_fail_sts = 3;
+  optional bool eps_interfer_dectvalidity = 4;
+  optional bool eps_tot_torq_valid = 5;
+  optional bool master_cyl_pressure_invalid = 6;
+  optional bool abs_fail = 7;
+  optional bool ebd_fail = 8;
+  optional bool esc_fail = 9;
+  optional bool tcs_fail = 10;
+  optional bool eps_toi_act = 11;
+  optional bool eps_toi_fault = 12;
+}
+
+message AlgSWSwitchInfo {
+  optional bool swsm_a_lka_sys_sw_sts = 1;
+  optional bool swsm_a_cruise_sw_sts = 2;
+  optional bool swsm_a_cruise_cancel_sw_sts = 3;
+  optional bool swsm_a_cruise_distance_sw_sts = 4;
+  optional bool swsm_a_res_plus_sw_sts = 5;
+  optional bool swsm_a_set_minus_sw_sts = 6;
+  optional bool region_a_sw_error = 7;
+}
+
+enum AlgChassisErrorCode {
+    AlgChassisErrorCode_NO_ERROR = 0;
+    AlgChassisErrorCode_CMD_NOT_IN_PERIOD = 1;
+    AlgChassisErrorCode_MANUAL_INTERVENTION = 2;
+    AlgChassisErrorCode_CHASSIS_CAN_NOT_IN_PERIOD = 3;
+    AlgChassisErrorCode_CHASSIS_ERROR_ON_STEER = 4;
+    AlgChassisErrorCode_CHASSIS_ERROR_ON_BRAKE = 5;
+    AlgChassisErrorCode_CHASSIS_ERROR_ON_THROTTLE = 6;
+    AlgChassisErrorCode_CHASSIS_ERROR_ON_GEAR = 7;
+    AlgChassisErrorCode_UNKNOW_ERROR = 8;
+}
+
+message AlgAvmPdsInfo {
+  optional uint32 cdcs3_x_coordinate = 1;
+  optional uint32 cdcs3_y_coordinate = 2;
+  optional uint32 cdcs3_x_gesture_spd = 3;
+  optional uint32 cdcs3_y_gesture_spd = 4;
+  optional uint32 cdcs3_touch_evt_typ = 5;
+  optional uint32 cdcs10_work_status = 6;
+  optional uint32 cdcs11_low_speed_bsd_sw = 7;
+  optional uint32 cdcs11_avm_3d_rotate = 8;
+  optional uint32 cdcs11_avm_turnlight_start = 9;
+  optional uint32 cdcs11_avm_steering_start = 10;
+  optional uint32 cdcs11_avm_magnified_view = 11;
+  optional uint32 cdcs11_avm_mod_detection = 12;
+  optional uint32 cdcs11_gm_on_off_set = 13;
+  optional uint32 cdcs11_avm_auxiliary_line = 14;
+  optional uint32 cdcs11_avm_rader_display = 15;
+  optional uint32 cdcs11_avm_transparent_chassis = 16;
+  optional uint32 cdcs11_gm_vided_in = 17;
+  optional uint32 cdcs11_apa_function_mode = 18;
+  optional uint32 cdcs11_track_reverse_sw = 19;
+  optional uint32 cdcs11_set_pathway_sw = 20;
+  optional uint32 cdcs11_avm_sw = 21;
+  optional uint32 cdcs11_rpa_sw = 22;
+  optional uint32 cdcs11_set_sw = 23;
+  optional uint32 cdcs11_location_sw = 24;
+  optional uint32 cdcs11_path_refresh = 25;
+  optional uint32 cdcs11_hpa_guide_sw = 26;
+  optional uint32 cdcs11_hpa_pathway_to_cloud_sw = 27;
+  optional uint32 cdcs11_path_learning_sw = 28;
+  optional uint32 cdcs11_pa_sw = 29;
+  optional uint32 cdcs11_pa_recover = 30;
+  optional uint32 cdcs11_select_slot_id = 31;
+  optional uint32 cdcs11_parkingin_req = 32;
+  optional uint32 cdcs11_parkingout_req = 33;
+  optional uint32 cdcs11_avm_view_mode = 34;
+  optional uint32 cdcs11_rpa_function_mode = 35;
+  optional uint32 cdcs11_avm_initialization = 36;
+  optional uint32 cdcs11_avm_spe_view = 37;
+  optional uint32 cdcs11_avm_body_sync = 38;
+  optional uint32 cdcs11_avm_license_plate_abbr = 39;
+  optional uint32 cdcs11_avm_license_plate_area = 40;
+  optional uint32 cdcs11_avm_license_plate_no1 = 41;
+  optional uint32 cdcs11_avm_license_plate_no2 = 42;
+  optional uint32 cdcs11_avm_license_plate_no3 = 43;
+  optional uint32 cdcs11_avm_license_plate_no4 = 44;
+  optional uint32 cdcs11_avm_license_plate_no5 = 45;
+  optional uint32 cdcs11_avm_license_plate_no6 = 46;
+  optional uint32 cdcs11_avm_license_plate_no7 = 47;
+  optional uint32 cdcs11_avm_license_plate_no8 = 48;
+  optional uint32 cdcs11_avm_diaphaneity_sw = 49;
+  optional uint32 cdcs11_mod_sound_sw = 50;
+  optional uint32 cdcs11_mod_bsd_sw = 51;
+  optional uint32 cdcs11_pa_frs_on_off_set = 52;
+  optional uint32 cdcs11_pa_3d_on_off_set = 53;
+  optional uint32 cdcs11_pa_measure_on_off_set = 54;
+  optional uint32 cdcs11_mod_sw = 55;
+  optional uint32 cdcs11_hpa_sw = 56;
+  optional uint32 cdcs11_delete_map_id = 57;
+  optional uint32 cdcs11_upload_map_id = 58;
+  optional uint32 cdcs11_hpa_preparking_sw = 59;
+  optional uint32 cdcs11_hpa_pathway_to_cloud_work_sts = 60;
+  optional uint32 cdcs11_parkingout_slot_type = 61;
+  optional uint32 cdcs11_parkingout_slot_dire = 62;
+  optional uint32 cdcs11_optional_slot_type = 63;
+  optional uint32 cdcs11_optional_slot_dire = 64;
+  optional uint32 cdcs11_optional_slot_angle = 65;
+  optional uint32 cdcs11_optional_slot_coor_p0_x = 66;
+  optional uint32 cdcs11_optional_slot_coor_p0_y = 67;
+  optional uint32 cdcs11_optional_slot_coor_p1_x = 68;
+  optional uint32 cdcs11_optional_slot_coor_p1_y = 69;
+  optional uint32 cdcs11_optional_slot_coor_p2_x = 70;
+  optional uint32 cdcs11_optional_slot_coor_p2_y = 71;
+  optional uint32 cdcs11_optional_slot_coor_p3_x = 72;
+  optional uint32 cdcs11_optional_slot_coor_p3_y = 73;
+  optional uint32 ddcu1_fl_door_ajar = 74;
+  optional uint32 ddcu1_rl_door_ajar = 75;
+  optional uint32 pdcu1_fr_door_ajar = 76;
+  optional uint32 pdcu1_rr_door_ajar = 77;
+  optional uint32 btm1_security_sts = 78;
+  optional uint32 btm1_phone_bat_sts = 79;
+  optional uint32 btm1_remote_int_mod_sel = 80;
+  optional uint32 btm1_select_slot_id = 81;
+  optional uint32 btm1_retry = 82;
+  optional uint32 btm1_fixslot = 83;
+  optional uint32 btm1_parkingout_slot_dire = 84;
+  optional uint32 btm1_parkingout_slot_type = 85;
+  optional uint32 btm1_recover = 86;
+  optional uint32 btm1_parking_req = 87;
+  optional uint32 btm1_function_mode = 88;
+  optional uint32 btm1_optional_slot_dire = 89;
+  optional uint32 btm1_optional_slot_type = 90;
+  optional uint32 btm1_rolling_counter = 91;
+  optional uint32 btm1_remote_park_req = 92;
+  optional uint32 btm1_movectrl = 93;
+  optional uint32 btm1_checksum = 94;
+  optional uint32 btm1_optional_slot_angle = 95;
+  optional uint32 btm1_optional_slot_coor_p0_x = 96;
+  optional uint32 btm1_optional_slot_coor_p0_y = 97;
+  optional uint32 btm1_optional_slot_coor_p1_x = 98;
+  optional uint32 btm1_optional_slot_coor_p1_y = 99;
+  optional uint32 btm1_optional_slot_coor_p2_x = 100;
+  optional uint32 btm1_optional_slot_coor_p2_y = 101;
+  optional uint32 btm1_optional_slot_coor_p3_x = 102;
+  optional uint32 btm1_optional_slot_coor_p3_y = 103;
+  optional uint32 tbox2_avm_on_req = 104;
+  optional uint32 tbox2_remote_park_start_press_req_sts = 105;
+  optional uint32 tbox2_remote_hpp = 106;
+  optional uint32 tbox2_avm_view_req = 107;
+  optional uint32 tbox2_remote_park_req = 108;
+  optional uint32 tbox2_security_sts = 109;
+  optional uint32 tbox2_connect_sts = 110;
+  optional uint32 tbox2_phone_in_car = 111;
+  optional uint32 tbox2_remote_park_abort_req = 112;
+  optional uint32 tbox2_remote_park_start_press_req = 113;
+  optional uint32 tbox2_remote_park_out_mod_sel = 114;
+  optional uint32 tbox2_phone_bat_sts = 115;
+  optional uint32 tbox2_remote_int_mod_sel = 116;
+  optional uint32 tbox2_remote_sw = 117;
+  optional uint32 tbox2_remote_ctr_mod_sel = 118;
+  optional uint32 tbox2_remote_ctr_sw = 119;
+  optional uint32 tbox2_remote_pick = 120;
+  optional uint32 tbox2_nns_suspend = 121;
+  optional uint32 tbox2_remote_vh_power = 122;
+  optional uint32 tbox2_nrp_req = 123;
+  optional uint32 tbox2_sdmap_req = 124;
+  optional uint32 tbox2_nns_sw = 125;
+  optional uint32 tbox2_rolling_counter = 126;
+  optional uint32 tbox2_checksum = 127;
+  optional uint32 tbox2_gm_on_req = 128;
+  optional uint32 tbox2_360_view_req = 129;
+  optional uint32 tbox2_360_spec_view = 130;
+  optional uint32 tbox2_pa_pause_recover_req = 131;
+  optional uint32 cdcs11_try_hpp = 132;
+  optional uint32 cdcs11_avm_diaphaneity = 133;
+  optional uint32 cdcs11_hpa_onpath_id1 = 134;
+  optional uint32 cdcs11_hpa_onpath_id2 = 135;
+  optional uint32 cdcs11_hpa_onpath_id3 = 136;
+  optional uint32 cdcs11_hpa_onpath_id4 = 137;
+  optional uint32 bdcs1_power_manage_mode = 138;
+  optional uint32 btm2_connect_sts = 139;
+  optional uint32 btm2_key_position = 140;
+  optional uint32 btm3_rke_cmd = 141;
+  optional uint32 bms3_state_of_charge = 142;
+  optional uint32 bms3_charge_state = 143;
+  optional uint32 bdcs13_rls_rq_wiper_spd = 144;
+  optional uint32 ddcu1_fl_win_pos = 145;
+  optional uint32 ddcu1_rl_win_pos = 146;
+  optional uint32 ddcu1_mirror_fold_st = 147;
+  optional uint32 pdcu1_fr_win_pos = 148;
+  optional uint32 pdcu1_rr_win_pos = 149;
+}
+
+message AlgChassisInfo {
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  optional bool is_valid = 3;
+  optional AlgVcuInfo vcu_info = 4;
+  optional AlgSteeringInfo steering_info = 5;
+  optional AlgWheelInfo wheel_info = 6;
+  optional AlgEscDrivingInfo esc_driving_info = 7;
+  optional AlgBodyStateInfo body_state_info = 8;
+  optional AlgCenterConsoleInfo center_console_info = 9;
+  optional AlgParkInfo park_info = 10;
+  optional AlgSWSwitchInfo swswitch_info = 11;
+  optional AlgChassisErrorCode error_code = 12;
+  optional AlgAvmPdsInfo avm_pds_info = 13;
+}
+
+message AlgEgoWarningInfo {
+  optional uint32 lca_right_warn_st = 1;
+  optional uint32 lca_fault_status = 2;
+  optional uint32 dow_state = 3;
+  optional uint32 dow_warn_audioplay = 4;
+  optional uint32 dow_left_warn_st = 5;
+  optional uint32 dow_right_warn_st = 6;
+  optional uint32 dow_fault_status = 7;
+  optional uint32 rcta_state = 8;
+  optional uint32 rcta_warn_audioplay = 9;
+  optional uint32 rcta_obj_type = 10;
+  optional uint32 rcta_left_warn_st = 11;
+  optional uint32 rcta_right_warn_st = 12;
+  optional uint32 rcta_fault_status = 13;
+  optional uint32 fcta_state = 14;
+  optional uint32 fcta_warn_audioplay = 15;
+  optional uint32 fcta_obj_type = 16;
+  optional uint32 fcta_left_warn_st = 17;
+  optional uint32 fcta_right_warn_st = 18;
+  optional uint32 fcta_fault_status = 19;
+  optional uint32 rcw_state = 20;
+  optional uint32 rcw_warn_audioplay = 21;
+  optional uint32 rcw_warn_st = 22;
+  optional uint32 rcw_fault_status = 23;
+  optional uint32 voice_mode = 24;
+}
+
+message AlgEgoParkHmiInfo {
+  optional uint32 pa_park_bar_percent = 1;
+  optional float pa_guideline_e_a = 2;
+  optional float pa_guideline_e_b = 3;
+  optional float pa_guideline_e_c = 4;
+  optional float pa_guideline_e_d = 5;
+  optional float pa_guideline_e_x_min = 6;
+  optional float pa_guideline_e_x_max = 7;
+  optional uint32 hour_of_day = 8;
+  optional uint32 minute_of_hour = 9;
+  optional uint32 second_of_minute = 10;
+  optional uint32 nns_distance = 11;
+  optional uint32 hpa_distance = 12;
+  optional uint32 parking_time_remaining = 13;
+}
+
+message AlgEgoHmiFrame {
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  optional bool is_valid = 3;
+  optional AlgEgoWarningInfo warnning_info = 4;
+  optional AlgEgoParkHmiInfo park_hmi_info = 5;
+}

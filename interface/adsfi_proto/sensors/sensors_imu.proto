@@ -1,0 +1,29 @@
+syntax = "proto2";
+
+package adsfi_proto.hz_Adsfi;
+
+import "adsfi_proto/common/types.proto";
+
+message ImuPose {
+  optional Point3d imu_position = 1;
+  optional Point3d euler_angle = 2;
+}
+
+message AlgIMU {
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  optional bool is_valid = 3;
+  optional uint32 gps_week = 4;
+  optional double gps_sec = 5;
+  optional Point3d angular_velocity = 6;
+  optional Point3d linear_acceleration = 7;
+  optional Point3d imu_vb_angular_velocity = 8;
+  optional Point3d imu_vb_linear_acceleration = 9;
+  optional uint32 imu_status = 10;
+  optional float temperature = 11;
+  optional Point3d gyro_offset = 12;
+  optional Point3d accel_offset = 13;
+  optional Point3d ins2ant_offset = 14;
+  optional ImuPose imu2body_osffet = 15;
+  optional float imu_yaw = 16;
+}

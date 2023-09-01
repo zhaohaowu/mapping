@@ -1,0 +1,304 @@
+syntax = "proto2";
+
+package adsfi_proto.hz_Adsfi;
+
+// 这个实际是在mdc_sdk/.../core/timer.h里定义的
+message HafTime {
+  optional uint32 sec = 1;
+  optional uint32 nsec = 2;
+}
+
+message AlgMatrix3f {
+  repeated float array = 1;
+}
+
+message AlgMatrix3d {
+  repeated double array = 1;
+}
+
+message AlgMatrix34f {
+  repeated float array = 1;
+}
+
+message AlgMatrix4f {
+  repeated float array = 1;
+}
+
+message AlgMatrix4d {
+  repeated double array = 1;
+}
+
+message Point2i {
+  optional int32 x = 1;
+  optional int32 y = 2;
+}
+
+message Point2f {
+  optional float x = 1;
+  optional float y = 2;
+}
+
+message Point2d {
+  optional double x = 1;
+  optional double y = 2;
+}
+
+message Point3i {
+  optional int32 x = 1;
+  optional int32 y = 2;
+  optional int32 z = 3;
+}
+
+message Point3f {
+  optional float x = 1;
+  optional float y = 2;
+  optional float z = 3;
+}
+
+message Point3d {
+  optional double x = 1;
+  optional double y = 2;
+  optional double z = 3;
+}
+
+message Point4i {
+  optional int32 x = 1;
+  optional int32 y = 2;
+  optional int32 z = 3;
+  optional int32 w = 4;
+}
+
+message Point4f {
+  optional float x = 1;
+  optional float y = 2;
+  optional float z = 3;
+  optional float w = 4;
+}
+
+message Point4d {
+  optional double x = 1;
+  optional double y = 2;
+  optional double z = 3;
+  optional double w = 4;
+}
+
+message AlgHeader {
+  optional uint32 seq = 1;
+  optional string frameID = 2;
+  optional HafTime timestamp = 3;
+  optional HafTime gnssStamp = 4;
+}
+
+message AlgRect2i {
+  optional Point2i topleft = 1;
+  optional Point2i size = 2;
+}
+
+message AlgRect2f {
+  optional Point2f topleft = 1;
+  optional Point2f size = 2;
+}
+
+message AlgRect2d {
+  optional Point2d topleft = 1;
+  optional Point2d size = 2;
+}
+
+message AlgRect3i {
+  optional Point3i center = 1;
+  optional Point3d center_std_dev = 2;
+  optional Point3i size_lwh = 3;
+  optional Point3d size_std_dev = 4;
+  optional double orientation = 5;
+  optional double orientation_std_dev = 6;
+  repeated Point3i corners = 7;
+}
+
+message AlgRect3f {
+  optional Point3f center = 1;
+  optional Point3d center_std_dev = 2;
+  optional Point3f size_lwh = 3;
+  optional Point3d size_std_dev = 4;
+  optional double orientation = 5;
+  optional double orientation_std_dev = 6;
+  repeated Point3f corners = 7;
+}
+
+message AlgRect3d {
+  optional Point3d center = 1;
+  optional Point3d center_std_dev = 2;
+  optional Point3d size_lwh = 3;
+  optional Point3d size_std_dev = 4;
+  optional double orientation = 5;
+  optional double orientation_std_dev = 6;
+  repeated Point3d corners = 7;
+}
+
+message AlgLine3f {
+  optional Point3f first = 1;
+  optional Point3f second = 2;
+}
+
+message AlgPolyline3f {
+  repeated Point3f points = 1;
+  optional uint32 point_count = 2;
+}
+
+message AlgAccel {
+  optional Point3f linear_raw_vrf = 1;
+  optional Point3f linear_vrf = 2;
+  optional Point3f angular_vrf = 3;
+}
+
+message AlgAccelWithCovariance {
+    optional AlgAccel linear_vrf = 1;
+    repeated float std = 2;
+}
+
+message AlgQuaternion {
+  optional float x = 1;
+  optional float y = 2;
+  optional float z = 3;
+  optional float w = 4;
+}
+
+message AlgPose {
+  optional Point3d position = 1;
+  optional AlgQuaternion quaternion = 2;
+  optional Point3f euler_angle = 3;
+  optional Point3f rotation_vrf = 4;
+  optional float heading = 5;
+}
+
+message AlgPoseWithCovariance {
+  optional AlgPose pose_wgs = 1;
+  optional AlgPose pose_local = 2;
+  optional AlgPose pose_gcj02 = 3;
+  optional AlgPose pose_utm_01 = 4;
+  optional AlgPose pose_utm_02 = 5;
+  optional uint32 utm_zone_id_01 = 6;
+  optional uint32 utm_zone_id_02 = 7;
+  repeated float std = 8;
+}
+
+message AlgTwist {
+  optional Point3f linear_vrf = 1;
+  optional Point3f angular_raw_vrf = 2;
+  optional Point3f angular_vrf = 3;
+}
+
+message AlgTwistWithCovariance {
+  optional AlgTwist twist_vrf = 1;
+  repeated float std = 2;
+}
+
+message AlgUint8WithValid {
+  optional uint32 value = 1;
+  optional uint32 confidence = 2;
+}
+
+message AlgFloat32WithValid {
+  optional float value = 1;
+  optional uint32 confidence = 2;
+}
+
+enum HafBufferType {
+  HAF_BUFFER_CPU = 0;
+  HAF_BUFFER_DVPP = 1;
+  HAF_BUFFER_AICORE = 2;
+}
+
+enum HafImageType {
+  HAF_IMAGE_RGB_UINT8 = 0;
+  HAF_IMAGE_BGR_UINT8 = 1;
+  HAF_IMAGE_YUV420SP_NV12_UINT8 = 2;
+  HAF_IMAGE_GRAY_UINT8 = 3;
+  HAF_IMAGE_RGB_FLOAT32 = 4;
+  HAF_IMAGE_BGR_FLOAT32 = 5;
+  HAF_IMAGE_YUV420SP_NV12_FLOAT32 = 6;
+  HAF_IMAGE_GRAY_FLOAT32 = 7;
+}
+
+message HafRoi {
+  optional uint32 left = 1;
+  optional uint32 top = 2;
+  optional uint32 right = 3;
+  optional uint32 bottom = 4;
+}
+
+message HafRoi2 {
+  optional HafRoi crop_area = 1;
+  optional HafRoi paste_area = 2;
+}
+
+message ImageDataV2 {
+  optional uint32 width = 1;
+  optional uint32 height = 2;
+  optional uint32 data_size = 3;
+  optional HafBufferType buffer_type = 4;
+  optional HafImageType image_type = 5;
+  optional uint32 seq = 6;
+  optional bytes raw_data = 7;
+}
+
+message ImageData {
+  optional uint32 width = 1;
+  optional uint32 height = 2;
+  optional uint32 data_size = 3;
+  optional HafBufferType buffer_type = 4;
+  optional HafImageType image_type = 5;
+  optional uint32 seq = 6;
+  optional bytes raw_data = 7;
+}
+
+message ImageFrameV2 {
+  optional HafTime timestamp = 1;
+  optional string frame_id = 2;
+  optional ImageDataV2 data = 3;
+}
+
+message ImageFrame {
+  optional HafTime timestamp = 1;
+  optional string frame_id = 2;
+  optional ImageData data = 3;
+  optional bool is_valid = 4;
+}
+
+message AlgGear {
+  optional uint32 value = 1;
+}
+
+message AlgEulerAngle3f {
+  optional float roll = 1;
+  optional float pitch = 2;
+  optional float yaw = 3;
+}
+
+enum AlgCoordinateType {
+  HAF_CAMERA_FRAME = 0;
+  HAF_LASER_FRAME = 1;
+}
+
+message PointWithRange {
+  optional float x = 1;
+  optional float y = 2;
+  optional float z = 3;
+  optional float range = 4;
+}
+
+message RangeImageData {
+  optional int32 width = 1;
+  optional int32 height = 2;
+  optional int32 data_size = 3;
+  optional float start_angle = 4;
+  optional float fov_angle = 5;
+  repeated PointWithRange range_image_data = 6;
+}
+
+message RangeImageFrame {
+  optional HafTime timestamp = 1;
+  optional uint32 seq = 2;
+  optional string frame_id = 3;
+  optional bool is_valid = 4;
+  optional RangeImageData data = 5;
+}

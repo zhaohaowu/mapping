@@ -1,0 +1,11 @@
+syntax = "proto2";
+
+package adsfi_proto.internal;
+
+import "adsfi_proto/common/types.proto";
+
+message RelocInfo {
+  optional adsfi_proto.hz_Adsfi.AlgHeader header = 1;
+  optional adsfi_proto.hz_Adsfi.Point3d position = 2;
+  optional adsfi_proto.hz_Adsfi.AlgQuaternion orient = 3;
+}

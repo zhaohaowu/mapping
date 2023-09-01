@@ -28,6 +28,7 @@ def parse_args():
     p.add_argument('--base', action='store_true', help='enable active compile submodule perception-base')
     p.add_argument('--comboard', action='store_true', help='enable active compile submodule perception-common-board')
     p.add_argument('--lib', action='store_true', help='enable active compile submodule perception-lib')
+    p.add_argument('--prefix', default='mapping_', help='prefix for all built libraries')
     # 默认值类型
     p.add_argument('--workspace', default=None, help='root of code repository')
     p.add_argument('-j', default=max(cpu_count() - 2, 1), dest="jobs", type=int, help='make -j')
@@ -77,19 +78,6 @@ def cmake_build(workspace, platform, build_directory, cmake_args, jobs, verbose=
             copy_header_files_by_path(workspace+"/depend/"+pkg_dir, workspace+"/depend/"+pkg_dir+"/release/"+platform+"/include/"+pkg_dir)
             copy_file(workspace+"/depend/"+pkg_dir+"/version.json", workspace+"/depend/"+pkg_dir+"/release/")
 
-    # if kwargs['base']:
-    #     sp.run('rm -rf {}'.format(workspace+"/depend/perception-base/release"), shell=1)
-    #     copy_header_files_by_path(workspace+"/depend/perception-base", workspace+"/depend/perception-base/release/"+platform+"/include/perception-base/")
-    #     copy_file(workspace+"/depend/perception-base/version.json", workspace+"/depend/perception-base/release/")
-    # if kwargs['comboard']:
-    #     sp.run('rm -rf {}'.format(workspace+"/depend/perception-common-onboard/release"), shell=1)
-    #     copy_header_files_by_path(workspace+"/depend/perception-common-onboard", workspace+"/depend/perception-common-onboard/release/"+platform+"/include/perception-common-onboard/")
-    #     copy_file(workspace+"/depend/perception-common-onboard/version.json", workspace+"/depend/perception-common-onboard/release/")
-    # if kwargs['lib']:
-    #     sp.run('rm -rf {}'.format(workspace+"/depend/perception-lib/release"), shell=1)
-    #     copy_header_files_by_path(workspace+"/depend/perception-lib", workspace+"/depend/perception-lib/release/"+platform+"/include/perception-lib/")
-    #     copy_file(workspace+"/depend/perception-lib/version.json", workspace+"/depend/perception-lib/release/")
-
     date_s = datetime.datetime.now()
     # cmake ..
     os.makedirs(build_directory, exist_ok=True)
@@ -114,9 +102,6 @@ def cmake_build(workspace, platform, build_directory, cmake_args, jobs, verbose=
         if kwargs[pkg]:
             lib_name = "lib"+pkg_lib+".so"
             copy_file(release_directory+"/"+platform+"/lib/"+lib_name, workspace+"/depend/"+pkg_dir+"/release/"+platform+"/lib")
-
-    # if kwargs['base']:
-    #     copy_file(release_directory+"/"+platform+"/lib/libperception-base.so", workspace+"/depend/perception-base/release/"+platform+"/lib")
 
 def mdc_build(workspace, platform, build_directory, release_directory, **kwargs):
     # download release package
@@ -159,6 +144,7 @@ def x86_build(workspace, platform, build_directory, release_directory, **kwargs)
     args['-DPLATFORM'] = 'X86'
     # args['-DENABLE_UT'] = 'FLASE' if not kwargs['ut'] else 'TRUE'
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
+    args['-DMAPPING_LIB_PREFIX'] = kwargs['prefix']
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"

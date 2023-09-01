@@ -1,0 +1,26 @@
+syntax = "proto2";
+
+package adsfi_proto.hz_Adsfi;
+
+import "adsfi_proto/common/types.proto";
+
+enum CoordType {
+  ENU_COORD = 0;
+  SLAM_COORD = 1;
+}
+
+message AlgLocation {
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  optional bool is_valid = 3;
+  optional uint32 gps_week = 4;
+  optional double gps_sec = 5;
+  optional int32 received_ehp_counter = 6;
+  optional CoordType coordinate_type = 7;
+  optional Point3f mounting_error = 8;
+  optional AlgPoseWithCovariance pose = 9;
+  optional AlgTwistWithCovariance velocity = 10;
+  optional AlgAccelWithCovariance acceleration = 11;
+  optional uint32 rtk_status = 12;
+  optional uint32 location_state = 13;
+}

@@ -1,0 +1,34 @@
+syntax = "proto2";
+
+package adsfi_proto.hz_Adsfi;
+
+import "adsfi_proto/common/types.proto";
+
+message AlgInsInfo {
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  optional bool is_valid = 3;
+  optional uint32 gps_week = 4;
+  optional double gps_sec = 5;
+  optional double latitude = 6;
+  optional double longitude = 7;
+  optional double altitude = 8;
+  optional Point3d attitude = 9;
+  optional Point3d linear_velocity = 10;
+  optional Point3d augular_velocity = 11;
+  optional Point3d linear_acceleration = 12;
+  optional float heading = 13;
+  optional Point3d mounting_error = 14;
+  optional Point3d sd_position = 15;
+  optional Point3d sd_attitude = 16;
+  optional Point3d sd_velocity = 17;
+  optional uint32 sys_status = 18;
+  optional uint32 gps_status = 19;
+  optional uint32 sensor_used = 20;
+  optional float wheel_velocity = 21;
+  optional float odo_sf = 22;
+  optional Point3d gyo_bias = 23;
+  optional Point3d gyo_sf = 24;
+  optional Point3d acc_bias = 25;
+  optional Point3d acc_sf = 26;
+}

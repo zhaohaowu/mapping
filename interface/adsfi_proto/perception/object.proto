@@ -1,0 +1,179 @@
+syntax = "proto2";
+
+package adsfi_proto.hz_Adsfi;
+
+import "adsfi_proto/common/types.proto";
+
+message Alg3dDetectionOutCamera {
+  optional uint32 object_id = 1;
+  optional uint32 type = 2;
+  optional uint32 sub_type = 3;
+  optional uint32 det_cam_sensor = 4;
+  optional float confidence = 5;
+  optional float exist_confidence = 6;
+  optional uint32 cipv_st = 7;
+  optional uint32 cipp_st = 8;
+  optional AlgRect3d rect = 9;
+  optional Point3d velocity = 10;
+  optional AlgMatrix3f velocity_uncertainty = 11;
+  optional uint32 age = 12;
+  optional float illuminant_distance = 13;
+  optional float value = 14;
+  optional uint32 mov_state = 15;
+  optional uint32 brake_light_st = 16;
+  optional uint32 turn_light_st = 17;
+  optional uint32 anchor_pt_info = 18;
+  repeated float associated_conf = 19;
+  repeated AlgRect3d detection_key_com_box = 20;
+  repeated AlgRect3d det_object_box = 21;
+  repeated uint32 detection_key_com_id = 22;
+  optional Point3d acceleration = 23;
+  optional AlgMatrix3f acceleration_uncertainty = 24;
+  optional HafTime time_creation = 25;
+  optional uint32 is_on_road = 26;
+  optional float on_road_prob = 27;
+  optional uint32 is_occluded = 28;
+  optional float occluded_prob = 29;
+  optional uint32 is_truncated = 30;
+  optional float truncated_prob = 31;
+  optional uint32 is_sprinkler = 32;
+  optional float sprinkler_prob = 33;
+}
+
+message Alg2dDetectionOutCamera {
+  optional uint32 object_id = 1;
+  optional uint32 type = 2;
+  optional int32 value = 3;
+  repeated AlgRect2d rect = 4;
+  repeated AlgRect2d reg_rect = 5;
+  repeated AlgRect2d detection_key_com_rect = 6;
+  repeated Point2f regress_points = 7;
+}
+
+enum MaintenanceType {
+  Maintenance_INVALID_FOR_PAD = 0;
+  Maintenance_NEW_CREATED = 1;
+  Maintenance_Coasted = 2;
+  Maintenance_Merge = 3;
+  Maintenance_Tracked = 4;
+}
+
+enum MotionType {
+  Motion_UNKNOWN = 0;
+  Motion_MOVING_EGODIRECTION_DRIVING = 1;
+  Motion_MOVING_EGODIRECTION_STOPPED = 2;
+  Motion_MOVING_EGODIRECTION_REVERSING = 3;
+  Motion_MOVING_ONCOMING = 4;
+  Motion_MOVING_CROSSING = 5;
+  Motion_STATIONARY = 6;
+}
+
+enum MotionHistoryType {
+  MotionHistory_UNKNOWN = 0;
+  MotionHistory_MOVING_EGODIRECTION_DRIVING = 1;
+  MotionHistory_MOVING_EGODIRECTION_STOPPED = 2;
+  MotionHistory_MOVING_EGODIRECTION_REVERSING = 3;
+  MotionHistory_MOVING_ONCOMING = 4;
+  MotionHistory_MOVING_CROSSING = 5;
+  MotionHistory_STATIONARY = 6;
+}
+
+enum SideType {
+  Side_FRONT = 0;
+  Side_REAR = 1;
+  Side_RIGHTSIDE = 2;
+  Side_LEFTSIDE = 3;
+}
+
+message AlgFusionOut {
+  optional uint32 object_id = 1;
+  optional uint32 type = 2;
+  optional uint32 detect_sensor_current = 3;
+  optional uint32 detect_sensor_history = 4;
+  optional MaintenanceType maintenance_status = 5;
+  optional float type_confidence = 6;
+  optional float existence_probability = 7;
+  optional AlgRect3d rect_info = 8;
+  optional Point3d velocity_abs = 9;
+  optional Point3d acceleration_abs = 10;
+  optional HafTime time_creation = 11;
+  optional HafTime last_updated_time = 12;
+  repeated uint32 sensor_id = 13;
+  optional MotionType motion_pattern = 14;
+  optional MotionHistoryType motion_pattern_history = 15;
+  optional uint32 brake_light_st = 16;
+  optional uint32 turn_light_st = 17;
+  optional SideType near_side = 18;
+  repeated float associated_conf = 19;
+  optional uint32 age = 20;
+}
+
+message AlgFusionOutArray {
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  optional uint32 obj_amount = 3;
+  optional uint32 loc_seq = 4;
+  repeated AlgFusionOut fusion_out = 5;
+  optional bool is_valid = 6;
+}
+
+message AlgDetectionOutArrayCamera {
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  optional uint32 sensor_status = 3;
+  repeated Alg3dDetectionOutCamera detection_out_3d = 4;
+  repeated Alg2dDetectionOutCamera detection_out_2d = 5;
+  optional float light_intensity = 6;
+  optional bool is_valid = 7;
+}
+
+message Point3fVec {
+  repeated Point3f point3f_vec = 1;
+}
+
+message Point2fVec {
+  repeated Point2f point2f_vec = 1;
+}
+
+enum MarkType {
+    Mark_BackGround = 0;
+    Mark_StraightArrow = 1;
+    Mark_LeftArrow = 2;
+    Mark_RightArrow = 3;
+    Mark_UturnArrow = 4;
+    Mark_Diamond = 5;
+    Mark_InvertedTriangle = 6;
+    Mark_Oppositemarks = 7;
+    Mark_StopLane = 8;
+    Mark_ZebraCrossing = 9;
+    Mark_NoParkingArea = 10;
+    Mark_GoreArea = 11;
+    Mark_GroundWords = 12;
+    Mark_DecelerationLine = 13;
+    Mark_SpeedBump = 14;
+    Mark_Pole = 15;
+}
+
+message RoadMark {
+  optional int32 id = 1;
+  optional float longitude_dist = 2;
+  optional float lateral_dist = 3;
+  repeated Point3fVec polygon = 4;
+  repeated Point2fVec imagerect = 5;
+  optional MarkType type = 6;
+  optional float confidence = 7;
+}
+
+enum SigFusionType {
+  SigFusion_CAMERA = 0;
+  SigFusion_CAM_MAP = 1;
+  SigFusion_OTHER = 2;
+}
+
+message AlgObjSignalArray {
+  optional uint64 timestamp_us = 1;
+  optional AlgHeader header = 2;
+  repeated RoadMark road_marks = 3;
+  optional SigFusionType fusion_type = 4;
+  optional bool is_valid = 5;
+}

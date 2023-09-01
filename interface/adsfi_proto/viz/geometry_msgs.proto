@@ -1,0 +1,85 @@
+syntax = "proto2";
+
+package adsfi_proto.viz;
+
+import "adsfi_proto/common/types.proto";
+
+message Point {
+    optional double x = 1;
+    optional double y = 2;
+    optional double z = 3;
+}
+
+message Point32 {
+    optional float x = 1;
+    optional float y = 2;
+    optional float z = 3;
+}
+
+message Quaternion {
+    optional double x = 1;
+    optional double y = 2;
+    optional double z = 3;
+    optional double w = 4;
+}
+
+message Pose {
+    optional Point position = 1;
+    optional Quaternion orientation = 2;
+}
+
+message PoseStamped {
+    optional adsfi_proto.hz_Adsfi.AlgHeader header = 1;
+    optional Pose pose = 2;
+}
+
+message PoseWithCovariance {
+    optional Pose pose = 1;
+    repeated double covariance = 2;
+}
+
+message Vector3 {
+    optional double x = 1;
+    optional double y = 2;
+    optional double z = 3;
+}
+
+message Twist {
+    optional Vector3 linear = 1;
+    optional Vector3 angular = 2;
+}
+
+message TwistWithCovariance {
+    optional Twist twist = 1;
+    repeated double covariance = 2;
+}
+
+message TwistStamped {
+    optional adsfi_proto.hz_Adsfi.AlgHeader header = 1;
+    optional Twist twist = 2;
+}
+
+message Transform {
+    optional Vector3 translation = 1;
+    optional Quaternion rotation = 2;
+}
+
+message TransformStamped {
+    optional adsfi_proto.hz_Adsfi.AlgHeader header = 1;
+    optional string child_frame_id = 2;
+    optional Transform transform = 3;
+}
+
+message Polygon {
+    repeated Point points = 1;
+}
+
+message PolygonStamped {
+    optional adsfi_proto.hz_Adsfi.AlgHeader header = 1;
+    optional Polygon polygon = 2;
+}
+
+message PoseArray {
+    optional adsfi_proto.hz_Adsfi.AlgHeader header = 1;
+    repeated Pose poses = 2;
+}

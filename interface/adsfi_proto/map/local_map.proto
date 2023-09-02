@@ -1,0 +1,81 @@
+syntax = "proto2";
+
+message LocalMap {
+    optional double timestamp = 1;
+    repeated LineInfo lines = 2;            //车道边线
+    repeated LineInfo edges = 3;            //路沿
+}
+
+//车道线信息
+message LineInfo {
+    optional LineType         linetype = 1;        //车道线线型
+    optional LinePositionType linepos = 2;         //车道线相对ego位置
+    repeated LinePoint        points = 3;          //车道线边线点坐标
+    optional LineCubicSpline  lane_param = 4;      //车道线参数
+    optional float            confidence = 5;      //置信度
+    optional int32            track_id = 6;        //车道线踪编号
+    optional LineUseType      use_type = 7;        //车道线生成来源
+}
+
+// 线类型
+enum LineType {
+    LineType_Unknown                   = 0;     //未知
+    LineType_SolidLine                 = 1;     //单实线
+    LineType_DashedLine                = 2;     //单虚线
+    LineType_ShortDashedLine           = 3;     //短虚线
+    LineType_DoubleSolidLine           = 4;     //双实线
+    LineType_DoubleDashedLine          = 5;     //双虚线
+    LineType_LeftSolidRightDashed      = 6;     //左实右虚
+    LineType_RightSolidLeftDashed      = 7;     //右实左虚
+    LineType_ShadedArea                = 8;     //导流线
+    LineType_LaneVirtualMarking        = 9;     //车道虚拟线
+    LineType_IntersectionVirualMarking = 10;    //路口虚拟线
+    LineType_CurbVirtualMarking        = 11;    //路边缘虚拟线
+    LineType_UnclosedRoad              = 12;    //非封闭路段线
+    LineType_RoadVirtualLine           = 13;    //道路虚拟线
+    LineType_LaneChangeVirtualLine     = 14;
+    LineType_Other                     = 99;    //其他
+}
+
+enum LinePositionType {
+    BOLLARD_LEFT = -5;
+    FOURTH_LEFT = -4;
+    THIRD_LEFT = -3;
+    ADJACENT_LEFT = -2;  //ego左边第二个
+    EGO_LEFT = -1;       //ego左边
+    EGO_RIGHT = 1;       //ego右边
+    ADJACENT_RIGHT = 2;  //ego又边第二个
+    THIRD_RIGHT = 3;
+    FOURTH_RIGHT = 4;
+    BOLLARD_RIGHT = 5;
+    OTHER = 6;
+}
+
+enum LineUseType {
+    REAL = 0;
+    VIRTUAL = 1;
+}
+
+message LinePoint {
+    repeated Point3D point = 1;      //车道边线的点坐标
+}
+
+message LineCubicSpline {
+    repeated Point3D control_point_set = 1;
+    repeated LineCubicCurve cubic_curve_set = 2;
+}
+  
+message LineCubicCurve {
+    optional Point3D start_point = 1;
+    optional Point3D end_point = 2;
+    optional float c0 = 3;
+    optional float c1 = 4;
+    optional float c2 = 5;
+    optional float c3 = 6;
+}
+
+message Point3D {
+    optional double x = 1;
+    optional double y = 2;
+    optional double z = 3;
+}

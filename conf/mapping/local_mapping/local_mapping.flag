@@ -1,0 +1,8 @@
+--lm_config=conf/mapping/local_mapping/local_mapping_conf.yaml
+--location_topic=/location
+--dr_topic=/dr_location
+--laneline_topic=/cam_post_laneline
+--roadedge_topic=/lidar_roadedge
+--output_topic=/local_map
+--v=2
+--alsologtostderr

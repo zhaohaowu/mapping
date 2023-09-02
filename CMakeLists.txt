@@ -105,6 +105,7 @@ install(
     DESTINATION ${CMAKE_INSTALL_PREFIX}
 )
 
+# 打包cyber环境
 if(MIDDLEWARE MATCHES CYBER)
     install(
         # 注意结尾的斜杠/，这可以使目录重命名到目标路径

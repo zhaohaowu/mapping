@@ -87,3 +87,22 @@ cyber的`CYBER_PATH`就是`release/cyber`，因此在dag文件及launch文件里
   </module>
 </cyber>
 ```
+
+### RvizBridge相关
+
+当前工程默认不编`RvizBridge`，如要使用，执行编译脚本时需加上参数`--rviz`：
+
+```shell
+bash build.sh --rviz x86
+```
+
+编译完成后会打包在`release/ros`下，通过下面命令拉起：
+
+```shell
+cd release/ros
+source setup.bash
+# 注意rviz配置文件须指定绝对路径
+roslaunch rviz_bridge rviz_bridge.launch abs_rviz_conf:=/{absolute-path-to}/xxx.rviz
+```
+
+可视化地址`viz_addrs`在`tools/rviz_bridge/launch/rviz_bridge.launch`里修改、增加。

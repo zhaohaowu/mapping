@@ -29,6 +29,7 @@ def parse_args():
     p.add_argument('--comboard', action='store_true', help='enable active compile submodule perception-common-board')
     p.add_argument('--lib', action='store_true', help='enable active compile submodule perception-lib')
     p.add_argument('--prefix', default='mapping_', help='prefix for all built libraries')
+    p.add_argument('--rviz', action='store_true', help='enable building targets for using rviz')
     # 默认值类型
     p.add_argument('--workspace', default=None, help='root of code repository')
     p.add_argument('-j', default=max(cpu_count() - 2, 1), dest="jobs", type=int, help='make -j')
@@ -124,6 +125,8 @@ def mdc_build(workspace, platform, build_directory, release_directory, **kwargs)
     args['-DCMAKE_BUILD_TYPE'] = "Release" if kwargs['release'] else "Debug"
     args['-DPLATFORM'] = 'MDC'
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
+    args['-DMAPPING_LIB_PREFIX'] = kwargs['prefix']
+    args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
@@ -145,6 +148,7 @@ def x86_build(workspace, platform, build_directory, release_directory, **kwargs)
     # args['-DENABLE_UT'] = 'FLASE' if not kwargs['ut'] else 'TRUE'
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
     args['-DMAPPING_LIB_PREFIX'] = kwargs['prefix']
+    args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
@@ -168,6 +172,8 @@ def orin_build(workspace, platform, build_directory, release_directory, **kwargs
     args['-DPLATFORM'] = 'ORIN'
     # args['-DENABLE_UT'] = 'FLASE' if not kwargs['ut'] else 'TRUE'
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
+    args['-DMAPPING_LIB_PREFIX'] = kwargs['prefix']
+    args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
@@ -227,6 +233,15 @@ def start_copy_head(platform):
 def make_package(platform):
     start_copy_head(platform)
 
+def build_rviz_bridge(workspace, jobs):
+    LOG_INFO("Build rviz_bridge")
+    build_dir = osp.join(workspace, 'tools', 'rviz_bridge', 'build')
+    os.makedirs(build_dir, exist_ok=True)
+    os.chdir(build_dir)
+    cmd = 'cmake .. && make -j{} && make install'.format(jobs)
+    execute_shell(cmd)
+    os.chdir(workspace)
+
 def clean(workspace):
     build_list=["Debug", "Release", "release", "build", "output"]
     for dir in build_list:
@@ -276,6 +291,8 @@ if __name__ == '__main__':
     elif platform == 'x86':
         x86_build(workspace, platform, build_directory, release_directory, **kwargs)
         make_package(platform)
+        if kwargs['rviz']:
+            build_rviz_bridge(workspace, kwargs['jobs'])
     elif platform == 'orin':
         orin_build(workspace, platform, build_directory, release_directory, **kwargs)
         make_package(platform)

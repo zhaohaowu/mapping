@@ -13,16 +13,16 @@
 #include <adsfi_proto/vehicle/chassis_info.pb.h>
 #include <cyber/cyber.h>
 
-#include "map_fusion/map_fusion.h"
-
 namespace hozon {
 namespace mp {
 namespace mf {
 
+class MapFusion;
+
 class MapFusionComponent final : public apollo::cyber::Component<> {
  public:
   MapFusionComponent() = default;
-  ~MapFusionComponent() = default;
+  ~MapFusionComponent();
 
  public:
   bool Init() override;

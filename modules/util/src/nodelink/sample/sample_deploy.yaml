@@ -1,0 +1,24 @@
+  %YAML:1.0
+
+  nodes:
+    - name: SampleFoo
+      conf: "../modules/nodelink/sample/sample_foo.yaml"
+      lib: "modules/nodelink/sample/liblocalization_nodelink_sample.so"
+    - name: SampleBar
+      conf: ""
+      lib: "modules/nodelink/sample/liblocalization_nodelink_sample.so"
+
+  rtfbag: &rtfbag tcp://127.0.0.1:9400
+  rviz_bridge: &rviz_bridge tcp://127.0.0.1:9500
+
+  # 从外部进程订阅消息，留空表示不从外部订阅；外部进程需要bind到所列地址之一
+  sub_from_external: [
+    *rtfbag,
+    tcp://127.0.0.1:9200
+  ]
+
+  # 向外部进程发布消息，留空表示不向外部发布；外部进程需要connect到所列地址之一
+  pub_to_external: [
+    *rviz_bridge,
+    tcp://127.0.0.1:9300
+  ]

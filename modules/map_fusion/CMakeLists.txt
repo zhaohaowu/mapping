@@ -9,6 +9,9 @@ set(MAP_FUSION_SRCS
 )
 
 add_mapping_library(mf ${MAP_FUSION_SRCS})
+target_link_libraries(mf
+    util
+)
 
 install(
     TARGETS mf

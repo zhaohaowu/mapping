@@ -1,0 +1,176 @@
+/**
+ * Define hdmap localizaiton protobuf informations used by fusion algorithm.
+ * Including lane lines, traffic signs, poles and road markings etc.
+ * protoc version : 3.5.1
+ */
+
+// [START declaration]
+syntax = "proto2";
+
+package adsfi_proto.internal;
+
+import "adsfi_proto/common/types.proto";
+
+message SubMap {
+  enum LinearObjectType {
+    LinearObjectType_Unknown         = 0;
+    LinearObjectType_Centerline      = 1;
+    LinearObjectType_LaneMarking     = 2;
+    LinearObjectType_Guardrail       = 3;
+    LinearObjectType_Fence           = 4;
+    LinearObjectType_Kerb            = 5;
+    LinearObjectType_Wall            = 6;
+    LinearObjectType_MMetalGuardrail = 7;
+    LinearObjectType_CPureConcrete   = 8;
+    LinearObjectType_POtherGuardrail = 9;
+    LinearObjectType_MCurb           = 10;
+    LinearObjectType_CCurb           = 11;
+    LinearObjectType_PCurb           = 12;
+    LinearObjectType_PureNature      = 13;
+    LinearObjectType_PureCurb        = 14;
+    LinearObjectType_WallFlat        = 15;
+    LinearObjectType_WallTunnel      = 16;
+    LinearObjectType_Canopy          = 17;
+    LinearObjectType_Other           = 99;
+  }
+
+  // 线类型
+  enum LineType {
+    LineType_Unknown                   = 0;   // 未知
+    LineType_SolidLine                 = 1;   // 单实线
+    LineType_DashedLine                = 2;   // 单虚线
+    LineType_ShortDashedLine           = 3;   // 短虚线
+    LineType_DoubleSolidLine           = 4;   // 双实线
+    LineType_DoubleDashedLine          = 5;   // 双虚线
+    LineType_LeftSolidRightDashed      = 6;   // 左实右虚
+    LineType_RightSolidLeftDashed      = 7;   // 右实左虚
+    LineType_ShadedArea                = 8;   // 导流线
+    LineType_LaneVirtualMarking        = 9;   // 车道虚拟线
+    LineType_IntersectionVirualMarking = 10;  // 路口虚拟线
+    LineType_CurbVirtualMarking        = 11;  // 路边缘虚拟线
+    LineType_UnclosedRoad              = 12;  // 非封闭路段线
+    LineType_RoadVirtualLine           = 13;  // 道路虚拟线
+    LineType_LaneChangeVirtualLine     = 14;
+    LineType_Other                     = 99;  // 其他
+  }
+
+  // 交通标识形状
+  enum TrafficSignShape{
+    SignShape_Unknown     = 0;   // 未知
+    SignShape_Rectangle   = 1;   // 长方形
+    SignShape_Triangle    = 2;   // 三角形
+    SignShape_Round       = 3;   // 圆形
+    SignShape_Diamond     = 4;   // 菱形
+    SignShape_Hexagon     = 5;   // 六边形
+    SignShape_Octagon     = 6;   // 八角形
+    SignShape_Furcation   = 7;   // 叉形
+    SignShape_Combination = 8;   // 混合形
+    SignShape_Other       = 99;  // 其他
+  }
+
+  // 杆类型
+  enum PoleSignType {
+    PoleSignType_Unknown = 0;   // 未知
+    PoleSignType_Gantry = 1;    // 龙门架
+    PoleSignType_SignPost = 2;  // 悬臂
+    PoleSignType_Signal = 4;    // 信号灯杆
+    PoleSignType_Other = 99;    // 其他
+  }
+
+  // 路面标识类型
+  enum RoadMarkingType {
+    RoadSurfaceSignType_Unknown = 0;                  // 未知
+    RoadSurfaceSignType_Text = 1;                     // 文本
+    RoadSurfaceSignType_Straight = 2;                 // 直行
+    RoadSurfaceSignType_StraightOrLeft = 3;           // 直行或左转
+    RoadSurfaceSignType_StraightOrRight = 4;          // 直行或右转
+    RoadSurfaceSignType_StraightUTurn = 5;            // 直行或掉头
+    RoadSurfaceSignType_LeftTurn = 6;                 // 左转
+    RoadSurfaceSignType_LeftTurnUTurn = 7;            // 左转或掉头
+    RoadSurfaceSignType_LeftTurnAndInterflow = 8;     // 左弯或向左合流
+    RoadSurfaceSignType_RightTurn = 9;                // 右转
+    RoadSurfaceSignType_RightTurnAndInterflow = 10;   // 右弯或向右合流
+    RoadSurfaceSignType_LeftRightTurn = 11;           // 右转掉头
+    RoadSurfaceSignType_UTurn = 12;                   // 掉头
+    RoadSurfaceSignType_NoLeftTurn = 13;              // 禁止左转
+    RoadSurfaceSignType_NoRightTurn = 14;             // 禁止右转
+    RoadSurfaceSignType_NoUTurn = 15;                 // 禁止掉头
+    RoadSurfaceSignType_StraightLeftRight = 16;       // 直行或左转或右转
+    RoadSurfaceSignType_StraightULeft = 17;           // 直行或掉头或左转
+    RoadSurfaceSignType_RightUTurn = 18;              // 右转或掉头
+    RoadSurfaceSignType_MaxSpeedLimit = 19;           // 最大速度
+    RoadSurfaceSignType_MinSpeedLimit = 20;           // 最小速度
+    RoadSurfaceSignType_Time = 21;                    // 时间
+    RoadSurfaceSignType_CheckFollowingDistance = 22;  // 车距确认线
+    RoadSurfaceSignType_StopToGiveway = 23;           // 停车让行线
+    RoadSurfaceSignType_SlowdownToGiveway = 24;       // 减速让行线
+    RoadSurfaceSignType_StopMark = 25;                // 停车标记线
+    RoadSurfaceSignType_Nets = 26;                    // 网状线
+    RoadSurfaceSignType_Other = 99;                   // 其他
+  }
+
+  // WGS84坐标系下经纬高
+  message WGS84Point {
+    required double latitude = 1;   // 纬度(°)
+    required double longitude = 2;  // 经度(°)
+    required double altitude = 3;   // 海拔高(m)
+  }
+
+  message LineGeometryValueAttribute {
+    required float curvature = 1;     // 车道中心线曲率(·1/m)
+    required float slope = 2;         // 车道中心线纵坡(°)
+    required float banking = 3;       // 车道中心线横坡(°)
+    required float headingAngle = 4;  // 车道中心线航向(°)
+  }
+
+  // 车道中心线信息
+  message LanePoint {
+    required WGS84Point wgs84_point = 1;  //车道中心线点坐标
+    required LineGeometryValueAttribute attribute = 2;
+  }
+
+  message LaneInfo {
+    required uint32 global_id = 1;  // 车道中心线编号
+    repeated LanePoint points = 2;  // 车道中心线的点位信息
+  }
+
+  message LinePoint {
+    required WGS84Point wgs84_point = 3;  // 车道边线的点坐标
+  }
+
+  // 车道线信息
+  message LineInfo {
+    required uint32 global_id = 1;   // 车道中心线编号
+    optional LineType linetype = 2;  // 车道线线型
+    repeated LinePoint points = 3;   // 车道线边线点坐标
+  }
+
+  // 交通标识牌信息
+  message TrafficSign {
+    required TrafficSignShape shape = 1;  // 标识牌形状
+    required WGS84Point position = 2;     // 标识牌位置
+    repeated WGS84Point bounding_box = 3; // 标识牌box角点坐标
+  }
+
+  // 杆信息
+  message Pole {
+    required PoleSignType type = 1;     // 杆类型
+    required float relativeHeight = 2;  // 相对高度(M)
+    required WGS84Point position = 3;   // 杆位置
+  }
+
+  // 路面标识信息
+  message RoadMarking {
+    required RoadMarkingType type = 1;     // 路面标识类型
+    required WGS84Point position = 2;      // 路面标示位置
+    repeated WGS84Point bounding_box = 3;  // 路面标识box角点坐标
+  }
+
+  required adsfi_proto.hz_Adsfi.AlgHeader header = 1;
+  repeated LaneInfo lanes = 2;             // 车道中心线
+  repeated LineInfo lines = 3;             // 车道边线
+  repeated LineInfo edges = 4;             // 车道边线
+  repeated TrafficSign traffic_signs = 5;  // 交通标识牌
+  repeated Pole poles = 6;                 // 杆
+  repeated RoadMarking road_markings = 7;  // 路面标识
+}

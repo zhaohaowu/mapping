@@ -156,10 +156,10 @@ message AlgAccelWithCovariance {
 }
 
 message AlgQuaternion {
-  optional float x = 1;
-  optional float y = 2;
-  optional float z = 3;
-  optional float w = 4;
+  optional double x = 1;
+  optional double y = 2;
+  optional double z = 3;
+  optional double w = 4;
 }
 
 message AlgPose {

@@ -17,9 +17,14 @@ set(RVIZ_AGENT_SRCS
     src/rviz_agent/rviz_agent.cc
 )
 
+set(GEO_SRCS
+   src/geo.cc
+)
+
 set(UTIL_SRCS
     ${NODELINK_SRCS}
     ${RVIZ_AGENT_SRCS}
+    ${GEO_SRCS}
 )
 
 add_mapping_library(util ${UTIL_SRCS})

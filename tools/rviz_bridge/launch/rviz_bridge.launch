@@ -4,7 +4,8 @@
         ipc:///tmp/rviz_agent_dr,
         ipc:///tmp/rviz_agent_lm,
         ipc:///tmp/rviz_agent_loc,
-        ipc:///tmp/rviz_agent_mf
+        ipc:///tmp/rviz_agent_mf,
+        ipc:///tmp/rviz_agent_local_map
     ]"/>
 
 <!-- rviz_bridge在本机，业务在远端（上海MDC台架-930） -->

@@ -5,20 +5,24 @@
  *****************************************************************************/
 #pragma once
 
+#include <Eigen/Dense>
 #include <iostream>
 #include <memory>
+#include <vector>
 
-#include "interface/adsfi_proto/location/location.pb.h"
-#include "interface/adsfi_proto/map/local_map.pb.h"
-#include "interface/adsfi_proto/perception/lanes.pb.h"
-#include "modules/local_mapping/local_mapping.h"
+#include "modules/local_mapping/lib/ops/lane/lane_op.h"
+#include "modules/local_mapping/lib/types/common.h"
+#include "modules/local_mapping/lib/utils/common.h"
+#include "modules/local_mapping/lib/utils/data_convert.h"
+#include "modules/local_mapping/lib/utils/map_manager.h"
+#include "util/temp_log.h"
 
 namespace hozon {
 namespace mp {
 namespace lm {
 class LMapApp {
  public:
-  LMapApp() = default;
+  LMapApp();
 
   /**
    * @brief receive location message
@@ -63,6 +67,19 @@ class LMapApp {
    * @return `true` for fetching success, `false` for failed
    */
   bool FetchLocalMap(std::shared_ptr<LocalMap> local_map);
+
+ private:
+  std::shared_ptr<LaneOp> laneOp_;
+  std::shared_ptr<MapManager> mmgr_;
+
+  std::shared_ptr<std::vector<LocalMapLane>> map_lanes_;
+  std::shared_ptr<Location> latest_location_;
+  std::shared_ptr<Location> latest_dr_;
+  std::shared_ptr<Lanes> latest_lanes_;
+  std::shared_ptr<std::vector<LaneMatchInfo>> lane_matches_;
+  std::shared_ptr<std::vector<Eigen::Vector3d>> new_lane_pts_;
+  double map_init_timestamp_;
+  Eigen::Matrix4d init_T_, lasted_T_, T_V_W_;
 };
 
 }  // namespace lm

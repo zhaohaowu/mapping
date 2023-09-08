@@ -8,13 +8,13 @@
 #include <memory>
 
 #include "cyber/component/component.h"
-#include "modules/local_mapping/local_mapping.h"
+#include "modules/local_mapping/lib/local_mapping.h"
 
 namespace hozon {
 namespace mp {
 namespace lm {
 class LMapComponent : public apollo::cyber::Component<> {
-  public:
+ public:
   LMapComponent() = default;
 
   /**

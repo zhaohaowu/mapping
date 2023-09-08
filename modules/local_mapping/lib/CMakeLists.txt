@@ -10,6 +10,7 @@ add_mapping_library(lmap_core SHARED ${LM_SRCS})
 
 target_link_libraries(lmap_core
   adsfi_proto
+  util
 )
 
 set_target_properties(lmap_core PROPERTIES LINKER_LANGUAGE CXX)

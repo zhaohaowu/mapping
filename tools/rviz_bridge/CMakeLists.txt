@@ -28,6 +28,8 @@ include_directories(
     ${REPO_ROOT}/release/x86/include/mapping/modules/util/include
     ${REPO_ROOT}/depend/third_party/x86/protobuf/include
     ${REPO_ROOT}/depend/third_party/x86/zmq/include
+    ${REPO_ROOT}/depend/third_party/x86/gflags/include
+    ${REPO_ROOT}/depend/third_party/x86/glog/include
     ${catkin_INCLUDE_DIRS}
 )
 
@@ -35,6 +37,8 @@ link_directories(
     ${REPO_ROOT}/release/x86/lib
     ${REPO_ROOT}/depend/third_party/x86/protobuf/lib
     ${REPO_ROOT}/depend/third_party/x86/zmq/lib
+    ${REPO_ROOT}/depend/third_party/x86/gflags/lib
+    ${REPO_ROOT}/depend/third_party/x86/glog/lib
 )
 
 add_executable(rviz_bridge
@@ -66,6 +70,8 @@ set(PREPARE_FOR_ROS_SHELL "
     mkdir -p ros
     cp -r -d x86/lib/libmapping_* ros/lib
     cp -r -d ../depend/third_party/x86/protobuf/lib/lib* ros/lib
+    cp -r -d ../depend/third_party/x86/gflags/lib/lib* ros/lib
+    cp -r -d ../depend/third_party/x86/glog/lib/lib* ros/lib
 ")
 file(WRITE "${CMAKE_INSTALL_PREFIX}/../prepare_for_ros.sh" "${PREPARE_FOR_ROS_SHELL}")
 install(CODE "execute_process(COMMAND bash prepare_for_ros.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")

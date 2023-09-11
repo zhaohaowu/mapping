@@ -122,6 +122,9 @@ if(MIDDLEWARE MATCHES CYBER)
         cp -r -d ../depend/third_party/x86/fastrtps/lib/lib* x86/lib
         cp -r -d ../depend/third_party/x86/protobuf/lib/lib* x86/lib
         cp -r -d ../depend/third_party/x86/yaml-cpp/lib/lib* x86/lib
+        cp -r -d ../depend/third_party/x86/glog/lib/lib* x86/lib
+        cp -r -d ../depend/third_party/x86/gflags/lib/lib* x86/lib
+        cp -r -d ../depend/third_party/x86/ceres/lib/lib* x86/lib
     ")
     file(WRITE "${CMAKE_INSTALL_PREFIX}/../prepare_for_cyber.sh" "${PREPARE_FOR_CYBER_SHELL}")
     install(CODE "execute_process(COMMAND bash prepare_for_cyber.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")

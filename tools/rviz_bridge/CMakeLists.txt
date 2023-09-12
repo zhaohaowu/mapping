@@ -70,6 +70,7 @@ set(PREPARE_FOR_ROS_SHELL "
     mkdir -p ros
     cp -r -d x86/lib/libmapping_* ros/lib
     cp -r -d ../depend/third_party/x86/protobuf/lib/lib* ros/lib
+    cp -r -d ../depend/third_party/x86/yaml-cpp/lib/lib* ros/lib
     cp -r -d ../depend/third_party/x86/gflags/lib/lib* ros/lib
     cp -r -d ../depend/third_party/x86/glog/lib/lib* ros/lib
 ")

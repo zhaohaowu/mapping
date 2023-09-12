@@ -1,0 +1,11 @@
+module_config {
+  module_library: "lib/libmapping_localization_ins_fusion_cyber.so"
+  components {
+    class_name: "InsFusionComponent"
+    config {
+      name: "location_ins_fusion"
+      config_file_path: "conf/mapping/location/ins_fusion/ins_fusion.pb.txt"
+      flag_file_path: "conf/mapping/location/ins_fusion/ins_fusion.flag"
+    }
+  }
+}

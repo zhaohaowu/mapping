@@ -1,0 +1,13 @@
+--ins_module_imu_topic=/minieye/imu
+--ins_module_origin_ins_topic=/Hozon/ServiceInterface/HozonInterface_InsInfo/hozonEvent__/hozon/PlatformApplication/InsPvatbApplication/Service/Provider/InsToAppProvidedDdsServiceInstance__
+--ins_module_inspva_topic=/minieye/node_info_inspva
+--ins_module_gnssvel_topic=/minieye/gnssvel
+--ins_module_output_topic=/minieye/node_info_ins
+--ins_fault_output_topic=/localization/modules_fault
+--ins_config=conf/mapping/location/ins_fusion/ins_config.yaml
+--v=2
+--alsologtostderr
+
+--noins_pub_localization_estimate
+--localization_dv_ins_topic=/apollo/localization/ins
+--viz_addr=ipc:///tmp/rviz_agent_ins

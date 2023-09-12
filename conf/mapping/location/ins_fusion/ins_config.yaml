@@ -1,0 +1,34 @@
+%YAML:1.0
+
+smooth: true
+smooth_window_size: 300
+smooth_gcj02_enu_east_diff_thr: 0.05
+smooth_gcj02_enu_north_diff_thr: 0.05
+smooth_gcj02_enu_norm_diff_thr: 0.1
+smooth_momentum: 0.99
+
+# ins gps各状态持续时长阈值（MM不工作）
+gps_1_last_thr: 60.0
+gps_2_last_thr: 60.0
+gps_3_last_thr: 600.0
+gps_5_last_thr: 60.0
+# ins gps各状态持续时长阈值（MM工作）
+gps_1_last_with_mm_thr: 120.0
+gps_2_last_with_mm_thr: 120.0
+gps_3_last_with_mm_thr: 1200.0
+gps_5_last_with_mm_thr: 120.0
+# rtk = 5 的x,y,z std阈值
+gps_5_stdx_thr: 0.20
+gps_5_stdy_thr: 0.20
+gps_5_stdz_thr: 0.30
+
+ins84_deque_max_size: 5
+fix_deflection_repeat: true
+#检测ins是否丢帧
+monitor_ins_useless_time: 100000
+monitor_ins_deque_max_size: 5
+monitor_ins: true
+monitor_ins_sleep_time: 5000
+monitor_ins_loss_frame_min_time: 0.011
+monitor_ins_loss_frame_max_time: 0.105
+use_rviz_bridge: true

@@ -74,6 +74,8 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindZMQ.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindSophus.cmake)
 
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/depend)
+
     # These enable variables are defined in compile.py
     if (MAPPING_ENABLE_COMPILE_BASE)
         add_subdirectory(depend/perception-base)
@@ -84,7 +86,7 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     if (MAPPING_ENABLE_COMPILE_LIB)
         add_subdirectory(depend/perception-lib)
     endif()
-    
+
     add_subdirectory(depend/proto)
     add_subdirectory(depend/common)
     add_subdirectory(depend/map)
@@ -125,6 +127,7 @@ if(MIDDLEWARE MATCHES CYBER)
         cp -r -d ../depend/third_party/x86/glog/lib/lib* x86/lib
         cp -r -d ../depend/third_party/x86/gflags/lib/lib* x86/lib
         cp -r -d ../depend/third_party/x86/ceres/lib/lib* x86/lib
+        cp -r -d ../depend/third_party/x86/boost/lib/lib* x86/lib
     ")
     file(WRITE "${CMAKE_INSTALL_PREFIX}/../prepare_for_cyber.sh" "${PREPARE_FOR_CYBER_SHELL}")
     install(CODE "execute_process(COMMAND bash prepare_for_cyber.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")

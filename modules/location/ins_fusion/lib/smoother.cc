@@ -1,4 +1,10 @@
-#include "smoother.h"
+/******************************************************************************
+ *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： smoother.cpp
+ *   author     ： nihongjie
+ *   date       ： 2023.09
+ ******************************************************************************/
+#include "modules/location/ins_fusion/lib/smoother.h"
 
 namespace hozon {
 namespace mp {

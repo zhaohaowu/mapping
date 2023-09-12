@@ -1,12 +1,16 @@
-#include "ins_fusion.h"
+/******************************************************************************
+ *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： ins_fusion.cpp
+ *   author     ： nihongjie
+ *   date       ： 2023.09
+ ******************************************************************************/
+#include "modules/location/ins_fusion/lib/ins_fusion.h"
 
 #include <unistd.h>
 #include <yaml-cpp/yaml.h>
 
-#include <Eigen/Eigen>
 #include <Sophus/se3.hpp>
 #include <boost/filesystem.hpp>
-#include <iomanip>
 
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/temp_log.h"
@@ -17,7 +21,8 @@ namespace mp {
 namespace loc {
 
 namespace hlu = hozon::mp::util;
-const std::string kNewestInsOdom = "/ins/fusion";
+
+const char kNewestInsOdom[] = "/ins/fusion";
 
 InsInitStatus InsFusion::Init(const std::string& configfile) {
   boost::filesystem::path path(configfile);
@@ -152,6 +157,9 @@ void InsFusion::OnInspva(const adsfi_proto::internal::HafNodeInfo& inspva) {
 
   if (config_.fix_deflection_repeat &&
       FixDeflectionRepeat(last_node_, &curr_node_)) {
+    HLOG_INFO << SETPRECISION(15)
+              << "fix deflection repeat succ. last.tick:" << last_node_.ticktime
+              << ", curr.tick:" << curr_node_.ticktime;
   }
   bool flag = false;
   if (config_.smooth && SmoothProc(&curr_node_)) {
@@ -166,8 +174,10 @@ void InsFusion::OnInspva(const adsfi_proto::internal::HafNodeInfo& inspva) {
     if (flag) {
       auto inspva_data_ticktime = curr_node_.ticktime;
       inspva_data.mutable_header()->mutable_timestamp()->set_sec(
-          (uint32_t)inspva_data_ticktime);
-      uint32_t nsec = (inspva_data_ticktime - (int)inspva_data_ticktime) * 1e9;
+          static_cast<uint32_t>(inspva_data_ticktime));
+      uint32_t nsec = static_cast<uint32_t>(
+          (inspva_data_ticktime - static_cast<int>(inspva_data_ticktime)) *
+          1e9);
       inspva_data.mutable_header()->mutable_timestamp()->set_nsec(nsec);
     }
     inspva_deque_.emplace_back(inspva_data);
@@ -483,7 +493,8 @@ void InsFusion::ProcessMonitorIns() {
       continue;
     }
 
-    auto j = (int)(cost_time / config_.monitor_ins_loss_frame_max_time);
+    auto j =
+        static_cast<int>(cost_time / config_.monitor_ins_loss_frame_max_time);
     if (j <= 0 || j == loss_ins_frame_id_) {
       usleep(config_.monitor_ins_sleep_time);
       continue;
@@ -508,8 +519,9 @@ void InsFusion::ProcessMonitorIns() {
         inspva_data.mutable_header()->timestamp().nsec() * 1.0e-9;
     auto inspva_data_ticktime = current_inspva_data_ticktime + cost_time / j;
     inspva_data.mutable_header()->mutable_timestamp()->set_sec(
-        (uint32_t)inspva_data_ticktime);
-    uint32_t nsec = (inspva_data_ticktime - (int)inspva_data_ticktime) * 1e9;
+        static_cast<uint32_t>(inspva_data_ticktime));
+    uint32_t nsec = static_cast<uint32_t>(
+        inspva_data_ticktime - static_cast<int>(inspva_data_ticktime) * 1e9);
     inspva_data.mutable_header()->mutable_timestamp()->set_nsec(nsec);
     Eigen::Vector3d velocity(inspva_data.linear_velocity().x(),
                              inspva_data.linear_velocity().y(),

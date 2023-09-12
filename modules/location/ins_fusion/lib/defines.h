@@ -4,8 +4,7 @@
  *   author     ： nihongjie
  *   date       ： 2023.09
  ******************************************************************************/
-#ifndef MAPPING_MODULES_INS_FUSION_LIB_DEDINES__H_
-#define MAPPING_MODULES_INS_FUSION_LIB_DEDINES__H_
+#pragma once
 
 #include <Eigen/Eigen>
 
@@ -100,5 +99,3 @@ struct InsNode {
 }  // namespace loc
 }  // namespace mp
 }  // namespace hozon
-
-#endif  // MAPPING_MODULES_INS_FUSION_LIB_DEDINES__H_

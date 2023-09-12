@@ -4,18 +4,21 @@
  *   author     ： nihongjie
  *   date       ： 2023.09
  ******************************************************************************/
-#ifndef MAPPING_MODULES_INS_FUSION_LIB_INS_FUSION_H_
-#define MAPPING_MODULES_INS_FUSION_LIB_INS_FUSION_H_
+#pragma once
 
 #include <Eigen/Eigen>
+#include <deque>
 #include <future>
+#include <iomanip>
 #include <memory>
+#include <string>
 
 #include "adsfi_proto/sensors/sensors_ins.pb.h"
-#include "defines.h"
 #include "depend/proto/localization/localization.pb.h"
 #include "interface/adsfi_proto/internal/node_info.pb.h"
-#include "smoother.h"
+#include "modules/location/ins_fusion/lib/defines.h"
+#include "modules/location/ins_fusion/lib/smoother.h"
+
 namespace hozon {
 namespace mp {
 namespace loc {
@@ -95,5 +98,3 @@ class InsFusion {
 }  // namespace loc
 }  // namespace mp
 }  // namespace hozon
-
-#endif  // MAPPING_MODULES_INS_FUSION_LIB_INS_FUSION_H_

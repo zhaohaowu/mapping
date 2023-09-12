@@ -4,8 +4,7 @@
  *   author     ： nihongjie
  *   date       ： 2023.09
  ******************************************************************************/
-#ifndef MAPPING_MODULES_INS_FUSION_CYBER_INS_FUSION_COMPONENT_H_
-#define MAPPING_MODULES_INS_FUSION_CYBER_INS_FUSION_COMPONENT_H_
+#pragma once
 
 #include <memory>
 
@@ -45,5 +44,3 @@ CYBER_REGISTER_COMPONENT(InsFusionComponent);
 }  // namespace loc
 }  // namespace mp
 }  // namespace hozon
-
-#endif  // MAPPING_MODULES_INS_FUSION_CYBER_INS_FUSION_COMPONENT_H_

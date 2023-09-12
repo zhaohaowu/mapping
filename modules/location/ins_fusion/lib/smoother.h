@@ -4,8 +4,7 @@
  *   author     ： nihongjie
  *   date       ： 2023.09
  ******************************************************************************/
-#ifndef MAPPING_MODULES_INS_SMOOTHER__H_
-#define MAPPING_MODULES_INS_SMOOTHER__H_
+#pragma once
 
 #include <Eigen/Eigen>
 #include <deque>
@@ -52,5 +51,3 @@ class Smoother {
 }  // namespace loc
 }  // namespace mp
 }  // namespace hozon
-
-#endif  // MAPPING_MODULES_INS_SMOOTHER__H_

@@ -52,11 +52,10 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
 
     # MIDDLEWARE and LLVM are mandatory for europa repos and third_party
     if(${PLATFORM} STREQUAL "X86")
-        set(MIDDLEWARE "CYBER")
         set(LLVM 0)
     elseif(${PLATFORM} STREQUAL "MDC")
-        set(MIDDLEWARE "MDC")
         set(LLVM 1)
+        
     endif()
 
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindEigen3.cmake)
@@ -67,7 +66,6 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     # include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindCUDA.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindProtobuf.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindCyber.cmake)
-    include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindFastRTPS.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindHzAvpMap.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindOpenCV.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindYAMLCPP.cmake)
@@ -96,6 +94,7 @@ include_directories(interface)
 
 add_subdirectory(interface)
 add_subdirectory(modules)
+add_subdirectory(onboard)
 
 if(${PLATFORM} STREQUAL "X86")
     add_subdirectory(test)

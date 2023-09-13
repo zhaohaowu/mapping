@@ -1,0 +1,26 @@
+%YAML:1.0
+
+library: "/home/dell/data/mapping/depend/nos/x86_2004/lib/libadf-lite-ds.so"
+depLibPath: ["/home/dell/data/mapping/depend/nos/x86_2004/lib/"]
+executorName: DataSource
+
+log:
+    level: 2
+
+dataSourcesIn:
+    - topic: imu
+      type: proto_proxy
+      cmTopic: ImuInfo
+      cmDomainId: 0
+
+    - topic: chassis
+      type: proto_proxy
+      cmTopic: Chassis
+      cmDomainId: 0
+      
+      
+dataSourcesOut:
+    - topic: odom
+      type: proto_skeleton
+      cmTopic: odom
+      cmDomainId: 0

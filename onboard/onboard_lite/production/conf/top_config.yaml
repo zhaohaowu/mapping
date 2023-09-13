@@ -1,0 +1,24 @@
+%YAML:1.0
+
+processName: Lite1
+
+appLog:
+    name: mapping
+    description: mapping
+    file: ./
+    mode: 6
+    level: 2
+
+schedule:
+    policy: RR
+    priority: 99
+    cpuAffinity: [1, 2 ,3]
+
+resourceLimit:
+    group: mapping
+    cpu: 150
+    memory: 200
+
+executors:
+    - confFile: /home/dell/data/mapping/release/x86/production/conf/data_source_config.yaml
+    - confFile: /home/dell/data/mapping/release/x86/production/conf/dr/dr_config.yaml

@@ -1,0 +1,24 @@
+%YAML:1.0
+
+library: "/home/dell/data/mapping/release/x86/lib/libonboard_lite_dr.so"
+depLibPath: ["/home/dell/data/mapping/depend/nos/x86_2004/lib/" ]
+executorName: DeadReckoning
+
+input:
+    - topic: imu # in-process cm
+      capacity: 5
+    - topic: chassis # interprocess cm
+      capacity: 5
+
+trigger:
+  - name: dr_proc # send workresult1,workresult2
+    type: PERIOD
+    period: 800
+
+  - name: receive_imu_chassis
+    type: EVENT
+    mainSources:
+      - name: imu
+        timeout: 1000
+      - name: chassis
+        timeout: 1000

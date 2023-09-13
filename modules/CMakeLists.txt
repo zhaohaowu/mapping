@@ -6,6 +6,8 @@ include_directories(
 
 add_subdirectory(util)
 add_subdirectory(dr)
-add_subdirectory(local_mapping)
-add_subdirectory(location)
-add_subdirectory(map_fusion)
+# add_subdirectory(local_mapping)
+# add_subdirectory(location)
+# add_subdirectory(map_fusion)
+
+

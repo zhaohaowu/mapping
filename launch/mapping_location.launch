@@ -1,0 +1,12 @@
+<cyber>
+  <module>
+    <name>location_ins_fusion</name>
+    <dag_conf>dag/location/mapping_location_ins_fusion.dag</dag_conf>
+    <process_name>mapping_location_ins_fusion</process_name>
+  </module>
+  <module>
+    <name>location_fc</name>
+    <dag_conf>dag/location/mapping_location_fc.dag</dag_conf>
+    <process_name>mapping_location_fc</process_name>
+  </module>
+</cyber>

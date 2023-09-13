@@ -1,0 +1,12 @@
+# Define all coms in DAG streaming.
+module_config {
+  module_library: "lib/libmapping_location_fusion_center_cyber.so"
+  components {
+    class_name: "FcComponent"
+    config {
+      name: "fusion_center"
+      config_file_path: ""
+      flag_file_path: "conf/mapping/location/fusion_center/fc.flag"
+    }
+  }
+}

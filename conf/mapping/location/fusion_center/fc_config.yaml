@@ -1,0 +1,12 @@
+%YAML:1.0
+
+recv_imu: true
+recv_ins: true
+recv_dr: true
+recv_pe: true
+imu_deque_max_size: 1000
+ins_deque_max_size: 1000
+dr_deque_max_size: 1000
+pe_deque_max_size: 1000
+
+passthrough_ins: true

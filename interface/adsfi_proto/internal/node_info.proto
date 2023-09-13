@@ -38,7 +38,7 @@ message HafNodeInfo {
   optional adsfi_proto.hz_Adsfi.Point3d pos_gcj02 = 20;
   optional adsfi_proto.hz_Adsfi.Point3d angular_velocity = 21;
   optional adsfi_proto.hz_Adsfi.Point3d linear_acceleration = 22;
-  optional adsfi_proto.hz_Adsfi.Point3d mouting_error = 23;
+  optional adsfi_proto.hz_Adsfi.Point3d mounting_error = 23;
   optional uint32 sensor_used = 24;
   optional float wheel_velocity = 25;
   optional float odo_sf = 26;

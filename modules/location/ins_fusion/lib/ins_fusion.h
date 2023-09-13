@@ -28,7 +28,7 @@ enum InsStateEnum { NORMAL, MILD, SERIOUSLY };
 class InsFusion {
  public:
   InsFusion() = default;
-  ~InsFusion() = default;
+  ~InsFusion();
 
   InsInitStatus Init(const std::string& configfile);
   void OnOriginIns(const adsfi_proto::hz_Adsfi::AlgInsInfo& origin_ins);

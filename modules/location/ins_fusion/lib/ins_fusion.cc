@@ -24,6 +24,11 @@ namespace hlu = hozon::mp::util;
 
 const char kNewestInsOdom[] = "/ins/fusion";
 
+InsFusion::~InsFusion() {
+  monitor_ins_proc_run_ = false;
+  monitor_ins_proc_.get();
+}
+
 InsInitStatus InsFusion::Init(const std::string& configfile) {
   boost::filesystem::path path(configfile);
   if (!boost::filesystem::exists(path)) {

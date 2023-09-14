@@ -1,6 +1,8 @@
 .vscode
+.idea
 .clangd
 build
+cmake-build-*
 release
 depend/*
 depend/third_party/*

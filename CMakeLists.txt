@@ -26,6 +26,10 @@ macro(add_mapping_library mlib)
     add_library(${ARGV})
     set_target_properties(${mlib} PROPERTIES OUTPUT_NAME ${MAPPING_LIB_PREFIX}${mlib})
 endmacro()
+macro(add_mapping_executable mexe)
+    add_executable(${ARGV})
+    set_target_properties(${mexe} PROPERTIES OUTPUT_NAME ${MAPPING_LIB_PREFIX}${mexe})
+endmacro()
 
 # MAPPING_SINGLE_MODULE_COMPILE is defined in compile.py
 if(MAPPING_SINGLE_MODULE_COMPILE)
@@ -71,8 +75,13 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindYAMLCPP.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindZMQ.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindSophus.cmake)
+    include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindSqlite3.cmake)
+    include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindAmap.cmake)
+    include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/json/include)
+    include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/pcl/include/pcl-1.11)
+    link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/pcl/lib)
 
-    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/depend)
+    include_directories(depend)
 
     # These enable variables are defined in compile.py
     if (MAPPING_ENABLE_COMPILE_BASE)
@@ -90,6 +99,7 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     add_subdirectory(depend/map)
 endif()
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(interface)
 
 add_subdirectory(interface)
@@ -103,12 +113,16 @@ endif()
 install(FILES version.json DESTINATION ${CMAKE_SOURCE_DIR}/release)
 
 install(
-    DIRECTORY dag launch conf
+    DIRECTORY conf
     DESTINATION ${CMAKE_INSTALL_PREFIX}
 )
 
 # 打包cyber环境
 if(MIDDLEWARE MATCHES CYBER)
+    install(
+        DIRECTORY dag launch
+        DESTINATION ${CMAKE_INSTALL_PREFIX}
+    )
     install(
         # 注意结尾的斜杠/，这可以使目录重命名到目标路径
         DIRECTORY ${THIRDPARTY_ROOT_PATH}/third_party/x86/cyber/
@@ -118,7 +132,9 @@ if(MIDDLEWARE MATCHES CYBER)
     # 为了能运行cyber，以后看有没有更好的办法
     set(PREPARE_FOR_CYBER_SHELL "
         mkdir -p x86/data/log
-        ln -s x86 cyber
+        if [ ! -d cyber ]; then
+          ln -s x86 cyber
+        fi
         mkdir -p x86/lib
         cp -r -d ../depend/third_party/x86/fastrtps/lib/lib* x86/lib
         cp -r -d ../depend/third_party/x86/protobuf/lib/lib* x86/lib

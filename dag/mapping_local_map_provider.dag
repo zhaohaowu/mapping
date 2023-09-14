@@ -1,0 +1,22 @@
+# Define all coms in DAG streaming.
+module_config {
+  module_library: "lib/libmapping_mf_cyber.so"
+  components {
+    class_name: "LocalMapProviderComponent"
+    config {
+      name: "local_map_provider"
+      config_file_path: ""
+      flag_file_path: ""
+      readers: []
+    }
+  }
+  components {
+    class_name: "MapPredictionComponent"
+    config {
+      name: "map_prediction"
+      config_file_path: ""
+      flag_file_path: ""
+      readers: []
+    }
+  }
+}

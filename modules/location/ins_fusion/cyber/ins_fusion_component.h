@@ -17,7 +17,7 @@ namespace loc {
 
 using adsfi_proto::hz_Adsfi::AlgInsInfo;
 using adsfi_proto::internal::HafNodeInfo;
-using apollo::localization::LocalizationEstimate;
+using hozon::localization::LocalizationEstimate;
 
 class InsFusionComponent : public apollo::cyber::Component<> {
  public:

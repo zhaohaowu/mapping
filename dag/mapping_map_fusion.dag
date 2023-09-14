@@ -2,20 +2,12 @@
 module_config {
   module_library: "lib/libmapping_mf_cyber.so"
   components {
-    class_name: "MapFusionComponent"
+    class_name: "PriorProviderComponent"
     config {
-      name: "map_fusion"
+      name: "prior_provider"
       config_file_path: ""
       flag_file_path: ""
-      readers: [
-        {
-          channel: "/imu"
-          qos_profile: {
-            depth: 15
-          }
-          pending_queue_size: 50
-        }
-      ]
+      readers: []
     }
   }
 }

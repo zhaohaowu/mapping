@@ -17,10 +17,19 @@ dataSourcesIn:
       type: proto_proxy
       cmTopic: Chassis
       cmDomainId: 0
-      
+
+    - topic: loc_plugin
+      type: proto_proxy
+      cmTopic: LocPlugin
+      cmDomainId: 0
       
 dataSourcesOut:
     - topic: odom
       type: proto_skeleton
       cmTopic: odom
+      cmDomainId: 0
+
+    - topic: prior_map
+      type: proto_skeleton
+      cmTopic: prior_map
       cmDomainId: 0

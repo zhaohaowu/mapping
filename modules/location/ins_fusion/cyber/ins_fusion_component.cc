@@ -68,7 +68,7 @@ bool InsFusionComponent::Init() {
   if (FLAGS_ins_pub_localization_estimate) {
     HLOG_DEBUG << "ins localization topic: " << FLAGS_localization_dv_ins_topic;
     localization_writer_ =
-        node_->CreateWriter<apollo::localization::LocalizationEstimate>(
+        node_->CreateWriter<hozon::localization::LocalizationEstimate>(
             FLAGS_localization_dv_ins_topic);
   }
   return true;
@@ -97,7 +97,7 @@ bool InsFusionComponent::OnInspva(
 
   if (FLAGS_ins_pub_localization_estimate) {
     auto estimate_ptr =
-        std::make_shared<apollo::localization::LocalizationEstimate>();
+        std::make_shared<hozon::localization::LocalizationEstimate>();
     if (ins_fusion_->GetLocalizationEstimate(estimate_ptr.get())) {
       localization_writer_->Write(estimate_ptr);
     }

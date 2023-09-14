@@ -253,7 +253,7 @@ bool InsFusion::GetResult(adsfi_proto::internal::HafNodeInfo* const node_info) {
 }
 
 bool InsFusion::GetLocalizationEstimate(
-    apollo::localization::LocalizationEstimate* const estimate) {
+    hozon::localization::LocalizationEstimate* const estimate) {
   if (!ref_init_ || !estimate) {
     return false;
   }

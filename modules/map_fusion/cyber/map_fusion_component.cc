@@ -5,7 +5,7 @@
  *   date       ： 2023.08
  ******************************************************************************/
 
-#include "map_fusion_component.h"
+#include "cyber/map_fusion_component.h"
 
 #include <gflags/gflags.h>
 
@@ -24,15 +24,13 @@ namespace mp {
 namespace mf {
 
 MapFusionComponent::~MapFusionComponent() {
-  if (!FLAGS_mf_viz.empty() &&
-      RVIZ_AGENT.Ok()) {
+  if (!FLAGS_mf_viz.empty() && RVIZ_AGENT.Ok()) {
     RVIZ_AGENT.Term();
   }
 }
 
 bool MapFusionComponent::Init() {
-  if (!FLAGS_mf_viz.empty() &&
-      !RVIZ_AGENT.Ok()) {
+  if (!FLAGS_mf_viz.empty() && !RVIZ_AGENT.Ok()) {
     int ret = RVIZ_AGENT.Init(FLAGS_mf_viz);
     if (ret < 0) {
       HLOG_WARN << "RvizAgent init failed";

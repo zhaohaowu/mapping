@@ -24,3 +24,5 @@ install(TARGETS ${MAPPING_ONBOARD_LITE_DR} RUNTIME DESTINATION lib/)
 
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/production DESTINATION  ${CMAKE_CURRENT_SOURCE_DIR}/../../release/x86/)
 # install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/production DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/../../release/x86/)
+
+add_subdirectory(map_fusion)

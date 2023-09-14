@@ -1,7 +1,7 @@
 %YAML:1.0
 
 # PriorProvider
-
+map_file: conf/mapping/map_fusion/data/amap_base_map.bin
 
 # TopoAssignment
 

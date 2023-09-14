@@ -1,0 +1,16 @@
+%YAML:1.0
+
+library: "/home/tao/code/hozon_ws/qingluan/mapping/release/x86/lib/libmapping_mf_lite.so"
+depLibPath: ["/home/tao/code/hozon_ws/qingluan/mapping/depend/nos/x86_2004/lib/" ]
+executorName: PriorProviderLite
+
+input:
+    - topic: loc_plugin # in-process cm
+      capacity: 5
+
+trigger:
+  - name: on_loc_plugin
+    type: EVENT
+    mainSources:
+      - name: loc_plugin
+        timeout: 1000

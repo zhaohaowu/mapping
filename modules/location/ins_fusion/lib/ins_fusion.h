@@ -35,7 +35,7 @@ class InsFusion {
   void OnInspva(const adsfi_proto::internal::HafNodeInfo& inspva);
   bool GetResult(adsfi_proto::internal::HafNodeInfo* const node_info);
   bool GetLocalizationEstimate(
-      apollo::localization::LocalizationEstimate* const estimate);
+      hozon::localization::LocalizationEstimate* const estimate);
   void SetRefpoint(const Eigen::Vector3d& blh);
   Eigen::Vector3d GetRefpoint() const;
   void ProcessMonitorIns();

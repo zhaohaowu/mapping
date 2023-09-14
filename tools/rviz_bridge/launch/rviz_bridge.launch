@@ -3,6 +3,7 @@
     <arg name="viz_addrs" default="[
         ipc:///tmp/rviz_agent_dr,
         ipc:///tmp/rviz_agent_lm,
+        ipc:///tmp/rviz_agent_lm_pv,
         ipc:///tmp/rviz_agent_loc,
         ipc:///tmp/rviz_agent_mf,
         ipc:///tmp/rviz_agent_local_map

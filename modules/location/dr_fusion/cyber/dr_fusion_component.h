@@ -1,6 +1,6 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
- *   file       ： ins_fusion_component.h
+ *   file       ： dr_fusion_component.h
  *   author     ： nihongjie
  *   date       ： 2023.09
  ******************************************************************************/
@@ -9,8 +9,7 @@
 #include <memory>
 
 #include "cyber/component/component.h"
-#include "lib/ins_fusion.h"
-
+#include "modules/location/dr_fusion/lib/dr_fusion.h"
 namespace hozon {
 namespace mp {
 namespace loc {
@@ -18,24 +17,25 @@ namespace loc {
 using adsfi_proto::hz_Adsfi::AlgInsInfo;
 using adsfi_proto::internal::HafNodeInfo;
 
-class InsFusionComponent : public apollo::cyber::Component<> {
+class DrFusionComponent : public apollo::cyber::Component<> {
  public:
-  InsFusionComponent() = default;
-  ~InsFusionComponent() override;
+  DrFusionComponent() = default;
+  ~DrFusionComponent() override;
 
   bool Init() override;
-  void OnOriginIns(const std::shared_ptr<const AlgInsInfo>& msg);
-  bool OnInspva(const std::shared_ptr<const HafNodeInfo>& msg);
 
  private:
-  std::shared_ptr<apollo::cyber::Reader<AlgInsInfo>> origin_ins_reader_ =
-      nullptr;
+  bool OnInspva(const std::shared_ptr<const HafNodeInfo>& msg);
+  bool OnDr(const std::shared_ptr<const HafNodeInfo>& msg);
+
+ private:
+  std::unique_ptr<DrFusion> dr_fusion_ = nullptr;
   std::shared_ptr<apollo::cyber::Reader<HafNodeInfo>> inspva_reader_ = nullptr;
-  std::shared_ptr<apollo::cyber::Writer<HafNodeInfo>> ins_writer_ = nullptr;
-  std::unique_ptr<InsFusion> ins_fusion_ = nullptr;
+  std::shared_ptr<apollo::cyber::Reader<HafNodeInfo>> dr_reader_ = nullptr;
+  std::shared_ptr<apollo::cyber::Writer<HafNodeInfo>> loc_dr_writer_ = nullptr;
 };
 
-CYBER_REGISTER_COMPONENT(InsFusionComponent);
+CYBER_REGISTER_COMPONENT(DrFusionComponent);
 
 }  // namespace loc
 }  // namespace mp

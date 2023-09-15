@@ -31,4 +31,4 @@ monitor_ins: true
 monitor_ins_sleep_time: 5000
 monitor_ins_loss_frame_min_time: 0.011
 monitor_ins_loss_frame_max_time: 0.105
-use_rviz_bridge: true
+use_rviz_bridge: false

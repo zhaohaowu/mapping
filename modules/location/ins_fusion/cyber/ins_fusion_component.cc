@@ -18,15 +18,8 @@ DEFINE_string(ins_module_origin_ins_topic, "/minieye/origin_ins", "origin ins");
 DEFINE_string(ins_module_inspva_topic, "/minieye/node_info_inspva",
               "inspva node topic");
 DEFINE_string(ins_module_gnssvel_topic, "/minieye/gnssvel", "gnssvel topic");
-DEFINE_string(ins_module_output_topic, "/minieye/node_info_ins",
-              "output topic");
-DEFINE_string(ins_fault_output_topic, "/localization/modules_fault",
-              "ins fault output topic");
+DEFINE_string(ins_module_output_topic, "/mapping/location/ins", "output topic");
 
-DEFINE_bool(ins_pub_localization_estimate, false,
-            "ins publish localization estimate to dreamview");
-DEFINE_string(localization_dv_ins_topic, "/localization/estimate/ins",
-              "dv ins topic");
 DEFINE_string(viz_addr, "ipc:///tmp/rviz_agent_ins",
               "RvizAgent's working address, this should corresponds to the "
               "address used in RvizBridge. Leaving empty represents not using "
@@ -65,12 +58,6 @@ bool InsFusionComponent::Init() {
       [this](const std::shared_ptr<const HafNodeInfo>& msg) { OnInspva(msg); });
 
   ins_writer_ = node_->CreateWriter<HafNodeInfo>(FLAGS_ins_module_output_topic);
-  if (FLAGS_ins_pub_localization_estimate) {
-    HLOG_DEBUG << "ins localization topic: " << FLAGS_localization_dv_ins_topic;
-    localization_writer_ =
-        node_->CreateWriter<hozon::localization::LocalizationEstimate>(
-            FLAGS_localization_dv_ins_topic);
-  }
   return true;
 }
 
@@ -94,15 +81,6 @@ bool InsFusionComponent::OnInspva(
 
   ins_writer_->Write(
       std::make_shared<adsfi_proto::internal::HafNodeInfo>(result));
-
-  if (FLAGS_ins_pub_localization_estimate) {
-    auto estimate_ptr =
-        std::make_shared<hozon::localization::LocalizationEstimate>();
-    if (ins_fusion_->GetLocalizationEstimate(estimate_ptr.get())) {
-      localization_writer_->Write(estimate_ptr);
-    }
-  }
-
   return true;
 }
 

@@ -193,14 +193,15 @@ void InsFusion::OnInspva(const adsfi_proto::internal::HafNodeInfo& inspva) {
   }
 
   last_node_ = curr_node_;
-  if (config_.use_rviz_bridge) {
-    PublishTopic();
-  }
 }
 
 bool InsFusion::GetResult(adsfi_proto::internal::HafNodeInfo* const node_info) {
   if (!ref_init_ || !node_info) {
     return false;
+  }
+
+  if (config_.use_rviz_bridge) {
+    PublishTopic();
   }
 
   node_info->Clear();
@@ -249,15 +250,6 @@ bool InsFusion::GetResult(adsfi_proto::internal::HafNodeInfo* const node_info) {
   node_info->mutable_accel_bias()->set_y(origin_ins.acc_bias().y());
   node_info->mutable_accel_bias()->set_z(origin_ins.acc_bias().z());
 
-  return true;
-}
-
-bool InsFusion::GetLocalizationEstimate(
-    hozon::localization::LocalizationEstimate* const estimate) {
-  if (!ref_init_ || !estimate) {
-    return false;
-  }
-  estimate->Clear();
   return true;
 }
 

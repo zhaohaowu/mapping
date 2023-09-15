@@ -1,8 +1,5 @@
 project(location)
-
-include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
 add_subdirectory(ins_fusion)
+set(INSFUSION "${CMAKE_CURRENT_LIST_DIR}/ins_fusion/lib")
 add_subdirectory(fusion_center)
+add_subdirectory(dr_fusion)

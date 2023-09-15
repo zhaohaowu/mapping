@@ -1,0 +1,11 @@
+module_config {
+  module_library: "lib/libmapping_localization_dr_fusion_cyber.so"
+  components {
+    class_name: "DrFusionComponent"
+    config {
+      name: "location_dr_fusion"
+      config_file_path: "conf/mapping/location/dr_fusion/dr_fusion.pb.txt"
+      flag_file_path: "conf/mapping/location/dr_fusion/dr_fusion.flag"
+    }
+  }
+}

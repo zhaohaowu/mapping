@@ -13,7 +13,7 @@ input:
 trigger:
   - name: dr_proc # send workresult1,workresult2
     type: PERIOD
-    period: 800
+    period: 10
 
   - name: receive_imu_chassis
     type: EVENT

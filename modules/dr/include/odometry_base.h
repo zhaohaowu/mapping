@@ -68,6 +68,8 @@ class OdometryBase {
   void add_imu_data(const ImuDataHozon& imu_data);
 
   WheelDataHozon filter_wheel_data(const WheelDataHozon& wheel_data);
+  Eigen::Vector3d filter_vel(const Eigen::Vector3d& cur_vel);
+  double filter_cnt(double cnt);
   bool add_wheel_data(const WheelDataHozon& wheel_data);
 
   std::vector<WheelDataHozon> get_oldest_two_wheel();

@@ -14,7 +14,7 @@
 #include "modules/dr/include/slam_data_types.h"
 #include "modules/dr/include/wheel_odom.h"
 #include "proto/canbus/chassis.pb.h"
-#include "proto/drivers/location.pb.h"
+#include "proto/dead_reckoning/dr.pb.h"
 #include "proto/drivers/sensor_imu_ins.pb.h"
 
 namespace hozon {
@@ -30,7 +30,7 @@ class DRInterface {
 
   void AddChassisData(std::shared_ptr<hozon::canbus::Chassis> chassis_proto);
 
-  void SetLocation(std::shared_ptr<hozon::perception::datacollection::Location>
+  void SetLocation(std::shared_ptr<hozon::dead_reckoning::DeadReckoning>
                        locationDataPtr);
 
  private:
@@ -44,12 +44,12 @@ class DRInterface {
   }
 
   void SetInsData2Location(
-      std::shared_ptr<hozon::perception::datacollection::Location>
+      std::shared_ptr<hozon::dead_reckoning::DeadReckoning>
           locationDataPtr,
       const OdometryData &odom_data);
 
   void SetLocationData(
-      std::shared_ptr<hozon::perception::datacollection::Location>
+      std::shared_ptr<hozon::dead_reckoning::DeadReckoning>
           locationDataPtr,
       OdometryData &latest_odom, Eigen::Vector3d &eulerAngle);  // NOLINT
 

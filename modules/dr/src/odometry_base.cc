@@ -33,13 +33,51 @@ WheelDataHozon OdometryBase::filter_wheel_data(
   return last_data;
 }
 
+double OdometryBase::filter_cnt(double cnt) {
+  static double Qk = 0.01;  // 预测得误差
+  static double Rk = 0.25;  // 观测得误差
+
+  static double xk = 0;  // 第一次预测值
+  static double pk = 1;  // 预测得方差
+
+  double xk_pre = xk;       // 假设匀速运动
+  double pk_pre = pk + Qk;  //
+
+  double zk = cnt;
+  double K = pk_pre * (pk_pre + Rk);
+  xk = xk_pre + K * (zk - xk_pre);
+  pk = (1 - K) * pk_pre;
+
+  return xk;
+}
+
+Eigen::Vector3d OdometryBase::filter_vel(const Eigen::Vector3d& cur_vel) {
+  static Eigen::Matrix3d Qk =
+      Eigen::Matrix3d::Identity() * 0.001;  // 0.01,0.001,0.01,0.001
+  static Eigen::Matrix3d Rk =
+      Eigen::Matrix3d::Identity() * 0.1;  // 0.1,0.05,0.5,0.1
+
+  static Eigen::Vector3d xk = {0, 0, 0};
+  static Eigen::Matrix3d pk = Eigen::Matrix3d::Identity();
+
+  Eigen::Vector3d xk_pre = xk;
+  Eigen::Matrix3d pk_pre = pk + Qk;
+
+  Eigen::Vector3d zk = cur_vel;
+  Eigen::Matrix3d K = pk_pre * (pk_pre + Rk).inverse();
+  xk = xk_pre + K * (zk - xk_pre);
+  pk = (Eigen::Matrix3d::Identity() - K) * pk_pre;
+
+  return xk;
+}
+
 bool OdometryBase::add_wheel_data(const WheelDataHozon& wheel_data) {
   DRWriteLockGuard lock(wheel_rw_lock_);
   if (wheel_datas_.empty()) {
     wheel_datas_.push_back(wheel_data);
   } else {
     if (wheel_data.timestamp <= wheel_datas_.back().timestamp) {
-      // HLOG_WARN << "error wheel timestamp";
+      HLOG_WARN << "==== init ==== error wheel timestamp";
       return false;
     } else {
       WheelDataHozon last_data = wheel_datas_.back();
@@ -49,14 +87,16 @@ bool OdometryBase::add_wheel_data(const WheelDataHozon& wheel_data) {
           fabs(wheel_data.timestamp - last_data.timestamp - 0.01) < 1 * 1e-3) {
         return false;
       }
-      auto filter_wheel = filter_wheel_data(wheel_data);
-      wheel_datas_.push_back(filter_wheel);
+      // TODO(zxl) 增加滤波器
+      // auto filter_wheel = filter_wheel_data(wheel_data);
+      // wheel_datas_.push_back(filter_wheel);
+      wheel_datas_.push_back(wheel_data);
       if (wheel_datas_.size() > 600) {
         wheel_datas_.pop_front();
       }
     }
   }
-  // HLOG_DEBUG << "wheel data size:" << wheel_datas_.size();
+  // HLOG_DEBUG << "==== init ==== wheel data size:" << wheel_datas_.size();
   return true;
 }
 
@@ -64,6 +104,7 @@ std::vector<WheelDataHozon> OdometryBase::get_oldest_two_wheel() {
   DRReadLockGuard lock(wheel_rw_lock_);
   std::vector<WheelDataHozon> oldest_wheel_datas;
   if (wheel_datas_.size() < 2) {
+    HLOG_ERROR << "==== init ==== wheel data size:" << wheel_datas_.size();
     return oldest_wheel_datas;
   }
   oldest_wheel_datas.emplace_back(*(wheel_datas_.begin()));
@@ -81,11 +122,10 @@ bool OdometryBase::get_imu_before_and_pop(
     }
 
     for (auto itr = imu_datas_.begin(); itr != imu_datas_.end(); itr++) {
-      HLOG_INFO << "==== init ====" << time << "   " << itr->timestamp;
       if (itr->timestamp < time) {
         imu_datas.emplace_back(*itr);
       } else {
-        HLOG_INFO << "==== init ====" << time << "   error time ";
+        // HLOG_INFO << "==== init ====" << time << "   error time ";
         break;
       }
     }
@@ -94,7 +134,6 @@ bool OdometryBase::get_imu_before_and_pop(
     DRWriteLockGuard lock(imu_rw_lock_);
     imu_datas_.erase(imu_datas_.begin(),
                      imu_datas_.begin() + imu_datas.size() - 1);
-    HLOG_INFO << "==== init ====" << time << "  OK ";
   }
   return true;
 }

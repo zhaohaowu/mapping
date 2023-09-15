@@ -15,10 +15,9 @@ add_library(dr
     ${CMAKE_CURRENT_SOURCE_DIR}/src/odometry2D.cc
 )
 target_link_libraries(dr
+    europa_common_proto
     gtest
-    pcl_common
-    pcl_io
-
+    
     opencv_calib3d
     opencv_features2d
     opencv_imgcodecs
@@ -28,6 +27,8 @@ target_link_libraries(dr
     opencv_flann
     opencv_videoio
 
+    pcl_common
+    pcl_io
     pcl_kdtree
     pcl_filters
     pcl_search

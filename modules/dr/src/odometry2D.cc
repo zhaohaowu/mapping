@@ -15,7 +15,6 @@ namespace dr {
 
 bool Odometry2D::update() {
   static Eigen::Vector3d last_local_vel = {0.0, 0.0, 0.0};
-  HLOG_INFO << "==== init ====";
   if (!initialized_) {
     if (CanInitialize()) {
       return Initialize();
@@ -23,27 +22,21 @@ bool Odometry2D::update() {
       return false;
     }
   }
-  HLOG_INFO << "==== init ===="
-            << " inited ";
   int update_cnt = 0;
   while (true) {
-    HLOG_INFO << "==== init ===="
-              << " begin ";
     std::vector<WheelDataHozon> oldest_wheels = get_oldest_two_wheel();
     if (oldest_wheels.size() < 2) {
-      HLOG_DEBUG << "==== init ===="
-                 << "no new wheel data";
+      HLOG_DEBUG << "==== init ==== no new wheel data";
       break;
     }
     std::vector<ImuDataHozon> imu_datas;
     get_imu_before_and_pop(oldest_wheels[1].timestamp + 5e-3, imu_datas);
     if (imu_datas.empty()) {
-      HLOG_INFO << "==== init ===="
-                << "no time_matched imu data";
+      HLOG_INFO << "==== init ==== no time_matched imu data";
       break;
     }
     update_cnt++;
-    // 里程计更新位置
+    // 里程计更新位置 (xyz)
     Eigen::Vector3d local_vel(0, 0, 0);
     double delta_dis = 0;
     std::tie(local_vel, delta_dis) =
@@ -66,7 +59,7 @@ bool Odometry2D::update() {
         car_standstill_counter_ += 1.0;
         imu_acc_buffer_.push_back(itr->acc_measurement);
         car_standstill_omg_sum_ += itr->gyr_measurement;
-
+        // 更新静态零偏
         if (car_standstill_counter_ >= 50) {  // FLAGS_car_standstill_counter
           EstimatedRollPitch();
           imu_acc_buffer_.clear();
@@ -89,12 +82,8 @@ bool Odometry2D::update() {
       imu_cnt++;
       UpdateOrientationByIMU(*itr_pre, *itr);
 
-      // state_ = UpdateSlopeState(*itr);
-      // UpdateSlopeStates(state_, (*itr).timestamp);
-
-      //  if(state_ != SlopeState::NONE)
-      HLOG_INFO << "==== init ===="
-                << " aaaaaaaaaaa  ";
+      HLOG_INFO << "==== init ==== qat ===update !! " << qat_.x() << " "
+                << qat_.y() << "  " << qat_.z() << " " << qat_.w();
 
       // state prediction
       Eigen::Vector3d dx = Eigen::Vector3d::Zero();
@@ -213,9 +202,8 @@ bool Odometry2D::update() {
     AddOdomData(cur_odom_data, delta_dis);
     last_local_vel = local_vel;
 
-    // HLOG_INFO << "==== init ===="
-    //           << " dataa; " << cur_odom_data.odometry.position(0)
-    //           << " y:" << cur_odom_data.odometry.position(1);
+    HLOG_INFO << "==== init ===="
+              << " local_vel; " << local_vel(0) << " acc:" << acc_by_gyro_(0);
   }
   return update_cnt > 0 ? true : false;
 }
@@ -316,6 +304,7 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
   double delta_dist = (right_dist + left_dist) * 0.5;
 
   // double wheel_speed = delta_dist / (cur.timestamp - last.timestamp);
+  // 只求取了 X 方向得速度信息
   double wheel_speed = (cur.rear_left_speed + cur.rear_right_speed) / 2.0 / 3.6;
   is_car_standstill_ = fabs(wheel_speed) < 1.0e-6;
   if (wheel_vel_buffer_.size() > 10) {

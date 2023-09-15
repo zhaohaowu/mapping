@@ -10,7 +10,7 @@
 #include "gtest/gtest.h"
 #include "modules/dr/include/dr.h"
 #include "proto/canbus/chassis.pb.h"
-#include "proto/drivers/location.pb.h"
+#include "proto/dead_reckoning/dr.pb.h"
 #include "proto/drivers/sensor_imu_ins.pb.h"
 
 namespace hozon {
@@ -32,7 +32,7 @@ class DeadReckoning : public OnboardLite {
 
     REGISTER_MESSAGE_TYPE("imu", hozon::drivers::imuIns::ImuIns);
     REGISTER_MESSAGE_TYPE("chassis", hozon::canbus::Chassis);
-    REGISTER_MESSAGE_TYPE("odom", hozon::perception::datacollection::Location);
+    REGISTER_MESSAGE_TYPE("odom", hozon::dead_reckoning::DeadReckoning);
 
     // 输出DR数据
     RegistAlgProcessFunc("dr_proc", std::bind(&DeadReckoning::dr_process, this,
@@ -60,15 +60,12 @@ REGISTER_EXECUTOR_CLASS("DeadReckoning", DeadReckoning);
 
 // send in-process data and interprocess data
 int32_t DeadReckoning::dr_process(Bundle* input) {
-  HLOG_INFO << "{{{{{{{{{{ detect alg process fun1 call }}}}}}}}]]]]";
   BaseDataTypePtr workflow1 =
       std::make_shared<hozon::netaos::adf_lite::BaseData>();
 
-  std::shared_ptr<hozon::perception::datacollection::Location> msg(
-      new hozon::perception::datacollection::Location);
+  std::shared_ptr<hozon::dead_reckoning::DeadReckoning> msg(
+      new hozon::dead_reckoning::DeadReckoning);
 
-
-HLOG_INFO << "{{{{{{{{{{{{{{{{{{ OUTPUT }}}}}}}}}}}}";
   dr_interface.SetLocation(msg);
 
   workflow1->proto_msg = msg;
@@ -82,7 +79,6 @@ HLOG_INFO << "{{{{{{{{{{{{{{{{{{ OUTPUT }}}}}}}}}}}}";
 
 // recieve in-process data and interprocess data
 int32_t DeadReckoning::data_receive(Bundle* input) {
-  HLOG_INFO << "detect alg process fun2 call\n";
   BaseDataTypePtr ptr_rec_imu = input->GetOne("imu");
   if (!ptr_rec_imu) {
     // HLOG_INFO << "detect alg process fun2 call\n";

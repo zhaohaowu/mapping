@@ -11,11 +11,10 @@ namespace hozon {
 namespace mp {
 namespace dr {
 
-DRInterface::DRInterface() { dr_estimator_ = std::make_shared<Odometry2D>(); }
+DRInterface::DRInterface() { dr_estimator_ = std::make_shared<WheelOdom>(); }
 
 void DRInterface::SetLocation(
-    std::shared_ptr<hozon::perception::datacollection::Location>
-        locationDataPtr) {
+    std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr) {
   /**********cmp pose************/
   dr_estimator_->update();
   HLOG_INFO << "------------1---------";
@@ -61,8 +60,7 @@ Eigen::Vector3d DRInterface::Qat2EulerAngle(const Eigen::Quaterniond &q) {
 }
 
 void DRInterface::SetInsData2Location(
-    std::shared_ptr<hozon::perception::datacollection::Location>
-        locationDataPtr,
+    std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
     const OdometryData &odom_data) {
   // 位置的欧拉角
   locationDataPtr->mutable_pose()
@@ -112,14 +110,12 @@ void DRInterface::SetInsData2Location(
 }
 
 void DRInterface::SetLocationData(
-    std::shared_ptr<hozon::perception::datacollection::Location>
-        locationDataPtr,
+    std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
     OdometryData &latest_odom, Eigen::Vector3d &eulerAngle) {
   if (locationDataPtr == nullptr) {
     // HLOG_ERROR << " send localization input frame is nullptr";
     return;
   }
-  HLOG_INFO << "======222222==========";
 
   locationDataPtr->mutable_pose()
       ->mutable_pose_local()
@@ -162,6 +158,10 @@ void DRInterface::SetLocationData(
   locationDataPtr->mutable_pose()->mutable_pose_local()->set_heading(
       eulerAngle[2]);
 
+  HLOG_INFO << "==== init ===="
+            << " output---vel " << latest_odom.loc_vel[1] << " acc  "
+            << latest_odom.loc_acc[0] << " qx " << latest_odom.odometry.qx;
+
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_linear_vrf()
@@ -175,18 +175,18 @@ void DRInterface::SetLocationData(
       ->mutable_linear_vrf()
       ->set_z(latest_odom.loc_vel[2]);
 
-  locationDataPtr->mutable_velocity()
-      ->mutable_twist_vrf()
-      ->mutable_angular_raw_vrf()
-      ->set_x(latest_odom.loc_vel[0]);
-  locationDataPtr->mutable_velocity()
-      ->mutable_twist_vrf()
-      ->mutable_angular_raw_vrf()
-      ->set_y(latest_odom.loc_vel[1]);
-  locationDataPtr->mutable_velocity()
-      ->mutable_twist_vrf()
-      ->mutable_angular_raw_vrf()
-      ->set_z(latest_odom.loc_vel[2]);
+  //   locationDataPtr->mutable_velocity()
+  //       ->mutable_twist_vrf()
+  //       ->mutable_angular_raw_vrf()
+  //       ->set_x(latest_odom.loc_vel[0]);
+  //   locationDataPtr->mutable_velocity()
+  //       ->mutable_twist_vrf()
+  //       ->mutable_angular_raw_vrf()
+  //       ->set_y(latest_odom.loc_vel[1]);
+  //   locationDataPtr->mutable_velocity()
+  //       ->mutable_twist_vrf()
+  //       ->mutable_angular_raw_vrf()
+  //       ->set_z(latest_odom.loc_vel[2]);
 
   locationDataPtr->mutable_acceleration()
       ->mutable_linear_vrf()
@@ -201,51 +201,58 @@ void DRInterface::SetLocationData(
       ->mutable_linear_raw_vrf()
       ->set_z(latest_odom.loc_acc[2] / 9.80645);
 
-  locationDataPtr->mutable_acceleration()
-      ->mutable_linear_vrf()
-      ->mutable_angular_vrf()
-      ->set_x(0);
-  locationDataPtr->mutable_acceleration()
-      ->mutable_linear_vrf()
-      ->mutable_angular_vrf()
-      ->set_y(0);
-  locationDataPtr->mutable_acceleration()
-      ->mutable_linear_vrf()
-      ->mutable_angular_vrf()
-      ->set_z(0);
+  // locationDataPtr->mutable_acceleration()
+  //     ->mutable_linear_vrf()
+  //     ->mutable_angular_vrf()
+  //     ->set_x(0);
+  // locationDataPtr->mutable_acceleration()
+  //     ->mutable_linear_vrf()
+  //     ->mutable_angular_vrf()
+  //     ->set_y(0);
+  // locationDataPtr->mutable_acceleration()
+  //     ->mutable_linear_vrf()
+  //     ->mutable_angular_vrf()
+  //     ->set_z(0);
 
-  static int32_t count_ = 0;
-  //   locationDataPtr->mutable_header()->set_seq(count_);
-  count_++;
-
-  locationDataPtr->mutable_header()->set_timestamp(latest_odom.timestamp);
+  locationDataPtr->mutable_header()->set_timestamp_sec(latest_odom.timestamp);
 
   double sys_timestamp = GetCurrentNsecTime();
 
-  locationDataPtr->mutable_header()->set_gnss_stamp(sys_timestamp);
   locationDataPtr->mutable_header()->set_frame_id("HZ_DR");
-  locationDataPtr->set_location_state(21);
+  static int32_t count_ = 0;
+  locationDataPtr->mutable_header()->set_sequence_num(count_);
+  count_++;
+  locationDataPtr->set_gnss_timestamp(sys_timestamp);
+  //   locationDataPtr->set_location_state(21);
 
-  locationDataPtr->set_is_valid(true);
-  locationDataPtr->set_coord_type(
-      hozon::perception::datacollection::CoordType::SLAM_COORD);
+  //   locationDataPtr->set_is_valid(true);
+  //   locationDataPtr->set_coord_type(
+  //       hozon::perception::datacollection::CoordType::SLAM_COORD);
 
-  HLOG_INFO << "**************************************DR pose: x: "
-            << locationDataPtr->pose().pose_local().position().x()
-            << " ,y: " << locationDataPtr->pose().pose_local().position().y()
-            << ",z:" << locationDataPtr->pose().pose_local().position().z();
-  HLOG_INFO << "DR quat: x: "
+  HLOG_INFO
+      << "==== init ==== **************************************DR pose: x: "
+      << locationDataPtr->pose().pose_local().position().x()
+      << " ,y: " << locationDataPtr->pose().pose_local().position().y()
+      << ",z:" << locationDataPtr->pose().pose_local().position().z();
+  HLOG_INFO << "==== init ==== DR quat: x: "
             << locationDataPtr->pose().pose_local().quaternion().x()
             << " ,y: " << locationDataPtr->pose().pose_local().quaternion().y()
             << ",z:" << locationDataPtr->pose().pose_local().quaternion().z()
-            << ",z:" << locationDataPtr->pose().pose_local().quaternion().w()
+            << ",w:" << locationDataPtr->pose().pose_local().quaternion().w()
             << " ";
-  HLOG_INFO << "DR acc: x: "
-            << locationDataPtr->acceleration().linear_vrf().angular_vrf().x()
+  HLOG_INFO << "==== init ====  DR vel: x: "
+            << locationDataPtr->velocity().twist_vrf().linear_vrf().x()
             << ",y: "
-            << locationDataPtr->acceleration().linear_vrf().angular_vrf().y()
+            << locationDataPtr->velocity().twist_vrf().linear_vrf().y()
+            << ",z:" << locationDataPtr->velocity().twist_vrf().linear_vrf().z()
+            << " ";
+
+  HLOG_INFO << "==== init ====  DR acc: x: "
+            << locationDataPtr->acceleration().linear_vrf().linear_raw_vrf().x()
+            << ",y: "
+            << locationDataPtr->acceleration().linear_vrf().linear_raw_vrf().y()
             << ",z:"
-            << locationDataPtr->acceleration().linear_vrf().angular_vrf().z()
+            << locationDataPtr->acceleration().linear_vrf().linear_raw_vrf().z()
             << " ";
 }
 
@@ -324,7 +331,6 @@ void DRInterface::ConvertChassisData(
     return;
   }
   double temp_timestamp = chassis_proto->header().timestamp_sec();
-  // chassis_proto->header.timestamp.nsec / 1e9;
 
   wheel_data.timestamp = temp_timestamp;
   // 左前轮脉冲计数

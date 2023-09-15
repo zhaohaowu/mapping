@@ -60,11 +60,29 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
     right_dist *= -1.0;
     //  std::cout << "right back direction" << std::endl;
   }
-  double delta_yaw = (right_dist - left_dist) / wheel_param_.b_;
+  left_diff = filter_cnt(left_diff);
+  right_diff = filter_cnt(right_diff);
+
+
+  double delta_yaw = (right_diff - left_diff) / wheel_param_.b_;
   double delta_dist = (right_dist + left_dist) * 0.5;
   double delta_t = (cur.timestamp - last.timestamp);
   v_by_wheel_ = delta_dist / delta_t;
   w_by_wheel_ = delta_yaw / delta_t;
+
+  /////////////////////////////////////
+  static std::deque<double> wheel_w = {};
+  if (wheel_w.size() > 20) {
+    wheel_w.pop_front();
+  } else {
+    wheel_w.push_back(w_by_wheel_);
+  }
+  double total_w = 0.0;
+  for (auto i : wheel_w) {
+    total_w += i;
+  }
+  double avg_w = 0.0;
+  avg_w = total_w / wheel_w.size();
 
   Eigen::Quaterniond delta_qat;
   Eigen::AngleAxisd rollAngle(Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX()));
@@ -89,11 +107,80 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   // cur_odom_data.odometry.quaternion.y = qat_.y();
   // cur_odom_data.odometry.quaternion.z = qat_.z();
 
-  cur_odom_data.odometry  = WheelOdometry(pos_[0], pos_[1], pos_[2], qat_.w(),
-   qat_.x(), qat_.y(), qat_.z());
-  cur_odom_data.loc_vel = {v_by_wheel_, 0, 0};
+  cur_odom_data.odometry = WheelOdometry(pos_[0], pos_[1], pos_[2], qat_.w(),
+                                         qat_.x(), qat_.y(), qat_.z());
+
+  static std::deque<double> wheel_vel = {};
+  if (wheel_vel.size() > 20) {
+    wheel_vel.pop_front();
+  } else {
+    wheel_vel.push_back(v_by_wheel_);
+  }
+  double total_vel = 0.0;
+  for (auto i : wheel_vel) {
+    total_vel += i;
+  }
+  double avg_vel = total_vel / wheel_vel.size();
+
+  /////////////////////////////////////
+  static std::deque<double> wheel_vel2 = {};
+  static double avg_vel2 = 0.0;
+  double last_avg_vel = avg_vel2;
+  if (wheel_vel2.size() > 20) {
+    wheel_vel2.pop_front();
+  } else {
+    wheel_vel2.push_back(cur.rear_right_speed);
+  }
+  double total_vel2 = 0.0;
+  for (auto i : wheel_vel2) {
+    total_vel2 += i;
+  }
+
+  avg_vel2 = total_vel2 / wheel_vel2.size();
+
+  // Eigen::Vector3d eg_wheel = {v_by_wheel_, 0, 0};
+  // cur_odom_data.loc_vel = filter_vel(eg_wheel);
+
+  Eigen::Vector3d fl_vel = filter_vel({v_by_wheel_, 0, 0});
+
+  // HLOG_INFO << "==== init ====  filtered vel !!! "
+  //           << "origin vec," << v_by_wheel_ << " ,avg wheel, " << avg_vel
+  //           << ",filter vel," << fl_vel(0) << " ,wheel vel,"
+  //           << cur.rear_right_speed <<" ,avg2,"<<avg_vel2<<"
+  //           ,lastvel,"<<last_avg_vel<<",acc,"<<(avg_vel2 - last_avg_vel) /
+  //           delta_t;
+
+  cur_odom_data.loc_vel = {avg_vel, 0, 0};
   cur_odom_data.loc_omg = {0, 0, w_by_wheel_};
-  cur_odom_data.loc_acc = {0, 0, 0};
+  double acc_x = (avg_vel2 - last_avg_vel) / delta_t;
+
+  /////////////////////////////////////
+  static std::deque<double> wheel_acc = {};
+  if (wheel_acc.size() > 20) {
+    wheel_acc.pop_front();
+  } else {
+    if (acc_x < 10.0) {
+      wheel_acc.push_back(acc_x);
+    }
+  }
+  double total_acc = 0.0;
+  for (auto i : wheel_acc) {
+    total_acc += i;
+  }
+  double avg_acc = 0.0;
+  if (wheel_acc.size() > 18) {
+    avg_acc = total_acc / wheel_acc.size();
+  } else {
+    avg_acc = 0.0;
+  }
+
+  cur_odom_data.loc_acc = {avg_acc, 0, 0};
+
+  HLOG_INFO << "==== init ====  filtered vel !!! "
+            << "left_diff," << left_diff << " ,right_diff, " << right_diff
+            << ",filter vel," << fl_vel(0) << " ,wheel vel,"
+            << cur.rear_right_speed << " ,avg2," << avg_vel2 << " ,acc,"
+            << avg_acc << ",yaw," << delta_yaw << ",avg yaw," << avg_w;
 
   AddOdomData(cur_odom_data, delta_dist);
 
@@ -101,8 +188,8 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   if (yaw > M_PI) yaw -= 2 * M_PI;
   if (yaw < -M_PI) yaw += 2 * M_PI;
 
-  v_by_wheel_ = delta_dist / delta_t;
-  w_by_wheel_ = delta_yaw / delta_t;
+  // v_by_wheel_ = delta_dist / delta_t;
+  // w_by_wheel_ = delta_yaw / delta_t;
 
   /*  std::cout << "delta dis:" << delta_dist << ",delta angle:" << delta_yaw
              << std::endl;

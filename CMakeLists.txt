@@ -80,6 +80,8 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/json/include)
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/pcl/include/pcl-1.11)
     link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/pcl/lib)
+    include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/ceres/include)
+    link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/ceres/lib)
 
     include_directories(depend)
 

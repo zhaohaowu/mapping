@@ -1,0 +1,88 @@
+%YAML:1.0
+
+#basic
+use_lane_line: true
+use_pole: true
+use_traffic_sign: true
+delay_frame: 2
+max_frame_buf: 8   
+use_smooth: false
+use_interpolate: false
+map_crop_front: 1550.0
+map_crop_width: 300.0
+
+# cyber_topic
+hdmap_topic: "/minieye/hdmap"
+# hdmap_topic: "/amap/ehp"
+# location_topic: "/minieye/haflocation"
+# road_marking_topic: /minieye/front_road_marking/laneline
+lane_line_topic: "/Hozon/ServiceInterface/HozonInterface_LaneLine/hozonEvent__/Hozon/ModuleBase/PerceptionCameraLane/Service/DDS/Provider/PerCameraLaneProviderInstance_LaneLine_DDS_1__"
+node_info_topic: "/minieye/node_info_mm"
+# ins_topic: "/minieye/node_info_ins"
+ins_topic: "/minieye/node_info_inspva"
+
+# fault diagnosis
+# Fault Switch
+use_fc_exceed_curb_fault: true        #fault-114
+use_valid_pecep_lane_fault: true      #fault-123
+use_valid_map_lane_fault: true        #fault-124
+use_fc_offset_onelane_fault: true     #fault-125
+use_map_lane_match_fault: true        #fault-130
+##no valid fault
+use_valid_estimate_last_fault: false  #已关闭(old fault-125)
+##map_lane_match_fault
+map_lane_match_max: 0.3         # 最大y_error(m)--阈值1
+map_lane_match_buff: 20         # 超过buff次就上报故障
+map_lane_match_ser_max: 0.8     # 阈值2
+map_lane_match_ser_buff: 5
+near_dis: 2                     # 近段点距离
+last_straight_dis: 20           # 直道远段点距离
+last_curve_dis: 8               # 匝道远段点距离
+curvature_thr: 0.0005           # 感知车道线曲率阈值
+##valid_estimate_last_fault
+valid_estimate_last_buff: 100   # 持续valid_estimate_buff_* 0.033s
+invalid_estimate_last_buff: 3   # 失效invalid_estimate_buff_ * 0.033s
+estimate_last_error_buff: 10    # 错误持续buff * 0.033s，即清空
+##valid_estimate_fault
+estimate_buff: 3
+##fc_exceed_curb_fault
+exceed_curb_report_cnt: 10
+##fc_offset_onelane
+offset_onelane_max_err: 3       # m 
+offset_onelane_cnt: 30
+offset_maplane_min_dis: -20     # m，车道线最近距离
+offset_maplane_max_dis: 40      # m，车道线最远距离 
+offset_maxlane: 9               # m，车道线阈值，只使用9m内的车道线
+##valid_pecep_lane_fault
+invalid_pecep_cnt_thr: 8      
+
+# perception lane config
+lane_confidence_thre: 0.5
+lane_rviz_show_onlyvalid: true
+
+# about solve weight
+solve_weight: 1.57 # PI_2
+solve_point2line_base: 0.8
+
+# check lane_match
+thre_continue_badmatch: 3
+thre_delta_y_diff: 0.1
+
+perceplane_len_lowerbound: 1.0
+
+# change refer point
+can_ref_point_changed: true
+thre_ref_point_change: 20000
+
+# temporary strategy: history reason,
+# TDDO: change to 'true' after test
+use_ll_perceplane: false
+
+#rviz
+rviz_show_map_centerlane: false
+rviz_show_pceplane_oriT: false
+
+# about debug
+debug_plot_info: false
+
+line_error_normal_thr: 0.05

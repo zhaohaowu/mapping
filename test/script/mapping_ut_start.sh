@@ -9,7 +9,7 @@ export LD_LIBRARY_PATH=${TOP_DIR}/../../lib/:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=${TOP_DIR}/../../lib/:$LD_LIBRARY_PATH
 
 export LD_LIBRARY_PATH=${TOP_DIR}/../../../../depend/third_party/x86/boost/lib:$LD_LIBRARY_PATH
-export LD_LIBRARY_PATH=${TOP_DIR}/../../../../depend/third_party/x86/glog/lib:$LD_LIBRARY_PATH
+# export LD_LIBRARY_PATH=${TOP_DIR}/../../../../depend/third_party/x86/glog/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=${TOP_DIR}/../../../../depend/third_party/x86/gtest/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=${TOP_DIR}/../../../../depend/third_party/x86/gflags/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=${TOP_DIR}/../../../../depend/third_party/x86/cuda/lib:$LD_LIBRARY_PATH

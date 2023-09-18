@@ -12,4 +12,7 @@ fi
 
 export LD_LIBRARY_PATH=${WORKSPACE}/depend/third_party/x86/protobuf/lib:$LD_LIBRARY_PATH
 export PYTHONPATH=$WORKSPACE
+if [ -d "${WORKSPACE}/release" ]; then
+  rm -r "${WORKSPACE}/release"
+fi
 $PYTHON_BIN tools/compile.py $@ --workspace $WORKSPACE

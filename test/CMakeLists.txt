@@ -8,7 +8,7 @@ add_executable(${PROJECT_NAME} ${SRCS_TEST})
 target_link_libraries(${PROJECT_NAME}
     gtest
     # gtest_main
-    glog
+    # glog
     gflags
 )
 # add_test(NAME ${PROJECT_NAME}

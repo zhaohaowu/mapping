@@ -1,0 +1,27 @@
+# Define all coms in DAG streaming.
+module_config {
+  module_library: "lib/liblocation_pose_estimation_cyber.so"
+  components {
+    class_name: "PoseEstimationComponent"
+    config {
+      name: "location"
+      flag_file_path: "conf/mapping/location/pose_estimation/pose_estimation_flag.conf"
+      readers: [
+        {
+          channel: "hdmap"
+          qos_profile: {
+            depth: 15
+          }
+          pending_queue_size: 50
+        },
+        {
+          channel: "perception"
+          qos_profile: {
+            depth: 15
+          }
+          pending_queue_size: 50
+        }
+      ]
+    }
+  }
+}

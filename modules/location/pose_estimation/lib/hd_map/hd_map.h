@@ -1,0 +1,105 @@
+/******************************************************************************
+ *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： hd_map.h
+ *   author     ： ouyanghailin
+ *   date       ： 2023.09
+ ******************************************************************************/
+
+#pragma once
+
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+
+#include <iostream>
+#include <map>
+#include <memory>
+#include <unordered_map>
+#include <vector>
+
+#include <Sophus/se3.hpp>
+#include <Sophus/so3.hpp>
+
+#include "interface/adsfi_proto/internal/slam_hd_submap.pb.h"
+#include "modules/util/include/util/geo.h"
+#include "modules/util/include/util/temp_log.h"
+#include "modules/location/pose_estimation/lib/hd_map/hd_map_base.h"
+#include "modules/location/pose_estimation/lib/hd_map/hd_map_lane_line.h"
+#include "modules/location/pose_estimation/lib/hd_map/hd_map_pole.h"
+#include "modules/location/pose_estimation/lib/hd_map/hd_map_road_edge.h"
+#include "modules/location/pose_estimation/lib/hd_map/hd_map_traffic_sign.h"
+
+namespace hozon {
+namespace mp {
+namespace loc {
+
+template <typename Map_Type>
+class Map {
+ public:
+  /**
+   * @brief get map element
+   *
+   * @param hd_map : hd_map message
+   * @return
+   */
+  void SetMap(const Map_Type& hd_map);
+
+  /**
+   * @brief crop map to get different element
+   *
+   * @param T_W_V : vehicle pose in the gcj02 coordinates
+   * @param front : range in front of the vehicle
+   * @param width : range in side of the vehicle
+   * @return
+   */
+  void Crop(const SE3& T_W_V, double front, double width);
+
+  /**
+   * @brief crop map
+   *
+   * @param T_W_V : vehicle pose in the gcj02 coordinates
+   * @param front : range in front of the vehicle
+   * @param width : range in side of the vehicle
+   * @return
+   */
+  void BoxUpdate(const SE3& T_W_V, double front, double width);
+
+  /**
+   * @brief get different map element
+   *
+   * @param type : element type
+   * @return
+   */
+  MapElement::Ptr GetElement(int type) const;
+
+  /**
+   * @brief free variable memory
+   *
+   * @return
+   */
+  void Clear(void);
+
+  /**
+   * @brief set refrence point
+   *
+   * @param ref_point : refrence point
+   * @return
+   */
+  void set_ref_point(const V3& ref_point);
+
+  /**
+   * @brief get refrence point
+   *
+   * @param
+   * @return
+   */
+  V3 get_ref_point(void);
+  std::vector<V3> box_;
+  std::vector<MapElement::Ptr> elment_;
+
+ private:
+  V3 ref_point_;
+};
+
+}  // namespace loc
+}  // namespace mp
+}  // namespace hozon

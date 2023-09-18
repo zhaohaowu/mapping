@@ -16,11 +16,7 @@ namespace mp {
 namespace lm {
 
 void MapManager::Init() {
-  int ret = util::RvizAgent::Instance().Init(FLAGS_viz_addr);
-  if (ret < 0) {
-    std::cout << "RvizAgent Init failed" << std::endl;
-  }
-  ret = util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
+  int ret = util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
       ktopic_lane_);
   if (ret < 0) {
     std::cout << "RvizAgent register " << ktopic_lane_ << " failed"
@@ -35,29 +31,17 @@ void MapManager::Init() {
   }
 }
 
-void MapManager::CutLocalMap(const CutRegion& cut_region,
-                             const Eigen::Vector3d& p_w_v) {
+void MapManager::CutLocalMap(const double& length_x, const double& length_y,
+                             const Eigen::Vector3d& p_v) {
   for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
     for (size_t j = 0; j < local_map_.local_map_lane_[i].points_.size(); ++j) {
-      std::vector<Eigen::Vector3d> points =
-          local_map_.local_map_lane_[i].points_;
-      if (points[j].x() < p_w_v.x() - cut_region.length_x ||
-          points[j].x() > p_w_v.x() + cut_region.length_x ||
-          points[j].y() < p_w_v.y() - cut_region.length_y ||
-          points[j].y() > p_w_v.y() + cut_region.length_y) {
-        points.erase(points.begin() + j);
-      }
-    }
-  }
-  for (size_t i = 0; i < local_map_.local_map_edge_.size(); ++i) {
-    for (size_t j = 0; j < local_map_.local_map_edge_[i].points_.size(); ++j) {
-      std::vector<Eigen::Vector3d> points =
-          local_map_.local_map_edge_[i].points_;
-      if (points[j].x() < p_w_v.x() - cut_region.length_x ||
-          points[j].x() > p_w_v.x() + cut_region.length_x ||
-          points[j].y() < p_w_v.y() - cut_region.length_y ||
-          points[j].y() > p_w_v.y() + cut_region.length_y) {
-        points.erase(points.begin() + j);
+      if (local_map_.local_map_lane_[i].points_[j].x() < p_v.x() - length_x ||
+          local_map_.local_map_lane_[i].points_[j].x() > p_v.x() + length_x ||
+          local_map_.local_map_lane_[i].points_[j].y() < p_v.y() - length_y ||
+          local_map_.local_map_lane_[i].points_[j].y() > p_v.y() + length_y) {
+        local_map_.local_map_lane_[i].points_.erase(
+            local_map_.local_map_lane_[i].points_.begin() + j);
+        --j;
       }
     }
   }
@@ -89,49 +73,82 @@ void MapManager::UpdateEdge(const LocalMapLane& edge) {
   }
 }
 
-void MapManager::AppendLanePoints(const int& id,
-                                  const std::vector<Eigen::Vector3d>& points) {
+void MapManager::AppendOldLanePoints(
+    const int& id, const std::vector<Eigen::Vector3d>& points) {
   for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
     if (local_map_.local_map_lane_[i].track_id_ == id) {
       for (size_t j = 0; j < points.size(); ++j) {
         local_map_.local_map_lane_[i].points_.push_back(points[j]);
       }
-      break;
-    }
-    if (i == local_map_.local_map_lane_.size() - 1) {
-      for (size_t j = 0; j < points.size(); ++j) {
-        local_map_.local_map_lane_[i].points_.push_back(points[j]);
-      }
+      return;
     }
   }
+}
+
+void MapManager::AppendNewLanePoints(
+    const std::vector<Eigen::Vector3d>& points) {
+  // static int max_id = -1;
+  // for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
+  //   if (local_map_.local_map_lane_[i].track_id_ > max_id) {
+  //     max_id = local_map_.local_map_lane_[i].track_id_;
+  //   }
+  // }
+  static int max_id = 0;
+  LocalMapLane lane;
+  lane.track_id_ = max_id;
+  lane.points_ = points;
+  local_map_.local_map_lane_.emplace_back(lane);
+  max_id++;
 }
 
 void MapManager::AppendEdgePoints(const int& id,
                                   const std::vector<Eigen::Vector3d>& points) {
   for (size_t i = 0; i < local_map_.local_map_edge_.size(); ++i) {
     if (local_map_.local_map_edge_[i].track_id_ == id) {
-      for (size_t j = 0; j < points.size(); ++j) {
-        local_map_.local_map_edge_[i].points_.push_back(points[j]);
+      local_map_.local_map_edge_[i].points_ = points;
+      return;
+    }
+  }
+  LocalMapLane lane;
+  lane.track_id_ = id;
+  lane.points_ = points;
+  local_map_.local_map_edge_.emplace_back(lane);
+}
+
+void MapManager::DeleteLanePoints(const int& id, const Eigen::Matrix4d& T_W_V,
+                                  const double& min_dis) {
+  for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
+    if (local_map_.local_map_lane_[i].track_id_ == id) {
+      for (size_t j = 0; j < local_map_.local_map_lane_[i].points_.size();
+           ++j) {
+        Eigen::Vector4d p_w(local_map_.local_map_lane_[i].points_[j].x(),
+                            local_map_.local_map_lane_[i].points_[j].y(),
+                            local_map_.local_map_lane_[i].points_[j].z(), 1);
+        Eigen::Vector4d p_v = T_W_V * p_w;
+        if (p_v.x() > min_dis) {
+          local_map_.local_map_lane_[i].points_.erase(
+              local_map_.local_map_lane_[i].points_.begin() + j);
+          --j;
+        }
       }
       break;
-    }
-    if (i == local_map_.local_map_edge_.size() - 1) {
-      for (size_t j = 0; j < points.size(); ++j) {
-        local_map_.local_map_edge_[i].points_.push_back(points[j]);
-      }
     }
   }
 }
 
 void MapManager::GetLanes(std::shared_ptr<std::vector<LocalMapLane>> lane) {
-  *lane = local_map_.local_map_lane_;
+  for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
+    if (local_map_.local_map_lane_[i].points_.size() > 20) {
+      lane->emplace_back(local_map_.local_map_lane_[i]);
+    }
+  }
 }
 
 void MapManager::GetEdges(std::shared_ptr<std::vector<LocalMapLane>> edge) {
   *edge = local_map_.local_map_edge_;
 }
 
-void MapManager::GetLocalMap(std::shared_ptr<LocalMaps> local_map) {
+void MapManager::GetLocalMap(std::shared_ptr<LocalMap> local_map) {
   *local_map = local_map_;
 }
 
@@ -146,7 +163,7 @@ void GetLanePts(const LaneCubicSpline& cubic_curve,
 
   const float gap = 1.0;  // meter
   float fac = 1.0;
-  for (int i = 0;; ++i) {
+  for (size_t i = 0;; ++i) {
     float curr_x = start_x + static_cast<float>(i) * gap * fac;
     if ((fac > 0 && curr_x >= end_x) || (fac < 0 && curr_x <= end_x)) {
       break;
@@ -174,7 +191,7 @@ void MapManager::PubPoints(const std::vector<Eigen::Vector3d>& points,
   if (util::RvizAgent::Instance().Ok()) {
     adsfi_proto::viz::PointCloud lane_points;
     static uint32_t seq = 0;
-    int curr_seq = seq++;
+    size_t curr_seq = seq++;
 
     lane_points.mutable_header()->set_seq(curr_seq);
     lane_points.mutable_header()->mutable_timestamp()->set_sec(sec);

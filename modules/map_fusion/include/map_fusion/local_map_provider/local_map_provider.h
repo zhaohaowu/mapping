@@ -41,10 +41,10 @@ class LocalMapProvider {
       const std::shared_ptr<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>&
           msg);
 
-  std::shared_ptr<LocalMap> GetLocalMap();
+  std::shared_ptr<hozon::mapping::LocalMap> GetLocalMap();
 
  private:
-  std::shared_ptr<LocalMap> local_map_ = nullptr;
+  std::shared_ptr<hozon::mapping::LocalMap> local_map_ = nullptr;
 
   Eigen::Quaterniond q_W_V_;
   Eigen::Vector3d ref_point_;
@@ -61,7 +61,7 @@ class LocalMapProvider {
 
   adsfi_proto::viz::Path location_path_;
 
-  void VizLocalMap(const std::shared_ptr<LocalMap>& local_map);
+  void VizLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& local_map);
   void SetLaneLine(
       std::vector<Eigen::Vector3d>* points,
       const std::shared_ptr<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>&
@@ -70,7 +70,7 @@ class LocalMapProvider {
                    const adsfi_proto::hz_Adsfi::HafTime& stamp);
   void VizLocation(const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
                    const adsfi_proto::hz_Adsfi::HafTime& stamp);
-  void LaneLineToMarker(double stamp, const LaneInfo& lane_line,
+  void LaneLineToMarker(double stamp, const hozon::mapping::LaneInfo& lane_line,
                         adsfi_proto::viz::Marker* marker);
 };
 

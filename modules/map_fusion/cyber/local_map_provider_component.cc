@@ -28,7 +28,8 @@ namespace mp {
 namespace mf {
 
 bool LocalMapProviderComponent::Init() {
-  lm_writer_ = node_->CreateWriter<LocalMap>(FLAGS_channel_local_map_provider);
+  lm_writer_ = node_->CreateWriter<hozon::mapping::LocalMap>(
+      FLAGS_channel_local_map_provider);
 
   ins_reader_ = node_->CreateReader<adsfi_proto::internal::HafNodeInfo>(
       FLAGS_channel_ins_node_info_lmp,

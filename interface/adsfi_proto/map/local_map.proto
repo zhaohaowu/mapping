@@ -1,5 +1,7 @@
 syntax = "proto2";
 
+package hozon.mapping;
+
 message LocalMap {
     optional double init_timestamp = 1;     //坐标系初始化时间辍
     optional double cur_timestamp = 2;      //当前帧时间辍

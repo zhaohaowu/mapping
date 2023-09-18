@@ -8,9 +8,11 @@
 namespace hozon {
 namespace mp {
 namespace lm {
+
 void DataConvert::SetLocation(const adsfi_proto::hz_Adsfi::AlgLocation msg,
                               std::shared_ptr<Location> location) {
-  location->timestamp_ = msg.timestamp_us();
+  location->timestamp_ =
+      msg.header().timestamp().sec() + msg.header().timestamp().nsec() / 1e9;
   location->position_.x() = msg.pose().pose_gcj02().position().x();
   location->position_.y() = msg.pose().pose_gcj02().position().y();
   location->position_.z() = msg.pose().pose_gcj02().position().z();
@@ -21,15 +23,19 @@ void DataConvert::SetLocation(const adsfi_proto::hz_Adsfi::AlgLocation msg,
   location->euler_angle_.x() = msg.pose().pose_gcj02().euler_angle().x();
   location->euler_angle_.y() = msg.pose().pose_gcj02().euler_angle().y();
   location->euler_angle_.z() = msg.pose().pose_gcj02().euler_angle().z();
-  location->rotation_vrf_.x() = msg.pose().pose_gcj02().rotation_vrf().x();
-  location->rotation_vrf_.y() = msg.pose().pose_gcj02().rotation_vrf().y();
-  location->rotation_vrf_.z() = msg.pose().pose_gcj02().rotation_vrf().z();
+  location->linear_vrf_.x() = msg.velocity().twist_vrf().linear_vrf().x();
+  location->linear_vrf_.y() = msg.velocity().twist_vrf().linear_vrf().y();
+  location->linear_vrf_.z() = msg.velocity().twist_vrf().linear_vrf().z();
+  location->angular_vrf_.x() = msg.velocity().twist_vrf().angular_vrf().x();
+  location->angular_vrf_.y() = msg.velocity().twist_vrf().angular_vrf().y();
+  location->angular_vrf_.z() = msg.velocity().twist_vrf().angular_vrf().z();
   location->heading_ = msg.pose().pose_gcj02().heading();
 }
 
 void DataConvert::SetDr(const adsfi_proto::hz_Adsfi::AlgLocation msg,
                         std::shared_ptr<Location> dr_location) {
-  dr_location->timestamp_ = msg.timestamp_us();
+  dr_location->timestamp_ =
+      msg.header().timestamp().sec() + msg.header().timestamp().nsec() / 1e9;
   dr_location->position_.x() = msg.pose().pose_local().position().x();
   dr_location->position_.y() = msg.pose().pose_local().position().y();
   dr_location->position_.z() = msg.pose().pose_local().position().z();
@@ -40,23 +46,31 @@ void DataConvert::SetDr(const adsfi_proto::hz_Adsfi::AlgLocation msg,
   dr_location->euler_angle_.x() = msg.pose().pose_local().euler_angle().x();
   dr_location->euler_angle_.y() = msg.pose().pose_local().euler_angle().y();
   dr_location->euler_angle_.z() = msg.pose().pose_local().euler_angle().z();
-  dr_location->rotation_vrf_.x() = msg.pose().pose_local().rotation_vrf().x();
-  dr_location->rotation_vrf_.y() = msg.pose().pose_local().rotation_vrf().y();
-  dr_location->rotation_vrf_.z() = msg.pose().pose_local().rotation_vrf().z();
+  dr_location->linear_vrf_.x() = msg.velocity().twist_vrf().linear_vrf().x();
+  dr_location->linear_vrf_.y() = msg.velocity().twist_vrf().linear_vrf().y();
+  dr_location->linear_vrf_.z() = msg.velocity().twist_vrf().linear_vrf().z();
+  dr_location->angular_vrf_.x() = msg.velocity().twist_vrf().angular_vrf().x();
+  dr_location->angular_vrf_.y() = msg.velocity().twist_vrf().angular_vrf().y();
+  dr_location->angular_vrf_.z() = msg.velocity().twist_vrf().angular_vrf().z();
   dr_location->heading_ = msg.pose().pose_local().heading();
 }
 
 void DataConvert::SetLaneLine(
     const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray& msg,
     std::shared_ptr<Lanes> lanes) {
-  lanes->timestamp_ = msg.timestamp_us();
-  for (int i = 0; i < msg.lane_detection_front_out().size(); i++) {
+  lanes->timestamp_ =
+      msg.header().timestamp().sec() + msg.header().timestamp().nsec() / 1e9;
+  for (size_t i = 0; i < msg.lane_detection_front_out().size(); i++) {
     if (msg.lane_detection_front_out()[i].lane_detection_out().size() == 0)
       return;
+    int lane_id = msg.lane_detection_front_out()[i]
+                      .lane_detection_out()[0]
+                      .laneline_seq();
+    if (lane_id > 100 || lane_id < -100) continue;
     std::shared_ptr<Lane> lane = std::make_shared<Lane>();
     lane->lane_id_ = msg.lane_detection_front_out()[i]
-                        .lane_detection_out()[0]
-                        .laneline_seq();
+                         .lane_detection_out()[0]
+                         .laneline_seq();
     lane->lane_fit_a_ = msg.lane_detection_front_out()[i]
                             .lane_detection_out()[0]
                             .lane_fit()
@@ -87,9 +101,12 @@ void DataConvert::SetLaneLine(
                            .x_end_vrf();
     lanes->front_lanes_.emplace_back(*lane);
   }
-  for (int i = 0; i < msg.lane_detection_rear_out().size(); i++) {
+  for (size_t i = 0; i < msg.lane_detection_rear_out().size(); i++) {
     if (msg.lane_detection_rear_out()[i].lane_detection_out().size() == 0)
       return;
+    int lane_id =
+        msg.lane_detection_rear_out()[i].lane_detection_out()[0].laneline_seq();
+    if (lane_id > 100 || lane_id < -100) continue;
     std::shared_ptr<Lane> lane = std::make_shared<Lane>();
     lane->lane_id_ =
         msg.lane_detection_rear_out()[i].lane_detection_out()[0].laneline_seq();
@@ -121,7 +138,7 @@ void DataConvert::SetLaneLine(
                            .lane_detection_out()[0]
                            .lane_fit()
                            .x_end_vrf();
-    lanes->front_lanes_.emplace_back(*lane);
+    lanes->rear_lanes_.emplace_back(*lane);
   }
 }
 

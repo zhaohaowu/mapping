@@ -29,7 +29,8 @@ void TopoAssignment::OnHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
   // 通过vehicle pose拿取的hq地图
   hq_map_ = msg;
 }
-void TopoAssignment::OnLocalMap(const std::shared_ptr<LocalMap>& msg) {
+void TopoAssignment::OnLocalMap(
+    const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
   // 先不考虑历史信息，全部赋予拓扑
 }
 

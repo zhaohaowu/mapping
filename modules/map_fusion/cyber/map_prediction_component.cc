@@ -42,9 +42,11 @@ bool MapPredictionComponent::Init() {
   hqMap_reader_ = node_->CreateReader<hozon::hdmap::Map>(
       FLAGS_channel_hqMap_node_info,
       [this](const std::shared_ptr<hozon::hdmap::Map>& msg) { OnHqMap(msg); });
-  lm_reader_ = node_->CreateReader<LocalMap>(
+  lm_reader_ = node_->CreateReader<hozon::mapping::LocalMap>(
       FLAGS_channel_LocalMap_node_info,
-      [this](const std::shared_ptr<LocalMap>& msg) { OnLocalMap(msg); });
+      [this](const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
+        OnLocalMap(msg);
+      });
   return true;
 }
 
@@ -72,7 +74,8 @@ void MapPredictionComponent::OnHqMap(
   prediction_->OnHqMap(msg);
 }
 
-void MapPredictionComponent::OnLocalMap(const std::shared_ptr<LocalMap>& msg) {
+void MapPredictionComponent::OnLocalMap(
+    const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
   if (!prediction_) {
     HLOG_ERROR << "nullptr tppo map assignment";
     return;

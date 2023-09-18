@@ -45,7 +45,7 @@ class DataConvert {
    * @return
    */
   static void SetLaneLine(
-      const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray &msg,
+      const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray& msg,
       std::shared_ptr<Lanes> lanes);
 
   /**
@@ -55,7 +55,7 @@ class DataConvert {
    * @return
    */
   static void SetRoadEdge(
-      const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray &msg);
+      const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray& msg);
 };
 
 }  // namespace lm

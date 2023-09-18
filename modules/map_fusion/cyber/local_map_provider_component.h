@@ -40,7 +40,8 @@ class LocalMapProviderComponent final : public apollo::cyber::Component<> {
       const std::shared_ptr<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>&
           msg);
 
-  std::shared_ptr<apollo::cyber::Writer<LocalMap>> lm_writer_ = nullptr;
+  std::shared_ptr<apollo::cyber::Writer<hozon::mapping::LocalMap>> lm_writer_ =
+      nullptr;
   std::shared_ptr<apollo::cyber::Reader<adsfi_proto::internal::HafNodeInfo>>
       ins_reader_ = nullptr;
   std::shared_ptr<apollo::cyber::Reader<adsfi_proto::hz_Adsfi::AlgLocation>>

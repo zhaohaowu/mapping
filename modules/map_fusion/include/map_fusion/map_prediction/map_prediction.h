@@ -11,11 +11,11 @@
 #include <adsfi_proto/map/local_map.pb.h>
 #include <depend/proto/map/map.pb.h>
 
-#include <thread>
+#include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
-#include <memory>
 
 #include "Eigen/Core"
 #include "Eigen/Dense"
@@ -28,9 +28,7 @@ namespace mf {
 class MapPrediction {
  public:
   MapPrediction() = default;
-  ~MapPrediction() {
-    Term();
-  }
+  ~MapPrediction() { Term(); }
 
   int Init(const std::string& conf);
   void OnHqMap(const std::shared_ptr<const hozon::hdmap::Map>& hqMap);
@@ -38,7 +36,7 @@ class MapPrediction {
   //   localMap);
   void OnInsNodeInfo(
       const std::shared_ptr<adsfi_proto::internal::HafNodeInfo>& msg);
-  void OnLocalMap(const std::shared_ptr<LocalMap>& msg);
+  void OnLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& msg);
 
  private:
   void PredictLeftRightLaneline(

@@ -71,7 +71,8 @@ void MapPrediction::OnHqMap(
   }
 }
 
-void MapPrediction::OnLocalMap(const std::shared_ptr<LocalMap>& msg) {
+void MapPrediction::OnLocalMap(
+    const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
   // 接收消息
   std::lock_guard<std::mutex> lock(mtx_);
   localMapLaneLines.clear();
@@ -333,7 +334,8 @@ void MapPrediction::PredictAheadLaneLine(
 
   // 确定对应的道路边界线关联对
   DetermineEdgeAssPair(
-      allEdges, boundaryPairs);  // 这里得到的boundaryPairs中的关联对可能有重复的
+      allEdges,
+      boundaryPairs);  // 这里得到的boundaryPairs中的关联对可能有重复的
   // 根据关联对的信息开始拟合需要预测的车道线信息
   FitAheadLaneLine(boundaryPairs, allEdges, predictLaneLines);
 }

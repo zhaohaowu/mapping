@@ -31,7 +31,7 @@ class TopoAssignmentComponent final : public apollo::cyber::Component<> {
   void OnInsNodeInfo(
       const std::shared_ptr<adsfi_proto::internal::HafNodeInfo>& msg);
   void OnHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg);
-  void OnLocalMap(const std::shared_ptr<LocalMap>& msg);
+  void OnLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& msg);
 
   std::shared_ptr<apollo::cyber::Writer<hozon::hdmap::Map>> topo_writer_ =
       nullptr;
@@ -39,7 +39,8 @@ class TopoAssignmentComponent final : public apollo::cyber::Component<> {
       ins_reader_ = nullptr;
   std::shared_ptr<apollo::cyber::Reader<hozon::hdmap::Map>> hq_reader_ =
       nullptr;
-  std::shared_ptr<apollo::cyber::Reader<LocalMap>> lm_reader_ = nullptr;
+  std::shared_ptr<apollo::cyber::Reader<hozon::mapping::LocalMap>> lm_reader_ =
+      nullptr;
 
   std::shared_ptr<TopoAssignment> topo_assign_ = nullptr;
 };

@@ -7,6 +7,6 @@ include_directories(
 
 add_subdirectory(lib)
 
-if(MIDDLEWARE MATCHES CYBER)
+if(${PLATFORM} STREQUAL "X86")
   add_subdirectory(cyber)
 endif()

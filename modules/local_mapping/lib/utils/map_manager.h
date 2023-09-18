@@ -19,10 +19,6 @@
 namespace hozon {
 namespace mp {
 namespace lm {
-struct CutRegion {
-  float length_x;
-  float length_y;
-};
 
 class MapManager {
  public:
@@ -36,7 +32,8 @@ class MapManager {
    * @param cut_region : cut region size
    * @return
    */
-  void CutLocalMap(const CutRegion& cut_region, const Eigen::Vector3d& p_w_v);
+  void CutLocalMap(const double& length_x, const double& length_y,
+                   const Eigen::Vector3d& p_v);
 
   /**
    * @brief add new lane in localmap
@@ -71,13 +68,21 @@ class MapManager {
   void UpdateEdge(const LocalMapLane& edge);
 
   /**
-   * @brief extend some points to existed lane of localmap
+   * @brief extend old points to existed lane of localmap
+   *
+   * @param id : old points id
+   * @param points : updated points
+   * @return
+   */
+  void AppendOldLanePoints(const int& id,
+                           const std::vector<Eigen::Vector3d>& points);
+  /**
+   * @brief extend new points to existed lane of localmap
    *
    * @param points : updated points
    * @return
    */
-  void AppendLanePoints(const int& id,
-                        const std::vector<Eigen::Vector3d>& points);
+  void AppendNewLanePoints(const std::vector<Eigen::Vector3d>& points);
 
   /**
    * @brief extend some points to existed edge of localmap
@@ -87,6 +92,17 @@ class MapManager {
    */
   void AppendEdgePoints(const int& id,
                         const std::vector<Eigen::Vector3d>& points);
+
+  /**
+   * @brief delete some lane points of localmap
+   *
+   * @param id : id
+   * @param T_W_V : T_W_V
+   * @param min_dis : min_dis
+   * @return
+   */
+  void DeleteLanePoints(const int& id, const Eigen::Matrix4d& T_W_V,
+                        const double& min_dis);
 
   /**
    * @brief get lane in local map
@@ -110,7 +126,7 @@ class MapManager {
    * @param local_map : local_map data
    * @return local map data
    */
-  void GetLocalMap(std::shared_ptr<LocalMaps> local_map);
+  void GetLocalMap(std::shared_ptr<LocalMap> local_map);
 
   /**
    * @brief publish local map
@@ -137,8 +153,9 @@ class MapManager {
    */
   void PubLines(std::vector<LocalMapLane> lanes, uint64_t sec, uint64_t nsec);
 
+  LocalMap local_map_;
+
  private:
-  LocalMaps local_map_;
   const std::string ktopic_lane_ = "/localmap/lane";
   const std::string ktopic_roadedge_ = "/localmap/roadedge";
   const std::string ktopic_cur_lane_ = "/localmap/curlane";

@@ -30,7 +30,7 @@ class TopoAssignment {
   void OnInsNodeInfo(
       const std::shared_ptr<adsfi_proto::internal::HafNodeInfo>& msg);
   void OnHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg);
-  void OnLocalMap(const std::shared_ptr<LocalMap>& msg);
+  void OnLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& msg);
 
   std::shared_ptr<hozon::hdmap::Map> GetTopoMap();
 

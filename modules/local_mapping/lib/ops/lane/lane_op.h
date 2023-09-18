@@ -9,7 +9,9 @@
 #include <memory>
 #include <vector>
 
+#include "modules/local_mapping/lib/ops/association/association.h"
 #include "modules/local_mapping/lib/types/common.h"
+#include "modules/local_mapping/lib/utils/common.h"
 #include "util/temp_log.h"
 
 namespace hozon {
@@ -26,7 +28,7 @@ class LaneOp {
    * @param match_info : match result
    * @return
    */
-  void Match(std::shared_ptr<const Lanes> cur_lanes,
+  void Match(ConstDrDataPtr lane_pose, std::shared_ptr<const Lanes> cur_lanes,
              std::shared_ptr<const std::vector<LocalMapLane>> map_lanes,
              std::shared_ptr<std::vector<LaneMatchInfo>> match_info);
 
@@ -41,6 +43,9 @@ class LaneOp {
   void FilterCurve(std::shared_ptr<const LocalMapLane> map_lane,
                    std::shared_ptr<const Lane> cur_lane,
                    std::shared_ptr<std::vector<Eigen::Vector3d>> new_pts);
+
+ private:
+  LaneAssocPtr lane_assoc_ = nullptr;
 };
 
 }  // namespace lm

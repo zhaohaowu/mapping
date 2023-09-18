@@ -65,7 +65,7 @@ int LocalMapProvider::Init() {
       }
     }
   }
-  local_map_ = std::make_shared<LocalMap>();
+  local_map_ = std::make_shared<hozon::mapping::LocalMap>();
   return 0;
 }
 
@@ -228,9 +228,12 @@ void LocalMapProvider::OnRoadEdge(
     const std::shared_ptr<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>&
         msg) {}
 
-std::shared_ptr<LocalMap> LocalMapProvider::GetLocalMap() { return local_map_; }
+std::shared_ptr<hozon::mapping::LocalMap> LocalMapProvider::GetLocalMap() {
+  return local_map_;
+}
 
-void LocalMapProvider::VizLocalMap(const std::shared_ptr<LocalMap>& local_map) {
+void LocalMapProvider::VizLocalMap(
+    const std::shared_ptr<hozon::mapping::LocalMap>& local_map) {
   if (!RVIZ_AGENT.Ok()) {
     return;
   }
@@ -377,8 +380,9 @@ void LocalMapProvider::VizLocation(
   }
 }
 
-void LocalMapProvider::LaneLineToMarker(double stamp, const LaneInfo& lane_line,
-                                        adsfi_proto::viz::Marker* marker) {
+void LocalMapProvider::LaneLineToMarker(
+    double stamp, const hozon::mapping::LaneInfo& lane_line,
+    adsfi_proto::viz::Marker* marker) {
   static int id = 0;
   marker->Clear();
   marker->mutable_header()->set_frameid("map");

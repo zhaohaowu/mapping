@@ -5,24 +5,29 @@
  *****************************************************************************/
 #pragma once
 
+#include <yaml-cpp/yaml.h>
+
 #include <Eigen/Dense>
+#include <algorithm>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <vector>
 
+#include "modules/local_mapping/lib/datalogger/load_data_singleton.h"
 #include "modules/local_mapping/lib/ops/lane/lane_op.h"
 #include "modules/local_mapping/lib/types/common.h"
 #include "modules/local_mapping/lib/utils/common.h"
 #include "modules/local_mapping/lib/utils/data_convert.h"
+#include "modules/local_mapping/lib/utils/lane_filter.h"
 #include "modules/local_mapping/lib/utils/map_manager.h"
 #include "util/temp_log.h"
-
 namespace hozon {
 namespace mp {
 namespace lm {
 class LMapApp {
  public:
-  LMapApp();
+  explicit LMapApp(const std::string& config_file);
 
   /**
    * @brief receive location message
@@ -31,7 +36,7 @@ class LMapApp {
    * @return
    */
   void OnLocation(
-      const std::shared_ptr<const adsfi_proto::hz_Adsfi::AlgLocation> &msg);
+      const std::shared_ptr<const adsfi_proto::hz_Adsfi::AlgLocation>& msg);
 
   /**
    * @brief receive dr message
@@ -40,7 +45,7 @@ class LMapApp {
    * @return
    */
   void OnDr(
-      const std::shared_ptr<const adsfi_proto::hz_Adsfi::AlgLocation> &msg);
+      const std::shared_ptr<const adsfi_proto::hz_Adsfi::AlgLocation>& msg);
 
   /**
    * @brief receive laneline message
@@ -49,7 +54,7 @@ class LMapApp {
    * @return
    */
   void OnLaneLine(const std::shared_ptr<
-                  const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray> &msg);
+                  const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>& msg);
 
   /**
    * @brief receive road edge message
@@ -58,15 +63,16 @@ class LMapApp {
    * @return
    */
   void OnRoadEdge(const std::shared_ptr<
-                  const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray> &msg);
+                  const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>& msg);
 
   /**
    * @brief fetch local_map at current timestamp
    *
-   * @param local_map : local_map at current timestamp
    * @return `true` for fetching success, `false` for failed
    */
-  bool FetchLocalMap(std::shared_ptr<LocalMap> local_map);
+  bool FetchLocalMap(std::shared_ptr<hozon::mapping::LocalMap> local_map);
+
+  ConstDrDataPtr GetDrPoseForTime(double timestamp);
 
  private:
   std::shared_ptr<LaneOp> laneOp_;
@@ -80,6 +86,10 @@ class LMapApp {
   std::shared_ptr<std::vector<Eigen::Vector3d>> new_lane_pts_;
   double map_init_timestamp_;
   Eigen::Matrix4d init_T_, lasted_T_, T_V_W_;
+
+  LaneFilter lane_filter_;
+  std::mutex localmap_mutex_;
+  bool use_rviz;
 };
 
 }  // namespace lm

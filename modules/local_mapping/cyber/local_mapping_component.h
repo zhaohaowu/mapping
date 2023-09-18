@@ -31,7 +31,7 @@ class LMapComponent : public apollo::cyber::Component<> {
    * @return `true` for receiveing and processing success, `false` for failed
    */
   bool OnLocation(
-      const std::shared_ptr<const adsfi_proto::hz_Adsfi::AlgLocation> &msg);
+      const std::shared_ptr<const adsfi_proto::hz_Adsfi::AlgLocation>& msg);
 
   /**
    * @brief receive dr message
@@ -40,7 +40,7 @@ class LMapComponent : public apollo::cyber::Component<> {
    * @return `true` for receiveing and processing success, `false` for failed
    */
   bool OnDr(
-      const std::shared_ptr<const adsfi_proto::hz_Adsfi::AlgLocation> &msg);
+      const std::shared_ptr<const adsfi_proto::hz_Adsfi::AlgLocation>& msg);
 
   /**
    * @brief receive laneline message
@@ -49,7 +49,7 @@ class LMapComponent : public apollo::cyber::Component<> {
    * @return `true` for receiveing and processing success, `false` for failed
    */
   bool OnLaneLine(const std::shared_ptr<
-                  const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray> &msg);
+                  const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>& msg);
 
   /**
    * @brief receive roadedge message
@@ -58,7 +58,7 @@ class LMapComponent : public apollo::cyber::Component<> {
    * @return `true` for receiveing and processing success, `false` for failed
    */
   bool OnRoadEdge(const std::shared_ptr<
-                  const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray> &msg);
+                  const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>& msg);
 
   /**
    * @brief local map publish
@@ -80,7 +80,8 @@ class LMapComponent : public apollo::cyber::Component<> {
   std::shared_ptr<
       apollo::cyber::Reader<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>>
       roadedge_listener_;
-  std::shared_ptr<apollo::cyber::Writer<LocalMap>> result_talker_;
+  std::shared_ptr<apollo::cyber::Writer<hozon::mapping::LocalMap>>
+      result_talker_;
 };
 
 CYBER_REGISTER_COMPONENT(LMapComponent);

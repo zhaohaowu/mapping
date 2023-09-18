@@ -26,8 +26,7 @@ namespace mp {
 namespace mf {
 
 bool TopoAssignmentComponent::Init() {
-  topo_writer_ =
-      node_->CreateWriter<hozon::hdmap::Map>(FLAGS_channel_topo_map);
+  topo_writer_ = node_->CreateWriter<hozon::hdmap::Map>(FLAGS_channel_topo_map);
 
   ins_reader_ = node_->CreateReader<adsfi_proto::internal::HafNodeInfo>(
       FLAGS_channel_ins_node_info_tac,
@@ -39,9 +38,11 @@ bool TopoAssignmentComponent::Init() {
       FLAGS_channel_hq_map,
       [this](const std::shared_ptr<hozon::hdmap::Map>& msg) { OnHQMap(msg); });
 
-  lm_reader_ = node_->CreateReader<LocalMap>(
+  lm_reader_ = node_->CreateReader<hozon::mapping::LocalMap>(
       FLAGS_channel_hq_map,
-      [this](const std::shared_ptr<LocalMap>& msg) { OnLocalMap(msg); });
+      [this](const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
+        OnLocalMap(msg);
+      });
 
   topo_assign_ = std::make_shared<TopoAssignment>();
   return true;
@@ -65,7 +66,8 @@ void TopoAssignmentComponent::OnHQMap(
   // topo_writer_->OnHQMap(msg);
 }
 
-void TopoAssignmentComponent::OnLocalMap(const std::shared_ptr<LocalMap>& msg) {
+void TopoAssignmentComponent::OnLocalMap(
+    const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
   if (!topo_writer_) {
     HLOG_ERROR << "nullptr tppo map assignment";
     return;

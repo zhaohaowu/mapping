@@ -30,6 +30,7 @@ def parse_args():
     p.add_argument('--lib', action='store_true', help='enable active compile submodule perception-lib')
     p.add_argument('--prefix', default='mapping_', help='prefix for all built libraries')
     p.add_argument('--rviz', action='store_true', help='enable building targets for using rviz')
+    p.add_argument('--tool', action='store_true', help='enable building Mapping_tools, should be used with --cyber')
     p.add_argument('--cyber', action='store_true', help='enable cyber')
     # 默认值类型
     p.add_argument('--workspace', default=None, help='root of code repository')
@@ -246,6 +247,26 @@ def build_rviz_bridge(workspace, jobs):
     execute_shell(cmd)
     os.chdir(workspace)
 
+def build_mapping_tool(workspace, release_directory, jobs):
+    LOG_INFO("Build Mapping_tools")
+    build_dir = osp.join(workspace, 'depend', 'Mapping_tools', 'build')
+    os.makedirs(build_dir, exist_ok=True)
+    os.chdir(build_dir)
+    proto_dir = osp.join(workspace, 'depend', 'proto')
+    proto_lib_dir = osp.join(release_directory, 'x86', 'lib')
+    third_party_dir = osp.join(workspace, 'depend', 'third_party')
+    ap_release_dir = osp.join(workspace, 'depend', 'ap-release')
+    install_dir = osp.join(release_directory, 'Mapping_tools')
+    cmake_args = '-DPROTO_DIR={} '.format(proto_dir)
+    cmake_args += '-DPROTO_LIB_DIR={} '.format(proto_lib_dir)
+    cmake_args += '-DTHIRD_PARTY_DIR={} '.format(third_party_dir)
+    cmake_args += '-DAP_RELEASE_DIR={} '.format(ap_release_dir)
+    cmake_args += '-DCMAKE_INSTALL_PREFIX={}'.format(install_dir)
+    cmd = 'cmake {} .. && make -j{} && make install'.format(cmake_args, jobs)
+    LOG_INFO("Build cmd: {}".format(cmd))
+    execute_shell(cmd)
+    os.chdir(workspace)
+
 def clean(workspace):
     build_list=["Debug", "Release", "release", "build", "output"]
     for dir in build_list:
@@ -297,6 +318,11 @@ if __name__ == '__main__':
         make_package(platform)
         if kwargs['rviz']:
             build_rviz_bridge(workspace, kwargs['jobs'])
+        if kwargs['tool']:
+            if kwargs['cyber']:
+                build_mapping_tool(workspace, release_directory, kwargs['jobs'])
+            else:
+                LOG_ERROR('--tool should be used with --cyber')
     elif platform == 'orin':
         orin_build(workspace, platform, build_directory, release_directory, **kwargs)
         make_package(platform)

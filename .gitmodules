@@ -17,3 +17,6 @@
 [submodule "depend/common"]
 	path = depend/common
 	url = https://code.hozonauto.com:10443/algorithm/common.git
+[submodule "depend/Mapping_tools"]
+	path = depend/Mapping_tools
+	url = https://code.hozonauto.com:10443/Mapping_tools/Mapping_tools.git

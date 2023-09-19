@@ -52,7 +52,7 @@ set(POSE_ESTIMATION_SRCS
 )
 
 
-add_library(location_pose_estimation_core SHARED ${POSE_ESTIMATION_SRCS})
+add_mapping_library(location_pose_estimation_core SHARED ${POSE_ESTIMATION_SRCS})
 
 
 target_link_libraries(location_pose_estimation_core
@@ -60,8 +60,6 @@ target_link_libraries(location_pose_estimation_core
 #   localization_minieye_proto
 #   localization_rviz_agent
   protobuf
-  g2o_core
-  g2o_stuff
   ceres
   adsfi_proto
   util

@@ -1,6 +1,6 @@
 project(pose_estimation_cyber)
 
-add_library(location_pose_estimation_cyber SHARED
+add_mapping_library(location_pose_estimation_cyber SHARED
   pose_estimation_component.cc
 )
 

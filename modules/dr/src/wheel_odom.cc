@@ -151,7 +151,7 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   //           delta_t;
 
   cur_odom_data.loc_vel = {avg_vel, 0, 0};
-  cur_odom_data.loc_omg = {0, 0, w_by_wheel_};
+  cur_odom_data.loc_omg = {0, 0, avg_w};
   double acc_x = (avg_vel2 - last_avg_vel) / delta_t;
 
   /////////////////////////////////////

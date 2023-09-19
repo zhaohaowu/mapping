@@ -116,7 +116,7 @@ void DRInterface::SetLocationData(
     // HLOG_ERROR << " send localization input frame is nullptr";
     return;
   }
-
+  // 位置
   locationDataPtr->mutable_pose()
       ->mutable_pose_local()
       ->mutable_position()
@@ -130,11 +130,11 @@ void DRInterface::SetLocationData(
       ->mutable_position()
       ->set_z(0.0);
 
+  // 四元数角度
   locationDataPtr->mutable_pose()
       ->mutable_pose_local()
       ->mutable_quaternion()
       ->set_w(latest_odom.odometry.qw);
-
   locationDataPtr->mutable_pose()
       ->mutable_pose_local()
       ->mutable_quaternion()
@@ -162,6 +162,7 @@ void DRInterface::SetLocationData(
             << " output---vel " << latest_odom.loc_vel[1] << " acc  "
             << latest_odom.loc_acc[0] << " qx " << latest_odom.odometry.qx;
 
+  // 速度
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_linear_vrf()
@@ -175,19 +176,21 @@ void DRInterface::SetLocationData(
       ->mutable_linear_vrf()
       ->set_z(latest_odom.loc_vel[2]);
 
-  //   locationDataPtr->mutable_velocity()
-  //       ->mutable_twist_vrf()
-  //       ->mutable_angular_raw_vrf()
-  //       ->set_x(latest_odom.loc_vel[0]);
-  //   locationDataPtr->mutable_velocity()
-  //       ->mutable_twist_vrf()
-  //       ->mutable_angular_raw_vrf()
-  //       ->set_y(latest_odom.loc_vel[1]);
-  //   locationDataPtr->mutable_velocity()
-  //       ->mutable_twist_vrf()
-  //       ->mutable_angular_raw_vrf()
-  //       ->set_z(latest_odom.loc_vel[2]);
+  // 角度读
+  locationDataPtr->mutable_velocity()
+      ->mutable_twist_vrf()
+      ->mutable_angular_raw_vrf()
+      ->set_x(latest_odom.loc_omg[0]);
+  locationDataPtr->mutable_velocity()
+      ->mutable_twist_vrf()
+      ->mutable_angular_raw_vrf()
+      ->set_y(latest_odom.loc_omg[1]);
+  locationDataPtr->mutable_velocity()
+      ->mutable_twist_vrf()
+      ->mutable_angular_raw_vrf()
+      ->set_z(latest_odom.loc_omg[2]);
 
+  // 加速度
   locationDataPtr->mutable_acceleration()
       ->mutable_linear_vrf()
       ->mutable_linear_raw_vrf()

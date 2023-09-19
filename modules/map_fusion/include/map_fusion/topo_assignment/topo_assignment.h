@@ -8,8 +8,8 @@
 #pragma once
 
 #include <adsfi_proto/internal/node_info.pb.h>
-#include <adsfi_proto/map/local_map.pb.h>
 #include <depend/map/hdmap/hdmap.h>
+#include <depend/proto/local_mapping/local_map.pb.h>
 #include <depend/proto/map/map.pb.h>
 
 #include <memory>

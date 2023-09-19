@@ -10,6 +10,7 @@ add_mapping_library(lmap_core SHARED ${LM_SRCS})
 
 target_link_libraries(lmap_core
   adsfi_proto
+  europa_common_proto
   util
   -lopencv_calib3d
   -lopencv_gapi 

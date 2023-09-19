@@ -149,7 +149,7 @@ void LocalMapProvider::OnLaneLine(
   // 时间戳每次都更新
   auto msg_timestamp =
       msg->header().timestamp().sec() + msg->header().timestamp().nsec() * 1e-9;
-  local_map_->set_cur_timestamp(msg_timestamp);
+  local_map_->mutable_header()->set_timestamp_sec(msg_timestamp);
 
   float fac = 1.0;
   const float gap = 1.0;  // meter
@@ -241,7 +241,7 @@ void LocalMapProvider::VizLocalMap(
 
   for (const auto& i : local_map->lanes()) {
     adsfi_proto::viz::Marker marker;
-    LaneLineToMarker(local_map->cur_timestamp(), i, &marker);
+    LaneLineToMarker(local_map->header().timestamp_sec(), i, &marker);
     if (!marker.points().empty()) {
       markers.add_markers()->CopyFrom(marker);
     }

@@ -9,9 +9,9 @@
 
 #include <adsfi_proto/internal/node_info.pb.h>
 #include <adsfi_proto/location/location.pb.h>
-#include <adsfi_proto/map/local_map.pb.h>
 #include <adsfi_proto/perception/lanes.pb.h>
 #include <cyber/cyber.h>
+#include <depend/proto/local_mapping/local_map.pb.h>
 
 #include <memory>
 

@@ -11,9 +11,9 @@
 #include <vector>
 
 #include "interface/adsfi_proto/location/location.pb.h"
-#include "interface/adsfi_proto/map/local_map.pb.h"
 #include "interface/adsfi_proto/perception/lanes.pb.h"
 #include "modules/local_mapping/lib/types/types.h"
+#include "proto/local_mapping/local_map.pb.h"
 
 namespace hozon {
 namespace mp {

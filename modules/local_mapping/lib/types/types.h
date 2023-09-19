@@ -10,12 +10,11 @@
 #include <memory>
 #include <vector>
 
+#include "interface/adsfi_proto/location/location.pb.h"
+#include "interface/adsfi_proto/perception/lanes.pb.h"
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d.hpp"
-
-#include "interface/adsfi_proto/location/location.pb.h"
-#include "interface/adsfi_proto/map/local_map.pb.h"
-#include "interface/adsfi_proto/perception/lanes.pb.h"
+#include "proto/local_mapping/local_map.pb.h"
 
 namespace hozon {
 namespace mp {

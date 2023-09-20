@@ -97,9 +97,9 @@ void DRInterface::SetInsData2Location(
   //       ->set_z(ins_data_.linearAcceleration[2]);
 
   // 角速度
-  // locationDataPtr->mutable_velocity()->mutable_twist_vrf()->mutable_angular_vrf()->set_x(odom_data.augularVelocity[0]);
-  // locationDataPtr->mutable_velocity()->mutable_twist_vrf()->mutable_angular_vrf()->set_y(odom_data.augularVelocity[1]);
-  // locationDataPtr->mutable_velocity()->mutable_twist_vrf()->mutable_angular_vrf()->set_z(odom_data.augularVelocity[2]);
+  //   locationDataPtr->mutable_velocity()->mutable_twist_vrf()->mutable_angular_raw_vrf()->set_x(odom_data.augularVelocity[0]);
+  //   locationDataPtr->mutable_velocity()->mutable_twist_vrf()->mutable_angular_raw_vrf()->set_y(odom_data.augularVelocity[1]);
+  //   locationDataPtr->mutable_velocity()->mutable_twist_vrf()->mutable_angular_raw_vrf()->set_z(odom_data.augularVelocity[2]);
 
   //   locationDataPtr->velocity.twistVRF.angularVRF.x =
   //       ins_data_.augularVelocity[0];
@@ -176,7 +176,7 @@ void DRInterface::SetLocationData(
       ->mutable_linear_vrf()
       ->set_z(latest_odom.loc_vel[2]);
 
-  // 角度读
+  // 原始角速度
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_angular_raw_vrf()
@@ -188,6 +188,20 @@ void DRInterface::SetLocationData(
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_angular_raw_vrf()
+      ->set_z(latest_odom.loc_omg[2]);
+
+  // 计算角速度
+  locationDataPtr->mutable_velocity()
+      ->mutable_twist_vrf()
+      ->mutable_angular_vrf()
+      ->set_x(latest_odom.loc_omg[0]);
+  locationDataPtr->mutable_velocity()
+      ->mutable_twist_vrf()
+      ->mutable_angular_vrf()
+      ->set_y(latest_odom.loc_omg[1]);
+  locationDataPtr->mutable_velocity()
+      ->mutable_twist_vrf()
+      ->mutable_angular_vrf()
       ->set_z(latest_odom.loc_omg[2]);
 
   // 加速度

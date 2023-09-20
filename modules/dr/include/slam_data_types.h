@@ -13,7 +13,6 @@
 
 // #include "data_types/common/types.h"
 #include "depend/perception-base/base/location/location_struct.h"
-#include "pcl/common/common.h"
 
 namespace hozon {
 namespace mp {
@@ -137,8 +136,6 @@ using Vec5_t = VecR_t<5>;
 using Vec6_t = VecR_t<6>;
 using Vec7_t = VecR_t<7>;
 using VecX_t = Eigen::VectorXd;
-using PclPoint = pcl::PointXYZ;
-using PclPointCloudPtr = pcl::PointCloud<PclPoint>::Ptr;
 
 }  // namespace dr
 }  // namespace mp

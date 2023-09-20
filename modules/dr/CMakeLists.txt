@@ -26,13 +26,6 @@ target_link_libraries(dr
     opencv_core
     opencv_flann
     opencv_videoio
-
-    pcl_common
-    pcl_io
-    pcl_kdtree
-    pcl_filters
-    pcl_search
-    pcl_segmentation
     ${DEPENDS_LIBS}
 )
 

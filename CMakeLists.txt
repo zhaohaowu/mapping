@@ -97,8 +97,8 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     endif()
 
     add_subdirectory(depend/proto)
-    add_subdirectory(depend/common)
-    add_subdirectory(depend/map)
+    # add_subdirectory(depend/common)
+    # add_subdirectory(depend/map)
 endif()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

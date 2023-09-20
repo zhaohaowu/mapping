@@ -8,9 +8,6 @@
 [submodule "depend/perception-lib"]
 	path = depend/perception-lib
 	url = https://code.hozonauto.com:10443/perception/perception-lib.git
-[submodule "depend/proto"]
-	path = depend/proto
-	url = https://code.hozonauto.com:10443/algorithm/proto.git
 [submodule "depend/map"]
 	path = depend/map
 	url = https://code.hozonauto.com:10443/algorithm/map.git
@@ -20,3 +17,6 @@
 [submodule "depend/Mapping_tools"]
 	path = depend/Mapping_tools
 	url = https://code.hozonauto.com:10443/Mapping_tools/Mapping_tools.git
+[submodule "depend/proto"]
+	path = depend/proto
+	url = https://code.hozonauto.com:10443/Global/proto.git

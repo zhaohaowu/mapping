@@ -30,9 +30,9 @@ bool FcComponent::Init() {
     return false;
   }
 
-  imu_reader_ = node_->CreateReader<AlgIMU>(
+  imu_reader_ = node_->CreateReader<ImuIns>(
       FLAGS_fc_imu_in_topic,
-      [this](const std::shared_ptr<const AlgIMU>& msg) {
+      [this](const std::shared_ptr<const ImuIns>& msg) {
         OnImu(msg);
       });
 
@@ -54,12 +54,12 @@ bool FcComponent::Init() {
         OnPoseEstimation(msg);
       });
 
-  fc_writer_ = node_->CreateWriter<AlgLocation>(FLAGS_fc_out_topic);
+  fc_writer_ = node_->CreateWriter<Localization>(FLAGS_fc_out_topic);
 
   return true;
 }
 
-void FcComponent::OnImu(const std::shared_ptr<const AlgIMU>& msg) {
+void FcComponent::OnImu(const std::shared_ptr<const ImuIns>& msg) {
   if (!msg) {
     return;
   }
@@ -72,7 +72,7 @@ void FcComponent::OnInsFusion(const std::shared_ptr<const HafNodeInfo>& msg) {
   }
   fc_->OnIns(*msg);
 
-  auto location = std::make_shared<AlgLocation>();
+  auto location = std::make_shared<Localization>();
   if (fc_->GetCurrentOutput(location.get())) {
     fc_writer_->Write(location);
   }

@@ -11,9 +11,9 @@
 #include <memory>
 #include <deque>
 
-#include "adsfi_proto/internal/node_info.pb.h"
-#include "adsfi_proto/location/location.pb.h"
-#include "adsfi_proto/sensors/sensors_imu.pb.h"
+#include "proto/soc/sensor_imu_ins.pb.h"
+#include "proto/localization/node_info.pb.h"
+#include "proto/localization/localization.pb.h"
 #include "modules/location/fusion_center/lib/defines.h"
 
 namespace hozon {
@@ -21,24 +21,24 @@ namespace mp {
 namespace loc {
 namespace fc {
 
-using adsfi_proto::hz_Adsfi::AlgIMU;
-using adsfi_proto::hz_Adsfi::AlgLocation;
-using adsfi_proto::internal::HafNodeInfo;
+using hozon::soc::ImuIns;
+using hozon::localization::HafNodeInfo;
+using hozon::localization::Localization;
 
 class FusionCenter {
  public:
   FusionCenter() = default;
-  ~FusionCenter();
+  ~FusionCenter() = default;
 
   bool Init(const std::string& configfile);
-  void OnImu(const AlgIMU& imu);
+  void OnImu(const ImuIns& imuins);
   void OnIns(const HafNodeInfo& ins);
   void OnDR(const HafNodeInfo& dr);
   void OnPoseEstimate(const HafNodeInfo& pe);
   void SetEhpCounter(uint32_t counter);
   uint32_t GetEhpCounter() const;
   void SetCoordInitTimestamp(double t);
-  bool GetCurrentOutput(AlgLocation* const location);
+  bool GetCurrentOutput(Localization* const location);
 
  private:
   bool LoadParams(const std::string& configfile);
@@ -47,7 +47,7 @@ class FusionCenter {
   bool ExtractBasicInfo(const HafNodeInfo& msg, Node* const node);
   void SetRefpoint(const Eigen::Vector3d& blh);
   const Eigen::Vector3d Refpoint();
-  void Node2AlgLocation(const Context& ctx, AlgLocation* const location);
+  void Node2AlgLocation(const Context& ctx, Localization* const location);
 
  private:
   Params params_;
@@ -60,8 +60,8 @@ class FusionCenter {
   bool ref_init_ = false;
   Eigen::Vector3d refpoint_ = Eigen::Vector3d::Zero();
 
-  std::mutex imu_deque_mutex_;
-  std::deque<std::shared_ptr<AlgIMU>> imu_deque_;
+  std::mutex imuins_deque_mutex_;
+  std::deque<std::shared_ptr<ImuIns>> imuins_deque_;
 
   std::mutex ins_deque_mutex_;
   std::deque<std::shared_ptr<Node>> ins_deque_;
@@ -73,8 +73,8 @@ class FusionCenter {
   std::mutex pe_deque_mutex_;
   std::deque<std::shared_ptr<Node>> pe_deque_;
 
-  AlgIMU prev_imu_;
-  AlgIMU curr_imu_;
+  ImuIns prev_imuins_;
+  ImuIns curr_imuins_;
   HafNodeInfo prev_raw_ins_;
   HafNodeInfo curr_raw_ins_;
   HafNodeInfo prev_raw_dr_;

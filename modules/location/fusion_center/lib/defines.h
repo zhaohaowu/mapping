@@ -10,7 +10,8 @@
 #include <Eigen/Eigen>
 #include <Sophus/se3.hpp>
 
-#include "adsfi_proto/sensors/sensors_imu.pb.h"
+#include "proto/soc/sensor_imu_ins.pb.h"
+#include "proto/localization/node_info.pb.h"
 
 namespace hozon {
 namespace mp {
@@ -53,8 +54,8 @@ struct Node {
 };
 
 struct Context {
-  adsfi_proto::hz_Adsfi::AlgIMU imu;
-  adsfi_proto::internal::HafNodeInfo ins;
+  hozon::soc::ImuIns imuins;
+  hozon::localization::HafNodeInfo ins;
   Node ins_node;
   Node fusion_node;
 };

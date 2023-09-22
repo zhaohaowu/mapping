@@ -15,7 +15,7 @@ add_library(dr
     ${CMAKE_CURRENT_SOURCE_DIR}/src/odometry2D.cc
 )
 target_link_libraries(dr
-    europa_common_proto
+    globalproto
     gtest
     
     opencv_calib3d

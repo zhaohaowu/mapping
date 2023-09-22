@@ -231,13 +231,13 @@ void DRInterface::SetLocationData(
   //     ->mutable_angular_vrf()
   //     ->set_z(0);
 
-  locationDataPtr->mutable_header()->set_timestamp_sec(latest_odom.timestamp);
+  locationDataPtr->mutable_header()->set_publish_stamp(latest_odom.timestamp);
 
   double sys_timestamp = GetCurrentNsecTime();
 
   locationDataPtr->mutable_header()->set_frame_id("HZ_DR");
   static int32_t count_ = 0;
-  locationDataPtr->mutable_header()->set_sequence_num(count_);
+  locationDataPtr->mutable_header()->set_seq(count_);
   count_++;
   locationDataPtr->set_gnss_timestamp(sys_timestamp);
   //   locationDataPtr->set_location_state(21);
@@ -274,21 +274,21 @@ void DRInterface::SetLocationData(
 }
 
 void DRInterface::AddImuData(
-    std::shared_ptr<hozon::drivers::imuIns::ImuIns> imu_proto) {
+    std::shared_ptr<hozon::soc::ImuIns> imu_proto) {
   ImuDataHozon imu_data;
   ConvertImuData(imu_proto, imu_data);
   dr_estimator_->add_imu_data(imu_data);
 }
 
 void DRInterface::AddChassisData(
-    std::shared_ptr<hozon::canbus::Chassis> chassis_proto) {
+    std::shared_ptr<hozon::soc::Chassis> chassis_proto) {
   WheelDataHozon wheel_data;
   ConvertChassisData(chassis_proto, wheel_data);
   dr_estimator_->add_wheel_data(wheel_data);
 }
 
 void DRInterface::ConvertImuData(
-    std::shared_ptr<hozon::drivers::imuIns::ImuIns> imu_proto,
+    std::shared_ptr<hozon::soc::ImuIns> imu_proto,
     ImuDataHozon &imu_data) {
   if (!imu_proto) {
     HLOG_ERROR << "Parking_SLAM: no imu data !";
@@ -296,7 +296,7 @@ void DRInterface::ConvertImuData(
     return;
   }
 
-  imu_data.timestamp = imu_proto->header().timestamp_sec();
+  imu_data.timestamp = imu_proto->header().publish_stamp();
   //   imu_proto->header.timestamp.sec + imu_proto->header.timestamp.nsec / 1e9;
 
   imu_data.gyr_measurement = Eigen::Vector3d(
@@ -341,13 +341,13 @@ void DRInterface::ConvertImuData(
 }
 
 void DRInterface::ConvertChassisData(
-    std::shared_ptr<hozon::canbus::Chassis> chassis_proto,
+    std::shared_ptr<hozon::soc::Chassis> chassis_proto,
     WheelDataHozon &wheel_data) {
   if (!chassis_proto) {
     // fm_.ReportFault(LOC_IMU_DATA_ERROR);
     return;
   }
-  double temp_timestamp = chassis_proto->header().timestamp_sec();
+  double temp_timestamp = chassis_proto->header().publish_stamp();
 
   wheel_data.timestamp = temp_timestamp;
   // 左前轮脉冲计数

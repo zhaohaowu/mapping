@@ -8,7 +8,7 @@ target_link_libraries(localization_dr_fusion_cyber
   localization_dr_fusion_core
   cyberrt
   fastrtps
-  europa_common_proto
+  globalproto
 )
 
 set_target_properties(localization_dr_fusion_cyber PROPERTIES LINKER_LANGUAGE CXX)

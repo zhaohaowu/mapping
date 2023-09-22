@@ -56,7 +56,7 @@ add_mapping_library(location_pose_estimation_core SHARED ${POSE_ESTIMATION_SRCS}
 
 
 target_link_libraries(location_pose_estimation_core
-#   europa_common_proto
+#   globalproto
 #   localization_minieye_proto
 #   localization_rviz_agent
   protobuf

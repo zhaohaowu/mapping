@@ -13,9 +13,9 @@
 #include "modules/dr/include/odometry_base.h"
 #include "modules/dr/include/slam_data_types.h"
 #include "modules/dr/include/wheel_odom.h"
-#include "proto/canbus/chassis.pb.h"
+#include "proto/soc/chassis.pb.h"
 #include "proto/dead_reckoning/dr.pb.h"
-#include "proto/drivers/sensor_imu_ins.pb.h"
+#include "proto/soc/sensor_imu_ins.pb.h"
 
 namespace hozon {
 namespace mp {
@@ -26,9 +26,9 @@ class DRInterface {
   DRInterface();
   ~DRInterface() {}
 
-  void AddImuData(std::shared_ptr<hozon::drivers::imuIns::ImuIns> imu_proto);
+  void AddImuData(std::shared_ptr<hozon::soc::ImuIns> imu_proto);
 
-  void AddChassisData(std::shared_ptr<hozon::canbus::Chassis> chassis_proto);
+  void AddChassisData(std::shared_ptr<hozon::soc::Chassis> chassis_proto);
 
   void SetLocation(std::shared_ptr<hozon::dead_reckoning::DeadReckoning>
                        locationDataPtr);
@@ -53,10 +53,10 @@ class DRInterface {
           locationDataPtr,
       OdometryData &latest_odom, Eigen::Vector3d &eulerAngle);  // NOLINT
 
-  void ConvertImuData(std::shared_ptr<hozon::drivers::imuIns::ImuIns> imu_proto,
+  void ConvertImuData(std::shared_ptr<hozon::soc::ImuIns> imu_proto,
                       ImuDataHozon &imu_data);  // NOLINT
 
-  void ConvertChassisData(std::shared_ptr<hozon::canbus::Chassis> chassis_proto,
+  void ConvertChassisData(std::shared_ptr<hozon::soc::Chassis> chassis_proto,
                           WheelDataHozon &wheel_data);  // NOLINT
 
   Eigen::Vector3d Qat2EulerAngle(const Eigen::Quaterniond &q);

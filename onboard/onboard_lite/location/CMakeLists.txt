@@ -1,0 +1,2 @@
+project(mapping_location_fusion_lite)
+add_subdirectory(ins_fusion)

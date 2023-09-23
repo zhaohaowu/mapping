@@ -20,7 +20,7 @@ namespace hozon {
 namespace mp {
 namespace loc {
 
-namespace hlu = hozon::mp::util;
+namespace hmu = hozon::mp::util;
 
 const char kNewestInsOdom[] = "/ins/fusion";
 
@@ -59,6 +59,8 @@ void InsFusion::LoadConfigParams(const std::string& configfile) {
   YAML::Node config_parser = YAML::LoadFile(configfile);
   config_.smooth = config_parser["smooth"].as<bool>();
   config_.use_rviz_bridge = config_parser["use_rviz_bridge"].as<bool>();
+  config_.use_inspva = config_parser["use_inspva"].as<bool>();
+  config_.use_deflection = config_parser["use_public_offset"].as<bool>();
   config_.smooth_window_size =
       config_parser["smooth_window_size"].as<uint32_t>();
   config_.smooth_gcj02_enu_east_diff_thr =
@@ -104,22 +106,15 @@ void InsFusion::LoadConfigParams(const std::string& configfile) {
       config_parser["monitor_ins_useless_time"].as<double>();
 }
 
-double InsFusion::ToSeconds(const uint32_t& sec, const uint32_t& nsec) {
-  return static_cast<double>(sec) + static_cast<double>(nsec) * 1e-9;
-}
-
-void InsFusion::OnOriginIns(
-    const adsfi_proto::hz_Adsfi::AlgInsInfo& origin_ins) {
-  if (!origin_ins.is_valid()) {
-    return;
-  }
+void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
   std::unique_lock<std::mutex> lock(origin_ins_mutex_);
   if (origin_ins.header().seq() <= latest_origin_ins_.header().seq()) {
     return;
   }
-
+  hozon::soc::ImuIns origin_ins_node;
+  AddInsDeflection(origin_ins, &origin_ins_node);
   InsNode ins84_node;
-  if (!Extract84InsNode(origin_ins, &ins84_node)) {
+  if (!Extract84InsNode(origin_ins_node, &ins84_node)) {
     return;
   }
   {
@@ -132,10 +127,46 @@ void InsFusion::OnOriginIns(
     }
   }
   ins_state_enum_ = InsStateEnum::NORMAL;
-  latest_origin_ins_ = origin_ins;
+  latest_origin_ins_ = origin_ins_node;
+  ins_node_is_valid_ = true;
 }
 
-void InsFusion::OnInspva(const adsfi_proto::internal::HafNodeInfo& inspva) {
+void InsFusion::AddInsDeflection(const hozon::soc::ImuIns& origin_ins,
+                                 hozon::soc::ImuIns* const origin_ins_node) {
+  origin_ins_node->mutable_header()->set_seq(origin_ins.header().seq());
+  origin_ins_node->mutable_header()->set_publish_stamp(
+      origin_ins.header().publish_stamp());
+  origin_ins_node->mutable_ins_info()->set_latitude(
+      origin_ins.ins_info().latitude());
+  origin_ins_node->mutable_ins_info()->set_longitude(
+      origin_ins.ins_info().longitude());
+  origin_ins_node->mutable_ins_info()->set_altitude(
+      origin_ins.ins_info().altitude());
+  origin_ins_node->mutable_ins_info()->mutable_linear_velocity()->set_x(
+      origin_ins.ins_info().linear_velocity().x());
+  origin_ins_node->mutable_ins_info()->mutable_linear_velocity()->set_y(
+      origin_ins.ins_info().linear_velocity().y());
+  origin_ins_node->mutable_ins_info()->mutable_linear_velocity()->set_z(
+      origin_ins.ins_info().linear_velocity().z());
+  origin_ins_node->mutable_ins_info()->mutable_linear_acceleration()->set_x(
+      origin_ins.ins_info().linear_acceleration().x());
+  origin_ins_node->mutable_ins_info()->mutable_linear_acceleration()->set_y(
+      origin_ins.ins_info().linear_acceleration().y());
+  origin_ins_node->mutable_ins_info()->mutable_linear_acceleration()->set_z(
+      origin_ins.ins_info().linear_acceleration().z());
+
+  if (config_.use_deflection) {
+    Eigen::Vector3d wgs84(origin_ins_node->ins_info().latitude(),
+                          origin_ins_node->ins_info().longitude(),
+                          origin_ins_node->ins_info().altitude());
+    auto gcj02 = hmu::Geo::Wgs84ToGcj02(wgs84);
+    origin_ins_node->mutable_ins_info()->set_latitude(gcj02[0]);
+    origin_ins_node->mutable_ins_info()->set_longitude(gcj02[1]);
+    origin_ins_node->mutable_ins_info()->set_altitude(gcj02[2]);
+  }
+}
+
+void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
   if (!inspva.is_valid()) {
     return;
   }
@@ -177,13 +208,7 @@ void InsFusion::OnInspva(const adsfi_proto::internal::HafNodeInfo& inspva) {
     std::unique_lock<std::mutex> lock2(inspva_deque_mutex_);
     auto inspva_data = latest_inspva_data_;
     if (flag) {
-      auto inspva_data_ticktime = curr_node_.ticktime;
-      inspva_data.mutable_header()->mutable_timestamp()->set_sec(
-          static_cast<uint32_t>(inspva_data_ticktime));
-      uint32_t nsec = static_cast<uint32_t>(
-          (inspva_data_ticktime - static_cast<int>(inspva_data_ticktime)) *
-          1e9);
-      inspva_data.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      inspva_data.mutable_header()->set_publish_stamp(curr_node_.ticktime);
     }
     inspva_deque_.emplace_back(inspva_data);
     while (inspva_deque_.size() > config_.monitor_ins_deque_max_size) {
@@ -193,10 +218,15 @@ void InsFusion::OnInspva(const adsfi_proto::internal::HafNodeInfo& inspva) {
   }
 
   last_node_ = curr_node_;
+  ins_node_is_valid_ = true;
 }
 
-bool InsFusion::GetResult(adsfi_proto::internal::HafNodeInfo* const node_info) {
-  if (!ref_init_ || !node_info) {
+bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
+  if (config_.use_inspva && !ref_init_) {
+    return false;
+  }
+
+  if (!node_info || !ins_node_is_valid_) {
     return false;
   }
 
@@ -205,50 +235,57 @@ bool InsFusion::GetResult(adsfi_proto::internal::HafNodeInfo* const node_info) {
   }
 
   node_info->Clear();
-  {
-    std::unique_lock<std::mutex> lock(inspva_mutex_);
-    *node_info = latest_inspva_data_;
-  }
-  node_info->set_type(adsfi_proto::internal::HafNodeInfo_NodeType_INS);
-  node_info->mutable_header()->set_frameid("ins_fusion");
-  if (ins_state_enum_ == InsStateEnum::MILD) {
-    if (inspva_deque_.empty()) {
-      return false;
+  if (config_.use_inspva) {
+    {
+      std::unique_lock<std::mutex> lock(inspva_mutex_);
+      *node_info = latest_inspva_data_;
     }
-    auto inspva_data = inspva_deque_.back();
-    auto inspva_data_ticktime =
-        inspva_data.header().timestamp().sec() +
-        inspva_data.header().timestamp().nsec() * 1.0e-9;
-    node_info->mutable_pos_wgs()->set_x(inspva_data.mutable_pos_wgs()->x());
-    node_info->mutable_pos_wgs()->set_y(inspva_data.mutable_pos_wgs()->y());
-    node_info->mutable_pos_wgs()->set_z(inspva_data.mutable_pos_wgs()->z());
-    node_info->mutable_gyro_bias()->set_x(inspva_data.mutable_gyro_bias()->x());
-    node_info->mutable_gyro_bias()->set_y(inspva_data.mutable_gyro_bias()->y());
-    node_info->mutable_gyro_bias()->set_z(inspva_data.mutable_gyro_bias()->z());
-    node_info->mutable_accel_bias()->set_x(
-        inspva_data.mutable_accel_bias()->x());
-    node_info->mutable_accel_bias()->set_y(
-        inspva_data.mutable_accel_bias()->y());
-    node_info->mutable_accel_bias()->set_z(
-        inspva_data.mutable_accel_bias()->z());
-    return true;
+    node_info->set_type(hozon::localization::HafNodeInfo_NodeType_INS);
+    node_info->mutable_header()->set_frame_id("ins_fusion");
+    if (ins_state_enum_ == InsStateEnum::MILD) {
+      if (inspva_deque_.empty()) {
+        return false;
+      }
+      auto inspva_data = inspva_deque_.back();
+      node_info->mutable_header()->set_publish_stamp(
+          inspva_data.header().publish_stamp());
+      node_info->mutable_pos_wgs()->set_x(inspva_data.pos_wgs().x());
+      node_info->mutable_pos_wgs()->set_y(inspva_data.pos_wgs().y());
+      node_info->mutable_pos_wgs()->set_z(inspva_data.pos_wgs().z());
+      node_info->mutable_gyro_bias()->set_x(inspva_data.gyro_bias().x());
+      node_info->mutable_gyro_bias()->set_y(inspva_data.gyro_bias().y());
+      node_info->mutable_gyro_bias()->set_z(inspva_data.gyro_bias().z());
+      node_info->mutable_accel_bias()->set_x(inspva_data.accel_bias().x());
+      node_info->mutable_accel_bias()->set_y(inspva_data.accel_bias().y());
+      node_info->mutable_accel_bias()->set_z(inspva_data.accel_bias().z());
+      return true;
+    }
   }
 
-  adsfi_proto::hz_Adsfi::AlgInsInfo origin_ins;
+  hozon::soc::ImuIns origin_ins;
   {
     std::unique_lock<std::mutex> lock(origin_ins_mutex_);
     origin_ins = latest_origin_ins_;
   }
-
-  node_info->mutable_pos_wgs()->set_x(origin_ins.latitude());
-  node_info->mutable_pos_wgs()->set_y(origin_ins.longitude());
-  node_info->mutable_pos_wgs()->set_z(origin_ins.altitude());
-  node_info->mutable_gyro_bias()->set_x(origin_ins.gyo_bias().x());
-  node_info->mutable_gyro_bias()->set_y(origin_ins.gyo_bias().y());
-  node_info->mutable_gyro_bias()->set_z(origin_ins.gyo_bias().z());
-  node_info->mutable_accel_bias()->set_x(origin_ins.acc_bias().x());
-  node_info->mutable_accel_bias()->set_y(origin_ins.acc_bias().y());
-  node_info->mutable_accel_bias()->set_z(origin_ins.acc_bias().z());
+  node_info->set_type(hozon::localization::HafNodeInfo_NodeType_INS);
+  node_info->mutable_header()->set_frame_id("ins_fusion");
+  node_info->mutable_header()->set_publish_stamp(
+      origin_ins.header().publish_stamp());
+  node_info->mutable_pos_wgs()->set_x(origin_ins.ins_info().latitude());
+  node_info->mutable_pos_wgs()->set_y(origin_ins.ins_info().longitude());
+  node_info->mutable_pos_wgs()->set_z(origin_ins.ins_info().altitude());
+  node_info->mutable_gyro_bias()->set_x(
+      origin_ins.offset_info().gyo_bias().x());
+  node_info->mutable_gyro_bias()->set_y(
+      origin_ins.offset_info().gyo_bias().y());
+  node_info->mutable_gyro_bias()->set_z(
+      origin_ins.offset_info().gyo_bias().z());
+  node_info->mutable_accel_bias()->set_x(
+      origin_ins.offset_info().acc_bias().x());
+  node_info->mutable_accel_bias()->set_y(
+      origin_ins.offset_info().acc_bias().y());
+  node_info->mutable_accel_bias()->set_z(
+      origin_ins.offset_info().acc_bias().z());
 
   return true;
 }
@@ -258,16 +295,14 @@ void InsFusion::SetRefpoint(const Eigen::Vector3d& blh) { refpoint_ = blh; }
 Eigen::Vector3d InsFusion::GetRefpoint() const { return refpoint_; }
 
 void InsFusion::AccumulateGpsStatus(
-    const adsfi_proto::internal::HafNodeInfo& inspva) {
-  if (inspva.header().timestamp().sec() < 1000 ||
-      latest_inspva_data_.header().timestamp().sec() < 1000) {
+    const hozon::localization::HafNodeInfo& inspva) {
+  if (static_cast<int>(inspva.header().publish_stamp()) < 1000 ||
+      static_cast<int>(latest_inspva_data_.header().publish_stamp()) < 1000) {
     return;
   }
 
-  double curr_tick = ToSeconds(inspva.header().timestamp().sec(),
-                               inspva.header().timestamp().nsec());
-  double last_tick = ToSeconds(latest_inspva_data_.header().timestamp().sec(),
-                               latest_inspva_data_.header().timestamp().nsec());
+  double curr_tick = inspva.header().publish_stamp();
+  double last_tick = latest_inspva_data_.header().publish_stamp();
   const double tick_diff = fabs(curr_tick - last_tick);
 
   InsGpsStatus gps_status{inspva.gps_status()};
@@ -305,8 +340,8 @@ void InsFusion::AccumulateGpsStatus(
   }
 }
 
-bool InsFusion::Extract02InsNode(
-    const adsfi_proto::internal::HafNodeInfo& inspva, InsNode* const node) {
+bool InsFusion::Extract02InsNode(const hozon::localization::HafNodeInfo& inspva,
+                                 InsNode* const node) {
   if (!node || !ref_init_) {
     return false;
   }
@@ -318,14 +353,13 @@ bool InsFusion::Extract02InsNode(
   }
 
   node->seq = inspva.header().seq();
-  node->ticktime = ToSeconds(inspva.header().timestamp().sec(),
-                             inspva.header().timestamp().nsec());
+  node->ticktime = inspva.header().publish_stamp();
 
   node->refpoint = GetRefpoint();
   node->blh << inspva.pos_gcj02().x(), inspva.pos_gcj02().y(),
       inspva.pos_gcj02().z();
   node->org_blh = node->blh;
-  node->enu = hlu::Geo::BlhToEnu(node->blh, node->refpoint);
+  node->enu = hmu::Geo::BlhToEnu(node->blh, node->refpoint);
   node->orientation = Sophus::SO3d(q).log();
   node->velocity << inspva.linear_velocity().x(), inspva.linear_velocity().y(),
       inspva.linear_velocity().z();
@@ -334,24 +368,30 @@ bool InsFusion::Extract02InsNode(
   return true;
 }
 
-bool InsFusion::Extract84InsNode(const adsfi_proto::hz_Adsfi::AlgInsInfo& ins,
+bool InsFusion::Extract84InsNode(const hozon::soc::ImuIns& ins,
                                  InsNode* const node) {
-  if (!node || !ref_init_) {
+  if (config_.use_inspva && !ref_init_) {
+    return false;
+  }
+
+  if (!node || !ins_node_is_valid_) {
     return false;
   }
 
   node->seq = ins.header().seq();
-  node->ticktime = ToSeconds(ins.header().timestamp().sec(),
-                             ins.header().timestamp().nsec());
+  node->ticktime = ins.header().publish_stamp();
   node->refpoint = GetRefpoint();
-  node->blh << ins.latitude(), ins.longitude(), ins.altitude();
-  node->enu = hlu::Geo::BlhToEnu(node->blh, node->refpoint);
-  node->orientation << ins.attitude().x(), ins.attitude().y(),
-      ins.attitude().z();
-  node->velocity << ins.linear_velocity().x(), ins.linear_velocity().y(),
-      ins.linear_velocity().z();
-  node->linear_accel << ins.linear_acceleration().x(),
-      ins.linear_acceleration().y(), ins.linear_acceleration().z();
+  node->blh << ins.ins_info().latitude(), ins.ins_info().longitude(),
+      ins.ins_info().altitude();
+  node->enu = hmu::Geo::BlhToEnu(node->blh, node->refpoint);
+  node->orientation << ins.ins_info().attitude().x(),
+      ins.ins_info().attitude().y(), ins.ins_info().attitude().z();
+  node->velocity << ins.ins_info().linear_velocity().x(),
+      ins.ins_info().linear_velocity().y(),
+      ins.ins_info().linear_velocity().z();
+  node->linear_accel << ins.ins_info().linear_acceleration().x(),
+      ins.ins_info().linear_acceleration().y(),
+      ins.ins_info().linear_acceleration().z();
   return true;
 }
 
@@ -388,7 +428,7 @@ bool InsFusion::FixDeflectionRepeat(const InsNode& prev_node,
   }
 
   curr_node->enu = PredictEN(t, prev_node);
-  curr_node->blh = hlu::Geo::EnuToBlh(curr_node->enu, curr_node->refpoint);
+  curr_node->blh = hmu::Geo::EnuToBlh(curr_node->enu, curr_node->refpoint);
 
   return true;
 }
@@ -431,7 +471,7 @@ bool InsFusion::SimultaneousWgs84With02(const InsNode& gcj02,
 
   const double t = gcj02.ticktime - refer_node.ticktime;
   wgs84->enu = PredictEN(t, refer_node);
-  wgs84->blh = hlu::Geo::EnuToBlh(wgs84->enu, wgs84->refpoint);
+  wgs84->blh = hmu::Geo::EnuToBlh(wgs84->enu, wgs84->refpoint);
 
   return true;
 }
@@ -450,15 +490,15 @@ bool InsFusion::SmoothProc(InsNode* const node) {
   }
 
   // public version deflection
-  const auto pbv_02_enu = hlu::Geo::BlhToEnu(
-      hlu::Geo::Wgs84ToGcj02(wgs84_node.blh), wgs84_node.refpoint);
+  const auto pbv_02_enu = hmu::Geo::BlhToEnu(
+      hmu::Geo::Wgs84ToGcj02(wgs84_node.blh), wgs84_node.refpoint);
   const auto china_enu = node->enu;
   const auto err_enu = china_enu - pbv_02_enu;
 
   smoother_->SetSmoothInputData(err_enu, pbv_02_enu);
   const auto smooth_err_enu = smoother_->GetSmoothOutputData();
   node->enu = pbv_02_enu + smooth_err_enu;
-  node->blh = hlu::Geo::EnuToBlh(node->enu, node->refpoint);
+  node->blh = hmu::Geo::EnuToBlh(node->enu, node->refpoint);
 
   return true;
 }
@@ -511,15 +551,9 @@ void InsFusion::ProcessMonitorIns() {
     }
 
     auto inspva_data = inspva_deque_.back();
-    auto current_inspva_data_ticktime =
-        inspva_data.mutable_header()->timestamp().sec() +
-        inspva_data.mutable_header()->timestamp().nsec() * 1.0e-9;
+    auto current_inspva_data_ticktime = inspva_data.header().publish_stamp();
     auto inspva_data_ticktime = current_inspva_data_ticktime + cost_time / j;
-    inspva_data.mutable_header()->mutable_timestamp()->set_sec(
-        static_cast<uint32_t>(inspva_data_ticktime));
-    uint32_t nsec = static_cast<uint32_t>(
-        inspva_data_ticktime - static_cast<int>(inspva_data_ticktime) * 1e9);
-    inspva_data.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    inspva_data.mutable_header()->set_publish_stamp(inspva_data_ticktime);
     Eigen::Vector3d velocity(inspva_data.linear_velocity().x(),
                              inspva_data.linear_velocity().y(),
                              inspva_data.linear_velocity().z());
@@ -528,8 +562,8 @@ void InsFusion::ProcessMonitorIns() {
                         inspva_data.mutable_pos_wgs()->y(),
                         inspva_data.mutable_pos_wgs()->z());
     auto refpoint = GetRefpoint();
-    auto enu = hlu::Geo::BlhToEnu(blh, refpoint) + distance;
-    blh = hlu::Geo::EnuToBlh(enu, refpoint);
+    auto enu = hmu::Geo::BlhToEnu(blh, refpoint) + distance;
+    blh = hmu::Geo::EnuToBlh(enu, refpoint);
     inspva_data.mutable_pos_wgs()->set_x(blh[0]);
     inspva_data.mutable_pos_wgs()->set_y(blh[1]);
     inspva_data.mutable_pos_wgs()->set_z(blh[2]);
@@ -538,8 +572,8 @@ void InsFusion::ProcessMonitorIns() {
 
     blh << inspva_data.pos_gcj02().x(), inspva_data.pos_gcj02().y(),
         inspva_data.pos_gcj02().z();
-    auto enu2 = hlu::Geo::BlhToEnu(blh, refpoint) + distance;
-    blh = hlu::Geo::EnuToBlh(enu2, refpoint);
+    auto enu2 = hmu::Geo::BlhToEnu(blh, refpoint) + distance;
+    blh = hmu::Geo::EnuToBlh(enu2, refpoint);
     inspva_data.mutable_pos_gcj02()->set_x(blh[0]);
     inspva_data.mutable_pos_gcj02()->set_y(blh[1]);
     inspva_data.mutable_pos_gcj02()->set_z(blh[2]);
@@ -554,7 +588,7 @@ void InsFusion::ProcessMonitorIns() {
 }
 
 bool InsFusion::PublishTopic() {
-  if (!mp::util::RvizAgent::Instance().Ok()) {
+  if (!mp::util::RvizAgent::Instance().Ok() || !ins_node_is_valid_) {
     return false;
   }
   adsfi_proto::viz::Odometry odom;

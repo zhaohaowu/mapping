@@ -15,23 +15,23 @@ namespace hozon {
 namespace mp {
 namespace loc {
 
-using adsfi_proto::hz_Adsfi::AlgInsInfo;
-using adsfi_proto::internal::HafNodeInfo;
-
 class InsFusionComponent : public apollo::cyber::Component<> {
  public:
   InsFusionComponent() = default;
   ~InsFusionComponent() override;
 
   bool Init() override;
-  void OnOriginIns(const std::shared_ptr<const AlgInsInfo>& msg);
-  bool OnInspva(const std::shared_ptr<const HafNodeInfo>& msg);
+  void OnOriginIns(const std::shared_ptr<const hozon::soc::ImuIns>& msg);
+  bool OnInspva(
+      const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg);
 
  private:
-  std::shared_ptr<apollo::cyber::Reader<AlgInsInfo>> origin_ins_reader_ =
+  std::shared_ptr<apollo::cyber::Reader<hozon::soc::ImuIns>> origin_ins_reader_ =
       nullptr;
-  std::shared_ptr<apollo::cyber::Reader<HafNodeInfo>> inspva_reader_ = nullptr;
-  std::shared_ptr<apollo::cyber::Writer<HafNodeInfo>> ins_writer_ = nullptr;
+  std::shared_ptr<apollo::cyber::Reader<hozon::localization::HafNodeInfo>>
+      inspva_reader_ = nullptr;
+  std::shared_ptr<apollo::cyber::Writer<hozon::localization::HafNodeInfo>>
+      ins_writer_ = nullptr;
   std::unique_ptr<InsFusion> ins_fusion_ = nullptr;
 };
 

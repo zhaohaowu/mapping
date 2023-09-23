@@ -17,6 +17,7 @@ target_link_libraries(localization_ins_fusion_core
   util
   glog
   boost_filesystem
+  globalproto
 )
 
 set_target_properties(localization_ins_fusion_core PROPERTIES LINKER_LANGUAGE CXX)

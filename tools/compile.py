@@ -32,6 +32,7 @@ def parse_args():
     p.add_argument('--rviz', action='store_true', help='enable building targets for using rviz')
     p.add_argument('--tool', action='store_true', help='enable building Mapping_tools, should be used with --cyber')
     p.add_argument('--cyber', action='store_true', help='enable cyber')
+    p.add_argument('--ind', action='store_true', help='copy third party libs')
     # 默认值类型
     p.add_argument('--workspace', default=None, help='root of code repository')
     p.add_argument('-j', default=max(cpu_count() - 2, 1), dest="jobs", type=int, help='make -j')
@@ -152,6 +153,7 @@ def x86_build(workspace, platform, build_directory, release_directory, **kwargs)
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
     args['-DMAPPING_LIB_PREFIX'] = kwargs['prefix']
     args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
+    args['-DIND'] = "ON" if kwargs['ind'] else "OFF"
     args['-DMIDDLEWARE'] = "CYBER" if kwargs['cyber'] else "LITE"
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
@@ -179,6 +181,7 @@ def orin_build(workspace, platform, build_directory, release_directory, **kwargs
     args['-DMAPPING_LIB_PREFIX'] = kwargs['prefix']
     args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
     args['-DMIDDLEWARE'] = "LITE"
+    args['-DIND'] = "ON" if kwargs['ind'] else "OFF"
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"

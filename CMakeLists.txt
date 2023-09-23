@@ -19,7 +19,9 @@ endif()
 
 unset(BUILD_BY_PERCEPTION CACHE)
 option(BUILD_BY_PERCEPTION "enable orin env" ON)
-set(THIRDPARTY_ROOT ${CMAKE_SOURCE_DIR}/depend/third_party)
+set(MAPPING ${CMAKE_CURRENT_SOURCE_DIR})
+set(DEPEND ${CMAKE_CURRENT_SOURCE_DIR}/depend)
+set(THIRDPARTY_ROOT ${DEPEND}/third_party)
 
 # MAPPING_LIB_PREFIX is defined in compile.py
 macro(add_mapping_library mlib)
@@ -83,7 +85,7 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/ceres/include)
     link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/ceres/lib)
 
-    include_directories(depend)
+    include_directories(${DEPEND})
 
     # These enable variables are defined in compile.py
     if (MAPPING_ENABLE_COMPILE_BASE)

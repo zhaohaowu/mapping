@@ -8,7 +8,6 @@ target_link_libraries(localization_ins_fusion_cyber
   localization_ins_fusion_core
   cyberrt
   fastrtps
-  globalproto
   glog
 )
 

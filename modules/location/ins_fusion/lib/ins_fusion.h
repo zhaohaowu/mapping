@@ -13,11 +13,10 @@
 #include <memory>
 #include <string>
 
-#include "adsfi_proto/sensors/sensors_ins.pb.h"
-#include "depend/proto/localization/localization.pb.h"
-#include "interface/adsfi_proto/internal/node_info.pb.h"
 #include "modules/location/ins_fusion/lib/defines.h"
 #include "modules/location/ins_fusion/lib/smoother.h"
+#include "proto/localization/node_info.pb.h"
+#include "proto/soc/sensor_imu_ins.pb.h"
 
 namespace hozon {
 namespace mp {
@@ -31,21 +30,21 @@ class InsFusion {
   ~InsFusion();
 
   InsInitStatus Init(const std::string& configfile);
-  void OnOriginIns(const adsfi_proto::hz_Adsfi::AlgInsInfo& origin_ins);
-  void OnInspva(const adsfi_proto::internal::HafNodeInfo& inspva);
-  bool GetResult(adsfi_proto::internal::HafNodeInfo* const node_info);
+  void OnOriginIns(const hozon::soc::ImuIns& origin_ins);
+  void OnInspva(const hozon::localization::HafNodeInfo& inspva);
+  bool GetResult(hozon::localization::HafNodeInfo* const node_info);
   void SetRefpoint(const Eigen::Vector3d& blh);
   Eigen::Vector3d GetRefpoint() const;
   void ProcessMonitorIns();
 
  private:
   void LoadConfigParams(const std::string& configfile);
-  void AccumulateGpsStatus(const adsfi_proto::internal::HafNodeInfo& inspva);
-  double ToSeconds(const uint32_t& sec, const uint32_t& nsec);
-  bool Extract02InsNode(const adsfi_proto::internal::HafNodeInfo& inspva,
+  void AccumulateGpsStatus(const hozon::localization::HafNodeInfo& inspva);
+  void AddInsDeflection(const hozon::soc::ImuIns& origin_ins,
+                        hozon::soc::ImuIns* const origin_ins_node);
+  bool Extract02InsNode(const hozon::localization::HafNodeInfo& inspva,
                         InsNode* const node);
-  bool Extract84InsNode(const adsfi_proto::hz_Adsfi::AlgInsInfo& ins,
-                        InsNode* const node);
+  bool Extract84InsNode(const hozon::soc::ImuIns& ins, InsNode* const node);
   bool CoordSameInPlanar(const Eigen::Vector3d& c1, const Eigen::Vector3d& c2);
   bool FixDeflectionRepeat(const InsNode& prev_node, InsNode* const curr_node);
   bool SimultaneousWgs84With02(const InsNode& gcj02, InsNode* const wgs84);
@@ -61,10 +60,10 @@ class InsFusion {
   Eigen::Vector3d refpoint_;
 
   std::mutex inspva_mutex_;
-  adsfi_proto::internal::HafNodeInfo latest_inspva_data_;
+  hozon::localization::HafNodeInfo latest_inspva_data_;
   std::mutex origin_ins_mutex_;
-  adsfi_proto::hz_Adsfi::AlgInsInfo latest_origin_ins_;
-  adsfi_proto::internal::HafNodeInfo curr_output_;
+  hozon::soc::ImuIns latest_origin_ins_;
+  hozon::localization::HafNodeInfo curr_output_;
 
   Eigen::Vector3d pos_china_ref_ = Eigen::Vector3d::Zero();
   std::unique_ptr<Smoother> smoother_ = nullptr;
@@ -80,6 +79,7 @@ class InsFusion {
 
   InsNode last_node_;
   InsNode curr_node_;
+  bool ins_node_is_valid_ = false;
 
   // store origin ins from IMU/INS message
   std::mutex ins84_deque_mutex_;
@@ -88,7 +88,7 @@ class InsFusion {
   InsStateEnum ins_state_enum_{InsStateEnum::NORMAL};
   unsigned int loss_ins_frame_id_ = 0;
   std::mutex inspva_deque_mutex_;
-  std::deque<adsfi_proto::internal::HafNodeInfo> inspva_deque_;
+  std::deque<hozon::localization::HafNodeInfo> inspva_deque_;
   std::future<void> monitor_ins_proc_;
   std::atomic<bool> monitor_ins_proc_run_{false};
 };

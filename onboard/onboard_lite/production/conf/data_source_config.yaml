@@ -1,35 +1,25 @@
 %YAML:1.0
 
-library: "/home/dell/data/mapping/depend/nos/x86_2004/lib/libadf-lite-ds.so"
-depLibPath: ["/home/dell/data/mapping/depend/nos/x86_2004/lib/"]
+library: "/media/ni/2T/workspace/toqingluan/mapping2/mapping/release/x86/lib/libadf-lite-ds.so"
+depLibPath: ["/media/ni/2T/workspace/toqingluan/mapping2/mapping/release/x86/lib/"]
 executorName: DataSource
 
 log:
     level: 2
 
 dataSourcesIn:
-    - topic: imu
+    - topic: ImuInfo     #外部topic名称转成内部topic名称
       type: proto_proxy
-      cmTopic: ImuInfo
+      cmTopic: ImuInfo   #外部订阅topic名称
       cmDomainId: 0
 
-    - topic: chassis
-      type: proto_proxy
-      cmTopic: Chassis
-      cmDomainId: 0
-
-    - topic: loc_plugin
+    - topic: Inspva
       type: proto_proxy
       cmTopic: LocPlugin
       cmDomainId: 0
-      
-dataSourcesOut:
-    - topic: odom
-      type: proto_skeleton
-      cmTopic: odom
-      cmDomainId: 0
 
-    - topic: prior_map
+dataSourcesOut:
+    - topic: InsFusion
       type: proto_skeleton
-      cmTopic: prior_map
+      cmTopic: InsFusion
       cmDomainId: 0

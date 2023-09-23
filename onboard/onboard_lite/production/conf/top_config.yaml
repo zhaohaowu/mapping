@@ -20,6 +20,7 @@ resourceLimit:
     memory: 200
 
 executors:
-    - confFile: /home/dell/data/mapping/release/x86/production/conf/data_source_config.yaml
-    - confFile: /home/dell/data/mapping/release/x86/production/conf/dr/dr_config.yaml
+    - confFile: /media/ni/2T/workspace/toqingluan/mapping2/mapping/release/x86/production/conf/data_source_config.yaml
+    - confFile: /media/ni/2T/workspace/toqingluan/mapping2/mapping/release/x86/production/conf/location/mapping_location_ins_fusion_config.yaml
+    # - confFile: /home/dell/data/mapping/release/x86/production/conf/dr/dr_config.yaml
     #- confFile: /home/tao/code/hozon_ws/qingluan/mapping/release/x86/production/conf/map_fusion/pp_config.yaml

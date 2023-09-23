@@ -48,39 +48,43 @@ bool InsFusionComponent::Init() {
     return false;
   }
 
-  origin_ins_reader_ = node_->CreateReader<AlgInsInfo>(
+  origin_ins_reader_ = node_->CreateReader<hozon::soc::ImuIns>(
       FLAGS_ins_module_origin_ins_topic,
-      [this](const std::shared_ptr<const AlgInsInfo>& msg) {
+      [this](const std::shared_ptr<const hozon::soc::ImuIns>& msg) {
         OnOriginIns(msg);
       });
-  inspva_reader_ = node_->CreateReader<HafNodeInfo>(
+  inspva_reader_ = node_->CreateReader<hozon::localization::HafNodeInfo>(
       FLAGS_ins_module_inspva_topic,
-      [this](const std::shared_ptr<const HafNodeInfo>& msg) { OnInspva(msg); });
+      [this](
+          const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg) {
+        OnInspva(msg);
+      });
 
-  ins_writer_ = node_->CreateWriter<HafNodeInfo>(FLAGS_ins_module_output_topic);
+  ins_writer_ = node_->CreateWriter<hozon::localization::HafNodeInfo>(
+      FLAGS_ins_module_output_topic);
   return true;
 }
 
 void InsFusionComponent::OnOriginIns(
-    const std::shared_ptr<const AlgInsInfo>& msg) {
+    const std::shared_ptr<const hozon::soc::ImuIns>& msg) {
   ins_fusion_->OnOriginIns(*msg);
 }
 
 bool InsFusionComponent::OnInspva(
-    const std::shared_ptr<const HafNodeInfo>& msg) {
+    const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg) {
   if (!ins_fusion_) {
     return false;
   }
   ins_fusion_->OnInspva(*msg);
 
-  adsfi_proto::internal::HafNodeInfo result;
+  hozon::localization::HafNodeInfo result;
   if (!ins_fusion_->GetResult(&result)) {
     HLOG_ERROR << "ins core get result error";
     return false;
   }
 
   ins_writer_->Write(
-      std::make_shared<adsfi_proto::internal::HafNodeInfo>(result));
+      std::make_shared<hozon::localization::HafNodeInfo>(result));
   return true;
 }
 

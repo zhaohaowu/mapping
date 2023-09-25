@@ -36,9 +36,10 @@ int32_t InsFusionLite::AlgInit() {
       "ins_fusion_executor", "ins_fusion_executor test",
       hozon::netaos::log::LogLevel::kInfo);
 
-  REGISTER_MESSAGE_TYPE("Inspva", hozon::localization::HafNodeInfo);
-  REGISTER_MESSAGE_TYPE("ImuInfo", hozon::soc::ImuIns);
-  REGISTER_MESSAGE_TYPE("InsFusion", hozon::localization::HafNodeInfo);
+  REGISTER_MESSAGE_TYPE("inspva", hozon::localization::HafNodeInfo);
+  REGISTER_MESSAGE_TYPE("imu_ins", hozon::soc::ImuIns);
+  REGISTER_MESSAGE_TYPE("/location/ins_fusion",
+                        hozon::localization::HafNodeInfo);
   HLOG_INFO << "RegistAlgProcessFunc";
   // 输出Ins数据
   RegistAlgProcessFunc("send_ins_proc", std::bind(&InsFusionLite::send_ins,
@@ -66,13 +67,13 @@ int32_t InsFusionLite::send_ins(Bundle* input) {
   }
 
   ins_workflow->proto_msg = msg;
-  SendOutput("InsFusion", ins_workflow);
+  SendOutput("/location/ins_fusion", ins_workflow);
   return 0;
 }
 
 // recieve in-process data and interprocess data
 int32_t InsFusionLite::receive_ins(Bundle* input) {
-  BaseDataTypePtr ptr_rec_ins = input->GetOne("ImuInfo");
+  BaseDataTypePtr ptr_rec_ins = input->GetOne("imu_ins");
   if (!ptr_rec_ins) {
     return -1;
   }
@@ -83,7 +84,7 @@ int32_t InsFusionLite::receive_ins(Bundle* input) {
 }
 
 int32_t InsFusionLite::receive_inspva(Bundle* input) {
-  BaseDataTypePtr ptr_rec_inspva = input->GetOne("Inspva");
+  BaseDataTypePtr ptr_rec_inspva = input->GetOne("inspva");
   if (!ptr_rec_inspva) {
     return -1;
   }

@@ -1,33 +1,29 @@
 %YAML:1.0
 
-library: "/media/ni/2T/workspace/toqingluan/mapping2/mapping/release/x86/lib/libmapping_onboard_lite_ins_fusion.so"
-depLibPath: ["/media/ni/2T/workspace/toqingluan/mapping2/mapping/release/x86/lib"]
+library: "${ADFLITE_ROOT_PATH}/lib/libmapping_onboard_lite_ins_fusion.so"
+depLibPath: ["${ADFLITE_ROOT_PATH}/lib"]
 executorName: InsFusionLite
 
 input:
-    - topic: ImuInfo    #外部topic名称转成内部topic名称
-      type: proto_proxy
-      cmTopic: ImuInfo  #外部订阅topic名称
-      cmDomainId: 0
+  - topic: imu_ins
+    capacity: 2
+  - topic: inspva
+    capacity: 2
 
-    - topic: Inspva
-      type: proto_proxy
-      cmTopic: LocPlugin
-      cmDomainId: 0
+output:
+  - topic: /location/ins_fusion
 
 trigger:
-  - name: send_ins_proc # 发送进程名
+  - name: send_ins_proc
     type: PERIOD
     period: 10
-
   - name: receive_inspva
     type: EVENT
     mainSources:
-      - name: Inspva
-        timeout: 1000
-
-  - name: receive_ins    # 接收进程名
+      - name: inspva
+        timeout: 100
+  - name: receive_ins
     type: EVENT
     mainSources:
-      - name: ImuInfo    # 接收内部topic
-        timeout: 1000
+      - name: imu_ins
+        timeout: 100

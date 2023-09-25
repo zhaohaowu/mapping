@@ -8,6 +8,7 @@
 #include "modules/location/fusion_center/lib/fusion_center.h"
 
 #include <yaml-cpp/yaml.h>
+#include <boost/filesystem.hpp>
 
 #include "modules/location/fusion_center/lib/eulerangle.h"
 #include "modules/util/include/util/temp_log.h"
@@ -21,6 +22,11 @@ namespace fc {
 namespace hmu = hozon::mp::util;
 
 bool FusionCenter::Init(const std::string& configfile) {
+  boost::filesystem::path path(configfile);
+  if (!boost::filesystem::exists(path)) {
+    HLOG_ERROR << "location fc conf:" << configfile << " not exist";
+    return false;
+  }
   if (!LoadParams(configfile)) {
     HLOG_ERROR << "location fc load params from " << configfile << " error";
     return false;

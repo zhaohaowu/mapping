@@ -17,6 +17,7 @@ target_link_libraries(location_fusion_center_core
 
   protobuf
   yaml-cpp
+  boost_filesystem
   ${USED_LOG}
 )
 

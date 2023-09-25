@@ -26,8 +26,8 @@ class InsFusionComponent : public apollo::cyber::Component<> {
       const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg);
 
  private:
-  std::shared_ptr<apollo::cyber::Reader<hozon::soc::ImuIns>> origin_ins_reader_ =
-      nullptr;
+  std::shared_ptr<apollo::cyber::Reader<hozon::soc::ImuIns>>
+      origin_ins_reader_ = nullptr;
   std::shared_ptr<apollo::cyber::Reader<hozon::localization::HafNodeInfo>>
       inspva_reader_ = nullptr;
   std::shared_ptr<apollo::cyber::Writer<hozon::localization::HafNodeInfo>>

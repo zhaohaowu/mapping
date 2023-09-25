@@ -4,6 +4,9 @@
  *   author     ： nihongjie
  *   date       ： 2023.09
  ******************************************************************************/
+
+#pragma once
+
 #include <memory>
 #include <string>
 

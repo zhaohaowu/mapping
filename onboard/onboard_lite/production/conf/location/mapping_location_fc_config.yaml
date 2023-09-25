@@ -1,0 +1,21 @@
+%YAML:1.0
+
+library: "${ADFLITE_ROOT_PATH}/lib/libmapping_onboard_lite_fc.so"
+depLibPath: ["${ADFLITE_ROOT_PATH}/lib"]
+executorName: FusionCenterLite
+
+input:
+  - topic: imu_ins
+    capacity: 2
+  - topic: /location/ins_fusion
+    capacity: 2
+
+output:
+  - topic: localization
+
+trigger:
+  - name: recv_ins_fusion
+    type: EVENT
+    mainSources:
+      - name: /location/ins_fusion
+        timeout: 100

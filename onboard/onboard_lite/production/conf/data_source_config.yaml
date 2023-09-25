@@ -1,25 +1,40 @@
 %YAML:1.0
 
-library: "/media/ni/2T/workspace/toqingluan/mapping2/mapping/release/x86/lib/libadf-lite-ds.so"
-depLibPath: ["/media/ni/2T/workspace/toqingluan/mapping2/mapping/release/x86/lib/"]
+library: "${ADFLITE_ROOT_PATH}/lib/libadf-lite-ds.so"
+depLibPath: ["${ADFLITE_ROOT_PATH}/lib"]
 executorName: DataSource
 
 log:
-    level: 2
+  level: 2
 
 dataSourcesIn:
-    - topic: ImuInfo     #外部topic名称转成内部topic名称
-      type: proto_proxy
-      cmTopic: /soc/imuinsinfo   #外部订阅topic名称
-      cmDomainId: 0
-
-    - topic: Inspva
-      type: proto_proxy
-      cmTopic: LocPlugin
-      cmDomainId: 0
+  - topic: imu_ins            # 外部topic名称转成内部topic名称
+    type: proto_proxy
+    cmTopic: /soc/imuinsinfo  # 外部订阅topic名称
+    cmDomainId: 0
+  - topic: inspva
+    type: proto_proxy
+    cmTopic: /localization/location_node
+    cmDomainId: 0
+  - topic: gnssinfo
+    type: proto_proxy
+    cmTopic: /soc/gnssinfo
+    cmDomainId: 0
+  - topic: percep_transport
+    type: proto_proxy
+    cmTopic: /perception/fsd/transportelement
+    cmDomainId: 1
 
 dataSourcesOut:
-    - topic: InsFusion
-      type: proto_skeleton
-      cmTopic: InsFusion
-      cmDomainId: 0
+  - topic: localization
+    type: proto_skeleton
+    cmTopic: /localization/location
+    cmDomainId: 0
+  - topic: map_fusion
+    type: proto_skeleton
+    cmTopic: /localization/fusionmap
+    cmDomainId: 0
+  - topic: dr
+    type: proto_skeleton
+    cmTopic: /localization/deadreckoning
+    cmDomainId: 0

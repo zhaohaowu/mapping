@@ -60,7 +60,7 @@ void InsFusion::LoadConfigParams(const std::string& configfile) {
   config_.smooth = config_parser["smooth"].as<bool>();
   config_.use_rviz_bridge = config_parser["use_rviz_bridge"].as<bool>();
   config_.use_inspva = config_parser["use_inspva"].as<bool>();
-  config_.use_deflection = config_parser["use_public_offset"].as<bool>();
+  config_.use_deflection = config_parser["use_deflection"].as<bool>();
   config_.smooth_window_size =
       config_parser["smooth_window_size"].as<uint32_t>();
   config_.smooth_gcj02_enu_east_diff_thr =

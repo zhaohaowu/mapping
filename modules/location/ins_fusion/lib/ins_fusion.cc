@@ -111,6 +111,7 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
   if (origin_ins.header().seq() <= latest_origin_ins_.header().seq()) {
     return;
   }
+  ins_node_is_valid_ = true;
   hozon::soc::ImuIns origin_ins_node;
   AddInsDeflection(origin_ins, &origin_ins_node);
   InsNode ins84_node;
@@ -128,7 +129,6 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
   }
   ins_state_enum_ = InsStateEnum::NORMAL;
   latest_origin_ins_ = origin_ins_node;
-  ins_node_is_valid_ = true;
 }
 
 void InsFusion::AddInsDeflection(const hozon::soc::ImuIns& origin_ins,
@@ -170,6 +170,7 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
   if (!inspva.is_valid()) {
     return;
   }
+  ins_node_is_valid_ = true;
   std::unique_lock<std::mutex> lock(inspva_mutex_);
   if (inspva.header().seq() <= latest_inspva_data_.header().seq()) {
     return;
@@ -218,7 +219,6 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
   }
 
   last_node_ = curr_node_;
-  ins_node_is_valid_ = true;
 }
 
 bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {

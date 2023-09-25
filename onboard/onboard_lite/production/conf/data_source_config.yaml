@@ -10,7 +10,7 @@ log:
 dataSourcesIn:
     - topic: ImuInfo     #外部topic名称转成内部topic名称
       type: proto_proxy
-      cmTopic: ImuInfo   #外部订阅topic名称
+      cmTopic: /soc/imuinsinfo   #外部订阅topic名称
       cmDomainId: 0
 
     - topic: Inspva

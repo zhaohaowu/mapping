@@ -40,8 +40,6 @@ class InsFusion {
  private:
   void LoadConfigParams(const std::string& configfile);
   void AccumulateGpsStatus(const hozon::localization::HafNodeInfo& inspva);
-  void AddInsDeflection(const hozon::soc::ImuIns& origin_ins,
-                        hozon::soc::ImuIns* const origin_ins_node);
   bool Extract02InsNode(const hozon::localization::HafNodeInfo& inspva,
                         InsNode* const node);
   bool Extract84InsNode(const hozon::soc::ImuIns& ins, InsNode* const node);

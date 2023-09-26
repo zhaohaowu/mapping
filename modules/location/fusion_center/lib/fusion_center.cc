@@ -148,6 +148,7 @@ bool FusionCenter::GetCurrentOutput(Localization* const location) {
   if (params_.passthrough_ins) {
     ctx.fusion_node = ctx.ins_node;
     Node2AlgLocation(ctx, location);
+    location->set_location_state(5);
     return true;
   }
 

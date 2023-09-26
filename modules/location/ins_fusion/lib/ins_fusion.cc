@@ -114,10 +114,8 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
     return;
   }
   ins_node_is_valid_ = true;
-  hozon::soc::ImuIns origin_ins_node;
-  AddInsDeflection(origin_ins, &origin_ins_node);
   InsNode ins84_node;
-  if (!Extract84InsNode(origin_ins_node, &ins84_node)) {
+  if (!Extract84InsNode(origin_ins, &ins84_node)) {
     return;
   }
   {
@@ -130,128 +128,7 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
     }
   }
   ins_state_enum_ = InsStateEnum::NORMAL;
-  latest_origin_ins_ = origin_ins_node;
-}
-
-void InsFusion::AddInsDeflection(const hozon::soc::ImuIns& origin_ins,
-                                 hozon::soc::ImuIns* const origin_ins_node) {
-  origin_ins_node->mutable_header()->set_seq(origin_ins.header().seq());
-  origin_ins_node->mutable_header()->set_publish_stamp(
-      origin_ins.header().publish_stamp());
-  origin_ins_node->mutable_ins_info()->set_latitude(
-      origin_ins.ins_info().latitude());
-  origin_ins_node->mutable_ins_info()->set_longitude(
-      origin_ins.ins_info().longitude());
-  origin_ins_node->mutable_ins_info()->set_altitude(
-      origin_ins.ins_info().altitude());
-
-  origin_ins_node->mutable_ins_info()->mutable_attitude()->set_x(
-      origin_ins.ins_info().attitude().x());
-  origin_ins_node->mutable_ins_info()->mutable_attitude()->set_y(
-      origin_ins.ins_info().attitude().y());
-  origin_ins_node->mutable_ins_info()->mutable_attitude()->set_z(
-      origin_ins.ins_info().attitude().z());
-
-  origin_ins_node->mutable_ins_info()->mutable_linear_velocity()->set_x(
-      origin_ins.ins_info().linear_velocity().x());
-  origin_ins_node->mutable_ins_info()->mutable_linear_velocity()->set_y(
-      origin_ins.ins_info().linear_velocity().y());
-  origin_ins_node->mutable_ins_info()->mutable_linear_velocity()->set_z(
-      origin_ins.ins_info().linear_velocity().z());
-
-  origin_ins_node->mutable_ins_info()->mutable_augular_velocity()->set_x(
-      origin_ins.ins_info().augular_velocity().x());
-  origin_ins_node->mutable_ins_info()->mutable_augular_velocity()->set_y(
-      origin_ins.ins_info().augular_velocity().y());
-  origin_ins_node->mutable_ins_info()->mutable_augular_velocity()->set_z(
-      origin_ins.ins_info().augular_velocity().z());
-
-  origin_ins_node->mutable_ins_info()->mutable_linear_acceleration()->set_x(
-      origin_ins.ins_info().linear_acceleration().x());
-  origin_ins_node->mutable_ins_info()->mutable_linear_acceleration()->set_y(
-      origin_ins.ins_info().linear_acceleration().y());
-  origin_ins_node->mutable_ins_info()->mutable_linear_acceleration()->set_z(
-      origin_ins.ins_info().linear_acceleration().z());
-
-  origin_ins_node->mutable_ins_info()->set_heading(
-      origin_ins.ins_info().heading());
-
-  origin_ins_node->mutable_ins_info()->mutable_mounting_error()->set_x(
-      origin_ins.ins_info().mounting_error().x());
-  origin_ins_node->mutable_ins_info()->mutable_mounting_error()->set_y(
-      origin_ins.ins_info().mounting_error().y());
-  origin_ins_node->mutable_ins_info()->mutable_mounting_error()->set_z(
-      origin_ins.ins_info().mounting_error().z());
-
-  origin_ins_node->mutable_ins_info()->mutable_sd_position()->set_x(
-      origin_ins.ins_info().sd_position().x());
-  origin_ins_node->mutable_ins_info()->mutable_sd_position()->set_y(
-      origin_ins.ins_info().sd_position().y());
-  origin_ins_node->mutable_ins_info()->mutable_sd_position()->set_z(
-      origin_ins.ins_info().sd_position().z());
-
-  origin_ins_node->mutable_ins_info()->mutable_sd_attitude()->set_x(
-      origin_ins.ins_info().sd_attitude().x());
-  origin_ins_node->mutable_ins_info()->mutable_sd_attitude()->set_y(
-      origin_ins.ins_info().sd_attitude().y());
-  origin_ins_node->mutable_ins_info()->mutable_sd_attitude()->set_z(
-      origin_ins.ins_info().sd_attitude().z());
-
-  origin_ins_node->mutable_ins_info()->mutable_sd_velocity()->set_x(
-      origin_ins.ins_info().sd_velocity().x());
-  origin_ins_node->mutable_ins_info()->mutable_sd_velocity()->set_y(
-      origin_ins.ins_info().sd_velocity().y());
-  origin_ins_node->mutable_ins_info()->mutable_sd_velocity()->set_z(
-      origin_ins.ins_info().sd_velocity().z());
-
-  origin_ins_node->mutable_ins_info()->set_sys_status(
-      origin_ins.ins_info().sys_status());
-  origin_ins_node->mutable_ins_info()->set_gps_status(
-      origin_ins.ins_info().gps_status());
-  origin_ins_node->mutable_ins_info()->set_sensor_used(
-      origin_ins.ins_info().sensor_used());
-  origin_ins_node->mutable_ins_info()->set_wheel_velocity(
-      origin_ins.ins_info().wheel_velocity());
-  origin_ins_node->mutable_ins_info()->set_odo_sf(
-      origin_ins.ins_info().odo_sf());
-
-  origin_ins_node->mutable_offset_info()->mutable_gyo_bias()->set_x(
-      origin_ins.offset_info().gyo_bias().x());
-  origin_ins_node->mutable_offset_info()->mutable_gyo_bias()->set_y(
-      origin_ins.offset_info().gyo_bias().y());
-  origin_ins_node->mutable_offset_info()->mutable_gyo_bias()->set_z(
-      origin_ins.offset_info().gyo_bias().z());
-
-  origin_ins_node->mutable_offset_info()->mutable_gyo_sf()->set_x(
-      origin_ins.offset_info().gyo_sf().x());
-  origin_ins_node->mutable_offset_info()->mutable_gyo_sf()->set_y(
-      origin_ins.offset_info().gyo_sf().y());
-  origin_ins_node->mutable_offset_info()->mutable_gyo_sf()->set_z(
-      origin_ins.offset_info().gyo_sf().z());
-
-  origin_ins_node->mutable_offset_info()->mutable_acc_bias()->set_x(
-      origin_ins.offset_info().acc_bias().x());
-  origin_ins_node->mutable_offset_info()->mutable_acc_bias()->set_y(
-      origin_ins.offset_info().acc_bias().y());
-  origin_ins_node->mutable_offset_info()->mutable_acc_bias()->set_z(
-      origin_ins.offset_info().acc_bias().z());
-
-  origin_ins_node->mutable_offset_info()->mutable_acc_sf()->set_x(
-      origin_ins.offset_info().acc_sf().x());
-  origin_ins_node->mutable_offset_info()->mutable_acc_sf()->set_y(
-      origin_ins.offset_info().acc_sf().y());
-  origin_ins_node->mutable_offset_info()->mutable_acc_sf()->set_z(
-      origin_ins.offset_info().acc_sf().z());
-
-  if (config_.use_deflection) {
-    Eigen::Vector3d wgs84(origin_ins_node->ins_info().latitude(),
-                          origin_ins_node->ins_info().longitude(),
-                          origin_ins_node->ins_info().altitude());
-    auto gcj02 = hmu::Geo::Wgs84ToGcj02(wgs84);
-    origin_ins_node->mutable_ins_info()->set_latitude(gcj02[0]);
-    origin_ins_node->mutable_ins_info()->set_longitude(gcj02[1]);
-    origin_ins_node->mutable_ins_info()->set_altitude(gcj02[2]);
-  }
+  latest_origin_ins_ = origin_ins;
 }
 
 void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
@@ -364,6 +241,7 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
       origin_ins.header().status().error_code());
   node_info->mutable_header()->mutable_status()->set_msg(
       origin_ins.header().status().msg());
+  node_info->set_is_valid(true);
 
   node_info->mutable_pos_wgs()->set_x(origin_ins.ins_info().latitude());
   node_info->mutable_pos_wgs()->set_y(origin_ins.ins_info().longitude());
@@ -372,6 +250,13 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
   node_info->mutable_attitude()->set_x(origin_ins.ins_info().attitude().x());
   node_info->mutable_attitude()->set_y(origin_ins.ins_info().attitude().y());
   node_info->mutable_attitude()->set_z(origin_ins.ins_info().attitude().z());
+
+  node_info->mutable_linear_velocity()->set_x(
+      origin_ins.ins_info().linear_velocity().x());
+  node_info->mutable_linear_velocity()->set_y(
+      origin_ins.ins_info().linear_velocity().y());
+  node_info->mutable_linear_velocity()->set_z(
+      origin_ins.ins_info().linear_velocity().z());
 
   node_info->mutable_gyro_bias()->set_x(
       origin_ins.offset_info().gyo_bias().x());
@@ -435,7 +320,6 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
   node_info->set_sensor_used(origin_ins.ins_info().sensor_used());
   node_info->set_wheel_velocity(origin_ins.ins_info().wheel_velocity());
   node_info->set_odo_sf(origin_ins.ins_info().odo_sf());
-  node_info->set_is_valid(true);
   node_info->set_valid_estimate(true);
   for (int i = 0; i < 36; ++i) {
     node_info->add_covariance(0.);
@@ -461,6 +345,19 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
     node_info->mutable_quaternion()->set_z(quat.z());
     node_info->mutable_quaternion()->set_w(quat.w());
   }
+
+  if (config_.use_deflection) {
+    Eigen::Vector3d wgs84(origin_ins.ins_info().latitude(),
+                          origin_ins.ins_info().longitude(),
+                          origin_ins.ins_info().altitude());
+    auto gcj02 = hmu::Geo::Wgs84ToGcj02(wgs84);
+    node_info->mutable_pos_gcj02()->set_x(gcj02[0]);
+    node_info->mutable_pos_gcj02()->set_y(gcj02[1]);
+    node_info->mutable_pos_gcj02()->set_z(gcj02[2]);
+  }
+  node_info->set_gps_week(origin_ins.gps_week());
+  node_info->set_gps_sec(origin_ins.gps_sec());
+
   return true;
 }
 

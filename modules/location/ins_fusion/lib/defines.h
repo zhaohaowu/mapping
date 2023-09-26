@@ -39,6 +39,7 @@ struct Config {
   bool use_rviz_bridge = false;
   bool use_inspva = false;
   bool use_deflection = false;
+  bool use_fixed_quat = false;
   uint32_t smooth_window_size = 0;
   double smooth_gcj02_enu_east_diff_thr = 0.0;
   double smooth_gcj02_enu_north_diff_thr = 0.0;

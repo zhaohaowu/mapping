@@ -291,12 +291,12 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
   if (right_diff < 0) right_diff += MAX_WHEEL_COUNT;
 
   double left_dist = left_diff * wheel_param_.kl_;
-  if (cur.rear_left_dir == 2) {
+  if (cur.rear_left_dir == 1) {
     left_dist *= -1.0;
     //    std::cout << "left back direction" << std::endl;
   }
   double right_dist = right_diff * wheel_param_.kr_;
-  if (cur.rear_right_dir == 2) {
+  if (cur.rear_right_dir == 1) {
     right_dist *= -1.0;
     // std::cout << "right back direction" << std::endl;
   }

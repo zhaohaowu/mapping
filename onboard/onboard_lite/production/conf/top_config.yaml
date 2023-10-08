@@ -23,5 +23,5 @@ executors:
   - confFile: ${ADFLITE_ROOT_PATH}/production/conf/data_source_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/production/conf/location/mapping_location_ins_fusion_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/production/conf/location/mapping_location_fc_config.yaml
-  # - confFile: /home/dell/data/mapping/release/x86/production/conf/dr/dr_config.yaml
-  # - confFile: /home/tao/code/hozon_ws/qingluan/mapping/release/x86/production/conf/map_fusion/pp_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/production/conf/dr/dr_config.yaml
+ #- confFile: /home/tao/code/hozon_ws/qingluan/mapping/release/x86/production/conf/map_fusion/pp_config.yaml

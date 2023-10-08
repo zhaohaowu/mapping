@@ -17,7 +17,9 @@
 #include <vector>
 
 #include "base/utils/log.h"
-#include "depend/common/time/lock/atomic_rw_lock.h"
+// #include "depend/common/time/lock/atomic_rw_lock.h"
+#include "modules/dr/util/lock/atomic_rw_lock.h"
+// #include "modules/dr/util/lock/rw_lock_guard.h"
 #include "modules/dr/include/slam_data_types.h"
 
 namespace hozon {

@@ -9,9 +9,9 @@
 #include "common_onboard/adapter/onboard_lite/onboard_lite.h"
 #include "gtest/gtest.h"
 #include "modules/dr/include/dr.h"
-#include "proto/canbus/chassis.pb.h"
+#include "proto/soc/chassis.pb.h"
 #include "proto/dead_reckoning/dr.pb.h"
-#include "proto/drivers/sensor_imu_ins.pb.h"
+#include "proto/soc/sensor_imu_ins.pb.h"
 
 namespace hozon {
 namespace perception {
@@ -30,9 +30,9 @@ class DeadReckoning : public OnboardLite {
     hozon::netaos::adf::NodeLogger::GetInstance().CreateLogger(
         "dr_executor", "dr_executor test", hozon::netaos::log::LogLevel::kInfo);
 
-    REGISTER_MESSAGE_TYPE("imu", hozon::drivers::imuIns::ImuIns);
-    REGISTER_MESSAGE_TYPE("chassis", hozon::canbus::Chassis);
-    REGISTER_MESSAGE_TYPE("odom", hozon::dead_reckoning::DeadReckoning);
+    REGISTER_MESSAGE_TYPE("imu_ins", hozon::soc::ImuIns);
+    REGISTER_MESSAGE_TYPE("chassis", hozon::soc::Chassis);
+    REGISTER_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
 
     // 输出DR数据
     RegistAlgProcessFunc("dr_proc", std::bind(&DeadReckoning::dr_process, this,
@@ -60,6 +60,7 @@ REGISTER_EXECUTOR_CLASS("DeadReckoning", DeadReckoning);
 
 // send in-process data and interprocess data
 int32_t DeadReckoning::dr_process(Bundle* input) {
+
   BaseDataTypePtr workflow1 =
       std::make_shared<hozon::netaos::adf_lite::BaseData>();
 
@@ -71,7 +72,7 @@ int32_t DeadReckoning::dr_process(Bundle* input) {
   workflow1->proto_msg = msg;
 
   Bundle bundle;
-  bundle.Add("odom", workflow1);
+  bundle.Add("dr", workflow1);
   SendOutput(&bundle);
   HLOG_INFO << "==== init ==== ------------------detect send odom-2-3 success.------------";
   return 0;
@@ -79,15 +80,18 @@ int32_t DeadReckoning::dr_process(Bundle* input) {
 
 // recieve in-process data and interprocess data
 int32_t DeadReckoning::data_receive(Bundle* input) {
-  BaseDataTypePtr ptr_rec_imu = input->GetOne("imu");
+
+  HLOG_INFO << "==== init ==== ------------------=====.------------";
+
+  BaseDataTypePtr ptr_rec_imu = input->GetOne("imu_ins");
   if (!ptr_rec_imu) {
     // HLOG_INFO << "detect alg process fun2 call\n";
     HLOG_ERROR << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!imu null!!!!!!!!!!!!.";
     return -1;
   }
 
-  std::shared_ptr<hozon::drivers::imuIns::ImuIns> imu_proto =
-      std::static_pointer_cast<hozon::drivers::imuIns::ImuIns>(
+  std::shared_ptr<hozon::soc::ImuIns> imu_proto =
+      std::static_pointer_cast<hozon::soc::ImuIns>(
           ptr_rec_imu->proto_msg);
 
   dr_interface.AddImuData(imu_proto);
@@ -100,14 +104,14 @@ int32_t DeadReckoning::data_receive(Bundle* input) {
     return -1;
   }
 
-  std::shared_ptr<hozon::canbus::Chassis> chassis_proto =
-      std::static_pointer_cast<hozon::canbus::Chassis>(ptr_rec_chassis->proto_msg);
+  std::shared_ptr<hozon::soc::Chassis> chassis_proto =
+      std::static_pointer_cast<hozon::soc::Chassis>(ptr_rec_chassis->proto_msg);
 
 
-  // HLOG_INFO << "================= fr wheel: "
-  //           << double(chassis_proto->wheel_counter().wheel_counter_fl())
-  //           << " ,gear: " << int(chassis_proto->gear_location()) << ", fl dir: "
-  //           << chassis_proto->wheel_speed().wheel_direction_fl();
+  HLOG_INFO << "================= fr wheel: "
+            << double(chassis_proto->wheel_counter().wheel_counter_fl())
+            << " ,gear: " << int(chassis_proto->gear_location()) << ", fl dir: "
+            << chassis_proto->wheel_speed().wheel_direction_fl();
 
   dr_interface.AddChassisData(chassis_proto);
   return 0;

@@ -4,5 +4,5 @@ project(mapping_onboard_lite)
 #PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HEADERS ${PROTO_FILES})
 
 # add_subdirectory(map_fusion)
-# add_subdirectory(dr)
+add_subdirectory(dr)
 add_subdirectory(location)

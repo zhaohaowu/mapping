@@ -20,6 +20,10 @@ dataSourcesIn:
     type: proto_proxy
     cmTopic: /soc/gnssinfo
     cmDomainId: 0
+  - topic: chassis
+    type: proto_proxy
+    cmTopic: /soc/chassis
+    cmDomainId: 0
   - topic: percep_transport
     type: proto_proxy
     cmTopic: /perception/fsd/transportelement

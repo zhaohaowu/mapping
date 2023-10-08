@@ -372,7 +372,7 @@ void DRInterface::ConvertChassisData(
       chassis_proto->wheel_counter().wheel_counter_rr();
   wheel_data.rear_right_dir = chassis_proto->wheel_speed().wheel_direction_rr();
   // 后左轮速度(km/h)
-  if (wheel_data.rear_left_dir == 2) {
+  if (wheel_data.rear_left_dir == 1) {
     wheel_data.rear_left_speed = -chassis_proto->wheel_speed().wheel_spd_rl();
     // -chassis_proto->wheel_info.ESC_RLWheelSpeed;
     wheel_data.rear_right_speed = -chassis_proto->wheel_speed().wheel_spd_rr();

@@ -3,7 +3,11 @@
 TOP_DIR="$(builtin cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P)"
 echo ${TOP_DIR}
 
-export WORKSPACE=${TOP_DIR}/../../../
+OUTPUT_ROOT="$(builtin cd ${TOP_DIR}/../.. && pwd -P)"
+echo ${OUTPUT_ROOT}
+
+WORKSPACE="$(builtin cd ${OUTPUT_ROOT}/../.. && pwd -P)"
+echo ${WORKSPACE}
 
 #  compile so
 export LD_LIBRARY_PATH=${TOP_DIR}/../../lib/:$LD_LIBRARY_PATH

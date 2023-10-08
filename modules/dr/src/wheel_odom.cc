@@ -25,6 +25,8 @@ bool WheelOdom::update() {
 bool WheelOdom::process_wheel(const WheelDataHozon& last,
                               const WheelDataHozon& cur) {
   // std::cout << "process wheel time:" << cur.timestamp << std::endl;
+  // TODO(ZXL) 应该改成 if (cur.rear_left_dir == 2|| cur.rear_right_dir == 2)
+  // 当前车有问题
   if (cur.rear_left_dir == 0 || cur.rear_right_dir == 0) {
     //   std::cout << "error wheel direction " << std::endl;
     return false;
@@ -51,18 +53,17 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   if (right_diff < 0) right_diff += MAX_WHEEL_COUNT;
   // 左轮运动距离
   double left_dist = left_diff * wheel_param_.kl_;
-  if (cur.rear_left_dir == 2) {
+  if (cur.rear_left_dir == 1) {
     left_dist *= -1.0;
     // std::cout << "left back direction" << std::endl;
   }
   double right_dist = right_diff * wheel_param_.kr_;
-  if (cur.rear_right_dir == 2) {
+  if (cur.rear_right_dir == 1) {
     right_dist *= -1.0;
     //  std::cout << "right back direction" << std::endl;
   }
   left_diff = filter_cnt(left_diff);
   right_diff = filter_cnt(right_diff);
-
 
   double delta_yaw = (right_diff - left_diff) / wheel_param_.b_;
   double delta_dist = (right_dist + left_dist) * 0.5;

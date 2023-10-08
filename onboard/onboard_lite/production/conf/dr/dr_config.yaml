@@ -1,11 +1,11 @@
 %YAML:1.0
 
-library: "/home/dell/data/mapping/release/x86/lib/libonboard_lite_dr.so"
-depLibPath: ["/home/dell/data/mapping/depend/nos/x86_2004/lib/" ]
+library: "${ADFLITE_ROOT_PATH}/lib/libonboard_lite_dr.so"
+depLibPath: ["${ADFLITE_ROOT_PATH}/lib/" ]
 executorName: DeadReckoning
 
 input:
-    - topic: imu # in-process cm
+    - topic: imu_ins # in-process cm
       capacity: 5
     - topic: chassis # interprocess cm
       capacity: 5
@@ -18,7 +18,7 @@ trigger:
   - name: receive_imu_chassis
     type: EVENT
     mainSources:
-      - name: imu
+      - name: imu_ins
         timeout: 1000
       - name: chassis
         timeout: 1000

@@ -10,8 +10,9 @@
 #include <Eigen/Eigen>
 #include <Sophus/se3.hpp>
 
-#include "proto/soc/sensor_imu_ins.pb.h"
+#include "modules/location/common/defines.h"
 #include "proto/localization/node_info.pb.h"
+#include "proto/soc/sensor_imu_ins.pb.h"
 
 namespace hozon {
 namespace mp {
@@ -32,16 +33,11 @@ struct Params {
 
 enum NodeType { INS = 0, DR = 1, MM = 2, POSE_ESTIMATE = 3 };
 
-struct Node {
-  int index = -1;
+struct Node : cm::BaseNode {
   uint32_t seq = 0;
   NodeType type = NodeType::INS;
-  double ticktime = -1;
   Eigen::Vector3d refpoint = Eigen::Vector3d::Zero();
   Eigen::Vector3d blh = Eigen::Vector3d::Zero();
-  Eigen::Vector3d enu = Eigen::Vector3d::Zero();
-  Eigen::Vector3d orientation = Eigen::Vector3d::Zero();
-  Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
   Eigen::Vector3d angular_velocity = Eigen::Vector3d::Zero();
   Eigen::Vector3d linear_accel = Eigen::Vector3d::Zero();
   Eigen::Vector3d b_a = Eigen::Vector3d::Zero();

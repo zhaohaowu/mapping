@@ -8,5 +8,5 @@ include_directories(
 add_subdirectory(lib)
 
 if(MIDDLEWARE MATCHES CYBER)
-  add_subdirectory(cyber)
+  # add_subdirectory(cyber)
 endif()

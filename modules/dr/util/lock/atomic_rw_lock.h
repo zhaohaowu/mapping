@@ -1,6 +1,9 @@
 /******************************************************************************
-
- *****************************************************************************/
+ *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： atomic_rw_lock.h 
+ *   author     ： zhuxiaolin
+ *   date       ： 2023.10
+ ******************************************************************************/
 
 #ifndef COMMON_BASE_ATOMIC_RW_LOCK_H_
 #define COMMON_BASE_ATOMIC_RW_LOCK_H_

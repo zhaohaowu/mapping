@@ -1,5 +1,9 @@
 /******************************************************************************
- *****************************************************************************/
+ *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： rw_lock_guard.h
+ *   author     ： lilanxing
+ *   date       ： 2023.09
+ ******************************************************************************/
 
 #ifndef COMMON_BASE_RW_LOCK_GUARD_H_
 #define COMMON_BASE_RW_LOCK_GUARD_H_

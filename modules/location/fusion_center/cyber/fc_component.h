@@ -7,10 +7,11 @@
 
 #pragma once
 
-#include "modules/location/fusion_center/cyber/fc_component.h"
-#include <cyber/cyber.h>
 #include <cyber/component/component.h>
+#include <cyber/cyber.h>
+
 #include <memory>
+
 #include "modules/location/fusion_center/lib/fusion_center.h"
 
 namespace hozon {

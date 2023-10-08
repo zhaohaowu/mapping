@@ -1,4 +1,3 @@
-
 project(mapping_onboard)
 
 if(MIDDLEWARE MATCHES CYBER)

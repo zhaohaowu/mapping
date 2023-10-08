@@ -60,7 +60,6 @@ REGISTER_EXECUTOR_CLASS("DeadReckoning", DeadReckoning);
 
 // send in-process data and interprocess data
 int32_t DeadReckoning::dr_process(Bundle* input) {
-
   BaseDataTypePtr workflow1 =
       std::make_shared<hozon::netaos::adf_lite::BaseData>();
 
@@ -80,7 +79,6 @@ int32_t DeadReckoning::dr_process(Bundle* input) {
 
 // recieve in-process data and interprocess data
 int32_t DeadReckoning::data_receive(Bundle* input) {
-
   HLOG_INFO << "==== init ==== ------------------=====.------------";
 
   BaseDataTypePtr ptr_rec_imu = input->GetOne("imu_ins");

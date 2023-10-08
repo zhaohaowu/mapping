@@ -1,0 +1,12 @@
+# Define all coms in DAG streaming.
+module_config {
+  module_library: "lib/libmapping_location_coord_adapter_cyber.so"
+  components {
+    class_name: "CoordAdapterComponent"
+    config {
+      name: "coord_adapter"
+      config_file_path: ""
+      flag_file_path: "conf/mapping/location/coord_adapter/config.flag"
+    }
+  }
+}

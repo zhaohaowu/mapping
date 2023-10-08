@@ -1,5 +1,10 @@
 <cyber>
   <module>
+    <name>location_coord_adapter</name>
+    <dag_conf>dag/location/mapping_location_coord_adapter.dag</dag_conf>
+    <process_name>mapping_location_coord_adapter</process_name>
+  </module>
+  <module>
     <name>location_ins_fusion</name>
     <dag_conf>dag/location/mapping_location_ins_fusion.dag</dag_conf>
     <process_name>mapping_location_ins_fusion</process_name>
@@ -9,6 +14,7 @@
     <dag_conf>dag/location/mapping_location_fc.dag</dag_conf>
     <process_name>mapping_location_fc</process_name>
   </module>
+  <!--
   <module>
     <name>location_dr_fusion</name>
     <dag_conf>dag/location/mapping_location_dr_fusion.dag</dag_conf>
@@ -19,4 +25,5 @@
     <dag_conf>dag/location/mapping_location_pose_estimation.dag</dag_conf>
     <process_name>mapping_location_pose_estimation</process_name>
   </module>
+  -->
 </cyber>

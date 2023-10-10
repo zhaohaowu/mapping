@@ -6,14 +6,15 @@
  ******************************************************************************/
 #pragma once
 #include <Eigen/Eigen>
+#include <deque>
 #include <future>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 
-#include "interface/adsfi_proto/internal/node_info.pb.h"
 #include "modules/location/ins_fusion/lib/ins_fusion.h"
+#include "proto/localization/node_info.pb.h"
 
 namespace hozon {
 namespace mp {
@@ -25,26 +26,31 @@ class DrFusion {
   ~DrFusion();
   hozon::mp::loc::InsInitStatus Init(const std::string& dr_configfile);
   void LoadConfigParams(const std::string& configfile);
-  void OnInspva(const adsfi_proto::internal::HafNodeInfo& inspva_node);
-  void OnDr(const adsfi_proto::internal::HafNodeInfo& dr_node);
-  bool GetResult(adsfi_proto::internal::HafNodeInfo* const dr_node);
+  void OnInspva(const hozon::localization::HafNodeInfo& inspva_node);
+  void OnDr(const hozon::localization::HafNodeInfo& dr_node);
+  bool GetResult(hozon::localization::HafNodeInfo* const node);
   void RunFusion();
+  int DrFusionState();
 
  private:
   bool PublishTopic();
-  double ToSeconds(const uint32_t& sec, const uint32_t& nsec);
-  bool Extract02InsNode(const adsfi_proto::internal::HafNodeInfo& dr_node,
+  bool Extract02InsNode(const hozon::localization::HafNodeInfo& origin_node,
                         InsNode* const node);
 
  private:
   std::unique_ptr<hozon::mp::loc::InsFusion> ins_ = nullptr;
   std::mutex ins_mutex_;
-  adsfi_proto::internal::HafNodeInfo latest_ins_node_;
+  hozon::localization::HafNodeInfo latest_ins_node_;
   std::mutex dr_mutex_;
-  adsfi_proto::internal::HafNodeInfo latest_dr_node_;
-  std::mutex loc_dr_mutex_;
-  adsfi_proto::internal::HafNodeInfo latest_loc_dr_node_;
-  bool use_rviz_bridge_{false};
+  hozon::localization::HafNodeInfo latest_dr_node_;
+
+  bool use_rviz_bridge_ = false;
+  bool ref_inspva_node_init_ = false;
+  bool use_inspva_ = false;
+  bool use_dr_ = false;
+  bool use_fixed_quat_ = false;
+
+  InsNode ref_ins_node_;
 };
 
 }  // namespace loc

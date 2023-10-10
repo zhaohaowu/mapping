@@ -8,9 +8,12 @@
 
 #include <yaml-cpp/yaml.h>
 #include <iomanip>
+
 #include <Sophus/se3.hpp>
 #include <boost/filesystem.hpp>
 
+
+#include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/temp_log.h"
 #include "util/rviz_agent/rviz_agent.h"
 
@@ -18,7 +21,7 @@ namespace hozon {
 namespace mp {
 namespace loc {
 
-namespace hlu = hozon::mp::util;
+namespace hmu = hozon::mp::util;
 const char kNewestDrOdom[] = "/dr/fusion";
 
 DrFusion::~DrFusion() {}
@@ -44,9 +47,12 @@ InsInitStatus DrFusion::Init(const std::string& dr_configfile) {
 void DrFusion::LoadConfigParams(const std::string& configfile) {
   YAML::Node config_parser = YAML::LoadFile(configfile);
   use_rviz_bridge_ = config_parser["use_rviz_bridge"].as<bool>();
+  use_dr_ = config_parser["use_dr"].as<bool>();
+  use_inspva_ = config_parser["use_inspva"].as<bool>();
+  use_fixed_quat_ = config_parser["use_fixed_quat"].as<bool>();
 }
 
-void DrFusion::OnInspva(const adsfi_proto::internal::HafNodeInfo& inspva_node) {
+void DrFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva_node) {
   if (!inspva_node.is_valid()) {
     return;
   }
@@ -54,31 +60,86 @@ void DrFusion::OnInspva(const adsfi_proto::internal::HafNodeInfo& inspva_node) {
   if (inspva_node.header().seq() <= latest_ins_node_.header().seq()) {
     return;
   }
+  if (!ref_inspva_node_init_) {
+    Extract02InsNode(inspva_node, &ref_ins_node_);
+    ref_inspva_node_init_ = true;
+  }
   latest_ins_node_ = inspva_node;
 }
 
-void DrFusion::OnDr(const adsfi_proto::internal::HafNodeInfo& dr_node) {
-  std::unique_lock<std::mutex> lock(loc_dr_mutex_);
+void DrFusion::OnDr(const hozon::localization::HafNodeInfo& dr_node) {
+  std::unique_lock<std::mutex> lock(dr_mutex_);
   if (dr_node.header().seq() <= latest_dr_node_.header().seq()) {
     return;
   }
   latest_dr_node_ = dr_node;
 }
 
-bool DrFusion::GetResult(adsfi_proto::internal::HafNodeInfo* const dr_node) {
-  if (!dr_node) {
-    HLOG_ERROR << "no dr_node";
+bool DrFusion::GetResult(hozon::localization::HafNodeInfo* const node) {
+  if (!node) {
+    HLOG_ERROR << "Get Dr Fusion result failed";
     return false;
   }
-
+  if (!use_dr_ && !use_inspva_) {
+    HLOG_ERROR << "Get Dr Fusion result failed";
+    return false;
+  }
   if (use_rviz_bridge_) {
     PublishTopic();
   }
-  HLOG_ERROR << "has dr_node";
-  dr_node->Clear();
-  // this temp, dr fusion node will replace it late.
-  std::unique_lock<std::mutex> lock(ins_mutex_);
-  *dr_node = latest_ins_node_;
+  node->Clear();
+  if (use_dr_) {
+    std::unique_lock<std::mutex> lock(dr_mutex_);
+    *node = latest_dr_node_;
+  } else if (use_inspva_) {
+    std::unique_lock<std::mutex> lock(ins_mutex_);
+    *node = latest_ins_node_;
+    node->set_type(hozon::localization::HafNodeInfo_NodeType_DR);
+    node->set_is_valid(true);
+
+    node->mutable_header()->set_seq(latest_ins_node_.header().seq());
+    node->mutable_header()->set_frame_id("dr_fusion");
+    node->mutable_header()->set_publish_stamp(
+        latest_ins_node_.header().publish_stamp());
+
+    if (use_fixed_quat_) {
+      node->mutable_quaternion()->set_x(1.0);
+      node->mutable_quaternion()->set_y(1.0);
+      node->mutable_quaternion()->set_z(1.0);
+      node->mutable_quaternion()->set_w(1.0);
+    } else {
+      // 弧度 roll pitch yaw
+      Eigen::Matrix<double, 3, 1> attitude = Eigen::MatrixXd::Zero(3, 1);
+      attitude(0) = latest_ins_node_.attitude().x() * M_PI / 180.0;
+      attitude(1) = latest_ins_node_.attitude().y() * M_PI / 180.0;
+      attitude(2) = latest_ins_node_.attitude().z() * M_PI / 180.0;
+
+      Eigen::AngleAxisd roll(attitude[0], Eigen::Vector3d::UnitX());
+      Eigen::AngleAxisd pitch(attitude[1], Eigen::Vector3d::UnitY());
+      Eigen::AngleAxisd yaw(attitude[2], Eigen::Vector3d::UnitZ());
+      Eigen::Quaterniond quat = yaw * roll * pitch;
+      node->mutable_quaternion()->set_x(quat.x());
+      node->mutable_quaternion()->set_y(quat.y());
+      node->mutable_quaternion()->set_z(quat.z());
+      node->mutable_quaternion()->set_w(quat.w());
+    }
+
+    Eigen::Quaterniond q(node->quaternion().w(), node->quaternion().x(),
+                         node->quaternion().y(), node->quaternion().z());
+    auto orientation = Sophus::SO3d(q).log() - ref_ins_node_.orientation;
+    node->mutable_attitude()->set_x(orientation[0]);
+    node->mutable_attitude()->set_y(orientation[1]);
+    node->mutable_attitude()->set_z(orientation[2]);
+
+    Eigen::Vector3d blh(latest_ins_node_.pos_gcj02().x(),
+                        latest_ins_node_.pos_gcj02().y(),
+                        latest_ins_node_.pos_gcj02().z());
+    auto enu = hmu::Geo::BlhToEnu(blh, ref_ins_node_.refpoint);
+    node->mutable_pos_gcj02()->set_x(enu[0]);
+    node->mutable_pos_gcj02()->set_y(enu[1]);
+    node->mutable_pos_gcj02()->set_z(enu[2]);
+    node->set_valid_estimate(true);
+  }
 
   return true;
 }
@@ -87,15 +148,25 @@ bool DrFusion::PublishTopic() {
   if (!mp::util::RvizAgent::Instance().Ok()) {
     return false;
   }
-  adsfi_proto::viz::Odometry odom;
-  odom.mutable_header()->set_frameid("map");
-  odom.mutable_header()->set_frameid("map");
-  InsNode node;
-  // this temp, dr fusion node will replace it late.
-  std::unique_lock<std::mutex> lock(ins_mutex_);
-  if (!Extract02InsNode(latest_ins_node_, &node)) {
+  if (!use_dr_ && !use_inspva_) {
     return false;
   }
+  adsfi_proto::viz::Odometry odom;
+  InsNode node;
+  if (use_inspva_) {
+    std::unique_lock<std::mutex> lock(ins_mutex_);
+    if (!Extract02InsNode(latest_ins_node_, &node)) {
+      return false;
+    }
+    odom.mutable_header()->set_frameid("ins_map");
+  } else if (use_dr_) {
+    std::unique_lock<std::mutex> lock(dr_mutex_);
+    if (!Extract02InsNode(latest_dr_node_, &node)) {
+      return false;
+    }
+    odom.mutable_header()->set_frameid("dr_map");
+  }
+
   uint64_t sec = uint64_t(node.ticktime);
   uint64_t nsec = uint64_t((node.ticktime - sec) * 1e9);
   odom.mutable_header()->mutable_timestamp()->set_sec(sec);
@@ -118,34 +189,41 @@ bool DrFusion::PublishTopic() {
 }
 
 bool DrFusion::Extract02InsNode(
-    const adsfi_proto::internal::HafNodeInfo& dr_node, InsNode* const node) {
+    const hozon::localization::HafNodeInfo& origin_node, InsNode* const node) {
   if (!node) {
     return false;
   }
 
-  Eigen::Quaterniond q(dr_node.quaternion().w(), dr_node.quaternion().x(),
-                       dr_node.quaternion().y(), dr_node.quaternion().z());
+  Eigen::Quaterniond q(
+      origin_node.quaternion().w(), origin_node.quaternion().x(),
+      origin_node.quaternion().y(), origin_node.quaternion().z());
   if (q.norm() < 1e-10) {
     return false;
   }
 
-  node->seq = dr_node.header().seq();
-  node->ticktime = ToSeconds(dr_node.header().timestamp().sec(),
-                             dr_node.header().timestamp().nsec());
+  node->seq = origin_node.header().seq();
+  node->ticktime = origin_node.header().publish_stamp();
 
-  node->blh << dr_node.pos_gcj02().x(), dr_node.pos_gcj02().y(),
-      dr_node.pos_gcj02().z();
+  node->blh << origin_node.pos_gcj02().x(), origin_node.pos_gcj02().y(),
+      origin_node.pos_gcj02().z();
   node->org_blh = node->blh;
   node->orientation = Sophus::SO3d(q).log();
-  node->velocity << dr_node.linear_velocity().x(),
-      dr_node.linear_velocity().y(), dr_node.linear_velocity().z();
-  node->linear_accel << dr_node.linear_acceleration().x(),
-      dr_node.linear_acceleration().y(), dr_node.linear_acceleration().z();
+  node->velocity << origin_node.linear_velocity().x(),
+      origin_node.linear_velocity().y(), origin_node.linear_velocity().z();
+  node->linear_accel << origin_node.linear_acceleration().x(),
+      origin_node.linear_acceleration().y(),
+      origin_node.linear_acceleration().z();
   return true;
 }
 
-double DrFusion::ToSeconds(const uint32_t& sec, const uint32_t& nsec) {
-  return static_cast<double>(sec) + static_cast<double>(nsec) * 1e-9;
+int DrFusion::DrFusionState() {
+  if (!use_dr_ && !use_inspva_) {
+    return -1;
+  }
+  if (use_dr_) {
+    return 1;
+  }
+  return 2;
 }
 
 }  // namespace loc

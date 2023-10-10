@@ -44,41 +44,69 @@ bool DrFusionComponent::Init() {
     HLOG_ERROR << "dr init failed";
     return false;
   }
-  inspva_reader_ = node_->CreateReader<HafNodeInfo>(
+  inspva_reader_ = node_->CreateReader<hozon::localization::HafNodeInfo>(
       FLAGS_inspva_module_input_topic,
-      [this](const std::shared_ptr<const HafNodeInfo>& msg) { OnInspva(msg); });
-  dr_reader_ = node_->CreateReader<HafNodeInfo>(
+      [this](
+          const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg) {
+        OnInspva(msg);
+      });
+  dr_reader_ = node_->CreateReader<hozon::localization::HafNodeInfo>(
       FLAGS_dr_module_input_topic,
-      [this](const std::shared_ptr<const HafNodeInfo>& msg) { OnDr(msg); });
-  loc_dr_writer_ =
-      node_->CreateWriter<HafNodeInfo>(FLAGS_loc_dr_module_output_topic);
+      [this](
+          const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg) {
+        OnDr(msg);
+      });
+  loc_dr_writer_ = node_->CreateWriter<hozon::localization::HafNodeInfo>(
+      FLAGS_loc_dr_module_output_topic);
   return true;
 }
 
 bool DrFusionComponent::OnInspva(
-    const std::shared_ptr<const HafNodeInfo>& msg) {
+    const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg) {
   if (!dr_fusion_) {
     return false;
   }
   dr_fusion_->OnInspva(*msg);
 
-  adsfi_proto::internal::HafNodeInfo result;
-  if (!dr_fusion_->GetResult(&result)) {
-    HLOG_ERROR << "ins core get result error";
+  auto state = dr_fusion_->DrFusionState();
+  if (state == -1) {
     return false;
   }
+  if (state == 2) {
+    hozon::localization::HafNodeInfo result;
+    if (!dr_fusion_->GetResult(&result)) {
+      HLOG_ERROR << "ins core get result error";
+      return false;
+    }
 
-  loc_dr_writer_->Write(
-      std::make_shared<adsfi_proto::internal::HafNodeInfo>(result));
+    loc_dr_writer_->Write(
+        std::make_shared<hozon::localization::HafNodeInfo>(result));
+  }
 
   return true;
 }
 
-bool DrFusionComponent::OnDr(const std::shared_ptr<const HafNodeInfo>& msg) {
+bool DrFusionComponent::OnDr(
+    const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg) {
   if (!dr_fusion_) {
     return false;
   }
   dr_fusion_->OnDr(*msg);
+
+  auto state = dr_fusion_->DrFusionState();
+  if (state == -1) {
+    return false;
+  }
+  if (state == 1) {
+    hozon::localization::HafNodeInfo result;
+    if (!dr_fusion_->GetResult(&result)) {
+      HLOG_ERROR << "ins core get result error";
+      return false;
+    }
+
+    loc_dr_writer_->Write(
+        std::make_shared<hozon::localization::HafNodeInfo>(result));
+  }
   return true;
 }
 

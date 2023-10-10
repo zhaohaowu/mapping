@@ -1,3 +1,6 @@
 %YAML:1.0
 
 use_rviz_bridge: true
+use_inspva: true
+use_fixed_quat: true
+use_dr: false

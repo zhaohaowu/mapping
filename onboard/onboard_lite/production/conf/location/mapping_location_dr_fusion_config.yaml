@@ -1,0 +1,29 @@
+%YAML:1.0
+
+library: "${ADFLITE_ROOT_PATH}/lib/libmapping_onboard_lite_dr_fusion.so"
+depLibPath: ["${ADFLITE_ROOT_PATH}/lib"]
+executorName: DrFusionLite
+
+input:
+  - topic: dr
+    capacity: 2
+  - topic: /location/ins_fusion
+    capacity: 2
+
+output:
+  - topic: /location/dr_fusion
+
+trigger:
+  - name: send_dr_proc
+    type: PERIOD
+    period: 10
+  - name: receive_inspva
+    type: EVENT
+    mainSources:
+      - name: /location/ins_fusion
+        timeout: 100
+  - name: receive_dr
+    type: EVENT
+    mainSources:
+      - name: dr
+        timeout: 100

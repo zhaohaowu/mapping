@@ -1,3 +1,4 @@
 project(mapping_location_fusion_lite)
 add_subdirectory(ins_fusion)
+add_subdirectory(dr_fusion)
 add_subdirectory(fusion_center)

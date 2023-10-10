@@ -14,16 +14,15 @@
     <dag_conf>dag/location/mapping_location_fc.dag</dag_conf>
     <process_name>mapping_location_fc</process_name>
   </module>
-  <!--
+
   <module>
     <name>location_dr_fusion</name>
     <dag_conf>dag/location/mapping_location_dr_fusion.dag</dag_conf>
     <process_name>location_dr_fusion</process_name>
   </module>
-  <module>
+  <!-- <module>
     <name>location_pose_estimation</name>
     <dag_conf>dag/location/mapping_location_pose_estimation.dag</dag_conf>
     <process_name>mapping_location_pose_estimation</process_name>
-  </module>
-  -->
+  </module> -->
 </cyber>

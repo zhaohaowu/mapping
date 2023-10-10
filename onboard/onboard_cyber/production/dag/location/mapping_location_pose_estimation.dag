@@ -1,6 +1,6 @@
 # Define all coms in DAG streaming.
 module_config {
-  module_library: "lib/liblocation_pose_estimation_cyber.so"
+  module_library: "lib/libmapping_location_pose_estimation_cyber.so"
   components {
     class_name: "PoseEstimationComponent"
     config {

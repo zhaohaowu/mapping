@@ -6,6 +6,8 @@ execute_process(
   WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/../
 )
 
+add_subdirectory(dr)
+
 install(
   DIRECTORY production/dag production/launch
   DESTINATION ${CMAKE_INSTALL_PREFIX}

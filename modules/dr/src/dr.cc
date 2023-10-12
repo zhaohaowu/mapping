@@ -13,7 +13,7 @@ namespace dr {
 
 DRInterface::DRInterface() { dr_estimator_ = std::make_shared<WheelOdom>(); }
 
-void DRInterface::SetLocation(
+bool DRInterface::SetLocation(
     std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr) {
   /**********cmp pose************/
   dr_estimator_->update();
@@ -32,10 +32,12 @@ void DRInterface::SetLocation(
 
     //   frame->loc_omg = latest_odom.loc_omg * 57.3;
     SetLocationData(locationDataPtr, latest_odom, eulerAngle);
-
+    return true;
   } else {
     // HLOG_INFO << "dr is not init";
+    return false;
   }
+  return false;
 }
 
 Eigen::Vector3d DRInterface::Qat2EulerAngle(const Eigen::Quaterniond &q) {
@@ -274,21 +276,21 @@ void DRInterface::SetLocationData(
 }
 
 void DRInterface::AddImuData(
-    std::shared_ptr<hozon::soc::ImuIns> imu_proto) {
+    const std::shared_ptr<const hozon::soc::ImuIns> imu_proto) {
   ImuDataHozon imu_data;
   ConvertImuData(imu_proto, imu_data);
   dr_estimator_->add_imu_data(imu_data);
 }
 
 void DRInterface::AddChassisData(
-    std::shared_ptr<hozon::soc::Chassis> chassis_proto) {
+    const std::shared_ptr<const hozon::soc::Chassis> chassis_proto) {
   WheelDataHozon wheel_data;
   ConvertChassisData(chassis_proto, wheel_data);
   dr_estimator_->add_wheel_data(wheel_data);
 }
 
 void DRInterface::ConvertImuData(
-    std::shared_ptr<hozon::soc::ImuIns> imu_proto,
+    const std::shared_ptr<const hozon::soc::ImuIns> imu_proto,
     ImuDataHozon &imu_data) {
   if (!imu_proto) {
     HLOG_ERROR << "Parking_SLAM: no imu data !";
@@ -341,7 +343,7 @@ void DRInterface::ConvertImuData(
 }
 
 void DRInterface::ConvertChassisData(
-    std::shared_ptr<hozon::soc::Chassis> chassis_proto,
+    const std::shared_ptr<const hozon::soc::Chassis> chassis_proto,
     WheelDataHozon &wheel_data) {
   if (!chassis_proto) {
     // fm_.ReportFault(LOC_IMU_DATA_ERROR);

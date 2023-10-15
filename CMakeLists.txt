@@ -5,16 +5,17 @@ project(mapping)
 unset(BUILD_SHARED_LIBS CACHE)
 option(BUILD_SHARED_LIBS "" ON)
 
-# PLATFORM is set in compile.py
-if(${PLATFORM} STREQUAL "MDC")
+# PLATFORM is set in compile.py, TARGET_PLATFORM for third_party
+# LOCAL_TARGET_PLATFORM for local output
+if(${PLATFORM} STREQUAL "mdc")
     set(TARGET_PLATFORM arm)
     set(LOCAL_TARGET_PLATFORM mdc)
-elseif(${PLATFORM} STREQUAL "ORIN")
+elseif(${PLATFORM} STREQUAL "orin")
     set(TARGET_PLATFORM orin)
     set(LOCAL_TARGET_PLATFORM ${TARGET_PLATFORM})
-elseif(${PLATFORM} STREQUAL "X86")
-    set(TARGET_PLATFORM x86)
-    set(LOCAL_TARGET_PLATFORM ${TARGET_PLATFORM})
+elseif((${PLATFORM} STREQUAL "x86") OR (${PLATFORM} STREQUAL "x86_2004"))
+    set(TARGET_PLATFORM x86_2004)
+    set(LOCAL_TARGET_PLATFORM x86)
 endif()
 
 unset(BUILD_BY_PERCEPTION CACHE)
@@ -46,22 +47,25 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     endif()
 
     add_definitions("-Werror=return-type -W -Wall -Wno-unused-variable -Wno-unused-parameter -Wattributes")
-
     set(3RD_ROOT "${CMAKE_CURRENT_LIST_DIR}/depend/third_party/${TARGET_PLATFORM}")
-
     set(THIRDPARTY_ROOT_PATH ${3RD_ROOT}/../..)
     message(STATUS "3RD_ROOT: ${3RD_ROOT}")
+
+    # for global proto
+    set(PLATFORM_3RD "${CMAKE_CURRENT_LIST_DIR}/depend/third_party/${TARGET_PLATFORM}")
 
     set(3RD_ROOT_PROTOC ${THIRDPARTY_ROOT_PATH}/third_party/x86/protobuf)
 
     include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/${LOCAL_TARGET_PLATFORM}/config.cmake)
 
     # MIDDLEWARE and LLVM are mandatory for europa repos and third_party
-    if(${PLATFORM} STREQUAL "X86")
+    if(${LOCAL_TARGET_PLATFORM} STREQUAL "x86")
         set(LLVM 0)
-    elseif(${PLATFORM} STREQUAL "MDC")
+    elseif(${LOCAL_TARGET_PLATFORM} STREQUAL "mdc")
         set(LLVM 1)
-        
+        add_definitions(-DISMDC=1)
+    elseif(${LOCAL_TARGET_PLATFORM} STREQUAL "orin")
+        add_definitions(-DISORIN=1)
     endif()
 
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindEigen3.cmake)
@@ -79,11 +83,12 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindSophus.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindSqlite3.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindAmap.cmake)
-    include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/json/include)
-    include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/pcl/include/pcl-1.11)
-    link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/pcl/lib)
-    include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/ceres/include)
-    link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/ceres/lib)
+    include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindAbsl.cmake)
+    include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/json/include)
+    include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/pcl/include/pcl-1.11)
+    link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/pcl/lib)
+    include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/ceres/include)
+    link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/ceres/lib)
 
     include_directories(${DEPEND})
 
@@ -99,11 +104,11 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     endif()
 
     add_subdirectory(depend/proto)
-    # add_subdirectory(depend/common)
-    # add_subdirectory(depend/map)
+    add_subdirectory(depend/common)
+    add_subdirectory(depend/map)
 endif()
 
-set(TARGET_DESTINATION ${MAPPING}/release/${TARGET_PLATFORM})
+set(TARGET_DESTINATION ${MAPPING}/release/${LOCAL_TARGET_PLATFORM})
 set(TARGET_DESTINATION_LIB ${TARGET_DESTINATION}/lib)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
@@ -113,7 +118,7 @@ add_subdirectory(interface)
 add_subdirectory(modules)
 add_subdirectory(onboard)
 
-if(${PLATFORM} STREQUAL "X86")
+if(${LOCAL_TARGET_PLATFORM} STREQUAL "x86")
     add_subdirectory(test)
 endif()
 
@@ -128,7 +133,7 @@ install(
 
 if(IND)
     set(PREPARE_FOR_CYBER_SHELL "
-        mkdir -p ${TARGET_PLATFORM}/data/log
+        mkdir -p ${LOCAL_TARGET_PLATFORM}/data/log
         mkdir -p ${TARGET_DESTINATION_LIB}
         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fast-dds/lib/lib* ${TARGET_DESTINATION_LIB}
         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/yaml-cpp/lib/lib* ${TARGET_DESTINATION_LIB}
@@ -139,12 +144,12 @@ if(IND)
         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/boost/lib/lib* ${TARGET_DESTINATION_LIB}
         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/opencv/lib/lib* ${TARGET_DESTINATION_LIB}
         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fastrtps/lib/lib* ${TARGET_DESTINATION_LIB}
-        cp -r -d ${DEPEND}/perception-common-onboard/release/${TARGET_PLATFORM}/lib/lib* ${TARGET_DESTINATION_LIB}
-        cp -r -d ${DEPEND}/perception-lib/release/${TARGET_PLATFORM}/lib/lib* ${TARGET_DESTINATION_LIB}")
+        cp -r -d ${DEPEND}/perception-common-onboard/release/${LOCAL_TARGET_PLATFORM}/lib/lib* ${TARGET_DESTINATION_LIB}
+        cp -r -d ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/lib* ${TARGET_DESTINATION_LIB}")
 
     file(WRITE "${CMAKE_INSTALL_PREFIX}/../PREPARE_FOR_CYBER_SHELL.sh" "${PREPARE_FOR_CYBER_SHELL}")
     install(CODE "execute_process(COMMAND bash PREPARE_FOR_CYBER_SHELL.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")
 
-    set(PERCEPTIONBASELIB ${DEPEND}/perception-base/release/${TARGET_PLATFORM}/lib)
+    set(PERCEPTIONBASELIB ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib)
     install(DIRECTORY ${PERCEPTIONBASELIB} DESTINATION ${TARGET_DESTINATION})
 endif()

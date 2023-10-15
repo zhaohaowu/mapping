@@ -42,6 +42,12 @@ with open('$depend/${dependRelDir}/version.json','r') as f: print(json.load(f)['
           dest=$depend/third_party/x86
           mkdir -p $dest
           rm -rf $depend/${dependRelDir}
+
+          dest_2004=$depend/third_party/x86_2004
+          if [[ -d $dest_2004 ]]; then
+            rm -rf $dest_2004/cuda
+            tar -xf $currPkg.tar.gz -C $dest_2004
+          fi
         else
           dest=$depend/${dependRelDir}
           mkdir -p $dest

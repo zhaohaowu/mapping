@@ -18,9 +18,9 @@ namespace hozon {
 namespace perception {
 namespace common_onboard {
 
-constexpr char* const kImuTopic = "imu_ins";
-constexpr char* const kInsFusionTopic = "/location/ins_fusion";
-constexpr char* const kFcTopic = "localization";
+const char* const kImuTopic = "imu_ins";
+const char* const kInsFusionTopic = "/location/ins_fusion";
+const char* const kFcTopic = "localization";
 
 int32_t FusionCenterLite::AlgInit() {
   fusion_center_ = std::make_unique<FusionCenter>();

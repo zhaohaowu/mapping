@@ -59,8 +59,9 @@ int32_t MappingAdc::ChassisImuCallBack(hz_Adsfi::NodeBundle* input) {
     dr_->AddChassisData(board_.chassis_proto);
   }
 
-  dr_->SetLocation(dr_data_ptr_);
-  // lmap_->OnDr(dr_data_ptr_);
+  if (dr_->SetLocation(dr_data_ptr_)) {
+    lmap_->OnDr(dr_data_ptr_);
+  }
   return 0;
 }
 

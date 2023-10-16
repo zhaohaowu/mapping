@@ -35,6 +35,7 @@ target_link_libraries(util
     zmq
     glog
     yaml-cpp
+    ${CMAKE_DL_LIBS}
 )
 install(
     TARGETS util

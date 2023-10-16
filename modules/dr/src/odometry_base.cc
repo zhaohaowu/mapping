@@ -77,7 +77,7 @@ bool OdometryBase::add_wheel_data(const WheelDataHozon& wheel_data) {
     wheel_datas_.push_back(wheel_data);
   } else {
     if (wheel_data.timestamp <= wheel_datas_.back().timestamp) {
-      HLOG_WARN << "==== init ==== error wheel timestamp";
+      // HLOG_WARN << "==== init ==== error wheel timestamp";
       return false;
     } else {
       WheelDataHozon last_data = wheel_datas_.back();
@@ -104,7 +104,7 @@ std::vector<WheelDataHozon> OdometryBase::get_oldest_two_wheel() {
   DRReadLockGuard lock(wheel_rw_lock_);
   std::vector<WheelDataHozon> oldest_wheel_datas;
   if (wheel_datas_.size() < 2) {
-    HLOG_ERROR << "==== init ==== wheel data size:" << wheel_datas_.size();
+    // HLOG_ERROR << "==== init ==== wheel data size:" << wheel_datas_.size();
     return oldest_wheel_datas;
   }
   oldest_wheel_datas.emplace_back(*(wheel_datas_.begin()));

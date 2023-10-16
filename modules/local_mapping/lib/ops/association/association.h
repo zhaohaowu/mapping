@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "modules/local_mapping/lib/types/common.h"
@@ -18,7 +19,7 @@
 #include "modules/local_mapping/lib/utils/common.h"
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d.hpp"
-#include "util/temp_log.h"
+#include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
 namespace mp {
@@ -60,6 +61,7 @@ class LaneAssoc {
 
  public:
   std::unordered_map<int, int> map_det_lm_;
+  std::unordered_set<int> delete_det_lines_;
 
   std::unordered_map<int, int> Process(
       const std::vector<LanePointsPtr>& lanes_det,

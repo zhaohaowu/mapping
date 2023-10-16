@@ -28,9 +28,9 @@ void LaneAssoc::SetDetection(const std::vector<LanePointsPtr>& lanes_det,
   for (size_t i = 0; i < lanes_det.size(); ++i) {
     if (lanes_det.size() == 0) continue;
     std::vector<double> distance_thd = GetDistThd(*lanes_det[i]);
-    std::vector<Eigen::Vector3d> trans_xyz =
-        TranformPoints(pose_ab, *lanes_det[i]);
-    det_xyzs_.push_back(trans_xyz);
+    // std::vector<Eigen::Vector3d> trans_xyz =
+    //     TranformPoints(pose_ab, *lanes_det[i]);
+    det_xyzs_.push_back(*lanes_det[i]);
     det_knn_thd_.push_back(distance_thd);
   }
 }
@@ -96,7 +96,7 @@ void LaneAssoc::AssociationKnn() {
       assoc_scores(j, i) = score < ideal_dist ? 1 / score : 0;
     }
   }
-
+  // std::cout << assoc_scores << std::endl;
   Affinity2Assoc(assoc_scores);
 
   return;
@@ -104,11 +104,34 @@ void LaneAssoc::AssociationKnn() {
 
 void LaneAssoc::Affinity2Assoc(const Matxd& affinity) {
   map_det_lm_.clear();
-  for (int i = 0; i < affinity.cols(); ++i) {
+  for (int det_id = 0; det_id < affinity.cols(); ++det_id) {
     Eigen::VectorXd::Index max_col;
-    affinity.col(i).maxCoeff(&max_col);
-    int lane_id = static_cast<int>(max_col);
-    if (affinity(lane_id, i) > 0) map_det_lm_[i] = lane_id;
+    affinity.col(det_id).maxCoeff(&max_col);
+    int lm_id = static_cast<int>(max_col);
+    if (affinity(lm_id, det_id) > 0) map_det_lm_[det_id] = lm_id;
+  }
+
+  std::vector<std::vector<int>> map_lm_det(affinity.rows());
+  for (auto iter = map_det_lm_.begin(); iter != map_det_lm_.end(); ++iter) {
+    map_lm_det[iter->second].push_back(iter->first);
+  }
+
+  for (int i = 0; i < map_lm_det.size(); ++i) {
+    if (map_lm_det[i].size() > 1) {
+      int max_id = map_lm_det[i][0];
+      double max_val = affinity(i, map_lm_det[i][0]);
+      for (int j = 1; j < map_lm_det[i].size(); ++j) {
+        if (affinity(i, map_lm_det[i][j]) > max_val) {
+          map_det_lm_.erase(max_id);
+          delete_det_lines_.insert(max_id);
+          max_id = map_lm_det[i][j];
+          max_val = affinity(i, map_lm_det[i][j]);
+        } else {
+          map_det_lm_.erase(map_lm_det[i][j]);
+          delete_det_lines_.insert(map_lm_det[i][j]);
+        }
+      }
+    }
   }
 }
 

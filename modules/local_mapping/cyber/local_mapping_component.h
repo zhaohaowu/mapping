@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "cyber/component/component.h"
+#include "depend/proto/localization/node_info.pb.h"
 #include "modules/local_mapping/lib/local_mapping.h"
 
 namespace hozon {
@@ -31,7 +32,8 @@ class LMapComponent : public apollo::cyber::Component<> {
    * @return `true` for receiveing and processing success, `false` for failed
    */
   bool OnLocation(
-      const std::shared_ptr<const adsfi_proto::hz_Adsfi::AlgLocation>& msg);
+      const std::shared_ptr<const hozon::localization::LocalizationEstimate>&
+          msg);
 
   /**
    * @brief receive dr message
@@ -40,7 +42,16 @@ class LMapComponent : public apollo::cyber::Component<> {
    * @return `true` for receiveing and processing success, `false` for failed
    */
   bool OnDr(
-      const std::shared_ptr<const adsfi_proto::hz_Adsfi::AlgLocation>& msg);
+      const std::shared_ptr<const hozon::dead_reckoning::DeadReckoning>& msg);
+
+  /**
+   * @brief receive ins message
+   *
+   * @param msg : ins message
+   * @return `true` for receiveing and processing success, `false` for failed
+   */
+  bool OnIns(
+      const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg);
 
   /**
    * @brief receive laneline message
@@ -48,8 +59,9 @@ class LMapComponent : public apollo::cyber::Component<> {
    * @param msg : laneline message
    * @return `true` for receiveing and processing success, `false` for failed
    */
-  bool OnLaneLine(const std::shared_ptr<
-                  const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>& msg);
+  bool OnLaneLine(
+      const std::shared_ptr<const hozon::perception::fsd::TransportElement>&
+          msg);
 
   /**
    * @brief receive roadedge message
@@ -57,8 +69,9 @@ class LMapComponent : public apollo::cyber::Component<> {
    * @param msg : roadedge message
    * @return `true` for receiveing and processing success, `false` for failed
    */
-  bool OnRoadEdge(const std::shared_ptr<
-                  const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>& msg);
+  bool OnRoadEdge(
+      const std::shared_ptr<const hozon::perception::fsd::TransportElement>&
+          msg);
 
   /**
    * @brief local map publish
@@ -67,21 +80,35 @@ class LMapComponent : public apollo::cyber::Component<> {
    */
   void LocalMapPublish();
 
+  /**
+   * @brief local map location publish
+   *
+   * @return
+   */
+  void LocalMapLocationPublish();
+
  private:
   std::thread local_map_publish_thread_;
+  std::thread local_map_location_publish_thread_;
   std::shared_ptr<LMapApp> lmap_;
-  std::shared_ptr<apollo::cyber::Reader<adsfi_proto::hz_Adsfi::AlgLocation>>
-      location_listener_;
-  std::shared_ptr<apollo::cyber::Reader<adsfi_proto::hz_Adsfi::AlgLocation>>
-      dr_listener_;
   std::shared_ptr<
-      apollo::cyber::Reader<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>>
+      apollo::cyber::Reader<hozon::localization::LocalizationEstimate>>
+      location_listener_;
+  std::shared_ptr<apollo::cyber::Reader<hozon::dead_reckoning::DeadReckoning>>
+      dr_listener_;
+  std::shared_ptr<apollo::cyber::Reader<hozon::localization::HafNodeInfo>>
+      ins_listener_;
+  std::shared_ptr<
+      apollo::cyber::Reader<hozon::perception::fsd::TransportElement>>
       laneline_listener_;
   std::shared_ptr<
-      apollo::cyber::Reader<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>>
+      apollo::cyber::Reader<hozon::perception::fsd::TransportElement>>
       roadedge_listener_;
   std::shared_ptr<apollo::cyber::Writer<hozon::mapping::LocalMap>>
       result_talker_;
+  std::shared_ptr<
+      apollo::cyber::Writer<hozon::localization::LocalizationEstimate>>
+      result_location_talker_;
 };
 
 CYBER_REGISTER_COMPONENT(LMapComponent);

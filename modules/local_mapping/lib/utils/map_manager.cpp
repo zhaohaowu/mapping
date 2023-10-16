@@ -5,6 +5,8 @@
  *****************************************************************************/
 #include "modules/local_mapping/lib/utils/map_manager.h"
 
+#include "modules/local_mapping/lib/utils/common.h"
+
 DEFINE_string(viz_addr, "ipc:///tmp/rviz_agent_local_map",
               "RvizAgent working address, may like "
               "ipc:///tmp/sample_rviz_agent or "
@@ -16,6 +18,7 @@ namespace mp {
 namespace lm {
 
 void MapManager::Init() {
+  /*
   int ret = util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
       ktopic_lane_);
   if (ret < 0) {
@@ -29,20 +32,35 @@ void MapManager::Init() {
     std::cout << "RvizAgent register " << ktopic_cur_lane_ << " failed"
               << std::endl;
   }
+  */
 }
 
-void MapManager::CutLocalMap(const double& length_x, const double& length_y,
-                             const Eigen::Vector3d& p_v) {
+void MapManager::CutLocalMap(const double& length_x, const double& length_y) {
   for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
     for (size_t j = 0; j < local_map_.local_map_lane_[i].points_.size(); ++j) {
-      if (local_map_.local_map_lane_[i].points_[j].x() < p_v.x() - length_x ||
-          local_map_.local_map_lane_[i].points_[j].x() > p_v.x() + length_x ||
-          local_map_.local_map_lane_[i].points_[j].y() < p_v.y() - length_y ||
-          local_map_.local_map_lane_[i].points_[j].y() > p_v.y() + length_y) {
+      if (local_map_.local_map_lane_[i].points_[j].x() < -length_x ||
+          local_map_.local_map_lane_[i].points_[j].x() > length_x ||
+          local_map_.local_map_lane_[i].points_[j].y() < -length_y ||
+          local_map_.local_map_lane_[i].points_[j].y() > +length_y) {
         local_map_.local_map_lane_[i].points_.erase(
             local_map_.local_map_lane_[i].points_.begin() + j);
         --j;
       }
+    }
+    for (size_t j = 0; j < local_map_.local_map_lane_[i].fit_points_.size();
+         ++j) {
+      if (local_map_.local_map_lane_[i].fit_points_[j].x() < -length_x ||
+          local_map_.local_map_lane_[i].fit_points_[j].x() > +length_x ||
+          local_map_.local_map_lane_[i].fit_points_[j].y() < -length_y ||
+          local_map_.local_map_lane_[i].fit_points_[j].y() > +length_y) {
+        local_map_.local_map_lane_[i].fit_points_.erase(
+            local_map_.local_map_lane_[i].fit_points_.begin() + j);
+        --j;
+      }
+    }
+    if (local_map_.local_map_lane_[i].points_.size() == 0) {
+      local_map_.local_map_lane_.erase(local_map_.local_map_lane_.begin() + i);
+      --i;
     }
   }
 }
@@ -55,22 +73,19 @@ void MapManager::AddEdge(const LocalMapLane& edge) {
   local_map_.local_map_edge_.emplace_back(edge);
 }
 
-void MapManager::UpdateLane(const LocalMapLane& lane) {
-  for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
-    if (local_map_.local_map_lane_[i].track_id_ == lane.track_id_) {
-      local_map_.local_map_lane_[i] = lane;
-      break;
+void MapManager::UpdateLane(const Sophus::SE3d& T_C_L) {
+  for (auto& lane : local_map_.local_map_lane_) {
+    for (auto& point : lane.points_) {
+      point = T_C_L * point;
+    }
+    for (auto& point : lane.fit_points_) {
+      point = T_C_L * point;
     }
   }
 }
 
-void MapManager::UpdateEdge(const LocalMapLane& edge) {
-  for (size_t i = 0; i < local_map_.local_map_edge_.size(); ++i) {
-    if (local_map_.local_map_edge_[i].track_id_ == edge.track_id_) {
-      local_map_.local_map_edge_[i] = edge;
-      break;
-    }
-  }
+void MapManager::UpdateTimestamp(const double& timestamp) {
+  local_map_.timestamp = timestamp;
 }
 
 void MapManager::AppendOldLanePoints(
@@ -78,32 +93,83 @@ void MapManager::AppendOldLanePoints(
   for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
     if (local_map_.local_map_lane_[i].track_id_ == id) {
       for (size_t j = 0; j < points.size(); ++j) {
-        local_map_.local_map_lane_[i].points_.push_back(points[j]);
+        if (local_map_.local_map_lane_[i].points_.empty()) {
+          local_map_.local_map_lane_[i].points_.push_back(points[j]);
+        } else {
+          auto tmp = local_map_.local_map_lane_[i].points_.back();
+          if (points[j].x() - tmp.x() > 0.8) {
+            local_map_.local_map_lane_[i].points_.push_back(points[j]);
+          }
+        }
       }
       return;
     }
   }
 }
 
-void MapManager::AppendNewLanePoints(
-    const std::vector<Eigen::Vector3d>& points) {
-  // static int max_id = -1;
-  // for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
-  //   if (local_map_.local_map_lane_[i].track_id_ > max_id) {
-  //     max_id = local_map_.local_map_lane_[i].track_id_;
-  //   }
-  // }
-  static int max_id = 0;
+void MapManager::CreateTrackVehicleLane(const int& id) {
+  std::vector<Eigen::Vector3d> vehicle_points;
+  for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
+    if (local_map_.local_map_lane_[i].track_id_ == id) {
+      local_map_.local_map_lane_[i].vehicle_lane_param_ =
+          std::make_shared<LaneCubicSpline>();
+      for (const auto& v_point : local_map_.local_map_lane_[i].points_) {
+        if (v_point.x() > 0.0 && v_point.x() < 100.0) {
+          vehicle_points.emplace_back(v_point);
+        }
+      }
+      if (vehicle_points.size() < 4) {
+        HLOG_ERROR
+            << "track points too small cant not create track vehicle lane";
+        return;
+      }
+      CommonUtil::FitEKFLane(vehicle_points,
+                             local_map_.local_map_lane_[i].vehicle_lane_param_);
+      auto param = local_map_.local_map_lane_[i].vehicle_lane_param_;
+      HLOG_DEBUG << "FitEKFLane: " << param->c0_ << ", " << param->c1_ << ", "
+                 << param->c2_ << ", " << param->c3_ << ", "
+                 << param->start_point_x_ << ", " << param->end_point_x_;
+    }
+  }
+}
+
+void MapManager::CreateNewTrackVehicleLane(
+    std::shared_ptr<const Lane> cur_lane) {
+  size_t map_lane_size = local_map_.local_map_lane_.size();
+  local_map_.local_map_lane_[map_lane_size - 1].vehicle_lane_param_ =
+      std::make_shared<LaneCubicSpline>();
+  std::shared_ptr<LaneCubicSpline> vehicle_param =
+      local_map_.local_map_lane_[map_lane_size - 1].vehicle_lane_param_;
+  HLOG_DEBUG << "frame_lane_: " << cur_lane->lane_fit_a_ << ", "
+             << cur_lane->lane_fit_b_ << ", " << cur_lane->lane_fit_c_ << ", "
+             << cur_lane->lane_fit_d_ << ", " << cur_lane->x_start_vrf_ << ", "
+             << cur_lane->x_end_vrf_;
+  *vehicle_param = CommonUtil::MapVehicleLaneTolane(cur_lane);
+}
+
+double MapManager::CreateNewLane(const std::vector<Eigen::Vector3d>& points) {
+  static int max_id = -1;
+  max_id++;
   LocalMapLane lane;
   lane.track_id_ = max_id;
   lane.points_ = points;
+  lane.need_fit_ = true;
   local_map_.local_map_lane_.emplace_back(lane);
-  max_id++;
+  return max_id;
+}
+
+void MapManager::CreateNewLane(const std::vector<Eigen::Vector3d>& points,
+                               const int& lane_id) {
+  LocalMapLane lane;
+  lane.track_id_ = lane_id;
+  lane.points_ = points;
+  lane.need_fit_ = true;
+  local_map_.local_map_lane_.emplace_back(lane);
 }
 
 void MapManager::AppendEdgePoints(const int& id,
                                   const std::vector<Eigen::Vector3d>& points) {
-  for (size_t i = 0; i < local_map_.local_map_edge_.size(); ++i) {
+  for (int i = 0; i < local_map_.local_map_edge_.size(); ++i) {
     if (local_map_.local_map_edge_[i].track_id_ == id) {
       local_map_.local_map_edge_[i].points_ = points;
       return;
@@ -115,19 +181,28 @@ void MapManager::AppendEdgePoints(const int& id,
   local_map_.local_map_edge_.emplace_back(lane);
 }
 
-void MapManager::DeleteLanePoints(const int& id, const Eigen::Matrix4d& T_W_V,
-                                  const double& min_dis) {
+void MapManager::DeleteLanePoints(const int& id, const double& min_dis) {
   for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
     if (local_map_.local_map_lane_[i].track_id_ == id) {
       for (size_t j = 0; j < local_map_.local_map_lane_[i].points_.size();
            ++j) {
-        Eigen::Vector4d p_w(local_map_.local_map_lane_[i].points_[j].x(),
+        Eigen::Vector3d p_v(local_map_.local_map_lane_[i].points_[j].x(),
                             local_map_.local_map_lane_[i].points_[j].y(),
-                            local_map_.local_map_lane_[i].points_[j].z(), 1);
-        Eigen::Vector4d p_v = T_W_V * p_w;
+                            local_map_.local_map_lane_[i].points_[j].z());
         if (p_v.x() > min_dis) {
           local_map_.local_map_lane_[i].points_.erase(
               local_map_.local_map_lane_[i].points_.begin() + j);
+          --j;
+        }
+      }
+      for (size_t j = 0; j < local_map_.local_map_lane_[i].fit_points_.size();
+           ++j) {
+        Eigen::Vector3d p_v(local_map_.local_map_lane_[i].fit_points_[j].x(),
+                            local_map_.local_map_lane_[i].fit_points_[j].y(),
+                            local_map_.local_map_lane_[i].fit_points_[j].z());
+        if (p_v.x() > min_dis) {
+          local_map_.local_map_lane_[i].fit_points_.erase(
+              local_map_.local_map_lane_[i].fit_points_.begin() + j);
           --j;
         }
       }
@@ -137,10 +212,11 @@ void MapManager::DeleteLanePoints(const int& id, const Eigen::Matrix4d& T_W_V,
 }
 
 void MapManager::GetLanes(std::shared_ptr<std::vector<LocalMapLane>> lane) {
+  lane->clear();
   for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
-    if (local_map_.local_map_lane_[i].points_.size() > 20) {
-      lane->emplace_back(local_map_.local_map_lane_[i]);
-    }
+    // if (local_map_.local_map_lane_[i].points_.size() > 20) {
+    lane->emplace_back(local_map_.local_map_lane_[i]);
+    // }
   }
 }
 
@@ -151,6 +227,8 @@ void MapManager::GetEdges(std::shared_ptr<std::vector<LocalMapLane>> edge) {
 void MapManager::GetLocalMap(std::shared_ptr<LocalMap> local_map) {
   *local_map = local_map_;
 }
+
+double MapManager::GetTimestamp() { return local_map_.timestamp; }
 
 void GetLanePts(const LaneCubicSpline& cubic_curve,
                 std::shared_ptr<std::vector<Eigen::Vector3d>> pts) {
@@ -188,6 +266,7 @@ void SetPoint(const std::vector<LocalMapLane>& lines,
 void MapManager::PubPoints(const std::vector<Eigen::Vector3d>& points,
                            uint64_t sec, uint64_t nsec,
                            const std::string topic) {
+  /*
   if (util::RvizAgent::Instance().Ok()) {
     adsfi_proto::viz::PointCloud lane_points;
     static uint32_t seq = 0;
@@ -208,11 +287,12 @@ void MapManager::PubPoints(const std::vector<Eigen::Vector3d>& points,
       points_->set_z(p.z());
     }
 
-    int ret = util::RvizAgent::Instance().Publish(topic, lane_points);
-    if (ret < 0) {
-      std::cout << "pub points error" << std::endl;
-    }
+    // int ret = util::RvizAgent::Instance().Publish(topic, lane_points);
+    // if (ret < 0) {
+    //   std::cout << "pub points error" << std::endl;
+    // }
   }
+  */
 }
 
 void MapManager::PubLocalMap(uint64_t sec, uint64_t nsec) {
@@ -233,6 +313,16 @@ void MapManager::PubLines(std::vector<LocalMapLane> lanes, uint64_t sec,
   SetPoint(lanes, lane_pts);
 
   PubPoints(*lane_pts, sec, nsec, ktopic_cur_lane_);
+}
+
+void MapManager::SetLaneProperty(int lane_id,
+                                 const std::shared_ptr<const Lane> frame_lane) {
+  for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
+    if (local_map_.local_map_lane_[i].track_id_ == lane_id) {
+      local_map_.local_map_lane_[i].pos_type_ = frame_lane->pos_type_;
+      break;
+    }
+  }
 }
 
 }  // namespace lm

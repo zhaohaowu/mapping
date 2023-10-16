@@ -13,18 +13,18 @@
 #include <memory>
 #include <string>
 #include <thread>
-
-#include "util/nodelink/core/context.h"
-#include "util/nodelink/core/sub_worker.h"
-#include "util/rviz_agent/msg_alias.h"
-#include "util/temp_log.h"
-
+#include <utility>
+#include <vector>
 // auto generated
-#include <adsfi_proto/viz/geometry_msgs.pb.h>
-#include <adsfi_proto/viz/nav_msgs.pb.h>
-#include <adsfi_proto/viz/sensor_msgs.pb.h>
-#include <adsfi_proto/viz/tf2_msgs.pb.h>
-#include <adsfi_proto/viz/visualization_msgs.pb.h>
+#include "adsfi_proto/viz/geometry_msgs.pb.h"
+#include "adsfi_proto/viz/nav_msgs.pb.h"
+#include "adsfi_proto/viz/sensor_msgs.pb.h"
+#include "adsfi_proto/viz/tf2_msgs.pb.h"
+#include "adsfi_proto/viz/visualization_msgs.pb.h"
+#include "modules/util/include/util/nodelink/core/context.h"
+#include "modules/util/include/util/nodelink/core/sub_worker.h"
+#include "modules/util/include/util/rviz_agent/msg_alias.h"
+#include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
 namespace mp {
@@ -34,8 +34,7 @@ class RvizAgentClient {
  public:
   int Init(const std::vector<std::string>& addrs);
 
-  // TODO: change these Registers to templates
-
+  // TODO(AAA): change these Registers to templates
   int Register(ImageCallback callback) {
     if (img_cbk_ != nullptr) {
       HLOG_ERROR << "image callback already registered";

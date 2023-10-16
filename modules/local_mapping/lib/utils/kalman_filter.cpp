@@ -9,33 +9,42 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
-KFFilter::KFFilter(const Eigen::Vector2d& pt) : kf_(stateNum_, measureNum_, 0) {
-  cv::Mat measurement = cv::Mat::zeros(measureNum_, 1, CV_32F);
-  kf_.transitionMatrix = (cv::Mat_<float>(stateNum_, stateNum_) << 1, 0, 1, 0,
-                          0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1);  // F
-
-  cv::setIdentity(kf_.measurementMatrix);                           // H
-  cv::setIdentity(kf_.processNoiseCov, cv::Scalar::all(1e-5));      // Q
-  cv::setIdentity(kf_.measurementNoiseCov, cv::Scalar::all(1e-1));  // R
-  cv::setIdentity(kf_.errorCovPost, cv::Scalar::all(1));            // P
-
-  // randn(kf_.statePost, Scalar::all(0), Scalar::all(0.1));  //x
-  kf_.statePost.at<float>(0) = pt(0);
-  kf_.statePost.at<float>(1) = pt(1);
-  kf_.statePost.at<float>(2) = 0.001;
-  kf_.statePost.at<float>(3) = 0.001;
+KFFilter::KFFilter(const Eigen::Vector2d& pt) {
+  F_ = Eigen::Matrix2d::Identity();  //
+  H_ = Eigen::Matrix2d::Identity();
+  Q_ = Eigen::Matrix2d::Identity() * 1e-5;  //
+  R_ = Eigen::Matrix2d::Identity() * 1e-3;
+  pre_P_ = Eigen::Matrix2d::Identity();
+  post_P_ = Eigen::Matrix2d::Identity();
+  post_x_ << pt.x(), pt.y();
 }
 
-Eigen::Vector2d KFFilter::Predict() {
-  cv::Mat prediction = kf_.predict();
-  return Eigen::Vector2d(prediction.at<float>(0), prediction.at<float>(1));
+Eigen::Vector2d KFFilter::Predict(double theta, const Eigen::Vector2d& T) {
+  F_ << std::cos(theta), 0, 0, std::cos(theta);
+  pre_x_ = TransposeFunction(post_x_, theta, T);
+  pre_P_ = F_ * post_P_ * F_.transpose() + R_;
+  return pre_x_;
 }
 
-void KFFilter::Update(const Eigen::Vector2d& pt) {
-  cv::Mat measurement = cv::Mat::zeros(measureNum_, 1, CV_32F);
-  measurement.at<float>(0) = pt(0);
-  measurement.at<float>(1) = pt(1);
-  kf_.correct(measurement);
+Eigen::Vector3d KFFilter::Update(const Eigen::Vector2d& z) {
+  Eigen::MatrixXd tmp = pre_P_ * H_.transpose();
+  Eigen::MatrixXd K = tmp * (H_ * tmp + Q_).inverse();
+  post_x_ = pre_x_ + K * (z - MeasureFunction(pre_x_));
+  post_P_ = (Eigen::Matrix2d::Identity() - K * H_) * pre_P_;
+
+  return Eigen::Vector3d(post_x_.x(), post_x_.y(), 0.0);
+}
+
+Eigen::Vector2d KFFilter::TransposeFunction(const Eigen::Vector2d& x_1,
+                                            double theta,
+                                            const Eigen::Vector2d& T) {
+  Eigen::Matrix2d R;
+  R << std::cos(theta), -std::sin(theta), std::sin(theta), std::cos(theta);
+  return R * x_1 + T;
+}
+
+Eigen::Vector2d KFFilter::MeasureFunction(const Eigen::Vector2d& x) {
+  return x;
 }
 
 }  // namespace lm

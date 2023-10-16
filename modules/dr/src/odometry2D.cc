@@ -296,7 +296,7 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
     //    std::cout << "left back direction" << std::endl;
   }
   double right_dist = right_diff * wheel_param_.kr_;
-  if (cur.rear_right_dir == 1) {
+  if (cur.rear_right_dir == 2) {
     right_dist *= -1.0;
     // std::cout << "right back direction" << std::endl;
   }

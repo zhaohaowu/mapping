@@ -31,7 +31,7 @@ struct WheelOdometry {
   WheelOdometry(double _x, double _y, double _z, double _qw, double _qx,
                 double _qy, double _qz)
       : x(_x), y(_y), z(_z), qw(_qw), qx(_qx), qy(_qy), qz(_qz) {}
-  WheelOdometry() : x(0), y(0), z(0), qw(0), qx(0), qy(0), qz(0) {}
+  WheelOdometry() : x(0), y(0), z(0), qw(1), qx(0), qy(0), qz(0) {}
 };
 
 struct OdometryData {

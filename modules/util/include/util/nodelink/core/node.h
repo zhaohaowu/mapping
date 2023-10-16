@@ -12,8 +12,8 @@
 #include <string>
 #include <vector>
 
-#include "util/nodelink/core/publisher.h"
-#include "util/nodelink/core/sub_worker.h"
+#include "modules/util/include/util/nodelink/core/publisher.h"
+#include "modules/util/include/util/nodelink/core/sub_worker.h"
 
 namespace hozon {
 namespace mp {

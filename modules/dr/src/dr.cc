@@ -11,7 +11,7 @@ namespace hozon {
 namespace mp {
 namespace dr {
 
-DRInterface::DRInterface() { dr_estimator_ = std::make_shared<WheelOdom>(); }
+DRInterface::DRInterface() { dr_estimator_ = std::make_shared<Odometry2D>(); }
 
 bool DRInterface::SetLocation(
     std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr) {
@@ -40,7 +40,7 @@ bool DRInterface::SetLocation(
   return false;
 }
 
-Eigen::Vector3d DRInterface::Qat2EulerAngle(const Eigen::Quaterniond &q) {
+Eigen::Vector3d DRInterface::Qat2EulerAngle(const Eigen::Quaterniond& q) {
   Eigen::Vector3d eulerangle = {0, 0, 0};
   double sinr_cosp = +2.0 * (q.w() * q.x() + q.y() * q.z());
   double cosr_cosp = +1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y());
@@ -63,7 +63,7 @@ Eigen::Vector3d DRInterface::Qat2EulerAngle(const Eigen::Quaterniond &q) {
 
 void DRInterface::SetInsData2Location(
     std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
-    const OdometryData &odom_data) {
+    const OdometryData& odom_data) {
   // 位置的欧拉角
   locationDataPtr->mutable_pose()
       ->mutable_pose_local()
@@ -113,7 +113,7 @@ void DRInterface::SetInsData2Location(
 
 void DRInterface::SetLocationData(
     std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
-    OdometryData &latest_odom, Eigen::Vector3d &eulerAngle) {
+    OdometryData& latest_odom, Eigen::Vector3d& eulerAngle) {
   if (locationDataPtr == nullptr) {
     // HLOG_ERROR << " send localization input frame is nullptr";
     return;
@@ -233,7 +233,7 @@ void DRInterface::SetLocationData(
   //     ->mutable_angular_vrf()
   //     ->set_z(0);
 
-  locationDataPtr->mutable_header()->set_publish_stamp(latest_odom.timestamp);
+  locationDataPtr->mutable_header()->set_gnss_stamp(latest_odom.timestamp);
 
   double sys_timestamp = GetCurrentNsecTime();
 
@@ -241,26 +241,20 @@ void DRInterface::SetLocationData(
   static int32_t count_ = 0;
   locationDataPtr->mutable_header()->set_seq(count_);
   count_++;
-  locationDataPtr->set_gnss_timestamp(sys_timestamp);
+  locationDataPtr->mutable_header()->set_publish_stamp(sys_timestamp);
   //   locationDataPtr->set_location_state(21);
 
   //   locationDataPtr->set_is_valid(true);
   //   locationDataPtr->set_coord_type(
   //       hozon::perception::datacollection::CoordType::SLAM_COORD);
 
-//   std::cout
-//       << "==== init ==== **************************************DR pose: x: "
-//       << locationDataPtr->pose().pose_local().position().x()
-//       << " ,y: " << locationDataPtr->pose().pose_local().position().y()
-//       << ",z:" << locationDataPtr->pose().pose_local().position().z()
-//       << std::endl;
-
-  //   HLOG_INFO
+  //   std::cout
   //       << "==== init ==== **************************************DR pose: x:
   //       "
   //       << locationDataPtr->pose().pose_local().position().x()
   //       << " ,y: " << locationDataPtr->pose().pose_local().position().y()
-  //       << ",z:" << locationDataPtr->pose().pose_local().position().z();
+  //       << ",z:" << locationDataPtr->pose().pose_local().position().z()
+  //       << std::endl;
   //   HLOG_INFO << "==== init ==== DR quat: x: "
   //             << locationDataPtr->pose().pose_local().quaternion().x()
   //             << " ,y: " <<
@@ -306,14 +300,14 @@ void DRInterface::AddChassisData(
 
 void DRInterface::ConvertImuData(
     const std::shared_ptr<const hozon::soc::ImuIns> imu_proto,
-    ImuDataHozon &imu_data) {
+    ImuDataHozon& imu_data) {
   if (!imu_proto) {
     HLOG_ERROR << "Parking_SLAM: no imu data !";
     // fm_.ReportFault(LOC_IMU_DATA_ERROR);
     return;
   }
 
-  imu_data.timestamp = imu_proto->header().publish_stamp();
+  imu_data.timestamp = imu_proto->header().gnss_stamp();
   //   imu_proto->header.timestamp.sec + imu_proto->header.timestamp.nsec / 1e9;
 
   imu_data.gyr_measurement = Eigen::Vector3d(
@@ -359,12 +353,12 @@ void DRInterface::ConvertImuData(
 
 void DRInterface::ConvertChassisData(
     const std::shared_ptr<const hozon::soc::Chassis> chassis_proto,
-    WheelDataHozon &wheel_data) {
+    WheelDataHozon& wheel_data) {
   if (!chassis_proto) {
     // fm_.ReportFault(LOC_IMU_DATA_ERROR);
     return;
   }
-  double temp_timestamp = chassis_proto->header().publish_stamp();
+  double temp_timestamp = chassis_proto->header().gnss_stamp();
 
   wheel_data.timestamp = temp_timestamp;
   // 左前轮脉冲计数

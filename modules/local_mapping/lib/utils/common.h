@@ -14,10 +14,12 @@
 #include <vector>
 
 #include "Eigen/Dense"
+#include "depend/map/hdmap/hdmap.h"
 #include "modules/local_mapping/lib/types/common.h"
 #include "modules/local_mapping/lib/utils/map_manager.h"
-#include "util/rviz_agent/rviz_agent.h"
-#include "util/temp_log.h"
+#include "modules/util/include/util/geo.h"
+#include "modules/util/include/util/rviz_agent/rviz_agent.h"
+#include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
 namespace mp {
@@ -44,24 +46,109 @@ class CommonUtil {
    * @brief sample points from lane
    *
    * @param lane target lane
-   * @param T_V_W translation from vehicle to world
+   * @param T_W_V translation from vehicle to world
    * @param pts sample points
    * @return
    */
-  static void SampleLanePoints(
-      std::shared_ptr<const Lane> lane, const Eigen::Matrix4d T_V_W,
-      std::shared_ptr<std::vector<Eigen::Vector3d>> pts) {
-    double interval = 0.1;
-    double x, y, z;
-    for (x = lane->x_start_vrf_; x <= lane->x_end_vrf_; x += interval) {
+  static void SampleLanePoints(std::shared_ptr<const Lane> lane,
+                               std::vector<Eigen::Vector3d>* pts,
+                               const double& sample_interval) {
+    pts->clear();
+    double x, y;
+    for (x = lane->x_start_vrf_; x <= lane->x_end_vrf_; x += sample_interval) {
       y = f(x, lane->lane_fit_d_, lane->lane_fit_c_, lane->lane_fit_b_,
             lane->lane_fit_a_);
-      z = 0;
-      Eigen::Vector4d pt_v(x, y, z, 1);
-      Eigen::Vector4d pt_w = T_V_W * pt_v;
-      Eigen::Vector3d pt(pt_w(0), pt_w(1), pt_w(2));
+      Eigen::Vector3d pt(x, y, 0);
       pts->emplace_back(pt);
     }
+  }
+
+  static void SampleEKFPoints(const LaneCubicSpline& cubic_curve,
+                              std::shared_ptr<std::vector<Eigen::Vector2d>> pts,
+                              float gap = 1.0) {
+    double a = cubic_curve.c0_;
+    double b = cubic_curve.c1_;
+    double c = cubic_curve.c2_;
+    double d = cubic_curve.c3_;
+    double start_x = cubic_curve.start_point_x_;
+    double end_x = cubic_curve.end_point_x_;
+
+    for (int curr_x = 0; curr_x <= 50; ++curr_x) {
+      if (curr_x > end_x) {
+        break;
+      }
+      float curr_y =
+          a * curr_x * curr_x * curr_x + b * curr_x * curr_x + c * curr_x + d;
+      Eigen::Vector2d pt(curr_x, curr_y);
+      pts->push_back(pt);
+    }
+  }
+
+  static LaneCubicSpline MapVehicleLaneTolane(
+      std::shared_ptr<const Lane> cur_lane) {
+    LaneCubicSpline cur_lane_func;
+    cur_lane_func.c0_ = cur_lane->lane_fit_a_;
+    cur_lane_func.c1_ = cur_lane->lane_fit_b_;
+    cur_lane_func.c2_ = cur_lane->lane_fit_c_;
+    cur_lane_func.c3_ = cur_lane->lane_fit_d_;
+    cur_lane_func.start_point_x_ = cur_lane->x_start_vrf_;
+    cur_lane_func.end_point_x_ = cur_lane->x_end_vrf_;
+    return cur_lane_func;
+  }
+
+  /**
+   * @brief lane from sample points
+   *
+   * @param pts target points
+   * @param lane output lane func
+   * @return
+   */
+  static void FitEKFLane(const std::vector<Eigen::Vector3d>& pts,
+                         std::shared_ptr<LaneCubicSpline> lane) {
+    int n = pts.size();
+    Eigen::Matrix<double, Eigen::Dynamic, 4> A(n, 4);
+    Eigen::VectorXd x(n);
+    Eigen::VectorXd b(n);
+    for (int i = 0; i < n; i++) {
+      double xi = pts[i][0];
+      double yi = pts[i][1];
+      A(i, 0) = xi * xi * xi;
+      A(i, 1) = xi * xi;
+      A(i, 2) = xi;
+      A(i, 3) = 1.0;
+      b[i] = yi;
+    }
+    x = (A.transpose() * A).inverse() * A.transpose() * b;
+    lane->c0_ = x[0];
+    lane->c1_ = x[1];
+    lane->c2_ = x[2];
+    lane->c3_ = x[3];
+    lane->start_point_x_ = pts[0][0];
+    lane->end_point_x_ = pts[n - 1][0];
+  }
+
+  static void FitEKFLane(const std::vector<Eigen::Vector2d>& pts,
+                         std::shared_ptr<LaneCubicSpline> lane) {
+    int n = pts.size();
+    Eigen::Matrix<double, Eigen::Dynamic, 4> A(n, 4);
+    Eigen::VectorXd x(n);
+    Eigen::VectorXd b(n);
+    for (int i = 0; i < n; i++) {
+      double xi = pts[i][0];
+      double yi = pts[i][1];
+      A(i, 0) = xi * xi * xi;
+      A(i, 1) = xi * xi;
+      A(i, 2) = xi;
+      A(i, 3) = 1.0;
+      b[i] = yi;
+    }
+    x = (A.transpose() * A).inverse() * A.transpose() * b;
+    lane->c0_ = x[0];
+    lane->c1_ = x[1];
+    lane->c2_ = x[2];
+    lane->c3_ = x[3];
+    lane->start_point_x_ = pts[0][0];
+    lane->end_point_x_ = pts[n - 1][0];
   }
 
   /**
@@ -73,7 +160,7 @@ class CommonUtil {
    */
   static void SampleLanePointsInLocal(const Lane& lane,
                                       const LanePointsPtr pts) {
-    double interval = 0.1;
+    double interval = 1;
     double x, y, z;
     for (x = lane.x_start_vrf_; x <= lane.x_end_vrf_; x += interval) {
       y = f(x, lane.lane_fit_d_, lane.lane_fit_c_, lane.lane_fit_b_,
@@ -108,20 +195,18 @@ class CommonUtil {
    * @brief lane from sample points
    *
    * @param pts target points
-   * @param T_V_W translation from vehicle to world
    * @param lane output lane
    * @return
    */
-  static void FitLanePoints(
-      std::shared_ptr<const std::vector<Eigen::Vector3d>> pts,
-      const Eigen::Matrix4d& T_V_W, std::shared_ptr<Lane> lane) {
-    size_t n = (*pts).size();
+  static void FitLanePoints(const std::vector<Eigen::Vector3d>& pts,
+                            std::shared_ptr<Lane> lane) {
+    int n = pts.size();
     Eigen::Matrix<double, Eigen::Dynamic, 4> A(n, 4);
     Eigen::VectorXd x(n);
     Eigen::VectorXd b(n);
-    for (size_t i = 0; i < n; i++) {
-      double xi = (*pts)[i][0];
-      double yi = (*pts)[i][1];
+    for (int i = 0; i < n; i++) {
+      double xi = pts[i][0];
+      double yi = pts[i][1];
       A(i, 0) = xi * xi * xi;
       A(i, 1) = xi * xi;
       A(i, 2) = xi;
@@ -133,72 +218,8 @@ class CommonUtil {
     lane->lane_fit_b_ = x[1];
     lane->lane_fit_c_ = x[2];
     lane->lane_fit_d_ = x[3];
-    lane->x_start_vrf_ = (*pts)[0][0];
-    lane->x_end_vrf_ = (*pts)[n - 1][0];
-  }
-
-  /**
-   * @brief map_lane from sample points
-   *
-   * @param pts target points
-   * @param lane_param output lane_param
-   * @return
-   */
-  static void FitMapLanePoints(const std::vector<Eigen::Vector3d>& points,
-                               std::vector<LaneCubicSpline>* lane_param) {
-    lane_param->clear();
-    std::vector<Eigen::Vector3d> pts;
-    for (size_t i = 0; i < points.size(); i++) {
-      if (i % 10 == 0) {
-        pts.push_back(points[i]);
-      }
-    }
-    size_t n = pts.size();
-    if (n <= 4) return;
-    std::vector<double> h(n);
-    std::vector<double> alpha(n);
-    std::vector<double> l(n);
-    std::vector<double> u(n);
-    std::vector<double> z(n);
-    std::vector<double> c(n + 1);
-    std::vector<double> b(n);
-    std::vector<double> d(n);
-    for (size_t i = 0; i < n - 1; i++) {
-      h[i] = pts[i + 1].x() - pts[i].x();
-    }
-    for (size_t i = 1; i < n - 1; i++) {
-      alpha[i] = 3.0 * ((pts[i + 1].y() - pts[i].y()) / h[i]) -
-                 3.0 * ((pts[i].y() - pts[i - 1].y()) / h[i - 1]);
-    }
-    l[0] = 1.0;
-    u[0] = 0.0;
-    z[0] = 0.0;
-    for (size_t i = 1; i < n - 1; i++) {
-      l[i] = 2.0 * (pts[i + 1].x() - pts[i - 1].x()) - h[i - 1] * u[i - 1];
-      u[i] = h[i] / l[i];
-      z[i] = (alpha[i] - h[i - 1] * z[i - 1]) / l[i];
-    }
-    l[n - 1] = 1.0;
-    z[n - 1] = 0.0;
-    c[n - 1] = 0.0;
-    for (int j = n - 2; j >= 0; j--) {
-      c[j] = z[j] - u[j] * c[j + 1];
-    }
-    for (size_t i = 0; i < n - 1; i++) {
-      d[i] = (c[i + 1] - c[i]) / (3.0 * h[i]);
-      b[i] = ((pts[i + 1].y() - pts[i].y()) / h[i]) -
-             ((h[i] * (c[i + 1] + 2.0 * c[i])) / 3.0);
-    }
-    for (size_t i = 0; i < n - 1; i++) {
-      LaneCubicSpline tmp;
-      tmp.c0_ = pts[i].y();
-      tmp.c1_ = b[i];
-      tmp.c2_ = c[i];
-      tmp.c3_ = d[i];
-      tmp.start_point_x_ = pts[i].x();
-      tmp.end_point_x_ = pts[i + 1].x();
-      lane_param->emplace_back(tmp);
-    }
+    lane->x_start_vrf_ = pts[0][0];
+    lane->x_end_vrf_ = pts[n - 1][0];
   }
 
   /**
@@ -207,13 +228,17 @@ class CommonUtil {
    * @param local_map local_map
    * @return
    */
-  static void CubicCurve(LocalMap* local_map) {
+  static void CubicCurve(LocalMap* local_map, const double& sample_interval) {
+    int tmp_num = 10 / sample_interval;
     for (size_t k = 0; k < local_map->local_map_lane_.size(); k++) {
+      if (!local_map->local_map_lane_[k].need_fit_) continue;
       local_map->local_map_lane_[k].lane_param_.clear();
+      local_map->local_map_lane_[k].fit_points_.clear();
       std::vector<Eigen::Vector3d> pts;
       for (size_t i = 0; i < local_map->local_map_lane_[k].points_.size();
            i++) {
-        if (i % 10 == 0) {
+        if (i % tmp_num == 0 ||
+            i == local_map->local_map_lane_[k].points_.size() - 1) {
           pts.push_back(local_map->local_map_lane_[k].points_[i]);
         }
       }
@@ -253,15 +278,50 @@ class CommonUtil {
         b[i] = ((pts[i + 1].y() - pts[i].y()) / h[i]) -
                ((h[i] * (c[i + 1] + 2.0 * c[i])) / 3.0);
       }
-      for (size_t i = 0; i < n - 1; i++) {
+      for (size_t i = 0; i < n; i++) {
         LaneCubicSpline tmp;
-        tmp.c0_ = pts[i].y();
-        tmp.c1_ = b[i];
-        tmp.c2_ = c[i];
-        tmp.c3_ = d[i];
-        tmp.start_point_x_ = pts[i].x();
-        tmp.end_point_x_ = pts[i + 1].x();
+        if (i != n - 1) {
+          tmp.c0_ = pts[i].y();
+          tmp.c1_ = b[i];
+          tmp.c2_ = c[i];
+          tmp.c3_ = d[i];
+          tmp.start_point_x_ = pts[i].x();
+          tmp.end_point_x_ = pts[i + 1].x();
+        }
+        int num = 0;
+        for (size_t index = tmp_num * i;
+             index < local_map->local_map_lane_[k].points_.size(); index++) {
+          tmp.sample_x_.push_back(
+              local_map->local_map_lane_[k].points_[index].x());
+          num++;
+          if (num == tmp_num) {
+            num = 0;
+            break;
+          }
+        }
         local_map->local_map_lane_[k].lane_param_.emplace_back(tmp);
+      }
+    }
+    for (size_t i = 0; i < local_map->local_map_lane_.size(); i++) {
+      if (!local_map->local_map_lane_[i].need_fit_) continue;
+      for (size_t j = 0; j < local_map->local_map_lane_[i].lane_param_.size();
+           ++j) {
+        float start_x =
+            local_map->local_map_lane_[i].lane_param_[j].start_point_x_;
+        float end_x = local_map->local_map_lane_[i].lane_param_[j].end_point_x_;
+        for (size_t k = 0;
+             k < local_map->local_map_lane_[i].lane_param_[j].sample_x_.size();
+             k++) {
+          double x = local_map->local_map_lane_[i].lane_param_[j].sample_x_[k];
+          double y =
+              local_map->local_map_lane_[i].lane_param_[j].c0_ +
+              local_map->local_map_lane_[i].lane_param_[j].c1_ * (x - start_x) +
+              local_map->local_map_lane_[i].lane_param_[j].c2_ *
+                  pow(x - start_x, 2) +
+              local_map->local_map_lane_[i].lane_param_[j].c3_ *
+                  pow(x - start_x, 3);
+          local_map->local_map_lane_[i].fit_points_.push_back({x, y, 0});
+        }
       }
     }
   }
@@ -283,35 +343,35 @@ class CommonUtil {
    * @brief convert points from vehicle to world
    *
    * @param pts vehicle points
-   * @param T_V_W translation from vehicle to world
+   * @param T_W_V translation from vehicle to world
    * @param lane world points
    * @return
    */
   static void PointsToWorld(
       std::shared_ptr<const std::vector<Eigen::Vector3d>> pts,
-      const Eigen::Matrix4d& T_V_W,
+      const Sophus::SE3d& T_W_V,
       std::shared_ptr<std::vector<Eigen::Vector3d>> world_pts) {
     for (auto& pt : *pts) {
-      Eigen::Vector4d v_pt(pt(0), pt(1), pt(2), 1);
-      Eigen::Vector4d w_tmp_pt = T_V_W * v_pt;
+      Eigen::Vector3d v_pt(pt(0), pt(1), pt(2));
+      Eigen::Vector3d w_tmp_pt = T_W_V * v_pt;
       Eigen::Vector3d w_pt(w_tmp_pt(0), w_tmp_pt(1), w_tmp_pt(2));
-      world_pts->push_back(w_pt);
+      world_pts->emplace_back(w_pt);
     }
   }
 
   /**
    * @brief pub odom in rviz
    *
-   * @param T_V_W translation from vehicle to world
+   * @param T_W_V translation from vehicle to world
    * @param sec second in timestamp
    * @param nsec nsecond in timestamp
    * @param topic topic
    * @return
    */
-  static void PubOdom(const Eigen::Matrix4d& T_V_W, const uint64_t& sec,
+  static void PubOdom(const Sophus::SE3d& T_W_V, const uint64_t& sec,
                       const uint64_t& nsec, const std::string& topic) {
-    Eigen::Vector3d p = T_V_W.block<3, 1>(0, 3);
-    Eigen::Quaterniond q(T_V_W.block<3, 3>(0, 0));
+    Eigen::Vector3d p = T_W_V.translation();
+    Eigen::Quaterniond q = T_W_V.so3().unit_quaternion();
     static bool odom_flag = 1;
     if (odom_flag) {
       util::RvizAgent::Instance().Register<adsfi_proto::viz::Odometry>(topic);
@@ -342,16 +402,16 @@ class CommonUtil {
   /**
    * @brief pub tf in rviz
    *
-   * @param T_V_W translation from vehicle to world
+   * @param T_W_V translation from vehicle to world
    * @param sec second in timestamp
    * @param nsec nsecond in timestamp
    * @param topic topic
    * @return
    */
-  static void PubTf(const Eigen::Matrix4d& T_V_W, const uint64_t& sec,
+  static void PubTf(const Sophus::SE3d& T_W_V, const uint64_t& sec,
                     const uint64_t& nsec, const std::string& topic) {
-    Eigen::Vector3d p = T_V_W.block<3, 1>(0, 3);
-    Eigen::Quaterniond q(T_V_W.block<3, 3>(0, 0));
+    Eigen::Vector3d p = T_W_V.translation();
+    Eigen::Quaterniond q = T_W_V.so3().unit_quaternion();
     static bool tf_flag = 1;
     if (tf_flag) {
       util::RvizAgent::Instance().Register<adsfi_proto::viz::TransformStamped>(
@@ -376,16 +436,16 @@ class CommonUtil {
   /**
    * @brief pub path in rviz
    *
-   * @param T_V_W translation from vehicle to world
+   * @param T_W_V translation from vehicle to world
    * @param sec second in timestamp
    * @param nsec nsecond in timestamp
    * @param topic topic
    * @return
    */
-  static void PubPath(const Eigen::Matrix4d& T_V_W, const uint64_t& sec,
+  static void PubPath(const Sophus::SE3d& T_W_V, const uint64_t& sec,
                       const uint64_t& nsec, const std::string& topic) {
-    Eigen::Vector3d p = T_V_W.block<3, 1>(0, 3);
-    Eigen::Quaterniond q(T_V_W.block<3, 3>(0, 0));
+    Eigen::Vector3d p = T_W_V.translation();
+    Eigen::Quaterniond q = T_W_V.so3().unit_quaternion();
     static bool path_flag = 1;
     if (path_flag) {
       util::RvizAgent::Instance().Register<adsfi_proto::viz::Path>(topic);
@@ -415,28 +475,35 @@ class CommonUtil {
   /**
    * @brief pub perception points in rviz
    *
-   * @param T_V_W translation from vehicle to world
+   * @param T_W_V translation from vehicle to world
    * @param latest_lanes input lanes
    * @param sec second in timestamp
    * @param nsec nsecond in timestamp
    * @param topic topic
    * @return
    */
-  static void PubPercepPoints(const Eigen::Matrix4d& T_V_W,
+  static void PubPercepPoints(const Sophus::SE3d& T_W_V,
                               const std::shared_ptr<Lanes>& latest_lanes,
                               const uint64_t& sec, const uint64_t& nsec,
-                              const std::string& topic) {
+                              const std::string& topic,
+                              const double& sample_interval) {
     static bool percep_flag = 1;
     if (percep_flag) {
       util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
       percep_flag = 0;
     }
-    std::shared_ptr<std::vector<Eigen::Vector3d>> percep_points =
-        std::make_shared<std::vector<Eigen::Vector3d>>();
-    for (size_t i = 0; i < latest_lanes->front_lanes_.size(); i++) {
+    std::vector<Eigen::Vector3d> percep_points_all;
+    for (size_t i = 0; i < latest_lanes->lanes_.size(); i++) {
+      std::vector<Eigen::Vector3d> percep_points;
       CommonUtil::SampleLanePoints(
-          std::make_shared<Lane>(latest_lanes->front_lanes_[i]), T_V_W,
-          percep_points);
+          std::make_shared<Lane>(latest_lanes->lanes_[i]), &percep_points,
+          sample_interval);
+      for (auto& point : percep_points) {
+        point = T_W_V * point;
+      }
+      for (auto& p : percep_points) {
+        percep_points_all.emplace_back(p);
+      }
     }
     adsfi_proto::viz::PointCloud lane_points_msg;
     lane_points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
@@ -444,7 +511,7 @@ class CommonUtil {
     lane_points_msg.mutable_header()->set_frameid("localmap");
     auto* channels = lane_points_msg.add_channels();
     channels->set_name("rgb");
-    for (auto p : *percep_points) {
+    for (auto p : percep_points_all) {
       auto* points_ = lane_points_msg.add_points();
       points_->set_x(p.x());
       points_->set_y(p.y());
@@ -463,37 +530,12 @@ class CommonUtil {
    * @return
    */
   static void PubMapPoints(const LocalMap& local_map, const uint64_t& sec,
-                           const uint64_t& nsec, const std::string& topic) {
+                           const uint64_t& nsec, const std::string& topic,
+                           const Sophus::SE3d& T_W_V) {
     static bool map_flag = 1;
     if (map_flag) {
       util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
       map_flag = 0;
-    }
-    std::vector<Eigen::Vector3d> map_points;
-    for (size_t i = 0; i < local_map.local_map_lane_.size(); i++) {
-      for (size_t j = 0; j < local_map.local_map_lane_[i].lane_param_.size();
-           ++j) {
-        float start_x =
-            local_map.local_map_lane_[i].lane_param_[j].start_point_x_;
-        float end_x = local_map.local_map_lane_[i].lane_param_[j].end_point_x_;
-        float x = start_x;
-        while (x <= end_x) {
-          double y =
-              local_map.local_map_lane_[i].lane_param_[j].c0_ +
-              local_map.local_map_lane_[i].lane_param_[j].c1_ * (x - start_x) +
-              local_map.local_map_lane_[i].lane_param_[j].c2_ *
-                  pow(x - start_x, 2) +
-              local_map.local_map_lane_[i].lane_param_[j].c3_ *
-                  pow(x - start_x, 3);
-          map_points.push_back({x, y, 0});
-          x += 0.1;
-        }
-      }
-    }
-    for (size_t i = 0; i < local_map.local_map_lane_.size(); ++i) {
-      for (size_t j = 0; j < local_map.local_map_lane_[i].points_.size(); ++j) {
-        // map_points.push_back(local_map.local_map_lane_[i].points_[j]);
-      }
     }
     adsfi_proto::viz::PointCloud map_points_msg;
     map_points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
@@ -501,15 +543,322 @@ class CommonUtil {
     map_points_msg.mutable_header()->set_frameid("localmap");
     auto* channels = map_points_msg.add_channels();
     channels->set_name("rgb");
-    for (auto p : map_points) {
-      auto* points_ = map_points_msg.add_points();
-      points_->set_x(p.x());
-      points_->set_y(p.y());
-      points_->set_z(p.z());
+    for (auto& lane : local_map.local_map_lane_) {
+      for (auto& point : lane.fit_points_) {
+        auto tmp = T_W_V * point;
+        auto* points_ = map_points_msg.add_points();
+        points_->set_x(tmp.x());
+        points_->set_y(tmp.y());
+        points_->set_z(tmp.z());
+      }
     }
     util::RvizAgent::Instance().Publish(topic, map_points_msg);
   }
-};
+  /**
+   * @brief pub map points parker in rviz
+   *
+   * @param local_map input local_map
+   * @param sec second in timestamp
+   * @param nsec nsecond in timestamp
+   * @param topic topic
+   * @return
+   */
+  static void PubMapPointsMarker(const LocalMap& local_map, const uint64_t& sec,
+                                 const uint64_t& nsec, const std::string& topic,
+                                 const Sophus::SE3d& T_W_V) {
+    static bool map_marker_flag = 1;
+    if (map_marker_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
+          topic);
+      map_marker_flag = 0;
+    }
+    adsfi_proto::viz::MarkerArray markers;
+    int id = 0;
+    for (size_t i = 0; i < local_map.local_map_lane_.size(); i++) {
+      if (local_map.local_map_lane_[i].fit_points_.size() == 0) continue;
+      int tmp_n = local_map.local_map_lane_[i].fit_points_.size();
+      auto end_points =
+          T_W_V * local_map.local_map_lane_[i].fit_points_[tmp_n - 1];
+      adsfi_proto::viz::Marker point_marker;
+      point_marker.mutable_header()->set_frameid("localmap");
+      point_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      point_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      // point_marker.set_ns("ns_local_map_lane");
+      point_marker.set_id(id++);
+      point_marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+      point_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      point_marker.mutable_pose()->mutable_position()->set_x(0);
+      point_marker.mutable_pose()->mutable_position()->set_y(0);
+      point_marker.mutable_pose()->mutable_position()->set_z(0);
+      point_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+      point_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+      point_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+      point_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+      point_marker.mutable_scale()->set_x(0.2);
+      point_marker.mutable_scale()->set_y(0.2);
+      point_marker.mutable_scale()->set_z(0.2);
+      point_marker.mutable_lifetime()->set_sec(0);
+      point_marker.mutable_lifetime()->set_nsec(200000000);
+      adsfi_proto::viz::ColorRGBA color;
+      color.set_a(1.0);
+      color.set_r(0.0);
+      color.set_g(1.0);
+      color.set_b(0.0);
+      point_marker.mutable_color()->CopyFrom(color);
+      for (const auto& point : local_map.local_map_lane_[i].fit_points_) {
+        auto tmp = T_W_V * point;
+        auto pt = point_marker.add_points();
+        pt->set_x(tmp.x());
+        pt->set_y(tmp.y());
+        pt->set_z(tmp.z());
+      }
+      if (point_marker.points().size() != 0) {
+        markers.add_markers()->CopyFrom(point_marker);
+      }
+
+      adsfi_proto::viz::Marker track_id;
+      track_id.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+      track_id.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      track_id.set_id(id++);
+      track_id.mutable_lifetime()->set_sec(0);
+      // track_id.mutable_lifetime()->set_nsec(200000000);
+      track_id.mutable_header()->mutable_timestamp()->set_sec(sec);
+      track_id.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      track_id.mutable_header()->set_frameid("localmap");
+      track_id.mutable_pose()->mutable_position()->set_x(end_points.x());
+      track_id.mutable_pose()->mutable_position()->set_y(end_points.y());
+      track_id.mutable_pose()->mutable_position()->set_z(1);
+      track_id.mutable_pose()->mutable_orientation()->set_x(0);
+      track_id.mutable_pose()->mutable_orientation()->set_y(0);
+      track_id.mutable_pose()->mutable_orientation()->set_z(0);
+      track_id.mutable_pose()->mutable_orientation()->set_w(1);
+      track_id.mutable_color()->set_r(0);
+      track_id.mutable_color()->set_g(1);
+      track_id.mutable_color()->set_b(0);
+      track_id.mutable_color()->set_a(1);
+      track_id.set_text(std::to_string(local_map.local_map_lane_[i].track_id_));
+      track_id.mutable_scale()->set_x(1);
+      track_id.mutable_scale()->set_y(1);
+      track_id.mutable_scale()->set_z(1);
+      markers.add_markers()->CopyFrom(track_id);
+
+      adsfi_proto::viz::Marker lane_pos;
+      lane_pos.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+      lane_pos.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      lane_pos.set_id(id++);
+      lane_pos.mutable_lifetime()->set_sec(0);
+      // lane_pos.mutable_lifetime()->set_nsec(200000000);
+      lane_pos.mutable_header()->mutable_timestamp()->set_sec(sec);
+      lane_pos.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      lane_pos.mutable_header()->set_frameid("localmap");
+      lane_pos.mutable_pose()->mutable_position()->set_x(end_points.x());
+      lane_pos.mutable_pose()->mutable_position()->set_y(end_points.y());
+      lane_pos.mutable_pose()->mutable_position()->set_z(2);
+      lane_pos.mutable_pose()->mutable_orientation()->set_x(0);
+      lane_pos.mutable_pose()->mutable_orientation()->set_y(0);
+      lane_pos.mutable_pose()->mutable_orientation()->set_z(0);
+      lane_pos.mutable_pose()->mutable_orientation()->set_w(1);
+      lane_pos.mutable_color()->set_r(1);
+      lane_pos.mutable_color()->set_g(0);
+      lane_pos.mutable_color()->set_b(0);
+      lane_pos.mutable_color()->set_a(1);
+      lane_pos.set_text(std::to_string(local_map.local_map_lane_[i].pos_type_));
+      lane_pos.mutable_scale()->set_x(1);
+      lane_pos.mutable_scale()->set_y(1);
+      lane_pos.mutable_scale()->set_z(1);
+      markers.add_markers()->CopyFrom(lane_pos);
+    }
+    util::RvizAgent::Instance().Publish(topic, markers);
+  }
+
+  /**
+   * @brief pub ori map points in rviz
+   *
+   * @param local_map input local_map
+   * @param sec second in timestamp
+   * @param nsec nsecond in timestamp
+   * @param topic topic
+   * @return
+   */
+  static void PubOriMapPoints(const LocalMap& local_map, const uint64_t& sec,
+                              const uint64_t& nsec, const std::string& topic,
+                              const Sophus::SE3d& T_W_V) {
+    static bool map_flag = 1;
+    if (map_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
+      map_flag = 0;
+    }
+    adsfi_proto::viz::PointCloud map_points_msg;
+    map_points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    map_points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    map_points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = map_points_msg.add_channels();
+    channels->set_name("rgb");
+    for (auto& lane : local_map.local_map_lane_) {
+      for (auto& point : lane.points_) {
+        auto tmp = T_W_V * point;
+        auto* points_ = map_points_msg.add_points();
+        points_->set_x(tmp.x());
+        points_->set_y(tmp.y());
+        points_->set_z(tmp.z());
+      }
+    }
+    util::RvizAgent::Instance().Publish(topic, map_points_msg);
+  }
+
+  /**
+   * @brief pub hd map points in rviz
+   *
+   * @param local_map input local_map
+   * @param sec second in timestamp
+   * @param nsec nsecond in timestamp
+   * @param topic topic
+   * @return
+   */
+  static void PubHdMapPoints(const Sophus::SE3d& T_G_V,
+                             const Sophus::SE3d& T_W_V,
+                             std::shared_ptr<hozon::hdmap::HDMap> hdmap,
+                             const uint64_t& sec, const uint64_t& nsec,
+                             const std::string& topic,
+                             std::vector<Eigen::Vector3d>* hq_pts = nullptr) {
+    static bool hd_map_flag = 1;
+    static Sophus::SE3d T_W_U =
+        Sophus::SE3d(Eigen::Matrix<double, 4, 4>::Identity());
+    Eigen::Vector3d p_U_V = Eigen::Vector3d::Identity();
+    util::Geo::LatLonToUtmXy(51, T_G_V.translation().y(),
+                             T_G_V.translation().x(), &p_U_V);
+    p_U_V.z() = 0;
+    Sophus::SE3d T_U_V = Sophus::SE3d(T_G_V.so3().unit_quaternion(), p_U_V);
+    T_W_U = T_W_V * T_U_V.inverse();
+    hozon::common::PointENU pos_u_v;
+    pos_u_v.set_x(p_U_V.x());
+    pos_u_v.set_y(p_U_V.y());
+    pos_u_v.set_z(0);
+    std::vector<hozon::hdmap::LaneInfoConstPtr> lanes;
+    int result = hdmap->GetLanes(pos_u_v, 150, &lanes);
+    if (result != 0) {
+      return;
+    }
+    if (hd_map_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
+          topic);
+      hd_map_flag = 0;
+    }
+    adsfi_proto::viz::MarkerArray markers;
+    int id = 0;
+    // for (const auto& lane : lanes) {
+    //   for (const auto& i : lane->lane().left_boundary().curve().segment()) {
+    //     std::vector<Eigen::Vector3d> hq_points;
+    //     for (const auto& point : i.line_segment().point()) {
+    //       Eigen::Vector3d temp_point(point.x(), point.y(), 0);
+
+    //       temp_point = T_W_U * temp_point;
+    //       if (hq_pts) hq_pts->push_back(temp_point);
+
+    //       hq_points.emplace_back(temp_point);
+    //     }
+    //     adsfi_proto::viz::Marker marker_msg;
+    //     marker_msg.mutable_header()->set_frameid("localmap");
+    //     marker_msg.set_ns("localmap");
+    //     marker_msg.set_id(id++);
+    //     marker_msg.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+    //     marker_msg.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    //     marker_msg.mutable_pose()->mutable_orientation()->set_x(0.);
+    //     marker_msg.mutable_pose()->mutable_orientation()->set_y(0.);
+    //     marker_msg.mutable_pose()->mutable_orientation()->set_z(0.);
+    //     marker_msg.mutable_pose()->mutable_orientation()->set_w(1.);
+    //     marker_msg.mutable_scale()->set_x(0.1);
+    //     marker_msg.mutable_lifetime()->set_sec(1);
+    //     marker_msg.mutable_lifetime()->set_nsec(0);
+    //     adsfi_proto::viz::ColorRGBA color;
+    //     color.set_a(1.0);
+    //     color.set_r(1.0);
+    //     color.set_g(1.0);
+    //     color.set_b(1.0);
+    //     marker_msg.mutable_color()->CopyFrom(color);
+    //     for (const auto& p : hq_points) {
+    //       auto predict_pt = marker_msg.add_points();
+    //       predict_pt->set_x(p[0]);
+    //       predict_pt->set_y(p[1]);
+    //       predict_pt->set_z(0);
+    //     }
+    //     if (!marker_msg.points().empty()) {
+    //       markers.add_markers()->CopyFrom(marker_msg);
+    //     }
+    //   }
+    //   for (const auto& i : lane->lane().right_boundary().curve().segment()) {
+    //     std::vector<Eigen::Vector3d> hq_points;
+    //     for (const auto& point : i.line_segment().point()) {
+    //       Eigen::Vector3d temp_point(point.x(), point.y(), 0);
+
+    //       temp_point = T_W_U * temp_point;
+    //       hq_points.emplace_back(temp_point);
+    //       if (hq_pts) hq_pts->push_back(temp_point);
+    //     }
+
+    //     static int id = 0;
+    //     adsfi_proto::viz::Marker marker_msg;
+    //     marker_msg.mutable_header()->set_frameid("localmap");
+    //     marker_msg.set_ns("localmap");
+    //     marker_msg.set_id(id++);
+    //     marker_msg.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+    //     marker_msg.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    //     marker_msg.mutable_pose()->mutable_orientation()->set_x(0.);
+    //     marker_msg.mutable_pose()->mutable_orientation()->set_y(0.);
+    //     marker_msg.mutable_pose()->mutable_orientation()->set_z(0.);
+    //     marker_msg.mutable_pose()->mutable_orientation()->set_w(1.);
+    //     marker_msg.mutable_scale()->set_x(0.1);
+    //     marker_msg.mutable_lifetime()->set_sec(1);
+    //     marker_msg.mutable_lifetime()->set_nsec(0);
+    //     adsfi_proto::viz::ColorRGBA color;
+    //     color.set_a(1.0);
+    //     color.set_r(1.0);
+    //     color.set_g(1.0);
+    //     color.set_b(1.0);
+    //     marker_msg.mutable_color()->CopyFrom(color);
+    //     for (const auto& p : hq_points) {
+    //       auto predict_pt = marker_msg.add_points();
+    //       predict_pt->set_x(p[0]);
+    //       predict_pt->set_y(p[1]);
+    //       predict_pt->set_z(0);
+    //     }
+    //     if (!marker_msg.points().empty()) {
+    //       markers.add_markers()->CopyFrom(marker_msg);
+    //     }
+    //   }
+    // }
+    util::RvizAgent::Instance().Publish(topic, markers);
+  }
+  /**
+   *@brief sample points from curve*
+   * @param cubic_curve target cubic_curve
+   * @param pts sample points
+   * @param gap sample gap
+   * @ return
+   */
+  static void SampleCurvePts(const LaneCubicSpline& cubic_curve,
+                             std::vector<Eigen::Vector3d>* pts,
+                             float gap = 1.0) {
+    double a = cubic_curve.c0_;
+    double b = cubic_curve.c1_;
+    double c = cubic_curve.c2_;
+    double d = cubic_curve.c3_;
+    double start_x = cubic_curve.start_point_x_;
+    double end_x = cubic_curve.end_point_x_;
+
+    float fac = 1.0;
+    for (int i = 0;; ++i) {
+      float curr_x = start_x + static_cast<float>(i) * gap * fac;
+      if ((fac > 0 && curr_x >= end_x) || (fac < 0 && curr_x <= end_x)) {
+        break;
+      }
+      float curr_y =
+          a * curr_x * curr_x * curr_x + b * curr_x * curr_x + c * curr_x + d;
+      Eigen::Vector3d pt(curr_x, curr_y, 0);
+      pts->push_back(pt);
+    }
+  }
+};  // namespace lm
 
 }  // namespace lm
 }  // namespace mp

@@ -13,8 +13,10 @@
 #include <string>
 #include <vector>
 
+#include <Sophus/se3.hpp>
+
 #include "modules/local_mapping/lib/types/common.h"
-#include "util/rviz_agent/rviz_agent.h"
+#include "modules/util/include/util/rviz_agent/rviz_agent.h"
 
 namespace hozon {
 namespace mp {
@@ -32,8 +34,7 @@ class MapManager {
    * @param cut_region : cut region size
    * @return
    */
-  void CutLocalMap(const double& length_x, const double& length_y,
-                   const Eigen::Vector3d& p_v);
+  void CutLocalMap(const double& length_x, const double& length_y);
 
   /**
    * @brief add new lane in localmap
@@ -52,20 +53,20 @@ class MapManager {
   void AddEdge(const LocalMapLane& edge);
 
   /**
-   * @brief extend existed lane in localmap
+   * @brief lane from last to current
    *
-   * @param lane : lane data
+   * @param T_C_L : T_C_L data
    * @return
    */
-  void UpdateLane(const LocalMapLane& lane);
+  void UpdateLane(const Sophus::SE3d& T_C_L);
 
   /**
-   * @brief extend existed edge in localmap
+   * @brief update timestamp
    *
-   * @param edge : edge data
+   * @param timestamp : lasted timestamp
    * @return
    */
-  void UpdateEdge(const LocalMapLane& edge);
+  void UpdateTimestamp(const double& timestamp);
 
   /**
    * @brief extend old points to existed lane of localmap
@@ -77,12 +78,22 @@ class MapManager {
   void AppendOldLanePoints(const int& id,
                            const std::vector<Eigen::Vector3d>& points);
   /**
-   * @brief extend new points to existed lane of localmap
+   * @brief extend new lane by points
    *
    * @param points : updated points
-   * @return
+   * @return lane id
    */
-  void AppendNewLanePoints(const std::vector<Eigen::Vector3d>& points);
+  double CreateNewLane(const std::vector<Eigen::Vector3d>& points);
+
+  /**
+   * @brief extend new lane by points and specified id
+   *
+   * @param lane_id : specified id
+   * @param points : updated points
+   * @return lane id
+   */
+  void CreateNewLane(const std::vector<Eigen::Vector3d>& points,
+                     const int& lane_id);
 
   /**
    * @brief extend some points to existed edge of localmap
@@ -97,12 +108,35 @@ class MapManager {
    * @brief delete some lane points of localmap
    *
    * @param id : id
-   * @param T_W_V : T_W_V
    * @param min_dis : min_dis
    * @return
    */
-  void DeleteLanePoints(const int& id, const Eigen::Matrix4d& T_W_V,
-                        const double& min_dis);
+  void DeleteLanePoints(const int& id, const double& min_dis);
+
+  /**
+   * @brief create track vehicle curve of localmap
+   *
+   * @param id : id
+   * @return
+   */
+  void CreateTrackVehicleLane(const int& id);
+
+  /**
+   * @brief create new track vehicle curve of localmap
+   *
+   * @param cur_lane : new vehicle curve
+   * @return
+   */
+  void CreateNewTrackVehicleLane(std::shared_ptr<const Lane> cur_lane);
+
+  /**
+   * @brief create track vehicle curve of localmap
+   *
+   * @param id : id
+   * @param T_V_W : T_V_W
+   * @return
+   */
+  void CreateTrackVehicleLane(const int& id, const Sophus::SE3d& T_V_W);
 
   /**
    * @brief get lane in local map
@@ -129,6 +163,13 @@ class MapManager {
   void GetLocalMap(std::shared_ptr<LocalMap> local_map);
 
   /**
+   * @brief get timestamp
+   *
+   * @return timestamp
+   */
+  double GetTimestamp();
+
+  /**
    * @brief publish local map
    *
    * @param local_map : time
@@ -153,6 +194,15 @@ class MapManager {
    */
   void PubLines(std::vector<LocalMapLane> lanes, uint64_t sec, uint64_t nsec);
 
+  /**
+   * @brief set lane property
+   *
+   * @param lane_id : lane id
+   * @param frame_lane : lane of current frame
+   * @return
+   */
+  void SetLaneProperty(int lane_id,
+                       const std::shared_ptr<const Lane> frame_lane);
   LocalMap local_map_;
 
  private:

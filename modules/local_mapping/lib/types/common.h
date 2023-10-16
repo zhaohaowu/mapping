@@ -10,14 +10,29 @@
 #include <memory>
 #include <vector>
 
-#include "interface/adsfi_proto/location/location.pb.h"
-#include "interface/adsfi_proto/perception/lanes.pb.h"
 #include "modules/local_mapping/lib/types/types.h"
+#include "proto/dead_reckoning/dr.pb.h"
 #include "proto/local_mapping/local_map.pb.h"
+#include "proto/localization/localization.pb.h"
+#include "proto/perception/transport_element.pb.h"
 
 namespace hozon {
 namespace mp {
 namespace lm {
+
+enum LanePoseType {
+  BOLLARD_LEFT = -5,
+  FOURTH_LEFT = -4,
+  THIRD_LEFT = -3,
+  ADJACENT_LEFT = -2,  // ego左边第二个
+  EGO_LEFT = -1,       // ego左边
+  EGO_RIGHT = 1,       // ego右边
+  ADJACENT_RIGHT = 2,  // ego右边第二个
+  THIRD_RIGHT = 3,
+  FOURTH_RIGHT = 4,
+  BOLLARD_RIGHT = 5,
+  OTHER = 6
+};
 
 class Location {
  public:
@@ -35,6 +50,7 @@ class Lane {
  public:
   Lane() = default;
   int lane_id_;
+  LanePoseType pos_type_;
   double lane_fit_a_;
   double lane_fit_b_;
   double lane_fit_c_;
@@ -45,6 +61,7 @@ class Lane {
 
   Lane(const Lane& lane)
       : lane_id_(lane.lane_id_),
+        pos_type_(lane.pos_type_),
         lane_fit_a_(lane.lane_fit_a_),
         lane_fit_b_(lane.lane_fit_b_),
         lane_fit_c_(lane.lane_fit_c_),
@@ -60,6 +77,7 @@ class Lanes {
   double timestamp_;
   std::vector<Lane> front_lanes_;
   std::vector<Lane> rear_lanes_;
+  std::vector<Lane> lanes_;
 };
 
 typedef std::shared_ptr<Lanes> LanesPtr;
@@ -75,21 +93,33 @@ class LaneCubicSpline {
   double c1_;
   double c2_;
   double c3_;
+  std::vector<double> sample_x_;
 };
 
 class LocalMapLane {
  public:
+  bool eval_vehicle(double x, double* y) const {
+    if (x < vehicle_lane_param_->start_point_x_ ||
+        x > vehicle_lane_param_->end_point_x_) {
+      return false;
+    }
+    *y = vehicle_lane_param_->c3_ + vehicle_lane_param_->c2_ * x +
+         vehicle_lane_param_->c1_ * x * x +
+         vehicle_lane_param_->c0_ * x * x * x;
+    return true;
+  }
+
+ public:
   int track_id_;
+  LanePoseType pos_type_;
   std::vector<Eigen::Vector3d> points_;
+  std::vector<Eigen::Vector3d> fit_points_;
   std::vector<LaneCubicSpline> lane_param_;
+  std::shared_ptr<LaneCubicSpline> vehicle_lane_param_;
   KDTreePtr kdtree_;
+  bool need_fit_;
 
   LocalMapLane() = default;
-  LocalMapLane(const LocalMapLane& local_map_lane)
-      : track_id_(local_map_lane.track_id_),
-        points_(local_map_lane.points_),
-        lane_param_(local_map_lane.lane_param_),
-        kdtree_(local_map_lane.kdtree_) {}
 };
 
 class LocalMap {

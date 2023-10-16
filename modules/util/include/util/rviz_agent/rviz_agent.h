@@ -9,22 +9,23 @@
 
 #include <condition_variable>
 #include <deque>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 #include <zmq/zmq.hpp>
 
-#include "util/nodelink/core/pub_worker.h"
-#include "util/rviz_agent/msg_alias.h"
-#include "util/temp_log.h"
-
 // auto generated
-#include <adsfi_proto/viz/geometry_msgs.pb.h>
-#include <adsfi_proto/viz/nav_msgs.pb.h>
-#include <adsfi_proto/viz/sensor_msgs.pb.h>
-#include <adsfi_proto/viz/tf2_msgs.pb.h>
-#include <adsfi_proto/viz/visualization_msgs.pb.h>
+#include "adsfi_proto/viz/geometry_msgs.pb.h"
+#include "adsfi_proto/viz/nav_msgs.pb.h"
+#include "adsfi_proto/viz/sensor_msgs.pb.h"
+#include "adsfi_proto/viz/tf2_msgs.pb.h"
+#include "adsfi_proto/viz/visualization_msgs.pb.h"
+#include "modules/util/include/util/nodelink/core/pub_worker.h"
+#include "modules/util/include/util/rviz_agent/msg_alias.h"
+#include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
 namespace mp {
@@ -83,7 +84,7 @@ class RvizAgent {
     }
 
     std::string ser = msg.SerializeAsString();
-    pub_->AddData(topic, (void*)ser.data(), ser.size());
+    pub_->AddData(topic, reinterpret_cast<void*>(ser.data()), ser.size());
     return 0;
   }
 
@@ -101,7 +102,7 @@ class RvizAgent {
     }
 
     std::string ser = msg_ptr->SerializeAsString();
-    pub_->AddData(topic, (void*)ser.data(), ser.size());
+    pub_->AddData(topic, reinterpret_cast<void*>(ser.data()), ser.size());
     return 0;
   }
 

@@ -14,14 +14,21 @@
 #include <string>
 #include <vector>
 
+#include <Sophus/se3.hpp>
+
+#include "depend/map/hdmap/hdmap.h"
+#include "depend/proto/localization/node_info.pb.h"
+#include "depend/proto/map/map.pb.h"
 #include "modules/local_mapping/lib/datalogger/load_data_singleton.h"
 #include "modules/local_mapping/lib/ops/lane/lane_op.h"
 #include "modules/local_mapping/lib/types/common.h"
 #include "modules/local_mapping/lib/utils/common.h"
+#include "modules/local_mapping/lib/utils/compute_loss.h"
 #include "modules/local_mapping/lib/utils/data_convert.h"
+#include "modules/local_mapping/lib/utils/fetch_hq.h"
 #include "modules/local_mapping/lib/utils/lane_filter.h"
 #include "modules/local_mapping/lib/utils/map_manager.h"
-#include "util/temp_log.h"
+#include "modules/util/include/util/temp_log.h"
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -36,7 +43,8 @@ class LMapApp {
    * @return
    */
   void OnLocation(
-      const std::shared_ptr<const adsfi_proto::hz_Adsfi::AlgLocation>& msg);
+      const std::shared_ptr<const hozon::localization::Localization>&
+          msg);
 
   /**
    * @brief receive dr message
@@ -45,7 +53,16 @@ class LMapApp {
    * @return
    */
   void OnDr(
-      const std::shared_ptr<const adsfi_proto::hz_Adsfi::AlgLocation>& msg);
+      const std::shared_ptr<const hozon::dead_reckoning::DeadReckoning>& msg);
+
+  /**
+   * @brief receive ins message
+   *
+   * @param msg : ins message
+   * @return
+   */
+  void OnIns(
+      const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg);
 
   /**
    * @brief receive laneline message
@@ -53,8 +70,9 @@ class LMapApp {
    * @param msg : laneline message
    * @return
    */
-  void OnLaneLine(const std::shared_ptr<
-                  const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>& msg);
+  void OnLaneLine(
+      const std::shared_ptr<const hozon::perception::TransportElement>&
+          msg);
 
   /**
    * @brief receive road edge message
@@ -62,8 +80,9 @@ class LMapApp {
    * @param msg : road edge message
    * @return
    */
-  void OnRoadEdge(const std::shared_ptr<
-                  const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>& msg);
+  void OnRoadEdge(
+      const std::shared_ptr<const hozon::perception::TransportElement>&
+          msg);
 
   /**
    * @brief fetch local_map at current timestamp
@@ -72,7 +91,20 @@ class LMapApp {
    */
   bool FetchLocalMap(std::shared_ptr<hozon::mapping::LocalMap> local_map);
 
+  /**
+   * @brief fetch local_map location at current timestamp
+   *
+   * @return `true` for fetching success, `false` for failed
+   */
+  bool FetchLocalMapLocation(
+      std::shared_ptr<hozon::localization::Localization>
+          local_map_location);
+
   ConstDrDataPtr GetDrPoseForTime(double timestamp);
+
+  void SetLaneTimestamp(const double timestamp) {
+    last_lane_timestamp_ = timestamp;
+  }
 
  private:
   std::shared_ptr<LaneOp> laneOp_;
@@ -83,13 +115,25 @@ class LMapApp {
   std::shared_ptr<Location> latest_dr_;
   std::shared_ptr<Lanes> latest_lanes_;
   std::shared_ptr<std::vector<LaneMatchInfo>> lane_matches_;
-  std::shared_ptr<std::vector<Eigen::Vector3d>> new_lane_pts_;
+  std::shared_ptr<hozon::hdmap::HDMap> hdmap_;
+  std::shared_ptr<hozon::hdmap::Map> crop_map_;
+  std::shared_ptr<PriorProvider> provider_;
   double map_init_timestamp_;
-  Eigen::Matrix4d init_T_, lasted_T_, T_V_W_;
+  Sophus::SE3d init_T_, lasted_T_, T_W_V_, T_V_W_, T_G_V_, T_W_UTM_,
+      last_T_W_V_;
 
-  LaneFilter lane_filter_;
   std::mutex localmap_mutex_;
   bool use_rviz;
+  bool use_perception_match;
+  bool dr_inited_;
+  bool laneline_inited_;
+  bool use_bipartite_assoc_match_;
+  std::shared_ptr<PtFilter> lane_filter_;
+
+  double last_lane_timestamp_;
+  Loss loss_;
+  bool compute_error;
+  double sample_interval;
 };
 
 }  // namespace lm

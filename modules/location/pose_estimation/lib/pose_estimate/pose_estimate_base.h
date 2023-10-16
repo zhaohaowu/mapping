@@ -8,6 +8,7 @@
 #pragma once
 
 #include <math.h>
+#include <unistd.h>
 
 #include <memory>
 #include <vector>

@@ -5,7 +5,6 @@ project(dr)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/util
 )
 
 add_library(dr
@@ -19,14 +18,14 @@ target_link_libraries(dr
     globalproto
     gtest
     
-    # opencv_calib3d
-    # opencv_features2d
-    # opencv_imgcodecs
-    # opencv_imgproc
-    # opencv_highgui
-    # opencv_core
-    # opencv_flann
-    # opencv_videoio
+    opencv_calib3d
+    opencv_features2d
+    opencv_imgcodecs
+    opencv_imgproc
+    opencv_highgui
+    opencv_core
+    opencv_flann
+    opencv_videoio
     ${DEPENDS_LIBS}
 )
 

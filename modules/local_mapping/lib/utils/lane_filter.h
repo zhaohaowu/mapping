@@ -5,43 +5,61 @@
  *****************************************************************************/
 #pragma once
 #include <Eigen/Dense>
+#include <cmath>
 #include <memory>
 #include <vector>
 
+#include "modules/local_mapping/lib/datalogger/load_data_singleton.h"
 #include "modules/local_mapping/lib/types/common.h"
+#include "modules/local_mapping/lib/utils/common.h"
 #include "modules/local_mapping/lib/utils/kalman_filter.h"
+#include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
 namespace mp {
 namespace lm {
 
-struct PtFilter {
+class PtFilter {
+ public:
   PtFilter() = default;
 
-  void Init(const LocalMapLane& lane);
+  void Init(const LaneCubicSpline& lane);
 
-  void Predict(std::shared_ptr<std::vector<Eigen::Vector2d>> pts);
+  void Predict(double theta, const Eigen::Vector2d& T,
+               std::shared_ptr<std::vector<Eigen::Vector2d>> pts);
 
-  void Update(const std::vector<Eigen::Vector2d>& pts);
+  void Update(const std::vector<Eigen::Vector2d>& measure_pts,
+              std::shared_ptr<std::vector<Eigen::Vector3d>> pts);
 
+ private:
   std::vector<KFFilter> filter_;
-  bool is_activate_ = false;
 };
 
 class LaneFilter {
  public:
-  LaneFilter() : filters_(10) {}
+  LaneFilter() = default;
+  bool LaneProcess(std::shared_ptr<const Lane> cur_lane,
+                   std::shared_ptr<LaneCubicSpline> filtered_lane_func);
+  void Init(std::shared_ptr<const Lane> cur_lane);
+  Eigen::Vector3d GetRelativePose(const Eigen::Vector3d& pose0,
+                                  const Eigen::Vector3d& pose1);
 
-  void Init(const std::vector<LocalMapLane>& lanes);
+  void SetCurLanePose(const Eigen::Vector3d& pose) { cur_lane_pose_ = pose; }
 
-  void Process(std::shared_ptr<std::vector<LocalMapLane>> cur_lane);
+  void SetLastLanePose(const Eigen::Vector3d& pose) { last_lane_pose_ = pose; }
 
  private:
-  void FilterLane(LocalMapLane* curtLane, PtFilter* filter);
+  void GetCurLanePts(const std::vector<Eigen::Vector2d>& predicted_pts,
+                     const LaneCubicSpline& cubic_curve,
+                     std::shared_ptr<std::vector<Eigen::Vector2d>> pts);
 
  private:
-  std::vector<PtFilter> filters_;
-  std::vector<LocalMapLane> hist_lane_;
+  PtFilter kf_;
+  bool init_ = true;
+  LaneCubicSpline last_lane_func_;
+  std::vector<Eigen::Vector2d> last_lane_pts_;
+  Eigen::Vector3d cur_lane_pose_;
+  Eigen::Vector3d last_lane_pose_;
 };
 
 }  // namespace lm

@@ -8,10 +8,8 @@
 #include <memory>
 #include <vector>
 
-#include "interface/adsfi_proto/location/location.pb.h"
-#include "interface/adsfi_proto/perception/lanes.pb.h"
 #include "modules/local_mapping/lib/types/common.h"
-#include "proto/local_mapping/local_map.pb.h"
+#include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
 namespace mp {
@@ -26,7 +24,7 @@ class DataConvert {
    * @param msg : location message
    * @return
    */
-  static void SetLocation(const adsfi_proto::hz_Adsfi::AlgLocation msg,
+  static void SetLocation(const hozon::localization::Localization msg,
                           std::shared_ptr<Location> dr_location);
 
   /**
@@ -35,7 +33,7 @@ class DataConvert {
    * @param msg : dr message
    * @return
    */
-  static void SetDr(const adsfi_proto::hz_Adsfi::AlgLocation msg,
+  static void SetDr(const hozon::dead_reckoning::DeadReckoning msg,
                     std::shared_ptr<Location> dr_location);
 
   /**
@@ -44,9 +42,8 @@ class DataConvert {
    * @param msg : laneline message
    * @return
    */
-  static void SetLaneLine(
-      const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray& msg,
-      std::shared_ptr<Lanes> lanes);
+  static void SetLaneLine(const hozon::perception::TransportElement& msg,
+                          std::shared_ptr<Lanes> lanes);
 
   /**
    * @brief convert road edge message into internal class
@@ -54,8 +51,28 @@ class DataConvert {
    * @param msg : road edge message
    * @return
    */
-  static void SetRoadEdge(
-      const adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray& msg);
+  static void SetRoadEdge(const hozon::perception::TransportElement& msg);
+
+  /**
+   * @brief convert LanePositionType from proto to inner type
+   *
+   * @param raw_lane_pose_type : proto type
+   * @param lane_pose_type : inner type
+   * @return
+   */
+  static void ConvertProtoLanePoseType(
+      const hozon::perception::LanePositionType& raw_lane_pose_type,
+      LanePoseType* lane_pose_type);
+
+  /**
+   * @brief convert LanePositionType from inerr to proto type
+   *
+   * @param lane_pose_type : inner type
+   * @return proto type
+   */
+  static void ConvertInnerLanePoseType(
+      const LanePoseType& inner_lane_pose_type,
+      hozon::mapping::LanePositionType* proto_type);
 };
 
 }  // namespace lm

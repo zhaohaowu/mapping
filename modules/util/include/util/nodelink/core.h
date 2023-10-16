@@ -7,10 +7,10 @@
 
 #pragma once
 
-#include "util/nodelink/core/address.h"
-#include "util/nodelink/core/context.h"
-#include "util/nodelink/core/linker.h"
-#include "util/nodelink/core/node.h"
-#include "util/nodelink/core/pub_worker.h"
-#include "util/nodelink/core/publisher.h"
-#include "util/nodelink/core/sub_worker.h"
+#include "modules/util/include/util/nodelink/core/address.h"
+#include "modules/util/include/util/nodelink/core/context.h"
+#include "modules/util/include/util/nodelink/core/linker.h"
+#include "modules/util/include/util/nodelink/core/node.h"
+#include "modules/util/include/util/nodelink/core/pub_worker.h"
+#include "modules/util/include/util/nodelink/core/publisher.h"
+#include "modules/util/include/util/nodelink/core/sub_worker.h"

@@ -6,8 +6,6 @@
 #pragma once
 
 #include <Eigen/Dense>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/video/tracking.hpp>
 
 namespace hozon {
 namespace mp {
@@ -17,14 +15,27 @@ class KFFilter {
  public:
   explicit KFFilter(const Eigen::Vector2d& pt);
 
-  Eigen::Vector2d Predict();
+  Eigen::Vector2d Predict(double theta, const Eigen::Vector2d& T);
 
-  void Update(const Eigen::Vector2d& pt);
+  Eigen::Vector3d Update(const Eigen::Vector2d& pt);
 
  private:
-  const int stateNum_ = 4;
+  Eigen::Vector2d TransposeFunction(const Eigen::Vector2d& x_1, double theta,
+                                    const Eigen::Vector2d& T);
+  Eigen::Vector2d MeasureFunction(const Eigen::Vector2d& x);
+
+ private:
+  const int stateNum_ = 2;
   const int measureNum_ = 2;
-  cv::KalmanFilter kf_;
+
+  Eigen::Matrix2d F_;
+  Eigen::MatrixXd H_;
+  Eigen::Matrix2d Q_;
+  Eigen::Matrix2d R_;  // 2d
+  Eigen::Matrix2d pre_P_;
+  Eigen::Matrix2d post_P_;
+  Eigen::Vector2d pre_x_;
+  Eigen::Vector2d post_x_;
 };
 
 }  // namespace lm

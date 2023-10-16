@@ -124,13 +124,14 @@ def mdc_build(workspace, platform, build_directory, release_directory, **kwargs)
 
     # 设置cmake编译选项
     args = dict()
-    args['-DCMAKE_INSTALL_PREFIX'] = release_directory + "/mdc/"
+    args['-DCMAKE_INSTALL_PREFIX'] = release_directory + "/mdc/"+"mapping"
     args['-DCMAKE_BUILD_TYPE'] = "Release" if kwargs['release'] else "Debug"
     args['-DPLATFORM'] = 'mdc'
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
     args['-DMAPPING_LIB_PREFIX'] = kwargs['prefix']
     args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
     args['-DMIDDLEWARE'] = "ADF"
+    args['-DIND'] = "ON" if kwargs['ind'] else "OFF"
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
@@ -230,7 +231,7 @@ def start_copy_head(platform):
         copy_header_files_by_path(head_src_path, head_target_path)
     elif platform=="mdc":
         head_src_path = os.getcwd()
-        head_target_path = release_directory+"/mdc/include/mapping/"
+        head_target_path = release_directory+"/mdc/mapping/include/"
         copy_header_files_by_path(head_src_path, head_target_path)
     elif platform=="orin":
         head_src_path = os.getcwd()
@@ -286,15 +287,15 @@ def all_build(workspace, platform, build_directory, release_directory, **kwargs)
     sp.run('rm -rf {}'.format(build_directory), shell=1)
     sp.run('git submodule update --init', shell=True)
     x86_build(workspace, platform, build_directory, release_directory, **kwargs)
-    start_copy_head('x86')
+    # start_copy_head('x86')
 
     sp.run('rm -rf {}'.format(build_directory), shell=1)
     mdc_build(workspace, platform, build_directory, release_directory, **kwargs)
-    start_copy_head('mdc')
+    # start_copy_head('mdc')
 
     sp.run('rm -rf {}'.format(build_directory), shell=1)
     orin_build(workspace, platform, build_directory, release_directory, **kwargs)
-    start_copy_head('orin')
+    # start_copy_head('orin')
 
 if __name__ == '__main__':
     # 解析编译选项为dict
@@ -315,10 +316,10 @@ if __name__ == '__main__':
     if platform == 'mdc':
         mdc_build(workspace, platform, build_directory, release_directory, **kwargs)
         # 开始copy 头文件
-        make_package(platform)
+        # make_package(platform)
     elif platform == 'x86':
         x86_build(workspace, platform, build_directory, release_directory, **kwargs)
-        make_package(platform)
+        # make_package(platform)
         if kwargs['rviz']:
             build_rviz_bridge(workspace, kwargs['jobs'])
         if kwargs['tool']:
@@ -328,6 +329,6 @@ if __name__ == '__main__':
                 LOG_ERROR('--tool should be used with --cyber')
     elif platform == 'orin':
         orin_build(workspace, platform, build_directory, release_directory, **kwargs)
-        make_package(platform)
+        # make_package(platform)
     elif platform == 'all':
         all_build(workspace, platform, build_directory, release_directory, **kwargs)

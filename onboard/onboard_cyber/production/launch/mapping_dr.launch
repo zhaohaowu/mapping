@@ -1,0 +1,7 @@
+<cyber>
+  <module>
+    <name>map_dr</name>
+    <dag_conf>dag/mapping_dr.dag</dag_conf>
+    <process_name>map_dr</process_name>
+  </module>
+</cyber>

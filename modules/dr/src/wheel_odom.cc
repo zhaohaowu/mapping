@@ -177,11 +177,11 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
 
   cur_odom_data.loc_acc = {avg_acc, 0, 0};
 
-  HLOG_INFO << "==== init ====  filtered vel !!! "
-            << "left_diff," << left_diff << " ,right_diff, " << right_diff
-            << ",filter vel," << fl_vel(0) << " ,wheel vel,"
-            << cur.rear_right_speed << " ,avg2," << avg_vel2 << " ,acc,"
-            << avg_acc << ",yaw," << delta_yaw << ",avg yaw," << avg_w;
+  // HLOG_INFO << "==== init ====  filtered vel !!! "
+  //           << "left_diff," << left_diff << " ,right_diff, " << right_diff
+  //           << ",filter vel," << fl_vel(0) << " ,wheel vel,"
+  //           << cur.rear_right_speed << " ,avg2," << avg_vel2 << " ,acc,"
+  //           << avg_acc << ",yaw," << delta_yaw << ",avg yaw," << avg_w;
 
   AddOdomData(cur_odom_data, delta_dist);
 

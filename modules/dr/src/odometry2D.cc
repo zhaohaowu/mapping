@@ -26,13 +26,13 @@ bool Odometry2D::update() {
   while (true) {
     std::vector<WheelDataHozon> oldest_wheels = get_oldest_two_wheel();
     if (oldest_wheels.size() < 2) {
-      HLOG_DEBUG << "==== init ==== no new wheel data";
+      // HLOG_DEBUG << "==== init ==== no new wheel data";
       break;
     }
     std::vector<ImuDataHozon> imu_datas;
     get_imu_before_and_pop(oldest_wheels[1].timestamp + 5e-3, imu_datas);
     if (imu_datas.empty()) {
-      HLOG_INFO << "==== init ==== no time_matched imu data";
+      // HLOG_INFO << "==== init ==== no time_matched imu data";
       break;
     }
     update_cnt++;
@@ -82,8 +82,8 @@ bool Odometry2D::update() {
       imu_cnt++;
       UpdateOrientationByIMU(*itr_pre, *itr);
 
-      HLOG_INFO << "==== init ==== qat ===update !! " << qat_.x() << " "
-                << qat_.y() << "  " << qat_.z() << " " << qat_.w();
+      // HLOG_INFO << "==== init ==== qat ===update !! " << qat_.x() << " "
+      //           << qat_.y() << "  " << qat_.z() << " " << qat_.w();
 
       // state prediction
       Eigen::Vector3d dx = Eigen::Vector3d::Zero();
@@ -202,8 +202,8 @@ bool Odometry2D::update() {
     AddOdomData(cur_odom_data, delta_dis);
     last_local_vel = local_vel;
 
-    HLOG_INFO << "==== init ===="
-              << " local_vel; " << local_vel(0) << " acc:" << acc_by_gyro_(0);
+    // HLOG_INFO << "==== init ===="
+    //           << " local_vel; " << local_vel(0) << " acc:" << acc_by_gyro_(0);
   }
   return update_cnt > 0 ? true : false;
 }

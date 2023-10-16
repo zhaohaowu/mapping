@@ -8,7 +8,7 @@
 
 DEFINE_string(imuins_topic, "/ImuIns", "ImuInfo topic");
 DEFINE_string(chassis_topic, "/Chassis", "Chassis topic");
-DEFINE_string(output_topic, "/odom", "dr topic");
+DEFINE_string(output_topic, "/mapping/dr", "dr topic");
 DEFINE_string(config_yaml, "conf/mapping/dr/dr_conf.yaml",
               "path to dr conf yaml");
 

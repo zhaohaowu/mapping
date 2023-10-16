@@ -17,7 +17,7 @@ bool DRInterface::SetLocation(
     std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr) {
   /**********cmp pose************/
   dr_estimator_->update();
-  HLOG_INFO << "------------1---------";
+  //   HLOG_INFO << "------------1---------";
 
   /**********send pose************/
   // TODO(ZXL) 只有Chassis 得时候, 这个变量不修改
@@ -160,9 +160,9 @@ void DRInterface::SetLocationData(
   locationDataPtr->mutable_pose()->mutable_pose_local()->set_heading(
       eulerAngle[2]);
 
-  HLOG_INFO << "==== init ===="
-            << " output---vel " << latest_odom.loc_vel[1] << " acc  "
-            << latest_odom.loc_acc[0] << " qx " << latest_odom.odometry.qx;
+  //   HLOG_INFO << "==== init ===="
+  //             << " output---vel " << latest_odom.loc_vel[1] << " acc  "
+  //             << latest_odom.loc_acc[0] << " qx " << latest_odom.odometry.qx;
 
   // 速度
   locationDataPtr->mutable_velocity()
@@ -248,31 +248,46 @@ void DRInterface::SetLocationData(
   //   locationDataPtr->set_coord_type(
   //       hozon::perception::datacollection::CoordType::SLAM_COORD);
 
-  HLOG_INFO
-      << "==== init ==== **************************************DR pose: x: "
-      << locationDataPtr->pose().pose_local().position().x()
-      << " ,y: " << locationDataPtr->pose().pose_local().position().y()
-      << ",z:" << locationDataPtr->pose().pose_local().position().z();
-  HLOG_INFO << "==== init ==== DR quat: x: "
-            << locationDataPtr->pose().pose_local().quaternion().x()
-            << " ,y: " << locationDataPtr->pose().pose_local().quaternion().y()
-            << ",z:" << locationDataPtr->pose().pose_local().quaternion().z()
-            << ",w:" << locationDataPtr->pose().pose_local().quaternion().w()
-            << " ";
-  HLOG_INFO << "==== init ====  DR vel: x: "
-            << locationDataPtr->velocity().twist_vrf().linear_vrf().x()
-            << ",y: "
-            << locationDataPtr->velocity().twist_vrf().linear_vrf().y()
-            << ",z:" << locationDataPtr->velocity().twist_vrf().linear_vrf().z()
-            << " ";
+//   std::cout
+//       << "==== init ==== **************************************DR pose: x: "
+//       << locationDataPtr->pose().pose_local().position().x()
+//       << " ,y: " << locationDataPtr->pose().pose_local().position().y()
+//       << ",z:" << locationDataPtr->pose().pose_local().position().z()
+//       << std::endl;
 
-  HLOG_INFO << "==== init ====  DR acc: x: "
-            << locationDataPtr->acceleration().linear_vrf().linear_raw_vrf().x()
-            << ",y: "
-            << locationDataPtr->acceleration().linear_vrf().linear_raw_vrf().y()
-            << ",z:"
-            << locationDataPtr->acceleration().linear_vrf().linear_raw_vrf().z()
-            << " ";
+  //   HLOG_INFO
+  //       << "==== init ==== **************************************DR pose: x:
+  //       "
+  //       << locationDataPtr->pose().pose_local().position().x()
+  //       << " ,y: " << locationDataPtr->pose().pose_local().position().y()
+  //       << ",z:" << locationDataPtr->pose().pose_local().position().z();
+  //   HLOG_INFO << "==== init ==== DR quat: x: "
+  //             << locationDataPtr->pose().pose_local().quaternion().x()
+  //             << " ,y: " <<
+  //             locationDataPtr->pose().pose_local().quaternion().y()
+  //             << ",z:" <<
+  //             locationDataPtr->pose().pose_local().quaternion().z()
+  //             << ",w:" <<
+  //             locationDataPtr->pose().pose_local().quaternion().w()
+  //             << " ";
+  //   HLOG_INFO << "==== init ====  DR vel: x: "
+  //             << locationDataPtr->velocity().twist_vrf().linear_vrf().x()
+  //             << ",y: "
+  //             << locationDataPtr->velocity().twist_vrf().linear_vrf().y()
+  //             << ",z:" <<
+  //             locationDataPtr->velocity().twist_vrf().linear_vrf().z()
+  //             << " ";
+
+  //   HLOG_INFO << "==== init ====  DR acc: x: "
+  //             <<
+  //             locationDataPtr->acceleration().linear_vrf().linear_raw_vrf().x()
+  //             << ",y: "
+  //             <<
+  //             locationDataPtr->acceleration().linear_vrf().linear_raw_vrf().y()
+  //             << ",z:"
+  //             <<
+  //             locationDataPtr->acceleration().linear_vrf().linear_raw_vrf().z()
+  //             << " ";
 }
 
 void DRInterface::AddImuData(
@@ -337,9 +352,9 @@ void DRInterface::ConvertImuData(
       imu_proto->ins_info().mounting_error().y(),
       imu_proto->ins_info().mounting_error().z();
 
-  HLOG_INFO << "==imu data: " << imu_data.gpsStatus
-            << " ,latitude: " << imu_data.latitude
-            << ", longitude:" << imu_data.longitude << " ";
+  //   HLOG_INFO << "==imu data: " << imu_data.gpsStatus
+  //             << " ,latitude: " << imu_data.latitude
+  //             << ", longitude:" << imu_data.longitude << " ";
 }
 
 void DRInterface::ConvertChassisData(
@@ -387,10 +402,11 @@ void DRInterface::ConvertChassisData(
 
   // chassis_proto->vcu_info.VCU_ActGearPosition;
 
-  HLOG_INFO << "============== wheel gear: " << wheel_data.gear
-            << ",fr wheel:" << wheel_data.front_left_wheel
-            << " ,fr: " << chassis_proto->wheel_counter().wheel_counter_fl()
-            << " ,";
+  //   HLOG_INFO << "============== wheel gear: " << wheel_data.gear
+  //             << ",fr wheel:" << wheel_data.front_left_wheel
+  //             << " ,fr: " <<
+  //             chassis_proto->wheel_counter().wheel_counter_fl()
+  //             << " ,";
 }
 
 }  // namespace dr

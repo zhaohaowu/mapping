@@ -1,0 +1,13 @@
+# Define all coms in DAG streaming.
+module_config {
+  module_library: "lib/libonboard_cyber_dr.so"
+  components {
+    class_name: "DeadReckoningComponent"
+    config {
+      name: "dead_reckoning"
+      config_file_path: ""
+      flag_file_path: ""
+      readers: []
+    }
+  }
+}

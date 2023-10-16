@@ -24,13 +24,14 @@ class DrFusionComponent : public apollo::cyber::Component<> {
  private:
   bool OnInspva(
       const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg);
-  bool OnDr(const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg);
+  bool OnDr(
+      const std::shared_ptr<const hozon::dead_reckoning::DeadReckoning>& msg);
 
  private:
   std::unique_ptr<DrFusion> dr_fusion_ = nullptr;
   std::shared_ptr<apollo::cyber::Reader<hozon::localization::HafNodeInfo>>
       inspva_reader_ = nullptr;
-  std::shared_ptr<apollo::cyber::Reader<hozon::localization::HafNodeInfo>>
+  std::shared_ptr<apollo::cyber::Reader<hozon::dead_reckoning::DeadReckoning>>
       dr_reader_ = nullptr;
   std::shared_ptr<apollo::cyber::Writer<hozon::localization::HafNodeInfo>>
       loc_dr_writer_ = nullptr;

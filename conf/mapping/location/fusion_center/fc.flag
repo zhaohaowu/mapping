@@ -1,4 +1,4 @@
---fc_imu_in_topic=/Hozon/ServiceInterface/HozonInterface_ImuInfo/hozonEvent__/hozon/PlatformApplication/InsPvatbApplication/Service/Provider/ImuToAppProvidedDdsServiceInstance__
+--fc_imu_in_topic=/ImuIns
 --fc_ins_in_topic=/mapping/location/ins
 --fc_dr_in_topic=/mapping/location/dr
 --fc_pe_in_topic=/mapping/location/pose_estimate

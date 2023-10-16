@@ -66,7 +66,7 @@ int32_t DrFusionLite::send_dr(Bundle* input) {
     return -1;
   }
   dr_workflow->proto_msg = msg;
-  SendOutput("/location/deadreckoning", dr_workflow);
+  SendOutput("/location/dr_fusion", dr_workflow);
   return 0;
 }
 
@@ -76,8 +76,8 @@ int32_t DrFusionLite::receive_dr(Bundle* input) {
   if (!ptr_rec_dr) {
     return -1;
   }
-  std::shared_ptr<hozon::localization::HafNodeInfo> dr_proto =
-      std::static_pointer_cast<hozon::localization::HafNodeInfo>(
+  std::shared_ptr<hozon::dead_reckoning::DeadReckoning> dr_proto =
+      std::static_pointer_cast<hozon::dead_reckoning::DeadReckoning>(
           ptr_rec_dr->proto_msg);
   dr_fusion_->OnDr(*dr_proto.get());
   return 0;

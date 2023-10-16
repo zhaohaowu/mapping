@@ -4,7 +4,7 @@
  *   author     ： nihongjie
  *   date       ： 2023.09
  ******************************************************************************/
-#include "modules/location/ins_fusion/cyber/ins_fusion_component.h"
+#include "onboard/onboard_cyber/location/ins_fusion/ins_fusion_component.h"
 
 #include "common/configs/config_gflags.h"
 #include "modules/util/include/util/temp_log.h"

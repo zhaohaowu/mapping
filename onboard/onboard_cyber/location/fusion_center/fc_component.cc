@@ -5,7 +5,7 @@
  *   date       ： 2023.09
  ******************************************************************************/
 
-#include "modules/location/fusion_center/cyber/fc_component.h"
+#include "onboard/onboard_cyber/location/fusion_center/fc_component.h"
 #include <gflags/gflags.h>
 
 DEFINE_string(fc_imu_in_topic, "/mapping/location/imu", "imu output topic");

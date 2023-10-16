@@ -5,7 +5,7 @@
  *   date       ： 2023.09
  ******************************************************************************/
 
-#include "modules/location/coord_adapter/cyber/coord_adapter_component.h"
+#include "onboard/onboard_cyber/location/coord_adapter/coord_adapter_component.h"
 
 #include <gflags/gflags.h>
 

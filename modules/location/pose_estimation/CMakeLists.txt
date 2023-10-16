@@ -1,9 +1,7 @@
 project(pose_estimation)
 
-
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/cyber
   ${CMAKE_CURRENT_SOURCE_DIR}/lib
   ${CMAKE_CURRENT_SOURCE_DIR}/lib/factor
 #   ${CMAKE_CURRENT_SOURCE_DIR}/lib/optimization
@@ -17,9 +15,3 @@ include_directories(
 )
 
 add_subdirectory(lib)
-
-if(MIDDLEWARE MATCHES CYBER)
-  add_subdirectory(cyber)
-endif()
-
-# add_subdirectory(test)

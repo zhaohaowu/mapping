@@ -17,7 +17,7 @@
 #include "interface/adsfi_proto/internal/node_info.pb.h"
 #include "interface/adsfi_proto/internal/slam_hd_submap.pb.h"
 #include "interface/adsfi_proto/perception/lanes.pb.h"
-#include "lib/pose_estimation.h"
+#include "modules/location/pose_estimation/lib/pose_estimation.h"
 
 namespace hozon {
 namespace mp {
@@ -72,7 +72,8 @@ class PoseEstimationComponent : public apollo::cyber::Component<> {
   // node_info);
 
  private:
-  std::shared_ptr<apollo::cyber::Reader<adsfi_proto::internal::SubMap>> hdmap_reader_;
+  std::shared_ptr<apollo::cyber::Reader<adsfi_proto::internal::SubMap>>
+      hdmap_reader_;
   std::shared_ptr<apollo::cyber::Reader<::adsfi_proto::internal::HafNodeInfo>>
       ins_reader_;
   std::shared_ptr<apollo::cyber::Reader<::adsfi_proto::internal::HafNodeInfo>>

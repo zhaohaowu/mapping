@@ -7,6 +7,7 @@ execute_process(
 )
 
 add_subdirectory(dr)
+add_subdirectory(location)
 
 install(
   DIRECTORY production/dag production/launch

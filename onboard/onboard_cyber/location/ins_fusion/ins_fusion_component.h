@@ -9,7 +9,7 @@
 #include <memory>
 
 #include "cyber/component/component.h"
-#include "lib/ins_fusion.h"
+#include "modules/location/ins_fusion/lib/ins_fusion.h"
 
 namespace hozon {
 namespace mp {

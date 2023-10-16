@@ -5,7 +5,7 @@
  *   date       ： 2023.09
  ******************************************************************************/
 
-#include "modules/location/pose_estimation/cyber/pose_estimation_component.h"
+#include "onboard/onboard_cyber/location/pose_estimation/pose_estimation_component.h"
 
 #include <gflags/gflags.h>
 #include <yaml-cpp/yaml.h>
@@ -90,7 +90,9 @@ bool PoseEstimationComponent::Init() {
 
   hdmap_reader_ = node_->CreateReader<adsfi_proto::internal::SubMap>(
       hdmap_topic_,
-      [this](const std::shared_ptr<adsfi_proto::internal::SubMap> &msg) { OnHdMap(msg); });
+      [this](const std::shared_ptr<adsfi_proto::internal::SubMap> &msg) {
+        OnHdMap(msg);
+      });
 
   ins_reader_ = node_->CreateReader<::adsfi_proto::internal::HafNodeInfo>(
       ins_topic_,

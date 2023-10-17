@@ -7,12 +7,14 @@
 
 #pragma once
 
-#include <adsfi_proto/internal/node_info.pb.h>
-#include <adsfi_proto/location/location.pb.h>
-#include <adsfi_proto/perception/lanes.pb.h>
+#include <depend/proto/common/header.pb.h>
 #include <depend/proto/local_mapping/local_map.pb.h>
+#include <depend/proto/localization/localization.pb.h>
+#include <depend/proto/localization/node_info.pb.h>
+#include <depend/proto/perception/transport_element.pb.h>
 
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -31,20 +33,19 @@ class LocalMapProvider {
   int Init();
 
   void OnInsNodeInfo(
-      const std::shared_ptr<adsfi_proto::internal::HafNodeInfo>& msg);
+      const std::shared_ptr<hozon::localization::HafNodeInfo>& msg);
   void OnLocation(
-      const std::shared_ptr<adsfi_proto::hz_Adsfi::AlgLocation>& msg);
+      const std::shared_ptr<hozon::localization::Localization>& msg);
   void OnLaneLine(
-      const std::shared_ptr<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>&
-          msg);
+      const std::shared_ptr<hozon::perception::TransportElement>& msg);
   void OnRoadEdge(
-      const std::shared_ptr<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>&
-          msg);
+      const std::shared_ptr<hozon::perception::TransportElement>& msg);
 
   std::shared_ptr<hozon::mapping::LocalMap> GetLocalMap();
 
  private:
   std::shared_ptr<hozon::mapping::LocalMap> local_map_ = nullptr;
+  std::shared_ptr<hozon::mapping::LocalMap> local_map_write_ = nullptr;
 
   Eigen::Quaterniond q_W_V_;
   Eigen::Vector3d ref_point_;
@@ -53,6 +54,8 @@ class LocalMapProvider {
 
   bool init_ = false;
   bool flag_ = false;
+
+  std::mutex map_mtx_;
 
   const std::string kTopicLocalMapProviderLaneLine = "/localmap/lane";
   const std::string kTopicLocalMapProviderTf = "/localmap/tf";
@@ -64,13 +67,13 @@ class LocalMapProvider {
   void VizLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& local_map);
   void SetLaneLine(
       std::vector<Eigen::Vector3d>* points,
-      const std::shared_ptr<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>&
-          msg);
+      const std::shared_ptr<hozon::perception::TransportElement>& msg);
   void VizLaneLine(const std::vector<Eigen::Vector3d>& points,
-                   const adsfi_proto::hz_Adsfi::HafTime& stamp);
+                   const double stamp);
   void VizLocation(const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
-                   const adsfi_proto::hz_Adsfi::HafTime& stamp);
-  void LaneLineToMarker(double stamp, const hozon::mapping::LaneInfo& lane_line,
+                   const double stamp);
+  void LaneLineToMarker(const double stamp,
+                        const hozon::mapping::LaneInfo& lane_line,
                         adsfi_proto::viz::Marker* marker);
 };
 

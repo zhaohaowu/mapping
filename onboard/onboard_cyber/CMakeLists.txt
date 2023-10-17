@@ -9,6 +9,7 @@ execute_process(
 add_subdirectory(dr)
 add_subdirectory(location)
 add_subdirectory(local_mapping)
+add_subdirectory(map_fusion)
 
 install(
   DIRECTORY production/dag production/launch

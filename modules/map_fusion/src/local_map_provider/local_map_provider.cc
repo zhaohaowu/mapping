@@ -9,9 +9,11 @@
 
 #include <gflags/gflags.h>
 
+#include <mutex>
+
 #include "util/temp_log.h"
 
-DEFINE_string(viz_addr, "ipc:///tmp/rviz_agent_lm_pv",
+DEFINE_string(viz_addr, "",
               "RvizAgent working address, may like "
               "ipc:///tmp/sample_rviz_agent or "
               "inproc://sample_rviz_agent or "
@@ -23,54 +25,56 @@ namespace mp {
 namespace mf {
 
 LocalMapProvider::~LocalMapProvider() {
-  if (!FLAGS_viz_addr.empty()) {
-    RVIZ_AGENT.Term();
-  }
+  // if (!FLAGS_viz_addr.empty()) {
+  //   RVIZ_AGENT.Term();
+  // }
 }
 
 int LocalMapProvider::Init() {
-  if (!FLAGS_viz_addr.empty()) {
-    int ret = RVIZ_AGENT.Init(FLAGS_viz_addr);
-    if (ret < 0) {
-      HLOG_WARN << "RvizAgent init failed";
-    }
-    if (!RVIZ_AGENT.Ok()) {
-      HLOG_WARN << "RvizAgent start failed";
-    } else {
-      ret = RVIZ_AGENT.Register<adsfi_proto::viz::TransformStamped>(
-          kTopicLocalMapProviderTf);
-      if (ret < 0) {
-        HLOG_WARN << "RvizAgent register " << kTopicLocalMapProviderTf
-                  << " failed";
-      }
+  // if (!FLAGS_viz_addr.empty()) {
+  //   int ret = RVIZ_AGENT.Init(FLAGS_viz_addr);
+  //   if (ret < 0) {
+  //     HLOG_WARN << "RvizAgent init failed";
+  //   }
+  //   if (!RVIZ_AGENT.Ok()) {
+  //     HLOG_WARN << "RvizAgent start failed";
+  //   } else {
+  //     ret = RVIZ_AGENT.Register<adsfi_proto::viz::TransformStamped>(
+  //         kTopicLocalMapProviderTf);
+  //     if (ret < 0) {
+  //       HLOG_WARN << "RvizAgent register " << kTopicLocalMapProviderTf
+  //                 << " failed";
+  //     }
 
-      ret = RVIZ_AGENT.Register<adsfi_proto::viz::Path>(kTopicLocalMapLocation);
-      if (ret < 0) {
-        HLOG_WARN << "RvizAgent register " << kTopicLocalMapLocation
-                  << " failed";
-      }
+  //     ret =
+  //     RVIZ_AGENT.Register<adsfi_proto::viz::Path>(kTopicLocalMapLocation); if
+  //     (ret < 0) {
+  //       HLOG_WARN << "RvizAgent register " << kTopicLocalMapLocation
+  //                 << " failed";
+  //     }
 
-      ret = RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(
-          kTopicLocalMapProviderLaneLine);
-      if (ret < 0) {
-        HLOG_WARN << "RvizAgent register " << kTopicLocalMapProviderLaneLine
-                  << " failed";
-      }
+  //     ret = RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(
+  //         kTopicLocalMapProviderLaneLine);
+  //     if (ret < 0) {
+  //       HLOG_WARN << "RvizAgent register " << kTopicLocalMapProviderLaneLine
+  //                 << " failed";
+  //     }
 
-      ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(
-          KTopicLocalMapProviderMap);
-      if (ret < 0) {
-        HLOG_WARN << "RvizAgent register " << KTopicLocalMapProviderMap
-                  << " failed";
-      }
-    }
-  }
+  //     ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(
+  //         KTopicLocalMapProviderMap);
+  //     if (ret < 0) {
+  //       HLOG_WARN << "RvizAgent register " << KTopicLocalMapProviderMap
+  //                 << " failed";
+  //     }
+  //   }
+  // }
   local_map_ = std::make_shared<hozon::mapping::LocalMap>();
+  local_map_write_ = std::make_shared<hozon::mapping::LocalMap>();
   return 0;
 }
 
 void LocalMapProvider::OnInsNodeInfo(
-    const std::shared_ptr<adsfi_proto::internal::HafNodeInfo>& msg) {
+    const std::shared_ptr<hozon::localization::HafNodeInfo>& msg) {
   // ins fusion输出的的位置和姿态
   Eigen::Vector3d pose(msg->pos_gcj02().x(), msg->pos_gcj02().y(),
                        msg->pos_gcj02().z());
@@ -93,25 +97,23 @@ void LocalMapProvider::OnInsNodeInfo(
   enu_ = util::Geo::Gcj02ToEnu(pose, ref_point_);
   // HLOG_ERROR << "enu_: " << enu_.x() << ", " << enu_.y() << ", " << enu_.z();
 
-  VizLocation(enu_, q_W_V_, msg->header().timestamp());
+  // VizLocation(enu_, q_W_V_, msg->header().publish_stamp());
 }
 
 void LocalMapProvider::OnLocation(
-    const std::shared_ptr<adsfi_proto::hz_Adsfi::AlgLocation>& msg) {
+    const std::shared_ptr<hozon::localization::Localization>& msg) {
   // static double last_stamp = -1;
   // auto curr_stamp =
   //     msg->header().timestamp().sec() + msg->header().timestamp().nsec() *
   //     1e-9;
   // if (curr_stamp > last_stamp) {
   // location的位置和姿态
-  Eigen::Vector3d pose(msg->pose().pose_local().position().x(),
-                       msg->pose().pose_local().position().y(),
-                       msg->pose().pose_local().position().z());
+  Eigen::Vector3d pose(msg->pose().gcj02().x(), msg->pose().gcj02().y(),
+                       msg->pose().gcj02().z());
 
-  Eigen::Quaterniond q_W_V(msg->pose().pose_local().quaternion().w(),
-                           msg->pose().pose_local().quaternion().x(),
-                           msg->pose().pose_local().quaternion().y(),
-                           msg->pose().pose_local().quaternion().z());
+  Eigen::Quaterniond q_W_V(
+      msg->pose().quaternion().w(), msg->pose().quaternion().x(),
+      msg->pose().quaternion().y(), msg->pose().quaternion().z());
 
   // HLOG_ERROR << "q_W_V: " << q_W_V.w() << ", " << q_W_V.x() << ", " <<
   // q_W_V.y()
@@ -129,27 +131,27 @@ void LocalMapProvider::OnLocation(
   enu_ = pose;
   // HLOG_ERROR << "enu_: " << enu_.x() << ", " << enu_.y() << ", " << enu_.z();
 
-  VizLocation(enu_, q_W_V_, msg->header().timestamp());
+  // VizLocation(enu_, q_W_V_, msg->header().publish_stamp());
   // }
   // last_stamp = curr_stamp;
 }
 
 void LocalMapProvider::OnLaneLine(
-    const std::shared_ptr<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>&
-        msg) {
+    const std::shared_ptr<hozon::perception::TransportElement>& msg) {
   if (!init_) {
     return;
   }
 
   // 可视化感知结果
-  std::vector<Eigen::Vector3d> lane_points;
-  SetLaneLine(&lane_points, msg);
-  VizLaneLine(lane_points, msg->header().timestamp());
+  // std::vector<Eigen::Vector3d> lane_points;
+  // SetLaneLine(&lane_points, msg);
+  // VizLaneLine(lane_points, msg->header().publish_stamp());
+
+  std::lock_guard<std::mutex> lock(map_mtx_);
 
   // 时间戳每次都更新
-  auto msg_timestamp =
-      msg->header().timestamp().sec() + msg->header().timestamp().nsec() * 1e-9;
-  local_map_->mutable_header()->set_timestamp_sec(msg_timestamp);
+  auto msg_timestamp = msg->header().publish_stamp();
+  local_map_->mutable_header()->set_publish_stamp(msg_timestamp);
 
   float fac = 1.0;
   const float gap = 1.0;  // meter
@@ -157,15 +159,20 @@ void LocalMapProvider::OnLaneLine(
   Eigen::Matrix3d rotate_V = q_W_V_.toRotationMatrix();
 
   if (!flag_ || (enu_ - pos_enu_add_lane_).norm() >= 50) {
-    for (const auto& i : msg->lane_detection_front_out()) {
-      for (const auto& j : i.lane_detection_out()) {
-        auto start_x = j.lane_fit().x_start_vrf();
-        auto end_x = j.lane_fit().x_end_vrf();
-        auto c3 = j.lane_fit().coefficients().a();
-        auto c2 = j.lane_fit().coefficients().b();
-        auto c1 = j.lane_fit().coefficients().c();
-        auto c0 = j.lane_fit().coefficients().d();
-        auto lane_cls = j.cls();
+    for (const auto& i : msg->lane()) {
+      if (i.lanepos() >= 6) {
+        continue;
+      }
+      auto lanes = local_map_->add_lanes();
+      lanes->set_track_id(i.lanepos());
+      for (const auto& j : i.lane_param().cubic_curve_set()) {
+        auto start_x = j.start_point_x();
+        auto end_x = j.end_point_x();
+        auto c3 = j.c3();
+        auto c2 = j.c2();
+        auto c1 = j.c1();
+        auto c0 = j.c0();
+        // auto lane_cls = i.lanetype();
 
         // HLOG_ERROR << msg->header().seq()
         //            << "lane id: " << std::to_string(i.lane_id());
@@ -174,14 +181,6 @@ void LocalMapProvider::OnLaneLine(
         // HLOG_ERROR << "---xxxxxxxxxxxxxxxxxxxxxxx";
 
         // 目前lane的id有重复(300-0)
-        if (j.laneline_seq() > 10) {
-          continue;
-        }
-        // 目前没有考虑路沿后续考虑路沿
-        if (lane_cls == 8 || lane_cls == 7) {
-          // 7 --> 栅栏; 8 --> 路沿;
-          continue;
-        }
         if (start_x == end_x) {
           continue;
         }
@@ -192,8 +191,6 @@ void LocalMapProvider::OnLaneLine(
           continue;
         }
         pos_enu_add_lane_ = enu_;
-        auto lanes = local_map_->add_lanes();
-        lanes->set_track_id(j.laneline_seq());
         for (size_t j = 0;; ++j) {
           float curr_x = start_x + static_cast<float>(j) * gap * fac;
           if (curr_x >= end_x) {
@@ -210,26 +207,33 @@ void LocalMapProvider::OnLaneLine(
           pt->set_y(pos_enu_lane.y());
           pt->set_z(pos_enu_lane.z());
         }
-        // 裁剪line
-        if (local_map_->lanes().size() > 12) {
-          local_map_->mutable_lanes()->DeleteSubrange(0, 1);
-        }
+      }
+      // 裁剪line
+      if (local_map_->lanes().size() > 12) {
+        local_map_->mutable_lanes()->DeleteSubrange(0, 1);
       }
     }
     flag_ = true;
   }
 
+  // {
+  //   std::lock_guard<std::mutex> lock(map_mtx_);
+  //   local_map_write_ = std::make_shared<hozon::mapping::LocalMap>();
+  //   // local_map_write_ = local_map_;
+  //   local_map_write_->CopyFrom(*local_map_);
+  // }
+
   // 可视化地图
-  // HLOG_ERROR << "local map size:---------------------:"
-  //            << local_map_->lines().size();
-  VizLocalMap(local_map_);
+  // VizLocalMap(local_map_);
 }
 void LocalMapProvider::OnRoadEdge(
-    const std::shared_ptr<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>&
-        msg) {}
+    const std::shared_ptr<hozon::perception::TransportElement>& msg) {}
 
 std::shared_ptr<hozon::mapping::LocalMap> LocalMapProvider::GetLocalMap() {
-  return local_map_;
+  std::lock_guard<std::mutex> lock(map_mtx_);
+  auto ptr = std::make_shared<hozon::mapping::LocalMap>();
+  ptr->CopyFrom(*local_map_);
+  return ptr;
 }
 
 void LocalMapProvider::VizLocalMap(
@@ -241,7 +245,7 @@ void LocalMapProvider::VizLocalMap(
 
   for (const auto& i : local_map->lanes()) {
     adsfi_proto::viz::Marker marker;
-    LaneLineToMarker(local_map->header().timestamp_sec(), i, &marker);
+    LaneLineToMarker(local_map->header().publish_stamp(), i, &marker);
     if (!marker.points().empty()) {
       markers.add_markers()->CopyFrom(marker);
     }
@@ -252,30 +256,24 @@ void LocalMapProvider::VizLocalMap(
 
 void LocalMapProvider::SetLaneLine(
     std::vector<Eigen::Vector3d>* points,
-    const std::shared_ptr<adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>&
-        msg) {
+    const std::shared_ptr<hozon::perception::TransportElement>& msg) {
   points->clear();
   float fac = 1.0;
   const float gap = 1.0;  // meter
 
   Eigen::Matrix3d rotate_V = q_W_V_.toRotationMatrix();
 
-  for (const auto& i : msg->lane_detection_front_out()) {
-    for (const auto& j : i.lane_detection_out()) {
-      auto start_x = j.lane_fit().x_start_vrf();
-      auto end_x = j.lane_fit().x_end_vrf();
-      auto c3 = j.lane_fit().coefficients().a();
-      auto c2 = j.lane_fit().coefficients().b();
-      auto c1 = j.lane_fit().coefficients().c();
-      auto c0 = j.lane_fit().coefficients().d();
-      auto lane_cls = j.cls();
+  for (const auto& i : msg->lane()) {
+    for (const auto& j : i.lane_param().cubic_curve_set()) {
+      auto start_x = j.start_point_x();
+      auto end_x = j.end_point_x();
+      auto c3 = j.c3();
+      auto c2 = j.c2();
+      auto c1 = j.c1();
+      auto c0 = j.c0();
+      // auto lane_cls = i.lanetype();
 
-      if (j.laneline_seq() > 100) {
-        continue;
-      }
-      // 目前没有考虑路沿后续考虑路沿
-      if (lane_cls == 8 || lane_cls == 7) {
-        // 7 --> 栅栏; 8 --> 路沿;
+      if (i.track_id() > 100) {
         continue;
       }
       if (start_x == end_x) {
@@ -309,16 +307,15 @@ void LocalMapProvider::SetLaneLine(
   }
 }
 
-void LocalMapProvider::VizLaneLine(
-    const std::vector<Eigen::Vector3d>& points,
-    const adsfi_proto::hz_Adsfi::HafTime& stamp) {
+void LocalMapProvider::VizLaneLine(const std::vector<Eigen::Vector3d>& points,
+                                   const double stamp) {
   if (RVIZ_AGENT.Ok()) {
     adsfi_proto::viz::PointCloud lane_points;
     static uint32_t seq = 0;
     int curr_seq = seq++;
 
     lane_points.mutable_header()->set_seq(curr_seq);
-    lane_points.mutable_header()->mutable_timestamp()->CopyFrom(stamp);
+    lane_points.mutable_header()->mutable_timestamp()->set_sec(stamp);
     lane_points.mutable_header()->set_frameid("map");
 
     auto* channels = lane_points.add_channels();
@@ -335,15 +332,15 @@ void LocalMapProvider::VizLaneLine(
   }
 }
 
-void LocalMapProvider::VizLocation(
-    const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
-    const adsfi_proto::hz_Adsfi::HafTime& stamp) {
+void LocalMapProvider::VizLocation(const Eigen::Vector3d& pose,
+                                   const Eigen::Quaterniond& q_W_V,
+                                   const double stamp) {
   if (RVIZ_AGENT.Ok()) {
     static uint32_t seq = 0;
     int curr_seq = seq++;
     adsfi_proto::viz::TransformStamped geo_tf;
     geo_tf.mutable_header()->set_seq(curr_seq);
-    geo_tf.mutable_header()->mutable_timestamp()->CopyFrom(stamp);
+    geo_tf.mutable_header()->mutable_timestamp()->set_sec(stamp);
     geo_tf.mutable_header()->set_frameid("map");
     geo_tf.set_child_frame_id("vehicle");
     geo_tf.mutable_transform()->mutable_translation()->set_x(pose.x());
@@ -358,11 +355,11 @@ void LocalMapProvider::VizLocation(
     auto* location_pose = location_path_.add_poses();
 
     location_path_.mutable_header()->set_seq(curr_seq);
-    location_path_.mutable_header()->mutable_timestamp()->CopyFrom(stamp);
+    location_path_.mutable_header()->mutable_timestamp()->set_sec(stamp);
     location_path_.mutable_header()->set_frameid("map");
 
     location_pose->mutable_header()->set_seq(curr_seq);
-    location_pose->mutable_header()->mutable_timestamp()->CopyFrom(stamp);
+    location_pose->mutable_header()->mutable_timestamp()->set_sec(stamp);
     location_pose->mutable_header()->set_frameid("map");
     location_pose->mutable_pose()->mutable_position()->set_x(pose.x());
     location_pose->mutable_pose()->mutable_position()->set_y(pose.y());
@@ -381,7 +378,7 @@ void LocalMapProvider::VizLocation(
 }
 
 void LocalMapProvider::LaneLineToMarker(
-    double stamp, const hozon::mapping::LaneInfo& lane_line,
+    const double stamp, const hozon::mapping::LaneInfo& lane_line,
     adsfi_proto::viz::Marker* marker) {
   static int id = 0;
   marker->Clear();
@@ -410,7 +407,6 @@ void LocalMapProvider::LaneLineToMarker(
   color.set_r(1.0);
   color.set_g(0.65);
   color.set_b(0);
-
   marker->mutable_color()->CopyFrom(color);
   for (const auto& point : lane_line.points()) {
     auto pt = marker->add_points();

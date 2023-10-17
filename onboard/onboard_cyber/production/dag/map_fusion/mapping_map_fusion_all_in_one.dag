@@ -1,0 +1,13 @@
+# Define all coms in DAG streaming.
+module_config {
+  module_library: "lib/libmapping_mf_cyber.so"
+  components {
+    class_name: "MapFusionComponent"
+    config {
+      name: "map_fusion"
+      config_file_path: ""
+      flag_file_path: ""
+      readers: []
+    }
+  }
+}

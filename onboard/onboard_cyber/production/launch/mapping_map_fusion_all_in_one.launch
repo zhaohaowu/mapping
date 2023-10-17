@@ -1,0 +1,7 @@
+<cyber>
+  <module>
+    <name>map_fusion</name>
+    <dag_conf>dag/map_fusion/mapping_map_fusion_all_in_one.dag</dag_conf>
+    <process_name>map_fusion</process_name>
+  </module>
+</cyber>

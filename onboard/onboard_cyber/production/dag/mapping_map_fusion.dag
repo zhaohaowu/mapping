@@ -2,12 +2,29 @@
 module_config {
   module_library: "lib/libmapping_mf_cyber.so"
   components {
-    class_name: "PriorProviderComponent"
+    class_name: "TopoAssignmentComponent"
     config {
-      name: "prior_provider"
+      name: "topo_assignment"
       config_file_path: ""
       flag_file_path: ""
       readers: []
+    }
+  }
+  components {
+    class_name: "MapPredictionComponent"
+    config {
+      name: "map_prediction"
+      config_file_path: ""
+      flag_file_path: ""
+      readers: []
+    }
+  }
+  timer_components {
+    class_name : "MapServiceComponent"
+    config {
+      name: "map_service"
+      flag_file_path: "conf/global_flagfile.txt"
+      interval: 100
     }
   }
 }

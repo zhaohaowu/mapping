@@ -17,6 +17,7 @@ namespace lm {
 class LMapComponent : public apollo::cyber::Component<> {
  public:
   LMapComponent() = default;
+  ~LMapComponent() override;
 
   /**
    * @brief cyber init

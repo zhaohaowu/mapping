@@ -14,6 +14,7 @@ DEFINE_string(output_topic, "/local_map", "location topic");
 DEFINE_string(output_location_topic, "/local_map/location", "location topic");
 DEFINE_string(config_yaml, "conf/mapping/local_mapping/local_mapping_conf.yaml",
               "path to local mapping conf yaml");
+DEFINE_bool(viz, true, "use rviz");
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -62,7 +63,17 @@ bool LMapComponent::Init() {
   local_map_location_publish_thread_ =
       std::thread(&LMapComponent::LocalMapLocationPublish, this);
 
+  if (FLAGS_viz) {
+    util::RvizAgent::Instance().Init("ipc:///tmp/rviz_agent_local_map");
+  }
+
   return true;
+}
+
+LMapComponent::~LMapComponent() {
+  if (FLAGS_viz) {
+    util::RvizAgent::Instance().Term();
+  }
 }
 
 bool LMapComponent::OnLocation(

@@ -1,8 +1,9 @@
 --lm_config=conf/mapping/local_mapping/local_mapping_conf.yaml
 --location_topic=/location
---dr_topic=/odom
+--dr_topic=/DeadReckoning
 --laneline_topic=/LaneLine
 --roadedge_topic=/lidar_roadedge
 --output_topic=/local_map
---v=4
+--v=2
 --alsologtostderr
+--viz=true

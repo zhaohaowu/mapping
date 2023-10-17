@@ -118,7 +118,6 @@ class LMapApp {
       last_T_W_V_;
 
   std::mutex localmap_mutex_;
-  bool use_rviz;
   bool use_perception_match;
   bool dr_inited_;
   bool laneline_inited_;

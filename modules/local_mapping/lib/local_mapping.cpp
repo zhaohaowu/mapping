@@ -24,7 +24,6 @@ namespace lm {
 
 LMapApp::LMapApp(const std::string& config_file) {
   YAML::Node config = YAML::LoadFile(config_file);
-  use_rviz = config["use_rviz"].as<bool>();
   use_perception_match = config["use_perception_match"].as<bool>();
   compute_error = config["compute_error"].as<bool>();
   sample_interval = config["sample_interval"].as<double>();
@@ -56,9 +55,6 @@ LMapApp::LMapApp(const std::string& config_file) {
   auto map = provider_->GetPrior();
   hdmap_ = std::make_shared<hozon::hdmap::HDMap>();
   hdmap_->LoadMapFromProto(*map);
-  if (use_rviz) {
-    util::RvizAgent::Instance().Init("ipc:///tmp/rviz_agent_local_map");
-  }
   mmgr_->Init();
 
   auto& local_data = LocalDataSingleton::GetInstance();
@@ -66,8 +62,7 @@ LMapApp::LMapApp(const std::string& config_file) {
 }
 
 void LMapApp::OnLocation(
-    const std::shared_ptr<const hozon::localization::Localization>&
-        msg) {
+    const std::shared_ptr<const hozon::localization::Localization>& msg) {
   DataConvert::SetLocation(*msg, latest_dr_);
 }
 
@@ -106,10 +101,9 @@ void LMapApp::OnDr(
     // HLOG_ERROR << "Dr timestamp error";
   }
 
-  if (use_rviz) {
+  if (util::RvizAgent::Instance().Ok()) {
     auto sec = static_cast<uint64_t>(msg->header().gnss_stamp());
-    auto nsec =
-        static_cast<uint64_t>((msg->header().gnss_stamp() - sec) * 1e9);
+    auto nsec = static_cast<uint64_t>((msg->header().gnss_stamp() - sec) * 1e9);
     CommonUtil::PubOdom(T_W_V_, sec, nsec, "/localmap/odom");
     CommonUtil::PubTf(T_W_V_, sec, nsec, "/localmap/tf");
     CommonUtil::PubPath(T_W_V_, sec, nsec, "/localmap/path");
@@ -128,12 +122,11 @@ void LMapApp::OnIns(
   T_G_V_ = Sophus::SE3d(q_G_V, p_G_V);
   static int ins_n = 0;
   ins_n++;
-  if (use_rviz && ins_n == 100) {
+  if (util::RvizAgent::Instance().Ok() && ins_n == 100) {
     ins_n = 0;
     if (!dr_inited_) return;
     auto sec = static_cast<uint64_t>(msg->header().gnss_stamp());
-    auto nsec =
-        static_cast<uint64_t>((msg->header().gnss_stamp() - sec) * 1e9);
+    auto nsec = static_cast<uint64_t>((msg->header().gnss_stamp() - sec) * 1e9);
 
     if (compute_error) {
       std::vector<Eigen::Vector3d> hq_pts;
@@ -150,14 +143,12 @@ void LMapApp::OnIns(
 }
 
 void LMapApp::OnLaneLine(
-    const std::shared_ptr<const hozon::perception::TransportElement>&
-        msg) {
+    const std::shared_ptr<const hozon::perception::TransportElement>& msg) {
   auto start = std::chrono::high_resolution_clock::now();
   if (!dr_inited_) return;
   mmgr_->UpdateTimestamp(msg->header().gnss_stamp());
   auto sec = static_cast<uint64_t>(msg->header().gnss_stamp());
-  auto nsec =
-      static_cast<uint64_t>((msg->header().gnss_stamp() - sec) * 1e9);
+  auto nsec = static_cast<uint64_t>((msg->header().gnss_stamp() - sec) * 1e9);
   DataConvert::SetLaneLine(*msg, latest_lanes_);
   ConstDrDataPtr lane_pose = GetDrPoseForTime(latest_lanes_->timestamp_);
   if (lane_pose == nullptr) {
@@ -250,7 +241,7 @@ void LMapApp::OnLaneLine(
   }
   localmap_mutex_.unlock();
   auto start5 = std::chrono::high_resolution_clock::now();
-  if (use_rviz) {
+  if (util::RvizAgent::Instance().Ok()) {
     CommonUtil::PubPercepPoints(T_W_V_, latest_lanes_, sec, nsec,
                                 "/localmap/percep_points", sample_interval);
     CommonUtil::PubMapPoints(mmgr_->local_map_, sec, nsec,
@@ -270,8 +261,7 @@ void LMapApp::OnLaneLine(
   HLOG_ERROR << "totle time: " << duration.count() << " ms";
 }
 void LMapApp::OnRoadEdge(
-    const std::shared_ptr<const hozon::perception::TransportElement>&
-        msg) {}
+    const std::shared_ptr<const hozon::perception::TransportElement>& msg) {}
 
 bool LMapApp::FetchLocalMap(
     std::shared_ptr<hozon::mapping::LocalMap> local_map) {
@@ -305,12 +295,10 @@ bool LMapApp::FetchLocalMap(
 }
 
 bool LMapApp::FetchLocalMapLocation(
-    std::shared_ptr<hozon::localization::Localization>
-        local_map_location) {
+    std::shared_ptr<hozon::localization::Localization> local_map_location) {
   if (!dr_inited_) return false;
   if (!laneline_inited_) return false;
-  local_map_location->mutable_header()->set_gnss_stamp(
-      mmgr_->GetTimestamp());
+  local_map_location->mutable_header()->set_gnss_stamp(mmgr_->GetTimestamp());
   local_map_location->mutable_pose()->mutable_position()->set_x(
       T_W_V_.translation().x());
   local_map_location->mutable_pose()->mutable_position()->set_y(

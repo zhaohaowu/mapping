@@ -8,13 +8,12 @@
 #include <yaml-cpp/yaml.h>
 
 #include <Eigen/Dense>
+#include <Sophus/se3.hpp>
 #include <algorithm>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <Sophus/se3.hpp>
 
 #include "depend/map/hdmap/hdmap.h"
 #include "depend/proto/localization/node_info.pb.h"
@@ -43,8 +42,7 @@ class LMapApp {
    * @return
    */
   void OnLocation(
-      const std::shared_ptr<const hozon::localization::Localization>&
-          msg);
+      const std::shared_ptr<const hozon::localization::Localization>& msg);
 
   /**
    * @brief receive dr message
@@ -71,8 +69,7 @@ class LMapApp {
    * @return
    */
   void OnLaneLine(
-      const std::shared_ptr<const hozon::perception::TransportElement>&
-          msg);
+      const std::shared_ptr<const hozon::perception::TransportElement>& msg);
 
   /**
    * @brief receive road edge message
@@ -81,8 +78,7 @@ class LMapApp {
    * @return
    */
   void OnRoadEdge(
-      const std::shared_ptr<const hozon::perception::TransportElement>&
-          msg);
+      const std::shared_ptr<const hozon::perception::TransportElement>& msg);
 
   /**
    * @brief fetch local_map at current timestamp
@@ -97,8 +93,7 @@ class LMapApp {
    * @return `true` for fetching success, `false` for failed
    */
   bool FetchLocalMapLocation(
-      std::shared_ptr<hozon::localization::Localization>
-          local_map_location);
+      std::shared_ptr<hozon::localization::Localization> local_map_location);
 
   ConstDrDataPtr GetDrPoseForTime(double timestamp);
 

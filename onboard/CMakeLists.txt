@@ -9,4 +9,3 @@ elseif(MIDDLEWARE MATCHES ORIN)
 elseif(MIDDLEWARE MATCHES ADF)
   add_subdirectory(onboard_adc)
 endif()
-

@@ -24,21 +24,22 @@ catkin_package(
 )
 
 include_directories(
-    ${REPO_ROOT}/release/x86/include/mapping/interface
-    ${REPO_ROOT}/release/x86/include/mapping/modules/util/include
-    ${REPO_ROOT}/depend/third_party/x86/protobuf/include
-    ${REPO_ROOT}/depend/third_party/x86/zmq/include
-    ${REPO_ROOT}/depend/third_party/x86/gflags/include
-    ${REPO_ROOT}/depend/third_party/x86/glog/include
+    ${REPO_ROOT}
+    ${REPO_ROOT}/interface
+    ${REPO_ROOT}/depend/third_party/x86_2004/protobuf/include
+    ${REPO_ROOT}/depend/third_party/x86_2004/zmq/include
+    ${REPO_ROOT}/depend/third_party/x86_2004/gflags/include
+    ${REPO_ROOT}/depend/third_party/x86_2004/glog/include
     ${catkin_INCLUDE_DIRS}
 )
 
 link_directories(
     ${REPO_ROOT}/release/x86/lib
-    ${REPO_ROOT}/depend/third_party/x86/protobuf/lib
-    ${REPO_ROOT}/depend/third_party/x86/zmq/lib
-    ${REPO_ROOT}/depend/third_party/x86/gflags/lib
-    ${REPO_ROOT}/depend/third_party/x86/glog/lib
+    ${REPO_ROOT}/depend/third_party/x86_2004/protobuf/lib
+    ${REPO_ROOT}/depend/third_party/x86_2004/zmq/lib
+    ${REPO_ROOT}/depend/third_party/x86_2004/gflags/lib
+    ${REPO_ROOT}/depend/third_party/x86_2004/glog/lib
+    ${REPO_ROOT}/depend/third_party/x86_2004/yaml-cpp/lib
 )
 
 add_executable(rviz_bridge
@@ -49,6 +50,7 @@ add_executable(rviz_bridge
 target_link_libraries(rviz_bridge
     mapping_adsfi_proto
     mapping_util
+    yaml-cpp
     gflags
     glog
     protobuf
@@ -69,10 +71,10 @@ install(
 set(PREPARE_FOR_ROS_SHELL "
     mkdir -p ros
     cp -r -d x86/lib/libmapping_* ros/lib
-    cp -r -d ../depend/third_party/x86/protobuf/lib/lib* ros/lib
-    cp -r -d ../depend/third_party/x86/yaml-cpp/lib/lib* ros/lib
-    cp -r -d ../depend/third_party/x86/gflags/lib/lib* ros/lib
-    cp -r -d ../depend/third_party/x86/glog/lib/lib* ros/lib
+    cp -r -d ../depend/third_party/x86_2004/protobuf/lib/lib* ros/lib
+    cp -r -d ../depend/third_party/x86_2004/yaml-cpp/lib/lib* ros/lib
+    cp -r -d ../depend/third_party/x86_2004/gflags/lib/lib* ros/lib
+    cp -r -d ../depend/third_party/x86_2004/glog/lib/lib* ros/lib
 ")
 file(WRITE "${CMAKE_INSTALL_PREFIX}/../prepare_for_ros.sh" "${PREPARE_FOR_ROS_SHELL}")
 install(CODE "execute_process(COMMAND bash prepare_for_ros.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")

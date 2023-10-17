@@ -3,7 +3,7 @@
  *Author: wangjianguo
  *Date: 2023-08-31
  *****************************************************************************/
-#include "modules/local_mapping/cyber/local_mapping_component.h"
+#include "onboard/onboard_cyber/local_mapping/local_mapping_component.h"
 
 DEFINE_string(location_topic, "/location", "location topic");
 DEFINE_string(dr_topic, "/odom", "location topic");
@@ -21,13 +21,12 @@ namespace lm {
 bool LMapComponent::Init() {
   lmap_ = std::make_shared<LMapApp>(FLAGS_config_yaml);
 
-  location_listener_ =
-      node_->CreateReader<hozon::localization::LocalizationEstimate>(
-          FLAGS_location_topic,
-          [this](const std::shared_ptr<
-                 const hozon::localization::LocalizationEstimate>& msg) {
-            OnLocation(msg);
-          });
+  location_listener_ = node_->CreateReader<hozon::localization::Localization>(
+      FLAGS_location_topic,
+      [this](
+          const std::shared_ptr<const hozon::localization::Localization>& msg) {
+        OnLocation(msg);
+      });
 
   dr_listener_ = node_->CreateReader<hozon::dead_reckoning::DeadReckoning>(
       FLAGS_dr_topic,
@@ -40,27 +39,21 @@ bool LMapComponent::Init() {
         OnIns(msg);
       });
 
-  laneline_listener_ =
-      node_->CreateReader<hozon::perception::fsd::TransportElement>(
-          FLAGS_laneline_topic,
-          [this](const std::shared_ptr<
-                 const hozon::perception::fsd::TransportElement>& msg) {
-            OnLaneLine(msg);
-          });
+  laneline_listener_ = node_->CreateReader<hozon::perception::TransportElement>(
+      FLAGS_laneline_topic,
+      [this](const std::shared_ptr<const hozon::perception::TransportElement>&
+                 msg) { OnLaneLine(msg); });
 
-  roadedge_listener_ =
-      node_->CreateReader<hozon::perception::fsd::TransportElement>(
-          FLAGS_roadedge_topic,
-          [this](const std::shared_ptr<
-                 const hozon::perception::fsd::TransportElement>& msg) {
-            OnRoadEdge(msg);
-          });
+  roadedge_listener_ = node_->CreateReader<hozon::perception::TransportElement>(
+      FLAGS_roadedge_topic,
+      [this](const std::shared_ptr<const hozon::perception::TransportElement>&
+                 msg) { OnRoadEdge(msg); });
 
   result_talker_ =
       node_->CreateWriter<hozon::mapping::LocalMap>(FLAGS_output_topic);
 
   result_location_talker_ =
-      node_->CreateWriter<hozon::localization::LocalizationEstimate>(
+      node_->CreateWriter<hozon::localization::Localization>(
           FLAGS_output_location_topic);
 
   local_map_publish_thread_ =
@@ -73,8 +66,7 @@ bool LMapComponent::Init() {
 }
 
 bool LMapComponent::OnLocation(
-    const std::shared_ptr<const hozon::localization::LocalizationEstimate>&
-        msg) {
+    const std::shared_ptr<const hozon::localization::Localization>& msg) {
   if (!lmap_) {
     return false;
   }
@@ -107,8 +99,7 @@ bool LMapComponent::OnIns(
 }
 
 bool LMapComponent::OnLaneLine(
-    const std::shared_ptr<const hozon::perception::fsd::TransportElement>&
-        msg) {
+    const std::shared_ptr<const hozon::perception::TransportElement>& msg) {
   if (!lmap_) {
     return false;
   }
@@ -117,8 +108,7 @@ bool LMapComponent::OnLaneLine(
 }
 
 bool LMapComponent::OnRoadEdge(
-    const std::shared_ptr<const hozon::perception::fsd::TransportElement>&
-        msg) {
+    const std::shared_ptr<const hozon::perception::TransportElement>& msg) {
   if (!lmap_) {
     return false;
   }
@@ -139,8 +129,8 @@ void LMapComponent::LocalMapPublish() {
 
 void LMapComponent::LocalMapLocationPublish() {
   while (apollo::cyber::OK()) {
-    std::shared_ptr<hozon::localization::LocalizationEstimate> result =
-        std::make_shared<hozon::localization::LocalizationEstimate>();
+    std::shared_ptr<hozon::localization::Localization> result =
+        std::make_shared<hozon::localization::Localization>();
     if (lmap_->FetchLocalMapLocation(result) &&
         result_location_talker_ != nullptr) {
       result_location_talker_->Write(result);

@@ -6,7 +6,8 @@ include_directories(
 
 file(GLOB_RECURSE LM_SRCS "*.cpp" "*.cc")
 
-add_library(lmap_core SHARED ${LM_SRCS})
+#add_mapping_library 加前缀mapping_
+add_mapping_library(lmap_core SHARED ${LM_SRCS})
 
 target_link_libraries(lmap_core
   globalproto

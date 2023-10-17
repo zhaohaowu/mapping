@@ -32,8 +32,7 @@ class LMapComponent : public apollo::cyber::Component<> {
    * @return `true` for receiveing and processing success, `false` for failed
    */
   bool OnLocation(
-      const std::shared_ptr<const hozon::localization::LocalizationEstimate>&
-          msg);
+      const std::shared_ptr<const hozon::localization::Localization>& msg);
 
   /**
    * @brief receive dr message
@@ -60,8 +59,7 @@ class LMapComponent : public apollo::cyber::Component<> {
    * @return `true` for receiveing and processing success, `false` for failed
    */
   bool OnLaneLine(
-      const std::shared_ptr<const hozon::perception::fsd::TransportElement>&
-          msg);
+      const std::shared_ptr<const hozon::perception::TransportElement>& msg);
 
   /**
    * @brief receive roadedge message
@@ -70,8 +68,7 @@ class LMapComponent : public apollo::cyber::Component<> {
    * @return `true` for receiveing and processing success, `false` for failed
    */
   bool OnRoadEdge(
-      const std::shared_ptr<const hozon::perception::fsd::TransportElement>&
-          msg);
+      const std::shared_ptr<const hozon::perception::TransportElement>& msg);
 
   /**
    * @brief local map publish
@@ -91,23 +88,19 @@ class LMapComponent : public apollo::cyber::Component<> {
   std::thread local_map_publish_thread_;
   std::thread local_map_location_publish_thread_;
   std::shared_ptr<LMapApp> lmap_;
-  std::shared_ptr<
-      apollo::cyber::Reader<hozon::localization::LocalizationEstimate>>
+  std::shared_ptr<apollo::cyber::Reader<hozon::localization::Localization>>
       location_listener_;
   std::shared_ptr<apollo::cyber::Reader<hozon::dead_reckoning::DeadReckoning>>
       dr_listener_;
   std::shared_ptr<apollo::cyber::Reader<hozon::localization::HafNodeInfo>>
       ins_listener_;
-  std::shared_ptr<
-      apollo::cyber::Reader<hozon::perception::fsd::TransportElement>>
+  std::shared_ptr<apollo::cyber::Reader<hozon::perception::TransportElement>>
       laneline_listener_;
-  std::shared_ptr<
-      apollo::cyber::Reader<hozon::perception::fsd::TransportElement>>
+  std::shared_ptr<apollo::cyber::Reader<hozon::perception::TransportElement>>
       roadedge_listener_;
   std::shared_ptr<apollo::cyber::Writer<hozon::mapping::LocalMap>>
       result_talker_;
-  std::shared_ptr<
-      apollo::cyber::Writer<hozon::localization::LocalizationEstimate>>
+  std::shared_ptr<apollo::cyber::Writer<hozon::localization::Localization>>
       result_location_talker_;
 };
 

@@ -32,10 +32,10 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
+#include "modules/util/include/util/rviz_agent/msg_alias.h"
+#include "modules/util/include/util/rviz_agent/rviz_agent_client.h"
+#include "modules/util/include/util/temp_log.h"
 #include "type_converter.h"
-#include "util/rviz_agent/msg_alias.h"
-#include "util/rviz_agent/rviz_agent_client.h"
-#include "util/temp_log.h"
 
 namespace sfs = std::filesystem;
 using namespace hozon::mp::util;

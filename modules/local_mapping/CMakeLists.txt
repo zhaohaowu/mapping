@@ -6,7 +6,3 @@ include_directories(
 )
 
 add_subdirectory(lib)
-
-if(${PLATFORM} STREQUAL "x86")
-  add_subdirectory(cyber)
-endif()

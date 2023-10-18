@@ -13,8 +13,6 @@
 #include <queue>
 #include <string>
 
-#include "common/math/vec2d.h"
-#include "common/status/status.h"
 #include "common/util/macros.h"
 #include "common/util/message_util.h"
 #include "common/util/util.h"
@@ -24,12 +22,9 @@
 #include "cyber/timer/timer.h"
 #include "map/ehr/ehr_factory.h"
 #include "map/hdmap/hdmap.h"
-#include "map_fusion/map_service/ehp/amap_core.h"
-#include "modules/map_fusion/include/map_fusion/map_service/ehp/amap_core.h"
+#include "map_fusion/map_service/map_service.h"
 #include "proto/localization/localization.pb.h"
 #include "proto/map/adasisv3.pb.h"
-#include "proto/map/ehp.pb.h"
-#include "proto/map/map.pb.h"
 #include "proto/planning/planning.pb.h"
 #include "proto/routing/routing.pb.h"
 #include "util/geo.h"
@@ -47,15 +42,13 @@ class MapServiceComponent final : public apollo::cyber::TimerComponent {
   // friend class EhpTestBase;
 
  public:
-  MapServiceComponent();
+  MapServiceComponent() = default;
+  ~MapServiceComponent() = default;
   bool Init() override;
 
   bool Proc() override;
-  bool EhpProc(hozon::routing::RoutingResponse* routing);
-  bool BinProc(hozon::hdmap::Map* map);
 
-  void MergeMap(const hozon::hdmap::Map& extend_map,
-                const hozon::hdmap::Map& shrink_map);
+  void PubData();
 
  private:
   hozon::localization::HafNodeInfo latest_localization_;
@@ -73,12 +66,7 @@ class MapServiceComponent final : public apollo::cyber::TimerComponent {
       nullptr;
   std::shared_ptr<apollo::cyber::Writer<hozon::routing::RoutingResponse>>
       routing_response_writer_ = nullptr;
-  std::unique_ptr<hozon::ehr::Ehr> ehr_ = nullptr;
-  std::shared_ptr<hdmap::HDMap> hd_map_ = nullptr;
-  hozon::common::math::Vec2d last_pose_;
-
-  std::chrono::steady_clock::time_point last_send_time_;
-  hozon::mp::mf::AmapAdapter amap_adapter_;
+  std::shared_ptr<MapService> map_service_ = nullptr;
 };
 
 CYBER_REGISTER_COMPONENT(MapServiceComponent)  // NOLINT

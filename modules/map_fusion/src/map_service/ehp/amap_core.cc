@@ -181,10 +181,10 @@ bool AmapAdapter::Process(
   sign_data.gnss.isNS = '0';
   sign_data.gnss.isEW = 'w';
 
-  sign_data.gnss.lon = static_cast<int>(localization.pos_gcj02().x() * 1e6);
-  sign_data.gnss.lat = static_cast<int>(localization.pos_gcj02().y() * 1e6);
-  sign_data.gnss.lonS = static_cast<int>(localization.pos_wgs().x() * 1e6);
-  sign_data.gnss.latS = static_cast<int>(localization.pos_wgs().y() * 1e6);
+  sign_data.gnss.lon = static_cast<int>(localization.pos_gcj02().y() * 1e6);
+  sign_data.gnss.lat = static_cast<int>(localization.pos_gcj02().x() * 1e6);
+  sign_data.gnss.lonS = static_cast<int>(localization.pos_wgs().y() * 1e6);
+  sign_data.gnss.latS = static_cast<int>(localization.pos_wgs().x() * 1e6);
   auto speed = sqrt(pow(localization.linear_velocity().x(), 2) +
                     pow(localization.linear_velocity().y(), 2));
   HLOG_ERROR << "current lon " << sign_data.gnss.lon << " lat "

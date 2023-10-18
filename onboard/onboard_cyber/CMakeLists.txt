@@ -40,6 +40,7 @@ set(PREPARE_FOR_CYBER_SHELL "
     cp -r -d ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/opencv/lib/lib* x86/lib
     cp -r -d ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/absl/lib/lib* x86/lib
     cp -r -d ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/hzavpmap/lib/lib* x86/lib
+    cp -r -d ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/amap/lib/lib* x86/lib
     cp -r -d ${THIRDPARTY_ROOT_PATH}/third_party/x86/boost/lib/lib* x86/lib
 ")
 file(WRITE "${CMAKE_INSTALL_PREFIX}/../prepare_for_cyber.sh" "${PREPARE_FOR_CYBER_SHELL}")

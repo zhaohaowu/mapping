@@ -2,6 +2,7 @@
 
 TOP_DIR="$(builtin cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P)"
 echo ${TOP_DIR}
+FLAG_FILE_NAME=hz_mapping.flag
 
 export DEBUG_MAPPING_WORK_ROOT=${TOP_DIR}/../../
 
@@ -18,6 +19,7 @@ export CM_CONFIG_FILE_PATH=${DEBUG_MAPPING_WORK_ROOT}/runtime_service/hz_mapping
 export RT_DDS_URI=${DEBUG_MAPPING_WORK_ROOT}/runtime_service/hz_mapping/etc/hz_mappingProcess/dds.xml
 
 mapping_bin="${DEBUG_MAPPING_WORK_ROOT}/runtime_service/hz_mapping/bin/hz_mapping"
+FLAG_FILE_PATH="${DEBUG_MAPPING_WORK_ROOT}/runtime_service/hz_mapping/conf/${FLAG_FILE_NAME}"
 
 chmod +x ${mapping_bin}
-pmupload ${mapping_bin} -i 192.168.10.6 -p 50512 --allocGroup=default_dm
+pmupload ${mapping_bin} --flagfile ${FLAG_FILE_PATH} --allocGroup=default_dm

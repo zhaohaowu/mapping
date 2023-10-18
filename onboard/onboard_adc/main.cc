@@ -13,6 +13,7 @@
 #include "onboard/onboard_adc/include/mapping_onboard.h"
 
 int32_t main(int argc, char** argv) {
+  google::ParseCommandLineFlags(&argc, &argv, true);
   hozon::mp::MappingAdc mapping;
 
   mapping.RegistAlgProcessFunc(

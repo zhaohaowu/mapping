@@ -1,0 +1,3 @@
+--viz=false
+--viz_addr=tcp://10.6.73.235:9100
+--lm_config=conf/mapping/local_mapping/local_mapping_conf.yaml

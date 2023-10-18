@@ -5,13 +5,23 @@
  *****************************************************************************/
 #include "onboard/onboard_adc/include/mapping_onboard.h"
 
-DEFINE_string(config_yaml, "conf/mapping/local_mapping/local_mapping_conf.yaml",
+DEFINE_string(lm_config, "conf/mapping/local_mapping/local_mapping_conf.yaml",
               "path to local mapping conf yaml");
+DEFINE_bool(viz, false, "if use rviz");
+DEFINE_string(viz_addr, "tcp://10.6.73.235:9100",
+              "RvizAgent's working address");
 
 namespace hozon {
 namespace mp {
 int32_t MappingAdc::MappingAdc::AlgInit() {
-  lmap_ = std::make_unique<lm::LMapApp>(FLAGS_config_yaml);
+  if (FLAGS_viz) {
+    HLOG_INFO << "Start RvizAgent on " << FLAGS_viz_addr;
+    int ret = util::RvizAgent::Instance().Init(FLAGS_viz_addr);
+    if (ret < 0) {
+      HLOG_ERROR << "RvizAgent start failed";
+    }
+  }
+  lmap_ = std::make_unique<lm::LMapApp>(FLAGS_lm_config);
   dr_ = std::make_unique<dr::DRInterface>();
   // topo_ = std::make_unique<mf::TopoAssignment>();
   // if (topo_->Init() < 0) {
@@ -84,7 +94,7 @@ int32_t MappingAdc::LaneCallBack(hz_Adsfi::NodeBundle* input) {
   return 0;
 }
 
-void MappingAdc::AlgRelease() {}
+void MappingAdc::AlgRelease() { util::RvizAgent::Instance().Term(); }
 
 }  // namespace mp
 }  // namespace hozon

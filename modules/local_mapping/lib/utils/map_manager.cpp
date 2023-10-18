@@ -7,12 +7,6 @@
 
 #include "modules/local_mapping/lib/utils/common.h"
 
-DEFINE_string(viz_addr, "ipc:///tmp/rviz_agent_local_map",
-              "RvizAgent working address, may like "
-              "ipc:///tmp/sample_rviz_agent or "
-              "inproc://sample_rviz_agent or "
-              "tcp://127.0.0.1:9100");
-
 namespace hozon {
 namespace mp {
 namespace lm {

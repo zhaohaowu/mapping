@@ -24,10 +24,11 @@ namespace lm {
 
 LMapApp::LMapApp(const std::string& config_file) {
   YAML::Node config = YAML::LoadFile(config_file);
-  use_perception_match = config["use_perception_match"].as<bool>();
+  use_perception_match_ = config["use_perception_match"].as<bool>();
+  use_bipartite_assoc_match_ = config["use_bipartite_assoc_match"].as<bool>();
+  use_rviz_ = config["use_rviz"].as<bool>();
   compute_error = config["compute_error"].as<bool>();
   sample_interval = config["sample_interval"].as<double>();
-  use_bipartite_assoc_match_ = config["use_bipartite_assoc_match"].as<bool>();
   BipartiteAssocParams params;
   params.min_match_point_num = config["min_match_point_num"].as<int>();
   params.min_overlap_point_num = config["min_overlap_point_num"].as<int>();
@@ -101,7 +102,7 @@ void LMapApp::OnDr(
     // HLOG_ERROR << "Dr timestamp error";
   }
 
-  if (util::RvizAgent::Instance().Ok()) {
+  if (use_rviz_) {
     auto sec = static_cast<uint64_t>(msg->header().gnss_stamp());
     auto nsec = static_cast<uint64_t>((msg->header().gnss_stamp() - sec) * 1e9);
     CommonUtil::PubOdom(T_W_V_, sec, nsec, "/localmap/odom");
@@ -122,7 +123,7 @@ void LMapApp::OnIns(
   T_G_V_ = Sophus::SE3d(q_G_V, p_G_V);
   static int ins_n = 0;
   ins_n++;
-  if (util::RvizAgent::Instance().Ok() && ins_n == 100) {
+  if (use_rviz_ && ins_n == 100) {
     ins_n = 0;
     if (!dr_inited_) return;
     auto sec = static_cast<uint64_t>(msg->header().gnss_stamp());
@@ -167,7 +168,7 @@ void LMapApp::OnLaneLine(
   mmgr_->GetLanes(map_lanes_);
   // match current frame lanes to map lanes
   auto start3 = std::chrono::high_resolution_clock::now();
-  if (use_perception_match) {
+  if (use_perception_match_) {
     laneOp_->Match(latest_lanes_, map_lanes_, lane_matches_);
   } else {
     laneOp_->Match(lane_pose, latest_lanes_, map_lanes_, lane_matches_,
@@ -194,15 +195,13 @@ void LMapApp::OnLaneLine(
       std::vector<Eigen::Vector3d> new_lane_pts_;
       CommonUtil::SampleLanePoints(match.frame_lane_, &new_lane_pts_,
                                    sample_interval);
-      if (use_perception_match) {
+      if (use_perception_match_) {
         mmgr_->CreateNewLane(new_lane_pts_, match.frame_lane_->lane_id_);
         mmgr_->SetLaneProperty(match.frame_lane_->lane_id_, match.frame_lane_);
       } else {
         double lane_id = mmgr_->CreateNewLane(new_lane_pts_);
         mmgr_->SetLaneProperty(lane_id, match.frame_lane_);
       }
-      HLOG_ERROR << "CreateNewTrackVehicleLane";
-      mmgr_->CreateNewTrackVehicleLane(match.frame_lane_);
     } else if (match.update_type_ == ObjUpdateType::MERGE_OLD) {
       int lane_start_x = 0;
       std::vector<Eigen::Vector3d> new_lane_pts_;
@@ -224,7 +223,6 @@ void LMapApp::OnLaneLine(
                               match.frame_lane_->x_start_vrf_);
       auto world_pts = std::make_shared<std::vector<Eigen::Vector3d>>();
       mmgr_->AppendOldLanePoints(match.map_lane_->track_id_, new_lane_pts_);
-      mmgr_->CreateTrackVehicleLane(match.map_lane_->track_id_);
       mmgr_->SetLaneProperty(match.map_lane_->track_id_, match.frame_lane_);
     }
   }
@@ -233,15 +231,10 @@ void LMapApp::OnLaneLine(
       std::chrono::duration_cast<std::chrono::milliseconds>(end4 - start4);
   HLOG_ERROR << "map lane deal time: " << duration.count() << " ms";
   CommonUtil::CubicCurve(&mmgr_->local_map_, sample_interval);
-  static int cut_num = 0;
-  cut_num++;
-  if (cut_num == 10) {
-    cut_num = 0;
-    mmgr_->CutLocalMap(150, 150);
-  }
+  mmgr_->CutLocalMap(150, 150);
   localmap_mutex_.unlock();
   auto start5 = std::chrono::high_resolution_clock::now();
-  if (util::RvizAgent::Instance().Ok()) {
+  if (use_rviz_) {
     CommonUtil::PubPercepPoints(T_W_V_, latest_lanes_, sec, nsec,
                                 "/localmap/percep_points", sample_interval);
     CommonUtil::PubMapPoints(mmgr_->local_map_, sec, nsec,
@@ -290,7 +283,7 @@ bool LMapApp::FetchLocalMap(
   auto end = std::chrono::high_resolution_clock::now();
   auto duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  HLOG_ERROR << "pub time: " << duration.count() << " ms";
+  // HLOG_ERROR << "pub time: " << duration.count() << " ms";
   return true;
 }
 

@@ -5,12 +5,11 @@
  *****************************************************************************/
 #pragma once
 
+#include <Sophus/se3.hpp>
 #include <iostream>
 #include <memory>
 #include <unordered_map>
 #include <vector>
-
-#include <Sophus/se3.hpp>
 
 #include "modules/local_mapping/lib/datalogger/load_data_singleton.h"
 #include "modules/local_mapping/lib/ops/association/association.h"
@@ -36,7 +35,7 @@ class LaneOp {
    * @return
    */
   void Match(ConstDrDataPtr lane_pose, std::shared_ptr<const Lanes> cur_lanes,
-             std::shared_ptr<const std::vector<LocalMapLane>> map_lanes,
+             std::shared_ptr<std::vector<LocalMapLane>> map_lanes,
              std::shared_ptr<std::vector<LaneMatchInfo>> match_info,
              bool use_bipartite_assoc_match = false);
 

@@ -58,10 +58,9 @@ void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
 
 void LaneOp::Match(ConstDrDataPtr dr_ptr,
                    std::shared_ptr<const Lanes> cur_lanes,
-                   std::shared_ptr<const std::vector<LocalMapLane>> map_lanes,
+                   std::shared_ptr<std::vector<LocalMapLane>> map_lanes,
                    std::shared_ptr<std::vector<LaneMatchInfo>> match_info,
                    bool use_bipartite_assoc_match) {
-  HLOG_INFO << "GetMatches";
   match_info->clear();
   if (map_lanes->size() == 0) {
     for (auto cur_lane : cur_lanes->lanes_) {
@@ -84,7 +83,7 @@ void LaneOp::Match(ConstDrDataPtr dr_ptr,
   std::unordered_map<int, int> map_det_lm;
   if (use_bipartite_assoc_match) {
     map_det_lm =
-        bipar_lane_assoc_->Process(lanes_points, *map_lanes, lane_pose);
+        bipar_lane_assoc_->Process(lanes_points, map_lanes.get(), lane_pose);
   } else {
     lane_assoc_.reset(new LaneAssoc(lane_assoc_options_));
     map_det_lm = lane_assoc_->Process(lanes_points, *map_lanes, lane_pose);

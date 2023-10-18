@@ -14,7 +14,7 @@ namespace lm {
 
 std::unordered_map<int, int> BipartiteLaneAssoc::Process(
     const std::vector<LanePointsPtr>& lanes_det,
-    const std::vector<LocalMapLane>& lanes_lm, const Vec3d& pose_ab) {
+    std::vector<LocalMapLane>* lanes_lm, const Vec3d& pose_ab) {
   Clear();
   SetDetection(lanes_det, pose_ab);
   Association(lanes_lm);
@@ -67,15 +67,28 @@ std::vector<double> BipartiteLaneAssoc::GetDistThd(
   return dist_thds;
 }
 
-bool BipartiteLaneAssoc::Association(
-    const std::vector<LocalMapLane>& lanes_lm) {
-  if (lanes_lm.empty()) {
+bool BipartiteLaneAssoc::Association(std::vector<LocalMapLane>* lanes_lm) {
+  if (lanes_lm->empty()) {
     return false;
   }
-  num_lm_ = lanes_lm.size();
+  num_lm_ = lanes_lm->size();
   // 计算匹配分
   for (size_t i = 0; i < num_lm_; ++i) {
-    const LocalMapLane& map_lane = lanes_lm[i];
+    std::vector<Eigen::Vector3d> vehicle_points;
+    (*lanes_lm)[i].vehicle_lane_param_ = std::make_shared<LaneCubicSpline>();
+    for (const auto& v_point : (*lanes_lm)[i].points_) {
+      if (v_point.x() > 0.0 && v_point.x() < 100.0) {
+        vehicle_points.emplace_back(v_point);
+      }
+    }
+    if (vehicle_points.size() < 4) {
+      // HLOG_ERROR << "track points too small cant not create track vehicle
+      // lane";
+      continue;
+    }
+    CommonUtil::FitEKFLane(vehicle_points, (*lanes_lm)[i].vehicle_lane_param_);
+
+    const LocalMapLane& map_lane = (*lanes_lm)[i];
     for (size_t j = 0; j < num_det_; ++j) {
       const auto& lane_points = vehicle_det_xyzs_[j];
       float count = 0, valid_count = 0, size_point = lane_points.size();
@@ -120,7 +133,7 @@ bool BipartiteLaneAssoc::Association(
 void BipartiteLaneAssoc::SolveBipartiteGraphMatchWithGreedy(
     const std::vector<MatchScoreTuple>& match_score_list, size_t targets_size,
     size_t objects_size) {
-  HLOG_ERROR << "bipartite size: " << targets_size << ", " << objects_size;
+  // HLOG_ERROR << "bipartite size: " << targets_size << ", " << objects_size;
   target_used_mask_.resize(targets_size);
   target_used_mask_.assign(target_used_mask_.size(), false);
   det_used_mask_.resize(objects_size);
@@ -141,7 +154,7 @@ void BipartiteLaneAssoc::SolveBipartiteGraphMatchWithGreedy(
     map_det_lm_[det_index] = lm_index;
   }
 
-    // assign unassigned_obj_inds
+  // assign unassigned_obj_inds
   for (size_t i = 0; i < objects_size; ++i) {
     if (!det_used_mask_.at(i)) {
       association_result.unsigned_objects.push_back(i);
@@ -155,12 +168,12 @@ void BipartiteLaneAssoc::SolveBipartiteGraphMatchWithGreedy(
     }
   }
 
-  HLOG_ERROR << "Greedy AssociationResult: matched_pair_num:"
-             << association_result.assignments.size()
-             << ", unmatch tracker_num:"
-             << association_result.unassigned_tracks.size()
-             << ", unmatch detect_num:"
-             << association_result.unsigned_objects.size();
+  // HLOG_ERROR << "Greedy AssociationResult: matched_pair_num:"
+  //            << association_result.assignments.size()
+  //            << ", unmatch tracker_num:"
+  //            << association_result.unassigned_tracks.size()
+  //            << ", unmatch detect_num:"
+  //            << association_result.unsigned_objects.size();
 }
 
 void BipartiteLaneAssoc::Clear() {

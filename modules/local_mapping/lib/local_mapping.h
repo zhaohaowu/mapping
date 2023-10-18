@@ -118,10 +118,11 @@ class LMapApp {
       last_T_W_V_;
 
   std::mutex localmap_mutex_;
-  bool use_perception_match;
+  bool use_perception_match_;
+  bool use_bipartite_assoc_match_;
+  bool use_rviz_;
   bool dr_inited_;
   bool laneline_inited_;
-  bool use_bipartite_assoc_match_;
   std::shared_ptr<PtFilter> lane_filter_;
 
   double last_lane_timestamp_;

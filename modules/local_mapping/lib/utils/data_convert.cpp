@@ -40,12 +40,9 @@ void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
   lanes->timestamp_ = msg.header().gnss_stamp();
   for (size_t i = 0; i < msg.lane_size(); i++) {
     if (msg.lane()[i].lanepos() == hozon::perception::OTHER) continue;
-    if (msg.lane()[i].lanepos() == hozon::perception::RoadEdge) continue;
+    if (msg.lane()[i].lanetype() == hozon::perception::RoadEdge) continue;
     std::shared_ptr<Lane> lane = std::make_shared<Lane>();
     lane->lane_id_ = msg.lane()[i].track_id();
-    if (msg.lane()[i].lanepos() == hozon::perception::OTHER) {
-      continue;
-    }
     DataConvert::ConvertProtoLanePoseType(msg.lane()[i].lanepos(),
                                           &lane->pos_type_);
 

@@ -87,7 +87,7 @@ class BipartiteLaneAssoc {
 
   void SetDetection(const std::vector<LanePointsPtr>& lanes_det,
                     const Vec3d& pose_ab);
-  bool Association(const std::vector<LocalMapLane>& lanes_lm);
+  bool Association(std::vector<LocalMapLane>* lanes_lm);
 
   std::vector<double> GetDistThd(const std::vector<Eigen::Vector3d>& points);
   std::vector<Eigen::Vector3d> TranformPoints(
@@ -98,7 +98,7 @@ class BipartiteLaneAssoc {
 
   std::unordered_map<int, int> Process(
       const std::vector<LanePointsPtr>& lanes_det,
-      const std::vector<LocalMapLane>& lanes_lm, const Vec3d& pose_ab);
+      std::vector<LocalMapLane>* lanes_lm, const Vec3d& pose_ab);
 
   void Clear();
 };

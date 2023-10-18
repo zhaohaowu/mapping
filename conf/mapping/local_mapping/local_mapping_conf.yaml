@@ -1,6 +1,6 @@
 %YAML:1.0
 map_file: conf/mapping/map_fusion/data/amap_base_map.bin
-use_rviz: true
+use_rviz: false
 use_perception_match: false
 compute_error: false
 sample_interval: 1

@@ -38,7 +38,6 @@ void LaneAssoc::SetDetection(const std::vector<LanePointsPtr>& lanes_det,
 void LaneAssoc::SetLandmark(const std::vector<LocalMapLane>& lanes_lm) {
   num_lm_ = lanes_lm.size();
   for (size_t i = 0; i < lanes_lm.size(); ++i) {
-    if (lanes_lm[i].points_.size() == 0) continue;
     lm_xyzs_.push_back(lanes_lm[i].points_);
     if (lanes_lm[i].kdtree_ == nullptr) {
       std::vector<cv::Point2f> cv_points;
@@ -61,11 +60,14 @@ void LaneAssoc::AssociationKnn() {
   Matxd assoc_scores = Matxd::Zero(num_lm_, num_det_);
   Matxd assoc_dist = Matxd::Zero(num_lm_, num_det_);
   Matxd assoc_dist_thd = Matxd::Zero(num_lm_, num_det_);
-
   for (int i = 0; i < num_det_; ++i) {
     std::vector<Eigen::Vector3d> det_xyz = det_xyzs_[i];
     std::vector<double> distance_thd = det_knn_thd_[i];
     for (int j = 0; j < num_lm_; ++j) {
+      if (lm_kdtrees_[j] == nullptr) {
+        HLOG_ERROR << "invalid lm kd tree";
+        continue;
+      }
       int dist_match_cnt = 0;
       double dist_match_sum = 0;
       double dist_sum = 0;
@@ -79,7 +81,6 @@ void LaneAssoc::AssociationKnn() {
                                static_cast<float>(det_xyzs_[i][k].y())};
         lm_kdtrees_[j]->knnSearch(query_points, nearest_index, nearest_dist,
                                   dim, cv::flann::SearchParams(-1));
-
         if (std::sqrt(nearest_dist[0]) < det_knn_thd_[i][k]) {
           dist_match_sum += std::sqrt(nearest_dist[0]);
           dist_match_cnt++;
@@ -98,7 +99,6 @@ void LaneAssoc::AssociationKnn() {
   }
   // std::cout << assoc_scores << std::endl;
   Affinity2Assoc(assoc_scores);
-
   return;
 }
 

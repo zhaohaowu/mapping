@@ -33,17 +33,13 @@ class MapPredictionComponent final : public apollo::cyber::Component<> {
  private:
   void OnInsNodeInfo(
       const std::shared_ptr<hozon::localization::HafNodeInfo>& msg);
-  //   void OnLocalMap(const std::shared_ptr<const hozon::hdmap::Map>&
-  //   localMap);
   void OnHqMap(const std::shared_ptr<hozon::hdmap::Map>& hqMap);
-  // void OnLocalMap(const std::shared_ptr<LocalMap>& msg);
   void OnTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg);
 
+  std::shared_ptr<apollo::cyber::Writer<hozon::hdmap::Map>> pred_writer_ =
+      nullptr;
   std::shared_ptr<apollo::cyber::Reader<hozon::localization::HafNodeInfo>>
       ins_reader_ = nullptr;
-  //   std::shared_ptr<apollo::cyber::Reader<hozon::hdmap::Map>>
-  //   localMap_reader_ =
-  //       nullptr;
   std::shared_ptr<apollo::cyber::Reader<hozon::hdmap::Map>> hqMap_reader_ =
       nullptr;
   std::shared_ptr<apollo::cyber::Reader<hozon::hdmap::Map>> topo_reader_ =

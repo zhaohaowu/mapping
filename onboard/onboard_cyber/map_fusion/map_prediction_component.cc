@@ -15,6 +15,8 @@
 #include "proto/localization/node_info.pb.h"
 #include "util/temp_log.h"
 
+DEFINE_string(channel_pred_map, "mf/pred_map",
+              "channel of pred map from map prediction");
 DEFINE_string(channel_ins_node_info_mpc, "/PluginNodeInfo",
               "channel of ins msg from ins fusion");
 DEFINE_string(channel_topo_map_mpc, "mf/topo_map",
@@ -31,6 +33,7 @@ namespace mf {
 bool MapPredictionComponent::Init() {
   prediction_ = std::make_shared<MapPrediction>();
   prediction_->Init();
+  pred_writer_ = node_->CreateWriter<hozon::hdmap::Map>(FLAGS_channel_pred_map);
   ins_reader_ = node_->CreateReader<hozon::localization::HafNodeInfo>(
       FLAGS_channel_ins_node_info_mpc,
       [this](const std::shared_ptr<hozon::localization::HafNodeInfo>& msg) {
@@ -39,9 +42,6 @@ bool MapPredictionComponent::Init() {
   hqMap_reader_ = node_->CreateReader<hozon::hdmap::Map>(
       FLAGS_channel_hqMap_node_info,
       [this](const std::shared_ptr<hozon::hdmap::Map>& msg) { OnHqMap(msg); });
-  // lm_reader_ = node_->CreateReader<LocalMap>(
-  //     FLAGS_channel_LocalMap_node_info,
-  //     [this](const std::shared_ptr<LocalMap>& msg) { OnLocalMap(msg); });
   topo_reader_ = node_->CreateReader<hozon::hdmap::Map>(
       FLAGS_channel_topo_map_mpc,
       [this](const std::shared_ptr<hozon::hdmap::Map>& msg) {
@@ -52,44 +52,47 @@ bool MapPredictionComponent::Init() {
 
 void MapPredictionComponent::OnInsNodeInfo(
     const std::shared_ptr<hozon::localization::HafNodeInfo>& msg) {
+  if (!msg) {
+    HLOG_ERROR << "message ins node info is null";
+    return;
+  }
   if (!prediction_) {
     HLOG_ERROR << "nullptr prediction";
+    return;
   }
   prediction_->OnInsNodeInfo(msg);
 }
 
-// void MapPredictionComponent::OnLocalMap(
-//     const std::shared_ptr<const hozon::hdmap::Map>& msg) {
-//   if (!prediction_) {
-//     HLOG_ERROR << "nullptr prediction";
-//   }
-//   prediction_->OnLocalMap(msg);
-// }
-
 void MapPredictionComponent::OnHqMap(
     const std::shared_ptr<hozon::hdmap::Map>& msg) {
+  if (!msg) {
+    HLOG_ERROR << "message hq map is null";
+    return;
+  }
   if (!prediction_) {
     HLOG_ERROR << "nullptr prediction";
+    return;
   }
   prediction_->OnHqMap(msg);
 }
 
 void MapPredictionComponent::OnTopoMap(
     const std::shared_ptr<hozon::hdmap::Map>& msg) {
+  if (!msg) {
+    HLOG_ERROR << "message topo map is null";
+    return;
+  }
   if (!prediction_) {
     HLOG_ERROR << "nullptr prediction";
+    return;
   }
   prediction_->OnTopoMap(msg);
+
+  // 发送pred地图
+  auto map = prediction_->GetPredictionMap();
+  pred_writer_->Write(map);
 }
 
-// void MapPredictionComponent::OnLocalMap(const std::shared_ptr<LocalMap>& msg)
-// {
-//   if (!prediction_) {
-//     HLOG_ERROR << "nullptr tppo map assignment";
-//     return;
-//   }
-//   prediction_->OnLocalMap(msg);
-// }
 
 }  // namespace mf
 }  // namespace mp

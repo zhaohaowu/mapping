@@ -111,7 +111,7 @@ void TopoAssignment::OnInsNodeInfo(
   init_ = true;
 
   Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(vehicle_pose_, ref_point_);
-  VizLocation(enu, q_W_V, msg->header().publish_stamp());
+  VizLocation(enu, q_W_V, msg->header().gnss_stamp());
 
   {
     std::lock_guard<std::mutex> lock_pose(pose_mtx_);

@@ -1,4 +1,14 @@
 <cyber>
+   <module>
+    <name>map_dr</name>
+    <dag_conf>dag/mapping_dr.dag</dag_conf>
+    <process_name>map_dr</process_name>
+  </module>
+  <module>
+    <name>local_mapping</name>
+    <dag_conf>dag/mapping_local_mapping.dag</dag_conf>
+    <process_name>local_mapping</process_name>
+  </module>
   <module>
     <name>map_fusion</name>
     <dag_conf>dag/mapping_map_fusion.dag</dag_conf>

@@ -320,8 +320,6 @@ if __name__ == '__main__':
     elif platform == 'x86':
         x86_build(workspace, platform, build_directory, release_directory, **kwargs)
         # make_package(platform)
-        if kwargs['rviz']:
-            build_rviz_bridge(workspace, kwargs['jobs'])
         if kwargs['tool']:
             if kwargs['cyber']:
                 build_mapping_tool(workspace, release_directory, kwargs['jobs'])
@@ -332,3 +330,7 @@ if __name__ == '__main__':
         # make_package(platform)
     elif platform == 'all':
         all_build(workspace, platform, build_directory, release_directory, **kwargs)
+
+    # 构建rviz_bridge
+    if kwargs['rviz']:
+        build_rviz_bridge(workspace, kwargs['jobs'])

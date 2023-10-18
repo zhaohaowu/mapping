@@ -24,15 +24,7 @@ set(MAPPING ${CMAKE_CURRENT_SOURCE_DIR})
 set(DEPEND ${CMAKE_CURRENT_SOURCE_DIR}/depend)
 set(THIRDPARTY_ROOT ${DEPEND}/third_party)
 
-# MAPPING_LIB_PREFIX is defined in compile.py
-macro(add_mapping_library mlib)
-    add_library(${ARGV})
-    set_target_properties(${mlib} PROPERTIES OUTPUT_NAME ${MAPPING_LIB_PREFIX}${mlib})
-endmacro()
-macro(add_mapping_executable mexe)
-    add_executable(${ARGV})
-    set_target_properties(${mexe} PROPERTIES OUTPUT_NAME ${MAPPING_LIB_PREFIX}${mexe})
-endmacro()
+include(cmake/mapping.cmake)
 
 # MAPPING_SINGLE_MODULE_COMPILE is defined in compile.py
 if(MAPPING_SINGLE_MODULE_COMPILE)

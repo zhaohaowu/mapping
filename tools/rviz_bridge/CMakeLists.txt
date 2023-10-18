@@ -6,7 +6,20 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
 
 set(REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../..)
+get_filename_component(REPO_ROOT ${REPO_ROOT} ABSOLUTE)
 set(CMAKE_INSTALL_PREFIX ${REPO_ROOT}/release/ros)
+# required in FindProtobuf.cmake
+set(3RD_ROOT ${REPO_ROOT}/depend/third_party/x86_2004)
+set(3RD_ROOT_PROTOC ${3RD_ROOT}/protobuf)
+# for using protoc
+set(ENV{LD_LIBRARY_PATH} "$ENV{LD_LIBRARY_PATH}:${3RD_ROOT_PROTOC}/lib")
+# for using protobuf_generate_cpp() in adsfi_proto
+include(${3RD_ROOT}/../cmake/FindProtobuf.cmake)
+
+# required in mapping.cmake
+set(MAPPING_LIB_PREFIX mapping_)
+# for using add_mapping_library()
+include(${REPO_ROOT}/cmake/mapping.cmake)
 
 find_package(catkin REQUIRED COMPONENTS
     geometry_msgs
@@ -17,10 +30,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 catkin_package(
-    #  INCLUDE_DIRS include
-    #  LIBRARIES fusion-localization-internal
     CATKIN_DEPENDS geometry_msgs roscpp std_msgs tf tf2_ros
-    #  DEPENDS system_lib
 )
 
 include_directories(
@@ -30,11 +40,12 @@ include_directories(
     ${REPO_ROOT}/depend/third_party/x86_2004/zmq/include
     ${REPO_ROOT}/depend/third_party/x86_2004/gflags/include
     ${REPO_ROOT}/depend/third_party/x86_2004/glog/include
+    ${REPO_ROOT}/depend/third_party/x86_2004/eigen3/include
+    ${REPO_ROOT}/depend/third_party/x86_2004/yaml-cpp/include
     ${catkin_INCLUDE_DIRS}
 )
 
 link_directories(
-    ${REPO_ROOT}/release/x86/lib
     ${REPO_ROOT}/depend/third_party/x86_2004/protobuf/lib
     ${REPO_ROOT}/depend/third_party/x86_2004/zmq/lib
     ${REPO_ROOT}/depend/third_party/x86_2004/gflags/lib
@@ -42,14 +53,17 @@ link_directories(
     ${REPO_ROOT}/depend/third_party/x86_2004/yaml-cpp/lib
 )
 
+add_subdirectory(${REPO_ROOT}/interface interface)
+add_subdirectory(${REPO_ROOT}/modules/util util)
+
 add_executable(rviz_bridge
     src/rviz_bridge.cc
     src/type_converter.cc
 )
 
 target_link_libraries(rviz_bridge
-    mapping_adsfi_proto
-    mapping_util
+    adsfi_proto
+    util
     yaml-cpp
     gflags
     glog
@@ -70,7 +84,6 @@ install(
 
 set(PREPARE_FOR_ROS_SHELL "
     mkdir -p ros
-    cp -r -d x86/lib/libmapping_* ros/lib
     cp -r -d ../depend/third_party/x86_2004/protobuf/lib/lib* ros/lib
     cp -r -d ../depend/third_party/x86_2004/yaml-cpp/lib/lib* ros/lib
     cp -r -d ../depend/third_party/x86_2004/gflags/lib/lib* ros/lib

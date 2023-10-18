@@ -1,5 +1,7 @@
 project(util)
 
+include_directories(include)
+
 set(NODELINK_SRCS
     src/nodelink/core/linker.cc
     src/nodelink/core/node.cc

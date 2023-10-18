@@ -28,6 +28,7 @@ else()
     src/map_service/ehp/amap_system.cc
     src/map_service/map_proto_marker.cc
     src/map_service/map_service.cc
+    src/map_service/global_hd_map.cc
     )
   set(AMAP_LIBS
     base_utils

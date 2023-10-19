@@ -470,926 +470,191 @@ void TopoAssignment::OnLocalMap(
         case hozon::mapping::LanePositionType::LanePositionType_BOLLARD_LEFT:
           if (location_left_id_.size() >= 5) {
             hozon::hdmap::Id lane_id = location_left_id_[4];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-            lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_left_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                               hq_lane_left_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, true);
           } else {
             if (location_left_id_next_.size() >= 5) {
               hozon::hdmap::Id lane_id = location_left_id_next_[4];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_left_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                                 hq_lane_left_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-                lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, true);
             }
             if (location_left_id_next_.size() >= 6) {
               hozon::hdmap::Id lane_id = location_left_id_next_[5];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_right_points =
-                  GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_right_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                                 hq_lane_right_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-                lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, false);
             }
           }
           if (location_left_id_.size() >= 6) {
             hozon::hdmap::Id lane_id = location_left_id_[5];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-            lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_right_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                               hq_lane_right_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, false);
           }
           break;
         case hozon::mapping::LanePositionType::LanePositionType_FOURTH_LEFT:
           if (location_left_id_.size() >= 4) {
             hozon::hdmap::Id lane_id = location_left_id_[3];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-            lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_left_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                               hq_lane_left_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, true);
           } else {
             if (location_left_id_next_.size() >= 4) {
               hozon::hdmap::Id lane_id = location_left_id_next_[3];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_left_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                                 hq_lane_left_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-                lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, true);
             }
             if (location_left_id_next_.size() >= 5) {
               hozon::hdmap::Id lane_id = location_left_id_next_[4];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_right_points =
-                  GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_right_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                                 hq_lane_right_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-                lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, false);
             }
           }
           if (location_left_id_.size() >= 5) {
             hozon::hdmap::Id lane_id = location_left_id_[4];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-            lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_right_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                               hq_lane_right_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, false);
           }
           break;
         case hozon::mapping::LanePositionType::LanePositionType_THIRD_LEFT:
           if (location_left_id_.size() >= 3) {
             hozon::hdmap::Id lane_id = location_left_id_[2];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-            lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_left_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                               hq_lane_left_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, true);
           } else {
             if (location_left_id_next_.size() >= 3) {
               hozon::hdmap::Id lane_id = location_left_id_next_[2];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_left_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                                 hq_lane_left_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-                lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, true);
             }
             if (location_left_id_next_.size() >= 4) {
               hozon::hdmap::Id lane_id = location_left_id_next_[3];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_right_points =
-                  GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_right_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                                 hq_lane_right_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-                lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, false);
             }
           }
           if (location_left_id_.size() >= 4) {
             hozon::hdmap::Id lane_id = location_left_id_[3];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-            lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_right_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                               hq_lane_right_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, false);
           }
           break;
         case hozon::mapping::LanePositionType::LanePositionType_ADJACENT_LEFT:
           if (location_left_id_.size() >= 2) {
             hozon::hdmap::Id lane_id = location_left_id_[1];
-            // 这边可能需要判断hq_lane是不是空指 后续加上
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-            lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_left_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                               hq_lane_left_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              // 判断lane是否为空指针
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, true);
           } else {
             if (location_left_id_next_.size() >= 2) {
               hozon::hdmap::Id lane_id = location_left_id_next_[1];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_left_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                                 hq_lane_left_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-                lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, true);
             }
             if (location_left_id_next_.size() >= 3) {
               hozon::hdmap::Id lane_id = location_left_id_next_[2];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_right_points =
-                  GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_right_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                                 hq_lane_right_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-                lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, false);
             }
           }
           if (location_left_id_.size() >= 3) {
             hozon::hdmap::Id lane_id = location_left_id_[2];
-            // 这边可能需要判断hq_lane是不是空指针后续加上
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-            lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_right_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                               hq_lane_right_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, false);
           }
           break;
         case hozon::mapping::LanePositionType::LanePositionType_EGO_LEFT:
           if (location_left_id_.size() >= 1) {
             hozon::hdmap::Id lane_id = location_left_id_[0];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-            lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_left_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                               hq_lane_left_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, true);
           } else {
             if (location_left_id_next_.size() >= 1) {
               hozon::hdmap::Id lane_id = location_left_id_next_[0];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_left_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                                 hq_lane_left_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-                lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, true);
             }
             if (location_left_id_next_.size() >= 2) {
               hozon::hdmap::Id lane_id = location_left_id_next_[1];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_right_points =
-                  GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_right_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                                 hq_lane_right_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-                lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, false);
             }
           }
           if (location_left_id_.size() >= 2) {
             hozon::hdmap::Id lane_id = location_left_id_[1];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-            lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_right_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                               hq_lane_right_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, false);
           }
           break;
         case hozon::mapping::LanePositionType::LanePositionType_EGO_RIGHT:
           if (location_left_id_.size() >= 1) {
             hozon::hdmap::Id lane_id = location_left_id_[0];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-            lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_right_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                               hq_lane_right_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, false);
           } else {
             if (location_left_id_next_.size() >= 1) {
               hozon::hdmap::Id lane_id = location_left_id_next_[0];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_right_points =
-                  GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_right_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                                 hq_lane_right_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-                lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, false);
             }
             if (location_right_id_next_.size() >= 1) {
               hozon::hdmap::Id lane_id = location_right_id_next_[0];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_left_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                                 hq_lane_left_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-                lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, true);
             }
           }
           if (location_right_id_.size() >= 1) {
             hozon::hdmap::Id lane_id = location_right_id_[0];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-            lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_left_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                               hq_lane_left_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, true);
           }
           break;
         case hozon::mapping::LanePositionType::LanePositionType_ADJACENT_RIGHT:
           if (location_right_id_.size() >= 1) {
             hozon::hdmap::Id lane_id = location_right_id_[0];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-            lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_right_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                               hq_lane_right_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, false);
           } else {
             if (location_right_id_next_.size() >= 1) {
               hozon::hdmap::Id lane_id = location_right_id_next_[0];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_right_points =
-                  GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_right_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                                 hq_lane_right_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-                lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, false);
             }
             if (location_right_id_next_.size() >= 2) {
               hozon::hdmap::Id lane_id = location_right_id_next_[1];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_left_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                                 hq_lane_left_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-                lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, true);
             }
           }
           if (location_right_id_.size() >= 2) {
             hozon::hdmap::Id lane_id = location_right_id_[1];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-            lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_left_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                               hq_lane_left_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, true);
           }
           break;
         case hozon::mapping::LanePositionType::LanePositionType_THIRD_RIGHT:
           if (location_right_id_.size() >= 2) {
             hozon::hdmap::Id lane_id = location_right_id_[1];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-            lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_right_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                               hq_lane_right_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, false);
           } else {
             if (location_right_id_next_.size() >= 2) {
               hozon::hdmap::Id lane_id = location_right_id_next_[1];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_right_points =
-                  GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_right_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                                 hq_lane_right_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-                lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, false);
             }
             if (location_right_id_next_.size() >= 3) {
               hozon::hdmap::Id lane_id = location_right_id_next_[2];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_left_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                                 hq_lane_left_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-                lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, true);
             }
           }
           if (location_right_id_.size() >= 3) {
             hozon::hdmap::Id lane_id = location_right_id_[2];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-            lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_left_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                               hq_lane_left_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, true);
           }
           break;
         case hozon::mapping::LanePositionType::LanePositionType_FOURTH_RIGHT:
           if (location_right_id_.size() >= 3) {
             hozon::hdmap::Id lane_id = location_right_id_[2];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-            lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_right_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                               hq_lane_right_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, false);
           } else {
             if (location_right_id_next_.size() >= 3) {
               hozon::hdmap::Id lane_id = location_right_id_next_[2];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_right_points =
-                  GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_right_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                                 hq_lane_right_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-                lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, false);
             }
             if (location_right_id_next_.size() >= 4) {
               hozon::hdmap::Id lane_id = location_right_id_next_[3];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_left_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                                 hq_lane_left_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-                lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, true);
             }
           }
           if (location_right_id_.size() >= 4) {
             hozon::hdmap::Id lane_id = location_right_id_[3];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-            lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_left_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                               hq_lane_left_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, true);
           }
           break;
         case hozon::mapping::LanePositionType::LanePositionType_BOLLARD_RIGHT:
           if (location_right_id_.size() >= 4) {
             hozon::hdmap::Id lane_id = location_right_id_[3];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-            lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_right_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                               hq_lane_right_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, false);
           } else {
             if (location_right_id_next_.size() >= 4) {
               hozon::hdmap::Id lane_id = location_right_id_next_[3];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_right_points =
-                  GetLaneStartAndEndPoint(hq_lane, false);
-              lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_right_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_right_points[0],
-                                                 hq_lane_right_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane, false);
-                lane_line.right_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, false);
             }
             if (location_right_id_next_.size() >= 5) {
               hozon::hdmap::Id lane_id = location_right_id_next_[4];
-              auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-              auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              while (!hq_lane_left_points.empty() &&
-                     !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                                 hq_lane_left_points[1], p1)) {
-                if (hq_lane.successor_id().empty()) {
-                  break;
-                }
-                auto successor_id_size = hq_lane.successor_id().size();
-                auto lane = hq_map_server_->GetLaneById(
-                    hq_lane.successor_id(successor_id_size - 1));
-                if (!lane) {
-                  break;
-                }
-                hq_lane.CopyFrom(lane->lane());
-                hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-                lane_line.left_lanes.emplace_back(hq_lane.id().id());
-              }
+              AppendLaneLine(lane_id, &lane_line, p1, true);
             }
           }
           if (location_right_id_.size() >= 5) {
             hozon::hdmap::Id lane_id = location_right_id_[4];
-            auto hq_lane = hq_map_server_->GetLaneById(lane_id)->lane();
-            auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-            lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            while (!hq_lane_left_points.empty() &&
-                   !PerpendicularFootInSegment(hq_lane_left_points[0],
-                                               hq_lane_left_points[1], p1)) {
-              if (hq_lane.successor_id().empty()) {
-                break;
-              }
-              auto successor_id_size = hq_lane.successor_id().size();
-              auto lane = hq_map_server_->GetLaneById(
-                  hq_lane.successor_id(successor_id_size - 1));
-              if (!lane) {
-                break;
-              }
-              hq_lane.CopyFrom(lane->lane());
-              hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
-              lane_line.left_lanes.emplace_back(hq_lane.id().id());
-            }
+            AppendLaneLine(lane_id, &lane_line, p1, true);
           }
           break;
 
@@ -1435,65 +700,7 @@ void TopoAssignment::OnLocalMap(
 
     // 从all_lanelines构造all_lanes
     std::map<std::string, Lane> all_lanes;
-    // 先构造left_lanes和right_lanes
-    for (const auto& line_it : all_lanelines_) {
-      for (const auto& left_lane_it : line_it.second.left_lanes) {
-        if (all_lanes.find(left_lane_it) == all_lanes.end()) {
-          Lane lane;
-          lane.id = left_lane_it;
-          lane.left_lines.emplace_back(line_it.second.id);
-          all_lanes[left_lane_it] = lane;
-        } else {
-          all_lanes[left_lane_it].left_lines.emplace_back(line_it.second.id);
-        }
-      }
-      for (const auto& right_lane_it : line_it.second.right_lanes) {
-        if (all_lanes.find(right_lane_it) == all_lanes.end()) {
-          Lane lane;
-          lane.id = right_lane_it;
-          lane.right_lines.emplace_back(line_it.second.id);
-          all_lanes[right_lane_it] = lane;
-        } else {
-          all_lanes[right_lane_it].right_lines.emplace_back(line_it.second.id);
-        }
-      }
-    }
-
-    // 再构造前后左右
-    for (auto& lane_it : all_lanes) {
-      hozon::hdmap::Id lane_id;
-      lane_id.set_id(lane_it.second.id);
-      auto hq_lane = hq_map_server_->GetLaneById(lane_id);
-      if (!hq_lane) {
-        continue;
-      }
-      for (const auto& left_lane_it :
-           hq_lane->lane().left_neighbor_forward_lane_id()) {
-        auto left_lane_it_id = left_lane_it.id();
-        if (all_lanes.find(left_lane_it_id) != all_lanes.end()) {
-          lane_it.second.left_lanes.emplace_back(left_lane_it_id);
-        }
-      }
-      for (const auto& right_lane_it :
-           hq_lane->lane().right_neighbor_forward_lane_id()) {
-        auto right_lane_it_id = right_lane_it.id();
-        if (all_lanes.find(right_lane_it_id) != all_lanes.end()) {
-          lane_it.second.right_lanes.emplace_back(right_lane_it_id);
-        }
-      }
-      for (const auto& prev_lane_it : hq_lane->lane().predecessor_id()) {
-        auto prev_lane_it_id = prev_lane_it.id();
-        if (all_lanes.find(prev_lane_it_id) != all_lanes.end()) {
-          lane_it.second.prev_lanes.emplace_back(prev_lane_it_id);
-        }
-      }
-      for (const auto& next_lane_it : hq_lane->lane().successor_id()) {
-        auto next_lane_it_id = next_lane_it.id();
-        if (all_lanes.find(next_lane_it_id) != all_lanes.end()) {
-          lane_it.second.next_lanes.emplace_back(next_lane_it_id);
-        }
-      }
-    }
+    AppendLane(all_lanelines_, &all_lanes);
 
     // // debug信息看看all_lanelines
     // for (const auto& lane : all_lanes) {
@@ -1530,446 +737,8 @@ void TopoAssignment::OnLocalMap(
     // all_lanes构造topo map
 
     topo_map_ = std::make_shared<hozon::hdmap::Map>();
-    for (const auto& lane_it : all_lanes) {
-      // 通过lane id 拿到首尾两个点
-      hozon::hdmap::Id lane_id;
-      lane_id.set_id(lane_it.second.id);
-
-      auto hq_lane = hq_map_server_->GetLaneById(lane_id);
-      // 这边需要判断hq_lane是不是空指针后面加上
-      if (!hq_lane) {
-        continue;
-      }
-
-      // 后续需要该一下改成map里面有点再加入
-      auto lane = topo_map_->add_lane();
-      lane->mutable_id()->set_id(lane_it.second.id);
-      for (const auto& left_lane_it : lane_it.second.left_lanes) {
-        lane->add_left_neighbor_forward_lane_id()->set_id(left_lane_it);
-      }
-      for (const auto& right_lane_it : lane_it.second.right_lanes) {
-        lane->add_right_neighbor_forward_lane_id()->set_id(right_lane_it);
-      }
-      for (const auto& prev_lane_it : lane_it.second.prev_lanes) {
-        lane->add_predecessor_id()->set_id(prev_lane_it);
-      }
-      for (const auto& next_lane_it : lane_it.second.next_lanes) {
-        lane->add_successor_id()->set_id(next_lane_it);
-      }
-      // 更新topo map的左右车道线
-
-      auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane->lane(), true);
-      auto hq_lane_right_points =
-          GetLaneStartAndEndPoint(hq_lane->lane(), false);
-      auto hq_lane_left_points_size = hq_lane_left_points.size();
-      auto hq_lane_right_points_size = hq_lane_right_points.size();
-
-      for (const auto& left_line_it : lane_it.second.left_lines) {
-        // 打断给到lane_it 里面去
-        bool flag_p0 = false;
-        bool flag_p1 = false;
-        bool flag_pt = false;
-        if (all_lanelines_.find(left_line_it) != all_lanelines_.end()) {
-          if (!all_lanelines_[left_line_it].points.empty()) {
-            auto start_point = all_lanelines_[left_line_it].points[0];
-            auto point_size = all_lanelines_[left_line_it].points.size();
-            auto end_point =
-                all_lanelines_[left_line_it].points[point_size - 1];
-
-            Eigen::Vector2d p0(start_point.x(), start_point.y());
-            Eigen::Vector2d p1(end_point.x(), end_point.y());
-
-            if (!hq_lane_left_points.empty()) {
-              flag_p0 = PerpendicularFootInSegment(
-                  hq_lane_left_points[0],
-                  hq_lane_left_points[hq_lane_left_points_size - 1], p0);
-              flag_p1 = PerpendicularFootInSegment(
-                  hq_lane_left_points[0],
-                  hq_lane_left_points[hq_lane_left_points_size - 1], p1);
-              flag_pt =
-                  PerpendicularFootInSegment(p0, p1, hq_lane_left_points[0]);
-            }
-            if (flag_p0 && flag_p1) {
-              // 不用找index
-              hozon::hdmap::LaneBoundary lane_boundary;
-              auto segment = lane_boundary.mutable_curve()->add_segment();
-              for (const auto& point : all_lanelines_[left_line_it].points) {
-                auto topo_point = segment->mutable_line_segment()->add_point();
-                topo_point->set_x(point.x());
-                topo_point->set_y(point.y());
-                topo_point->set_z(point.z());
-              }
-              lane->mutable_left_boundary()->CopyFrom(lane_boundary);
-            }
-            if (flag_p0 && !flag_p1) {
-              // 找到后面一个点最近的index
-              auto index = FindNearestPointIndex(
-                  hq_lane_left_points[hq_lane_left_points_size - 1],
-                  all_lanelines_[left_line_it].points);
-              hozon::hdmap::LaneBoundary lane_boundary;
-              auto segment = lane_boundary.mutable_curve()->add_segment();
-              for (int i = 0; i <= index; ++i) {
-                auto topo_point = segment->mutable_line_segment()->add_point();
-                topo_point->set_x(all_lanelines_[left_line_it].points[i].x());
-                topo_point->set_y(all_lanelines_[left_line_it].points[i].y());
-                topo_point->set_z(all_lanelines_[left_line_it].points[i].z());
-              }
-              lane->mutable_left_boundary()->CopyFrom(lane_boundary);
-            }
-            if (!flag_p0 && flag_p1) {
-              // 找到前面一个点最近的index
-              auto index = FindNearestPointIndex(
-                  hq_lane_left_points[0], all_lanelines_[left_line_it].points);
-              hozon::hdmap::LaneBoundary lane_boundary;
-              auto segment = lane_boundary.mutable_curve()->add_segment();
-              for (int i = index; i < point_size; ++i) {
-                auto topo_point = segment->mutable_line_segment()->add_point();
-                topo_point->set_x(all_lanelines_[left_line_it].points[i].x());
-                topo_point->set_y(all_lanelines_[left_line_it].points[i].y());
-                topo_point->set_z(all_lanelines_[left_line_it].points[i].z());
-              }
-              lane->mutable_left_boundary()->CopyFrom(lane_boundary);
-            }
-            if (!flag_p0 && !flag_p1 && flag_pt) {
-              // 找到两个点最近的index
-              auto index_start = FindNearestPointIndex(
-                  hq_lane_left_points[0], all_lanelines_[left_line_it].points);
-              auto index_end = FindNearestPointIndex(
-                  hq_lane_left_points[hq_lane_left_points_size - 1],
-                  all_lanelines_[left_line_it].points);
-              hozon::hdmap::LaneBoundary lane_boundary;
-              auto segment = lane_boundary.mutable_curve()->add_segment();
-              for (int i = index_start; i <= index_end; ++i) {
-                auto topo_point = segment->mutable_line_segment()->add_point();
-                topo_point->set_x(all_lanelines_[left_line_it].points[i].x());
-                topo_point->set_y(all_lanelines_[left_line_it].points[i].y());
-                topo_point->set_z(all_lanelines_[left_line_it].points[i].z());
-              }
-              lane->mutable_left_boundary()->CopyFrom(lane_boundary);
-            }
-          }
-        }
-      }
-      for (const auto& right_line_it : lane_it.second.right_lines) {
-        // 打断给到lant_it 里面去
-        bool flag_p0 = false;
-        bool flag_p1 = false;
-        bool flag_pt = false;
-        if (all_lanelines_.find(right_line_it) != all_lanelines_.end()) {
-          if (!all_lanelines_[right_line_it].points.empty()) {
-            auto start_point = all_lanelines_[right_line_it].points[0];
-            auto point_size = all_lanelines_[right_line_it].points.size();
-            auto end_point =
-                all_lanelines_[right_line_it].points[point_size - 1];
-
-            Eigen::Vector2d p0(start_point.x(), start_point.y());
-            Eigen::Vector2d p1(end_point.x(), end_point.y());
-
-            if (!hq_lane_right_points.empty()) {
-              auto point_size = hq_lane_right_points.size();
-              flag_p0 = PerpendicularFootInSegment(
-                  hq_lane_right_points[0],
-                  hq_lane_right_points[hq_lane_right_points_size - 1], p0);
-              flag_p1 = PerpendicularFootInSegment(
-                  hq_lane_right_points[0],
-                  hq_lane_right_points[hq_lane_right_points_size - 1], p1);
-              flag_pt =
-                  PerpendicularFootInSegment(p0, p1, hq_lane_right_points[0]);
-            }
-            if (flag_p0 && flag_p1) {
-              // 不用找index
-              hozon::hdmap::LaneBoundary lane_boundary;
-              auto segment = lane_boundary.mutable_curve()->add_segment();
-              for (const auto& point : all_lanelines_[right_line_it].points) {
-                auto topo_point = segment->mutable_line_segment()->add_point();
-                topo_point->set_x(point.x());
-                topo_point->set_y(point.y());
-                topo_point->set_z(point.z());
-              }
-              lane->mutable_right_boundary()->CopyFrom(lane_boundary);
-            }
-            if (flag_p0 && !flag_p1) {
-              // 找到后面一个点最近的index
-              auto index = FindNearestPointIndex(
-                  hq_lane_right_points[hq_lane_right_points_size - 1],
-                  all_lanelines_[right_line_it].points);
-              hozon::hdmap::LaneBoundary lane_boundary;
-              auto segment = lane_boundary.mutable_curve()->add_segment();
-              for (int i = 0; i <= index; ++i) {
-                auto topo_point = segment->mutable_line_segment()->add_point();
-                topo_point->set_x(all_lanelines_[right_line_it].points[i].x());
-                topo_point->set_y(all_lanelines_[right_line_it].points[i].y());
-                topo_point->set_z(all_lanelines_[right_line_it].points[i].z());
-              }
-              lane->mutable_right_boundary()->CopyFrom(lane_boundary);
-            }
-            if (!flag_p0 && flag_p1) {
-              // 找到前面一个点最近的index
-              auto index =
-                  FindNearestPointIndex(hq_lane_right_points[0],
-                                        all_lanelines_[right_line_it].points);
-              hozon::hdmap::LaneBoundary lane_boundary;
-              auto segment = lane_boundary.mutable_curve()->add_segment();
-              for (int i = index; i < point_size; ++i) {
-                auto topo_point = segment->mutable_line_segment()->add_point();
-                topo_point->set_x(all_lanelines_[right_line_it].points[i].x());
-                topo_point->set_y(all_lanelines_[right_line_it].points[i].y());
-                topo_point->set_z(all_lanelines_[right_line_it].points[i].z());
-              }
-              lane->mutable_right_boundary()->CopyFrom(lane_boundary);
-            }
-            if (!flag_p0 && !flag_p1 && flag_pt) {
-              // 找到两个点最近的index
-              auto index_start =
-                  FindNearestPointIndex(hq_lane_right_points[0],
-                                        all_lanelines_[right_line_it].points);
-              auto index_end = FindNearestPointIndex(
-                  hq_lane_right_points[hq_lane_right_points_size - 1],
-                  all_lanelines_[right_line_it].points);
-              hozon::hdmap::LaneBoundary lane_boundary;
-              auto segment = lane_boundary.mutable_curve()->add_segment();
-              for (int i = index_start; i <= index_end; ++i) {
-                auto topo_point = segment->mutable_line_segment()->add_point();
-                topo_point->set_x(all_lanelines_[right_line_it].points[i].x());
-                topo_point->set_y(all_lanelines_[right_line_it].points[i].y());
-                topo_point->set_z(all_lanelines_[right_line_it].points[i].z());
-              }
-              lane->mutable_right_boundary()->CopyFrom(lane_boundary);
-            }
-          }
-        }
-      }
-    }
+    AppendTopoMap(all_lanes, topo_map_);
   }
-
-  // // 先不考虑历史信息，全部赋予拓扑
-  // hozon::hdmap::LaneBoundary lb_0;
-  // hozon::hdmap::LaneBoundary lb_1;
-  // hozon::hdmap::LaneBoundary lb_2;
-  // hozon::hdmap::LaneBoundary lb_3;
-  // hozon::hdmap::LaneBoundary lb_4;
-  // hozon::hdmap::LaneBoundary lb_5;
-  // hozon::hdmap::LaneBoundary lb_6;
-  // hozon::hdmap::LaneBoundary lb_7;
-
-  // for (const auto& lane : msg->lanes()) {
-  //   if (lane.points_size() <= 0) {
-  //     continue;
-  //   }
-  //   // HLOG_ERROR << "lane size:" << lane.points_size();
-  //   // HLOG_ERROR << "lane size track id:" << lane.track_id();
-  //   // HLOG_ERROR << "lane size lanepos:" << lane.lanepos();
-  //   switch (lane.lanepos()) {
-  //     case hozon::mapping::LanePositionType::LanePositionType_EGO_LEFT: {
-  //       auto segment = lb_0.mutable_curve()->add_segment();
-  //       for (const auto& point : lane.points()) {
-  //         Eigen::Vector3d point_local(point.x(), point.y(), point.z());
-  //         Eigen::Vector3d point_enu = T_U_W * point_local;
-  //         auto topo_point = segment->mutable_line_segment()->add_point();
-  //         topo_point->set_x(point_enu.x());
-  //         topo_point->set_y(point_enu.y());
-  //         topo_point->set_z(point_enu.z());
-  //       }
-  //       break;
-  //     }
-
-  //     case hozon::mapping::LanePositionType::LanePositionType_EGO_RIGHT: {
-  //       auto segment = lb_1.mutable_curve()->add_segment();
-  //       for (const auto& point : lane.points()) {
-  //         Eigen::Vector3d point_local(point.x(), point.y(), point.z());
-  //         Eigen::Vector3d point_enu = T_U_W * point_local;
-  //         auto topo_point = segment->mutable_line_segment()->add_point();
-  //         topo_point->set_x(point_enu.x());
-  //         topo_point->set_y(point_enu.y());
-  //         topo_point->set_z(point_enu.z());
-  //       }
-  //       break;
-  //     }
-
-  //     case
-  //     hozon::mapping::LanePositionType::LanePositionType_ADJACENT_RIGHT:
-  //     {
-  //       auto segment = lb_2.mutable_curve()->add_segment();
-  //       for (const auto& point : lane.points()) {
-  //         Eigen::Vector3d point_local(point.x(), point.y(), point.z());
-  //         Eigen::Vector3d point_enu = T_U_W * point_local;
-  //         auto topo_point = segment->mutable_line_segment()->add_point();
-  //         topo_point->set_x(point_enu.x());
-  //         topo_point->set_y(point_enu.y());
-  //         topo_point->set_z(point_enu.z());
-  //       }
-  //       break;
-  //     }
-
-  //     case hozon::mapping::LanePositionType::LanePositionType_THIRD_RIGHT:
-  //     {
-  //       auto segment = lb_3.mutable_curve()->add_segment();
-  //       for (const auto& point : lane.points()) {
-  //         Eigen::Vector3d point_local(point.x(), point.y(), point.z());
-  //         Eigen::Vector3d point_enu = T_U_W * point_local;
-  //         auto topo_point = segment->mutable_line_segment()->add_point();
-  //         topo_point->set_x(point_enu.x());
-  //         topo_point->set_y(point_enu.y());
-  //         topo_point->set_z(point_enu.z());
-  //       }
-  //       break;
-  //     }
-
-  //     case hozon::mapping::LanePositionType::LanePositionType_FOURTH_RIGHT:
-  //     {
-  //       auto segment = lb_4.mutable_curve()->add_segment();
-  //       for (const auto& point : lane.points()) {
-  //         Eigen::Vector3d point_local(point.x(), point.y(), point.z());
-  //         Eigen::Vector3d point_enu = T_U_W * point_local;
-  //         auto topo_point = segment->mutable_line_segment()->add_point();
-  //         topo_point->set_x(point_enu.x());
-  //         topo_point->set_y(point_enu.y());
-  //         topo_point->set_z(point_enu.z());
-  //       }
-  //       break;
-  //     }
-
-  //     case
-  //     hozon::mapping::LanePositionType::LanePositionType_ADJACENT_LEFT:
-  //     {
-  //       auto segment = lb_5.mutable_curve()->add_segment();
-  //       for (const auto& point : lane.points()) {
-  //         Eigen::Vector3d point_local(point.x(), point.y(), point.z());
-  //         Eigen::Vector3d point_enu = T_U_W * point_local;
-  //         auto topo_point = segment->mutable_line_segment()->add_point();
-  //         topo_point->set_x(point_enu.x());
-  //         topo_point->set_y(point_enu.y());
-  //         topo_point->set_z(point_enu.z());
-  //       }
-  //       break;
-  //     }
-
-  //     case hozon::mapping::LanePositionType::LanePositionType_THIRD_LEFT: {
-  //       auto segment = lb_6.mutable_curve()->add_segment();
-  //       for (const auto& point : lane.points()) {
-  //         Eigen::Vector3d point_local(point.x(), point.y(), point.z());
-  //         Eigen::Vector3d point_enu = T_U_W * point_local;
-  //         auto topo_point = segment->mutable_line_segment()->add_point();
-  //         topo_point->set_x(point_enu.x());
-  //         topo_point->set_y(point_enu.y());
-  //         topo_point->set_z(point_enu.z());
-  //       }
-  //       break;
-  //     }
-
-  //     case hozon::mapping::LanePositionType::LanePositionType_FOURTH_LEFT:
-  //     {
-  //       auto segment = lb_7.mutable_curve()->add_segment();
-  //       for (const auto& point : lane.points()) {
-  //         Eigen::Vector3d point_local(point.x(), point.y(), point.z());
-  //         Eigen::Vector3d point_enu = T_U_W * point_local;
-  //         auto topo_point = segment->mutable_line_segment()->add_point();
-  //         topo_point->set_x(point_enu.x());
-  //         topo_point->set_y(point_enu.y());
-  //         topo_point->set_z(point_enu.z());
-  //       }
-  //       break;
-  //     }
-  //     default:
-  //       break;
-  //   }
-  // }
-
-  // {
-  //   std::lock_guard<std::mutex> lock_map(map_mtx_);
-  //   topo_map_ = std::make_shared<hozon::hdmap::Map>();
-  //   if (location_left_id_.size() >= 1 && !lb_0.curve().segment().empty() &&
-  //       !lb_1.curve().segment().empty()) {
-  //     auto lane = topo_map_->add_lane();
-  //     lane->mutable_left_boundary()->CopyFrom(lb_0);
-  //     lane->mutable_right_boundary()->CopyFrom(lb_1);
-  //     lane->mutable_id()->set_id(location_left_id_[0].id().c_str());
-  //   }
-
-  //   if (location_left_id_.size() >= 2 && !lb_0.curve().segment().empty() &&
-  //       !lb_5.curve().segment().empty() && topo_map_->lane_size() >= 1) {
-  //     auto lane = topo_map_->add_lane();
-  //     lane->mutable_left_boundary()->CopyFrom(lb_5);
-  //     lane->mutable_right_boundary()->CopyFrom(lb_0);
-  //     lane->mutable_id()->set_id(location_left_id_[1].id().c_str());
-  //     topo_map_->mutable_lane(0)->add_left_neighbor_forward_lane_id()->set_id(
-  //         location_left_id_[1].id().c_str());
-  //     lane->add_right_neighbor_forward_lane_id()->set_id(
-  //         location_left_id_[0].id().c_str());
-  //   }
-  //   if (location_left_id_.size() >= 3 && !lb_5.curve().segment().empty() &&
-  //       !lb_6.curve().segment().empty() && topo_map_->lane_size() >= 2) {
-  //     auto lane = topo_map_->add_lane();
-  //     lane->mutable_left_boundary()->CopyFrom(lb_6);
-  //     lane->mutable_right_boundary()->CopyFrom(lb_5);
-  //     lane->mutable_id()->set_id(location_left_id_[2].id().c_str());
-  //     topo_map_->mutable_lane(1)->add_left_neighbor_forward_lane_id()->set_id(
-  //         location_left_id_[2].id().c_str());
-  //     lane->add_right_neighbor_forward_lane_id()->set_id(
-  //         location_left_id_[1].id().c_str());
-  //   }
-  //   if (location_left_id_.size() >= 4 && !lb_6.curve().segment().empty() &&
-  //       !lb_7.curve().segment().empty() && topo_map_->lane_size() >= 3) {
-  //     auto lane = topo_map_->add_lane();
-  //     lane->mutable_left_boundary()->CopyFrom(lb_7);
-  //     lane->mutable_right_boundary()->CopyFrom(lb_6);
-  //     lane->mutable_id()->set_id(location_left_id_[3].id().c_str());
-  //     topo_map_->mutable_lane(2)->add_left_neighbor_forward_lane_id()->set_id(
-  //         location_left_id_[3].id().c_str());
-  //     lane->add_right_neighbor_forward_lane_id()->set_id(
-  //         location_left_id_[2].id().c_str());
-  //   }
-  //   if (location_right_id_.size() >= 1 && !lb_1.curve().segment().empty()
-  //   &&
-  //       !lb_2.curve().segment().empty() && topo_map_->lane_size() >= 1) {
-  //     auto lane = topo_map_->add_lane();
-  //     lane->mutable_left_boundary()->CopyFrom(lb_1);
-  //     lane->mutable_right_boundary()->CopyFrom(lb_2);
-  //     lane->mutable_id()->set_id(location_right_id_[0].id().c_str());
-  //     topo_map_->mutable_lane(0)->add_right_neighbor_forward_lane_id()->set_id(
-  //         location_right_id_[0].id().c_str());
-  //     lane->add_left_neighbor_forward_lane_id()->set_id(
-  //         location_left_id_[0].id().c_str());
-  //   }
-  //   if (location_right_id_.size() >= 2 && !lb_2.curve().segment().empty()
-  //   &&
-  //       !lb_3.curve().segment().empty() &&
-  //       topo_map_->lane_size() >= (location_left_id_.size() + 1)) {
-  //     auto lane = topo_map_->add_lane();
-  //     lane->mutable_left_boundary()->CopyFrom(lb_2);
-  //     lane->mutable_right_boundary()->CopyFrom(lb_3);
-  //     lane->mutable_id()->set_id(location_right_id_[1].id().c_str());
-  //     topo_map_->mutable_lane(location_left_id_.size())
-  //         ->add_right_neighbor_forward_lane_id()
-  //         ->set_id(location_right_id_[1].id().c_str());
-  //     lane->add_left_neighbor_forward_lane_id()->set_id(
-  //         location_right_id_[0].id().c_str());
-  //   }
-  //   if (location_right_id_.size() >= 3 && !lb_3.curve().segment().empty()
-  //   &&
-  //       !lb_4.curve().segment().empty() &&
-  //       topo_map_->lane_size() >= (location_left_id_.size() + 2)) {
-  //     auto lane = topo_map_->add_lane();
-  //     lane->mutable_left_boundary()->CopyFrom(lb_3);
-  //     lane->mutable_right_boundary()->CopyFrom(lb_4);
-  //     lane->mutable_id()->set_id(location_right_id_[2].id().c_str());
-  //     topo_map_->mutable_lane(location_left_id_.size() + 1)
-  //         ->add_right_neighbor_forward_lane_id()
-  //         ->set_id(location_right_id_[2].id().c_str());
-  //     lane->add_left_neighbor_forward_lane_id()->set_id(
-  //         location_right_id_[1].id().c_str());
-  //   }
-
-  //   // std::vector<adsfi_proto::viz::MarkerArray> result =
-  //   //     marker_rviz_.LaneToMarker(topo_map_, ref_point_);
-  //   // adsfi_proto::viz::MarkerArray lane = result[0];
-  //   // adsfi_proto::viz::MarkerArray left = result[1];
-  //   // adsfi_proto::viz::MarkerArray right = result[2];
-
-  //   // // RVIZ_AGENT.Publish("lane", lane);
-  //   // RVIZ_AGENT.Publish(KTopicTopoAsignTopoMapRoad, left);
-  //   // RVIZ_AGENT.Publish(KTopicTopoAsignTopoMapLane, right);
-  // }
 
   VizTopoMap(topo_map_);
   // VizLocalMap(msg);
@@ -1989,6 +758,316 @@ void TopoAssignment::OnLocalMapLocation(
 std::shared_ptr<hozon::hdmap::Map> TopoAssignment::GetTopoMap() {
   std::lock_guard<std::mutex> lock_map(map_mtx_);
   return topo_map_;
+}
+
+void TopoAssignment::AppendLaneLine(const hozon::hdmap::Id& lane_id,
+                                    hozon::mp::mf::LaneLine* lane_line,
+                                    const Eigen::Vector2d& p1,
+                                    const bool left) {
+  auto hq_lane_ptr = hq_map_server_->GetLaneById(lane_id);
+  if (hq_lane_ptr) {
+    auto hq_lane = hq_lane_ptr->lane();
+    auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
+    if (left) {
+      lane_line->left_lanes.emplace_back(hq_lane.id().id());
+    } else {
+      lane_line->right_lanes.emplace_back(hq_lane.id().id());
+    }
+
+    while (!hq_lane_left_points.empty() &&
+           !PerpendicularFootInSegment(hq_lane_left_points[0],
+                                       hq_lane_left_points[1], p1)) {
+      if (hq_lane.successor_id().empty()) {
+        break;
+      }
+      auto successor_id_size = hq_lane.successor_id().size();
+      auto lane = hq_map_server_->GetLaneById(
+          hq_lane.successor_id(successor_id_size - 1));
+      if (!lane) {
+        break;
+      }
+      hq_lane.CopyFrom(lane->lane());
+      hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
+      if (left) {
+        lane_line->left_lanes.emplace_back(hq_lane.id().id());
+      } else {
+        lane_line->right_lanes.emplace_back(hq_lane.id().id());
+      }
+    }
+  }
+}
+
+void TopoAssignment::AppendLane(
+    const std::map<int32_t, LaneLine>& all_lanelines,
+    std::map<std::string, Lane>* all_lanes) {
+  for (const auto& line_it : all_lanelines) {
+    for (const auto& left_lane_it : line_it.second.left_lanes) {
+      if (all_lanes->find(left_lane_it) == all_lanes->end()) {
+        Lane lane;
+        lane.id = left_lane_it;
+        lane.left_lines.emplace_back(line_it.second.id);
+        (*all_lanes)[left_lane_it] = lane;
+      } else {
+        (*all_lanes)[left_lane_it].left_lines.emplace_back(line_it.second.id);
+      }
+    }
+    for (const auto& right_lane_it : line_it.second.right_lanes) {
+      if (all_lanes->find(right_lane_it) == all_lanes->end()) {
+        Lane lane;
+        lane.id = right_lane_it;
+        lane.right_lines.emplace_back(line_it.second.id);
+        (*all_lanes)[right_lane_it] = lane;
+      } else {
+        (*all_lanes)[right_lane_it].right_lines.emplace_back(line_it.second.id);
+      }
+    }
+  }
+
+  // 再构造前后左右
+  for (auto& lane_it : (*all_lanes)) {
+    hozon::hdmap::Id lane_id;
+    lane_id.set_id(lane_it.second.id);
+    auto hq_lane = hq_map_server_->GetLaneById(lane_id);
+    if (!hq_lane) {
+      continue;
+    }
+    for (const auto& left_lane_it :
+         hq_lane->lane().left_neighbor_forward_lane_id()) {
+      auto left_lane_it_id = left_lane_it.id();
+      if (all_lanes->find(left_lane_it_id) != all_lanes->end()) {
+        lane_it.second.left_lanes.emplace_back(left_lane_it_id);
+      }
+    }
+    for (const auto& right_lane_it :
+         hq_lane->lane().right_neighbor_forward_lane_id()) {
+      auto right_lane_it_id = right_lane_it.id();
+      if (all_lanes->find(right_lane_it_id) != all_lanes->end()) {
+        lane_it.second.right_lanes.emplace_back(right_lane_it_id);
+      }
+    }
+    for (const auto& prev_lane_it : hq_lane->lane().predecessor_id()) {
+      auto prev_lane_it_id = prev_lane_it.id();
+      if (all_lanes->find(prev_lane_it_id) != all_lanes->end()) {
+        lane_it.second.prev_lanes.emplace_back(prev_lane_it_id);
+      }
+    }
+    for (const auto& next_lane_it : hq_lane->lane().successor_id()) {
+      auto next_lane_it_id = next_lane_it.id();
+      if (all_lanes->find(next_lane_it_id) != all_lanes->end()) {
+        lane_it.second.next_lanes.emplace_back(next_lane_it_id);
+      }
+    }
+  }
+}
+
+void TopoAssignment::AppendTopoMap(
+    const std::map<std::string, Lane>& all_lanes,
+    const std::shared_ptr<hozon::hdmap::Map>& topo_map) {
+  for (const auto& lane_it : all_lanes) {
+    // 通过lane id 拿到首尾两个点
+    hozon::hdmap::Id lane_id;
+    lane_id.set_id(lane_it.second.id);
+
+    auto hq_lane = hq_map_server_->GetLaneById(lane_id);
+    // 这边需要判断hq_lane是不是空指针后面加上
+    if (!hq_lane) {
+      continue;
+    }
+
+    // 后续需要该一下改成map里面有点再加入
+    auto lane = topo_map->add_lane();
+    lane->mutable_id()->set_id(lane_it.second.id);
+    for (const auto& left_lane_it : lane_it.second.left_lanes) {
+      lane->add_left_neighbor_forward_lane_id()->set_id(left_lane_it);
+    }
+    for (const auto& right_lane_it : lane_it.second.right_lanes) {
+      lane->add_right_neighbor_forward_lane_id()->set_id(right_lane_it);
+    }
+    for (const auto& prev_lane_it : lane_it.second.prev_lanes) {
+      lane->add_predecessor_id()->set_id(prev_lane_it);
+    }
+    for (const auto& next_lane_it : lane_it.second.next_lanes) {
+      lane->add_successor_id()->set_id(next_lane_it);
+    }
+    // 更新topo map的左右车道线
+
+    auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane->lane(), true);
+    auto hq_lane_right_points = GetLaneStartAndEndPoint(hq_lane->lane(), false);
+    auto hq_lane_left_points_size = hq_lane_left_points.size();
+    auto hq_lane_right_points_size = hq_lane_right_points.size();
+
+    for (const auto& left_line_it : lane_it.second.left_lines) {
+      // 打断给到lane_it 里面去
+      bool flag_p0 = false;
+      bool flag_p1 = false;
+      bool flag_pt = false;
+      if (all_lanelines_.find(left_line_it) != all_lanelines_.end()) {
+        if (!all_lanelines_[left_line_it].points.empty()) {
+          auto start_point = all_lanelines_[left_line_it].points[0];
+          auto point_size = all_lanelines_[left_line_it].points.size();
+          auto end_point = all_lanelines_[left_line_it].points[point_size - 1];
+
+          Eigen::Vector2d p0(start_point.x(), start_point.y());
+          Eigen::Vector2d p1(end_point.x(), end_point.y());
+
+          if (!hq_lane_left_points.empty()) {
+            flag_p0 = PerpendicularFootInSegment(
+                hq_lane_left_points[0],
+                hq_lane_left_points[hq_lane_left_points_size - 1], p0);
+            flag_p1 = PerpendicularFootInSegment(
+                hq_lane_left_points[0],
+                hq_lane_left_points[hq_lane_left_points_size - 1], p1);
+            flag_pt =
+                PerpendicularFootInSegment(p0, p1, hq_lane_left_points[0]);
+          }
+          if (flag_p0 && flag_p1) {
+            // 不用找index
+            hozon::hdmap::LaneBoundary lane_boundary;
+            auto segment = lane_boundary.mutable_curve()->add_segment();
+            for (const auto& point : all_lanelines_[left_line_it].points) {
+              auto topo_point = segment->mutable_line_segment()->add_point();
+              topo_point->set_x(point.x());
+              topo_point->set_y(point.y());
+              topo_point->set_z(point.z());
+            }
+            lane->mutable_left_boundary()->CopyFrom(lane_boundary);
+          }
+          if (flag_p0 && !flag_p1) {
+            // 找到后面一个点最近的index
+            auto index = FindNearestPointIndex(
+                hq_lane_left_points[hq_lane_left_points_size - 1],
+                all_lanelines_[left_line_it].points);
+            hozon::hdmap::LaneBoundary lane_boundary;
+            auto segment = lane_boundary.mutable_curve()->add_segment();
+            for (int i = 0; i <= index; ++i) {
+              auto topo_point = segment->mutable_line_segment()->add_point();
+              topo_point->set_x(all_lanelines_[left_line_it].points[i].x());
+              topo_point->set_y(all_lanelines_[left_line_it].points[i].y());
+              topo_point->set_z(all_lanelines_[left_line_it].points[i].z());
+            }
+            lane->mutable_left_boundary()->CopyFrom(lane_boundary);
+          }
+          if (!flag_p0 && flag_p1) {
+            // 找到前面一个点最近的index
+            auto index = FindNearestPointIndex(
+                hq_lane_left_points[0], all_lanelines_[left_line_it].points);
+            hozon::hdmap::LaneBoundary lane_boundary;
+            auto segment = lane_boundary.mutable_curve()->add_segment();
+            for (int i = index; i < point_size; ++i) {
+              auto topo_point = segment->mutable_line_segment()->add_point();
+              topo_point->set_x(all_lanelines_[left_line_it].points[i].x());
+              topo_point->set_y(all_lanelines_[left_line_it].points[i].y());
+              topo_point->set_z(all_lanelines_[left_line_it].points[i].z());
+            }
+            lane->mutable_left_boundary()->CopyFrom(lane_boundary);
+          }
+          if (!flag_p0 && !flag_p1 && flag_pt) {
+            // 找到两个点最近的index
+            auto index_start = FindNearestPointIndex(
+                hq_lane_left_points[0], all_lanelines_[left_line_it].points);
+            auto index_end = FindNearestPointIndex(
+                hq_lane_left_points[hq_lane_left_points_size - 1],
+                all_lanelines_[left_line_it].points);
+            hozon::hdmap::LaneBoundary lane_boundary;
+            auto segment = lane_boundary.mutable_curve()->add_segment();
+            for (int i = index_start; i <= index_end; ++i) {
+              auto topo_point = segment->mutable_line_segment()->add_point();
+              topo_point->set_x(all_lanelines_[left_line_it].points[i].x());
+              topo_point->set_y(all_lanelines_[left_line_it].points[i].y());
+              topo_point->set_z(all_lanelines_[left_line_it].points[i].z());
+            }
+            lane->mutable_left_boundary()->CopyFrom(lane_boundary);
+          }
+        }
+      }
+    }
+    for (const auto& right_line_it : lane_it.second.right_lines) {
+      // 打断给到lant_it 里面去
+      bool flag_p0 = false;
+      bool flag_p1 = false;
+      bool flag_pt = false;
+      if (all_lanelines_.find(right_line_it) != all_lanelines_.end()) {
+        if (!all_lanelines_[right_line_it].points.empty()) {
+          auto start_point = all_lanelines_[right_line_it].points[0];
+          auto point_size = all_lanelines_[right_line_it].points.size();
+          auto end_point = all_lanelines_[right_line_it].points[point_size - 1];
+
+          Eigen::Vector2d p0(start_point.x(), start_point.y());
+          Eigen::Vector2d p1(end_point.x(), end_point.y());
+
+          if (!hq_lane_right_points.empty()) {
+            auto point_size = hq_lane_right_points.size();
+            flag_p0 = PerpendicularFootInSegment(
+                hq_lane_right_points[0],
+                hq_lane_right_points[hq_lane_right_points_size - 1], p0);
+            flag_p1 = PerpendicularFootInSegment(
+                hq_lane_right_points[0],
+                hq_lane_right_points[hq_lane_right_points_size - 1], p1);
+            flag_pt =
+                PerpendicularFootInSegment(p0, p1, hq_lane_right_points[0]);
+          }
+          if (flag_p0 && flag_p1) {
+            // 不用找index
+            hozon::hdmap::LaneBoundary lane_boundary;
+            auto segment = lane_boundary.mutable_curve()->add_segment();
+            for (const auto& point : all_lanelines_[right_line_it].points) {
+              auto topo_point = segment->mutable_line_segment()->add_point();
+              topo_point->set_x(point.x());
+              topo_point->set_y(point.y());
+              topo_point->set_z(point.z());
+            }
+            lane->mutable_right_boundary()->CopyFrom(lane_boundary);
+          }
+          if (flag_p0 && !flag_p1) {
+            // 找到后面一个点最近的index
+            auto index = FindNearestPointIndex(
+                hq_lane_right_points[hq_lane_right_points_size - 1],
+                all_lanelines_[right_line_it].points);
+            hozon::hdmap::LaneBoundary lane_boundary;
+            auto segment = lane_boundary.mutable_curve()->add_segment();
+            for (int i = 0; i <= index; ++i) {
+              auto topo_point = segment->mutable_line_segment()->add_point();
+              topo_point->set_x(all_lanelines_[right_line_it].points[i].x());
+              topo_point->set_y(all_lanelines_[right_line_it].points[i].y());
+              topo_point->set_z(all_lanelines_[right_line_it].points[i].z());
+            }
+            lane->mutable_right_boundary()->CopyFrom(lane_boundary);
+          }
+          if (!flag_p0 && flag_p1) {
+            // 找到前面一个点最近的index
+            auto index = FindNearestPointIndex(
+                hq_lane_right_points[0], all_lanelines_[right_line_it].points);
+            hozon::hdmap::LaneBoundary lane_boundary;
+            auto segment = lane_boundary.mutable_curve()->add_segment();
+            for (int i = index; i < point_size; ++i) {
+              auto topo_point = segment->mutable_line_segment()->add_point();
+              topo_point->set_x(all_lanelines_[right_line_it].points[i].x());
+              topo_point->set_y(all_lanelines_[right_line_it].points[i].y());
+              topo_point->set_z(all_lanelines_[right_line_it].points[i].z());
+            }
+            lane->mutable_right_boundary()->CopyFrom(lane_boundary);
+          }
+          if (!flag_p0 && !flag_p1 && flag_pt) {
+            // 找到两个点最近的index
+            auto index_start = FindNearestPointIndex(
+                hq_lane_right_points[0], all_lanelines_[right_line_it].points);
+            auto index_end = FindNearestPointIndex(
+                hq_lane_right_points[hq_lane_right_points_size - 1],
+                all_lanelines_[right_line_it].points);
+            hozon::hdmap::LaneBoundary lane_boundary;
+            auto segment = lane_boundary.mutable_curve()->add_segment();
+            for (int i = index_start; i <= index_end; ++i) {
+              auto topo_point = segment->mutable_line_segment()->add_point();
+              topo_point->set_x(all_lanelines_[right_line_it].points[i].x());
+              topo_point->set_y(all_lanelines_[right_line_it].points[i].y());
+              topo_point->set_z(all_lanelines_[right_line_it].points[i].z());
+            }
+            lane->mutable_right_boundary()->CopyFrom(lane_boundary);
+          }
+        }
+      }
+    }
+  }
 }
 
 void TopoAssignment::VizLocalMap(
@@ -2174,7 +1253,7 @@ void TopoAssignment::VizHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
         HLOG_ERROR << "=== UTM2GCS failed";
       }
       adsfi_proto::viz::Marker marker_id;
-      auto id = hq_lane.id().DebugString();
+      auto id = hq_lane.id().id();
       LineIdToMarker(cur_timestamp_, point_enu, id, &marker_id);
       markers_lane.add_markers()->CopyFrom(marker_id);
     }
@@ -2250,7 +1329,7 @@ void TopoAssignment::VizTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
                          .point()[0];
         Eigen::Vector3d point_left_boundary(point.x(), point.y(), point.z());
         adsfi_proto::viz::Marker marker_id;
-        auto id = hq_lane.id().DebugString();
+        auto id = hq_lane.id().id();
         LineIdToMarker(cur_timestamp_, point_left_boundary, id, &marker_id);
         markers_lane.add_markers()->CopyFrom(marker_id);
       }

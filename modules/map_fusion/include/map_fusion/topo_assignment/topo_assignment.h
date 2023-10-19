@@ -103,6 +103,13 @@ class TopoAssignment {
 
   adsfi_proto::viz::Path location_path_;
 
+  void AppendLaneLine(const hozon::hdmap::Id& lane_id,
+                      hozon::mp::mf::LaneLine* lane_line,
+                      const Eigen::Vector2d& p1, const bool left);
+  void AppendLane(const std::map<int32_t, LaneLine>& all_lanelines,
+                  std::map<std::string, Lane>* all_lanes);
+  void AppendTopoMap(const std::map<std::string, Lane>& all_lanes,
+                     const std::shared_ptr<hozon::hdmap::Map>& topo_map);
   void VizLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
                    const Eigen::Isometry3d& T_U_W);
   void VizLocation(const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,

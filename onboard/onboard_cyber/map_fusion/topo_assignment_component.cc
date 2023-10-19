@@ -116,34 +116,9 @@ void TopoAssignmentComponent::OnLocalMap(
     return;
   }
 
-  // HLOG_ERROR << "data from local map" << msg->lanes().size();
-  //                << ", " << msg->lanes()[0].points()[0].y();
-
-  topo_assign_->OnLocalMap(msg);
-
-  if (!msg->lanes().empty()) {
-    if (!msg->lanes()[0].points().empty()) {
-      HLOG_ERROR << "data from local map" << msg->lanes()[0].points()[0].x()
-                 << ", " << msg->lanes()[0].points()[0].y();
-    }
-  }
   // 发出拓扑地图
   auto map = topo_assign_->GetTopoMap();
   topo_writer_->Write(map);
-  // if (!map->lane().empty()) {
-  //   for (const auto& hq_lane : map->lane()) {
-  //     for (const auto& left_points :
-  //          hq_lane.left_boundary().curve().segment()) {
-  //       std::vector<Eigen::Vector3d> lane_points;
-  //       for (const auto& point : left_points.line_segment().point()) {
-  //         Eigen::Vector3d point_utm(point.x(), point.y(), point.z());
-  //         lane_points.emplace_back(point_utm);
-  //         HLOG_ERROR << "data from topo map" << point_utm.x() << ", "
-  //                    << point_utm.y();
-  //       }
-  //     }
-  //   }
-  // }
 }
 
 void TopoAssignmentComponent::OnLocalMapLocation(
@@ -156,11 +131,6 @@ void TopoAssignmentComponent::OnLocalMapLocation(
     HLOG_ERROR << "nullptr tppo map assignment";
     return;
   }
-  // HLOG_ERROR << "get local map " << msg->pose().position().x() << ", "
-  //            << msg->pose().position().y();
-  // HLOG_ERROR << "get local map qwv " << msg->pose().quaternion().x() << ",
-  // "
-  //            << msg->pose().quaternion().y();
 
   topo_assign_->OnLocalMapLocation(msg);
 }

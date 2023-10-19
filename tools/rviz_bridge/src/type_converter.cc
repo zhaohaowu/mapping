@@ -5,7 +5,7 @@
  *   date       ： 2022.6
  ******************************************************************************/
 
-#include "type_converter.h"
+#include "type_converter.h" // NOLINT
 
 #include "modules/util/include/util/temp_log.h"
 

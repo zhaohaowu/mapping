@@ -8,9 +8,6 @@
 #include <gflags/gflags.h>
 #include <ros/ros.h>
 
-#include <csignal>
-#include <filesystem>
-
 // auto generated
 #include <adsfi_proto/viz/geometry_msgs.pb.h>
 #include <adsfi_proto/viz/nav_msgs.pb.h>
@@ -32,13 +29,16 @@
 #include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
 
+#include <csignal>
+#include <filesystem>
+
 #include "modules/util/include/util/rviz_agent/msg_alias.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent_client.h"
 #include "modules/util/include/util/temp_log.h"
-#include "type_converter.h"
+#include "type_converter.h"  // NOLINT
 
 namespace sfs = std::filesystem;
-using namespace hozon::mp::util;
+using namespace hozon::mp::util;  // NOLINT
 // using namespace hozon::localization::tools;
 
 class PubManager {
@@ -219,8 +219,8 @@ class RvizBridge {
                std::shared_ptr<adsfi_proto::viz::CompressedImage> proto) {
     sensor_msgs::CompressedImage ros;
     TypeConverter::Convert(*proto, ros);
-    //! 由于rviz默认接收的压缩图像的topic必须以"/compressed"结尾，这里检查原始topic，如果
-    //! 原始topic不是以"/compressed"结尾就加上
+    //! 由于rviz默认接收的压缩图像的topic必须以"/compressed"结尾，
+    //! 这里检查原始topic，如果原始topic不是以"/compressed"结尾就加上
     std::string act_topic = topic;
     std::string suffix = "/compressed";
     if (topic.length() < suffix.length() ||

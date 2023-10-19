@@ -20,7 +20,6 @@ namespace perception {
 namespace common_onboard {
 
 int32_t LocalMappingOnboard::AlgInit() {
-
   hozon::netaos::log::InitLogging("lm_executor", "lm_executor test",
                                   hozon::netaos::log::LogLevel::kInfo,
                                   HZ_LOG2CONSOLE, "./", 10, (20));

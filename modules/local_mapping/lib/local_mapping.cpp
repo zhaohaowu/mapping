@@ -99,7 +99,7 @@ void LMapApp::OnDr(
     local_data.dr_data_buffer_.push_new_message(latest_location_->timestamp_,
                                                 dr_data_ptr);
   } else {
-    // HLOG_ERROR << "Dr timestamp error";
+    HLOG_ERROR << "Dr timestamp error";
   }
 
   if (use_rviz_) {
@@ -259,8 +259,14 @@ void LMapApp::OnRoadEdge(
 bool LMapApp::FetchLocalMap(
     std::shared_ptr<hozon::mapping::LocalMap> local_map) {
   auto start = std::chrono::high_resolution_clock::now();
-  if (!dr_inited_) return false;
-  if (!laneline_inited_) return false;
+  if (!dr_inited_) {
+    HLOG_INFO << "==========dr_inited_ failed=======";
+    return false;
+  }
+  if (!laneline_inited_) {
+    HLOG_INFO << "==========laneline_inited_ failed=======";
+    return false;
+  }
   localmap_mutex_.lock();
   auto local_map_ = mmgr_->local_map_;
   localmap_mutex_.unlock();

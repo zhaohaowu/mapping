@@ -11,6 +11,7 @@ endif()
 # add_subdirectory(map_fusion)
 add_subdirectory(dr)
 add_subdirectory(location)
+add_subdirectory(local_mapping)
 
 install(
   DIRECTORY production

@@ -26,8 +26,8 @@ dataSourcesIn:
     cmDomainId: 0
   - topic: percep_transport
     type: proto_proxy
-    cmTopic: /perception/fsd/transportelement
-    cmDomainId: 1
+    cmTopic: /perception/fsd/transportelement_1
+    cmDomainId: 0
 
 dataSourcesOut:
   - topic: localization
@@ -41,4 +41,13 @@ dataSourcesOut:
   - topic: dr
     type: proto_skeleton
     cmTopic: /localization/deadreckoning
+    cmDomainId: 0
+  - topic: local_map
+    type: proto_skeleton
+    cmTopic: /localization/local_map
+    cmDomainId: 0
+
+  - topic: local_map_loc
+    type: proto_skeleton
+    cmTopic: /localization/local_map_loc
     cmDomainId: 0

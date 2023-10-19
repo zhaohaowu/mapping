@@ -64,6 +64,15 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
         add_definitions(-DISORIN=1)
     endif()
 
+
+    if(${LOCAL_TARGET_PLATFORM} STREQUAL "orin")
+        include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/eigen/include/eigen3)
+    elseif(${LOCAL_TARGET_PLATFORM} STREQUAL "x86") 
+        include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindEigen3.cmake)
+    elseif(${LOCAL_TARGET_PLATFORM} STREQUAL "mdc")
+        include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindEigen3.cmake)
+    endif()
+
     list(APPEND CMAKE_MODULE_PATH ${THIRDPARTY_ROOT_PATH}/third_party/cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindEigen3.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindGLOG.cmake)
@@ -89,6 +98,10 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
         message(WARNING "neither nlohmann_json nor json exists in ${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}")
     endif()
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/pcl/include/pcl-1.11)
+    include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/cuda/targets/x86_64-linux/include)
+
+    message("cudaheader====" ${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/cuda/targets/x86_64-linux/include)    
+
     link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/pcl/lib)
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/ceres/include)
     link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/ceres/lib)
@@ -109,7 +122,7 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     endif()
 
     set(FROM_TOP ON)
-    add_subdirectory(depend/proto)
+    # add_subdirectory(depend/proto)
     add_subdirectory(depend/common)
     add_subdirectory(depend/map)
 endif()
@@ -123,6 +136,7 @@ include_directories(interface)
 add_subdirectory(interface)
 add_subdirectory(modules)
 add_subdirectory(onboard)
+add_subdirectory(depend/proto) # 必须是这个顺序，否则libglobalproto.so会被third_party覆盖
 
 if(${LOCAL_TARGET_PLATFORM} STREQUAL "x86")
     add_subdirectory(test)
@@ -137,25 +151,57 @@ install(
 
 # 打包third party环境
 
+# if(IND)
+#     set(PREPARE_FOR_CYBER_SHELL "
+#         mkdir -p ${LOCAL_TARGET_PLATFORM}/data/log
+#         mkdir -p ${TARGET_DESTINATION_LIB}
+#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fast-dds/lib/lib* ${TARGET_DESTINATION_LIB}
+#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/yaml-cpp/lib/lib* ${TARGET_DESTINATION_LIB}
+#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/glog/lib/lib* ${TARGET_DESTINATION_LIB}
+#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gflags/lib/lib* ${TARGET_DESTINATION_LIB}
+#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/protobuf/lib/lib* ${TARGET_DESTINATION_LIB}
+#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/ceres/lib/lib* ${TARGET_DESTINATION_LIB}
+#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/absl/lib/lib* ${TARGET_DESTINATION_LIB}  
+#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/boost/lib/lib* ${TARGET_DESTINATION_LIB}
+#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/opencv/lib/lib* ${TARGET_DESTINATION_LIB}
+#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fastrtps/lib/lib* ${TARGET_DESTINATION_LIB}
+#         cp -r -d ${DEPEND}/perception-common-onboard/release/${LOCAL_TARGET_PLATFORM}/lib/lib* ${TARGET_DESTINATION_LIB}
+#         cp -r -d ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/lib* ${TARGET_DESTINATION_LIB}")
+
+#     file(WRITE "${CMAKE_INSTALL_PREFIX}/../PREPARE_FOR_CYBER_SHELL.sh" "${PREPARE_FOR_CYBER_SHELL}")
+#     install(CODE "execute_process(COMMAND bash PREPARE_FOR_CYBER_SHELL.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")
+
+#     set(PERCEPTIONBASELIB ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib)
+#     install(DIRECTORY ${PERCEPTIONBASELIB} DESTINATION ${TARGET_DESTINATION})
+# endif()
+
+
 if(IND)
-    set(PREPARE_FOR_CYBER_SHELL "
-        mkdir -p ${LOCAL_TARGET_PLATFORM}/data/log
-        mkdir -p ${TARGET_DESTINATION_LIB}
-        cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fast-dds/lib/lib* ${TARGET_DESTINATION_LIB}
-        cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/yaml-cpp/lib/lib* ${TARGET_DESTINATION_LIB}
-        cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/glog/lib/lib* ${TARGET_DESTINATION_LIB}
-        cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gflags/lib/lib* ${TARGET_DESTINATION_LIB}
-        cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/protobuf/lib/lib* ${TARGET_DESTINATION_LIB}
-        cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/ceres/lib/lib* ${TARGET_DESTINATION_LIB}
-        cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/boost/lib/lib* ${TARGET_DESTINATION_LIB}
-        cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/opencv/lib/lib* ${TARGET_DESTINATION_LIB}
-        cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fastrtps/lib/lib* ${TARGET_DESTINATION_LIB}
-        cp -r -d ${DEPEND}/perception-common-onboard/release/${LOCAL_TARGET_PLATFORM}/lib/lib* ${TARGET_DESTINATION_LIB}
-        cp -r -d ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/lib* ${TARGET_DESTINATION_LIB}")
+    install(DIRECTORY 
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fast-dds/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/yaml-cpp/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/glog/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gflags/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/protobuf/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/ceres/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/boost/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/opencv/lib/
+        ${DEPEND}/perception-common-onboard/release/${TARGET_PLATFORM}/lib/
+        ${DEPEND}/perception-lib/release/${TARGET_PLATFORM}/lib/ 
+        ${DEPEND}/perception-base/release/${TARGET_PLATFORM}/lib/ 
+        DESTINATION ${TARGET_DESTINATION_LIB})
 
-    file(WRITE "${CMAKE_INSTALL_PREFIX}/../PREPARE_FOR_CYBER_SHELL.sh" "${PREPARE_FOR_CYBER_SHELL}")
-    install(CODE "execute_process(COMMAND bash PREPARE_FOR_CYBER_SHELL.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")
+    if(${PLATFORM} STREQUAL "x86")
+        install(DIRECTORY 
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fastrtps/lib/ #x86平台需要
+        DESTINATION ${TARGET_DESTINATION_LIB})
+    endif()
 
-    set(PERCEPTIONBASELIB ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib)
-    install(DIRECTORY ${PERCEPTIONBASELIB} DESTINATION ${TARGET_DESTINATION})
+    if(${PLATFORM} STREQUAL "orin")
+        install(DIRECTORY 
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/absl/lib/  #orin平台需要
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/osqp/lib/  #orin平台需要
+        DESTINATION ${TARGET_DESTINATION_LIB})
+    endif()
+
 endif()

@@ -1,0 +1,36 @@
+%YAML:1.0
+
+library: "${ADFLITE_ROOT_PATH}/lib/libonboard_lite_localmapping.so"
+depLibPath: ["${ADFLITE_ROOT_PATH}/lib/" ]
+executorName: LocalMappingOnboard
+
+input:
+    - topic: percep_transport
+      capacity: 5
+    - topic: dr 
+      capacity: 5
+
+# output:
+#     - topic: /localization/local_map_loc
+#     - topic: /localization/local_map
+
+trigger:
+  - name: recv_laneline
+    type: EVENT
+    mainSources:
+      - name: percep_transport
+        timeout: 1000
+  - name: recv_dr
+    type: EVENT
+    mainSources:
+      - name: dr
+        timeout: 1000
+  
+  - name: send_lm # send workresult1,workresult2
+    type: PERIOD
+    period: 200
+
+  - name: send_lm_loc # send workresult1,workresult2
+    type: PERIOD
+    period: 2000
+    

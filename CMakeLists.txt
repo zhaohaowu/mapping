@@ -26,6 +26,9 @@ set(THIRDPARTY_ROOT ${DEPEND}/third_party)
 
 include(cmake/mapping.cmake)
 
+set(CMAKE_INSTALL_PREFIX_RS ${CMAKE_INSTALL_PREFIX}/runtime_service/mapping)
+set(EXTERNAL_LIB_PATH ${CMAKE_INSTALL_PREFIX}/lib)
+
 # MAPPING_SINGLE_MODULE_COMPILE is defined in compile.py
 if(MAPPING_SINGLE_MODULE_COMPILE)
     if(CMAKE_BUILD_TYPE MATCHES Debug)
@@ -110,6 +113,9 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     include_directories(depend/ap-release/include/adsfi/include)
     include_directories(depend/ap-release/include/generated/includes)
 
+    include_directories(depend/perception-lib/release/${LOCAL_TARGET_PLATFORM}/include)
+    link_directories(depend/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib)
+
     # These enable variables are defined in compile.py
     if (MAPPING_ENABLE_COMPILE_BASE)
         add_subdirectory(depend/perception-base)
@@ -142,43 +148,16 @@ if(${LOCAL_TARGET_PLATFORM} STREQUAL "x86")
     add_subdirectory(test)
 endif()
 
-install(FILES version.json DESTINATION ${CMAKE_SOURCE_DIR}/release)
+install(FILES version.json DESTINATION ${CMAKE_INSTALL_PREFIX} RENAME mal_version.json)
 
 install(
     DIRECTORY conf
-    DESTINATION ${CMAKE_INSTALL_PREFIX}
+    DESTINATION ${CMAKE_INSTALL_PREFIX_RS}
 )
 
 # 打包third party环境
-
-# if(IND)
-#     set(PREPARE_FOR_CYBER_SHELL "
-#         mkdir -p ${LOCAL_TARGET_PLATFORM}/data/log
-#         mkdir -p ${TARGET_DESTINATION_LIB}
-#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fast-dds/lib/lib* ${TARGET_DESTINATION_LIB}
-#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/yaml-cpp/lib/lib* ${TARGET_DESTINATION_LIB}
-#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/glog/lib/lib* ${TARGET_DESTINATION_LIB}
-#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gflags/lib/lib* ${TARGET_DESTINATION_LIB}
-#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/protobuf/lib/lib* ${TARGET_DESTINATION_LIB}
-#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/ceres/lib/lib* ${TARGET_DESTINATION_LIB}
-#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/absl/lib/lib* ${TARGET_DESTINATION_LIB}  
-#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/boost/lib/lib* ${TARGET_DESTINATION_LIB}
-#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/opencv/lib/lib* ${TARGET_DESTINATION_LIB}
-#         cp -r -d ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fastrtps/lib/lib* ${TARGET_DESTINATION_LIB}
-#         cp -r -d ${DEPEND}/perception-common-onboard/release/${LOCAL_TARGET_PLATFORM}/lib/lib* ${TARGET_DESTINATION_LIB}
-#         cp -r -d ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/lib* ${TARGET_DESTINATION_LIB}")
-
-#     file(WRITE "${CMAKE_INSTALL_PREFIX}/../PREPARE_FOR_CYBER_SHELL.sh" "${PREPARE_FOR_CYBER_SHELL}")
-#     install(CODE "execute_process(COMMAND bash PREPARE_FOR_CYBER_SHELL.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")
-
-#     set(PERCEPTIONBASELIB ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib)
-#     install(DIRECTORY ${PERCEPTIONBASELIB} DESTINATION ${TARGET_DESTINATION})
-# endif()
-
-
 if(IND)
     install(DIRECTORY 
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fast-dds/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/yaml-cpp/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/glog/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gflags/lib/
@@ -186,22 +165,40 @@ if(IND)
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/ceres/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/boost/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/opencv/lib/
-        ${DEPEND}/perception-common-onboard/release/${TARGET_PLATFORM}/lib/
-        ${DEPEND}/perception-lib/release/${TARGET_PLATFORM}/lib/ 
-        ${DEPEND}/perception-base/release/${TARGET_PLATFORM}/lib/ 
-        DESTINATION ${TARGET_DESTINATION_LIB})
+        ${DEPEND}/perception-common-onboard/release/${LOCAL_TARGET_PLATFORM}/lib/
+        ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/
+        ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib/
+        DESTINATION ${EXTERNAL_LIB_PATH}
+    )
 
-    if(${PLATFORM} STREQUAL "x86")
+    if (NOT (${PLATFORM} STREQUAL "mdc"))
+        install(
+            DIRECTORY ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fast-dds/lib/
+            DESTINATION ${EXTERNAL_LIB_PATH}
+        )
+    endif()
+
+    if(NOT (MIDDLEWARE MATCHES CYBER))
+        install(DIRECTORY
+            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/cuda/targets/x86_64-linux/lib/
+            DESTINATION ${EXTERNAL_LIB_PATH}
+            FILES_MATCHING
+            PATTERN "libcudart*"
+        ) 
+    endif()
+
+    if(${PLATFORM} STREQUAL "x86_2004")
         install(DIRECTORY 
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fastrtps/lib/ #x86平台需要
-        DESTINATION ${TARGET_DESTINATION_LIB})
+            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fastrtps/lib/ #x86平台需要
+            DESTINATION ${EXTERNAL_LIB_PATH}
+        )
     endif()
 
     if(${PLATFORM} STREQUAL "orin")
         install(DIRECTORY 
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/absl/lib/  #orin平台需要
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/osqp/lib/  #orin平台需要
-        DESTINATION ${TARGET_DESTINATION_LIB})
+            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/absl/lib/  #orin平台需要
+            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/osqp/lib/  #orin平台需要
+            DESTINATION ${EXTERNAL_LIB_PATH}
+        )
     endif()
-
 endif()

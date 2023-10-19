@@ -1,7 +1,7 @@
 project(adsfi_proto)
 
 if(NOT COMMAND protobuf_generate_cpp)
-    message(FATAL_ERROR "protobuf_generate_cpp not defined, should include FindProtobuf.cmake first")
+  message(FATAL_ERROR "protobuf_generate_cpp not defined, should include FindProtobuf.cmake first")
 endif()
 
 file(
@@ -25,6 +25,6 @@ set_target_properties(adsfi_proto PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(adsfi_proto protobuf)
 
 install(
-    TARGETS adsfi_proto
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  TARGETS adsfi_proto
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

@@ -8,19 +8,7 @@
 #include "onboard/onboard_lite/location/fusion_center/fusion_center_lite.h"
 #include <gflags/gflags.h>
 #include <base/utils/log.h>
-
-DEFINE_string(fc_config,
-              "/home/zhangyu/zy/code/mapping/conf/mapping/location/"
-              "fusion_center/fc_config.yaml",
-              "fusion center core config file");
-DEFINE_string(kf_config,
-              "/home/zhangyu/zy/code/mapping/conf/mapping/location/"
-              "fusion_center/kalman.yaml",
-              "kalman config file");
-DEFINE_string(eskf_config,
-              "/home/zhangyu/zy/code/mapping/conf/mapping/location/"
-              "fusion_center/eskf.yaml",
-              "eskf config file");
+#include <perception-lib/lib/environment/environment.h>
 
 namespace hozon {
 namespace perception {
@@ -29,11 +17,23 @@ namespace common_onboard {
 const char* const kImuTopic = "imu_ins";
 const char* const kInsFusionTopic = "/location/ins_fusion";
 const char* const kFcTopic = "localization";
+const char* const kFcConfSuffix = "runtime_service/mapping/conf/mapping/"
+                                  "location/fusion_center/fc_config.yaml";
+const char* const kFcKfConfSuffix =
+    "runtime_service/mapping/conf/mapping/location/fusion_center/kalman.yaml";
+const char* const kFcEskfConfSuffix =
+    "runtime_service/mapping/conf/mapping/location/fusion_center/eskf.yaml";
 
 int32_t FusionCenterLite::AlgInit() {
+  const std::string adflite_root_path =
+      hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", ".");
+  const std::string fc_config = adflite_root_path + "/" + kFcConfSuffix;
+  const std::string fc_kf_config = adflite_root_path + "/" + kFcKfConfSuffix;
+  const std::string fc_eskf_config =
+      adflite_root_path + "/" + kFcEskfConfSuffix;
+
   fusion_center_ = std::make_unique<FusionCenter>();
-  if (!fusion_center_->Init(FLAGS_fc_config, FLAGS_kf_config,
-                            FLAGS_eskf_config)) {
+  if (!fusion_center_->Init(fc_config, fc_kf_config, fc_eskf_config)) {
     return -1;
   }
 

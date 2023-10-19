@@ -23,5 +23,5 @@ set_target_properties(location_coord_adapter_core PROPERTIES LINKER_LANGUAGE CXX
 
 install(
   TARGETS location_coord_adapter_core
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

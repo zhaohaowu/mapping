@@ -1,0 +1,28 @@
+{
+  "process_name": "hz_mappingProcess",
+  "executable": "hz_mapping",
+  "restart_attempt_num": "2",
+  "keep_alive_num": "0",
+  "shall_run_ons": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+  ],
+  "mode_of_order": [
+    "Normal.1",
+    "Driving.1"
+  ],
+  "scheduling_policy": "RR",
+  "scheduling_priority": "60",
+  "arguments": [],
+  "environments": [
+    "LD_LIBRARY_PATH=/app/lib:/app/runtime_service/mapping/lib:$LD_LIBRARY_PATH",
+    "ADFLITE_ROOT_PATH=/app/"
+  ]
+}

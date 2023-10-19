@@ -31,5 +31,5 @@ target_link_libraries(dr
 
 install(
     TARGETS dr
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+    DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

@@ -8,21 +8,24 @@
 
 #include <gflags/gflags.h>
 
+#include <perception-lib/lib/environment/environment.h>
 #include "base/utils/log.h"
 #include "modules/util/include/util/temp_log.h"
-
-DEFINE_string(ins_config,
-              "/home/zhangyu/zy/code/mapping/release/x86/conf/mapping/location/ins_fusion/"
-              "ins_config.yaml",
-              "config file path for ins_config");
 
 namespace hozon {
 namespace perception {
 namespace common_onboard {
 
+const char* const kInsFusionConfSuffix =
+    "runtime_service/mapping/conf/mapping/location/ins_fusion/ins_config.yaml";
+
 int32_t InsFusionLite::AlgInit() {
+  const std::string adflite_root_path =
+      hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", ".");
+  const std::string ins_fusion_config =
+      adflite_root_path + "/" + kInsFusionConfSuffix;
   ins_fusion_ = std::make_unique<hozon::mp::loc::InsFusion>();
-  if (ins_fusion_->Init(FLAGS_ins_config) !=
+  if (ins_fusion_->Init(ins_fusion_config) !=
       hozon::mp::loc::InsInitStatus::OK) {
     return -1;
   }

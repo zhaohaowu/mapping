@@ -66,6 +66,19 @@ def copy_file(source_path, destination_path):
     # 复制文件
     shutil.copy2(source_path, destination_path)
 
+def del_remain_external_lib(workspace, platform, release_directory, **kwargs):
+    """delete residual third lib with no --ind params"""
+    if kwargs['ind']:
+        return
+
+    prefix = osp.join(workspace, release_directory, "mal_" + platform, 'lib')
+    tgt_names = ['libglobalproto.so']
+    tgt_names = [osp.join(prefix, n) for n in tgt_names]
+
+    cmd = 'rm {}'.format(' '.join(tgt_names))
+    LOG_INFO(cmd)
+    execute_shell(cmd)
+
 def cmake_build(workspace, platform, build_directory, cmake_args, jobs, verbose=False):
     """执行cmake 编译过程, 结束后切换 current working to workspace
     workspace: 代码仓根路径
@@ -109,7 +122,7 @@ def cmake_build(workspace, platform, build_directory, cmake_args, jobs, verbose=
 
 def mdc_build(workspace, platform, build_directory, release_directory, **kwargs):
     # download release package
-    sp.run('bash tools/downloadPkg.sh', shell=1)
+    sp.run('bash tools/downloadPkg.sh mdc', shell=1)
 
     # 设置环境变量
     if kwargs['gcc']:
@@ -124,7 +137,7 @@ def mdc_build(workspace, platform, build_directory, release_directory, **kwargs)
 
     # 设置cmake编译选项
     args = dict()
-    args['-DCMAKE_INSTALL_PREFIX'] = release_directory + "/mdc/"+"mapping"
+    args['-DCMAKE_INSTALL_PREFIX'] = release_directory + "/mal_mdc"
     args['-DCMAKE_BUILD_TYPE'] = "Release" if kwargs['release'] else "Debug"
     args['-DPLATFORM'] = 'mdc'
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
@@ -140,14 +153,14 @@ def mdc_build(workspace, platform, build_directory, release_directory, **kwargs)
 
 def x86_build(workspace, platform, build_directory, release_directory, **kwargs):
     """x86 编译流程"""
-    sp.run('bash tools/downloadPkg.sh', shell=1)
+    sp.run('bash tools/downloadPkg.sh x86', shell=1)
     set_env('PATH', '/usr/bin')
     set_env('CC', '/usr/bin/x86_64-linux-gnu-gcc')
     set_env('CXX', '/usr/bin/x86_64-linux-gnu-g++')
 
     set_env('LD_LIBRARY_PATH', osp.join(workspace, 'depend/third_party/x86/protobuf/lib'))
     args = dict()
-    args['-DCMAKE_INSTALL_PREFIX'] = release_directory+"/x86/"
+    args['-DCMAKE_INSTALL_PREFIX'] = release_directory+"/mal_x86"
     args['-DCMAKE_BUILD_TYPE'] = "Release" if kwargs['release'] else "Debug"
     args['-DPLATFORM'] = 'x86_2004'
     # args['-DENABLE_UT'] = 'FLASE' if not kwargs['ut'] else 'TRUE'
@@ -171,10 +184,10 @@ def orin_build(workspace, platform, build_directory, release_directory, **kwargs
     # sync submodule version
     execute_shell("git submodule update --init")
     # download release package
-    execute_shell('bash tools/downloadPkg.sh')
+    execute_shell('bash tools/downloadPkg.sh orin')
     # cmake param set
     args = dict()
-    args['-DCMAKE_INSTALL_PREFIX'] = release_directory+"/orin/"
+    args['-DCMAKE_INSTALL_PREFIX'] = release_directory+"/mal_orin"
     args['-DCMAKE_BUILD_TYPE'] = "Release" if kwargs['release'] else "Debug"
     args['-DPLATFORM'] = 'orin'
     # args['-DENABLE_UT'] = 'FLASE' if not kwargs['ut'] else 'TRUE'
@@ -334,3 +347,5 @@ if __name__ == '__main__':
     # 构建rviz_bridge
     if kwargs['rviz']:
         build_rviz_bridge(workspace, kwargs['jobs'])
+
+    del_remain_external_lib(workspace, platform, release_directory, **kwargs)

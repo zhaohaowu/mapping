@@ -34,5 +34,5 @@ set_target_properties(location_pose_estimation_cyber PROPERTIES LINKER_LANGUAGE 
 
 install(
   TARGETS location_pose_estimation_cyber
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

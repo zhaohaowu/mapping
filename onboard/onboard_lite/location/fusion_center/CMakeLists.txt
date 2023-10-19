@@ -15,10 +15,11 @@ target_link_libraries(${MAPPING_ONBOARD_LITE_FC}
   gflags
   ${DEPENDS_LIBS}
   perception-onboard-common
+  perception-lib
   location_fusion_center_core
 )
 
 install(
   TARGETS ${MAPPING_ONBOARD_LITE_FC}
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

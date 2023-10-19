@@ -16,5 +16,3 @@ target_link_libraries(${PROJECT_NAME}
 #     COMMAND ./${PROJECT_NAME})
 
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION test)
-
-install(DIRECTORY script DESTINATION test)

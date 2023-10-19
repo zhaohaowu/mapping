@@ -20,10 +20,10 @@ resourceLimit:
   memory: 200
 
 executors:
-  - confFile: ${ADFLITE_ROOT_PATH}/production/conf/data_source_config.yaml
-  # - confFile: ${ADFLITE_ROOT_PATH}/production/conf/location/mapping_location_ins_fusion_config.yaml
-  # - confFile: ${ADFLITE_ROOT_PATH}/production/conf/location/mapping_location_fc_config.yaml
-  # - confFile: ${ADFLITE_ROOT_PATH}/production/conf/location/mapping_location_dr_fusion_config.yaml
-  - confFile: ${ADFLITE_ROOT_PATH}/production/conf/dr/dr_config.yaml
-  - confFile: ${ADFLITE_ROOT_PATH}/production/conf/local_mapping/lm_config.yaml
- #- confFile: /home/tao/code/hozon_ws/qingluan/mapping/release/x86/production/conf/map_fusion/pp_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/data_source_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_ins_fusion_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_fc_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_dr_fusion_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/dr/dr_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/local_mapping/lm_config.yaml
+  # - confFile: /home/tao/code/hozon_ws/qingluan/mapping/release/x86/production/conf/map_fusion/pp_config.yaml

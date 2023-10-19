@@ -24,5 +24,5 @@ set_target_properties(localization_ins_fusion_core PROPERTIES LINKER_LANGUAGE CX
 
 install(
   TARGETS localization_ins_fusion_core
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

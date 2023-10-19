@@ -73,5 +73,5 @@ set_target_properties(location_pose_estimation_core PROPERTIES LINKER_LANGUAGE C
 
 install(
   TARGETS location_pose_estimation_core
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

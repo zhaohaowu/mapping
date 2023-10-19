@@ -16,5 +16,5 @@ target_link_libraries(mf_lite
 
 install(
   TARGETS mf_lite
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

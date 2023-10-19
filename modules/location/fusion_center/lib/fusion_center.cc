@@ -374,10 +374,9 @@ void FusionCenter::RunFusion() {
 
   while (fusion_run_) {
     // Init
-    if (!init_ins_) {
-      while (!PoseInit()) {
-        usleep(params_.run_fusion_interval_ms * 1000);
-      }
+    if (!init_ins_ && !PoseInit()) {
+      usleep(params_.run_fusion_interval_ms * 1000);
+      continue;
     }
 
     // ESKF

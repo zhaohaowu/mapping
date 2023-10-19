@@ -38,7 +38,5 @@ set_target_properties(hz_mapping PROPERTIES LINK_FLAGS "-Wl,--as-needed,--disabl
 
 install(
     TARGETS hz_mapping
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/runtime_service/hz_mapping/bin
+    DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/bin
 )
-message("----bin-----${CMAKE_INSTALL_PREFIX}/runtime_service/hz_mapping/bin")
-

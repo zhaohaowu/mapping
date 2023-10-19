@@ -1,8 +1,8 @@
 project(ins_fusion_cyber)
 
 include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${MAPPING}/modules/util/include
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${MAPPING}/modules/util/include
 )
 
 add_mapping_library(localization_ins_fusion_cyber SHARED
@@ -19,5 +19,5 @@ target_link_libraries(localization_ins_fusion_cyber
 set_target_properties(localization_ins_fusion_cyber PROPERTIES LINKER_LANGUAGE CXX)
 install(
   TARGETS localization_ins_fusion_cyber
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

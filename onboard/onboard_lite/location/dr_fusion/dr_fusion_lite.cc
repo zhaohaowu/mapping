@@ -8,21 +8,24 @@
 
 #include <gflags/gflags.h>
 
+#include <perception-lib/lib/environment/environment.h>
 #include "base/utils/log.h"
 #include "modules/util/include/util/temp_log.h"
-
-DEFINE_string(dr_config,
-              "/home/zhangyu/zy/code/mapping/conf/mapping/location/dr_fusion/"
-              "dr_config.yaml",
-              "config file path for ins_config");
 
 namespace hozon {
 namespace perception {
 namespace common_onboard {
 
+const char* const kDrFusionConfSuffix =
+    "runtime_service/mapping/conf/mapping/location/dr_fusion/dr_config.yaml";
+
 int32_t DrFusionLite::AlgInit() {
+  const std::string adflite_root_path =
+      hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", ".");
+  const std::string dr_fusion_config =
+      adflite_root_path + "/" + kDrFusionConfSuffix;
   dr_fusion_ = std::make_unique<hozon::mp::loc::DrFusion>();
-  if (dr_fusion_->Init(FLAGS_dr_config) != hozon::mp::loc::InsInitStatus::OK) {
+  if (dr_fusion_->Init(dr_fusion_config) != hozon::mp::loc::InsInitStatus::OK) {
     return -1;
   }
   // register proto for ipc

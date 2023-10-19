@@ -19,5 +19,5 @@ target_link_libraries(localization_dr_fusion_cyber
 set_target_properties(localization_dr_fusion_cyber PROPERTIES LINKER_LANGUAGE CXX)
 install(
   TARGETS localization_dr_fusion_cyber
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

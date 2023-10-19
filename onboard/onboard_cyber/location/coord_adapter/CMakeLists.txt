@@ -21,6 +21,6 @@ target_link_libraries(location_coord_adapter_cyber
 set_target_properties(location_coord_adapter_cyber PROPERTIES LINKER_LANGUAGE CXX)
 
 install(
-    TARGETS location_coord_adapter_cyber
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  TARGETS location_coord_adapter_cyber
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

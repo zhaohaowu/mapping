@@ -18,6 +18,10 @@ DEFINE_string(fc_out_topic, "/mapping/location/fc", "fc output topic");
 
 DEFINE_string(fc_config, "conf/mapping/location/fusion_center/fc_config.yaml",
               "fusion center core config");
+DEFINE_string(kf_config, "conf/mapping/location/fusion_center/kalman.yaml",
+              "kalman config file");
+DEFINE_string(eskf_config, "conf/mapping/location/fusion_center/eskf.yaml",
+              "eskf config file");
 
 namespace hozon {
 namespace mp {
@@ -26,7 +30,7 @@ namespace fc {
 
 bool FcComponent::Init() {
   fc_ = std::make_shared<FusionCenter>();
-  if (!fc_->Init(FLAGS_fc_config)) {
+  if (!fc_->Init(FLAGS_fc_config, FLAGS_kf_config, FLAGS_eskf_config)) {
     return false;
   }
 

@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #pragma once
-
 #include <depend/map/hdmap/hdmap.h>
 
 #include <memory>

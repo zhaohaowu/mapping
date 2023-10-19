@@ -7,30 +7,35 @@
 
 #pragma once
 
-#include <string>
-#include <memory>
 #include <deque>
+#include <memory>
+#include <string>
+#include <thread>
+#include <utility>
 
-#include "proto/soc/sensor_imu_ins.pb.h"
-#include "proto/localization/node_info.pb.h"
+// #include "modules/location/fusion_center/lib/defines.h"
+#include "modules/location/fusion_center/lib/eskf.h"
+#include "modules/location/fusion_center/lib/kalman_filter.h"
 #include "proto/localization/localization.pb.h"
-#include "modules/location/fusion_center/lib/defines.h"
+#include "proto/localization/node_info.pb.h"
+#include "proto/soc/sensor_imu_ins.pb.h"
 
 namespace hozon {
 namespace mp {
 namespace loc {
 namespace fc {
 
-using hozon::soc::ImuIns;
 using hozon::localization::HafNodeInfo;
 using hozon::localization::Localization;
+using hozon::soc::ImuIns;
 
 class FusionCenter {
  public:
   FusionCenter() = default;
-  ~FusionCenter() = default;
+  ~FusionCenter();
 
-  bool Init(const std::string& configfile);
+  bool Init(const std::string& configfile, const std::string& filterconf,
+            const std::string& eskfconf);
   void OnImu(const ImuIns& imuins);
   void OnIns(const HafNodeInfo& ins);
   void OnDR(const HafNodeInfo& dr);
@@ -48,12 +53,38 @@ class FusionCenter {
   void SetRefpoint(const Eigen::Vector3d& blh);
   const Eigen::Vector3d Refpoint();
   void Node2AlgLocation(const Context& ctx, Localization* const location);
+  void RunFusion();
+  bool PoseInit();
+  bool GenerateNewESKFPre();   // 用于收集融合的预测
+  bool GenerateNewESKFMeas();  // 用于收集融合的观测
+  Node State2Node(const State& state);
+  void InsertESKFFusionNode(const Node& node);
+  void RunESKFFusion();
+  bool AllowInsMeas(int sys_status, int rtk_status);
+  bool InsertESKFMeasDR();  // 用于插入DR相对测量值
+  bool PredictMMMeas();     // 当无MM测量时，用INS递推MM
+  void PruneDeques();
+  bool AllowInit(int sys_status, int rtk_status);
+  bool GetCurrentContext(Context* const context);
+  bool IsInterpolable(const std::shared_ptr<Node>& n1,
+                      const std::shared_ptr<Node>& n2,
+                      const std::string& src = "", double dis_tol = 5.0,
+                      double ang_tol = 0.3, double time_tol = 0.5);
+  bool Interpolate(double ticktime, const std::deque<std::shared_ptr<Node>>& d,
+                   Node* const node, const std::string& src = "",
+                   double dis_tol = 5.0, double ang_tol = 0.3,
+                   double time_tol = 0.5);
+  void KalmanFiltering(Node* const node);
+
+  template <typename T>
+  void CutoffDeque(double timestamp, std::deque<std::shared_ptr<T>>* const d);
 
  private:
   Params params_;
   uint32_t seq_ = 0;
   uint32_t ehp_counter_ = 0;
   double coord_init_timestamp_ = -1;
+  std::atomic<bool> fusion_run_{true};
 
   std::mutex refpoint_mutex_;
   Eigen::Vector3d init_refpoint_ = Eigen::Vector3d::Zero();
@@ -73,12 +104,31 @@ class FusionCenter {
   std::mutex pe_deque_mutex_;
   std::deque<std::shared_ptr<Node>> pe_deque_;
 
+  std::mutex fusion_deque_mutex_;
+  std::deque<std::shared_ptr<Node>> fusion_deque_;
+
+  std::mutex latest_ins_mutex_;
+  HafNodeInfo latest_ins_data_;
+
   ImuIns prev_imuins_;
   ImuIns curr_imuins_;
   HafNodeInfo prev_raw_ins_;
   HafNodeInfo curr_raw_ins_;
   HafNodeInfo prev_raw_dr_;
   HafNodeInfo prev_raw_pe_;
+
+  std::shared_ptr<std::thread> th_fusion_ = nullptr;
+  std::shared_ptr<ESKF> eskf_ = nullptr;
+  KalmanFilter kalman_filter_;
+
+  bool init_ins_ = false;
+  bool can_output_ = false;
+  double last_meas_time_ = 0.0;
+  bool latest_output_valid_ = false;
+  Node latest_output_node_;
+
+  std::deque<std::shared_ptr<Node>> pre_deque_;
+  std::deque<std::shared_ptr<Node>> meas_deque_;
 };
 
 }  // namespace fc

@@ -12,8 +12,8 @@
 #include "modules/util/include/util/temp_log.h"
 
 DEFINE_string(ins_config,
-              "/media/ni/2T/workspace/toqingluan/mapping/conf/mapping/location/"
-              "ins_fusion/ins_config.yaml",
+              "/home/zhangyu/zy/code/mapping/release/x86/conf/mapping/location/ins_fusion/"
+              "ins_config.yaml",
               "config file path for ins_config");
 
 namespace hozon {

@@ -6,6 +6,8 @@ include_directories(
 
 set(FUSION_CENTER_SRCS
     fusion_center.cc
+    eskf.cc
+    kalman_filter.cc
 )
 
 add_mapping_library(location_fusion_center_core SHARED ${FUSION_CENTER_SRCS})

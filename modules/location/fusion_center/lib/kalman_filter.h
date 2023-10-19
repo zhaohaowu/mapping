@@ -1,0 +1,48 @@
+/******************************************************************************
+ *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： kalman_filter.h
+ *   author     ： zhangyu0435
+ *   date       ： 2023.10
+ ******************************************************************************/
+#pragma once
+
+#include <Eigen/Eigen>
+#include <string>
+#include <vector>
+
+namespace hozon {
+namespace mp {
+namespace loc {
+namespace fc {
+
+class KalmanFilter {
+ public:
+  KalmanFilter() = default;
+  ~KalmanFilter() = default;
+
+  bool Init(const std::string& configfile);
+  void Reinit();
+  void SetInitialState(const Eigen::VectorXd& state);
+  void SetF(const Eigen::MatrixXd& F);
+  void Predict(double t, double ve, double vn, double vu, double avy);
+  void MeasurementUpdate(const Eigen::VectorXd& z);
+  bool IsInitialized() const;
+  Eigen::VectorXd GetState() const;
+
+ private:
+  bool init_ = false;
+  std::string configfile_ = "";
+  double angle_sign_change_thr_ = 0.0;
+  Eigen::VectorXd state_;
+  Eigen::MatrixXd F_;
+  Eigen::MatrixXd P_;
+  Eigen::MatrixXd Q_;
+  Eigen::MatrixXd H_;
+  Eigen::MatrixXd R_;
+};
+
+}  // namespace fc
+}  // namespace loc
+}  // namespace mp
+}  // namespace hozon
+

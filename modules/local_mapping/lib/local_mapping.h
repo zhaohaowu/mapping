@@ -8,12 +8,14 @@
 #include <yaml-cpp/yaml.h>
 
 #include <Eigen/Dense>
-#include <Sophus/se3.hpp>
+
 #include <algorithm>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <Sophus/se3.hpp>
 
 #include "depend/map/hdmap/hdmap.h"
 #include "depend/proto/localization/node_info.pb.h"

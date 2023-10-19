@@ -11,10 +11,10 @@
 #include "base/utils/log.h"
 #include "modules/util/include/util/temp_log.h"
 
-DEFINE_string(
-    dr_config,
-    "/svp_data/release/orin/conf/mapping/location/dr_fusion/dr_config.yaml",
-    "config file path for ins_config");
+DEFINE_string(dr_config,
+              "/home/zhangyu/zy/code/mapping/conf/mapping/location/dr_fusion/"
+              "dr_config.yaml",
+              "config file path for ins_config");
 
 namespace hozon {
 namespace perception {

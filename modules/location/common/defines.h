@@ -23,11 +23,11 @@ struct BaseNode {
   Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
 };
 
-Sophus::SE3d Node2SE3(const BaseNode& n) {
+static Sophus::SE3d Node2SE3(const BaseNode& n) {
   return Sophus::SE3d(Sophus::SO3d::exp(n.orientation), n.enu);
 }
 
-Sophus::SE3d Node2SE3(const std::shared_ptr<BaseNode>& n) {
+static Sophus::SE3d Node2SE3(const std::shared_ptr<BaseNode>& n) {
   return Node2SE3(*n);
 }
 

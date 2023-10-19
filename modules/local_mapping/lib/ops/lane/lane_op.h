@@ -5,11 +5,12 @@
  *****************************************************************************/
 #pragma once
 
-#include <Sophus/se3.hpp>
 #include <iostream>
 #include <memory>
 #include <unordered_map>
 #include <vector>
+
+#include <Sophus/se3.hpp>
 
 #include "modules/local_mapping/lib/datalogger/load_data_singleton.h"
 #include "modules/local_mapping/lib/ops/association/association.h"

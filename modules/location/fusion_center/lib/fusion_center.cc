@@ -8,11 +8,12 @@
 #include "modules/location/fusion_center/lib/fusion_center.h"
 
 #include <yaml-cpp/yaml.h>
+
 #include <boost/filesystem.hpp>
 
 #include "modules/location/fusion_center/lib/eulerangle.h"
-#include "modules/util/include/util/temp_log.h"
 #include "modules/util/include/util/geo.h"
+#include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
 namespace mp {
@@ -21,7 +22,16 @@ namespace fc {
 
 namespace hmu = hozon::mp::util;
 
-bool FusionCenter::Init(const std::string& configfile) {
+FusionCenter::~FusionCenter() {
+  fusion_run_ = false;
+  if (th_fusion_->joinable()) {
+    th_fusion_->join();
+  }
+}
+
+bool FusionCenter::Init(const std::string& configfile,
+                        const std::string& filterconf,
+                        const std::string& eskfconf) {
   boost::filesystem::path path(configfile);
   if (!boost::filesystem::exists(path)) {
     HLOG_ERROR << "location fc conf:" << configfile << " not exist";
@@ -31,6 +41,20 @@ bool FusionCenter::Init(const std::string& configfile) {
     HLOG_ERROR << "location fc load params from " << configfile << " error";
     return false;
   }
+
+  if (!kalman_filter_.Init(filterconf)) {
+    HLOG_WARN << "filter init failed: " << filterconf;
+    return false;
+  }
+
+  eskf_ = std::make_shared<ESKF>();
+  if (!eskf_->Init(eskfconf)) {
+    HLOG_WARN << "filter init failed: " << eskfconf;
+    return false;
+  }
+
+  th_fusion_ = std::make_shared<std::thread>(&FusionCenter::RunFusion, this);
+
   return true;
 }
 
@@ -59,6 +83,10 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
   }
   prev_raw_ins_ = ins;
   curr_raw_ins_ = ins;
+
+  latest_ins_mutex_.lock();
+  latest_ins_data_ = ins;
+  latest_ins_mutex_.unlock();
 
   if (!ref_init_) {
     const Eigen::Vector3d refpoint(ins.pos_gcj02().x(), ins.pos_gcj02().y(),
@@ -127,32 +155,134 @@ void FusionCenter::SetCoordInitTimestamp(double t) {
 }
 
 bool FusionCenter::GetCurrentOutput(Localization* const location) {
-  if (!location) {
+  if (!location || !can_output_) {
     return false;
   }
   if (!params_.passthrough_ins && coord_init_timestamp_ < 0) {
     return false;
   }
 
-  Context ctx;
-  ctx.imuins = curr_imuins_;
-  ctx.ins = curr_raw_ins_;
+  Context context;
+  if (!GetCurrentContext(&context)) {
+    HLOG_INFO << "get context failed";
+    return false;
+  }
+  // KF滤波
+  if (params_.smooth_outputs) {
+    auto start = std::chrono::steady_clock::now();
+    KalmanFiltering(&(context.fusion_node));
+    auto end = std::chrono::steady_clock::now();
+    auto duration =
+        std::chrono::duration_cast<std::chrono::microseconds>(end - start)
+            .count();
+  }
+  context.fusion_node.blh =
+      hmu::Geo::EnuToBlh(context.fusion_node.enu, context.fusion_node.refpoint);
+  context.fusion_node.rtk_status = context.ins_node.rtk_status;
+
+  latest_output_node_ = context.fusion_node;
+
+  if (!latest_output_valid_) {
+    latest_output_valid_ = true;
+  }
+
+  context.imuins = curr_imuins_;
+  context.ins = curr_raw_ins_;
   {
     std::unique_lock<std::mutex> lock(ins_deque_mutex_);
     if (ins_deque_.empty()) {
       return false;
     }
-    ctx.ins_node = *(ins_deque_.back());
+    context.ins_node = *(ins_deque_.back());
   }
 
-  if (params_.passthrough_ins) {
-    ctx.fusion_node = ctx.ins_node;
-    Node2AlgLocation(ctx, location);
-    location->set_location_state(5);
-    return true;
+  Node2AlgLocation(context, location);
+
+  // if (params_.passthrough_ins) {
+  //   context.fusion_node = context.ins_node;
+  //   Node2AlgLocation(context, location);
+  //   location->set_location_state(5);
+  //   return true;
+  // }
+
+  return true;
+}
+
+bool FusionCenter::GetCurrentContext(Context* const context) {
+  if (!context || fusion_deque_.empty() || ins_deque_.empty() || !ref_init_) {
+    return false;
   }
 
-  return false;
+  const auto refpoint = Refpoint();
+  static int count = 0;
+
+  fusion_deque_mutex_.lock();
+  const auto latest_fusion_node = *(fusion_deque_.back());
+  fusion_deque_mutex_.unlock();
+
+  latest_ins_mutex_.lock();
+  context->ins = latest_ins_data_;
+  latest_ins_mutex_.unlock();
+
+  Node newest_ins_node;
+  if (!ExtractBasicInfo(context->ins, &newest_ins_node)) {
+    return false;
+  }
+  newest_ins_node.enu = hmu::Geo::BlhToEnu(newest_ins_node.blh, refpoint);
+  newest_ins_node.refpoint = refpoint;
+  context->ins_node = newest_ins_node;
+
+  const double newest_ins_fusion_diff =
+      fabs(newest_ins_node.ticktime - latest_fusion_node.ticktime);
+  const double newest_ins_lastout_diff =
+      newest_ins_node.ticktime - latest_output_node_.ticktime;
+  const double out_diff =
+      latest_fusion_node.ticktime - latest_output_node_.ticktime;
+
+  if (fabs(newest_ins_fusion_diff) > 0.2) {
+    HLOG_ERROR << SETPRECISION(15)
+               << "newest_ins_fusion_diff: " << newest_ins_fusion_diff
+               << ", newest_ins_lastout_diff: " << newest_ins_lastout_diff
+               << ", out_diff: " << out_diff;
+  }
+
+  Node refer_node;
+  refer_node = latest_fusion_node;
+
+  Node ni;
+  {
+    std::lock_guard<std::mutex> lock(ins_deque_mutex_);
+    if (!Interpolate(refer_node.ticktime, ins_deque_, &ni, "ctx_ins_ni")) {
+      HLOG_ERROR << "interpolate ins output failed";
+      return false;
+    }
+  }
+
+  context->fusion_node = newest_ins_node;
+  const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(newest_ins_node);
+  const auto& pose = Node2SE3(refer_node) * T_delta;
+  context->fusion_node.enu = pose.translation();
+  context->fusion_node.orientation = pose.so3().log();
+
+  {
+    std::lock_guard<std::mutex> lock(fusion_deque_mutex_);
+    int valid_cnt = 0;
+    for (auto& node : fusion_deque_) {
+      if (node->type == NodeType::MM) {
+        context->fusion_node.location_state = 2;
+        break;
+      }
+      context->fusion_node.location_state = 5;
+
+      if (valid_cnt > params_.mm_valid_frame_) {
+        break;
+      }
+      ++valid_cnt;
+    }
+  }
+  Node node = context->fusion_node;
+
+  return true;
 }
 
 bool FusionCenter::LoadParams(const std::string& configfile) {
@@ -167,6 +297,24 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
   params_.pe_deque_max_size = node["pe_deque_max_size"].as<uint32_t>();
   params_.passthrough_ins = node["passthrough_ins"].as<bool>();
 
+  params_.smooth_outputs = node["smooth_outputs"].as<bool>();
+  params_.use_smooth_yaw = node["use_smooth_yaw"].as<bool>();
+  params_.mm_valid_frame_ = node["mm_valid_frame"].as<uint32_t>();
+  params_.no_mm_min_time = node["no_mm_min_time"].as<double>();
+  params_.no_mm_max_time = node["no_mm_max_time"].as<double>();
+  params_.use_dr_measurement = node["use_dr_measurement"].as<bool>();
+  params_.run_fusion_interval_ms =
+      node["run_fusion_interval_ms"].as<uint32_t>();
+  params_.window_size = node["window_size"].as<uint32_t>();
+
+  params_.ins_init_status.clear();
+  const auto& init_status_node = node["ins_init_status"];
+  for (const auto& init_status : init_status_node) {
+    uint32_t sys_status = init_status["sys_status"].as<uint32_t>();
+    uint32_t gps_status = init_status["gps_status"].as<uint32_t>();
+    params_.ins_init_status.emplace_back(
+        std::make_pair(sys_status, gps_status));
+  }
   return true;
 }
 
@@ -219,6 +367,95 @@ bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
   }
 
   return true;
+}
+
+void FusionCenter::RunFusion() {
+  pthread_setname_np(pthread_self(), "loc_fc_eskf");
+
+  while (fusion_run_) {
+    // Init
+    if (!init_ins_) {
+      while (!PoseInit()) {
+        usleep(params_.run_fusion_interval_ms * 1000);
+      }
+    }
+
+    // ESKF
+    bool meas_flag = GenerateNewESKFMeas();
+    bool pre_flag = GenerateNewESKFPre();
+
+    if (pre_flag && meas_flag) {
+      RunESKFFusion();
+    }
+
+    can_output_ = true;
+    PruneDeques();
+    usleep(params_.run_fusion_interval_ms * 1000);
+  }
+}
+
+void FusionCenter::PruneDeques() {
+  if (fusion_deque_.empty()) {
+    ins_deque_mutex_.lock();
+    ins_deque_.clear();
+    ins_deque_mutex_.unlock();
+
+    dr_deque_mutex_.lock();
+    dr_deque_.clear();
+    dr_deque_mutex_.unlock();
+
+    pe_deque_mutex_.lock();
+    pe_deque_.clear();
+    pe_deque_mutex_.unlock();
+
+    imuins_deque_mutex_.lock();
+    imuins_deque_.clear();
+    imuins_deque_mutex_.unlock();
+
+    return;
+  }
+
+  fusion_deque_mutex_.lock();
+  while (fusion_deque_.size() > params_.window_size) {
+    fusion_deque_.pop_front();
+  }
+  const double ticktime = fusion_deque_.front()->ticktime - 0.05;
+  fusion_deque_mutex_.unlock();
+
+  ins_deque_mutex_.lock();
+  CutoffDeque(ticktime, &ins_deque_);
+  ins_deque_mutex_.unlock();
+
+  dr_deque_mutex_.lock();
+  CutoffDeque(ticktime, &dr_deque_);
+  dr_deque_mutex_.unlock();
+
+  pe_deque_mutex_.lock();
+  CutoffDeque(ticktime, &pe_deque_);
+  pe_deque_mutex_.unlock();
+
+  imuins_deque_mutex_.lock();
+  while (!imuins_deque_.empty()) {
+    const auto& imu_phy_data = imuins_deque_.front();
+    double imu_tick = (*imu_phy_data).header().publish_stamp();
+
+    if (imu_tick > ticktime) {
+      break;
+    }
+    imuins_deque_.pop_front();
+  }
+  imuins_deque_mutex_.unlock();
+}
+
+template <typename T>
+void FusionCenter::CutoffDeque(double timestamp,
+                               std::deque<std::shared_ptr<T>>* const d) {
+  if (!d) {
+    return;
+  }
+  while (!d->empty() && d->front()->ticktime <= timestamp) {
+    d->pop_front();
+  }
 }
 
 void FusionCenter::SetRefpoint(const Eigen::Vector3d& blh) {
@@ -359,15 +596,484 @@ void FusionCenter::Node2AlgLocation(const Context& ctx,
       imu.imuvb_angular_velocity().z());
 
   Eigen::Matrix<float, 6, 1> diag;
-  diag << ins.sd_position().x(), ins.sd_position().y(),
-          ins.sd_position().z(), ins.sd_attitude().x(),
-          ins.sd_attitude().y(), ins.sd_attitude().z();
+  diag << ins.sd_position().x(), ins.sd_position().y(), ins.sd_position().z(),
+      ins.sd_attitude().x(), ins.sd_attitude().y(), ins.sd_attitude().z();
   Eigen::Matrix<float, 6, 6, Eigen::RowMajor> sd = diag.asDiagonal();
   Eigen::Matrix<float, 6, 6, Eigen::RowMajor> cov = sd * sd;
 
   location->clear_covariance();
   for (int i = 0; i < 36; ++i) {
     location->add_covariance(cov(i));
+  }
+}
+
+bool FusionCenter::IsInterpolable(const std::shared_ptr<Node>& n1,
+                                  const std::shared_ptr<Node>& n2,
+                                  const std::string& src, double dis_tol,
+                                  double ang_tol, double time_tol) {
+  if (!n1 || !n2) {
+    return false;
+  }
+
+  const double dis_delta = (n1->enu - n2->enu).norm();
+  const double ang_delta = (Sophus::SO3d::exp(n1->orientation).inverse() *
+                            Sophus::SO3d::exp(n2->orientation))
+                               .log()
+                               .norm();
+  const double time_delta = fabs(n2->ticktime - n1->ticktime);
+  if (dis_delta < dis_tol && ang_delta < ang_tol && time_delta < time_tol) {
+    return true;
+  }
+
+  HLOG_INFO << "src: " << src << ", not interpolatable";
+  if (dis_delta >= dis_tol) {
+    HLOG_INFO << "big distance: " << dis_delta;
+    HLOG_INFO << SETPRECISION(9) << "n1->enu: " << n1->enu(0) << ","
+              << n1->enu(1) << "," << n1->enu(2);
+    HLOG_INFO << SETPRECISION(9) << "n2->enu: " << n2->enu(0) << ","
+              << n2->enu(2) << "," << n2->enu(3);
+  }
+  if (ang_delta >= ang_tol) {
+    HLOG_INFO << "big angle: " << ang_delta;
+    HLOG_INFO << SETPRECISION(11) << "n1->orientation: " << n1->orientation(0)
+              << "," << n1->orientation(1) << "," << n1->orientation(2);
+    HLOG_INFO << SETPRECISION(11) << "n2->orientation: " << n2->orientation(0)
+              << "," << n2->orientation(1) << "," << n2->orientation(2);
+  }
+  if (time_delta >= time_tol) {
+    HLOG_INFO << SETPRECISION(20) << "big time: " << time_delta;
+    HLOG_INFO << SETPRECISION(20) << "n1->ticktime: " << n1->ticktime;
+    HLOG_INFO << SETPRECISION(20) << "n2->ticktime: " << n2->ticktime;
+  }
+
+  return false;
+}
+
+bool FusionCenter::Interpolate(double ticktime,
+                               const std::deque<std::shared_ptr<Node>>& d,
+                               Node* const node, const std::string& src,
+                               double dis_tol, double ang_tol,
+                               double time_tol) {
+  if (!node) {
+    return false;
+  }
+  int i = 0;
+  for (; i < d.size(); ++i) {
+    if (fabs(d[i]->ticktime - ticktime) < 1e-3) {
+      *node = *(d[i]);
+      return true;
+    }
+    if (d[i]->ticktime > ticktime) {
+      break;
+    }
+  }
+  if (i == 0 || i == d.size()) {
+    return false;
+  }
+
+  if (!IsInterpolable(d[i - 1], d[i], src, dis_tol, ang_tol, time_tol)) {
+    return false;
+  }
+
+  Sophus::SE3d p1 = Node2SE3(d[i - 1]);
+  Sophus::SE3d p2 = Node2SE3(d[i]);
+  Sophus::SE3d delta = p1.inverse() * p2;
+
+  double ratio =
+      (ticktime - d[i - 1]->ticktime) / (d[i]->ticktime - d[i - 1]->ticktime);
+  if (std::isnan(ratio) || std::isinf(ratio)) {
+    return false;
+  }
+
+  auto pose = p1 * Sophus::SE3d(Sophus::SO3d::exp(ratio * delta.so3().log()),
+                                ratio * delta.translation());
+  node->enu = pose.translation();
+  node->orientation = pose.so3().log();
+  node->b_a = (1 - ratio) * d[i - 1]->b_a + ratio * d[i]->b_a;
+  node->b_g = (1 - ratio) * d[i - 1]->b_g + ratio * d[i]->b_g;
+  node->velocity = (1 - ratio) * d[i - 1]->velocity + ratio * d[i]->velocity;
+  node->ticktime = ticktime;
+  node->sys_status = d[i]->sys_status;
+  node->rtk_status = d[i]->rtk_status;
+
+  return true;
+}
+
+bool FusionCenter::PoseInit() {
+  // 使用ins初始化(if--->第一次初始化，else--->后续异常初始化)
+  if (fusion_deque_.empty()) {
+    std::unique_lock<std::mutex> lock(ins_deque_mutex_);
+    for (auto iter = ins_deque_.rbegin(); iter != ins_deque_.rend(); ++iter) {
+      if (AllowInit((*iter)->sys_status, (*iter)->rtk_status)) {
+        (*iter)->enu = hmu::Geo::BlhToEnu((*iter)->blh, (*iter)->refpoint);
+        InsertESKFFusionNode(**iter);
+        init_ins_ = true;
+        return true;
+      }
+    }
+  } else {
+    fusion_deque_mutex_.lock();
+    double latest_fc_ticktime = fusion_deque_.back()->ticktime;
+    fusion_deque_mutex_.unlock();
+    fusion_deque_.clear();
+
+    std::unique_lock<std::mutex> lock(ins_deque_mutex_);
+    for (auto iter = ins_deque_.rbegin(); iter != ins_deque_.rend(); ++iter) {
+      if (AllowInit((*iter)->sys_status, (*iter)->rtk_status) &&
+          (*iter)->ticktime > latest_fc_ticktime) {
+        (*iter)->enu = hmu::Geo::BlhToEnu((*iter)->blh, (*iter)->refpoint);
+        InsertESKFFusionNode(**iter);
+        init_ins_ = true;
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+bool FusionCenter::GenerateNewESKFPre() {
+  // 收集预测节点
+  fusion_deque_mutex_.lock();
+  double cur_ticktime = fusion_deque_.back()->ticktime;
+  fusion_deque_mutex_.unlock();
+  bool pre_flag = false;
+  pre_deque_.clear();
+  {
+    std::unique_lock<std::mutex> lock(ins_deque_mutex_);
+    for (const auto& ins_node : ins_deque_) {
+      if (ins_node->ticktime - cur_ticktime > 0) {
+        pre_deque_.push_back(ins_node);
+        pre_flag = true;
+      }
+    }
+  }
+
+  return pre_flag;
+}
+
+bool FusionCenter::GenerateNewESKFMeas() {
+  // 进行优势传感器的测量数据收集（加入各种判断条件，如MM不工作时用INS）
+  fusion_deque_mutex_.lock();
+  double cur_ticktime = fusion_deque_.back()->ticktime;
+  fusion_deque_mutex_.unlock();
+  bool meas_flag = false;
+  meas_deque_.clear();
+
+  // 1.1 MM工作时，MM测量加入
+  {
+    std::unique_lock<std::mutex> lock(pe_deque_mutex_);
+    for (const auto& mm_node : pe_deque_) {
+      if (mm_node->ticktime > cur_ticktime &&
+          mm_node->ticktime > last_meas_time_) {
+        meas_deque_.push_back(mm_node);
+        meas_flag = true;
+      }
+    }
+  }
+
+  // 1.2 MM不工作时
+  if (!meas_flag) {
+    latest_ins_mutex_.lock();
+    double ins_ticktime = latest_ins_data_.header().publish_stamp();
+    latest_ins_mutex_.unlock();
+    double time_diff = ins_ticktime - cur_ticktime;
+
+    // (1)INS补帧MM测量
+    pe_deque_mutex_.lock();
+    int mm_size = pe_deque_.size();
+    pe_deque_mutex_.unlock();
+    if (params_.use_ins_predict_mm && mm_size > 0 &&
+        time_diff > params_.no_mm_min_time &&
+        time_diff < params_.no_mm_max_time) {
+      if (PredictMMMeas()) {
+        meas_flag = true;
+        HLOG_ERROR << "No MM measurement,predict MM meas. time_diff:"
+                   << time_diff;
+      }
+
+      // (2)INS测量加入
+    } else if (mm_size == 0 || time_diff >= params_.no_mm_max_time) {
+      std::unique_lock<std::mutex> lock(ins_deque_mutex_);
+      for (const auto& ins_node : ins_deque_) {
+        if (ins_node->ticktime > cur_ticktime &&
+            ins_node->ticktime > last_meas_time_ &&
+            AllowInsMeas(ins_node->sys_status, ins_node->rtk_status)) {
+          meas_deque_.push_back(ins_node);
+          meas_flag = true;
+        }
+      }
+      HLOG_INFO << "No MM measurement,insert INS meas. time_diff:" << time_diff;
+    }
+  }
+
+  // 2. DR测量加入（目前用INS的相对代替）
+  if (params_.use_dr_measurement) {
+    if (!InsertESKFMeasDR()) {
+      HLOG_ERROR << "Insert DR Measurements Error!";
+    }
+    // 根据时间戳对测量队列排序
+    std::deque<std::shared_ptr<Node>> sort_deque;
+    while (meas_deque_.size() > 0) {
+      std::shared_ptr<Node> min_node = meas_deque_.front();
+      auto del_index = meas_deque_.begin();
+
+      for (auto it = del_index; it != meas_deque_.end(); ++it) {
+        if (min_node->ticktime > (*it)->ticktime) {
+          min_node = *it;
+          del_index = it;
+        }
+      }
+
+      sort_deque.push_back(min_node);
+      meas_deque_.erase(del_index);
+    }
+    meas_deque_ = sort_deque;
+  }
+
+  return meas_flag;
+}
+
+bool FusionCenter::PredictMMMeas() {
+  if (meas_deque_.size() > 0) {
+    HLOG_ERROR << "No need to predict MM Meas!";
+    return false;
+  }
+
+  // 1.取出mm队列最新节点，并取出对应时间的MM节点
+  pe_deque_mutex_.lock();
+  const auto mm_refer = pe_deque_.back();
+  pe_deque_mutex_.unlock();
+
+  double mm_ticktime = mm_refer->ticktime;
+  std::shared_ptr<Node> ins_refer = nullptr;
+
+  ins_deque_mutex_.lock();
+  for (const auto& ins_node : ins_deque_) {
+    if (abs(ins_node->ticktime - mm_ticktime) < 0.001) {
+      ins_refer = ins_node;
+    }
+  }
+  ins_deque_mutex_.unlock();
+  if (ins_refer == nullptr) {
+    HLOG_ERROR << "Dont find INS refer node!";
+    return false;
+  }
+
+  // 2.50ms一个，根据INS测量递推出MM测量
+  double now_ticktime = mm_ticktime;
+  ins_deque_mutex_.lock();
+  for (const auto& ins_node : ins_deque_) {
+    if (ins_node->ticktime - now_ticktime > 0.1) {
+      std::shared_ptr<Node> node = ins_node;
+      const auto& T_delta =
+          Node2SE3(*ins_refer).inverse() * Node2SE3(*ins_node);
+      const auto& pose = Node2SE3(*mm_refer) * T_delta;
+      node->enu = pose.translation();
+      node->orientation = pose.so3().log();
+      node->type = NodeType::MM;
+      meas_deque_.push_back(node);
+      now_ticktime = ins_node->ticktime;
+    }
+  }
+  ins_deque_mutex_.unlock();
+
+  if (meas_deque_.size() > 0) {
+    HLOG_ERROR << "Success,meas_deque_.size():" << meas_deque_.size();
+    return true;
+  }
+
+  return false;
+}
+
+void FusionCenter::InsertESKFFusionNode(const Node& node) {
+  auto new_node = std::make_shared<Node>();
+  *new_node = node;
+  fusion_deque_mutex_.lock();
+  fusion_deque_.emplace_back(new_node);
+  fusion_deque_mutex_.unlock();
+}
+
+void FusionCenter::RunESKFFusion() {
+  HLOG_INFO << "-------eskf前-------"
+            << "pre_deque_.size():" << pre_deque_.size()
+            << ", meas_deque_.size():" << meas_deque_.size()
+            << ", meas_type:" << meas_deque_.back()->type
+            << ", eskf_fusion_deque_.size():" << fusion_deque_.size();
+
+  // eskf开始
+  // debug
+  // static std::ofstream measured_file(data_file_path_ + "/mm_measurement.txt",
+  //                                    std::ios::trunc);
+  fusion_deque_mutex_.lock();
+  eskf_->StateInit(fusion_deque_.back());
+  fusion_deque_mutex_.unlock();
+  while (!pre_deque_.empty() && !meas_deque_.empty()) {
+    Node meas_node = *meas_deque_.front();
+    Node predict_node = *pre_deque_.front();
+
+    if (predict_node.ticktime < meas_node.ticktime) {
+      if (!eskf_->Predict(predict_node)) {
+        init_ins_ = false;
+        return;
+      }
+      pre_deque_.pop_front();
+    } else {
+      // 多源融合时，多个测量时间戳一样时，进行原地更新（无需预测）
+      if (abs(last_meas_time_ - meas_node.ticktime) <= 0.001) {
+        eskf_->Correct(meas_node);
+        meas_deque_.pop_front();
+      } else {
+        if (!eskf_->Predict(predict_node)) {
+          init_ins_ = false;
+          return;
+        }
+        pre_deque_.pop_front();
+        eskf_->Correct(meas_node);
+        last_meas_time_ = meas_node.ticktime;
+        meas_deque_.pop_front();
+      }
+      // debug
+      // SaveTUMPose(measured_file, meas_node.quaternion, meas_node.enu,
+      //             meas_node.ticktime);
+    }
+
+    State state = eskf_->GetState();
+    InsertESKFFusionNode(State2Node(state));
+  }
+
+  HLOG_INFO << "-------eskf后-------"
+            << "pre_deque_.size():" << pre_deque_.size()
+            << ", meas_deque_.size():" << meas_deque_.size()
+            << ", meas_type:" << meas_deque_.back()->type
+            << ", eskf_fusion_deque_.size():" << fusion_deque_.size();
+}
+
+Node FusionCenter::State2Node(const State& state) {
+  Node node;
+  const auto refpoint = Refpoint();
+
+  node.refpoint = refpoint;
+  node.ticktime = state.ticktime;
+  node.type = state.meas_type;
+  node.enu = state.p;
+  node.velocity = state.v;
+  node.b_g = state.b_g;
+  node.b_a = state.b_a;
+  node.quaternion = state.R.unit_quaternion();
+  node.orientation = state.R.log();
+
+  node.sys_status = state.sys_status;
+  node.rtk_status = state.rtk_status;
+
+  return node;
+}
+
+bool FusionCenter::AllowInsMeas(int sys_status, int rtk_status) {
+  if ((sys_status == 2 && (rtk_status == 4 || rtk_status == 5)) ||
+      (sys_status == 3 && rtk_status == 3)) {
+    return true;
+  }
+  return false;
+}
+
+bool FusionCenter::AllowInit(int sys_status, int rtk_status) {
+  for (const auto& status : params_.ins_init_status) {
+    if (sys_status == status.first && rtk_status == status.second) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool FusionCenter::InsertESKFMeasDR() {
+  // 1.取出fc最新节点，并取出对应时间的INS节点
+  fusion_deque_mutex_.lock();
+  const auto fc_refer = fusion_deque_.back();
+  fusion_deque_mutex_.unlock();
+
+  double fc_ticktime = fc_refer->ticktime;
+  std::shared_ptr<Node> ins_refer = nullptr;
+
+  ins_deque_mutex_.lock();
+  for (const auto& ins_node : ins_deque_) {
+    if (abs(ins_node->ticktime - fc_ticktime) < 0.001) {
+      ins_refer = ins_node;
+    }
+  }
+  ins_deque_mutex_.unlock();
+  if (ins_refer == nullptr) {
+    HLOG_ERROR << "Dont find INS refer node!";
+    return false;
+  }
+
+  // 2.取出超过当前fc时间戳的INS节点，并计算转换出以fc为基准加上取出INS节点的相对测量
+  ins_deque_mutex_.lock();
+  for (const auto& ins_node : ins_deque_) {
+    if (ins_node->ticktime - fc_ticktime > 0.001) {
+      std::shared_ptr<Node> node = ins_node;
+      const auto& T_delta =
+          Node2SE3(*ins_refer).inverse() * Node2SE3(*ins_node);
+      const auto& pose = Node2SE3(*fc_refer) * T_delta;
+      node->enu = pose.translation();
+      node->orientation = pose.so3().log();
+      meas_deque_.push_back(node);
+    }
+  }
+  ins_deque_mutex_.unlock();
+
+  return true;
+}
+
+double Rad2TwoPi(double rad) {
+  double deg = rad * 180.0 / M_PI;
+  if (deg < 0) {
+    deg += 360.0;
+  }
+  return deg;
+}
+
+double TwoPi2Rad(double deg) {
+  double rad = deg > 180.0 ? deg - 360.0 : deg;
+  rad = rad / 180.0 * M_PI;
+  return rad;
+}
+
+void FusionCenter::KalmanFiltering(Node* const node) {
+  if (!node) {
+    return;
+  }
+
+  Eigen::VectorXd state(4, 1);
+  state << node->enu(0), node->enu(1), node->enu(2),
+      Rad2TwoPi(node->orientation(2));
+
+  if (!kalman_filter_.IsInitialized()) {
+    kalman_filter_.SetInitialState(state);
+  }
+
+  double delta_t = 0.0;
+  if (latest_output_valid_) {
+    delta_t = node->ticktime - latest_output_node_.ticktime;
+  }
+
+  Eigen::MatrixXd F = Eigen::MatrixXd::Identity(4, 4);
+  kalman_filter_.SetF(F);
+
+  kalman_filter_.Predict(delta_t, node->velocity(0), node->velocity(1),
+                         node->velocity(2), node->angular_velocity(2));
+  kalman_filter_.MeasurementUpdate(state);
+
+  const auto curr_state = kalman_filter_.GetState();
+  node->enu << curr_state(0), curr_state(1), curr_state(2);
+  if (params_.use_smooth_yaw) {
+    double yaw_deg = curr_state(3);
+    if (yaw_deg > 360.0) {
+      yaw_deg -= 360.0;
+    } else if (yaw_deg < 0.0) {
+      yaw_deg += 360.0;
+    }
+    node->orientation(2) = TwoPi2Rad(yaw_deg);
   }
 }
 

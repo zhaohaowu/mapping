@@ -10,9 +10,17 @@
 #include <base/utils/log.h>
 
 DEFINE_string(fc_config,
-              "/data/code/mapping/conf/mapping/location/fusion_center/"
-              "fc_config.yaml",
+              "/home/zhangyu/zy/code/mapping/conf/mapping/location/"
+              "fusion_center/fc_config.yaml",
               "fusion center core config file");
+DEFINE_string(kf_config,
+              "/home/zhangyu/zy/code/mapping/conf/mapping/location/"
+              "fusion_center/kalman.yaml",
+              "kalman config file");
+DEFINE_string(eskf_config,
+              "/home/zhangyu/zy/code/mapping/conf/mapping/location/"
+              "fusion_center/eskf.yaml",
+              "eskf config file");
 
 namespace hozon {
 namespace perception {
@@ -24,7 +32,8 @@ const char* const kFcTopic = "localization";
 
 int32_t FusionCenterLite::AlgInit() {
   fusion_center_ = std::make_unique<FusionCenter>();
-  if (!fusion_center_->Init(FLAGS_fc_config)) {
+  if (!fusion_center_->Init(FLAGS_fc_config, FLAGS_kf_config,
+                            FLAGS_eskf_config)) {
     return -1;
   }
 

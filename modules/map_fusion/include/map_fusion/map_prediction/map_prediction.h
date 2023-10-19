@@ -13,14 +13,16 @@
 #include <depend/proto/localization/node_info.pb.h>
 #include <depend/proto/map/map.pb.h>
 
+#include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <future>
 #include <memory>
+#include <set>
 #include <string>
 #include <thread>
 #include <utility>
 #include <vector>
-#include <set>
 
 #include "Eigen/Core"
 #include "Eigen/Dense"
@@ -29,9 +31,6 @@
 #include "map_fusion/map_prediction/viz_map.h"
 #include "proto/map/map_lane.pb.h"
 #include "proto/map/map_road.pb.h"
-
-#include <atomic>
-#include <future>
 
 namespace hozon {
 namespace mp {
@@ -60,13 +59,11 @@ class MapPrediction {
       const std::vector<hozon::hdmap::RoadInfoConstPtr>& roads);
   void ComputeDistLineToEdge(
       const std::pair<std::string, std::vector<Eigen::Vector3d>>& curr_line,
-      const std::vector<Eigen::Vector3d>& edge,
-      double* dist);
+      const std::vector<Eigen::Vector3d>& edge, double* dist);
   void AddLeftOrRightLine(
       const std::vector<Eigen::Vector3d>& edge,
       const std::pair<std::string, std::vector<Eigen::Vector3d>>& curr_line,
-      const double& dist,
-      const uint32_t& record);
+      const double& dist, const uint32_t& record);
   void PredictAheadLaneLine(
       const std::shared_ptr<hozon::hdmap::Map>& topo_map_,
       const std::set<std::string>& add_road_id_,

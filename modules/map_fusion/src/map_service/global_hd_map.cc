@@ -5,8 +5,6 @@
  *   date       ： 2023.10
  ******************************************************************************/
 
-#pragma once
-
 #include "map_fusion/map_service/global_hd_map.h"
 
 namespace hozon {

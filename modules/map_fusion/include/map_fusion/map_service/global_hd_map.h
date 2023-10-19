@@ -9,6 +9,8 @@
 
 #include <depend/map/hdmap/hdmap.h>
 
+#include <memory>
+
 namespace hozon {
 namespace mp {
 

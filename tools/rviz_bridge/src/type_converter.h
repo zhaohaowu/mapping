@@ -35,30 +35,30 @@ namespace util {
 class TypeConverter {
  public:
   static void Convert(const adsfi_proto::hz_Adsfi::AlgHeader &proto,
-                      std_msgs::Header &ros);
+                      std_msgs::Header *ros);
   static void Convert(const adsfi_proto::viz::CompressedImage &proto,
-                      sensor_msgs::CompressedImage &ros);
+                      sensor_msgs::CompressedImage *ros);
   static void Convert(const adsfi_proto::viz::Odometry &proto,
-                      nav_msgs::Odometry &ros);
-  static void Convert(const adsfi_proto::viz::Path &proto, nav_msgs::Path &ros);
+                      nav_msgs::Odometry *ros);
+  static void Convert(const adsfi_proto::viz::Path &proto, nav_msgs::Path *ros);
   static void Convert(const adsfi_proto::viz::TransformStamped &proto,
-                      geometry_msgs::TransformStamped &ros);
+                      geometry_msgs::TransformStamped *ros);
   static void Convert(const adsfi_proto::viz::Marker &proto,
-                      visualization_msgs::Marker &ros);
+                      visualization_msgs::Marker *ros);
   static void Convert(const adsfi_proto::viz::MarkerArray &proto,
-                      visualization_msgs::MarkerArray &ros);
+                      visualization_msgs::MarkerArray *ros);
   static void Convert(const adsfi_proto::viz::TwistStamped &proto,
-                      geometry_msgs::TwistStamped &ros);
+                      geometry_msgs::TwistStamped *ros);
   static void Convert(const adsfi_proto::viz::PolygonStamped &proto,
-                      geometry_msgs::PolygonStamped &ros);
+                      geometry_msgs::PolygonStamped *ros);
   static void Convert(const adsfi_proto::viz::PointCloud &proto,
-                      sensor_msgs::PointCloud &ros);
+                      sensor_msgs::PointCloud *ros);
   static void Convert(const adsfi_proto::viz::PointCloud2 &proto,
-                      sensor_msgs::PointCloud2 &ros);
+                      sensor_msgs::PointCloud2 *ros);
   static void Convert(const adsfi_proto::viz::PoseArray &proto,
-                      geometry_msgs::PoseArray &ros);
+                      geometry_msgs::PoseArray *ros);
   static void Convert(const adsfi_proto::viz::OccupancyGrid &proto,
-                      nav_msgs::OccupancyGrid &ros);
+                      nav_msgs::OccupancyGrid *ros);
 };
 
 }  // namespace util

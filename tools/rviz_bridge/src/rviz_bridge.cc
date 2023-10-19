@@ -218,7 +218,7 @@ class RvizBridge {
   void OnImage(const std::string& topic,
                std::shared_ptr<adsfi_proto::viz::CompressedImage> proto) {
     sensor_msgs::CompressedImage ros;
-    TypeConverter::Convert(*proto, ros);
+    TypeConverter::Convert(*proto, &ros);
     //! 由于rviz默认接收的压缩图像的topic必须以"/compressed"结尾，
     //! 这里检查原始topic，如果原始topic不是以"/compressed"结尾就加上
     std::string act_topic = topic;
@@ -234,14 +234,14 @@ class RvizBridge {
   void OnOdometry(const std::string& topic,
                   std::shared_ptr<adsfi_proto::viz::Odometry> proto) {
     nav_msgs::Odometry ros;
-    TypeConverter::Convert(*proto, ros);
+    TypeConverter::Convert(*proto, &ros);
     pub_mng_.GetPub(kOdometry, topic).publish(ros);
   }
 
   void OnPath(const std::string& topic,
               std::shared_ptr<adsfi_proto::viz::Path> proto) {
     nav_msgs::Path ros;
-    TypeConverter::Convert(*proto, ros);
+    TypeConverter::Convert(*proto, &ros);
     pub_mng_.GetPub(kPath, topic).publish(ros);
   }
 
@@ -249,7 +249,7 @@ class RvizBridge {
       const std::string& topic,
       std::shared_ptr<adsfi_proto::viz::TransformStamped> proto) {
     geometry_msgs::TransformStamped ros;
-    TypeConverter::Convert(*proto, ros);
+    TypeConverter::Convert(*proto, &ros);
     //! 注意：这里使用TransformBroadcaster来发布tf，默认topic都是"/tf"
     static tf2_ros::TransformBroadcaster tf_broad;
     tf_broad.sendTransform(ros);
@@ -261,56 +261,56 @@ class RvizBridge {
   void OnMarker(const std::string& topic,
                 std::shared_ptr<adsfi_proto::viz::Marker> proto) {
     visualization_msgs::Marker ros;
-    TypeConverter::Convert(*proto, ros);
+    TypeConverter::Convert(*proto, &ros);
     pub_mng_.GetPub(kMarker, topic).publish(ros);
   }
 
   void OnMarkerArray(const std::string& topic,
                      std::shared_ptr<adsfi_proto::viz::MarkerArray> proto) {
     visualization_msgs::MarkerArray ros;
-    TypeConverter::Convert(*proto, ros);
+    TypeConverter::Convert(*proto, &ros);
     pub_mng_.GetPub(kMarkerArray, topic).publish(ros);
   }
 
   void OnTwist(const std::string& topic,
                std::shared_ptr<adsfi_proto::viz::TwistStamped> proto) {
     geometry_msgs::TwistStamped ros;
-    TypeConverter::Convert(*proto, ros);
+    TypeConverter::Convert(*proto, &ros);
     pub_mng_.GetPub(kTwistStamped, topic).publish(ros);
   }
 
   void OnPolygon(const std::string& topic,
                  std::shared_ptr<adsfi_proto::viz::PolygonStamped> proto) {
     geometry_msgs::PolygonStamped ros;
-    TypeConverter::Convert(*proto, ros);
+    TypeConverter::Convert(*proto, &ros);
     pub_mng_.GetPub(kPolygonStamped, topic).publish(ros);
   }
 
   void OnPointCloud(const std::string& topic,
                     std::shared_ptr<adsfi_proto::viz::PointCloud> proto) {
     sensor_msgs::PointCloud ros;
-    TypeConverter::Convert(*proto, ros);
+    TypeConverter::Convert(*proto, &ros);
     pub_mng_.GetPub(kPointCloud, topic).publish(ros);
   }
 
   void OnPointCloud2(const std::string& topic,
                      std::shared_ptr<adsfi_proto::viz::PointCloud2> proto) {
     sensor_msgs::PointCloud2 ros;
-    TypeConverter::Convert(*proto, ros);
+    TypeConverter::Convert(*proto, &ros);
     pub_mng_.GetPub(kPointCloud2, topic).publish(ros);
   }
 
   void OnPoseArray(const std::string& topic,
                    std::shared_ptr<adsfi_proto::viz::PoseArray> proto) {
     geometry_msgs::PoseArray ros;
-    TypeConverter::Convert(*proto, ros);
+    TypeConverter::Convert(*proto, &ros);
     pub_mng_.GetPub(kPoseArray, topic).publish(ros);
   }
 
   void OnOccupancyGrid(const std::string& topic,
                        std::shared_ptr<adsfi_proto::viz::OccupancyGrid> proto) {
     nav_msgs::OccupancyGrid ros;
-    TypeConverter::Convert(*proto, ros);
+    TypeConverter::Convert(*proto, &ros);
     pub_mng_.GetPub(kOccupancyGrid, topic).publish(ros);
   }
 };

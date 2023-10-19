@@ -1,5 +1,4 @@
---ins_module_imu_topic=/minieye/imu
---ins_module_origin_ins_topic=/ImuIns
+--ins_module_origin_ins_topic=/soc/imuinsinfo
 --ins_module_inspva_topic=/minieye/node_info_inspva
 --ins_module_gnssvel_topic=/minieye/gnssvel
 --ins_module_output_topic=/mapping/location/ins

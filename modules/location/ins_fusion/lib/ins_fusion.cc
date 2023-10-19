@@ -129,6 +129,9 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
   }
   ins_state_enum_ = InsStateEnum::NORMAL;
   latest_origin_ins_ = origin_ins;
+  if (!config_.use_inspva) {
+    last_node_ = ins84_node;
+  }
 }
 
 void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
@@ -686,6 +689,8 @@ bool InsFusion::PublishTopic() {
   mp::util::RvizAgent::Instance().Publish(kNewestInsOdom, odom);
   return true;
 }
+
+bool InsFusion::InsFusionState() { return config_.use_inspva; }
 }  // namespace loc
 }  // namespace mp
 }  // namespace hozon

@@ -16,10 +16,10 @@ hdmap_topic: "/minieye/hdmap"
 # hdmap_topic: "/amap/ehp"
 # location_topic: "/minieye/haflocation"
 # road_marking_topic: /minieye/front_road_marking/laneline
-lane_line_topic: "/Hozon/ServiceInterface/HozonInterface_LaneLine/hozonEvent__/Hozon/ModuleBase/PerceptionCameraLane/Service/DDS/Provider/PerCameraLaneProviderInstance_LaneLine_DDS_1__"
+lane_line_topic: "/perception/fsd/transportelement_1"
 node_info_topic: "/minieye/node_info_mm"
 # ins_topic: "/minieye/node_info_ins"
-ins_topic: "/minieye/node_info_inspva"
+ins_topic: "/mapping/location/ins"
 
 # fault diagnosis
 # Fault Switch

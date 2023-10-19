@@ -13,7 +13,6 @@
 DEFINE_string(ins_config, "conf/mapping/location/ins_fusion/ins_config.yaml",
               "ins_config");
 
-DEFINE_string(ins_module_imu_topic, "/minieye/imu", "imu topic");
 DEFINE_string(ins_module_origin_ins_topic, "/minieye/origin_ins", "origin ins");
 DEFINE_string(ins_module_inspva_topic, "/minieye/node_info_inspva",
               "inspva node topic");
@@ -68,6 +67,17 @@ bool InsFusionComponent::Init() {
 void InsFusionComponent::OnOriginIns(
     const std::shared_ptr<const hozon::soc::ImuIns>& msg) {
   ins_fusion_->OnOriginIns(*msg);
+  if (ins_fusion_->InsFusionState()) {
+    return;
+  }
+  hozon::localization::HafNodeInfo result;
+  if (!ins_fusion_->GetResult(&result)) {
+    HLOG_ERROR << "ins core get result error";
+    return;
+  }
+
+  ins_writer_->Write(
+      std::make_shared<hozon::localization::HafNodeInfo>(result));
 }
 
 bool InsFusionComponent::OnInspva(
@@ -76,7 +86,9 @@ bool InsFusionComponent::OnInspva(
     return false;
   }
   ins_fusion_->OnInspva(*msg);
-
+  if (!ins_fusion_->InsFusionState()) {
+    return false;
+  }
   hozon::localization::HafNodeInfo result;
   if (!ins_fusion_->GetResult(&result)) {
     HLOG_ERROR << "ins core get result error";

@@ -60,7 +60,8 @@ void DrFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva_node) {
     return;
   }
   if (!ref_inspva_node_init_) {
-    Eigen::Vector3d blh(inspva_node.pos_gcj02().x(), inspva_node.pos_gcj02().y(),
+    Eigen::Vector3d blh(inspva_node.pos_gcj02().x(),
+                        inspva_node.pos_gcj02().y(),
                         inspva_node.pos_gcj02().z());
     SetRefpoint(blh);
     Extract02InsNode(inspva_node, &ref_ins_node_);
@@ -169,13 +170,6 @@ bool DrFusion::Extract02InsNode(
     return false;
   }
 
-  Eigen::Quaterniond q(
-      origin_node.quaternion().w(), origin_node.quaternion().x(),
-      origin_node.quaternion().y(), origin_node.quaternion().z());
-  if (q.norm() < 1e-10) {
-    return false;
-  }
-
   node->seq = origin_node.header().seq();
   node->ticktime = origin_node.header().publish_stamp();
 
@@ -184,7 +178,8 @@ bool DrFusion::Extract02InsNode(
       origin_node.pos_gcj02().z();
   node->org_blh = node->blh;
   node->enu = hmu::Geo::BlhToEnu(node->blh, node->refpoint);
-  node->orientation = Sophus::SO3d(q).log();
+  node->orientation << origin_node.attitude().x(), origin_node.attitude().y(),
+      origin_node.attitude().z();
   node->velocity << origin_node.linear_velocity().x(),
       origin_node.linear_velocity().y(), origin_node.linear_velocity().z();
   node->linear_accel << origin_node.linear_acceleration().x(),

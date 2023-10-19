@@ -36,6 +36,7 @@ class InsFusion {
   void SetRefpoint(const Eigen::Vector3d& blh);
   Eigen::Vector3d GetRefpoint() const;
   void ProcessMonitorIns();
+  bool InsFusionState();
 
  private:
   void LoadConfigParams(const std::string& configfile);

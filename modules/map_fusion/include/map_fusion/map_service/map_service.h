@@ -50,8 +50,6 @@ class MapService {
   void OnInsAdcNodeInfo(const hozon::localization::HafNodeInfo& ins_msg,
                         const hozon::planning::ADCTrajectory& adc_msg);
 
-  std::shared_ptr<hozon::hdmap::Map> GetCropMap() const { return cro_map_; }
-
   std::shared_ptr<hozon::routing::RoutingResponse> GetRouting() const {
     return routing_;
   }
@@ -63,13 +61,9 @@ class MapService {
   bool BinProc(const hozon::localization::HafNodeInfo& ins_msg,
                const std::shared_ptr<hozon::hdmap::Map>& map);
 
-  void MergeMap(const hozon::hdmap::Map& extend_map,
-                const hozon::hdmap::Map& shrink_map);
-  std::shared_ptr<hozon::hdmap::Map> cro_map_ = nullptr;
   std::shared_ptr<hozon::routing::RoutingResponse> routing_ = nullptr;
 
   std::unique_ptr<hozon::ehr::Ehr> ehr_ = nullptr;
-  std::shared_ptr<hdmap::HDMap> hd_map_ = nullptr;
   hozon::common::math::Vec2d last_pose_;
 
   std::chrono::steady_clock::time_point last_send_time_;

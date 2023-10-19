@@ -61,9 +61,9 @@ bool MapServiceComponent::Init() {
       node_->CreateReader<ADCTrajectory>(planning_reader_config, nullptr);
   ACHECK(planning_reader_ != nullptr);
 
-  prior_writer_ =
-      node_->CreateWriter<hozon::hdmap::Map>(FLAGS_channel_prior);  // NOLINT
-  ACHECK(prior_writer_ != nullptr);
+  // prior_writer_ =
+  //     node_->CreateWriter<hozon::hdmap::Map>(FLAGS_channel_prior);  // NOLINT
+  // ACHECK(prior_writer_ != nullptr);
   routing_response_writer_ =
       node_->CreateWriter<hozon::routing::RoutingResponse>(
           FLAGS_routing_response_topic);
@@ -96,9 +96,8 @@ bool MapServiceComponent::Proc() {
 
 void MapServiceComponent::PubData() {
   if (FLAGS_map_service_mode == 0) {
-    prior_writer_->Write(map_service_->GetCropMap());
+    // do nothing
   } else if (FLAGS_map_service_mode == 1) {
-    prior_writer_->Write(map_service_->GetCropMap());
     routing_response_writer_->Write(map_service_->GetRouting());
   }
 }

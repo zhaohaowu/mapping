@@ -15,7 +15,9 @@ int GlobalHdMap::Init() {
   return 0;
 }
 
-std::shared_ptr<hdmap::HDMap> GlobalHdMap::GetHdMap() { return hd_map_; }
+void GlobalHdMap::ResetHdMap(const std::shared_ptr<hdmap::HDMap>& hd_map) {
+  hd_map_ = hd_map;
+}
 
 }  // namespace mp
 }  // namespace hozon

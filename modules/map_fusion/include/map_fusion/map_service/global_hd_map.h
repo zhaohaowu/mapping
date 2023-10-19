@@ -8,34 +8,34 @@
 #pragma once
 #include <depend/map/hdmap/hdmap.h>
 
+#include <atomic>
 #include <memory>
+#include <mutex>
+#include <shared_mutex>
 
 namespace hozon {
 namespace mp {
 
 class GlobalHdMap {
  public:
-  int Init();
-  std::shared_ptr<hdmap::HDMap> GetHdMap();
+  std::shared_ptr<hdmap::HDMap> GetHdMap() const { return hd_map_; }
+  void ResetHdMap(const std::shared_ptr<hdmap::HDMap>& hd_map);
 
- private:
-  std::shared_ptr<hdmap::HDMap> hd_map_ = nullptr;
-
-  // declare singleton
- private:
-  GlobalHdMap() = default;
-  ~GlobalHdMap() = default;
-  GlobalHdMap(const GlobalHdMap&);
-  GlobalHdMap& operator=(const GlobalHdMap&);
-
- public:
-  static GlobalHdMap& Instance() {
+  static GlobalHdMap* Instance() {
     static GlobalHdMap instance;
-    return instance;
+    return &instance;
   }
+
+ private:
+  int Init();
+  std::shared_ptr<hdmap::HDMap> hd_map_ = nullptr;
+  GlobalHdMap() { Init(); }
+  ~GlobalHdMap() = default;
+  GlobalHdMap(const GlobalHdMap&) { Init(); }
+  GlobalHdMap& operator=(const GlobalHdMap&);
 };
 
-#define GLOBAL_HD_MAP hozon::mp::GlobalHdMap::Instance().GetHdMap()
+#define GLOBAL_HD_MAP hozon::mp::GlobalHdMap::Instance()->GetHdMap()
 
 }  // namespace mp
 }  // namespace hozon

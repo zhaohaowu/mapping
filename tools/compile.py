@@ -274,7 +274,7 @@ def build_mapping_tool(workspace, release_directory, jobs):
     os.makedirs(build_dir, exist_ok=True)
     os.chdir(build_dir)
     proto_dir = osp.join(workspace, 'depend', 'proto')
-    proto_lib_dir = osp.join(release_directory, 'x86', 'lib')
+    proto_lib_dir = osp.join(release_directory, 'mal_x86/lib')
     third_party_dir = osp.join(workspace, 'depend', 'third_party')
     ap_release_dir = osp.join(workspace, 'depend', 'ap-release')
     install_dir = osp.join(release_directory, 'Mapping_tools')

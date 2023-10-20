@@ -46,7 +46,7 @@ enum NodeType { NONE = -1, INS = 0, DR = 1, MM = 2, POSE_ESTIMATE = 3 };
 
 struct Node : cm::BaseNode {
   uint32_t seq = 0;
-  NodeType type = NodeType::INS;
+  NodeType type = NodeType::NONE;
   Eigen::Vector3d refpoint = Eigen::Vector3d::Zero();
   Eigen::Vector3d blh = Eigen::Vector3d::Zero();
   Eigen::Vector3d angular_velocity = Eigen::Vector3d::Zero();

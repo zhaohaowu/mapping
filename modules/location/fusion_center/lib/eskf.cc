@@ -171,7 +171,7 @@ void ESKF::Correct(const Node& cur_meas_data) {
     case NodeType::INS:
       R = R_ins_;
       break;
-    case NodeType::MM:
+    case NodeType::POSE_ESTIMATE:
       R = R_mm_;
       break;
     default:

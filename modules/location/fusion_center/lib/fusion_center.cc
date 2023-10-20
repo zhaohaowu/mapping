@@ -268,7 +268,7 @@ bool FusionCenter::GetCurrentContext(Context* const context) {
     std::lock_guard<std::mutex> lock(fusion_deque_mutex_);
     int valid_cnt = 0;
     for (auto& node : fusion_deque_) {
-      if (node->type == NodeType::MM) {
+      if (node->type == NodeType::POSE_ESTIMATE) {
         context->fusion_node.location_state = 2;
         break;
       }
@@ -870,7 +870,7 @@ bool FusionCenter::PredictMMMeas() {
       const auto& pose = Node2SE3(*mm_refer) * T_delta;
       node->enu = pose.translation();
       node->orientation = pose.so3().log();
-      node->type = NodeType::MM;
+      node->type = NodeType::POSE_ESTIMATE;
       meas_deque_.push_back(node);
       now_ticktime = ins_node->ticktime;
     }

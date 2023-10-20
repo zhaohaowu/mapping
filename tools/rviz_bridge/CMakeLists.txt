@@ -8,6 +8,8 @@ set(CMAKE_BUILD_TYPE Release)
 set(REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../..)
 get_filename_component(REPO_ROOT ${REPO_ROOT} ABSOLUTE)
 set(CMAKE_INSTALL_PREFIX ${REPO_ROOT}/release/ros)
+# for install adsfi_proto and util
+set(CMAKE_INSTALL_PREFIX_RS ${CMAKE_INSTALL_PREFIX})
 # required in FindProtobuf.cmake
 set(3RD_ROOT ${REPO_ROOT}/depend/third_party/x86_2004)
 set(3RD_ROOT_PROTOC ${3RD_ROOT}/protobuf)

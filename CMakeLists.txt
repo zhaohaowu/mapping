@@ -165,40 +165,40 @@ if(IND)
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/ceres/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/boost/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/opencv/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/absl/lib/
         ${DEPEND}/perception-common-onboard/release/${LOCAL_TARGET_PLATFORM}/lib/
         ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/
         ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib/
         DESTINATION ${EXTERNAL_LIB_PATH}
     )
 
-    if (NOT (${PLATFORM} STREQUAL "mdc"))
+    if(${PLATFORM} STREQUAL "x86_2004")
+        install(DIRECTORY
+            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/cuda/targets/x86_64-linux/lib/
+            DESTINATION ${EXTERNAL_LIB_PATH}
+            FILES_MATCHING
+            PATTERN "libcudart*"
+        )
+        install(DIRECTORY
+            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fastrtps/lib/
+            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/amap/lib/
+            DESTINATION ${EXTERNAL_LIB_PATH}
+        )
+    endif()
+
+    if(MIDDLEWARE MATCHES LITE)
         install(
             DIRECTORY ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fast-dds/lib/
             DESTINATION ${EXTERNAL_LIB_PATH}
         )
     endif()
 
-    if(NOT (MIDDLEWARE MATCHES CYBER))
-        install(DIRECTORY
-            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/cuda/targets/x86_64-linux/lib/
-            DESTINATION ${EXTERNAL_LIB_PATH}
-            FILES_MATCHING
-            PATTERN "libcudart*"
-        ) 
-    endif()
-
-    if(${PLATFORM} STREQUAL "x86_2004")
-        install(DIRECTORY 
-            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fastrtps/lib/ #x86平台需要
-            DESTINATION ${EXTERNAL_LIB_PATH}
-        )
-    endif()
-
-    if(${PLATFORM} STREQUAL "orin")
-        install(DIRECTORY 
-            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/absl/lib/  #orin平台需要
-            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/osqp/lib/  #orin平台需要
-            DESTINATION ${EXTERNAL_LIB_PATH}
-        )
-    endif()
+    set(CREATE_HDMAP_LINK_SHELL "
+        if [[ -L ${CMAKE_INSTALL_PREFIX}/data/map/amap_all/hd_map ]]; then
+            exit 0
+        fi
+        mkdir -p ${CMAKE_INSTALL_PREFIX}/data/map/amap_all && ln -s ${HDMAP} ${CMAKE_INSTALL_PREFIX}/data/map/amap_all/hd_map
+    ")
+    file(WRITE "${CMAKE_INSTALL_PREFIX}/../CREATE_HDMAP_LINK_SHELL.sh" "${CREATE_HDMAP_LINK_SHELL}")
+    install(CODE "execute_process(COMMAND bash CREATE_HDMAP_LINK_SHELL.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")
 endif()

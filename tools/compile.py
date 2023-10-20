@@ -36,6 +36,7 @@ def parse_args():
     # 默认值类型
     p.add_argument('--workspace', default=None, help='root of code repository')
     p.add_argument('-j', default=max(cpu_count() - 2, 1), dest="jobs", type=int, help='make -j')
+    p.add_argument('--hdmap', default='/usr/local/hd_map', help='hd_map path')
 
     return p.parse_args()
 
@@ -145,6 +146,7 @@ def mdc_build(workspace, platform, build_directory, release_directory, **kwargs)
     args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
     args['-DMIDDLEWARE'] = "ADF"
     args['-DIND'] = "ON" if kwargs['ind'] else "OFF"
+    args['-DHDMAP'] = kwargs['hdmap']
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
@@ -169,6 +171,7 @@ def x86_build(workspace, platform, build_directory, release_directory, **kwargs)
     args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
     args['-DIND'] = "ON" if kwargs['ind'] else "OFF"
     args['-DMIDDLEWARE'] = "CYBER" if kwargs['cyber'] else "LITE"
+    args['-DHDMAP'] = kwargs['hdmap']
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
@@ -196,6 +199,7 @@ def orin_build(workspace, platform, build_directory, release_directory, **kwargs
     args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
     args['-DMIDDLEWARE'] = "LITE"
     args['-DIND'] = "ON" if kwargs['ind'] else "OFF"
+    args['-DHDMAP'] = kwargs['hdmap']
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
@@ -324,6 +328,9 @@ if __name__ == '__main__':
     # 清理cmake编译缓存
     if kwargs['clean']:
         clean(workspace)
+    # 构建rviz_bridge
+    if kwargs['rviz']:
+        build_rviz_bridge(workspace, kwargs['jobs'])
 
     # 开始构建工程
     if platform == 'mdc':
@@ -343,9 +350,5 @@ if __name__ == '__main__':
         # make_package(platform)
     elif platform == 'all':
         all_build(workspace, platform, build_directory, release_directory, **kwargs)
-
-    # 构建rviz_bridge
-    if kwargs['rviz']:
-        build_rviz_bridge(workspace, kwargs['jobs'])
 
     del_remain_external_lib(workspace, platform, release_directory, **kwargs)

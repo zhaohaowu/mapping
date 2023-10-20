@@ -17,5 +17,4 @@ target_link_libraries(${MAPPING_ONBOARD_LITE_DR}
 )
 
 install(TARGETS ${MAPPING_ONBOARD_LITE_DR}
-        RUNTIME
         DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib/)

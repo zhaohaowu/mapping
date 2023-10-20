@@ -10,8 +10,15 @@
     <process_name>local_mapping</process_name>
   </module>
   <module>
+    <name>map_fusion_localization</name>
+    <dag_conf>dag/mapping_mf_loc.dag</dag_conf>
+    <process_name>map_fusion_localization</process_name>
+  </module>
+  <!--
+  <module>
     <name>map_fusion</name>
     <dag_conf>dag/mapping_map_fusion.dag</dag_conf>
     <process_name>map_fusion</process_name>
   </module>
+  -->
 </cyber>

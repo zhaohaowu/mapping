@@ -38,6 +38,15 @@ bash build.sh mdc --clean
 
 相关MR
 > https://qingluan.hozonauto.com/geelib/repoMergeDetail?repoId=algorithm/mapping&mergeId=127
+
+运行cyber时
+```
+cd workspace/release/mal_x86/scripts && source set_envs.bash
+cd workspace/release/mal_x86/runtime_service/cyber && source setup.bash
+cyber_launch start launch/mapping_all.launch
+```
+
+
 ```
 release
 ├── mal_mdc

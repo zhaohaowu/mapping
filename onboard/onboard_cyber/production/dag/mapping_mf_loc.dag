@@ -1,0 +1,102 @@
+# Define all coms in DAG streaming.
+module_config {
+  module_library: "lib/libmapping_mf_cyber.so"
+  components {
+    class_name: "TopoAssignmentComponent"
+    config {
+      name: "topo_assignment"
+      config_file_path: ""
+      flag_file_path: ""
+      readers: []
+    }
+  }
+  components {
+    class_name: "MapPredictionComponent"
+    config {
+      name: "map_prediction"
+      config_file_path: ""
+      flag_file_path: ""
+      readers: []
+    }
+  }
+  timer_components {
+    class_name : "MapServiceComponent"
+    config {
+      name: "map_service"
+      flag_file_path: "conf/global_flagfile.txt"
+      interval: 100
+    }
+  }
+}
+
+# all localization module
+module_config {
+  module_library: "lib/libmapping_location_coord_adapter_cyber.so"
+  components {
+    class_name: "CoordAdapterComponent"
+    config {
+      name: "coord_adapter"
+      config_file_path: ""
+      flag_file_path: "conf/mapping/location/coord_adapter/config.flag"
+    }
+  }
+}
+module_config {
+  module_library: "lib/libmapping_localization_dr_fusion_cyber.so"
+  components {
+    class_name: "DrFusionComponent"
+    config {
+      name: "location_dr_fusion"
+      config_file_path: "conf/mapping/location/dr_fusion/dr_fusion.pb.txt"
+      flag_file_path: "conf/mapping/location/dr_fusion/dr_fusion.flag"
+    }
+  }
+}
+module_config {
+  module_library: "lib/libmapping_location_fusion_center_cyber.so"
+  components {
+    class_name: "FcComponent"
+    config {
+      name: "fusion_center"
+      config_file_path: ""
+      flag_file_path: "conf/mapping/location/fusion_center/fc.flag"
+    }
+  }
+}
+module_config {
+  module_library: "lib/libmapping_localization_ins_fusion_cyber.so"
+  components {
+    class_name: "InsFusionComponent"
+    config {
+      name: "location_ins_fusion"
+      config_file_path: "conf/mapping/location/ins_fusion/ins_fusion.pb.txt"
+      flag_file_path: "conf/mapping/location/ins_fusion/ins_fusion.flag"
+    }
+  }
+}
+module_config {
+  module_library: "lib/libmapping_location_pose_estimation_cyber.so"
+  components {
+    class_name: "PoseEstimationComponent"
+    config {
+      name: "location"
+      flag_file_path: "conf/mapping/location/pose_estimation/pose_estimation_flag.conf"
+      readers: [
+        {
+          channel: "hdmap"
+          qos_profile: {
+            depth: 15
+          }
+          pending_queue_size: 50
+        },
+        {
+          channel: "perception"
+          qos_profile: {
+            depth: 15
+          }
+          pending_queue_size: 50
+        }
+      ]
+    }
+  }
+}

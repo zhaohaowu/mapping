@@ -38,5 +38,5 @@ target_link_libraries(mf_cyber
 
 install(
     TARGETS mf_cyber
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+    DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

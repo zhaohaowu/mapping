@@ -1,6 +1,6 @@
 project(mapping_onboard_cyber)
 
-execute_process(COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX_RS})
+execute_process(COMMAND mkdir -p ${CMAKE_INSTALL_PREFIX_RS}/data/log)
 execute_process(
   COMMAND ln -s mapping cyber
   WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX_RS}/../

@@ -19,8 +19,6 @@ DEFINE_string(channel_topo_map, "mf/topo_map",
               "channel of topo map from topo assignment");
 DEFINE_string(channel_ins_node_info_tac, "/PluginNodeInfo",
               "channel of ins msg from ins fusion");
-DEFINE_string(channel_hq_map, "mf/prior_map",
-              "channel of hq map msg from prior provider");
 DEFINE_string(channel_local_map, "/local_map",
               "channel of local map msg from local mapping");
 DEFINE_string(channel_local_map_location, "/local_map/location",
@@ -60,10 +58,6 @@ bool TopoAssignmentComponent::Init() {
         OnInsNodeInfo(msg);
       });
 
-  hq_reader_ = node_->CreateReader<hozon::hdmap::Map>(
-      FLAGS_channel_hq_map,
-      [this](const std::shared_ptr<hozon::hdmap::Map>& msg) { OnHQMap(msg); });
-
   lm_reader_ = node_->CreateReader<hozon::mapping::LocalMap>(
       FLAGS_channel_local_map,
       [this](const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
@@ -92,19 +86,6 @@ void TopoAssignmentComponent::OnInsNodeInfo(
   topo_assign_->OnInsNodeInfo(msg);
 }
 
-void TopoAssignmentComponent::OnHQMap(
-    const std::shared_ptr<hozon::hdmap::Map>& msg) {
-  if (!msg) {
-    HLOG_ERROR << "message hq map is null";
-    return;
-  }
-  if (!topo_assign_) {
-    HLOG_ERROR << "nullptr tppo map assignment";
-    return;
-  }
-  topo_assign_->OnHQMap(msg);
-}
-
 void TopoAssignmentComponent::OnLocalMap(
     const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
   if (!msg) {
@@ -115,7 +96,7 @@ void TopoAssignmentComponent::OnLocalMap(
     HLOG_ERROR << "nullptr tppo map assignment or topo map writer";
     return;
   }
-
+  topo_assign_->OnLocalMap(msg);
   // 发出拓扑地图
   auto map = topo_assign_->GetTopoMap();
   topo_writer_->Write(map);

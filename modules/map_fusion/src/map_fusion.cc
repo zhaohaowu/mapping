@@ -49,7 +49,7 @@ void MapFusion::OnHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
     return;
   }
 
-  topo_->OnHQMap(msg);
+  // topo_->OnHQMap(msg);
   pred_->OnHqMap(msg);
 }
 

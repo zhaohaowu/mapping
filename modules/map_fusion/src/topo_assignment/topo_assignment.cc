@@ -12,6 +12,7 @@
 #include <limits>
 
 #include "depend/common/utm_projection/coordinate_convertor.h"
+#include "map_fusion/map_service/global_hd_map.h"
 #include "util/temp_log.h"
 namespace hozon {
 namespace mp {
@@ -89,8 +90,6 @@ int TopoAssignment::Init() {
   }
 
   topo_map_ = std::make_shared<hozon::hdmap::Map>();
-  crop_map_ = std::make_shared<hozon::hdmap::Map>();
-  hq_map_server_ = std::make_shared<hozon::hdmap::HDMap>();
   return 0;
 }
 
@@ -133,13 +132,13 @@ void TopoAssignment::OnInsNodeInfo(
   double nearest_l = 0.;
   hozon::hdmap::LaneInfoConstPtr lane_ptr = nullptr;
 
-  if (hq_map_server_->Empty()) {
+  if (GLOBAL_HD_MAP->Empty()) {
     HLOG_ERROR << "hqmap server load map failed";
     return;
   }
 
   int ret =
-      hq_map_server_->GetNearestLane(enupos, &lane_ptr, &nearest_s, &nearest_s);
+      GLOBAL_HD_MAP->GetNearestLane(enupos, &lane_ptr, &nearest_s, &nearest_s);
   if (ret != 0 || lane_ptr == nullptr) {
     HLOG_ERROR << "get nearest lane failed";
     return;
@@ -154,7 +153,7 @@ void TopoAssignment::OnInsNodeInfo(
     while (nearest_lane.left_neighbor_forward_lane_id_size() > 0) {
       auto id = nearest_lane.left_neighbor_forward_lane_id()[0];
       location_left_id_.emplace_back(id);
-      auto left_lane = hq_map_server_->GetLaneById(id);
+      auto left_lane = GLOBAL_HD_MAP->GetLaneById(id);
       if (!left_lane) {
         break;
       }
@@ -164,7 +163,7 @@ void TopoAssignment::OnInsNodeInfo(
     while (nearest_lane.right_neighbor_forward_lane_id_size() > 0) {
       auto id = nearest_lane.right_neighbor_forward_lane_id()[0];
       location_right_id_.emplace_back(id);
-      auto right_lane = hq_map_server_->GetLaneById(id);
+      auto right_lane = GLOBAL_HD_MAP->GetLaneById(id);
       if (!right_lane) {
         break;
       }
@@ -175,7 +174,7 @@ void TopoAssignment::OnInsNodeInfo(
     location_right_id_next_.clear();
     if (!lane_ptr->lane().successor_id().empty()) {
       auto successor_id_size = lane_ptr->lane().successor_id().size();
-      auto lane_ptr_next = hq_map_server_->GetLaneById(
+      auto lane_ptr_next = GLOBAL_HD_MAP->GetLaneById(
           lane_ptr->lane().successor_id(successor_id_size - 1));
       if (lane_ptr_next) {
         hozon::hdmap::Lane nearest_lane = lane_ptr_next->lane();
@@ -183,7 +182,7 @@ void TopoAssignment::OnInsNodeInfo(
         while (nearest_lane.left_neighbor_forward_lane_id_size() > 0) {
           auto id = nearest_lane.left_neighbor_forward_lane_id()[0];
           location_left_id_next_.emplace_back(id);
-          auto left_lane = hq_map_server_->GetLaneById(id);
+          auto left_lane = GLOBAL_HD_MAP->GetLaneById(id);
           if (!left_lane) {
             break;
           }
@@ -193,7 +192,7 @@ void TopoAssignment::OnInsNodeInfo(
         while (nearest_lane.right_neighbor_forward_lane_id_size() > 0) {
           auto id = nearest_lane.right_neighbor_forward_lane_id()[0];
           location_right_id_next_.emplace_back(id);
-          auto right_lane = hq_map_server_->GetLaneById(id);
+          auto right_lane = GLOBAL_HD_MAP->GetLaneById(id);
           if (!right_lane) {
             break;
           }
@@ -207,32 +206,18 @@ void TopoAssignment::OnInsNodeInfo(
   //            << location_right_id_.size();
 }
 
-void TopoAssignment::OnHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
-  if (!hq_map_server_) {
-    HLOG_ERROR << "!!! nullptr hq_map_server_";
-  }
-  int ret = hq_map_server_->LoadMapFromProto(*msg);
-  if (ret != 0 || hq_map_server_->Empty()) {
-    HLOG_ERROR << "hqmap server load map failed";
-    return;
-  }
-  {
-    std::lock_guard<std::mutex> lock_crop_map(crop_map_mtx_);
-    crop_map_->CopyFrom(*msg);
-  }
-  // VizHQMap(msg);
-}
-
 void TopoAssignment::OnLocalMap(
     const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
   if (msg->lanes().empty()) {
     return;
   }
-  // 可视化crop map
+  // 可视化hq map
   {
-    std::lock_guard<std::mutex> lock_crop_map(crop_map_mtx_);
+    std::shared_ptr<hozon::hdmap::Map> hq_map =
+        std::make_shared<hozon::hdmap::Map>();
+    GLOBAL_HD_MAP->GetMap(hq_map.get());
     std::vector<adsfi_proto::viz::MarkerArray> result =
-        marker_rviz_.LaneToMarker(crop_map_, ref_point_, true);
+        marker_rviz_.LaneToMarker(hq_map, ref_point_, true);
     adsfi_proto::viz::MarkerArray lane = result[0];
     adsfi_proto::viz::MarkerArray left = result[1];
     adsfi_proto::viz::MarkerArray right = result[2];
@@ -764,7 +749,7 @@ void TopoAssignment::AppendLaneLine(const hozon::hdmap::Id& lane_id,
                                     hozon::mp::mf::LaneLine* lane_line,
                                     const Eigen::Vector2d& p1,
                                     const bool left) {
-  auto hq_lane_ptr = hq_map_server_->GetLaneById(lane_id);
+  auto hq_lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
   if (hq_lane_ptr) {
     auto hq_lane = hq_lane_ptr->lane();
     auto hq_lane_left_points = GetLaneStartAndEndPoint(hq_lane, true);
@@ -781,7 +766,7 @@ void TopoAssignment::AppendLaneLine(const hozon::hdmap::Id& lane_id,
         break;
       }
       auto successor_id_size = hq_lane.successor_id().size();
-      auto lane = hq_map_server_->GetLaneById(
+      auto lane = GLOBAL_HD_MAP->GetLaneById(
           hq_lane.successor_id(successor_id_size - 1));
       if (!lane) {
         break;
@@ -827,7 +812,7 @@ void TopoAssignment::AppendLane(
   for (auto& lane_it : (*all_lanes)) {
     hozon::hdmap::Id lane_id;
     lane_id.set_id(lane_it.second.id);
-    auto hq_lane = hq_map_server_->GetLaneById(lane_id);
+    auto hq_lane = GLOBAL_HD_MAP->GetLaneById(lane_id);
     if (!hq_lane) {
       continue;
     }
@@ -868,7 +853,7 @@ void TopoAssignment::AppendTopoMap(
     hozon::hdmap::Id lane_id;
     lane_id.set_id(lane_it.second.id);
 
-    auto hq_lane = hq_map_server_->GetLaneById(lane_id);
+    auto hq_lane = GLOBAL_HD_MAP->GetLaneById(lane_id);
     // 这边需要判断hq_lane是不是空指针后面加上
     if (!hq_lane) {
       continue;

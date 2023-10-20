@@ -57,7 +57,6 @@ class TopoAssignment {
 
   void OnInsNodeInfo(
       const std::shared_ptr<hozon::localization::HafNodeInfo>& msg);
-  void OnHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg);
   void OnLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& msg);
   void OnLocalMapLocation(
       const std::shared_ptr<hozon::localization::Localization>& msg);
@@ -66,8 +65,6 @@ class TopoAssignment {
 
  private:
   std::shared_ptr<hozon::hdmap::Map> topo_map_ = nullptr;
-  std::shared_ptr<hozon::hdmap::Map> crop_map_ = nullptr;
-  std::shared_ptr<hozon::hdmap::HDMap> hq_map_server_ = nullptr;
   Eigen::Vector3d vehicle_pose_;
   Eigen::Vector3d ref_point_;
 
@@ -82,7 +79,6 @@ class TopoAssignment {
   std::mutex map_mtx_;
   std::mutex pose_mtx_;
   std::mutex location_mtx_;
-  std::mutex crop_map_mtx_;
 
   Eigen::Vector3d local_map_pose_;
   Eigen::Quaterniond local_map_q_w_v_;

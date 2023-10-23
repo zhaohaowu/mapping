@@ -17,7 +17,7 @@ DEFINE_string(inspva_module_input_topic, "/mapping/location/ins",
 DEFINE_string(dr_module_input_topic, "/mapping/dr", "input topic");
 DEFINE_string(loc_dr_module_output_topic, "/mapping/location/dr",
               "output topic");
-DEFINE_string(viz_addr, "ipc:///tmp/rviz_agent_dr",
+DEFINE_string(dr_viz_addr, "ipc:///tmp/rviz_agent_dr",
               "RvizAgent's working address, this should corresponds to the "
               "address used in RvizBridge. Leaving empty represents not using "
               "RvizAgent for visualization");
@@ -27,14 +27,14 @@ namespace mp {
 namespace loc {
 
 DrFusionComponent::~DrFusionComponent() {
-  if (!FLAGS_viz_addr.empty()) {
+  if (!FLAGS_dr_viz_addr.empty()) {
     mp::util::RvizAgent::Instance().Term();
   }
 }
 
 bool DrFusionComponent::Init() {
-  if (!FLAGS_viz_addr.empty()) {
-    int ret = mp::util::RvizAgent::Instance().Init(FLAGS_viz_addr);
+  if (!FLAGS_dr_viz_addr.empty()) {
+    int ret = mp::util::RvizAgent::Instance().Init(FLAGS_dr_viz_addr);
     if (ret < 0) {
       HLOG_WARN << "RvizAgent init failed";
     }

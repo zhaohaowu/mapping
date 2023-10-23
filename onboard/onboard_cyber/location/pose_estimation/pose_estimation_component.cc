@@ -16,7 +16,7 @@ DEFINE_string(config_yaml,
               "path to pose estimation config yaml");
 DEFINE_string(config_cam_yaml, "conf/mapping/location/pose_estimation",
               "path to map matching camera config yaml");
-DEFINE_string(viz_addr, "ipc:///tmp/rviz_agent_loc",
+DEFINE_string(pose_viz_addr, "ipc:///tmp/rviz_agent_loc",
               "RvizAgent's working address, this should corresponds to the "
               "address used in RvizBridge. Leaving empty represents not using "
               "RvizAgent for visualization");
@@ -28,14 +28,14 @@ namespace mp {
 namespace loc {
 
 PoseEstimationComponent::~PoseEstimationComponent() {
-  if (!FLAGS_viz_addr.empty()) {
+  if (!FLAGS_pose_viz_addr.empty()) {
     util::RvizAgent::Instance().Term();
   }
 }
 
 bool PoseEstimationComponent::Init() {
-  if (!FLAGS_viz_addr.empty()) {
-    int ret = hozon::mp::util::RvizAgent::Instance().Init(FLAGS_viz_addr);
+  if (!FLAGS_pose_viz_addr.empty()) {
+    int ret = hozon::mp::util::RvizAgent::Instance().Init(FLAGS_pose_viz_addr);
     if (ret < 0) {
       HLOG_WARN << "RvizAgent init failed";
     }

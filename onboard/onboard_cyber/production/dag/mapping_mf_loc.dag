@@ -23,7 +23,7 @@ module_config {
     class_name : "MapServiceComponent"
     config {
       name: "map_service"
-      flag_file_path: "conf/global_flagfile.txt"
+      flag_file_path: "conf/mapping/map_fusion/mapservice.txt"
       interval: 100
     }
   }

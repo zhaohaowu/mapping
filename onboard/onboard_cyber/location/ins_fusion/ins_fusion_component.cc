@@ -19,7 +19,7 @@ DEFINE_string(ins_module_inspva_topic, "/minieye/node_info_inspva",
 DEFINE_string(ins_module_gnssvel_topic, "/minieye/gnssvel", "gnssvel topic");
 DEFINE_string(ins_module_output_topic, "/mapping/location/ins", "output topic");
 
-DEFINE_string(viz_addr, "ipc:///tmp/rviz_agent_ins",
+DEFINE_string(ins_viz_addr, "ipc:///tmp/rviz_agent_ins",
               "RvizAgent's working address, this should corresponds to the "
               "address used in RvizBridge. Leaving empty represents not using "
               "RvizAgent for visualization");
@@ -29,14 +29,14 @@ namespace mp {
 namespace loc {
 
 InsFusionComponent::~InsFusionComponent() {
-  if (!FLAGS_viz_addr.empty()) {
+  if (!FLAGS_ins_viz_addr.empty()) {
     mp::util::RvizAgent::Instance().Term();
   }
 }
 
 bool InsFusionComponent::Init() {
-  if (!FLAGS_viz_addr.empty()) {
-    int ret = mp::util::RvizAgent::Instance().Init(FLAGS_viz_addr);
+  if (!FLAGS_ins_viz_addr.empty()) {
+    int ret = mp::util::RvizAgent::Instance().Init(FLAGS_ins_viz_addr);
     if (ret < 0) {
       HLOG_WARN << "RvizAgent init failed";
     }

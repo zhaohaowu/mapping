@@ -6,4 +6,4 @@
 --ins_config=conf/mapping/location/ins_fusion/ins_config.yaml
 --v=2
 --alsologtostderr
---viz_addr=ipc:///tmp/rviz_agent_ins
+--ins_viz_addr=ipc:///tmp/rviz_agent_ins

@@ -166,6 +166,9 @@ if(IND)
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/boost/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/opencv/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/absl/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/hzavpmap/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/zmq/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gtest/lib/
         ${DEPEND}/perception-common-onboard/release/${LOCAL_TARGET_PLATFORM}/lib/
         ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/
         ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib/

@@ -28,7 +28,7 @@ int32_t main(int argc, char** argv) {
 
   std::string work_root = "/opt/app/1";
   std::string socadf_yaml =
-      "/runtime_service/hz_mapping/conf/"
+      "/runtime_service/mapping/conf/"
       "hz_mapping_config.yaml";
   const char* env_p = std::getenv("DEBUG_MAPPING_WORK_ROOT");
   if (env_p != nullptr) {

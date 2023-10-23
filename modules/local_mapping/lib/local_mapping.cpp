@@ -13,9 +13,6 @@
 #include "modules/local_mapping/lib/utils/fetch_hq.h"
 #include "modules/util/include/util/geo.h"
 
-DEFINE_string(conf_provider,
-              "conf/mapping/local_mapping/local_mapping_conf.yaml",
-              "config file path for prior provider");
 DEFINE_uint32(zone, 51, "time zone");
 
 namespace hozon {
@@ -52,7 +49,7 @@ LMapApp::LMapApp(const std::string& config_file) {
   dr_inited_ = false;
   // load hdmap
   provider_ = std::make_shared<PriorProvider>();
-  provider_->Init(FLAGS_conf_provider);
+  provider_->Init(config_file);
   auto map = provider_->GetPrior();
   hdmap_ = std::make_shared<hozon::hdmap::HDMap>();
   hdmap_->LoadMapFromProto(*map);

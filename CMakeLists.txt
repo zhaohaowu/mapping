@@ -197,7 +197,7 @@ if(IND)
         if [[ -L ${CMAKE_INSTALL_PREFIX}/data/map/amap_all/hd_map ]]; then
             exit 0
         fi
-        mkdir -p ${CMAKE_INSTALL_PREFIX}/data/map/amap_all && ln -s ${HDMAP} ${CMAKE_INSTALL_PREFIX}/data/map/amap_all/hd_map
+        mkdir -p ${CMAKE_INSTALL_PREFIX}/data/map/amap_all/hd_map && ln -s ${HDMAP} ${CMAKE_INSTALL_PREFIX}/data/map/amap_all/hd_map
     ")
     file(WRITE "${CMAKE_INSTALL_PREFIX}/../CREATE_HDMAP_LINK_SHELL.sh" "${CREATE_HDMAP_LINK_SHELL}")
     install(CODE "execute_process(COMMAND bash CREATE_HDMAP_LINK_SHELL.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")

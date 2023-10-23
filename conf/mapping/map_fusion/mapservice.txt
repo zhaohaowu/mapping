@@ -1,0 +1,33 @@
+# 1. Flags in this file should be defined in common/configs/config_gflags.h
+# 2. To use it, add the following line into your command line arguments or
+#    already-in-use flagfile:
+#        --flagfile=modules/common/data/global_flagfile.txt
+# 3. To override the flag values, you must set it after this file, as all Flags
+#    are evaluated strictly in order.
+
+# vehicle parameter
+--vehicle_config_path=conf/vehicle_param/ep40/vehicle_param.pb.txt
+
+--map_dir=data/map/demo
+#--map_dir=data/map/amap_jinghu
+#--map_dir=data/map/amap_beijing
+#--map_dir=data/map/amap_odd
+#--map_dir=data/map/amap_change_utm
+--map_dir=data/map/amap_hukun
+--map_dir=../../data/map/changfeng_park
+
+
+--log_dir=data/log
+
+#for ehp
+--nouse_ehp
+--use_ehp_odd_to_stop=false
+--ehp_monitor=1
+--enable_ehp_routing=false
+--using_record_ehp_data=false
+--ehp_log_root_dir=/opt/usr/hd_map/ehp_log
+
+
+--v=2
+#map fusion
+--map_service_mode=1

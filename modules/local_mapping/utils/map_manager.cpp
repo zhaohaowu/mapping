@@ -3,9 +3,7 @@
  *Author: luerwei/zhaohaowu
  *Date: 2023-09-01
  *****************************************************************************/
-#include "modules/local_mapping/lib/utils/map_manager.h"
-
-#include "modules/local_mapping/lib/utils/common.h"
+#include "modules/local_mapping/utils/map_manager.h"
 
 namespace hozon {
 namespace mp {
@@ -73,14 +71,32 @@ void MapManager::UpdateLane(const Sophus::SE3d& T_C_L) {
       T_C_L.matrix()(1, 0), T_C_L.matrix()(1, 1), T_C_L.matrix()(1, 3), 0, 0, 1;
   for (auto& lane : local_map_.local_map_lane_) {
     for (auto& point : lane.points_) {
-      // point = T_C_L * point;
-      point.x() = T(0, 0) * point.x() + T(0, 1) * point.y() + T(0, 2);
-      point.y() = T(1, 0) * point.x() + T(1, 1) * point.y() + T(1, 2);
+      point = T_C_L * point;
+      // point.x() = T(0, 0) * point.x() + T(0, 1) * point.y() + T(0, 2);
+      // point.y() = T(1, 0) * point.x() + T(1, 1) * point.y() + T(1, 2);
     }
     for (auto& point : lane.fit_points_) {
-      // point = T_C_L * point;
-      point.x() = T(0, 0) * point.x() + T(0, 1) * point.y() + T(0, 2);
-      point.y() = T(1, 0) * point.x() + T(1, 1) * point.y() + T(1, 2);
+      point = T_C_L * point;
+      // point.x() = T(0, 0) * point.x() + T(0, 1) * point.y() + T(0, 2);
+      // point.y() = T(1, 0) * point.x() + T(1, 1) * point.y() + T(1, 2);
+    }
+  }
+}
+
+void MapManager::UpdateEdge(const Sophus::SE3d& T_C_L) {
+  Eigen::Matrix3d T = Eigen::Matrix3d::Identity();
+  T << T_C_L.matrix()(0, 0), T_C_L.matrix()(0, 1), T_C_L.matrix()(0, 3),
+      T_C_L.matrix()(1, 0), T_C_L.matrix()(1, 1), T_C_L.matrix()(1, 3), 0, 0, 1;
+  for (auto& edge : local_map_.local_map_edge_) {
+    for (auto& point : edge.points_) {
+      point = T_C_L * point;
+      // point.x() = T(0, 0) * point.x() + T(0, 1) * point.y() + T(0, 2);
+      // point.y() = T(1, 0) * point.x() + T(1, 1) * point.y() + T(1, 2);
+    }
+    for (auto& point : edge.fit_points_) {
+      point = T_C_L * point;
+      // point.x() = T(0, 0) * point.x() + T(0, 1) * point.y() + T(0, 2);
+      // point.y() = T(1, 0) * point.x() + T(1, 1) * point.y() + T(1, 2);
     }
   }
 }

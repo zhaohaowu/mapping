@@ -3,7 +3,7 @@
  *Author: luerwei
  *Date: 2023-09-011
  *****************************************************************************/
-#include "modules/local_mapping/lib/utils/lane_filter.h"
+#include "modules/local_mapping/utils/lane_filter.h"
 
 namespace hozon {
 namespace mp {

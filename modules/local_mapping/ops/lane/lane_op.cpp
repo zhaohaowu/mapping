@@ -3,14 +3,7 @@
  *Author: wangjianguo
  *Date: 2023-09-05
  *****************************************************************************/
-#include "modules/local_mapping/lib/ops/lane/lane_op.h"
-
-#include <algorithm>
-#include <list>
-#include <unordered_map>
-#include <utility>
-
-#include "modules/local_mapping/lib/utils/common.h"
+#include "modules/local_mapping/ops/lane/lane_op.h"
 
 namespace hozon {
 namespace mp {
@@ -56,11 +49,11 @@ void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
   }
 }
 
-void LaneOp::Match(ConstDrDataPtr dr_ptr,
-                   std::shared_ptr<const Lanes> cur_lanes,
+void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
                    std::shared_ptr<std::vector<LocalMapLane>> map_lanes,
                    std::shared_ptr<std::vector<LaneMatchInfo>> match_info,
-                   bool use_bipartite_assoc_match) {
+                   bool use_bipartite_assoc_match,
+                   const double& sample_interval) {
   match_info->clear();
   if (map_lanes->size() == 0) {
     for (auto cur_lane : cur_lanes->lanes_) {
@@ -72,21 +65,20 @@ void LaneOp::Match(ConstDrDataPtr dr_ptr,
     return;
   }
 
-  std::vector<LanePointsPtr> lanes_points;
+  std::vector<std::vector<Eigen::Vector3d>> lanes_points;
   for (size_t i = 0; i < cur_lanes->lanes_.size(); ++i) {
-    LanePointsPtr pts = std::make_shared<std::vector<Eigen::Vector3d>>();
-    CommonUtil::SampleLanePointsInLocal(cur_lanes->lanes_[i], pts);
+    std::vector<Eigen::Vector3d> pts;
+    CommonUtil::SampleLanePoints(std::make_shared<Lane>(cur_lanes->lanes_[i]),
+                                 &pts, sample_interval);
     lanes_points.emplace_back(pts);
   }
 
-  Eigen::Vector3d lane_pose = CommonUtil::Get2DPose(dr_ptr);
   std::unordered_map<int, int> map_det_lm;
   if (use_bipartite_assoc_match) {
-    map_det_lm =
-        bipar_lane_assoc_->Process(lanes_points, map_lanes.get(), lane_pose);
+    map_det_lm = bipar_lane_assoc_->Process(lanes_points, map_lanes.get());
   } else {
     lane_assoc_.reset(new LaneAssoc(lane_assoc_options_));
-    map_det_lm = lane_assoc_->Process(lanes_points, *map_lanes, lane_pose);
+    map_det_lm = lane_assoc_->Process(lanes_points, *map_lanes);
   }
 
   for (size_t i = 0; i < cur_lanes->lanes_.size(); ++i) {

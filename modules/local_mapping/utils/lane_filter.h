@@ -9,10 +9,10 @@
 #include <memory>
 #include <vector>
 
-#include "modules/local_mapping/lib/datalogger/load_data_singleton.h"
-#include "modules/local_mapping/lib/types/common.h"
-#include "modules/local_mapping/lib/utils/common.h"
-#include "modules/local_mapping/lib/utils/kalman_filter.h"
+#include "modules/local_mapping/datalogger/load_data_singleton.h"
+#include "modules/local_mapping/types/common.h"
+#include "modules/local_mapping/utils/common.h"
+#include "modules/local_mapping/utils/kalman_filter.h"
 #include "modules/util/include/util/temp_log.h"
 
 namespace hozon {

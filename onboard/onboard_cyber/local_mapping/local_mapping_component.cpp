@@ -9,9 +9,10 @@ DEFINE_string(location_topic, "/location", "location topic");
 DEFINE_string(dr_topic, "/odom", "location topic");
 DEFINE_string(ins_topic, "/PluginNodeInfo", "location topic");
 DEFINE_string(laneline_topic, "/LaneLine", "location topic");
-DEFINE_string(roadedge_topic, "/lidar_roadedge", "location topic");
+DEFINE_string(roadedge_topic, "/EdgeLine", "location topic");
 DEFINE_string(output_topic, "/local_map", "location topic");
 DEFINE_string(output_location_topic, "/local_map/location", "location topic");
+DEFINE_string(image_topic, "/CameraFrontWide/compresseds", "image topic");
 DEFINE_string(config_yaml, "conf/mapping/local_mapping/local_mapping_conf.yaml",
               "path to local mapping conf yaml");
 DEFINE_bool(viz, true, "use rviz");
@@ -49,6 +50,12 @@ bool LMapComponent::Init() {
       FLAGS_roadedge_topic,
       [this](const std::shared_ptr<const hozon::perception::TransportElement>&
                  msg) { OnRoadEdge(msg); });
+
+  img_listener_ = node_->CreateReader<hozon::soc::CompressedImage>(
+      FLAGS_image_topic,
+      [this](const std::shared_ptr<const hozon::soc::CompressedImage>& msg) {
+        OnImg(msg);
+      });
 
   result_talker_ =
       node_->CreateWriter<hozon::mapping::LocalMap>(FLAGS_output_topic);
@@ -120,10 +127,18 @@ bool LMapComponent::OnLaneLine(
 
 bool LMapComponent::OnRoadEdge(
     const std::shared_ptr<const hozon::perception::TransportElement>& msg) {
+  HLOG_ERROR << "===OnRoadEdge";
   if (!lmap_) {
     return false;
   }
   lmap_->OnRoadEdge(msg);
+  return true;
+}
+
+bool LMapComponent::OnImg(
+    const std::shared_ptr<const hozon::soc::CompressedImage>& msg) {
+  HLOG_ERROR << "===OnImg";
+  lmap_->OnImage(msg);
   return true;
 }
 

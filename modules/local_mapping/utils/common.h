@@ -15,8 +15,10 @@
 
 #include "Eigen/Dense"
 #include "depend/map/hdmap/hdmap.h"
-#include "modules/local_mapping/lib/types/common.h"
-#include "modules/local_mapping/lib/utils/map_manager.h"
+#include "depend/proto/soc/sensor_image.pb.h"
+#include "interface/adsfi_proto/viz/sensor_msgs.pb.h"
+#include "modules/local_mapping/types/common.h"
+#include "modules/local_mapping/utils/map_manager.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "modules/util/include/util/temp_log.h"
@@ -327,6 +329,45 @@ class CommonUtil {
   }
 
   /**
+   * @brief fit lane points to lane_param in local map
+   *
+   * @param local_map local_map
+   * @return
+   */
+  static void CatmullRoom(LocalMap* local_map, const double& sample_interval) {
+    for (auto& lane : local_map->local_map_lane_) {
+      if (!lane.need_fit_) continue;
+      lane.lane_param_.clear();
+      lane.fit_points_.clear();
+      std::vector<Eigen::Vector3d> pts;
+      for (size_t i = 0; i < lane.points_.size(); i++) {
+        if (i % 10 == 0 || i == lane.points_.size() - 1) {
+          pts.push_back(lane.points_[i]);
+        }
+      }
+      if (pts.size() < 4) continue;
+      auto func = [](double p0, double p1, double p2, double p3, double t) {
+        double t2 = t * t;
+        double t3 = t2 * t;
+        double b1 = 0.5 * (-t3 + 2 * t2 - t);
+        double b2 = 0.5 * (3 * t3 - 5 * t2 + 2);
+        double b3 = 0.5 * (-3 * t3 + 4 * t2 + t);
+        double b4 = 0.5 * (t3 - t2);
+        return (p0 * b1 + p1 * b2 + p2 * b3 + p3 * b4);
+      };
+      for (size_t i = 1; i < pts.size() - 2; ++i) {
+        for (double t = 0; t < 1; t += 0.1) {
+          double px = func(pts[i - 1].x(), pts[i].x(), pts[i + 1].x(),
+                           pts[i + 2].x(), t);
+          double py = func(pts[i - 1].y(), pts[i].y(), pts[i + 1].y(),
+                           pts[i + 2].y(), t);
+          lane.fit_points_.push_back({px, py, 0});
+        }
+      }
+    }
+  }
+
+  /**
    * @brief find min x of lane
    *
    * @param lane_params lane params
@@ -466,9 +507,9 @@ class CommonUtil {
     pose->mutable_pose()->mutable_orientation()->set_y(q.y());
     pose->mutable_pose()->mutable_orientation()->set_z(q.z());
     pose->mutable_pose()->mutable_orientation()->set_w(q.w());
-    if (path_msg.poses().size() > 250) {
-      path_msg.mutable_poses()->DeleteSubrange(0, 1);
-    }
+    // if (path_msg.poses().size() > 250) {
+    //   path_msg.mutable_poses()->DeleteSubrange(0, 1);
+    // }
     util::RvizAgent::Instance().Publish(topic, path_msg);
   }
 
@@ -491,6 +532,54 @@ class CommonUtil {
     if (percep_flag) {
       util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
       percep_flag = 0;
+    }
+    std::vector<Eigen::Vector3d> percep_points_all;
+    for (size_t i = 0; i < latest_lanes->lanes_.size(); i++) {
+      std::vector<Eigen::Vector3d> percep_points;
+      CommonUtil::SampleLanePoints(
+          std::make_shared<Lane>(latest_lanes->lanes_[i]), &percep_points,
+          sample_interval);
+      for (auto& point : percep_points) {
+        point = T_W_V * point;
+      }
+      for (auto& p : percep_points) {
+        percep_points_all.emplace_back(p);
+      }
+    }
+    adsfi_proto::viz::PointCloud lane_points_msg;
+    lane_points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    lane_points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    lane_points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = lane_points_msg.add_channels();
+    channels->set_name("rgb");
+    for (auto p : percep_points_all) {
+      auto* points_ = lane_points_msg.add_points();
+      points_->set_x(p.x());
+      points_->set_y(p.y());
+      points_->set_z(p.z());
+    }
+    util::RvizAgent::Instance().Publish(topic, lane_points_msg);
+  }
+
+  /**
+   * @brief pub perception points in rviz
+   *
+   * @param T_W_V translation from vehicle to world
+   * @param latest_lanes input lanes
+   * @param sec second in timestamp
+   * @param nsec nsecond in timestamp
+   * @param topic topic
+   * @return
+   */
+  static void PubEdgePoints(const Sophus::SE3d& T_W_V,
+                            const std::shared_ptr<Lanes>& latest_lanes,
+                            const uint64_t& sec, const uint64_t& nsec,
+                            const std::string& topic,
+                            const double& sample_interval) {
+    static bool edge_flag = 1;
+    if (edge_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
+      edge_flag = 0;
     }
     std::vector<Eigen::Vector3d> percep_points_all;
     for (size_t i = 0; i < latest_lanes->lanes_.size(); i++) {
@@ -828,6 +917,43 @@ class CommonUtil {
     //   }
     // }
     util::RvizAgent::Instance().Publish(topic, markers);
+  }
+  /**
+   * @brief pub image in rviz
+   *
+   * @param local_map input local_map
+   * @return
+   */
+  static void PubImage(
+      const std::string& topic,
+      const std::shared_ptr<const hozon::soc::CompressedImage>& sensor_img) {
+    static bool img_marker_flag = 1;
+    if (img_marker_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::CompressedImage>(
+          topic);
+      img_marker_flag = 0;
+    }
+    if (sensor_img->format() != "jpeg" && sensor_img->format() != "jpg") {
+      HLOG_ERROR << "not support " << sensor_img->format() << ", only support "
+                 << "jpeg/jpg";
+      return;
+    }
+    adsfi_proto::viz::CompressedImage img;
+    img.mutable_header()->set_seq(sensor_img->header().seq());
+    img.mutable_header()->set_frameid(sensor_img->header().frame_id());
+    auto sec = static_cast<uint32_t>(sensor_img->header().publish_stamp());
+    auto nsec = static_cast<uint32_t>(
+        (sensor_img->header().publish_stamp() - sec) * 1e9);
+    img.mutable_header()->mutable_timestamp()->set_sec(sec);
+    img.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    img.set_format(sensor_img->format());
+    for (const auto& b : sensor_img->data()) {
+      img.mutable_data()->push_back(b);
+    }
+    if (img.data().empty()) {
+      return;
+    }
+    util::RvizAgent::Instance().Publish(topic, img);
   }
   /**
    *@brief sample points from curve*

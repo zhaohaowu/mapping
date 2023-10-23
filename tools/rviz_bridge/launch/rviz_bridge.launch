@@ -6,15 +6,11 @@
         ipc:///tmp/rviz_agent_lm_pv,
         ipc:///tmp/rviz_agent_loc,
         ipc:///tmp/rviz_agent_mf,
-        ipc:///tmp/rviz_agent_local_map,
-        tcp://10.6.73.235:9100
+        ipc:///tmp/rviz_agent_local_map
     ]"/>
 
-<!-- rviz_bridge在本机，业务在远端（上海MDC台架-930） -->
-<!--     <arg name="viz_addrs" default="[tcp://10.4.51.208:9100]"/> -->
-
-<!-- rviz_bridge在本机，业务在远端（上海MDC台架-1230） -->
-<!--     <arg name="viz_addrs" default="[tcp://10.4.51.249:9100]"/> -->
+<!-- rviz_bridge在本机，业务在远端（上海MDC台架） -->
+<!--     <arg name="viz_addrs" default="[tcp://10.6.73.235:9100]"/> -->
 
     <arg name="abs_rviz_conf" default="$(find rviz_bridge)/conf/default.rviz"/>
 

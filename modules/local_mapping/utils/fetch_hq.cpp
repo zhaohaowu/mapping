@@ -3,13 +3,7 @@
  *Author: shenliangchen
  *Date: 2023-09-15
  *****************************************************************************/
-#include "modules/local_mapping/lib/utils/fetch_hq.h"
-
-#include <yaml-cpp/yaml.h>
-
-#include <fstream>
-
-#include "modules/util/include/util/temp_log.h"
+#include "modules/local_mapping/utils/fetch_hq.h"
 
 namespace hozon {
 namespace mp {

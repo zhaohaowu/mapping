@@ -3,7 +3,7 @@
  *Author: shenliangchen
  *Date: 2023-09-25
  *****************************************************************************/
-#include "modules/local_mapping/lib/utils/compute_loss.h"
+#include "modules/local_mapping/utils/compute_loss.h"
 
 namespace hozon {
 namespace mp {

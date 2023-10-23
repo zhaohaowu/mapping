@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-TOP_DIR="$(builtin cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P)"
+TOP_DIR="$(builtin cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 echo ${TOP_DIR}
 FLAG_FILE_NAME=hz_mapping.flag
 

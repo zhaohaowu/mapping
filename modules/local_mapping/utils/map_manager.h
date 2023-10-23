@@ -15,7 +15,8 @@
 
 #include <Sophus/se3.hpp>
 
-#include "modules/local_mapping/lib/types/common.h"
+#include "modules/local_mapping/types/common.h"
+#include "modules/local_mapping/utils/common.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 
 namespace hozon {
@@ -60,6 +61,13 @@ class MapManager {
    */
   void UpdateLane(const Sophus::SE3d& T_C_L);
 
+  /**
+   * @brief lane from last to current
+   *
+   * @param T_C_L : T_C_L data
+   * @return
+   */
+  void UpdateEdge(const Sophus::SE3d& T_C_L);
   /**
    * @brief update timestamp
    *

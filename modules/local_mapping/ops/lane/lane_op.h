@@ -5,21 +5,23 @@
  *****************************************************************************/
 #pragma once
 
+#include <algorithm>
 #include <iostream>
+#include <list>
 #include <memory>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <Sophus/se3.hpp>
 
-#include "modules/local_mapping/lib/datalogger/load_data_singleton.h"
-#include "modules/local_mapping/lib/ops/association/association.h"
-#include "modules/local_mapping/lib/ops/association/bipartite_match.h"
-#include "modules/local_mapping/lib/types/common.h"
-#include "modules/local_mapping/lib/utils/common.h"
-#include "modules/local_mapping/lib/utils/lane_filter.h"
+#include "modules/local_mapping/datalogger/load_data_singleton.h"
+#include "modules/local_mapping/ops/association/association.h"
+#include "modules/local_mapping/ops/association/bipartite_match.h"
+#include "modules/local_mapping/types/common.h"
+#include "modules/local_mapping/utils/common.h"
+#include "modules/local_mapping/utils/lane_filter.h"
 #include "modules/util/include/util/temp_log.h"
-
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -35,10 +37,10 @@ class LaneOp {
    * @param match_info : match result
    * @return
    */
-  void Match(ConstDrDataPtr lane_pose, std::shared_ptr<const Lanes> cur_lanes,
+  void Match(std::shared_ptr<const Lanes> cur_lanes,
              std::shared_ptr<std::vector<LocalMapLane>> map_lanes,
              std::shared_ptr<std::vector<LaneMatchInfo>> match_info,
-             bool use_bipartite_assoc_match = false);
+             bool use_bipartite_assoc_match, const double& sample_interval);
 
   void Match(std::shared_ptr<const Lanes> cur_lanes,
              std::shared_ptr<const std::vector<LocalMapLane>> map_lanes,

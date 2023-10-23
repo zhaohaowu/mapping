@@ -5,6 +5,7 @@
  *****************************************************************************/
 #pragma once
 #include <Eigen/Core>
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -14,9 +15,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "modules/local_mapping/lib/types/common.h"
-#include "modules/local_mapping/lib/types/types.h"
-#include "modules/local_mapping/lib/utils/common.h"
+#include "modules/local_mapping/types/common.h"
+#include "modules/local_mapping/types/types.h"
+#include "modules/local_mapping/utils/common.h"
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d.hpp"
 
@@ -87,7 +88,8 @@ class BipartiteLaneAssoc {
 
   void SetDetection(const std::vector<LanePointsPtr>& lanes_det,
                     const Vec3d& pose_ab);
-  bool Association(std::vector<LocalMapLane>* lanes_lm);
+  bool Association(const std::vector<std::vector<Eigen::Vector3d>>& lanes_det,
+                   std::vector<LocalMapLane>* lanes_lm);
 
   std::vector<double> GetDistThd(const std::vector<Eigen::Vector3d>& points);
   std::vector<Eigen::Vector3d> TranformPoints(
@@ -97,8 +99,8 @@ class BipartiteLaneAssoc {
   std::unordered_map<int, int> map_det_lm_;
 
   std::unordered_map<int, int> Process(
-      const std::vector<LanePointsPtr>& lanes_det,
-      std::vector<LocalMapLane>* lanes_lm, const Vec3d& pose_ab);
+      const std::vector<std::vector<Eigen::Vector3d>>& lanes_det,
+      std::vector<LocalMapLane>* lanes_lm);
 
   void Clear();
 };

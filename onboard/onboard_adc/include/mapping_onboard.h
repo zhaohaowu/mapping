@@ -11,7 +11,7 @@
 #include <memory>
 
 #include "modules/dr/include/dr.h"
-#include "modules/local_mapping/lib/local_mapping.h"
+#include "modules/local_mapping/local_mapping.h"
 // #include
 // "modules/map_fusion/include/map_fusion/map_prediction/map_prediction.h"
 // #include

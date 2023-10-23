@@ -2,7 +2,8 @@
 --location_topic=/location
 --dr_topic=/mapping/dr
 --laneline_topic=/LaneLine
---roadedge_topic=/lidar_roadedge
+--roadedge_topic=/EdgeLine_
+--image_topic=/CameraFrontWide/compressed
 --output_topic=/local_map
 --v=2
 --alsologtostderr

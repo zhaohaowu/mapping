@@ -3,34 +3,29 @@
  *Author: likuan
  *Date: 2023-09-06
  *****************************************************************************/
-#include "modules/local_mapping/lib/ops/association/association.h"
-
-#include <algorithm>
-#include <vector>
+#include "modules/local_mapping/ops/association/association.h"
 
 namespace hozon {
 namespace mp {
 namespace lm {
 
 std::unordered_map<int, int> LaneAssoc::Process(
-    const std::vector<LanePointsPtr>& lanes_det,
-    const std::vector<LocalMapLane>& lanes_lm, const Vec3d& pose_ab) {
+    const std::vector<std::vector<Eigen::Vector3d>>& lanes_det,
+    const std::vector<LocalMapLane>& lanes_lm) {
   Clear();
-  SetDetection(lanes_det, pose_ab);
+  SetDetection(lanes_det);
   SetLandmark(lanes_lm);
   AssociationKnn();
   return map_det_lm_;
 }
 
-void LaneAssoc::SetDetection(const std::vector<LanePointsPtr>& lanes_det,
-                             const Vec3d& pose_ab) {
+void LaneAssoc::SetDetection(
+    const std::vector<std::vector<Eigen::Vector3d>>& lanes_det) {
   num_det_ = lanes_det.size();
   for (size_t i = 0; i < lanes_det.size(); ++i) {
     if (lanes_det.size() == 0) continue;
-    std::vector<double> distance_thd = GetDistThd(*lanes_det[i]);
-    // std::vector<Eigen::Vector3d> trans_xyz =
-    //     TranformPoints(pose_ab, *lanes_det[i]);
-    det_xyzs_.push_back(*lanes_det[i]);
+    std::vector<double> distance_thd = GetDistThd(lanes_det[i]);
+    det_xyzs_.push_back(lanes_det[i]);
     det_knn_thd_.push_back(distance_thd);
   }
 }

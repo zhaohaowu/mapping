@@ -9,7 +9,8 @@
 
 #include "cyber/component/component.h"
 #include "depend/proto/localization/node_info.pb.h"
-#include "modules/local_mapping/lib/local_mapping.h"
+#include "depend/proto/soc/sensor_image.pb.h"
+#include "modules/local_mapping/local_mapping.h"
 
 namespace hozon {
 namespace mp {
@@ -72,6 +73,14 @@ class LMapComponent : public apollo::cyber::Component<> {
       const std::shared_ptr<const hozon::perception::TransportElement>& msg);
 
   /**
+   * @brief receive image message
+   *
+   * @param msg : image message
+   * @return `true` for receiveing and processing success, `false` for failed
+   */
+  bool OnImg(const std::shared_ptr<const hozon::soc::CompressedImage>& msg);
+
+  /**
    * @brief local map publish
    *
    * @return
@@ -99,6 +108,8 @@ class LMapComponent : public apollo::cyber::Component<> {
       laneline_listener_;
   std::shared_ptr<apollo::cyber::Reader<hozon::perception::TransportElement>>
       roadedge_listener_;
+  std::shared_ptr<apollo::cyber::Reader<hozon::soc::CompressedImage>>
+      img_listener_;
   std::shared_ptr<apollo::cyber::Writer<hozon::mapping::LocalMap>>
       result_talker_;
   std::shared_ptr<apollo::cyber::Writer<hozon::localization::Localization>>

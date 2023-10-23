@@ -8,8 +8,8 @@
 #include <memory>
 #include <vector>
 
-#include "modules/local_mapping/lib/types/common.h"
-#include "modules/local_mapping/lib/utils/common.h"
+#include "modules/local_mapping/types/common.h"
+#include "modules/local_mapping/utils/common.h"
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d.hpp"
 

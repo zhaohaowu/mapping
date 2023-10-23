@@ -9,9 +9,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "modules/local_mapping/lib/datalogger/data_buffer.h"
-#include "modules/local_mapping/lib/ops/association/association.h"
-#include "modules/local_mapping/lib/types/common.h"
+#include "modules/local_mapping/datalogger/data_buffer.h"
+#include "modules/local_mapping/ops/association/association.h"
+#include "modules/local_mapping/types/common.h"
 
 namespace hozon {
 namespace mp {

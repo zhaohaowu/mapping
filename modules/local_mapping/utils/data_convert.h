@@ -8,7 +8,7 @@
 #include <memory>
 #include <vector>
 
-#include "modules/local_mapping/lib/types/common.h"
+#include "modules/local_mapping/types/common.h"
 #include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
@@ -43,6 +43,15 @@ class DataConvert {
    * @return
    */
   static void SetLaneLine(const hozon::perception::TransportElement& msg,
+                          std::shared_ptr<Lanes> lanes);
+
+  /**
+   * @brief convert laneline message into internal class
+   *
+   * @param msg : laneline message
+   * @return
+   */
+  static void SetEdgeLine(const hozon::perception::TransportElement& msg,
                           std::shared_ptr<Lanes> lanes);
 
   /**

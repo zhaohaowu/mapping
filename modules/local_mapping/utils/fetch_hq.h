@@ -6,14 +6,17 @@
 #pragma once
 
 #include <depend/proto/map/map.pb.h>
+#include <yaml-cpp/yaml.h>
 
+#include <fstream>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include <Sophus/se3.hpp>
 
-#include "modules/local_mapping/lib/types/common.h"
+#include "modules/local_mapping/types/common.h"
+#include "modules/util/include/util/temp_log.h"
 namespace hozon {
 namespace mp {
 namespace lm {

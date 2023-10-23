@@ -3,7 +3,7 @@
  *Author: likuan
  *Date: 2023-09-06
  *****************************************************************************/
-#include "modules/local_mapping/lib/datalogger/load_data_singleton.h"
+#include "modules/local_mapping/datalogger/load_data_singleton.h"
 
 namespace hozon {
 namespace mp {

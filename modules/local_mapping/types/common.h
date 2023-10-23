@@ -10,7 +10,7 @@
 #include <memory>
 #include <vector>
 
-#include "modules/local_mapping/lib/types/types.h"
+#include "modules/local_mapping/types/types.h"
 #include "proto/dead_reckoning/dr.pb.h"
 #include "proto/local_mapping/local_map.pb.h"
 #include "proto/localization/localization.pb.h"

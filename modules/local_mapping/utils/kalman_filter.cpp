@@ -3,7 +3,7 @@
  *Author: luerwei
  *Date: 2023-09-08
  *****************************************************************************/
-#include "modules/local_mapping/lib/utils/kalman_filter.h"
+#include "modules/local_mapping/utils/kalman_filter.h"
 
 namespace hozon {
 namespace mp {

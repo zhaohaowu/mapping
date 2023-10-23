@@ -3,15 +3,7 @@
  *Author: wangjianguo
  *Date: 2023-08-31
  *****************************************************************************/
-#include "modules/local_mapping/lib/local_mapping.h"
-
-#include <list>
-#include <utility>
-
-#include "depend/common/utm_projection/coordinate_convertor.h"
-#include "modules/local_mapping/lib/ops/association/bipartite_match.h"
-#include "modules/local_mapping/lib/utils/fetch_hq.h"
-#include "modules/util/include/util/geo.h"
+#include "modules/local_mapping/local_mapping.h"
 
 DEFINE_uint32(zone, 51, "time zone");
 
@@ -34,17 +26,10 @@ LMapApp::LMapApp(const std::string& config_file) {
   laneOp_ = std::make_shared<LaneOp>();
   laneOp_->Init(params);
   mmgr_ = std::make_shared<MapManager>();
-  map_lanes_ = std::make_shared<std::vector<LocalMapLane>>();
-  latest_location_ = std::make_shared<Location>();
-  latest_dr_ = std::make_shared<Location>();
-  latest_lanes_ = std::make_shared<Lanes>();
-  lane_matches_ = std::make_shared<std::vector<LaneMatchInfo>>();
-  map_init_timestamp_ = 0;
   init_T_ = Sophus::SE3d(Eigen::Matrix<double, 4, 4>::Identity());
   lasted_T_ = Sophus::SE3d(Eigen::Matrix<double, 4, 4>::Identity());
   T_G_V_ = Sophus::SE3d(Eigen::Matrix<double, 4, 4>::Identity());
   T_W_V_ = Sophus::SE3d(Eigen::Matrix<double, 4, 4>::Identity());
-  last_T_W_V_ = Sophus::SE3d(Eigen::Matrix<double, 4, 4>::Identity());
   laneline_inited_ = false;
   dr_inited_ = false;
   // load hdmap
@@ -61,19 +46,20 @@ LMapApp::LMapApp(const std::string& config_file) {
 
 void LMapApp::OnLocation(
     const std::shared_ptr<const hozon::localization::Localization>& msg) {
-  DataConvert::SetLocation(*msg, latest_dr_);
+  std::shared_ptr<Location> latest_location_ = std::make_shared<Location>();
+  DataConvert::SetLocation(*msg, latest_location_);
 }
 
 void LMapApp::OnDr(
     const std::shared_ptr<const hozon::dead_reckoning::DeadReckoning>& msg) {
-  DataConvert::SetDr(*msg, latest_location_);
+  std::shared_ptr<Location> latest_dr_ = std::make_shared<Location>();
+  DataConvert::SetDr(*msg, latest_dr_);
+  static double map_init_timestamp_ = 0;
   if (map_init_timestamp_ < 1e-5) {
-    map_init_timestamp_ = latest_location_->timestamp_;
-    init_T_ = Sophus::SE3d(latest_location_->quaternion_,
-                           latest_location_->position_);
+    map_init_timestamp_ = latest_dr_->timestamp_;
+    init_T_ = Sophus::SE3d(latest_dr_->quaternion_, latest_dr_->position_);
   }
-  lasted_T_ =
-      Sophus::SE3d(latest_location_->quaternion_, latest_location_->position_);
+  lasted_T_ = Sophus::SE3d(latest_dr_->quaternion_, latest_dr_->position_);
   Sophus::SE3d T_W_V = init_T_.inverse() * lasted_T_;
 
   Eigen::Vector3d trans_pose = T_W_V.translation();
@@ -83,20 +69,19 @@ void LMapApp::OnDr(
   // HLOG_ERROR << "Dr buffer size: " <<
   // local_data.dr_data_buffer_.buffer_size(); HLOG_ERROR << "Dr timestamp: " <<
   // std::setprecision(20)
-  //           << latest_location_->timestamp_;
+  //           << latest_dr_->timestamp_;
   if (local_data.dr_data_buffer_.is_empty() ||
-      local_data.dr_data_buffer_.back()->timestamp <
-          latest_location_->timestamp_) {
+      local_data.dr_data_buffer_.back()->timestamp < latest_dr_->timestamp_) {
     DrDataPtr dr_data_ptr = std::make_shared<DrData>();
-    dr_data_ptr->timestamp = latest_location_->timestamp_;
+    dr_data_ptr->timestamp = latest_dr_->timestamp_;
     dr_data_ptr->pose = trans_pose;
     dr_data_ptr->quaternion = trans_quat;
-    dr_data_ptr->local_omg = latest_location_->angular_vrf_;
-    dr_data_ptr->local_vel = latest_location_->linear_vrf_;
-    local_data.dr_data_buffer_.push_new_message(latest_location_->timestamp_,
+    dr_data_ptr->local_omg = latest_dr_->angular_vrf_;
+    dr_data_ptr->local_vel = latest_dr_->linear_vrf_;
+    local_data.dr_data_buffer_.push_new_message(latest_dr_->timestamp_,
                                                 dr_data_ptr);
   } else {
-    HLOG_ERROR << "Dr timestamp error";
+    // HLOG_ERROR << "Dr timestamp error";
   }
 
   if (use_rviz_) {
@@ -147,35 +132,42 @@ void LMapApp::OnLaneLine(
   mmgr_->UpdateTimestamp(msg->header().gnss_stamp());
   auto sec = static_cast<uint64_t>(msg->header().gnss_stamp());
   auto nsec = static_cast<uint64_t>((msg->header().gnss_stamp() - sec) * 1e9);
+  std::shared_ptr<Lanes> latest_lanes_ = std::make_shared<Lanes>();
   DataConvert::SetLaneLine(*msg, latest_lanes_);
   ConstDrDataPtr lane_pose = GetDrPoseForTime(latest_lanes_->timestamp_);
   if (lane_pose == nullptr) {
     return;
   }
-  T_W_V_ = Sophus::SE3d(lane_pose->quaternion, lane_pose->pose);
-  T_V_W_ = T_W_V_.inverse();
-  Sophus::SE3d T_C_L = T_V_W_ * last_T_W_V_;
-  last_T_W_V_ = T_W_V_;
+  Sophus::SE3d T_W_V = Sophus::SE3d(lane_pose->quaternion, lane_pose->pose);
+  T_W_V_ = T_W_V;
+  static Sophus::SE3d last_T_W_V =
+      Sophus::SE3d(Eigen::Matrix<double, 4, 4>::Identity());
+  Sophus::SE3d T_C_L = T_W_V.inverse() * last_T_W_V;
+  last_T_W_V = T_W_V;
   auto start2 = std::chrono::high_resolution_clock::now();
+  localmap_mutex_.lock();
   mmgr_->UpdateLane(T_C_L);
   auto end2 = std::chrono::high_resolution_clock::now();
   auto duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(end2 - start2);
   HLOG_ERROR << "update time: " << duration.count() << " ms";
+  std::shared_ptr<std::vector<LocalMapLane>> map_lanes_ =
+      std::make_shared<std::vector<LocalMapLane>>();
   mmgr_->GetLanes(map_lanes_);
   // match current frame lanes to map lanes
   auto start3 = std::chrono::high_resolution_clock::now();
+  std::shared_ptr<std::vector<LaneMatchInfo>> lane_matches_ =
+      std::make_shared<std::vector<LaneMatchInfo>>();
   if (use_perception_match_) {
     laneOp_->Match(latest_lanes_, map_lanes_, lane_matches_);
   } else {
-    laneOp_->Match(lane_pose, latest_lanes_, map_lanes_, lane_matches_,
-                   use_bipartite_assoc_match_);
+    laneOp_->Match(latest_lanes_, map_lanes_, lane_matches_,
+                   use_bipartite_assoc_match_, sample_interval);
   }
   auto end3 = std::chrono::high_resolution_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(end3 - start3);
   HLOG_ERROR << "match time: " << duration.count() << " ms";
-  localmap_mutex_.lock();
   for (auto& map_lane : mmgr_->local_map_.local_map_lane_) {
     map_lane.need_fit_ = false;
     for (auto match : *lane_matches_) {
@@ -227,10 +219,16 @@ void LMapApp::OnLaneLine(
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(end4 - start4);
   HLOG_ERROR << "map lane deal time: " << duration.count() << " ms";
-  CommonUtil::CubicCurve(&mmgr_->local_map_, sample_interval);
+  auto start5 = std::chrono::high_resolution_clock::now();
+  // CommonUtil::CubicCurve(&mmgr_->local_map_, sample_interval);
+  CommonUtil::CatmullRoom(&mmgr_->local_map_, sample_interval);
   mmgr_->CutLocalMap(150, 150);
   localmap_mutex_.unlock();
-  auto start5 = std::chrono::high_resolution_clock::now();
+  auto end5 = std::chrono::high_resolution_clock::now();
+  duration =
+      std::chrono::duration_cast<std::chrono::milliseconds>(end5 - start5);
+  HLOG_ERROR << "fit && cut time: " << duration.count() << " ms";
+  auto start6 = std::chrono::high_resolution_clock::now();
   if (use_rviz_) {
     CommonUtil::PubPercepPoints(T_W_V_, latest_lanes_, sec, nsec,
                                 "/localmap/percep_points", sample_interval);
@@ -241,9 +239,9 @@ void LMapApp::OnLaneLine(
     CommonUtil::PubOriMapPoints(mmgr_->local_map_, sec, nsec,
                                 "/localmap/ori_map_points", T_W_V_);
   }
-  auto end5 = std::chrono::high_resolution_clock::now();
+  auto end6 = std::chrono::high_resolution_clock::now();
   duration =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end5 - start5);
+      std::chrono::duration_cast<std::chrono::milliseconds>(end6 - start6);
   HLOG_ERROR << "rviz time: " << duration.count() << " ms";
   laneline_inited_ = 1;
   auto end = std::chrono::high_resolution_clock::now();
@@ -251,7 +249,43 @@ void LMapApp::OnLaneLine(
   HLOG_ERROR << "totle time: " << duration.count() << " ms";
 }
 void LMapApp::OnRoadEdge(
-    const std::shared_ptr<const hozon::perception::TransportElement>& msg) {}
+    const std::shared_ptr<const hozon::perception::TransportElement>& msg) {
+  // if (!dr_inited_) return;
+  // auto sec_edge = static_cast<uint64_t>(msg->header().gnss_stamp());
+  // auto nsec_edge =
+  //     static_cast<uint64_t>((msg->header().gnss_stamp() - sec_edge) * 1e9);
+  // std::shared_ptr<Lanes> latest_edges_ = std::make_shared<Lanes>();
+  // DataConvert::SetEdgeLine(*msg, latest_edges_);
+  // ConstDrDataPtr lane_pose_edge =
+  // GetDrPoseForTime(latest_edges_->timestamp_); if (lane_pose_edge == nullptr)
+  // {
+  //   return;
+  // }
+  // Sophus::SE3d T_W_V_edge =
+  //     Sophus::SE3d(lane_pose_edge->quaternion, lane_pose_edge->pose);
+  // static Sophus::SE3d last_T_W_V_edge =
+  //     Sophus::SE3d(Eigen::Matrix<double, 4, 4>::Identity());
+  // Sophus::SE3d T_C_L_edge = T_W_V_edge.inverse() * last_T_W_V_edge;
+  // last_T_W_V_edge = T_W_V_edge;
+  // mmgr_->UpdateEdge(T_C_L_edge);
+  // if (use_rviz_) {
+  //   CommonUtil::PubEdgePoints(T_W_V_edge, latest_edges_, sec_edge, nsec_edge,
+  //                             "/localmap/edge_points", sample_interval);
+  // }
+}
+
+void LMapApp::OnImage(
+    const std::shared_ptr<const hozon::soc::CompressedImage>& msg) {
+  if (use_rviz_) {
+    auto start = std::chrono::high_resolution_clock::now();
+    // HLOG_ERROR << "rviz time: " << duration.count() << " ms";
+    CommonUtil::PubImage("/localmap/image", msg);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration =
+        std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+    HLOG_ERROR << "===" << duration.count() << "ms";
+  }
+}
 
 bool LMapApp::FetchLocalMap(
     std::shared_ptr<hozon::mapping::LocalMap> local_map) {

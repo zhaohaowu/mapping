@@ -3,7 +3,7 @@
  *Author: shenliangchen
  *Date: 2023-09-05
  *****************************************************************************/
-#include "modules/local_mapping/lib/utils/data_convert.h"
+#include "modules/local_mapping/utils/data_convert.h"
 
 namespace hozon {
 namespace mp {
@@ -41,6 +41,33 @@ void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
   for (size_t i = 0; i < msg.lane_size(); i++) {
     if (msg.lane()[i].lanepos() == hozon::perception::OTHER) continue;
     if (msg.lane()[i].lanetype() == hozon::perception::RoadEdge) continue;
+    std::shared_ptr<Lane> lane = std::make_shared<Lane>();
+    lane->lane_id_ = msg.lane()[i].track_id();
+    DataConvert::ConvertProtoLanePoseType(msg.lane()[i].lanepos(),
+                                          &lane->pos_type_);
+
+    // 与感知文海同学沟通结论：proto虽然是分段三次曲线，但实际数据只有一段
+    for (size_t j = 0; j < msg.lane()[i].lane_param().cubic_curve_set_size();
+         j++) {
+      lane->x_start_vrf_ =
+          msg.lane()[i].lane_param().cubic_curve_set()[j].start_point_x();
+      lane->x_end_vrf_ =
+          msg.lane()[i].lane_param().cubic_curve_set()[j].end_point_x();
+      lane->lane_fit_a_ = msg.lane()[i].lane_param().cubic_curve_set()[j].c3();
+      lane->lane_fit_b_ = msg.lane()[i].lane_param().cubic_curve_set()[j].c2();
+      lane->lane_fit_c_ = msg.lane()[i].lane_param().cubic_curve_set()[j].c1();
+      lane->lane_fit_d_ = msg.lane()[i].lane_param().cubic_curve_set()[j].c0();
+      break;
+    }
+    lanes->lanes_.emplace_back(*lane);
+  }
+}
+
+void DataConvert::SetEdgeLine(const hozon::perception::TransportElement& msg,
+                              std::shared_ptr<Lanes> lanes) {
+  lanes->lanes_.clear();
+  lanes->timestamp_ = msg.header().gnss_stamp();
+  for (size_t i = 0; i < msg.lane_size(); i++) {
     std::shared_ptr<Lane> lane = std::make_shared<Lane>();
     lane->lane_id_ = msg.lane()[i].track_id();
     DataConvert::ConvertProtoLanePoseType(msg.lane()[i].lanepos(),

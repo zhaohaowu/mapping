@@ -5,6 +5,7 @@
  *****************************************************************************/
 #pragma once
 #include <Eigen/Core>
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -14,13 +15,12 @@
 #include <unordered_set>
 #include <vector>
 
-#include "modules/local_mapping/lib/types/common.h"
-#include "modules/local_mapping/lib/types/types.h"
-#include "modules/local_mapping/lib/utils/common.h"
+#include "modules/local_mapping/types/common.h"
+#include "modules/local_mapping/types/types.h"
+#include "modules/local_mapping/utils/common.h"
+#include "modules/util/include/util/temp_log.h"
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d.hpp"
-#include "modules/util/include/util/temp_log.h"
-
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -64,11 +64,10 @@ class LaneAssoc {
   std::unordered_set<int> delete_det_lines_;
 
   std::unordered_map<int, int> Process(
-      const std::vector<LanePointsPtr>& lanes_det,
-      const std::vector<LocalMapLane>& lanes_lm, const Vec3d& pose_ab);
+      const std::vector<std::vector<Eigen::Vector3d>>& lanes_det,
+      const std::vector<LocalMapLane>& lanes_lm);
 
-  void SetDetection(const std::vector<LanePointsPtr>& lanes_det,
-                    const Vec3d& pose_ab);
+  void SetDetection(const std::vector<std::vector<Eigen::Vector3d>>& lanes_det);
   void SetLandmark(const std::vector<LocalMapLane>& lanes_lm);
   void Association();
 

@@ -4,7 +4,7 @@ use_rviz: false
 use_perception_match: false
 compute_error: false
 sample_interval: 1
-use_bipartite_assoc_match: true
+use_bipartite_assoc_match: false
 min_overlap_point_num: 3
 min_match_point_num: 2
 same_group_max_dist: 1.0

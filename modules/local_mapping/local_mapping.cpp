@@ -96,8 +96,6 @@ void LMapApp::OnDr(
 
 void LMapApp::OnIns(
     const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg) {
-  // std::cout << "OnIns time:" << std::setprecision(16)
-  //           << msg->header().timestamp_sec() << std::endl;
   Eigen::Vector3d p_G_V(msg->pos_gcj02().x(), msg->pos_gcj02().y(),
                         msg->pos_gcj02().z());
   Eigen::Quaterniond q_G_V(msg->quaternion().w(), msg->quaternion().x(),
@@ -128,14 +126,18 @@ void LMapApp::OnIns(
 void LMapApp::OnLaneLine(
     const std::shared_ptr<const hozon::perception::TransportElement>& msg) {
   auto start = std::chrono::high_resolution_clock::now();
-  if (!dr_inited_) return;
+  if (!dr_inited_) {
+    HLOG_ERROR << "dr_inited_ is failed";
+    return;
+  }
   mmgr_->UpdateTimestamp(msg->header().gnss_stamp());
   auto sec = static_cast<uint64_t>(msg->header().gnss_stamp());
   auto nsec = static_cast<uint64_t>((msg->header().gnss_stamp() - sec) * 1e9);
-  std::shared_ptr<Lanes> latest_lanes_ = std::make_shared<Lanes>();
-  DataConvert::SetLaneLine(*msg, latest_lanes_);
-  ConstDrDataPtr lane_pose = GetDrPoseForTime(latest_lanes_->timestamp_);
+  std::shared_ptr<Lanes> latest_lanes = std::make_shared<Lanes>();
+  DataConvert::SetLaneLine(*msg, latest_lanes);
+  ConstDrDataPtr lane_pose = GetDrPoseForTime(latest_lanes->timestamp_);
   if (lane_pose == nullptr) {
+    HLOG_ERROR << "lane_pose is nullptr";
     return;
   }
   Sophus::SE3d T_W_V = Sophus::SE3d(lane_pose->quaternion, lane_pose->pose);
@@ -145,32 +147,31 @@ void LMapApp::OnLaneLine(
   Sophus::SE3d T_C_L = T_W_V.inverse() * last_T_W_V;
   last_T_W_V = T_W_V;
   auto start2 = std::chrono::high_resolution_clock::now();
-  localmap_mutex_.lock();
   mmgr_->UpdateLane(T_C_L);
   auto end2 = std::chrono::high_resolution_clock::now();
   auto duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(end2 - start2);
-  HLOG_ERROR << "update time: " << duration.count() << " ms";
-  std::shared_ptr<std::vector<LocalMapLane>> map_lanes_ =
+  // HLOG_ERROR << "update time: " << duration.count() << " ms";
+  std::shared_ptr<std::vector<LocalMapLane>> map_lanes =
       std::make_shared<std::vector<LocalMapLane>>();
-  mmgr_->GetLanes(map_lanes_);
+  mmgr_->GetLanes(map_lanes);
   // match current frame lanes to map lanes
   auto start3 = std::chrono::high_resolution_clock::now();
-  std::shared_ptr<std::vector<LaneMatchInfo>> lane_matches_ =
+  std::shared_ptr<std::vector<LaneMatchInfo>> lane_matches =
       std::make_shared<std::vector<LaneMatchInfo>>();
   if (use_perception_match_) {
-    laneOp_->Match(latest_lanes_, map_lanes_, lane_matches_);
+    laneOp_->Match(latest_lanes, map_lanes, lane_matches);
   } else {
-    laneOp_->Match(latest_lanes_, map_lanes_, lane_matches_,
+    laneOp_->Match(latest_lanes, map_lanes, lane_matches,
                    use_bipartite_assoc_match_, sample_interval);
   }
   auto end3 = std::chrono::high_resolution_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(end3 - start3);
-  HLOG_ERROR << "match time: " << duration.count() << " ms";
+  // HLOG_ERROR << "match time: " << duration.count() << " ms";
   for (auto& map_lane : mmgr_->local_map_.local_map_lane_) {
     map_lane.need_fit_ = false;
-    for (auto match : *lane_matches_) {
+    for (auto match : *lane_matches) {
       if (match.map_lane_ == nullptr) continue;
       if (match.map_lane_->track_id_ == map_lane.track_id_) {
         map_lane.need_fit_ = true;
@@ -179,22 +180,22 @@ void LMapApp::OnLaneLine(
     }
   }
   auto start4 = std::chrono::high_resolution_clock::now();
-  for (auto match : *lane_matches_) {
+  for (auto match : *lane_matches) {
     if (match.update_type_ == ObjUpdateType::ADD_NEW) {
-      std::vector<Eigen::Vector3d> new_lane_pts_;
-      CommonUtil::SampleLanePoints(match.frame_lane_, &new_lane_pts_,
+      std::vector<Eigen::Vector3d> new_lane_pts;
+      CommonUtil::SampleLanePoints(match.frame_lane_, &new_lane_pts,
                                    sample_interval);
       if (use_perception_match_) {
-        mmgr_->CreateNewLane(new_lane_pts_, match.frame_lane_->lane_id_);
+        mmgr_->CreateNewLane(new_lane_pts, match.frame_lane_->lane_id_);
         mmgr_->SetLaneProperty(match.frame_lane_->lane_id_, match.frame_lane_);
       } else {
-        double lane_id = mmgr_->CreateNewLane(new_lane_pts_);
+        double lane_id = mmgr_->CreateNewLane(new_lane_pts);
         mmgr_->SetLaneProperty(lane_id, match.frame_lane_);
       }
     } else if (match.update_type_ == ObjUpdateType::MERGE_OLD) {
       int lane_start_x = 0;
-      std::vector<Eigen::Vector3d> new_lane_pts_;
-      // laneOp_->FilterCurve(match.frame_lane_, &new_lane_pts_, &lane_start_x,
+      std::vector<Eigen::Vector3d> new_lane_pts;
+      // laneOp_->FilterCurve(match.frame_lane_, &new_lane_pts, &lane_start_x,
       //                      sample_interval);
       double x, y;
       for (x = match.frame_lane_->x_start_vrf_;
@@ -203,34 +204,36 @@ void LMapApp::OnLaneLine(
             x, match.frame_lane_->lane_fit_d_, match.frame_lane_->lane_fit_c_,
             match.frame_lane_->lane_fit_b_, match.frame_lane_->lane_fit_a_);
         Eigen::Vector3d pt(x, y, 0);
-        new_lane_pts_.emplace_back(pt);
+        new_lane_pts.emplace_back(pt);
       }
-      if (new_lane_pts_.size() == 0) {
+      if (new_lane_pts.size() == 0) {
         continue;
       }
       mmgr_->DeleteLanePoints(match.map_lane_->track_id_,
                               match.frame_lane_->x_start_vrf_);
       auto world_pts = std::make_shared<std::vector<Eigen::Vector3d>>();
-      mmgr_->AppendOldLanePoints(match.map_lane_->track_id_, new_lane_pts_);
+      mmgr_->AppendOldLanePoints(match.map_lane_->track_id_, new_lane_pts);
       mmgr_->SetLaneProperty(match.map_lane_->track_id_, match.frame_lane_);
     }
   }
   auto end4 = std::chrono::high_resolution_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(end4 - start4);
-  HLOG_ERROR << "map lane deal time: " << duration.count() << " ms";
+  // HLOG_ERROR << "map lane deal time: " << duration.count() << " ms";
   auto start5 = std::chrono::high_resolution_clock::now();
   // CommonUtil::CubicCurve(&mmgr_->local_map_, sample_interval);
   CommonUtil::CatmullRoom(&mmgr_->local_map_, sample_interval);
   mmgr_->CutLocalMap(150, 150);
+  localmap_mutex_.lock();
+  local_map_tmp_ = mmgr_->local_map_;
   localmap_mutex_.unlock();
   auto end5 = std::chrono::high_resolution_clock::now();
   duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(end5 - start5);
-  HLOG_ERROR << "fit && cut time: " << duration.count() << " ms";
+  // HLOG_ERROR << "fit && cut time: " << duration.count() << " ms";
   auto start6 = std::chrono::high_resolution_clock::now();
   if (use_rviz_) {
-    CommonUtil::PubPercepPoints(T_W_V_, latest_lanes_, sec, nsec,
+    CommonUtil::PubPercepPoints(T_W_V_, latest_lanes, sec, nsec,
                                 "/localmap/percep_points", sample_interval);
     CommonUtil::PubMapPoints(mmgr_->local_map_, sec, nsec,
                              "/localmap/map_points", T_W_V_);
@@ -299,9 +302,9 @@ bool LMapApp::FetchLocalMap(
     return false;
   }
   localmap_mutex_.lock();
-  auto local_map_ = mmgr_->local_map_;
+  auto local_map_ = local_map_tmp_;
   localmap_mutex_.unlock();
-  local_map->mutable_header()->set_gnss_stamp(mmgr_->GetTimestamp());
+  local_map->mutable_header()->set_gnss_stamp(local_map_.timestamp);
   for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
     auto lane = local_map->add_lanes();
     hozon::mapping::LanePositionType proto_lane_type;
@@ -310,11 +313,10 @@ bool LMapApp::FetchLocalMap(
     lane->set_lanepos(proto_lane_type);
     lane->set_track_id(local_map_.local_map_lane_[i].track_id_);
     for (auto& point : local_map_.local_map_lane_[i].fit_points_) {
-      auto tmp = T_W_V_ * point;
       auto p = lane->add_points();
-      p->set_x(tmp.x());
-      p->set_y(tmp.y());
-      p->set_z(tmp.z());
+      p->set_x(point.x());
+      p->set_y(point.y());
+      p->set_z(point.z());
     }
   }
   auto end = std::chrono::high_resolution_clock::now();
@@ -365,8 +367,6 @@ ConstDrDataPtr LMapApp::GetDrPoseForTime(double timestamp) {
   if (iter == dr_list.rbegin()) {
     if (timestamp - dr_list.back().second->timestamp > 0.2) {
       HLOG_ERROR << "Dr delay:" << timestamp - dr_list.back().second->timestamp;
-      // std::cout << "rrr:" << std::setprecision(16) << timestamp << ","
-      //           << dr_list.back().second->timestamp << std::endl;
       return nullptr;
     }
 

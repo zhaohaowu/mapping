@@ -53,7 +53,7 @@ int32_t MappingAdc::MappingAdc::AlgInit() {
 //   // mapfusion
 // }
 int32_t MappingAdc::ChassisImuCallBack(hz_Adsfi::NodeBundle* input) {
-  std::cout << "----imu callback" << std::endl;
+  HLOG_ERROR << "----imu callback";
   std::shared_ptr<hz_Adsfi::AlgImuIns> imuinsDataPtr_ =
       std::static_pointer_cast<hz_Adsfi::AlgImuIns>(input->GetOne("imu"));
   if (imuinsDataPtr_ == nullptr) {
@@ -114,7 +114,7 @@ int32_t MappingAdc::LaneCallBack(hz_Adsfi::NodeBundle* input) {
       std::static_pointer_cast<hz_Adsfi::AlgLaneDetectionOutArray>(
           input->GetOne("nnp_cam_lane"));
   if (p_road_marking) {
-    std::cout << "-----lane callback" << std::endl;
+    // HLOG_ERROR << "-----lane callback";
     board_.adsfi_lane_proto.reset();
     board_.adsfi_lane_proto =
         std::make_shared<hozon::perception::TransportElement>();

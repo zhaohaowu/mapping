@@ -67,8 +67,8 @@ bool LMapComponent::Init() {
   local_map_publish_thread_ =
       std::thread(&LMapComponent::LocalMapPublish, this);
 
-  local_map_location_publish_thread_ =
-      std::thread(&LMapComponent::LocalMapLocationPublish, this);
+  // local_map_location_publish_thread_ =
+  //     std::thread(&LMapComponent::LocalMapLocationPublish, this);
 
   if (FLAGS_viz) {
     util::RvizAgent::Instance().Init("ipc:///tmp/rviz_agent_local_map");
@@ -149,7 +149,7 @@ void LMapComponent::LocalMapPublish() {
     if (lmap_->FetchLocalMap(result) && result_talker_ != nullptr) {
       result_talker_->Write(result);
     }
-    usleep(100 * 1e3);
+    usleep(49.5 * 1e3);
   }
 }
 

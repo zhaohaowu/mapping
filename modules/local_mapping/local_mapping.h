@@ -40,7 +40,7 @@ namespace mp {
 namespace lm {
 class LMapApp {
  public:
-  explicit LMapApp(const std::string&  config_file);
+  explicit LMapApp(const std::string& config_file);
 
   /**
    * @brief receive location message
@@ -93,8 +93,7 @@ class LMapApp {
    * @param msg : image message
    * @return
    */
-  void OnImage(
-      const std::shared_ptr<const hozon::soc::CompressedImage>& msg);
+  void OnImage(const std::shared_ptr<const hozon::soc::CompressedImage>& msg);
 
   /**
    * @brief fetch local_map at current timestamp
@@ -134,6 +133,7 @@ class LMapApp {
   bool dr_inited_;
   bool laneline_inited_;
   std::shared_ptr<PtFilter> lane_filter_;
+  LocalMap local_map_tmp_;
 
   double last_lane_timestamp_;
   Loss loss_;

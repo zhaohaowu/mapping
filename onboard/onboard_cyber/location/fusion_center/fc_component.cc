@@ -12,6 +12,7 @@ DEFINE_string(fc_imu_in_topic, "/mapping/location/imu", "imu output topic");
 DEFINE_string(fc_ins_in_topic, "/mapping/location/ins_fusion",
               "insfusion output topic");
 DEFINE_string(fc_dr_in_topic, "/mapping/location/dr", "dr output topic");
+DEFINE_string(fc_init_dr_in_topic, "/mapping/location/initdr", "init dr topic");
 DEFINE_string(fc_pe_in_topic, "/mapping/location/pose_estimate",
               "pose estimate output topic");
 DEFINE_string(fc_out_topic, "/mapping/location/fc", "fc output topic");
@@ -44,6 +45,12 @@ bool FcComponent::Init() {
       FLAGS_fc_ins_in_topic,
       [this](const std::shared_ptr<const HafNodeInfo>& msg) {
         OnInsFusion(msg);
+      });
+
+  init_dr_reader_ = node_->CreateReader<HafNodeInfo>(
+      FLAGS_fc_init_dr_in_topic,
+      [this](const std::shared_ptr<const HafNodeInfo>& msg) {
+        OnInitDrFusion(msg);
       });
 
   dr_reader_ = node_->CreateReader<HafNodeInfo>(
@@ -87,6 +94,14 @@ void FcComponent::OnDrFusion(const std::shared_ptr<const HafNodeInfo>& msg) {
     return;
   }
   fc_->OnDR(*msg);
+}
+
+void FcComponent::OnInitDrFusion(
+    const std::shared_ptr<const HafNodeInfo>& msg) {
+  if (!msg) {
+    return;
+  }
+  fc_->OnInitDR(*msg);
 }
 
 void FcComponent::OnPoseEstimation(

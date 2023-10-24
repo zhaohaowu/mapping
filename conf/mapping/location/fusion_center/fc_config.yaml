@@ -15,7 +15,7 @@ ins_init_status:    # INS初始化的正常状态
   - sys_status: 2
     gps_status: 4
 
-mm_valid_frame: 20  # 在该帧数内有mm测量，loc = 2
+search_state_cnt: 30  # 在该帧数内有mm测量，loc = 2
 # 使用INS对MM进行补帧
 use_ins_predict_mm: true
 no_mm_min_time: 0.3  # 超过min_time无mm测量，使用ins进行补帧
@@ -27,3 +27,5 @@ run_fusion_interval_ms: 10
 window_size: 30      # fc队列长度
 smooth_outputs: true # 开启KF平滑滤波
 use_smooth_yaw: true
+
+require_local_pose: false

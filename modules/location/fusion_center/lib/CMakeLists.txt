@@ -14,7 +14,7 @@ add_mapping_library(location_fusion_center_core SHARED ${FUSION_CENTER_SRCS})
 
 target_link_libraries(location_fusion_center_core
   util
-
+  mf
   globalproto
 
   protobuf

@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <string>
+#include <Sophus/se3.hpp>
 #include "modules/location/fusion_center/lib/defines.h"
 
 namespace hozon {

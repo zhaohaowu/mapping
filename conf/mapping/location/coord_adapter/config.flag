@@ -1,2 +1,3 @@
 --coord_adapter_config=conf/mapping/location/coord_adapter/config.yaml
 --ca_dr_in_topic=/mapping/location/dr
+--ca_init_dr_out_topic=/mapping/location/initdr

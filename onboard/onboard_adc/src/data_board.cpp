@@ -13,6 +13,7 @@ DataBoard::DataBoard() {
   adsfi_lane_proto = std::make_shared<hozon::perception::TransportElement>();
   imu_proto = std::make_shared<hozon::soc::ImuIns>();
   chassis_proto = std::make_shared<hozon::soc::Chassis>();
+  plugin_proto = std::make_shared<hozon::localization::HafNodeInfo>();
 }
 
 void DataBoard::Adsfi2Proto(const hz_Adsfi::AlgLaneDetectionOutArray& stu,
@@ -423,6 +424,97 @@ void DataBoard::Adsfi2Proto(
   chassis_proto->mutable_wheel_speed()->set_wheel_spd_rr(vel);
   vel = chassisDataPtr_->wheel_info.ESC_RLWheelSpeed;
   chassis_proto->mutable_wheel_speed()->set_wheel_spd_rl(vel);
+}
+
+void DataBoard::Adsfi2Proto(const hz_Adsfi::AlgLocationNodeInfo& stu,
+                          hozon::localization::HafNodeInfo* const proto) {
+  if (!proto) {
+    return;
+  }
+
+  const auto& node_info = stu.location_node_info;
+  proto->Clear();
+  proto->mutable_header()->set_seq(node_info.header.seq);
+  proto->mutable_header()->set_frame_id(node_info.header.frameId);
+
+  const double tick = node_info.header.stamp.sec +
+                      node_info.header.stamp.nsec * 1e-9;
+  const double gnssstamp = node_info.header.gnssStamp.sec +
+                           node_info.header.gnssStamp.nsec * 1e-9;
+  proto->mutable_header()->set_publish_stamp(tick);
+  proto->mutable_header()->set_gnss_stamp(tick);
+
+  proto->set_is_valid(true);
+  proto->set_type(
+      static_cast<hozon::localization::HafNodeInfo_NodeType>(node_info.type));
+  proto->set_gps_week(node_info.gpsWeek);
+  proto->set_gps_sec(node_info.gpsSec);
+
+  proto->mutable_pos_wgs()->set_x(node_info.posSmooth.x);
+  proto->mutable_pos_wgs()->set_y(node_info.posSmooth.y);
+  proto->mutable_pos_wgs()->set_z(node_info.posSmooth.z);
+  proto->mutable_pos_gcj02()->set_x(node_info.posGCJ02.x);
+  proto->mutable_pos_gcj02()->set_y(node_info.posGCJ02.y);
+  proto->mutable_pos_gcj02()->set_z(node_info.posGCJ02.z);
+
+  proto->mutable_attitude()->set_x(node_info.attitude.x);
+  proto->mutable_attitude()->set_y(node_info.attitude.y);
+  proto->mutable_attitude()->set_z(node_info.attitude.z);
+
+  proto->mutable_quaternion()->set_x(node_info.quaternion.x);
+  proto->mutable_quaternion()->set_y(node_info.quaternion.y);
+  proto->mutable_quaternion()->set_z(node_info.quaternion.z);
+  proto->mutable_quaternion()->set_w(node_info.quaternion.w);
+
+  proto->mutable_linear_velocity()->set_x(node_info.linearVelocity.x);
+  proto->mutable_linear_velocity()->set_y(node_info.linearVelocity.y);
+  proto->mutable_linear_velocity()->set_z(node_info.linearVelocity.z);
+
+  proto->mutable_angular_velocity()->set_x(node_info.angularVelocity.x);
+  proto->mutable_angular_velocity()->set_y(node_info.angularVelocity.y);
+  proto->mutable_angular_velocity()->set_z(node_info.angularVelocity.z);
+
+  proto->mutable_linear_acceleration()->set_x(node_info.linearAcceleration.x);
+  proto->mutable_linear_acceleration()->set_y(node_info.linearAcceleration.y);
+  proto->mutable_linear_acceleration()->set_z(node_info.linearAcceleration.z);
+
+  proto->mutable_gyro_bias()->set_x(node_info.gyroBias.x);
+  proto->mutable_gyro_bias()->set_y(node_info.gyroBias.y);
+  proto->mutable_gyro_bias()->set_z(node_info.gyroBias.z);
+
+  proto->mutable_accel_bias()->set_x(node_info.accelBias.x);
+  proto->mutable_accel_bias()->set_y(node_info.accelBias.y);
+  proto->mutable_accel_bias()->set_z(node_info.accelBias.z);
+
+  proto->mutable_sd_position()->set_x(node_info.sdPosition.x);
+  proto->mutable_sd_position()->set_y(node_info.sdPosition.y);
+  proto->mutable_sd_position()->set_z(node_info.sdPosition.z);
+
+  proto->mutable_sd_velocity()->set_x(node_info.sdVelocity.x);
+  proto->mutable_sd_velocity()->set_y(node_info.sdVelocity.y);
+  proto->mutable_sd_velocity()->set_z(node_info.sdVelocity.z);
+
+  proto->mutable_sd_attitude()->set_x(node_info.sdAttitude.x);
+  proto->mutable_sd_attitude()->set_y(node_info.sdAttitude.y);
+  proto->mutable_sd_attitude()->set_z(node_info.sdAttitude.z);
+
+  for (const auto& c : node_info.covariance) {
+    proto->add_covariance(c);
+  }
+
+  proto->set_sys_status(node_info.sysStatus);
+  proto->set_gps_status(node_info.gpsStatus);
+  proto->set_heading(node_info.heading);
+  proto->set_warn_info(node_info.warn_info);
+
+  proto->mutable_mounting_error()->set_x(node_info.mountingError.x);
+  proto->mutable_mounting_error()->set_y(node_info.mountingError.y);
+  proto->mutable_mounting_error()->set_z(node_info.mountingError.z);
+
+  proto->set_sensor_used(node_info.sensorUsed);
+  proto->set_wheel_velocity(node_info.wheelVelocity);
+  proto->set_odo_sf(node_info.odoSF);
+  proto->set_valid_estimate(node_info.validEstimate);
 }
 
 }  // namespace mp

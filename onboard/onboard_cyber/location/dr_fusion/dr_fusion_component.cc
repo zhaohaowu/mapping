@@ -52,8 +52,8 @@ bool DrFusionComponent::Init() {
       });
   dr_reader_ = node_->CreateReader<hozon::dead_reckoning::DeadReckoning>(
       FLAGS_dr_module_input_topic,
-      [this](
-          const std::shared_ptr<const hozon::dead_reckoning::DeadReckoning>& msg) {
+      [this](const std::shared_ptr<
+          const hozon::dead_reckoning::DeadReckoning>& msg) {
         OnDr(msg);
       });
   loc_dr_writer_ = node_->CreateWriter<hozon::localization::HafNodeInfo>(

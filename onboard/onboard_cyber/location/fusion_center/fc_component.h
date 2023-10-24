@@ -31,11 +31,13 @@ class FcComponent : public apollo::cyber::Component<> {
   void OnImu(const std::shared_ptr<const ImuIns>& msg);
   void OnInsFusion(const std::shared_ptr<const HafNodeInfo>& msg);
   void OnDrFusion(const std::shared_ptr<const HafNodeInfo>& msg);
+  void OnInitDrFusion(const std::shared_ptr<const HafNodeInfo>& msg);
   void OnPoseEstimation(const std::shared_ptr<const HafNodeInfo>& msg);
 
  private:
   std::shared_ptr<Reader<ImuIns>> imu_reader_ = nullptr;
   std::shared_ptr<Reader<HafNodeInfo>> ins_reader_ = nullptr;
+  std::shared_ptr<Reader<HafNodeInfo>> init_dr_reader_ = nullptr;
   std::shared_ptr<Reader<HafNodeInfo>> dr_reader_ = nullptr;
   std::shared_ptr<Reader<HafNodeInfo>> pe_reader_ = nullptr;
   std::shared_ptr<Writer<Localization>> fc_writer_ = nullptr;

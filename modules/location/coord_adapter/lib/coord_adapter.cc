@@ -11,9 +11,7 @@
 #include <boost/filesystem.hpp>
 
 #include "modules/location/common/data_verify.h"
-#include "modules/location/common/interpolate.h"
 #include "modules/location/common/stl_op.h"
-#include "modules/location/coord_adapter/lib/defines.h"
 #include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
@@ -111,12 +109,12 @@ void CoordAdapter::OnDrFusion(const HafNodeInfo& dr) {
     return;
   }
 
-  cm::BaseNode node;
+  Node node;
   if (!ConvertDrNode(dr, &node)) {
     return;
   }
 
-  dr_deque_.emplace_back(std::make_shared<cm::BaseNode>(node));
+  dr_deque_.emplace_back(std::make_shared<Node>(node));
   cm::ShrinkQueue(&dr_deque_, params_.dr_deque_capacity);
 }
 
@@ -127,8 +125,7 @@ bool CoordAdapter::LoadParams(const std::string& configfile) {
   return true;
 }
 
-bool CoordAdapter::ConvertDrNode(const HafNodeInfo& msg,
-                                 cm::BaseNode* const node) {
+bool CoordAdapter::ConvertDrNode(const HafNodeInfo& msg, Node* const node) {
   if (!node) {
     return false;
   }
@@ -149,6 +146,72 @@ bool CoordAdapter::ConvertDrNode(const HafNodeInfo& msg,
   node->velocity << msg.linear_velocity().x(), msg.linear_velocity().y(),
       msg.linear_velocity().z();
   return true;
+}
+
+bool CoordAdapter::IsInterpolable(const Node& n1, const Node& n2,
+                                  double dis_tol, double ang_tol,
+                                  double time_tol) {
+  const double dis_delta = (n1.enu - n2.enu).norm();
+  const double ang_delta = (Sophus::SO3d::exp(n1.orientation).inverse() *
+                            Sophus::SO3d::exp(n2.orientation)).log().norm();
+  const double time_delta = fabs(n2.ticktime - n1.ticktime);
+  if (dis_delta >= dis_tol || ang_delta >= ang_tol || time_delta >= time_tol) {
+    return false;
+  }
+  return true;
+}
+
+bool CoordAdapter::Interpolate(double ticktime,
+                               const std::deque<std::shared_ptr<Node>>& d,
+                               Node* const node, double dis_tol, double ang_tol,
+                               double time_tol) {
+  if (!node) {
+    return false;
+  }
+  int i = 0;
+  for (; i < d.size(); ++i) {
+    if (fabs(d[i]->ticktime - ticktime) < 1e-3) {
+      *node = *(d[i]);
+      return true;
+    }
+    if (d[i]->ticktime > ticktime) {
+      break;
+    }
+  }
+  if (i == 0 || i == d.size()) {
+    return false;
+  }
+
+  if (!IsInterpolable(*(d[i - 1]), *(d[i]), dis_tol, ang_tol, time_tol)) {
+    return false;
+  }
+
+  Sophus::SE3d p1 = Node2SE3(d[i - 1]);
+  Sophus::SE3d p2 = Node2SE3(d[i]);
+  Sophus::SE3d delta = p1.inverse() * p2;
+
+  double ratio = (ticktime - d[i - 1]->ticktime) /
+      (d[i]->ticktime - d[i - 1]->ticktime);
+  if (std::isnan(ratio) || std::isinf(ratio)) {
+    return false;
+  }
+
+  auto pose = p1 * Sophus::SE3d(Sophus::SO3d::exp(ratio * delta.so3().log()),
+                                ratio * delta.translation());
+  node->enu = pose.translation();
+  node->orientation = pose.so3().log();
+  node->velocity = (1 - ratio) * d[i - 1]->velocity + ratio * d[i]->velocity;
+  node->ticktime = ticktime;
+
+  return true;
+}
+
+Sophus::SE3d CoordAdapter::Node2SE3(const Node& node) {
+  return Sophus::SE3d(Sophus::SO3d::exp(node.orientation), node.enu);
+}
+
+Sophus::SE3d CoordAdapter::Node2SE3(const std::shared_ptr<Node>& node) {
+  return Node2SE3(*node);
 }
 
 }  // namespace ca

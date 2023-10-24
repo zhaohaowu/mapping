@@ -22,6 +22,9 @@ int32_t main(int argc, char** argv) {
   mapping.RegistAlgProcessFunc(
       "LaneCB", std::bind(&hozon::mp::MappingAdc::LaneCallBack, &mapping,
                           std::placeholders::_1));
+  mapping.RegistAlgProcessFunc(
+      "plugin_cb", std::bind(&hozon::mp::MappingAdc::PluginCallback, &mapping,
+                             std::placeholders::_1));
   // mapping.RegistAlgProcessFunc(
   //     "MapFusion", std::bind(&hozon::mp::MappingAdc::Process,
   //                       &mapping, std::placeholders::_1));

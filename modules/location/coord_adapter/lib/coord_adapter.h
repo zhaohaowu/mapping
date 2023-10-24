@@ -11,7 +11,8 @@
 #include <memory>
 #include <string>
 
-#include "modules/location/common/defines.h"
+#include <Sophus/se3.hpp>
+
 #include "modules/location/coord_adapter/lib/defines.h"
 #include "proto/local_mapping/local_map.pb.h"
 #include "proto/localization/node_info.pb.h"
@@ -42,18 +43,25 @@ class CoordAdapter {
 
  private:
   bool LoadParams(const std::string& configfile);
-  bool ConvertDrNode(const HafNodeInfo& msg, cm::BaseNode* const node);
+  bool ConvertDrNode(const HafNodeInfo& msg, Node* const node);
+  bool IsInterpolable(const Node& n1, const Node& n2, double dis_tol = 5.0,
+                      double ang_tol = 0.3, double time_tol = 0.5);
+  bool Interpolate(double ticktime, const std::deque<std::shared_ptr<Node>>& d,
+                   Node* const node, double dis_tol = 5.0, double ang_tol = 0.3,
+                   double time_tol = 0.5);
+  Sophus::SE3d Node2SE3(const Node& node);
+  Sophus::SE3d Node2SE3(const std::shared_ptr<Node>& node);
 
  private:
   Params params_;
   double coord_init_timestamp_ = 0.0;
-  cm::BaseNode init_dr_node_;
+  Node init_dr_node_;
   bool sys_init_ = false;
   HafNodeInfo curr_raw_dr_;
   HafNodeInfo init_raw_dr_;
 
   hozon::perception::TransportElement curr_percep_;
-  std::deque<std::shared_ptr<cm::BaseNode>> dr_deque_;
+  std::deque<std::shared_ptr<Node>> dr_deque_;
 };
 
 }  // namespace ca

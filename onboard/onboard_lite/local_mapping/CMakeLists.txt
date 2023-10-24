@@ -18,5 +18,5 @@ target_link_libraries(onboard_lite_localmapping
 
 install(
   TARGETS onboard_lite_localmapping
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

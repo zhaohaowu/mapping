@@ -13,7 +13,6 @@
 #include <thread>
 #include <utility>
 
-// #include "modules/location/fusion_center/lib/defines.h"
 #include "modules/location/fusion_center/lib/eskf.h"
 #include "modules/location/fusion_center/lib/kalman_filter.h"
 #include "proto/localization/localization.pb.h"
@@ -39,6 +38,7 @@ class FusionCenter {
   void OnImu(const ImuIns& imuins);
   void OnIns(const HafNodeInfo& ins);
   void OnDR(const HafNodeInfo& dr);
+  void OnInitDR(const HafNodeInfo& initdr);
   void OnPoseEstimate(const HafNodeInfo& pe);
   void SetEhpCounter(uint32_t counter);
   uint32_t GetEhpCounter() const;
@@ -52,7 +52,7 @@ class FusionCenter {
   bool ExtractBasicInfo(const HafNodeInfo& msg, Node* const node);
   void SetRefpoint(const Eigen::Vector3d& blh);
   const Eigen::Vector3d Refpoint();
-  void Node2AlgLocation(const Context& ctx, Localization* const location);
+  void Node2Localization(const Context& ctx, Localization* const location);
   void RunFusion();
   bool PoseInit();
   bool GenerateNewESKFPre();   // 用于收集融合的预测
@@ -65,7 +65,7 @@ class FusionCenter {
   bool PredictMMMeas();     // 当无MM测量时，用INS递推MM
   void PruneDeques();
   bool AllowInit(int sys_status, int rtk_status);
-  bool GetCurrentContext(Context* const context);
+  bool GetCurrentContext(Context* const ctx);
   bool IsInterpolable(const std::shared_ptr<Node>& n1,
                       const std::shared_ptr<Node>& n2,
                       const std::string& src = "", double dis_tol = 5.0,
@@ -74,16 +74,29 @@ class FusionCenter {
                    Node* const node, const std::string& src = "",
                    double dis_tol = 5.0, double ang_tol = 0.3,
                    double time_tol = 0.5);
+  Sophus::SE3d Node2SE3(const Node& node);
+  Sophus::SE3d Node2SE3(const std::shared_ptr<Node>& node);
   void KalmanFiltering(Node* const node);
 
   template <typename T>
   void CutoffDeque(double timestamp, std::deque<std::shared_ptr<T>>* const d);
+
+  // Get blh pose to ctx.global_node
+  bool GetGlobalPose(Context* const ctx);
+  uint32_t GetGlobalLocationState();
+
+  // Get local pose in local mapping coord to ctx.local_node
+  bool GetLocalPose(Context* const ctx);
+  std::string GetHdCurrLaneId(const Eigen::Vector3d& utm, double heading);
 
  private:
   Params params_;
   uint32_t seq_ = 0;
   uint32_t ehp_counter_ = 0;
   double coord_init_timestamp_ = -1;
+  HafNodeInfo init_raw_dr_;
+  Node init_dr_node_;
+
   std::atomic<bool> fusion_run_{true};
 
   std::mutex refpoint_mutex_;
@@ -124,8 +137,8 @@ class FusionCenter {
   bool init_ins_ = false;
   bool can_output_ = false;
   double last_meas_time_ = 0.0;
-  bool latest_output_valid_ = false;
-  Node latest_output_node_;
+  bool prev_global_valid_ = false;
+  Node prev_global_node_;
 
   std::deque<std::shared_ptr<Node>> pre_deque_;
   std::deque<std::shared_ptr<Node>> meas_deque_;

@@ -10,91 +10,33 @@ recvInstances:
     - name: gnss_info
       type: gnss_info_proxy
       id: 1
-    # - name: map_msg
-    #   type: map_msg_proxy
-    #   id: 1
     - name: nnp_cam_lane
       type: lanes_proxy
       id: 1
-    # - name: nnp_cam_lane_10
-    #   type: lanes_proxy
-    #   id: 10
-    # - name: nnp_cam_lane_12
-    #   type: lanes_proxy
-    #   id: 12
-    # - name: locationNode
-    #   type: location_node_info_proxy
-    #   id: 104
-    # - name: nnp_obj_fusion
-    #   type: obj_fusion_proxy
-    #   id: 1
-    # - name: nnp_cam_obj_signal
-    #   type: obj_signal_proxy
-    #   id: 1
+    - name: plugin
+      type: location_node_info_proxy
+      id: 104
 
 sendInstances:
-    # - name: locationResult
-    #   type: location_skeleton
-    #   id: 1
-    # - name: npp_debug_msg_30
-    #   type: debug_protobuf_skeleton
-    #   id: 30
-    # - name: npp_debug_msg_31
-    #   type: debug_protobuf_skeleton
-    #   id: 31
-    # - name: npp_debug_msg_32
-    #   type: debug_protobuf_skeleton
-    #   id: 32
-
-# fm:
-#     commTimeout:
-#         faultId: 8400
-#         objId: 7
-
-# resourceLimit:
-#     group: hz_state_machine
-#     cpu: 150
-#     memory: 200
+    - name: npp_debug_msg_30
+      type: debug_protobuf_skeleton
+      id: 30
+    - name: npp_debug_msg_31
+      type: debug_protobuf_skeleton
+      id: 31
+    - name: npp_debug_msg_32
+      type: debug_protobuf_skeleton
+      id: 32
 
 log:
-    name: fl
-    description: fusion_location
+    name: mal
+    description: mapping
     file: ./
-    mode: 1 #mode: 日志模式 |0-remote日志，异步日志|1-console日志，同步日志|2-本地文件存储日志，同步日志|3-remote+console日志|4-remote+本地文件存储日志|5-console+本地文件存储日志|6-remote+console+本地文件存储日志
-    level: 2 #日志等级 0: verbose, 1: debug, 2: info, 3: warn, 4: error, 5: fatal, 6: off
-
-# schedule:
-#     policy: RR
-#     priority: 99
-#     cpuAffinity: [1, 2 ,3]
-
-# # trigger二选一即可
-# trigger:
-#     type: EVENT
-#     mainSources: 
-#         - name: from_avm
-#           timeout: 5000
-#     auxSources: 
-#         - name: from_router
-#           multiFrame: 1
+    mode: 0 #mode: 日志模式 |0-remote日志，异步日志|1-console日志，同步日志|2-本地文件存储日志，同步日志|3-remote+console日志|4-remote+本地文件存储日志|5-console+本地文件存储日志|6-remote+console+本地文件存储日志
+    level: 4 #日志等级 0: verbose, 1: debug, 2: info, 3: warn, 4: error, 5: fatal, 6: off
 
 # trigger二选一即可
 trigger:
-    # - name: MapFusion
-    #   type: PERIOD
-    #   period: 1000
-    #   auxSources:
-    #       - name: chassis
-    #       - name: imu
-    #       - name: gnss_info
-    #       - name: map_msg
-    #       - name: nnp_cam_lane_1
-    #       - name: nnp_cam_lane_10
-    #       - name: nnp_cam_lane_12
-    #       - name: nnp_cam_obj_signal
-    #       - name: nnp_obj_fusion
-    #       - name: locationNode
-
     - name: ChassisImuCB
       type: EVENT
       mainSources:
@@ -102,9 +44,13 @@ trigger:
             timeout: 1000
           - name: imu
             timeout: 1000
-
     - name: LaneCB
       type: EVENT
       mainSources:
           - name: nnp_cam_lane
             timeout: 1000
+    - name: plugin_cb
+      type: EVENT
+      mainSources:
+          - name: plugin
+            timeout: 100

@@ -1,6 +1,7 @@
 --fc_imu_in_topic=/soc/imuinsinfo
 --fc_ins_in_topic=/mapping/location/ins
 --fc_dr_in_topic=/mapping/location/dr
+--fc_init_dr_in_topic=/mapping/location/initdr
 --fc_pe_in_topic=/mapping/location/pose_estimate
 --fc_out_topic=/mapping/location/fc
 --fc_config=conf/mapping/location/fusion_center/fc_config.yaml

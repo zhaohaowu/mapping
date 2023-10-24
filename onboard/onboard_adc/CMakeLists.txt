@@ -29,6 +29,7 @@ target_link_libraries(hz_mapping
     util
     adsfi_proto
     lmap_core
+    location_asbl_core
     ${DEPENDS_LIBS}
 )
 

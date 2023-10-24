@@ -11,6 +11,8 @@
 
 #include <boost/filesystem.hpp>
 
+#include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
+#include "modules/location/common/data_verify.h"
 #include "modules/location/fusion_center/lib/eulerangle.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/temp_log.h"
@@ -126,6 +128,22 @@ void FusionCenter::OnDR(const HafNodeInfo& dr) {
   ShrinkQueue(&dr_deque_, params_.dr_deque_max_size);
 }
 
+void FusionCenter::OnInitDR(const HafNodeInfo& initdr) {
+  if (!cm::HasValidHeader(initdr)) {
+    return;
+  }
+  if (coord_init_timestamp_ > 0) {
+    return;
+  }
+
+  init_raw_dr_ = initdr;
+  if (!ExtractBasicInfo(initdr, &init_dr_node_)) {
+    HLOG_ERROR << "fc extract init dr info error";
+    return;
+  }
+  coord_init_timestamp_ = init_dr_node_.ticktime;
+}
+
 void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   if (!ref_init_ || !params_.recv_pe || !pe.valid_estimate()) {
     return;
@@ -155,132 +173,51 @@ void FusionCenter::SetCoordInitTimestamp(double t) {
 }
 
 bool FusionCenter::GetCurrentOutput(Localization* const location) {
-  if (!location || !can_output_) {
-    return false;
-  }
-  if (!params_.passthrough_ins && coord_init_timestamp_ < 0) {
+  if (!location) {
     return false;
   }
 
-  Context context;
-  if (!GetCurrentContext(&context)) {
+  Context ctx;
+  if (!GetCurrentContext(&ctx)) {
     HLOG_INFO << "get context failed";
     return false;
   }
-  // KF滤波
-  if (params_.smooth_outputs) {
-    auto start = std::chrono::steady_clock::now();
-    KalmanFiltering(&(context.fusion_node));
-    auto end = std::chrono::steady_clock::now();
-    auto duration =
-        std::chrono::duration_cast<std::chrono::microseconds>(end - start)
-            .count();
-  }
-  context.fusion_node.blh =
-      hmu::Geo::EnuToBlh(context.fusion_node.enu, context.fusion_node.refpoint);
-  context.fusion_node.rtk_status = context.ins_node.rtk_status;
 
-  latest_output_node_ = context.fusion_node;
-
-  if (!latest_output_valid_) {
-    latest_output_valid_ = true;
-  }
-
-  context.imuins = curr_imuins_;
-  context.ins = curr_raw_ins_;
-  {
-    std::unique_lock<std::mutex> lock(ins_deque_mutex_);
-    if (ins_deque_.empty()) {
-      return false;
-    }
-    context.ins_node = *(ins_deque_.back());
-  }
-
-  Node2AlgLocation(context, location);
-
-  // if (params_.passthrough_ins) {
-  //   context.fusion_node = context.ins_node;
-  //   Node2AlgLocation(context, location);
-  //   location->set_location_state(5);
-  //   return true;
-  // }
-
+  Node2Localization(ctx, location);
   return true;
 }
 
-bool FusionCenter::GetCurrentContext(Context* const context) {
-  if (!context || fusion_deque_.empty() || ins_deque_.empty() || !ref_init_) {
+bool FusionCenter::GetCurrentContext(Context* const ctx) {
+  if (!ctx || ins_deque_.empty() || dr_deque_.empty()) {
     return false;
   }
 
-  const auto refpoint = Refpoint();
-  static int count = 0;
-
-  fusion_deque_mutex_.lock();
-  const auto latest_fusion_node = *(fusion_deque_.back());
-  fusion_deque_mutex_.unlock();
-
-  latest_ins_mutex_.lock();
-  context->ins = latest_ins_data_;
-  latest_ins_mutex_.unlock();
-
-  Node newest_ins_node;
-  if (!ExtractBasicInfo(context->ins, &newest_ins_node)) {
-    return false;
-  }
-  newest_ins_node.enu = hmu::Geo::BlhToEnu(newest_ins_node.blh, refpoint);
-  newest_ins_node.refpoint = refpoint;
-  context->ins_node = newest_ins_node;
-
-  const double newest_ins_fusion_diff =
-      fabs(newest_ins_node.ticktime - latest_fusion_node.ticktime);
-  const double newest_ins_lastout_diff =
-      newest_ins_node.ticktime - latest_output_node_.ticktime;
-  const double out_diff =
-      latest_fusion_node.ticktime - latest_output_node_.ticktime;
-
-  if (fabs(newest_ins_fusion_diff) > 0.2) {
-    HLOG_ERROR << SETPRECISION(15)
-               << "newest_ins_fusion_diff: " << newest_ins_fusion_diff
-               << ", newest_ins_lastout_diff: " << newest_ins_lastout_diff
-               << ", out_diff: " << out_diff;
-  }
-
-  Node refer_node;
-  refer_node = latest_fusion_node;
-
-  Node ni;
+  ctx->imuins = curr_imuins_;
   {
-    std::lock_guard<std::mutex> lock(ins_deque_mutex_);
-    if (!Interpolate(refer_node.ticktime, ins_deque_, &ni, "ctx_ins_ni")) {
-      HLOG_ERROR << "interpolate ins output failed";
+    std::unique_lock<std::mutex> lock(latest_ins_mutex_);
+    ctx->ins = latest_ins_data_;
+  }
+  {
+    std::unique_lock<std::mutex> lock(ins_deque_mutex_);
+    ctx->ins_node = *(ins_deque_.back());
+  }
+  {
+    std::unique_lock<std::mutex> lock(dr_deque_mutex_);
+    ctx->dr_node = *(dr_deque_.back());
+  }
+
+  if (!GetGlobalPose(ctx)) {
+    HLOG_ERROR << "get global pose failed";
+    return false;
+  }
+  ctx->global_node.location_state = GetGlobalLocationState();
+
+  if (!GetLocalPose(ctx)) {
+    HLOG_ERROR << "get loca pose failed";
+    if (params_.require_local_pose) {
       return false;
     }
   }
-
-  context->fusion_node = newest_ins_node;
-  const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(newest_ins_node);
-  const auto& pose = Node2SE3(refer_node) * T_delta;
-  context->fusion_node.enu = pose.translation();
-  context->fusion_node.orientation = pose.so3().log();
-
-  {
-    std::lock_guard<std::mutex> lock(fusion_deque_mutex_);
-    int valid_cnt = 0;
-    for (auto& node : fusion_deque_) {
-      if (node->type == NodeType::POSE_ESTIMATE) {
-        context->fusion_node.location_state = 2;
-        break;
-      }
-      context->fusion_node.location_state = 5;
-
-      if (valid_cnt > params_.mm_valid_frame_) {
-        break;
-      }
-      ++valid_cnt;
-    }
-  }
-  Node node = context->fusion_node;
 
   return true;
 }
@@ -299,13 +236,14 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
 
   params_.smooth_outputs = node["smooth_outputs"].as<bool>();
   params_.use_smooth_yaw = node["use_smooth_yaw"].as<bool>();
-  params_.mm_valid_frame_ = node["mm_valid_frame"].as<uint32_t>();
+  params_.search_state_cnt = node["search_state_cnt"].as<uint32_t>();
   params_.no_mm_min_time = node["no_mm_min_time"].as<double>();
   params_.no_mm_max_time = node["no_mm_max_time"].as<double>();
   params_.use_dr_measurement = node["use_dr_measurement"].as<bool>();
   params_.run_fusion_interval_ms =
       node["run_fusion_interval_ms"].as<uint32_t>();
   params_.window_size = node["window_size"].as<uint32_t>();
+  params_.require_local_pose = node["require_local_pose"].as<bool>();
 
   params_.ins_init_status.clear();
   const auto& init_status_node = node["ins_init_status"];
@@ -360,7 +298,13 @@ bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
   node->rtk_status = msg.gps_status();
 
   node->refpoint = Refpoint();
-  node->enu = hmu::Geo::BlhToEnu(node->blh, node->refpoint);
+
+  if (msg.type() == hozon::localization::HafNodeInfo_NodeType_PoseEstimate) {
+    // dr fusion pos_gcj02 means local pose in dr coord
+    node->enu = node->blh;
+  } else {
+    node->enu = hmu::Geo::BlhToEnu(node->blh, node->refpoint);
+  }
 
   for (int i = 0; i < msg.covariance_size(); ++i) {
     node->cov(i) = msg.covariance()[i];
@@ -467,8 +411,18 @@ const Eigen::Vector3d FusionCenter::Refpoint() {
   return refpoint_;
 }
 
-void FusionCenter::Node2AlgLocation(const Context& ctx,
-                                    Localization* const location) {
+double ConvertHeading(double heading) {
+  double cal_heading = -heading * M_PI / 180.0 + M_PI / 2;
+  if (cal_heading > M_PI) {
+    cal_heading -= 2 * M_PI;
+  } else if (cal_heading < -M_PI) {
+    cal_heading += 2 * M_PI;
+  }
+  return cal_heading;
+}
+
+void FusionCenter::Node2Localization(const Context& ctx,
+                                     Localization* const location) {
   if (!location) {
     return;
   }
@@ -477,8 +431,10 @@ void FusionCenter::Node2AlgLocation(const Context& ctx,
 
   const auto& ins = ctx.ins;
   const auto& imu = ctx.imuins.imu_info();
-  const auto& fusion_node = ctx.fusion_node;
-  const double ticktime = fusion_node.ticktime;
+  const auto& global_node = ctx.global_node;
+  const auto& local_node = ctx.local_node;
+  // publish time align to dr coordinate
+  const double ticktime = local_node.ticktime;
 
   auto* const header = location->mutable_header();
   header->set_seq(seq_++);
@@ -490,8 +446,8 @@ void FusionCenter::Node2AlgLocation(const Context& ctx,
   location->set_gps_week(ins.gps_week());
   location->set_gps_sec(ins.gps_sec());
   location->set_received_ehp_counter(ehp_counter_);
-  location->set_rtk_status(fusion_node.rtk_status);
-  location->set_location_state(fusion_node.location_state);
+  location->set_rtk_status(global_node.rtk_status);
+  location->set_location_state(global_node.location_state);
 
   location->mutable_mounting_error()->set_x(ins.mounting_error().x());
   location->mutable_mounting_error()->set_y(ins.mounting_error().y());
@@ -499,14 +455,14 @@ void FusionCenter::Node2AlgLocation(const Context& ctx,
 
   auto* const pose = location->mutable_pose();
 
-  const Sophus::SO3d& rot = Sophus::SO3d::exp(fusion_node.orientation);
+  const Sophus::SO3d& rot = Sophus::SO3d::exp(global_node.orientation);
   pose->mutable_quaternion()->set_w(rot.unit_quaternion().w());
   pose->mutable_quaternion()->set_x(rot.unit_quaternion().x());
   pose->mutable_quaternion()->set_y(rot.unit_quaternion().y());
   pose->mutable_quaternion()->set_z(rot.unit_quaternion().z());
 
-  Eigen::Vector3d euler = Rot2Euler312(rot.matrix()) * 180.0 / M_PI;
-  euler = euler - ((euler.array() > 180.).cast<double>() * 360.0).matrix();
+  Eigen::Vector3d euler = Rot2Euler312(rot.matrix());
+  euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
   pose->mutable_euler_angle()->set_x(euler.x());
   pose->mutable_euler_angle()->set_y(euler.y());
   pose->mutable_euler_angle()->set_z(euler.z());
@@ -524,10 +480,10 @@ void FusionCenter::Node2AlgLocation(const Context& ctx,
   }
   pose->set_heading(heading);
 
-  Eigen::Vector3d local_vel = rot.inverse() * fusion_node.velocity;
-  pose->mutable_linear_velocity_vrf()->set_x(local_vel.x());
-  pose->mutable_linear_velocity_vrf()->set_y(local_vel.y());
-  pose->mutable_linear_velocity_vrf()->set_z(local_vel.z());
+  Eigen::Vector3d vehicle_vel = rot.inverse() * global_node.velocity;
+  pose->mutable_linear_velocity_vrf()->set_x(vehicle_vel.x());
+  pose->mutable_linear_velocity_vrf()->set_y(vehicle_vel.y());
+  pose->mutable_linear_velocity_vrf()->set_z(vehicle_vel.z());
 
   pose->mutable_linear_acceleration_vrf()->set_x(ins.linear_acceleration().x());
   pose->mutable_linear_acceleration_vrf()->set_y(ins.linear_acceleration().y());
@@ -541,9 +497,9 @@ void FusionCenter::Node2AlgLocation(const Context& ctx,
   pose->mutable_wgs()->set_y(ins.pos_wgs().y());
   pose->mutable_wgs()->set_z(ins.pos_wgs().z());
 
-  pose->mutable_gcj02()->set_x(fusion_node.blh(0));
-  pose->mutable_gcj02()->set_y(fusion_node.blh(1));
-  pose->mutable_gcj02()->set_z(fusion_node.blh(2));
+  pose->mutable_gcj02()->set_x(global_node.blh(0));
+  pose->mutable_gcj02()->set_y(global_node.blh(1));
+  pose->mutable_gcj02()->set_z(global_node.blh(2));
 
   const double zone = pose->gcj02().y() / 6.0 + 31;
   const uint32_t curr_zone = std::floor(zone);
@@ -572,6 +528,10 @@ void FusionCenter::Node2AlgLocation(const Context& ctx,
   pose->mutable_pos_utm_02()->set_y(near_utm(1));
   pose->mutable_pos_utm_02()->set_z(near_utm(2));
 
+  // set laneid
+  const std::string laneid = GetHdCurrLaneId(curr_utm, ConvertHeading(heading));
+  location->set_laneid(laneid);
+
   pose->mutable_linear_acceleration_raw_vrf()->set_x(
       imu.imuvb_linear_acceleration().x());
   pose->mutable_linear_acceleration_raw_vrf()->set_y(
@@ -579,13 +539,13 @@ void FusionCenter::Node2AlgLocation(const Context& ctx,
   pose->mutable_linear_acceleration_raw_vrf()->set_z(
       imu.imuvb_linear_acceleration().z());
 
-  pose->mutable_linear_velocity()->set_x(fusion_node.velocity(0));
-  pose->mutable_linear_velocity()->set_y(fusion_node.velocity(1));
-  pose->mutable_linear_velocity()->set_z(fusion_node.velocity(2));
+  pose->mutable_linear_velocity()->set_x(global_node.velocity(0));
+  pose->mutable_linear_velocity()->set_y(global_node.velocity(1));
+  pose->mutable_linear_velocity()->set_z(global_node.velocity(2));
 
-  pose->mutable_local_pose()->set_x(0);
-  pose->mutable_local_pose()->set_y(1);
-  pose->mutable_local_pose()->set_z(2);
+  pose->mutable_local_pose()->set_x(local_node.enu(0));
+  pose->mutable_local_pose()->set_y(local_node.enu(1));
+  pose->mutable_local_pose()->set_z(local_node.enu(2));
 
   pose->mutable_angular_velocity_raw_vrf()->set_x(
       imu.imuvb_angular_velocity().x());
@@ -593,6 +553,14 @@ void FusionCenter::Node2AlgLocation(const Context& ctx,
       imu.imuvb_angular_velocity().y());
   pose->mutable_angular_velocity_raw_vrf()->set_z(
       imu.imuvb_angular_velocity().z());
+
+  const Sophus::SO3d& rot_local = Sophus::SO3d::exp(local_node.orientation);
+  Eigen::Vector3d euler_local = Rot2Euler312(rot_local.matrix());
+  euler_local = euler_local -
+      ((euler_local.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
+  pose->mutable_euler_angles_local()->set_x(euler_local.x());
+  pose->mutable_euler_angles_local()->set_y(euler_local.y());
+  pose->mutable_euler_angles_local()->set_z(euler_local.z());
 
   Eigen::Matrix<float, 6, 1> diag;
   diag << ins.sd_position().x(), ins.sd_position().y(), ins.sd_position().z(),
@@ -1038,6 +1006,14 @@ double TwoPi2Rad(double deg) {
   return rad;
 }
 
+Sophus::SE3d FusionCenter::Node2SE3(const Node& node) {
+  return Sophus::SE3d(Sophus::SO3d::exp(node.orientation), node.enu);
+}
+
+Sophus::SE3d FusionCenter::Node2SE3(const std::shared_ptr<Node>& node) {
+  return Node2SE3(*node);
+}
+
 void FusionCenter::KalmanFiltering(Node* const node) {
   if (!node) {
     return;
@@ -1052,8 +1028,8 @@ void FusionCenter::KalmanFiltering(Node* const node) {
   }
 
   double delta_t = 0.0;
-  if (latest_output_valid_) {
-    delta_t = node->ticktime - latest_output_node_.ticktime;
+  if (prev_global_valid_) {
+    delta_t = node->ticktime - prev_global_node_.ticktime;
   }
 
   Eigen::MatrixXd F = Eigen::MatrixXd::Identity(4, 4);
@@ -1074,6 +1050,124 @@ void FusionCenter::KalmanFiltering(Node* const node) {
     }
     node->orientation(2) = TwoPi2Rad(yaw_deg);
   }
+}
+
+bool FusionCenter::GetGlobalPose(Context* const ctx) {
+  if (!ctx || fusion_deque_.empty()) {
+    return false;
+  }
+
+  if (params_.passthrough_ins) {
+    ctx->global_node = ctx->ins_node;
+    return true;
+  }
+
+  const auto refpoint = Refpoint();
+
+  fusion_deque_mutex_.lock();
+  const auto fusion_node = *(fusion_deque_.back());
+  fusion_deque_mutex_.unlock();
+
+  const double ins_fusion_diff = ctx->ins_node.ticktime - fusion_node.ticktime;
+  if (ins_fusion_diff < 0) {
+    HLOG_ERROR << "ins time behind newest fusion time, something wrong";
+    return false;
+  }
+  if (ins_fusion_diff < 1e-3) {
+    ctx->global_node = fusion_node;
+    return true;
+  }
+
+  Node refer_node = fusion_node;
+
+  Node ni;
+  {
+    std::lock_guard<std::mutex> lock(ins_deque_mutex_);
+    if (!Interpolate(refer_node.ticktime, ins_deque_, &ni, "ctx_ins_ni")) {
+      HLOG_ERROR << "interpolate ins output failed";
+      return false;
+    }
+  }
+
+  ctx->global_node = ctx->ins_node;
+  const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(ctx->ins_node);
+  const auto& pose = Node2SE3(refer_node) * T_delta;
+  ctx->global_node.enu = pose.translation();
+  ctx->global_node.orientation = pose.so3().log();
+
+  // KF滤波
+  if (params_.smooth_outputs) {
+    KalmanFiltering(&(ctx->global_node));
+  }
+  ctx->global_node.blh =
+      hmu::Geo::EnuToBlh(ctx->global_node.enu, ctx->global_node.refpoint);
+  ctx->global_node.rtk_status = ctx->ins_node.rtk_status;
+
+  prev_global_node_ = ctx->global_node;
+  if (!prev_global_valid_) {
+    prev_global_valid_ = true;
+  }
+
+  return true;
+}
+
+uint32_t FusionCenter::GetGlobalLocationState() {
+  uint32_t state = 5;
+  uint32_t search_cnt = 0;
+
+  std::unique_lock<std::mutex> lock(fusion_deque_mutex_);
+  for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
+    if ((*it)->type == NodeType::POSE_ESTIMATE) {
+      state = 2;
+      return state;
+    }
+    if ((++search_cnt) > params_.search_state_cnt) {
+      break;
+    }
+  }
+
+  return state;
+}
+
+bool FusionCenter::GetLocalPose(Context* const ctx) {
+  if (!ctx) {
+    return false;
+  }
+  if (coord_init_timestamp_ < 0) {
+    HLOG_ERROR << "local coordinate does not init yet";
+    return false;
+  }
+
+  ctx->local_node = ctx->dr_node;
+  const auto local_pose = Node2SE3(init_dr_node_).inverse() *
+                          Node2SE3(ctx->dr_node);
+  ctx->local_node.enu = local_pose.translation();
+  ctx->local_node.orientation = local_pose.so3().log();
+
+  return true;
+}
+
+std::string FusionCenter::GetHdCurrLaneId(const Eigen::Vector3d& utm,
+                                          double heading) {
+  if (!(GLOBAL_HD_MAP)) {
+    return "";
+  }
+
+  hozon::common::PointENU point;
+  point.set_x(utm(0));
+  point.set_y(utm(1));
+  point.set_z(utm(2));
+
+  double s = 0;
+  double l = 0;
+  hozon::hdmap::LaneInfoConstPtr nearest_lane;
+  const int got_lane = GLOBAL_HD_MAP->GetNearestLaneWithHeading(
+      point, 50, heading, M_PI / 4.0, &nearest_lane, &s, &l);
+  if (got_lane != 0 || !nearest_lane) {
+    return "";
+  }
+
+  return nearest_lane->id().id();
 }
 
 }  // namespace fc

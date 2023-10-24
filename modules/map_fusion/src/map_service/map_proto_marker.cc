@@ -96,7 +96,7 @@ std::vector<adsfi_proto::viz::MarkerArray> MapProtoMarker::LaneToMarker(
     lane_marker->mutable_scale()->set_y(0.05);
     lane_marker->mutable_scale()->set_z(0.05);
     lane_marker->mutable_lifetime()->set_sec(0);
-    lane_marker->mutable_lifetime()->set_nsec(0);
+    lane_marker->mutable_lifetime()->set_nsec(200000000);
     adsfi_proto::viz::ColorRGBA color;
     color.set_a(0.8);
     color.set_r(1);

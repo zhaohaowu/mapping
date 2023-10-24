@@ -27,10 +27,14 @@
 #include "Eigen/Core"
 #include "Eigen/Dense"
 #include "Eigen/Geometry"
-#include "Eigen/src/Core/Matrix.h"
+// #include "Eigen/src/Core/Matrix.h"
 #include "map_fusion/map_prediction/viz_map.h"
 #include "proto/map/map_lane.pb.h"
 #include "proto/map/map_road.pb.h"
+
+#include "depend/common/math/line_segment2d.h";
+#include "common/math/vec2d.h"
+
 
 namespace hozon {
 namespace mp {
@@ -67,7 +71,8 @@ class MapPrediction {
   void PredictAheadLaneLine(
       const std::shared_ptr<hozon::hdmap::Map>& topo_map_,
       const std::set<std::string>& add_road_id_,
-      const std::vector<hozon::hdmap::RoadInfoConstPtr>& roads);
+      const std::vector<hozon::hdmap::RoadInfoConstPtr>& roads,
+      const std::set<std::string>& add_lane_id_);
   void DetermineEdgeAssPair(
       const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
           all_edges,
@@ -79,11 +84,7 @@ class MapPrediction {
       std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
           predict_lanelines,
       const uint32_t& lane_num);
-  void FitLaneCenterline(
-      const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-          complete_lanelines,
-      std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-          all_center_lanelines);
+  void FitLaneCenterline();
   void AddSideTopological(
       const std::vector<std::vector<Eigen::Vector3d>>& predict_line,
       const uint32_t& record, const std::string& curr_id);
@@ -112,7 +113,7 @@ class MapPrediction {
           complete_lines,
       const std::vector<std::string>& com_id,
       const std::vector<std::string>& sec_id);
-  void Term();
+  void AddResTopo();
 
   std::mutex mtx_;
   std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>

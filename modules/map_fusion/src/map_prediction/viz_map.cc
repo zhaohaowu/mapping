@@ -84,6 +84,13 @@ int VizMap::Init() {
       HLOG_ERROR << "RvizAgent register" << viz_com_lane_id_;
     }
   }
+  if (viz_ && RVIZ_AGENT.Ok()) {
+    int ret =
+        RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_center_lane_);
+    if (ret < 0) {
+      HLOG_ERROR << "RvizAgent register" << viz_center_lane_;
+    }
+  }
 
   ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>("TuoPu");
   if (ret < 0) {
@@ -142,8 +149,8 @@ void VizMap::VizLocalMapLaneLine(
       }
     }
     if (!left_line_point.empty()) {
-      localmap_lanelines.emplace_back(std::make_pair(id, left_line_point));
-      id -= 1;
+      localmap_lanelines.emplace_back(std::make_pair(id_, left_line_point));
+      id_ -= 1;
     }
     // 存储右边线
     std::vector<Eigen::Vector3d> right_line_point;
@@ -161,8 +168,8 @@ void VizMap::VizLocalMapLaneLine(
       }
     }
     if (!right_line_point.empty()) {
-      localmap_lanelines.emplace_back(std::make_pair(id, right_line_point));
-      id -= 1;
+      localmap_lanelines.emplace_back(std::make_pair(id_, right_line_point));
+      id_ -= 1;
     }
   }
 
@@ -600,15 +607,59 @@ void VizMap::ComLaneLineToMarker(const std::vector<Eigen::Vector3d>& lane_line,
   }
 }
 
+
+void VizMap::VizCenterLane(const std::vector<Vec2d>& cent_points) {
+  if (cent_points.empty()) {
+    return;
+  }
+  adsfi_proto::viz::MarkerArray markers;
+  adsfi_proto::viz::Marker marker;
+  static int id = 0;
+  marker.Clear();
+  marker.mutable_header()->set_frameid("map");
+  marker.set_ns("ns_co_local_map_add_lane_line");
+  marker.set_id(id++);
+  marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+  marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+  marker.mutable_pose()->mutable_orientation()->set_x(0.);
+  marker.mutable_pose()->mutable_orientation()->set_y(0.);
+  marker.mutable_pose()->mutable_orientation()->set_z(0.);
+  marker.mutable_pose()->mutable_orientation()->set_w(1.);
+  marker.mutable_scale()->set_x(
+      0.3);  // 这里lane_line.width()的值都为0，手动改为了0.1
+  marker.mutable_lifetime()->set_sec(0);
+  //  marker.mutable_lifetime()->set_nsec(500000000);
+  marker.mutable_lifetime()->set_nsec(200000000);
+  adsfi_proto::viz::ColorRGBA color;
+  color.set_a(0.8);
+
+  color.set_r(1);
+  color.set_g(1);
+  color.set_b(1);
+  marker.mutable_color()->CopyFrom(color);
+
+  for (const auto& cen_point : cent_points) {
+    auto predict_pt = marker.add_points();
+    predict_pt->set_x(cen_point.x());
+    predict_pt->set_y(cen_point.y());
+    predict_pt->set_z(0);
+  }
+
+  if (!marker.points().empty()) {
+    markers.add_markers()->CopyFrom(marker);
+  }
+  RVIZ_AGENT.Publish(viz_center_lane_, markers);
+}
+
 void VizMap::VizLocalMsg(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
                          const Eigen::Vector3d& pose) {
   // 现在开始呈现所有的元素
   // 存储所有的道路边界
   MapProtoMarker marker;
-  // std::vector<adsfi_proto::viz::MarkerArray> result = marker.LaneToMarker(
-  //     std::make_shared<hozon::hdmap::Map>(local_msg), pose, true);
+  std::vector<adsfi_proto::viz::MarkerArray> result =
+      marker.LaneToMarker(local_msg, pose, false);
 
-  // adsfi_proto::viz::MarkerArray lane = result[0];
+  adsfi_proto::viz::MarkerArray lane = result[0];
   // adsfi_proto::viz::MarkerArray left = result[1];
   // adsfi_proto::viz::MarkerArray right = result[2];
   adsfi_proto::viz::MarkerArray TuoPu =
@@ -619,7 +670,7 @@ void VizMap::VizLocalMsg(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
   //     marker.LanePredecessor(local_msg, pose);
   // adsfi_proto::viz::MarkerArray TuoPu4 =
   //     marker.LaneSuccessor(local_msg, pose);
-  // RVIZ_AGENT.Publish("lane", lane);
+  RVIZ_AGENT.Publish("lane", lane);
   // RVIZ_AGENT.Publish("left", left);
   // RVIZ_AGENT.Publish("right", right);
   RVIZ_AGENT.Publish("TuoPu", TuoPu);

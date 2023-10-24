@@ -20,7 +20,7 @@
 --log_dir=data/log
 
 #for ehp
---nouse_ehp
+--use_ehp
 --use_ehp_odd_to_stop=false
 --ehp_monitor=1
 --enable_ehp_routing=false

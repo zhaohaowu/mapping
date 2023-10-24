@@ -218,11 +218,11 @@ void TopoAssignment::OnLocalMap(
     GLOBAL_HD_MAP->GetMap(hq_map.get());
     std::vector<adsfi_proto::viz::MarkerArray> result =
         marker_rviz_.LaneToMarker(hq_map, ref_point_, true);
-    adsfi_proto::viz::MarkerArray lane = result[0];
+    // adsfi_proto::viz::MarkerArray lane = result[0];
     adsfi_proto::viz::MarkerArray left = result[1];
     adsfi_proto::viz::MarkerArray right = result[2];
 
-    RVIZ_AGENT.Publish("lane", lane);
+    // RVIZ_AGENT.Publish("lane", lane);
     RVIZ_AGENT.Publish("left", left);
     RVIZ_AGENT.Publish("right", right);
   }

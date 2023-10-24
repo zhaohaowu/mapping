@@ -31,28 +31,7 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
-double NowInSeconds();
-
-class TicToc {
- public:
-  TicToc() { Tic(); }
-
-  void Tic() { clock_gettime(CLOCK_REALTIME, &start_); }
-
-  // in ms
-  double Toc() {
-    clock_gettime(CLOCK_REALTIME, &end_);
-    double start_ms = static_cast<double>(start_.tv_sec) * 1e3 +
-                      static_cast<double>(start_.tv_nsec) * 1e-6;
-    double end_ms = static_cast<double>(end_.tv_sec) * 1e3 +
-                    static_cast<double>(end_.tv_nsec) * 1e-6;
-    return end_ms - start_ms;
-  }
-
- private:
-  timespec start_{};
-  timespec end_{};
-};
+using Vec2d = common::math::Vec2d;
 
 class VizMap {
  public:
@@ -98,6 +77,7 @@ class VizMap {
                            adsfi_proto::viz::Marker* marker);
   void VizLocalMsg(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
                    const Eigen::Vector3d& pose);
+  void VizCenterLane(const std::vector<Vec2d>& cent_points);
 
  private:
   const std::string viz_localmap_line_ = "/mp/localmap_line";
@@ -106,11 +86,12 @@ class VizMap {
   const std::string viz_ahead_line_ = "/mp/ahead_line";
   const std::string viz_lane_id_ = "/mp/lane_id";
   const std::string viz_com_lane_id_ = "/mp/com_lane_line_";
+  const std::string viz_center_lane_ = "/mp/center_lane";
 
   const std::string kFrameIdLocalEnu = "local_enu";
   bool viz_flag_ = true;
   bool viz_ = true;
-  int id = 0;
+  int id_ = 0;
 };
 
 }  // namespace mf

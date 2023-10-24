@@ -17,7 +17,7 @@ trigger:
   - name: send_dr_proc
     type: PERIOD
     period: 10
-  - name: receive_inspva
+  - name: receive_ins_fusion
     type: EVENT
     mainSources:
       - name: /location/ins_fusion

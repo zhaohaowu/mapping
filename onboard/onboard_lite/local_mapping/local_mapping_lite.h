@@ -7,8 +7,9 @@
 #pragma once
 
 #include <memory>
-#include "modules/local_mapping/lib/local_mapping.h"
+
 #include "common_onboard/adapter/onboard_lite/onboard_lite.h"
+#include "modules/local_mapping/local_mapping.h"
 
 namespace hozon {
 namespace perception {

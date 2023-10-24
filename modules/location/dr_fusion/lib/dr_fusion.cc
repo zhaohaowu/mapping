@@ -26,10 +26,10 @@ const char kNewestDrOdom[] = "/dr/fusion";
 
 DrFusion::~DrFusion() {}
 
-InsInitStatus DrFusion::Init(const std::string& dr_configfile) {
+DrInitStatus DrFusion::Init(const std::string& dr_configfile) {
   boost::filesystem::path dr_path(dr_configfile);
   if (!boost::filesystem::exists(dr_path)) {
-    return InsInitStatus::CONFIG_NOT_FOUND;
+    return DrInitStatus::CONFIG_NOT_FOUND;
   }
 
   LoadConfigParams(dr_configfile);
@@ -41,33 +41,35 @@ InsInitStatus DrFusion::Init(const std::string& dr_configfile) {
       HLOG_ERROR << "not found:" << kNewestDrOdom;
     }
   }
-  return InsInitStatus::OK;
+  return DrInitStatus::OK;
 }
 
 void DrFusion::LoadConfigParams(const std::string& configfile) {
   YAML::Node config_parser = YAML::LoadFile(configfile);
   use_rviz_bridge_ = config_parser["use_rviz_bridge"].as<bool>();
   use_dr_ = config_parser["use_dr"].as<bool>();
-  use_inspva_ = config_parser["use_inspva"].as<bool>();
+  use_ins_fusion_ = config_parser["use_ins_fusion"].as<bool>();
 }
 
-void DrFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva_node) {
-  if (!inspva_node.is_valid()) {
+void DrFusion::OnInsFusion(
+    const hozon::localization::HafNodeInfo& ins_fusion_node) {
+  if (!ins_fusion_node.is_valid()) {
     return;
   }
-  std::unique_lock<std::mutex> lock(ins_mutex_);
-  if (inspva_node.header().seq() <= latest_ins_node_.header().seq()) {
+  std::unique_lock<std::mutex> lock(ins_fusion_mutex_);
+  if (ins_fusion_node.header().seq() <=
+      latest_ins_fusion_node_.header().seq()) {
     return;
   }
-  if (!ref_inspva_node_init_) {
-    Eigen::Vector3d blh(inspva_node.pos_gcj02().x(),
-                        inspva_node.pos_gcj02().y(),
-                        inspva_node.pos_gcj02().z());
+  if (!ref_ins_fusion_node_init_) {
+    Eigen::Vector3d blh(ins_fusion_node.pos_gcj02().x(),
+                        ins_fusion_node.pos_gcj02().y(),
+                        ins_fusion_node.pos_gcj02().z());
     SetRefpoint(blh);
-    Extract02InsNode(inspva_node, &ref_ins_node_);
-    ref_inspva_node_init_ = true;
+    Extract02InsNode(ins_fusion_node, &ref_ins_fusion_node_);
+    ref_ins_fusion_node_init_ = true;
   }
-  latest_ins_node_ = inspva_node;
+  latest_ins_fusion_node_ = ins_fusion_node;
 }
 
 void DrFusion::OnDr(const hozon::dead_reckoning::DeadReckoning& dr_node) {
@@ -85,7 +87,7 @@ bool DrFusion::GetResult(hozon::localization::HafNodeInfo* const node) {
     HLOG_ERROR << "Get Dr Fusion result failed";
     return false;
   }
-  if (!use_dr_ && !use_inspva_) {
+  if (!use_dr_ && !use_ins_fusion_) {
     HLOG_ERROR << "Get Dr Fusion result failed";
     return false;
   }
@@ -96,21 +98,21 @@ bool DrFusion::GetResult(hozon::localization::HafNodeInfo* const node) {
   if (use_dr_) {
     std::unique_lock<std::mutex> lock(dr_mutex_);
     *node = latest_dr_node_;
-  } else if (use_inspva_) {
-    std::unique_lock<std::mutex> lock(ins_mutex_);
-    *node = latest_ins_node_;
+  } else if (use_ins_fusion_) {
+    std::unique_lock<std::mutex> lock(ins_fusion_mutex_);
+    *node = latest_ins_fusion_node_;
     node->set_type(hozon::localization::HafNodeInfo_NodeType_DR);
     node->set_is_valid(true);
 
-    node->mutable_header()->set_seq(latest_ins_node_.header().seq());
+    node->mutable_header()->set_seq(latest_ins_fusion_node_.header().seq());
     node->mutable_header()->set_frame_id("dr_fusion");
     node->mutable_header()->set_publish_stamp(
-        latest_ins_node_.header().publish_stamp());
+        latest_ins_fusion_node_.header().publish_stamp());
 
-    Eigen::Vector3d blh(latest_ins_node_.pos_gcj02().x(),
-                        latest_ins_node_.pos_gcj02().y(),
-                        latest_ins_node_.pos_gcj02().z());
-    auto enu = hmu::Geo::BlhToEnu(blh, ref_ins_node_.refpoint);
+    Eigen::Vector3d blh(latest_ins_fusion_node_.pos_gcj02().x(),
+                        latest_ins_fusion_node_.pos_gcj02().y(),
+                        latest_ins_fusion_node_.pos_gcj02().z());
+    auto enu = hmu::Geo::BlhToEnu(blh, ref_ins_fusion_node_.refpoint);
     node->mutable_pos_gcj02()->set_x(enu[0]);
     node->mutable_pos_gcj02()->set_y(enu[1]);
     node->mutable_pos_gcj02()->set_z(enu[2]);
@@ -124,23 +126,23 @@ bool DrFusion::PublishTopic() {
   if (!mp::util::RvizAgent::Instance().Ok()) {
     return false;
   }
-  if (!use_dr_ && !use_inspva_) {
+  if (!use_dr_ && !use_ins_fusion_) {
     return false;
   }
   adsfi_proto::viz::Odometry odom;
   InsNode node;
-  if (use_inspva_) {
-    std::unique_lock<std::mutex> lock(ins_mutex_);
-    if (!Extract02InsNode(latest_ins_node_, &node)) {
+  if (use_ins_fusion_) {
+    std::unique_lock<std::mutex> lock(ins_fusion_mutex_);
+    if (!Extract02InsNode(latest_ins_fusion_node_, &node)) {
       return false;
     }
-    odom.mutable_header()->set_frameid("ins_map");
+    odom.mutable_header()->set_frameid("use_ins_fusion");
   } else if (use_dr_) {
     std::unique_lock<std::mutex> lock(dr_mutex_);
     if (!Extract02InsNode(latest_dr_node_, &node)) {
       return false;
     }
-    odom.mutable_header()->set_frameid("dr_map");
+    odom.mutable_header()->set_frameid("use_dr");
   }
 
   uint64_t sec = uint64_t(node.ticktime);
@@ -189,7 +191,7 @@ bool DrFusion::Extract02InsNode(
 }
 
 int DrFusion::DrFusionState() {
-  if (!use_dr_ && !use_inspva_) {
+  if (!use_dr_ && !use_ins_fusion_) {
     return -1;
   }
   if (use_dr_) {

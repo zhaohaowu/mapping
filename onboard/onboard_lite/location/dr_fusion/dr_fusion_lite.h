@@ -30,7 +30,7 @@ class DrFusionLite : public OnboardLite {
   int32_t send_dr(Bundle* input);
   // send in-process data and interprocess data
   int32_t receive_dr(Bundle* input);
-  int32_t receive_inspva(Bundle* input);
+  int32_t receive_ins_fusion(Bundle* input);
 
  private:
   std::unique_ptr<hozon::mp::loc::DrFusion> dr_fusion_ = nullptr;

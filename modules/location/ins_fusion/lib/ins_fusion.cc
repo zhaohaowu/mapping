@@ -666,7 +666,7 @@ bool InsFusion::PublishTopic() {
     return false;
   }
   adsfi_proto::viz::Odometry odom;
-  odom.mutable_header()->set_frameid("map");
+  odom.mutable_header()->set_frameid("ins_fusion");
   uint64_t sec = uint64_t(last_node_.ticktime);
   uint64_t nsec = uint64_t((last_node_.ticktime - sec) * 1e9);
   odom.mutable_header()->mutable_timestamp()->set_sec(sec);

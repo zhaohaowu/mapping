@@ -166,7 +166,6 @@ if(IND)
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/boost/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/opencv/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/absl/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/hzavpmap/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/zmq/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gtest/lib/
         ${DEPEND}/perception-common-onboard/release/${LOCAL_TARGET_PLATFORM}/lib/
@@ -174,6 +173,14 @@ if(IND)
         ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib/
         DESTINATION ${EXTERNAL_LIB_PATH}
     )
+
+    if(NOT ${PLATFORM} STREQUAL "orin")
+        install(DIRECTORY
+            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/hzavpmap/lib/
+            DESTINATION ${EXTERNAL_LIB_PATH}
+        )
+    endif()
+
 
     if(${PLATFORM} STREQUAL "x86_2004")
         install(DIRECTORY

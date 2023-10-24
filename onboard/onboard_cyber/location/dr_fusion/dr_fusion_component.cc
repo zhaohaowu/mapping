@@ -12,7 +12,7 @@
 
 DEFINE_string(dr_config, "conf/mapping/location/dr_fusion/dr_config.yaml",
               "dr_config");
-DEFINE_string(inspva_module_input_topic, "/mapping/location/ins",
+DEFINE_string(ins_fusion_module_input_topic, "/mapping/location/ins",
               "input topic");
 DEFINE_string(dr_module_input_topic, "/mapping/dr", "input topic");
 DEFINE_string(loc_dr_module_output_topic, "/mapping/location/dr",
@@ -40,15 +40,15 @@ bool DrFusionComponent::Init() {
     }
   }
   dr_fusion_ = std::make_unique<DrFusion>();
-  if (dr_fusion_->Init(FLAGS_dr_config) != InsInitStatus::OK) {
+  if (dr_fusion_->Init(FLAGS_dr_config) != DrInitStatus::OK) {
     HLOG_ERROR << "dr init failed";
     return false;
   }
-  inspva_reader_ = node_->CreateReader<hozon::localization::HafNodeInfo>(
-      FLAGS_inspva_module_input_topic,
+  ins_fusion_reader_ = node_->CreateReader<hozon::localization::HafNodeInfo>(
+      FLAGS_ins_fusion_module_input_topic,
       [this](
           const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg) {
-        OnInspva(msg);
+        OnInsFusion(msg);
       });
   dr_reader_ = node_->CreateReader<hozon::dead_reckoning::DeadReckoning>(
       FLAGS_dr_module_input_topic,
@@ -61,12 +61,12 @@ bool DrFusionComponent::Init() {
   return true;
 }
 
-bool DrFusionComponent::OnInspva(
+bool DrFusionComponent::OnInsFusion(
     const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg) {
   if (!dr_fusion_) {
     return false;
   }
-  dr_fusion_->OnInspva(*msg);
+  dr_fusion_->OnInsFusion(*msg);
 
   auto state = dr_fusion_->DrFusionState();
   if (state == -1) {

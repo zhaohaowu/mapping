@@ -1,5 +1,5 @@
 %YAML:1.0
 
 use_rviz_bridge: false
-use_inspva: true
+use_ins_fusion: true
 use_dr: false

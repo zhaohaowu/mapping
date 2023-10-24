@@ -25,7 +25,7 @@ int32_t DrFusionLite::AlgInit() {
   const std::string dr_fusion_config =
       adflite_root_path + "/" + kDrFusionConfSuffix;
   dr_fusion_ = std::make_unique<hozon::mp::loc::DrFusion>();
-  if (dr_fusion_->Init(dr_fusion_config) != hozon::mp::loc::InsInitStatus::OK) {
+  if (dr_fusion_->Init(dr_fusion_config) != hozon::mp::loc::DrInitStatus::OK) {
     return -1;
   }
   // register proto for ipc
@@ -51,8 +51,8 @@ int32_t DrFusionLite::AlgInit() {
   RegistAlgProcessFunc("receive_dr", std::bind(&DrFusionLite::receive_dr, this,
                                                std::placeholders::_1));
   RegistAlgProcessFunc(
-      "receive_inspva",
-      std::bind(&DrFusionLite::receive_inspva, this, std::placeholders::_1));
+      "receive_ins_fusion",
+      std::bind(&DrFusionLite::receive_ins_fusion, this, std::placeholders::_1));
 
   HLOG_INFO << "AlgInit successfully ";
   return 0;
@@ -86,7 +86,7 @@ int32_t DrFusionLite::receive_dr(Bundle* input) {
   return 0;
 }
 
-int32_t DrFusionLite::receive_inspva(Bundle* input) {
+int32_t DrFusionLite::receive_ins_fusion(Bundle* input) {
   BaseDataTypePtr ptr_rec_inspva = input->GetOne("/location/ins_fusion");
   if (!ptr_rec_inspva) {
     return -1;
@@ -94,7 +94,7 @@ int32_t DrFusionLite::receive_inspva(Bundle* input) {
   std::shared_ptr<hozon::localization::HafNodeInfo> inspva_proto =
       std::static_pointer_cast<hozon::localization::HafNodeInfo>(
           ptr_rec_inspva->proto_msg);
-  dr_fusion_->OnInspva(*inspva_proto.get());
+  dr_fusion_->OnInsFusion(*inspva_proto.get());
   return 0;
 }
 }  //  namespace common_onboard

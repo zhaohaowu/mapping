@@ -1,11 +1,19 @@
 /******************************************************************************
  Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved
- *Author: shenliangchen
- *Date: 2023-09-25
+ *Author: chenlongxi
+ *Date: 2023-10-09
  *****************************************************************************/
-#include <Eigen/Dense>
+#pragma once
+#include <Eigen/Core>
+#include <algorithm>
 #include <cmath>
+#include <fstream>
+#include <iostream>
 #include <memory>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "modules/local_mapping/types/types.h"
@@ -16,15 +24,16 @@
 namespace hozon {
 namespace mp {
 namespace lm {
-class Loss {
- public:
-  static float Process(const std::vector<Eigen::Vector3d>& hq_pts,
-                       const std::vector<LaneLine>& lane_lines,
-                       float dist_threshold = 1.0);
 
- private:
-  static float MaxDistance(cv::flann::Index* kdtree, float x, float y);
+class HorizonLaneAssoc {
+ public:
+  static std::unordered_map<int, int> Process(
+      const std::vector<LaneLine>& lane_lines_det,
+      const std::vector<LaneLine>& lane_lines_lm);
 };
+
+using HorizonLaneAssocPtr = std::shared_ptr<HorizonLaneAssoc>;
+
 }  // namespace lm
 }  // namespace mp
 }  // namespace hozon

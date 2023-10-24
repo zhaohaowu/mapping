@@ -36,7 +36,7 @@ class DrFusionLite : public OnboardLite {
   std::unique_ptr<hozon::mp::loc::DrFusion> dr_fusion_ = nullptr;
 };
 
-REGISTER_EXECUTOR_CLASS("DrFusionLite", DrFusionLite);
+REGISTER_EXECUTOR_CLASS(DrFusionLite, DrFusionLite);
 }  //  namespace common_onboard
 }  //  namespace perception
 }  //  namespace hozon

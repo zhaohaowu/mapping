@@ -10,8 +10,8 @@ namespace mp {
 namespace lm {
 
 std::unordered_map<int, int> LaneAssoc::Process(
-    const std::vector<std::vector<Eigen::Vector3d>>& lanes_det,
-    const std::vector<LocalMapLane>& lanes_lm) {
+    const std::vector<LaneLine>& lanes_det,
+    const std::vector<LaneLine>& lanes_lm) {
   Clear();
   SetDetection(lanes_det);
   SetLandmark(lanes_lm);
@@ -19,46 +19,59 @@ std::unordered_map<int, int> LaneAssoc::Process(
   return map_det_lm_;
 }
 
-void LaneAssoc::SetDetection(
-    const std::vector<std::vector<Eigen::Vector3d>>& lanes_det) {
-  num_det_ = lanes_det.size();
+void LaneAssoc::SetDetection(const std::vector<LaneLine>& lanes_det) {
+  num_det_ = static_cast<int>(lanes_det.size());
   for (size_t i = 0; i < lanes_det.size(); ++i) {
-    if (lanes_det.size() == 0) continue;
-    std::vector<double> distance_thd = GetDistThd(lanes_det[i]);
-    det_xyzs_.push_back(lanes_det[i]);
+    if (lanes_det.empty()) {
+      continue;
+    }
+    std::vector<double> distance_thd = GetDistThd(lanes_det[i].points_);
+    det_xyzs_.push_back(lanes_det[i].points_);
     det_knn_thd_.push_back(distance_thd);
   }
 }
 
-void LaneAssoc::SetLandmark(const std::vector<LocalMapLane>& lanes_lm) {
-  num_lm_ = lanes_lm.size();
-  for (size_t i = 0; i < lanes_lm.size(); ++i) {
-    lm_xyzs_.push_back(lanes_lm[i].points_);
-    if (lanes_lm[i].kdtree_ == nullptr) {
+void LaneAssoc::SetLandmark(const std::vector<LaneLine>& lanes_lm) {
+  for (const auto& lane_line : lanes_lm) {
+    lm_xyzs_.push_back(lane_line.points_);
+    if (lane_line.kdtree_ == nullptr) {
       std::vector<cv::Point2f> cv_points;
-      for (size_t j = 0; j < lanes_lm[i].points_.size(); ++j) {
-        cv_points.push_back(
-            cv::Point2f(static_cast<float>(lanes_lm[i].points_[j].x()),
-                        static_cast<float>(lanes_lm[i].points_[j].y())));
+      for (const auto& point : lane_line.points_) {
+        if (point.x() < -0.5) {
+          continue;
+        }
+        cv::Point2f point_tmp = {static_cast<float>(point.x()),
+                                 static_cast<float>(point.y())};
+        cv_points.emplace_back(point_tmp);
+      }
+      if (cv_points.empty()) {
+        lm_kdtrees_.emplace_back(nullptr);
+        continue;
       }
       cv::flann::KDTreeIndexParams index_params(1);
-      cv::flann::Index* kdtree =
-          new cv::flann::Index(cv::Mat(cv_points).reshape(1), index_params);
+      std::shared_ptr<cv::flann::Index> kdtree =
+          std::make_shared<cv::flann::Index>(cv::Mat(cv_points).reshape(1),
+                                             index_params);
       lm_kdtrees_.push_back(kdtree);
     }
   }
+  num_lm_ = static_cast<int>(lm_kdtrees_.size());
 }
 
 void LaneAssoc::AssociationKnn() {
-  if (num_det_ == 0 || num_lm_ == 0) return;
+  if (num_det_ == 0 || num_lm_ == 0) {
+    return;
+  }
 
   Matxd assoc_scores = Matxd::Zero(num_lm_, num_det_);
   Matxd assoc_dist = Matxd::Zero(num_lm_, num_det_);
   Matxd assoc_dist_thd = Matxd::Zero(num_lm_, num_det_);
   for (int i = 0; i < num_det_; ++i) {
+    // HLOG_ERROR << "det id: " << i;
     std::vector<Eigen::Vector3d> det_xyz = det_xyzs_[i];
     std::vector<double> distance_thd = det_knn_thd_[i];
     for (int j = 0; j < num_lm_; ++j) {
+      // HLOG_ERROR << "lm id: " << j;
       if (lm_kdtrees_[j] == nullptr) {
         HLOG_ERROR << "invalid lm kd tree";
         continue;
@@ -67,6 +80,9 @@ void LaneAssoc::AssociationKnn() {
       double dist_match_sum = 0;
       double dist_sum = 0;
       for (size_t k = 0; k < det_xyzs_[i].size(); ++k) {
+        if (det_xyzs_[i][k].x() > 50) {
+          continue;
+        }
         const int dim = 1;
         std::vector<int> nearest_index(dim);
         std::vector<float> nearest_dist(dim);
@@ -82,10 +98,13 @@ void LaneAssoc::AssociationKnn() {
         }
         dist_sum += det_knn_thd_[i][k];
       }
-      if (dist_match_cnt == 0) continue;
+      // HLOG_ERROR << "dist_match_cnt " << dist_match_cnt;
+      if (dist_match_cnt == 0) {
+        continue;
+      }
       double score = dist_match_sum / dist_match_cnt *
                      std::sqrt(det_xyzs_[i].size() / dist_match_cnt);
-      double ideal_dist = dist_sum / det_xyzs_[i].size() *
+      double ideal_dist = dist_sum / static_cast<double>(det_xyzs_[i].size()) *
                           std::sqrt(1 / options_.min_match_ratio);
       assoc_dist(j, i) = score;
       assoc_dist_thd(j, i) = ideal_dist;
@@ -94,28 +113,29 @@ void LaneAssoc::AssociationKnn() {
   }
   // std::cout << assoc_scores << std::endl;
   Affinity2Assoc(assoc_scores);
-  return;
 }
 
 void LaneAssoc::Affinity2Assoc(const Matxd& affinity) {
   map_det_lm_.clear();
   for (int det_id = 0; det_id < affinity.cols(); ++det_id) {
-    Eigen::VectorXd::Index max_col;
+    Eigen::VectorXd::Index max_col = 0;
     affinity.col(det_id).maxCoeff(&max_col);
     int lm_id = static_cast<int>(max_col);
-    if (affinity(lm_id, det_id) > 0) map_det_lm_[det_id] = lm_id;
+    if (affinity(lm_id, det_id) > 0) {
+      map_det_lm_[det_id] = lm_id;
+    }
   }
 
   std::vector<std::vector<int>> map_lm_det(affinity.rows());
-  for (auto iter = map_det_lm_.begin(); iter != map_det_lm_.end(); ++iter) {
-    map_lm_det[iter->second].push_back(iter->first);
+  for (const auto& iter : map_det_lm_) {
+    map_lm_det[iter.second].push_back(iter.first);
   }
 
-  for (int i = 0; i < map_lm_det.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(map_lm_det.size()); ++i) {
     if (map_lm_det[i].size() > 1) {
       int max_id = map_lm_det[i][0];
       double max_val = affinity(i, map_lm_det[i][0]);
-      for (int j = 1; j < map_lm_det[i].size(); ++j) {
+      for (int j = 1; j < static_cast<int>(map_lm_det[i].size()); ++j) {
         if (affinity(i, map_lm_det[i][j]) > max_val) {
           map_det_lm_.erase(max_id);
           delete_det_lines_.insert(max_id);
@@ -179,7 +199,7 @@ void LaneAssoc::Association() {
 }
 
 std::vector<double> LaneAssoc::GetDistThd(
-    const std::vector<Eigen::Vector3d>& points) {
+    const std::vector<Eigen::Vector3d>& points) const {
   std::vector<double> dist_thds(points.size());
   for (size_t i = 0; i < points.size(); ++i) {
     double pt_range = points[i].norm();
@@ -193,21 +213,6 @@ std::vector<double> LaneAssoc::GetDistThd(
   }
 
   return dist_thds;
-}
-
-std::vector<Eigen::Vector3d> LaneAssoc::TranformPoints(
-    const Vec3d& pose_ab, const std::vector<Eigen::Vector3d>& points) {
-  Mat3d trans_mat = CommonUtil::Se2Vector2Matrix(pose_ab);
-
-  std::vector<Eigen::Vector3d> points_w;
-  points_w.reserve(points.size());
-  for (size_t i = 0; i < points.size(); ++i) {
-    Vec3d point(points[i].x(), points[i].y(), 1);
-    Vec3d point_w = trans_mat * point;
-    points_w.emplace_back(Eigen::Vector3d(point_w.x(), point_w.y(), 0));
-  }
-
-  return points_w;
 }
 
 // Matxd LaneAssoc::ConstructConsistency(const Matxd& affinity) {
@@ -234,18 +239,10 @@ std::vector<Eigen::Vector3d> LaneAssoc::TranformPoints(
 // }
 // }
 
-bool LaneAssoc::LeftOrRight(const Matxd& lane_a, const Matxd& lane_b) {
-  return true;
-}
-
 void LaneAssoc::Clear() {
   lm_xyzs_.clear();
   det_xyzs_.clear();
   det_knn_thd_.clear();
-
-  for (size_t i = 0; i < lm_kdtrees_.size(); ++i) {
-    delete lm_kdtrees_[i];
-  }
 }
 
 }  // namespace lm

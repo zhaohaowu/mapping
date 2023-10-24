@@ -5,6 +5,7 @@
  *****************************************************************************/
 #pragma once
 
+#include <iomanip>
 #include <memory>
 #include <string>
 
@@ -13,8 +14,8 @@
 #include "modules/dr/include/odometry_base.h"
 #include "modules/dr/include/slam_data_types.h"
 #include "modules/dr/include/wheel_odom.h"
-#include "proto/soc/chassis.pb.h"
 #include "proto/dead_reckoning/dr.pb.h"
+#include "proto/soc/chassis.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
 
 namespace hozon {
@@ -28,10 +29,11 @@ class DRInterface {
 
   void AddImuData(const std::shared_ptr<const hozon::soc::ImuIns> imu_proto);
 
-  void AddChassisData(const std::shared_ptr<const hozon::soc::Chassis> chassis_proto);
+  void AddChassisData(
+      const std::shared_ptr<const hozon::soc::Chassis> chassis_proto);
 
-  bool SetLocation(std::shared_ptr<hozon::dead_reckoning::DeadReckoning>
-                       locationDataPtr);
+  bool SetLocation(
+      std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr);
 
  private:
   double GetCurrentNsecTime() {
@@ -40,24 +42,24 @@ class DRInterface {
             std::chrono::system_clock::now());
 
     time_t time = tp.time_since_epoch().count();
-    return time;
+    double result = time * 1e-9;
+    return result;
   }
 
   void SetInsData2Location(
-      std::shared_ptr<hozon::dead_reckoning::DeadReckoning>
-          locationDataPtr,
+      std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
       const OdometryData &odom_data);
 
   void SetLocationData(
-      std::shared_ptr<hozon::dead_reckoning::DeadReckoning>
-          locationDataPtr,
+      std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
       OdometryData &latest_odom, Eigen::Vector3d &eulerAngle);  // NOLINT
 
   void ConvertImuData(const std::shared_ptr<const hozon::soc::ImuIns> imu_proto,
                       ImuDataHozon &imu_data);  // NOLINT
 
-  void ConvertChassisData(const std::shared_ptr<const hozon::soc::Chassis> chassis_proto,
-                          WheelDataHozon &wheel_data);  // NOLINT
+  void ConvertChassisData(
+      const std::shared_ptr<const hozon::soc::Chassis> chassis_proto,
+      WheelDataHozon &wheel_data);  // NOLINT
 
   Eigen::Vector3d Qat2EulerAngle(const Eigen::Quaterniond &q);
 

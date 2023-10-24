@@ -39,7 +39,7 @@ class FusionCenterLite : public OnboardLite {
   std::unique_ptr<FusionCenter> fusion_center_ = nullptr;
 };
 
-REGISTER_EXECUTOR_CLASS("FusionCenterLite", FusionCenterLite);
+REGISTER_EXECUTOR_CLASS(FusionCenterLite, FusionCenterLite);
 
 }  // namespace common_onboard
 }  // namespace perception

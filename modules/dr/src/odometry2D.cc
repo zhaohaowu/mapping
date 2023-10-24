@@ -203,7 +203,8 @@ bool Odometry2D::update() {
     last_local_vel = local_vel;
 
     // HLOG_INFO << "==== init ===="
-    //           << " local_vel; " << local_vel(0) << " acc:" << acc_by_gyro_(0);
+    //           << " local_vel; " << local_vel(0) << " acc:" <<
+    //           acc_by_gyro_(0);
   }
   return update_cnt > 0 ? true : false;
 }
@@ -296,7 +297,7 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
     //    std::cout << "left back direction" << std::endl;
   }
   double right_dist = right_diff * wheel_param_.kr_;
-  if (cur.rear_right_dir == 2) {
+  if (cur.rear_right_dir == 1) {
     right_dist *= -1.0;
     // std::cout << "right back direction" << std::endl;
   }

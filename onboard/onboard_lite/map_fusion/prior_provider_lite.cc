@@ -86,7 +86,7 @@ class PriorProviderLite : public netaos::adf_lite::Executor {
   std::shared_ptr<hozon::mp::mf::PriorProvider> pp_ = nullptr;
 };
 
-REGISTER_EXECUTOR_CLASS("PriorProviderLite", PriorProviderLite);
+REGISTER_EXECUTOR_CLASS(PriorProviderLite, PriorProviderLite);
 
 }  // namespace common_onboard
 }  // namespace perception

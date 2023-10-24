@@ -8,9 +8,9 @@
 #include <memory>
 #include <vector>
 
-#include "modules/local_mapping/types/common.h"
+#include "modules/local_mapping/types/types.h"
+#include "modules/local_mapping/utils/common.h"
 #include "modules/util/include/util/temp_log.h"
-#include "proto/perception/transport_element.pb.h"
 
 namespace hozon {
 namespace mp {
@@ -25,8 +25,8 @@ class DataConvert {
    * @param msg : location message
    * @return
    */
-  static void SetLocation(const hozon::localization::Localization msg,
-                          std::shared_ptr<Location> dr_location);
+  static void SetLocation(const hozon::localization::Localization& msg,
+                          Location* dr_location);
 
   /**
    * @brief convert dr message into internal class
@@ -34,8 +34,8 @@ class DataConvert {
    * @param msg : dr message
    * @return
    */
-  static void SetDr(const hozon::dead_reckoning::DeadReckoning msg,
-                    std::shared_ptr<Location> dr_location);
+  static void SetDr(const hozon::dead_reckoning::DeadReckoning& msg,
+                    Location* dr_location);
 
   /**
    * @brief convert laneline message into internal class
@@ -44,7 +44,17 @@ class DataConvert {
    * @return
    */
   static void SetLaneLine(const hozon::perception::TransportElement& msg,
-                          std::shared_ptr<Lanes> lanes);
+                          Perception* lane_lines);
+
+  /**
+   * @brief convert laneline message into internal class
+   *
+   * @param msg : laneline message
+   * @return
+   */
+  static void SetLaneLine(const hozon::perception::TransportElement& msg,
+                          Perception* lane_lines,
+                          const double& sample_interval);
 
   /**
    * @brief convert laneline message into internal class
@@ -53,7 +63,7 @@ class DataConvert {
    * @return
    */
   static void SetEdgeLine(const hozon::perception::TransportElement& msg,
-                          std::shared_ptr<Lanes> lanes);
+                          Perception* lane_edges);
 
   /**
    * @brief convert road edge message into internal class

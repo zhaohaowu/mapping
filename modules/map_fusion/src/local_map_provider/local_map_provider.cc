@@ -10,6 +10,7 @@
 
 #include <mutex>
 
+#include "proto/local_mapping/local_map.pb.h"
 #include "util/temp_log.h"
 
 // NOLINTBEGIN
@@ -164,7 +165,7 @@ void LocalMapProvider::OnLaneLine(
       if (i.lanepos() >= 6) {
         continue;
       }
-      auto lanes = local_map_->add_lanes();
+      auto lanes = local_map_->add_lane_lines();
       lanes->set_track_id(i.lanepos());
       for (const auto& j : i.lane_param().cubic_curve_set()) {
         auto start_x = j.start_point_x();
@@ -210,8 +211,8 @@ void LocalMapProvider::OnLaneLine(
         }
       }
       // 裁剪line
-      if (local_map_->lanes().size() > 12) {
-        local_map_->mutable_lanes()->DeleteSubrange(0, 1);
+      if (local_map_->lane_lines().size() > 12) {
+        local_map_->mutable_lane_lines()->DeleteSubrange(0, 1);
       }
     }
     flag_ = true;
@@ -244,7 +245,7 @@ void LocalMapProvider::VizLocalMap(
   }
   adsfi_proto::viz::MarkerArray markers;
 
-  for (const auto& i : local_map->lanes()) {
+  for (const auto& i : local_map->lane_lines()) {
     adsfi_proto::viz::Marker marker;
     LaneLineToMarker(local_map->header().publish_stamp(), i, &marker);
     if (!marker.points().empty()) {
@@ -379,7 +380,7 @@ void LocalMapProvider::VizLocation(const Eigen::Vector3d& pose,
 }
 
 void LocalMapProvider::LaneLineToMarker(
-    const double stamp, const hozon::mapping::LaneInfo& lane_line,
+    const double stamp, const hozon::mapping::LaneLine& lane_line,
     adsfi_proto::viz::Marker* marker) {
   static int id = 0;
   marker->Clear();

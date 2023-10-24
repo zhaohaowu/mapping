@@ -197,7 +197,7 @@ void TopoAssignment::OnLocationInGlobal(const Eigen::Vector3d& pos,
 
 void TopoAssignment::OnLocalMap(
     const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
-  if (msg->lanes().empty()) {
+  if (msg->lane_lines().empty()) {
     return;
   }
   // 可视化hq map
@@ -356,7 +356,7 @@ void TopoAssignment::TopoAssign() {
 
   // 更新all_lanelines
   std::map<int32_t, LaneLine> all_lanelines;
-  for (const auto& lane_line_it : local_map_->lanes()) {
+  for (const auto& lane_line_it : local_map_->lane_lines()) {
     // 过滤空的点
     if (lane_line_it.points_size() <= 0) {
       continue;
@@ -1423,7 +1423,7 @@ void TopoAssignment::VizLocalMap(
     return;
   }
   adsfi_proto::viz::MarkerArray markers;
-  for (const auto& i : local_map->lanes()) {
+  for (const auto& i : local_map->lane_lines()) {
     std::vector<Eigen::Vector3d> lane_points;
     for (const auto& point : i.points()) {
       Eigen::Vector3d point_local(point.x(), point.y(), point.z());

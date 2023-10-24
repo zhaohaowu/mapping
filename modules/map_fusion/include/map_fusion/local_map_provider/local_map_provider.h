@@ -73,7 +73,7 @@ class LocalMapProvider {
   void VizLocation(const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
                    const double stamp);
   void LaneLineToMarker(const double stamp,
-                        const hozon::mapping::LaneInfo& lane_line,
+                        const hozon::mapping::LaneLine& lane_line,
                         adsfi_proto::viz::Marker* marker);
 };
 

@@ -209,6 +209,12 @@ if(IND)
             FILES_MATCHING
             PATTERN "*.so*"
         )
+        if(${PLATFORM} STREQUAL "x86_2004")
+	    install(DIRECTORY
+                ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/cyber/lib/
+                DESTINATION ${EXTERNAL_LIB_PATH}
+            )
+	endif()
     endif()
 
     set(CREATE_HDMAP_LINK_SHELL "

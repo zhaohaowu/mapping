@@ -1,7 +1,7 @@
 --lm_config=conf/mapping/local_mapping/local_mapping_conf.yaml
 --location_topic=/location
 --dr_topic=/mapping/dr
---laneline_topic=/LaneLine
+--laneline_topic=/LaneLineMinieye
 --roadedge_topic=/EdgeLine_
 --image_topic=/CameraFrontWide/compressed
 --output_topic=/local_map

@@ -43,7 +43,7 @@ class LocalMappingOnboard : public OnboardLite {
   std::shared_ptr<LMapApp> lmap_;
 };
 
-REGISTER_EXECUTOR_CLASS("LocalMappingOnboard", LocalMappingOnboard);
+REGISTER_EXECUTOR_CLASS(LocalMappingOnboard, LocalMappingOnboard);
 
 }  // namespace common_onboard
 }  // namespace perception

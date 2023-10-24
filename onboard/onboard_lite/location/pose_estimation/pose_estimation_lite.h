@@ -44,7 +44,7 @@ class PoseEstimationLite : public OnboardLite {
   std::unique_ptr<MapMatching> pose_estimation_ = nullptr;
 };
 
-REGISTER_EXECUTOR_CLASS("PoseEstimationLite", PoseEstimationLite);
+REGISTER_EXECUTOR_CLASS(PoseEstimationLite, PoseEstimationLite);
 
 }  // namespace common_onboard
 }  // namespace perception

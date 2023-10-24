@@ -17,10 +17,9 @@
 
 #include "modules/local_mapping/datalogger/load_data_singleton.h"
 #include "modules/local_mapping/ops/association/association.h"
-#include "modules/local_mapping/ops/association/bipartite_match.h"
-#include "modules/local_mapping/types/common.h"
+#include "modules/local_mapping/ops/association/horizon_assoc.h"
+#include "modules/local_mapping/types/types.h"
 #include "modules/local_mapping/utils/common.h"
-#include "modules/local_mapping/utils/lane_filter.h"
 #include "modules/util/include/util/temp_log.h"
 namespace hozon {
 namespace mp {
@@ -28,51 +27,26 @@ namespace lm {
 
 class LaneOp {
  public:
-  void Init(BipartiteAssocParams params);
-  /**
-   * @brief match lanes in current frame with map
-   *
-   * @param cur_lanes : lanes in current frame
-   * @param map_lanes : lanes in map
-   * @param match_info : match result
-   * @return
-   */
-  void Match(std::shared_ptr<const Lanes> cur_lanes,
-             std::shared_ptr<LocalMap> local_map,
-             std::shared_ptr<std::vector<LaneMatchInfo>> match_info);
+  static void Match(const Perception& cur_lane_lines, const LocalMap& local_map,
+                    std::vector<LaneMatchInfo>* match_info);
 
-  void Match(std::shared_ptr<const Lanes> cur_lanes,
-             std::shared_ptr<LocalMap> local_map,
-             std::shared_ptr<std::vector<LaneMatchInfo>> match_info,
-             bool use_bipartite_assoc_match, const double& sample_interval);
-  /**
-   * @brief filter new lane, map as prediction and new lane as observation
-   *
-   * @param map_lane : map lane
-   * @param cur_lane : new current lane
-   * @param new_pts : new points, result of filter
-   * @return
-   */
-  void FilterCurve(std::shared_ptr<LocalMap> local_map, const Lane& cur_lane,
-                   const LocalMapLane& map_lane, const double& sample_interval);
+  void Match(const Perception& cur_lane_lines, const LocalMap& local_map,
+             std::vector<LaneMatchInfo>* match_info,
+             bool use_horizon_assoc_match);
+  static bool MergePointsLeftRight(const std::vector<cv::Point2f>& cv_points,
+                                   LaneLine* query_lane_line,
+                                   LaneLine* other_lane_line);
+  static bool MergePointsFrontBack(LaneLine* query_lane_line,
+                                   LaneLine* other_lane_line);
+  static void MergeMapLeftRight(LocalMap* local_map);
+  static void MergeMapFrontBack(LocalMap* local_map);
 
-  //  private:
-  LaneAssocPtr lane_assoc_ = nullptr;
-  BipartiteLaneAssocPtr bipar_lane_assoc_ = nullptr;
-  bool SetCurLanePose(const double time);
-
-  void SetLastLanePose();
-
-  ConstDrDataPtr GetDrPoseForTime(const double timestamp);
+  static ConstDrDataPtr GetDrPoseForTime(const double& timestamp);
 
  private:
-  // std::shared_ptr<PtFilter> lane_filter_ = nullptr;
-  double last_lane_timestamp_;
-  Eigen::Vector3d cur_lane_pose_;
-  Eigen::Vector3d last_lane_pose_;
   LaneAssocOptions lane_assoc_options_;
-
-  std::unordered_map<int, std::shared_ptr<LaneFilter>> filter_map_;
+  LaneAssocPtr lane_assoc_ = nullptr;
+  HorizonLaneAssocPtr horizon_lane_assoc_ = nullptr;
 };
 
 }  // namespace lm

@@ -5,17 +5,18 @@
  *****************************************************************************/
 #include "onboard/onboard_cyber/local_mapping/local_mapping_component.h"
 
+// NOLINTBEGIN
 DEFINE_string(location_topic, "/location", "location topic");
 DEFINE_string(dr_topic, "/odom", "location topic");
 DEFINE_string(ins_topic, "/PluginNodeInfo", "location topic");
 DEFINE_string(laneline_topic, "/LaneLine", "location topic");
 DEFINE_string(roadedge_topic, "/EdgeLine", "location topic");
 DEFINE_string(output_topic, "/local_map", "location topic");
-DEFINE_string(output_location_topic, "/local_map/location", "location topic");
 DEFINE_string(image_topic, "/CameraFrontWide/compresseds", "image topic");
 DEFINE_string(config_yaml, "conf/mapping/local_mapping/local_mapping_conf.yaml",
               "path to local mapping conf yaml");
 DEFINE_bool(viz, true, "use rviz");
+// NOLINTEND
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -59,10 +60,6 @@ bool LMapComponent::Init() {
 
   result_talker_ =
       node_->CreateWriter<hozon::mapping::LocalMap>(FLAGS_output_topic);
-
-  result_location_talker_ =
-      node_->CreateWriter<hozon::localization::Localization>(
-          FLAGS_output_location_topic);
 
   local_map_publish_thread_ =
       std::thread(&LMapComponent::LocalMapPublish, this);
@@ -144,7 +141,7 @@ void LMapComponent::LocalMapPublish() {
     if (lmap_->FetchLocalMap(result) && result_talker_ != nullptr) {
       result_talker_->Write(result);
     }
-    usleep(49.5 * 1e3);
+    usleep(99.5 * 1e3);
   }
 }
 

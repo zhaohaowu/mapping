@@ -1,12 +1,8 @@
 %YAML:1.0
 map_file: conf/mapping/map_fusion/data/amap_base_map.bin
-use_rviz: false
+use_rviz: true
+use_point_tracking: false
 use_perception_match: false
 compute_error: false
 sample_interval: 1
-use_bipartite_assoc_match: false
-use_filter: true
-min_overlap_point_num: 3
-min_match_point_num: 2
-same_group_max_dist: 1.0
-match_score_threshold: 0.2
+use_horizon_assoc_match: true

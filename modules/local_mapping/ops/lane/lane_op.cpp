@@ -9,34 +9,25 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
-void LaneOp::Init(BipartiteAssocParams params) {
-  BipartiteLaneAssocOptions bipar_lane_assoc_options(params);
-  bipar_lane_assoc_.reset(new BipartiteLaneAssoc(bipar_lane_assoc_options));
-}
-
-void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
-                   std::shared_ptr<LocalMap> local_map,
-                   std::shared_ptr<std::vector<LaneMatchInfo>> match_info) {
-  HLOG_INFO << "GetMatches";
-
-  match_info->clear();
-  if (local_map->local_map_lane_.size() == 0) {
-    for (auto cur_lane : cur_lanes->lanes_) {
+void LaneOp::Match(const Perception& cur_lane_lines, const LocalMap& local_map,
+                   std::vector<LaneMatchInfo>* match_info) {
+  if (local_map.lane_lines_.empty()) {
+    for (const auto& cur_lane_line : cur_lane_lines.lane_lines_) {
       LaneMatchInfo match;
-      match.frame_lane_ = std::make_shared<Lane>(cur_lane);
+      match.frame_lane_line_ = std::make_shared<LaneLine>(cur_lane_line);
       match.update_type_ = ObjUpdateType::ADD_NEW;
       match_info->emplace_back(match);
     }
     return;
   }
 
-  for (auto cur_lane : cur_lanes->lanes_) {
+  for (const auto& cur_lane_line : cur_lane_lines.lane_lines_) {
     LaneMatchInfo match;
-    match.frame_lane_ = std::make_shared<Lane>(cur_lane);
+    match.frame_lane_line_ = std::make_shared<LaneLine>(cur_lane_line);
     bool match_success = false;
-    for (auto map_lane : local_map->local_map_lane_) {
-      if (cur_lane.track_id_ == map_lane.track_id_) {
-        match.map_lane_ = std::make_shared<LocalMapLane>(map_lane);
+    for (const auto& map_lane_line : local_map.lane_lines_) {
+      if (cur_lane_line.track_id_ == map_lane_line.track_id_) {
+        match.map_lane_line_ = std::make_shared<LaneLine>(map_lane_line);
         match_success = true;
       }
     }
@@ -49,50 +40,42 @@ void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
   }
 }
 
-void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
-                   std::shared_ptr<LocalMap> local_map,
-                   std::shared_ptr<std::vector<LaneMatchInfo>> match_info,
-                   bool use_bipartite_assoc_match,
-                   const double& sample_interval) {
-  match_info->clear();
-  if (local_map->local_map_lane_.size() == 0) {
-    for (auto cur_lane : cur_lanes->lanes_) {
+void LaneOp::Match(const Perception& cur_lane_lines, const LocalMap& local_map,
+                   std::vector<LaneMatchInfo>* match_info,
+                   bool use_horizon_assoc_match) {
+  if (local_map.lane_lines_.empty()) {
+    for (const auto& cur_lane_line : cur_lane_lines.lane_lines_) {
       LaneMatchInfo match;
-      match.frame_lane_ = std::make_shared<Lane>(cur_lane);
+      match.frame_lane_line_ = std::make_shared<LaneLine>(cur_lane_line);
       match.update_type_ = ObjUpdateType::ADD_NEW;
       match_info->emplace_back(match);
     }
     return;
   }
-
-  std::vector<std::vector<Eigen::Vector3d>> lanes_points;
-  for (size_t i = 0; i < cur_lanes->lanes_.size(); ++i) {
-    std::vector<Eigen::Vector3d> pts;
-    CommonUtil::SampleLanePoints(std::make_shared<Lane>(cur_lanes->lanes_[i]),
-                                 &pts, sample_interval);
-    lanes_points.emplace_back(pts);
-  }
-
   std::unordered_map<int, int> map_det_lm;
-  if (use_bipartite_assoc_match) {
-    map_det_lm =
-        bipar_lane_assoc_->Process(lanes_points, &local_map->local_map_lane_);
+  if (use_horizon_assoc_match) {
+    horizon_lane_assoc_ = std::make_shared<HorizonLaneAssoc>();
+    map_det_lm = horizon_lane_assoc_->Process(cur_lane_lines.lane_lines_,
+                                              local_map.lane_lines_);
   } else {
-    lane_assoc_.reset(new LaneAssoc(lane_assoc_options_));
-    map_det_lm = lane_assoc_->Process(lanes_points, local_map->local_map_lane_);
+    lane_assoc_ = std::make_shared<LaneAssoc>(lane_assoc_options_);
+    map_det_lm =
+        lane_assoc_->Process(cur_lane_lines.lane_lines_, local_map.lane_lines_);
   }
-
-  for (size_t i = 0; i < cur_lanes->lanes_.size(); ++i) {
-    if (!use_bipartite_assoc_match) {
-      if (lane_assoc_->delete_det_lines_.find(i) !=
-          lane_assoc_->delete_det_lines_.end())
+  for (int i = 0; i < static_cast<int>(cur_lane_lines.lane_lines_.size());
+       ++i) {
+    if (!use_horizon_assoc_match) {
+      lane_assoc_ = std::make_shared<LaneAssoc>(lane_assoc_options_);
+      if (lane_assoc_->NeedDelete(i)) {
         continue;
+      }
     }
     LaneMatchInfo match;
-    match.frame_lane_ = std::make_shared<Lane>(cur_lanes->lanes_[i]);
+    match.frame_lane_line_ =
+        std::make_shared<LaneLine>(cur_lane_lines.lane_lines_[i]);
     if (map_det_lm.find(i) != map_det_lm.end()) {
-      match.map_lane_ = std::make_shared<LocalMapLane>(
-          local_map->local_map_lane_[map_det_lm[i]]);
+      match.map_lane_line_ =
+          std::make_shared<LaneLine>(local_map.lane_lines_[map_det_lm[i]]);
       match.update_type_ = ObjUpdateType::MERGE_OLD;
       // HLOG_ERROR << "merge det " << i << " with lm " << map_det_lm[i];
     } else {
@@ -102,104 +85,237 @@ void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
   }
 }
 
-void LaneOp::FilterCurve(std::shared_ptr<LocalMap> local_map,
-                         const Lane& cur_lane, const LocalMapLane& map_lane,
-                         const double& sample_interval) {
-  std::vector<Eigen::Vector3d> new_pts;
-  double delta_y1 = 0;
-  double delta_y2 = 0;
-  for (auto p_map : map_lane.points_) {
-    if (p_map.x() < cur_lane.x_start_vrf_) {
-      new_pts.emplace_back(p_map);
-    } else if (p_map.x() >= cur_lane.x_start_vrf_ &&
-               p_map.x() <= cur_lane.x_end_vrf_) {
-      Eigen::Vector3d p_lane = Eigen::Vector3d::Identity();
-      p_lane.x() = p_map.x();
-      p_lane.y() = cur_lane.lane_fit_a_ * pow(p_lane.x(), 3) +
-                   cur_lane.lane_fit_b_ * pow(p_lane.x(), 2) +
-                   cur_lane.lane_fit_c_ * p_lane.x() + cur_lane.lane_fit_d_;
-      // double update_y = 0.8 * p_map.y() + 0.2 * p_lane.y();
-      double update_y = 0 * p_map.y() + 1.0 * p_lane.y();
-      Eigen::Vector3d tmp(p_map.x(), update_y, 0);
-      new_pts.emplace_back(tmp);
-      // delta_y1 = 0.6 * delta_y1 + (p_map.y() - update_y) * 0.4;
-      // delta_y2 = 0.6 * delta_y2 + (p_lane.y() - update_y) * 0.4;
-    } else if (p_map.x() > cur_lane.x_end_vrf_) {
-      Eigen::Vector3d tmp(p_map.x(), p_map.y() - delta_y1, 0);
-      new_pts.emplace_back(tmp);
+bool LaneOp::MergePointsLeftRight(const std::vector<cv::Point2f>& cv_points,
+                                  LaneLine* query_lane_line,
+                                  LaneLine* other_lane_line) {
+  cv::flann::KDTreeIndexParams index_params(1);
+  std::shared_ptr<cv::flann::Index> kdtree = std::make_shared<cv::flann::Index>(
+      cv::Mat(cv_points).reshape(1), index_params);
+  int num = 0;
+  for (auto query_point : query_lane_line->points_) {
+    if (query_point.x() > 50) {
+      continue;
     }
-  }
-  double map_x_end = map_lane.points_[map_lane.points_.size() - 1].x();
-  if (map_x_end < cur_lane.x_end_vrf_) {
-    Eigen::Vector3d p_lane = Eigen::Vector3d::Identity();
-    for (double x = map_x_end + 0.8; x <= cur_lane.x_end_vrf_;
-         x += sample_interval) {
-      p_lane.x() = x;
-      p_lane.y() = cur_lane.lane_fit_a_ * pow(p_lane.x(), 3) +
-                   cur_lane.lane_fit_b_ * pow(p_lane.x(), 2) +
-                   cur_lane.lane_fit_c_ * p_lane.x() + cur_lane.lane_fit_d_;
-      Eigen::Vector3d tmp(p_lane.x(), p_lane.y() - delta_y2, 0);
-      new_pts.emplace_back(tmp);
+    std::vector<int> nearest_index(1);
+    std::vector<float> nearest_dist(1);
+    std::vector<float> query_points =
+        std::vector<float>{static_cast<float>(query_point.x()),
+                           static_cast<float>(query_point.y())};
+    if (query_points.empty()) {
+      continue;
     }
-  }
-  for (auto& lane : local_map->local_map_lane_) {
-    if (lane.track_id_ == map_lane.track_id_) {
-      lane.points_ = new_pts;
-      return;
+    kdtree->knnSearch(query_points, nearest_index, nearest_dist, 1,
+                      cv::flann::SearchParams(-1));
+    if (nearest_dist[0] > 1) {
+      continue;
     }
+    num++;
   }
-  // std::shared_ptr<LaneCubicSpline> filtered_lane_func =
-  //     std::make_shared<LaneCubicSpline>();
-  // if (filter_map_.find(cur_lane->track_id_) != filter_map_.end()) {
-  //   HLOG_INFO << "aaaa";
-  //   filter_map_[cur_lane->track_id_]->SetCurLanePose(cur_lane_pose_);
-  //   filter_map_[cur_lane->track_id_]->LaneProcess(cur_lane,
-  //   filtered_lane_func); filtered_lane_func->start_point_x_ =
-  //   cur_lane->x_start_vrf_; filtered_lane_func->end_point_x_ =
-  //   cur_lane->x_end_vrf_; CommonUtil::SampleCurvePts(*filtered_lane_func,
-  //   new_pts, sample_interval);
-  // } else {
-  //   HLOG_INFO << "bbbb";
-  //   filter_map_[cur_lane->track_id_] = std::make_shared<LaneFilter>();
-  //   filter_map_[cur_lane->track_id_]->SetCurLanePose(cur_lane_pose_);
-  //   filter_map_[cur_lane->track_id_]->Init(cur_lane);
-  // }
-}
-
-bool LaneOp::SetCurLanePose(const double time) {
-  ConstDrDataPtr dr_ptr = GetDrPoseForTime(time);
-  if (dr_ptr == nullptr) {
-    HLOG_INFO << "dr_ptr is empty";
+  if (num == 0) {
     return false;
   }
-
-  Eigen::Quaterniond quat(dr_ptr->quaternion.w(), dr_ptr->quaternion.x(),
-                          dr_ptr->quaternion.y(), dr_ptr->quaternion.z());
-  Eigen::Matrix3d rotation = quat.toRotationMatrix();
-  double theta = atan2(rotation(1, 0), rotation(0, 0));
-  cur_lane_pose_ << dr_ptr->pose.x(), dr_ptr->pose.y(), theta;
-  HLOG_INFO << "Set Cur Lane Pose: " << cur_lane_pose_.x() << ","
-            << cur_lane_pose_.y() << "," << cur_lane_pose_.z();
-
+  if (query_lane_line->points_[0].x() < other_lane_line->points_[0].x()) {
+    std::vector<Eigen::Vector3d> new_points;
+    for (auto point : query_lane_line->points_) {
+      if (point.x() > other_lane_line->points_[0].x() - 0.9) {
+        break;
+      }
+      new_points.emplace_back(point);
+    }
+    for (const auto& point : other_lane_line->points_) {
+      new_points.emplace_back(point);
+    }
+    other_lane_line->points_ = new_points;
+  } else {
+    std::vector<Eigen::Vector3d> new_points;
+    for (auto point : other_lane_line->points_) {
+      if (point.x() > query_lane_line->points_[0].x() - 0.9) {
+        break;
+      }
+      new_points.emplace_back(point);
+    }
+    for (const auto& point : query_lane_line->points_) {
+      new_points.emplace_back(point);
+    }
+    other_lane_line->points_ = new_points;
+  }
+  query_lane_line->need_delete_ = true;
   return true;
 }
 
-void LaneOp::SetLastLanePose() {
-  last_lane_pose_ = cur_lane_pose_;
-
-  for (auto it = filter_map_.begin(); it != filter_map_.end(); ++it) {
-    it->second->SetLastLanePose(last_lane_pose_);
+void LaneOp::MergeMapLeftRight(LocalMap* local_map) {
+  for (auto& lane_line : local_map->lane_lines_) {
+    lane_line.need_merge_ = !lane_line.points_.empty();
+    lane_line.need_delete_ = false;
   }
-
-  HLOG_INFO << "Set last Lane Pose: " << last_lane_pose_.x() << ","
-            << last_lane_pose_.y() << "," << last_lane_pose_.z();
+  for (auto& query_lane_line : local_map->lane_lines_) {
+    if (!query_lane_line.need_merge_) {
+      continue;
+    }
+    query_lane_line.need_merge_ = false;
+    for (auto& other_lane_line : local_map->lane_lines_) {
+      if (!other_lane_line.need_merge_) {
+        continue;
+      }
+      std::vector<cv::Point2f> cv_points;
+      for (const auto& point : other_lane_line.points_) {
+        if (point.x() < -0.5) {
+          continue;
+        }
+        cv::Point2f tmp_point = {static_cast<float>(point.x()),
+                                 static_cast<float>(point.y())};
+        cv_points.emplace_back(tmp_point);
+      }
+      if (cv_points.empty()) {
+        continue;
+      }
+      if (!MergePointsLeftRight(cv_points, &query_lane_line,
+                                &other_lane_line)) {
+        continue;
+      }
+    }
+  }
+  for (int i = 0; i < static_cast<int>(local_map->lane_lines_.size()); i++) {
+    if (!local_map->lane_lines_[i].need_delete_) {
+      continue;
+    }
+    local_map->lane_lines_.erase(local_map->lane_lines_.begin() + i);
+    i--;
+  }
 }
 
-ConstDrDataPtr LaneOp::GetDrPoseForTime(const double timestamp) {
+bool LaneOp::MergePointsFrontBack(LaneLine* query_lane_line,
+                                  LaneLine* other_lane_line) {
+  int n = static_cast<int>(other_lane_line->points_.size());
+  if (n <= 1) {
+    return false;
+  }
+  Eigen::MatrixXd A(n, 2);
+  Eigen::VectorXd b(n);
+  for (int j = 0; j < n; j++) {
+    // 拟合直线
+    A(j, 0) = other_lane_line->points_[j].x();
+    A(j, 1) = 1.0;
+    b(j) = other_lane_line->points_[j].y();
+  }
+  Eigen::Vector2d x = (A.transpose() * A).inverse() * A.transpose() * b;
+
+  double sum_distance = 0;
+  int count = 0;
+  for (auto query_point : query_lane_line->points_) {
+    if (query_point.x() > 50) {
+      continue;
+    }
+    sum_distance += std::abs(x[0] * query_point.x() - query_point.y() + x[1]) /
+                    std::sqrt(x[0] * x[0] + 1);
+    count++;
+  }
+  if (count == 0 || sum_distance / count > 1) {
+    return false;
+  }
+  if (other_lane_line->points_.front().x() >
+      query_lane_line->points_.back().x()) {
+    if (fabs(other_lane_line->points_.front().y() -
+             query_lane_line->points_.back().y()) > 1) {
+      return false;
+    }
+    std::vector<Eigen::Vector3d> new_points;
+    new_points.reserve(400);
+    for (const auto& point : query_lane_line->points_) {
+      new_points.emplace_back(point);
+    }
+    double x_n = other_lane_line->points_.front().x();
+    double y_n = other_lane_line->points_.front().y();
+    double x_0 = query_lane_line->points_.back().x();
+    double y_0 = query_lane_line->points_.back().y();
+    double x = x_0;
+    while (x < x_n) {
+      double y = (y_n - y_0) / (x_n - x_0) * (x - x_0) + y_0;
+      Eigen::Vector3d point = {x, y, 0.0};
+      new_points.emplace_back(point);
+      x++;
+    }
+    for (const auto& point : other_lane_line->points_) {
+      new_points.emplace_back(point);
+    }
+    other_lane_line->points_ = new_points;
+  } else {
+    if (fabs(query_lane_line->points_.front().y() -
+             other_lane_line->points_.back().y()) > 1) {
+      return false;
+    }
+    std::vector<Eigen::Vector3d> new_points;
+    new_points.reserve(400);
+    for (const auto& point : other_lane_line->points_) {
+      new_points.emplace_back(point);
+    }
+    double x_n = query_lane_line->points_.front().x();
+    double y_n = query_lane_line->points_.front().y();
+    double x_0 = other_lane_line->points_.back().x();
+    double y_0 = other_lane_line->points_.back().y();
+    double x = x_0;
+    while (x < x_n) {
+      double y = (y_n - y_0) / (x_n - x_0) * (x - x_0) + y_0;
+      Eigen::Vector3d point = {x, y, 0.0};
+      new_points.emplace_back(point);
+      x++;
+    }
+    for (const auto& point : query_lane_line->points_) {
+      new_points.emplace_back(point);
+    }
+    other_lane_line->points_ = new_points;
+  }
+  query_lane_line->need_delete_ = true;
+  return true;
+}
+
+void LaneOp::MergeMapFrontBack(LocalMap* local_map) {
+  // 前后车道线合并
+  for (auto& lane_line : local_map->lane_lines_) {
+    lane_line.need_merge_ = !lane_line.points_.empty();
+    lane_line.need_delete_ = false;
+  }
+  for (auto& query_lane_line : local_map->lane_lines_) {
+    // if (query_lane.points_.back().x() < -50) continue;
+    if (!query_lane_line.need_merge_) {
+      continue;
+    }
+    query_lane_line.need_merge_ = false;
+    for (auto& other_lane_line : local_map->lane_lines_) {
+      if (!other_lane_line.need_merge_) {
+        continue;
+      }
+      // HLOG_ERROR << "other_lane_line.c2_: " << other_lane_line.c2_;
+      if ((query_lane_line.points_.front().x() >
+           other_lane_line.points_.back().x() + 50) ||
+          (other_lane_line.points_.front().x() >
+           query_lane_line.points_.back().x() + 50) ||
+          ((query_lane_line.points_.front().x() <
+            other_lane_line.points_.back().x()) &&
+           (query_lane_line.points_.back().x() >
+            other_lane_line.points_.front().x())) ||
+          (other_lane_line.c2_ > 0.001)) {
+        continue;
+      }
+      if (!MergePointsFrontBack(&query_lane_line, &other_lane_line)) {
+        continue;
+      }
+    }
+  }
+  for (int i = 0; i < static_cast<int>(local_map->lane_lines_.size()); i++) {
+    if (!local_map->lane_lines_[i].need_delete_) {
+      continue;
+    }
+    local_map->lane_lines_.erase(local_map->lane_lines_.begin() + i);
+    i--;
+  }
+}
+
+ConstDrDataPtr LaneOp::GetDrPoseForTime(const double& timestamp) {
   auto& local_data = LocalDataSingleton::GetInstance();
 
   ::std::list<::std::pair<double, ConstDrDataPtr>> dr_list;
-  local_data.dr_data_buffer_.get_all_messages(&dr_list);
+  local_data.dr_buffer().get_all_messages(&dr_list);
 
   if (dr_list.size() <= 1) {
     HLOG_ERROR << "too few dr data, can't interpolate";
@@ -251,8 +367,8 @@ ConstDrDataPtr LaneOp::GetDrPoseForTime(const double timestamp) {
   auto pre = iter;
   auto next = --iter;
   double ratio = (timestamp - pre->first) / (next->first - pre->first);
-  auto dr_pose_state = std::make_shared<DrData>(
-      pre->second->Interpolate(ratio, *(next->second), timestamp));
+  auto dr_pose_state = std::make_shared<DrData>(CommonUtil::Interpolate(
+      ratio, *(pre->second), *(next->second), timestamp));
   return dr_pose_state;
 }
 

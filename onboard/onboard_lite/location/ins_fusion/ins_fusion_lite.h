@@ -36,7 +36,7 @@ class InsFusionLite : public OnboardLite {
   std::unique_ptr<hozon::mp::loc::InsFusion> ins_fusion_ = nullptr;
 };
 
-REGISTER_EXECUTOR_CLASS("InsFusionLite", InsFusionLite);
+REGISTER_EXECUTOR_CLASS(InsFusionLite, InsFusionLite);
 }  //  namespace common_onboard
 }  //  namespace perception
 }  //  namespace hozon

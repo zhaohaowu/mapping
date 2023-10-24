@@ -1,7 +1,7 @@
 %YAML:1.0
 
 library: "${ADFLITE_ROOT_PATH}/lib/libadf-lite-ds.so"
-depLibPath: ["${ADFLITE_ROOT_PATH}/lib"]
+depLibPath: ["${ADFLITE_ROOT_PATH}/lib/"]
 executorName: DataSource
 
 log:
@@ -50,6 +50,7 @@ dataSourcesOut:
   - topic: local_map_loc
     type: proto_skeleton
     cmTopic: /localization/local_map_loc
+    cmDomainId: 0
   - topic: /location/pose_estimation
     type: proto_skeleton
     cmTopic: /localization/pe

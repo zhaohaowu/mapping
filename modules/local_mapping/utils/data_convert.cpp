@@ -9,11 +9,11 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
-void DataConvert::SetLocation(const hozon::localization::Localization msg,
-                              std::shared_ptr<Location> location) {}
+void DataConvert::SetLocation(const hozon::localization::Localization& msg,
+                              Location* location) {}
 
-void DataConvert::SetDr(const hozon::dead_reckoning::DeadReckoning msg,
-                        std::shared_ptr<Location> dr_location) {
+void DataConvert::SetDr(const hozon::dead_reckoning::DeadReckoning& msg,
+                        Location* dr_location) {
   dr_location->timestamp_ = msg.header().gnss_stamp();
   dr_location->position_.x() = msg.pose().pose_local().position().x();
   dr_location->position_.y() = msg.pose().pose_local().position().y();
@@ -35,59 +35,86 @@ void DataConvert::SetDr(const hozon::dead_reckoning::DeadReckoning msg,
 }
 
 void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
-                              std::shared_ptr<Lanes> lanes) {
-  lanes->lanes_.clear();
-  lanes->timestamp_ = msg.header().gnss_stamp();
-  for (size_t i = 0; i < msg.lane_size(); i++) {
-    if (msg.lane()[i].lanepos() == hozon::perception::OTHER) continue;
-    if (msg.lane()[i].lanetype() == hozon::perception::RoadEdge) continue;
-    std::shared_ptr<Lane> lane = std::make_shared<Lane>();
-    lane->track_id_ = msg.lane()[i].track_id();
-    DataConvert::ConvertProtoLanePos(msg.lane()[i].lanepos(), &lane->lanepos_);
-    DataConvert::ConvertProtoLaneType(msg.lane()[i].lanetype(),
-                                      &lane->lanetype_);
-    // 与感知文海同学沟通结论：proto虽然是分段三次曲线，但实际数据只有一段
-    for (size_t j = 0; j < msg.lane()[i].lane_param().cubic_curve_set_size();
-         j++) {
-      lane->x_start_vrf_ =
-          msg.lane()[i].lane_param().cubic_curve_set()[j].start_point_x();
-      lane->x_end_vrf_ =
-          msg.lane()[i].lane_param().cubic_curve_set()[j].end_point_x();
-      lane->lane_fit_a_ = msg.lane()[i].lane_param().cubic_curve_set()[j].c3();
-      lane->lane_fit_b_ = msg.lane()[i].lane_param().cubic_curve_set()[j].c2();
-      lane->lane_fit_c_ = msg.lane()[i].lane_param().cubic_curve_set()[j].c1();
-      lane->lane_fit_d_ = msg.lane()[i].lane_param().cubic_curve_set()[j].c0();
-      break;
+                              Perception* lane_lines) {
+  lane_lines->timestamp_ = msg.header().data_stamp();
+  for (const auto& lane_line : msg.lane()) {
+    if (lane_line.points().empty() ||
+        lane_line.lanepos() == hozon::perception::OTHER ||
+        lane_line.lanetype() == hozon::perception::RoadEdge) {
+      continue;
     }
-    lanes->lanes_.emplace_back(*lane);
+    LaneLine lane_line_tmp;
+    lane_line_tmp.track_id_ = lane_line.track_id();
+    // HLOG_ERROR << "lane_line.track_id(): " << lane_line.track_id();
+    DataConvert::ConvertProtoLanePos(lane_line.lanepos(),
+                                     &lane_line_tmp.lanepos_);
+    DataConvert::ConvertProtoLaneType(lane_line.lanetype(),
+                                      &lane_line_tmp.lanetype_);
+    for (const auto& point : lane_line.points()) {
+      Eigen::Vector3d point_tmp = {point.x(), point.y(), point.z()};
+      // HLOG_ERROR << "point_tmp: " << point_tmp;
+      lane_line_tmp.points_.push_back(point_tmp);
+    }
+    lane_line_tmp.start_point_x_ = lane_line.points()[0].x();
+    lane_line_tmp.end_point_x_ =
+        lane_line.points()[lane_line.points().size() - 1].x();
+    if (lane_line_tmp.points_.empty()) {
+      continue;
+    }
+    CommonUtil::FitLaneLine(lane_line_tmp.points_, &lane_line_tmp);
+    lane_line_tmp.points_.clear();
+    double x = lane_line_tmp.start_point_x_;
+    while (x < lane_line_tmp.end_point_x_) {
+      double y = lane_line_tmp.c0_ + lane_line_tmp.c1_ * x +
+                 lane_line_tmp.c2_ * x * x + lane_line_tmp.c3_ * x * x * x;
+      Eigen::Vector3d point_tmp = {x, y, 0};
+      lane_line_tmp.points_.emplace_back(point_tmp);
+      x++;
+    }
+    lane_lines->lane_lines_.push_back(lane_line_tmp);
+  }
+}
+
+void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
+                              Perception* lane_lines,
+                              const double& sample_interval) {
+  lane_lines->timestamp_ = msg.header().gnss_stamp();
+  for (const auto& lane_line : msg.lane()) {
+    if (lane_line.lanepos() == hozon::perception::OTHER ||
+        lane_line.lanetype() == hozon::perception::RoadEdge ||
+        lane_line.lane_param().cubic_curve_set().empty()) {
+      continue;
+    }
+    LaneLine lane_line_tmp;
+    lane_line_tmp.track_id_ = lane_line.track_id();
+    DataConvert::ConvertProtoLanePos(lane_line.lanepos(),
+                                     &lane_line_tmp.lanepos_);
+    DataConvert::ConvertProtoLaneType(lane_line.lanetype(),
+                                      &lane_line_tmp.lanetype_);
+    auto param = lane_line.lane_param().cubic_curve_set()[0];
+    lane_line_tmp.start_point_x_ = param.start_point_x();
+    lane_line_tmp.end_point_x_ = param.end_point_x();
+    lane_line_tmp.c3_ = param.c3();
+    lane_line_tmp.c2_ = param.c2();
+    lane_line_tmp.c1_ = param.c1();
+    lane_line_tmp.c0_ = param.c0();
+    double x = lane_line_tmp.start_point_x_;
+    while (x < lane_line_tmp.end_point_x_) {
+      double y = lane_line_tmp.c0_ + lane_line_tmp.c1_ * x +
+                 lane_line_tmp.c2_ * x * x + lane_line_tmp.c3_ * x * x * x;
+      Eigen::Vector3d point_tmp = {x, y, 0};
+      lane_line_tmp.points_.emplace_back(point_tmp);
+      x += sample_interval;
+    }
+    if (lane_line_tmp.points_.empty()) {
+      continue;
+    }
+    lane_lines->lane_lines_.push_back(lane_line_tmp);
   }
 }
 
 void DataConvert::SetEdgeLine(const hozon::perception::TransportElement& msg,
-                              std::shared_ptr<Lanes> lanes) {
-  lanes->lanes_.clear();
-  lanes->timestamp_ = msg.header().gnss_stamp();
-  for (size_t i = 0; i < msg.lane_size(); i++) {
-    std::shared_ptr<Lane> lane = std::make_shared<Lane>();
-    lane->track_id_ = msg.lane()[i].track_id();
-    DataConvert::ConvertProtoLanePos(msg.lane()[i].lanepos(), &lane->lanepos_);
-
-    // 与感知文海同学沟通结论：proto虽然是分段三次曲线，但实际数据只有一段
-    for (size_t j = 0; j < msg.lane()[i].lane_param().cubic_curve_set_size();
-         j++) {
-      lane->x_start_vrf_ =
-          msg.lane()[i].lane_param().cubic_curve_set()[j].start_point_x();
-      lane->x_end_vrf_ =
-          msg.lane()[i].lane_param().cubic_curve_set()[j].end_point_x();
-      lane->lane_fit_a_ = msg.lane()[i].lane_param().cubic_curve_set()[j].c3();
-      lane->lane_fit_b_ = msg.lane()[i].lane_param().cubic_curve_set()[j].c2();
-      lane->lane_fit_c_ = msg.lane()[i].lane_param().cubic_curve_set()[j].c1();
-      lane->lane_fit_d_ = msg.lane()[i].lane_param().cubic_curve_set()[j].c0();
-      break;
-    }
-    lanes->lanes_.emplace_back(*lane);
-  }
-}
+                              Perception* lane_edges) {}
 
 void DataConvert::ConvertProtoLanePos(
     const hozon::perception::LanePositionType& raw_lanepos,

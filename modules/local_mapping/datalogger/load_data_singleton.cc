@@ -11,7 +11,6 @@ namespace lm {
 
 void LocalDataSingleton::Init() {
   dr_data_buffer_.set_capacity(1000);
-  lanes_buffer_.set_capacity(20);
 }
 
 }  // namespace lm

@@ -14,6 +14,9 @@
 #include <proto/localization/node_info.pb.h>
 
 #include <filesystem>
+#include <string>
+
+#include "perception-lib/lib/environment/environment.h"
 
 namespace hozon {
 namespace perception {
@@ -31,8 +34,26 @@ int32_t LocalMappingOnboard::AlgInit() {
                         hozon::perception::TransportElement);
   REGISTER_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
 
-  lmap_ = std::make_shared<LMapApp>(
-      "conf/mapping/local_mapping/local_mapping_conf.yaml");
+  std::string default_work_root = "/app/";
+  std::string work_root = lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
+  if (work_root == "") {
+    HLOG_ERROR << "ENV: ADFLITE_ROOT_PATH is not set.";
+    return false;
+  }
+  std::string config_file = work_root +
+                            "/runtime_service/mapping/conf/mapping/"
+                            "local_mapping/local_mapping_conf.yaml";
+
+  YAML::Node config = YAML::LoadFile(config_file);
+  if (config["use_rviz"].as<bool>()) {
+    HLOG_INFO << "Start RvizAgent!!!";
+    int ret = hozon::mp::util::RvizAgent::Instance().Init(
+        "ipc:///tmp/rviz_agent_local_map");
+    if (ret < 0) {
+      HLOG_ERROR << "RvizAgent start failed";
+    }
+  }
+  lmap_ = std::make_shared<LMapApp>(config_file);
 
   RegistAlgProcessFunc(
       "recv_laneline",
@@ -46,7 +67,8 @@ int32_t LocalMappingOnboard::AlgInit() {
 
   // RegistAlgProcessFunc(
   //     "recv_roadedge",
-  //     std::bind(&LocalMappingOnboard::OnRoadEdge, this, std::placeholders::_1));
+  //     std::bind(&LocalMappingOnboard::OnRoadEdge, this,
+  //     std::placeholders::_1));
 
   RegistAlgProcessFunc("send_lm",
                        std::bind(&LocalMappingOnboard::LocalMapPublish, this,
@@ -55,7 +77,9 @@ int32_t LocalMappingOnboard::AlgInit() {
   return 0;
 }
 
-void LocalMappingOnboard::AlgRelease() {}
+void LocalMappingOnboard::AlgRelease() {
+  hozon::mp::util::RvizAgent::Instance().Term();
+}
 
 int32_t LocalMappingOnboard::OnLaneLine(Bundle* input) {
   HLOG_DEBUG << "receive laneline data...";
@@ -74,7 +98,7 @@ int32_t LocalMappingOnboard::OnLaneLine(Bundle* input) {
       laneline_msg->proto_msg);
 
   lmap_->OnLaneLine(msg);
-  HLOG_INFO << "processed laneline data";
+  // HLOG_INFO << "processed laneline data";
   return 0;
 }
 
@@ -100,7 +124,7 @@ int32_t LocalMappingOnboard::OnDr(Bundle* input) {
     return false;
   }
   lmap_->OnDr(msg);
-  HLOG_INFO << "processed dr data";
+  // HLOG_INFO << "processed dr data";
   return 0;
 }
 
@@ -145,7 +169,7 @@ int32_t LocalMappingOnboard::LocalMapPublish(common_onboard::Bundle* output) {
   return 0;
 }
 
-REGISTER_EXECUTOR_CLASS("LocalMappingOnboard", LocalMappingOnboard);
+REGISTER_EXECUTOR_CLASS(LocalMappingOnboard, LocalMappingOnboard);
 
 }  // namespace common_onboard
 }  // namespace perception

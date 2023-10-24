@@ -25,14 +25,13 @@
 #include "depend/proto/map/map.pb.h"
 #include "depend/proto/soc/sensor_image.pb.h"
 #include "modules/local_mapping/datalogger/load_data_singleton.h"
-#include "modules/local_mapping/ops/association/bipartite_match.h"
+#include "modules/local_mapping/ops/association/horizon_assoc.h"
 #include "modules/local_mapping/ops/lane/lane_op.h"
-#include "modules/local_mapping/types/common.h"
+#include "modules/local_mapping/types/types.h"
 #include "modules/local_mapping/utils/common.h"
 #include "modules/local_mapping/utils/compute_loss.h"
 #include "modules/local_mapping/utils/data_convert.h"
 #include "modules/local_mapping/utils/fetch_hq.h"
-#include "modules/local_mapping/utils/lane_filter.h"
 #include "modules/local_mapping/utils/map_manager.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/temp_log.h"
@@ -49,7 +48,7 @@ class LMapApp {
    * @param msg : location message
    * @return
    */
-  void OnLocation(
+  static void OnLocation(
       const std::shared_ptr<const hozon::localization::Localization>& msg);
 
   /**
@@ -94,34 +93,34 @@ class LMapApp {
    * @param msg : image message
    * @return
    */
-  void OnImage(const std::shared_ptr<const hozon::soc::CompressedImage>& msg);
+  void OnImage(
+      const std::shared_ptr<const hozon::soc::CompressedImage>& msg) const;
 
   /**
    * @brief fetch local_map at current timestamp
    *
    * @return `true` for fetching success, `false` for failed
    */
-  bool FetchLocalMap(std::shared_ptr<hozon::mapping::LocalMap> local_map);
-
-  ConstDrDataPtr GetDrPoseForTime(double timestamp);
+  bool FetchLocalMap(
+      const std::shared_ptr<hozon::mapping::LocalMap>& local_map);
 
  private:
   std::shared_ptr<LaneOp> laneOp_;
   std::shared_ptr<MapManager> mmgr_;
-  std::shared_ptr<hozon::hdmap::HDMap> hdmap_;
+  std::shared_ptr<hozon::hdmap::HDMap> hdmap_ = nullptr;
   std::shared_ptr<hozon::hdmap::Map> crop_map_;
   std::shared_ptr<PriorProvider> provider_;
-  std::shared_ptr<LocalMap> local_map_;
+  std::shared_ptr<LocalMap> local_map_ = std::make_shared<LocalMap>();
   LocalMap local_map_tmp_;
   Sophus::SE3d T_W_V_;
   std::mutex localmap_mutex_;
   std::mutex T_W_V_mutex_;
+  bool use_point_tracking_;
   bool use_perception_match_;
-  bool use_bipartite_assoc_match_;
+  bool use_horizon_assoc_match_;
   bool use_rviz_;
-  bool dr_inited_;
-  bool laneline_inited_;
-  Loss loss_;
+  bool dr_inited_ = false;
+  bool laneline_inited_ = false;
   bool compute_error;
   double sample_interval_;
 };

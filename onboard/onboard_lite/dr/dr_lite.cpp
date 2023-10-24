@@ -9,8 +9,8 @@
 #include "common_onboard/adapter/onboard_lite/onboard_lite.h"
 #include "gtest/gtest.h"
 #include "modules/dr/include/dr.h"
-#include "proto/soc/chassis.pb.h"
 #include "proto/dead_reckoning/dr.pb.h"
+#include "proto/soc/chassis.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
 
 namespace hozon {
@@ -56,7 +56,7 @@ class DeadReckoning : public OnboardLite {
   hozon::mp::dr::DRInterface dr_interface;
 };
 
-REGISTER_EXECUTOR_CLASS("DeadReckoning", DeadReckoning);
+REGISTER_EXECUTOR_CLASS(DeadReckoning, DeadReckoning);
 
 // send in-process data and interprocess data
 int32_t DeadReckoning::dr_process(Bundle* input) {
@@ -73,7 +73,8 @@ int32_t DeadReckoning::dr_process(Bundle* input) {
   Bundle bundle;
   bundle.Add("dr", workflow1);
   SendOutput(&bundle);
-  // HLOG_INFO << "==== init ==== ------------------detect send odom-2-3 success.------------";
+  // HLOG_INFO << "==== init ==== ------------------detect send odom-2-3
+  // success.------------";
   return 0;
 }
 
@@ -89,8 +90,7 @@ int32_t DeadReckoning::data_receive(Bundle* input) {
   }
 
   std::shared_ptr<hozon::soc::ImuIns> imu_proto =
-      std::static_pointer_cast<hozon::soc::ImuIns>(
-          ptr_rec_imu->proto_msg);
+      std::static_pointer_cast<hozon::soc::ImuIns>(ptr_rec_imu->proto_msg);
 
   dr_interface.AddImuData(imu_proto);
 
@@ -105,10 +105,10 @@ int32_t DeadReckoning::data_receive(Bundle* input) {
   std::shared_ptr<hozon::soc::Chassis> chassis_proto =
       std::static_pointer_cast<hozon::soc::Chassis>(ptr_rec_chassis->proto_msg);
 
-
   // HLOG_INFO << "================= fr wheel: "
   //           << double(chassis_proto->wheel_counter().wheel_counter_fl())
-  //           << " ,gear: " << int(chassis_proto->gear_location()) << ", fl dir: "
+  //           << " ,gear: " << int(chassis_proto->gear_location()) << ", fl
+  //           dir: "
   //           << chassis_proto->wheel_speed().wheel_direction_fl();
 
   dr_interface.AddChassisData(chassis_proto);

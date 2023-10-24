@@ -307,7 +307,8 @@ void DRInterface::ConvertImuData(
     return;
   }
 
-  imu_data.timestamp = imu_proto->header().gnss_stamp();
+  imu_data.recv_time = imu_proto->header().gnss_stamp();
+  imu_data.timestamp = imu_proto->header().publish_stamp();
   //   imu_proto->header.timestamp.sec + imu_proto->header.timestamp.nsec / 1e9;
 
   imu_data.gyr_measurement = Eigen::Vector3d(
@@ -359,8 +360,11 @@ void DRInterface::ConvertChassisData(
     return;
   }
   double temp_timestamp = chassis_proto->header().gnss_stamp();
+  //   wheel_data.recv_time = temp_timestamp;
 
+  //   temp_timestamp = chassis_proto->header().publish_stamp();
   wheel_data.timestamp = temp_timestamp;
+
   // 左前轮脉冲计数
   wheel_data.front_left_wheel =
       chassis_proto->wheel_counter().wheel_counter_fl();

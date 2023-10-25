@@ -440,6 +440,7 @@ void FusionCenter::Node2Localization(const Context& ctx,
   header->set_seq(seq_++);
   header->set_frame_id("location");
   header->set_publish_stamp(ticktime);
+  header->set_gnss_stamp(ticktime);
 
   location->set_measurement_time(ticktime);
 

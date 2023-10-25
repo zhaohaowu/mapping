@@ -309,6 +309,7 @@ bool LMapApp::FetchLocalMap(
   static double init_timestamp = local_map_.timestamp;
   local_map->set_init_timestamp(init_timestamp);
   local_map->mutable_header()->set_gnss_stamp(local_map_.timestamp);
+  local_map->mutable_header()->set_publish_stamp(local_map_.timestamp);
   for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
     auto lane = local_map->add_lanes();
     hozon::mapping::LanePositionType proto_lane_type;

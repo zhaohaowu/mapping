@@ -58,6 +58,7 @@ HafNodeInfo CoordAdapter::GetSysInitDrFusion() const {
   dr.set_type(hozon::localization::HafNodeInfo_NodeType_DR);
   // replace publish time with init time
   dr.mutable_header()->set_publish_stamp(init_dr_node_.ticktime);
+  dr.mutable_header()->set_gnss_stamp(init_dr_node_.ticktime);
   dr.set_is_valid(true);
 
   dr.mutable_pos_gcj02()->set_x(init_dr_node_.enu(0));
@@ -105,7 +106,7 @@ void CoordAdapter::OnDrFusion(const HafNodeInfo& dr) {
   curr_raw_dr_ = dr;
 
   if (!dr_deque_.empty() &&
-      fabs(dr_deque_.back()->ticktime - dr.header().publish_stamp()) < 1e-3) {
+      fabs(dr_deque_.back()->ticktime - dr.header().gnss_stamp()) < 1e-3) {
     return;
   }
 
@@ -139,8 +140,7 @@ bool CoordAdapter::ConvertDrNode(const HafNodeInfo& msg, Node* const node) {
               << ") error";
     return false;
   }
-
-  node->ticktime = msg.header().publish_stamp();
+  node->ticktime = msg.header().gnss_stamp();
   node->enu << msg.pos_gcj02().x(), msg.pos_gcj02().y(), msg.pos_gcj02().z();
   node->orientation = Sophus::SO3d(q).log();
   node->velocity << msg.linear_velocity().x(), msg.linear_velocity().y(),

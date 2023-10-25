@@ -118,6 +118,7 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
   if (!Extract84InsNode(origin_ins, &ins84_node)) {
     return;
   }
+  latest_origin_ins_ = origin_ins;
   {
     std::unique_lock<std::mutex> lock(ins84_deque_mutex_);
 
@@ -128,7 +129,6 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
     }
   }
   ins_state_enum_ = InsStateEnum::NORMAL;
-  latest_origin_ins_ = origin_ins;
   if (!config_.use_inspva) {
     last_node_ = ins84_node;
   }
@@ -178,6 +178,8 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
     auto inspva_data = latest_inspva_data_;
     if (flag) {
       inspva_data.mutable_header()->set_publish_stamp(curr_node_.ticktime);
+      // 存在风险
+      inspva_data.mutable_header()->set_gnss_stamp(curr_node_.ticktime);
     }
     inspva_deque_.emplace_back(inspva_data);
     while (inspva_deque_.size() > config_.monitor_ins_deque_max_size) {
@@ -217,6 +219,8 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
       auto inspva_data = inspva_deque_.back();
       node_info->mutable_header()->set_publish_stamp(
           inspva_data.header().publish_stamp());
+      node_info->mutable_header()->set_gnss_stamp(
+          inspva_data.header().gnss_stamp());
       node_info->mutable_pos_wgs()->set_x(inspva_data.pos_wgs().x());
       node_info->mutable_pos_wgs()->set_y(inspva_data.pos_wgs().y());
       node_info->mutable_pos_wgs()->set_z(inspva_data.pos_wgs().z());
@@ -240,6 +244,7 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
   node_info->mutable_header()->set_frame_id("ins_fusion");
   node_info->mutable_header()->set_publish_stamp(
       origin_ins.header().publish_stamp());
+  node_info->mutable_header()->set_gnss_stamp(origin_ins.header().gnss_stamp());
   node_info->mutable_header()->mutable_status()->set_error_code(
       origin_ins.header().status().error_code());
   node_info->mutable_header()->mutable_status()->set_msg(
@@ -628,6 +633,8 @@ void InsFusion::ProcessMonitorIns() {
     auto current_inspva_data_ticktime = inspva_data.header().publish_stamp();
     auto inspva_data_ticktime = current_inspva_data_ticktime + cost_time / j;
     inspva_data.mutable_header()->set_publish_stamp(inspva_data_ticktime);
+    // 存在风险
+    inspva_data.mutable_header()->set_gnss_stamp(inspva_data_ticktime);
     Eigen::Vector3d velocity(inspva_data.linear_velocity().x(),
                              inspva_data.linear_velocity().y(),
                              inspva_data.linear_velocity().z());

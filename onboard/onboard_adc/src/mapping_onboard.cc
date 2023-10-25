@@ -5,6 +5,7 @@
  *****************************************************************************/
 
 #include "onboard/onboard_adc/include/mapping_onboard.h"
+
 #include "ap-release/include/adsfi/include/data_types/debug/pbdebug.h"
 
 DEFINE_string(lm_config, "conf/mapping/local_mapping/local_mapping_conf.yaml",
@@ -80,8 +81,27 @@ int32_t MappingAdc::ChassisImuCallBack(hz_Adsfi::NodeBundle* input) {
       const uint32_t sec =
           static_cast<uint32_t>(loc_res->header().publish_stamp());
       const uint32_t nsec = (loc_res->header().publish_stamp() - sec) * 1e9;
-      debug_loc->algDebugframe.header.stamp.sec = sec;
-      debug_loc->algDebugframe.header.stamp.nsec = nsec;
+      debug_loc->algDebugframe.header.gnssStamp.sec = sec;
+      debug_loc->algDebugframe.header.gnssStamp.nsec = nsec;
+      debug_loc->algDebugframe.msg_2 =
+          "wgs:" +
+          std::to_string(loc_res->pose().wgs().x()) + "," +
+          std::to_string(loc_res->pose().wgs().y()) + "," +
+          std::to_string(loc_res->pose().wgs().z()) + "\n" +
+          "gcj02:" +
+          std::to_string(loc_res->pose().gcj02().x()) + "," +
+          std::to_string(loc_res->pose().gcj02().y()) + "," +
+          std::to_string(loc_res->pose().gcj02().z()) + "\n" +
+          "quaternion(x,y,z,w):" +
+          std::to_string(loc_res->pose().quaternion().x()) + "," +
+          std::to_string(loc_res->pose().quaternion().y()) + "," +
+          std::to_string(loc_res->pose().quaternion().z()) + "," +
+          std::to_string(loc_res->pose().quaternion().w()) + "\n" +
+          "euler_angle:" +
+          std::to_string(loc_res->pose().euler_angle().x()) + "," +
+          std::to_string(loc_res->pose().euler_angle().y()) + "," +
+          std::to_string(loc_res->pose().euler_angle().z()) + "\n";
+
       debug_loc->algDebugframe.msg_1 = seri_loc;
       hz_Adsfi::NodeBundle output;
       output.Add("npp_debug_msg_31", debug_loc);
@@ -120,6 +140,12 @@ int32_t MappingAdc::LaneCallBack(hz_Adsfi::NodeBundle* input) {
         std::make_shared<hozon::perception::TransportElement>();
     DataBoard::Adsfi2Proto(*p_road_marking, board_.adsfi_lane_proto.get());
     lmap_->OnLaneLine(board_.adsfi_lane_proto);
+    std::shared_ptr<hozon::mapping::LocalMap> result =
+        std::make_shared<hozon::mapping::LocalMap>();
+    if (lmap_->FetchLocalMap(result)) {
+      loc_->OnLocalMap(*result);
+    }
+
   } else {
     std::cout << "null lane data" << std::endl;
   }

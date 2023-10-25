@@ -22,8 +22,12 @@ void DataBoard::Adsfi2Proto(const hz_Adsfi::AlgLaneDetectionOutArray& stu,
     return;
   }
 
-  proto->mutable_header()->set_gnss_stamp(stu.header.timestamp.sec +
-                                          stu.header.timestamp.nsec * 1e-9);
+  const double tick =
+      stu.header.timestamp.sec + stu.header.timestamp.nsec * 1e-9;
+  const double gnssstamp =
+      stu.header.gnssStamp.sec + stu.header.gnssStamp.nsec * 1e-9;
+  proto->mutable_header()->set_publish_stamp(tick);
+  proto->mutable_header()->set_gnss_stamp(gnssstamp);
   proto->mutable_header()->set_seq(stu.header.seq);
   proto->mutable_header()->set_frame_id(stu.header.frameID);
 
@@ -163,6 +167,15 @@ void DataBoard::Adsfi2Proto(
   if (!imuinsDataPtr_) {
     return;
   }
+
+  imu_proto->mutable_header()->set_seq(imuinsDataPtr_->header.seq);
+  const double tick = imuinsDataPtr_->header.timestamp.sec +
+                      imuinsDataPtr_->header.timestamp.nsec * 1e-9;
+  const double gnssstamp = imuinsDataPtr_->header.gnssStamp.sec +
+                           imuinsDataPtr_->header.gnssStamp.nsec * 1e-9;
+  imu_proto->mutable_header()->set_publish_stamp(tick);
+  imu_proto->mutable_header()->set_gnss_stamp(gnssstamp);
+  imu_proto->mutable_header()->set_frame_id(imuinsDataPtr_->header.frameID);
   // imu
   imu_proto->mutable_imu_info()->mutable_angular_velocity()->set_x(
       imuinsDataPtr_->imu_info.angularVelocity.x * M_PI / 180.0);
@@ -227,10 +240,6 @@ void DataBoard::Adsfi2Proto(
   imu_proto->mutable_ins_info()->mutable_mounting_error()->set_z(
       imuinsDataPtr_->ins_info.mountingError.z);
 
-  imu_proto->mutable_header()->set_gnss_stamp(
-      imuinsDataPtr_->header.timestamp.sec +
-      imuinsDataPtr_->header.timestamp.nsec * 1e-9);
-
   imu_proto->set_gps_sec(imuinsDataPtr_->gpsSec);
   imu_proto->set_gps_week(imuinsDataPtr_->gpsWeek);
 
@@ -243,10 +252,12 @@ void DataBoard::Adsfi2Proto(
   if (!chassisDataPtr_) {
     return;
   }
-  double temp_timestamp = chassisDataPtr_->header.timestamp.sec +
-                          chassisDataPtr_->header.timestamp.nsec / 1e9;
-
-  chassis_proto->mutable_header()->set_gnss_stamp(temp_timestamp);
+  const double tick = chassisDataPtr_->header.timestamp.sec +
+                      chassisDataPtr_->header.timestamp.nsec * 1e-9;
+  const double gnssstamp = chassisDataPtr_->header.gnssStamp.sec +
+                           chassisDataPtr_->header.gnssStamp.nsec * 1e-9;
+  chassis_proto->mutable_header()->set_publish_stamp(tick);
+  chassis_proto->mutable_header()->set_gnss_stamp(gnssstamp);
   // 档位
   auto gear_pos = chassisDataPtr_->vcu_info.VCU_ActGearPosition;
   switch (gear_pos) {
@@ -427,7 +438,7 @@ void DataBoard::Adsfi2Proto(
 }
 
 void DataBoard::Adsfi2Proto(const hz_Adsfi::AlgLocationNodeInfo& stu,
-                          hozon::localization::HafNodeInfo* const proto) {
+                            hozon::localization::HafNodeInfo* const proto) {
   if (!proto) {
     return;
   }
@@ -437,12 +448,12 @@ void DataBoard::Adsfi2Proto(const hz_Adsfi::AlgLocationNodeInfo& stu,
   proto->mutable_header()->set_seq(node_info.header.seq);
   proto->mutable_header()->set_frame_id(node_info.header.frameId);
 
-  const double tick = node_info.header.stamp.sec +
-                      node_info.header.stamp.nsec * 1e-9;
-  const double gnssstamp = node_info.header.gnssStamp.sec +
-                           node_info.header.gnssStamp.nsec * 1e-9;
+  const double tick =
+      node_info.header.stamp.sec + node_info.header.stamp.nsec * 1e-9;
+  const double gnssstamp =
+      node_info.header.gnssStamp.sec + node_info.header.gnssStamp.nsec * 1e-9;
   proto->mutable_header()->set_publish_stamp(tick);
-  proto->mutable_header()->set_gnss_stamp(tick);
+  proto->mutable_header()->set_gnss_stamp(gnssstamp);
 
   proto->set_is_valid(true);
   proto->set_type(

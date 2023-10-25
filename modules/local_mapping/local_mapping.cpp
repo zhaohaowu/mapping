@@ -304,6 +304,10 @@ bool LMapApp::FetchLocalMap(
   localmap_mutex_.lock();
   auto local_map_ = local_map_tmp_;
   localmap_mutex_.unlock();
+  static int seq = 0;
+  local_map->mutable_header()->set_seq(seq++);
+  static double init_timestamp = local_map_.timestamp;
+  local_map->set_init_timestamp(init_timestamp);
   local_map->mutable_header()->set_gnss_stamp(local_map_.timestamp);
   for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
     auto lane = local_map->add_lanes();

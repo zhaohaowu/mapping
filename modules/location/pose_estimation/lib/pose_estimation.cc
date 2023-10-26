@@ -299,12 +299,12 @@ void MapMatching::setIns(const ::adsfi_proto::internal::HafNodeInfo &ins) {
     is_chging_map_ref_ = true;
     is_chging_ins_ref_ = true;
     enu = hozon::mp::util::Geo::Gcj02ToEnu(pose, ref_point_);
-    HLOG_ERROR << "ref point changed: " << SETPRECISION(15) << ins_timestamp_
+    HLOG_ERROR << "ref point changed: " << ins_timestamp_
                << " newref: " << ref_point_.x() << " " << ref_point_.y() << " "
                << ref_point_.z();
   }
 
-  HLOG_ERROR << "----------------ins " << SETPRECISION(15) << ins_time << " "
+  HLOG_ERROR << "----------------ins " << ins_time << " "
              << "state:" << ins_status_type_ << " enu:(" << enu[0] << " "
              << enu[1] << " " << enu[2] << ")";
 
@@ -352,7 +352,7 @@ void MapMatching::pubOdomPoints(const std::string &topic,
 // void MapMatching::setLocation(const ::adsfi_proto::internal::HafNodeInfo
 // &info) {
 //   if (is_chging_ins_ref_) {
-//     HLOG_ERROR << "wait change ins_ref_ in set location " << SETPRECISION(15)
+//     HLOG_ERROR << "wait change ins_ref_ in set location "
 //         << ins_timestamp_;
 //     return;
 //   }
@@ -454,8 +454,7 @@ void MapMatching::procData() {
     std::lock_guard<std::mutex> lg(map_mutex);
     crop_map = mhd_map;
     if (is_chging_map_ref_) {
-      HLOG_ERROR << "wait change map_ref_ in procdata " << SETPRECISION(15)
-                 << ins_timestamp_;
+      HLOG_ERROR << "wait change map_ref_ in procdata " << ins_timestamp_;
       return;
     }
   }
@@ -511,7 +510,7 @@ void MapMatching::procData() {
     stampe = static_cast<double>(
         curr_roadmark_sensor.lanes.header().timestamp().sec() +
         (curr_roadmark_sensor.lanes.header().timestamp().nsec()) * 1e-9);
-    HLOG_INFO << "----------------ppts " << SETPRECISION(15) << stampe << " "
+    HLOG_INFO << "----------------ppts " << stampe << " "
               << curr_roadmark_sensor.frame_id << " ";
   }
   // else if (curr_pole_sensor.frame_id != 0) {
@@ -579,7 +578,7 @@ void MapMatching::procData() {
         //   PubMatchPoints(nearest_map_points_, percp_sec, percp_nsec,
         //                  kTopicMmMapPointsEdge);
         // const auto& debug_point = map_match_->debug_connect();
-        // std::cout << " --------ccccddddbbbb " << std::setprecision(15) <<
+        // std::cout << " --------ccccddddbbbb " << std::
         // ins_timestamp_ << "    "
         //    << T02_W_V.translation().x() << " " << T02_W_V.translation().y()
         //    << " " << T02_W_V.translation().z() << "    ";
@@ -593,8 +592,8 @@ void MapMatching::procData() {
 
   matched_lane_pair_size_ = map_match_->GetLanePairSize();
   if (matched_lane_pair_size_ < 2) {
-    HLOG_WARN << "matched_lane_pair_size stamp:" << SETPRECISION(15)
-              << ins_timestamp_ << " size:" << matched_lane_pair_size_;
+    HLOG_WARN << "matched_lane_pair_size stamp:" << ins_timestamp_
+              << " size:" << matched_lane_pair_size_;
   }
 
   // 故障检测，在wrapper中的runmm中上报给fc
@@ -637,7 +636,7 @@ void MapMatching::procData() {
   // 优化
   bool solve_is_ok = true;
   auto t1_solver = std::chrono::steady_clock::now();
-  HLOG_ERROR << "ref_point stamp:" << SETPRECISION(15) << ins_timestamp_
+  HLOG_ERROR << "ref_point stamp:" << ins_timestamp_
              << " x|y|z:" << ref_point_.x() << " " << ref_point_.y() << " "
              << ref_point_.z();
   time.evaluate(
@@ -652,7 +651,7 @@ void MapMatching::procData() {
   auto solver_time =
       (t2_solver.time_since_epoch() - t1_solver.time_since_epoch()).count() /
       1e9;
-  HLOG_INFO << "test mm | solver_time = " << SETPRECISION(15) << solver_time;
+  HLOG_INFO << "test mm | solver_time = " << solver_time;
   if (curr_roadmark_sensor.frame_id != 0) {
     auto lane_lines =
         all_perception->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE);
@@ -671,8 +670,7 @@ void MapMatching::procData() {
   }
 
   if (!solve_is_ok) {
-    HLOG_ERROR << "solver is not ok stamp:" << SETPRECISION(15)
-               << ins_timestamp_;
+    HLOG_ERROR << "solver is not ok stamp:" << ins_timestamp_;
     return;
   }
   bool good_match_check = false;
@@ -684,13 +682,12 @@ void MapMatching::procData() {
         double yaw_diff = T_V_VSF.log().tail<3>().z();
         V3 rot(0, 0, yaw_diff);
         trans = V3(0, T_V_VSF.translation().y(), 0);
-        HLOG_ERROR << "solver diff, stamp: " << SETPRECISION(15)
+        HLOG_ERROR << "solver diff, stamp: "
                    << ins_timestamp_ << " yaw|y|x: " << yaw_diff * 180 / M_PI
                    << " " << trans.y() << " " << T_V_VSF.translation().x();
         if (!CheckLaneMatch(T_V_VSF)) {
           bad_lane_match_count_++;
-          HLOG_ERROR << "lane_match failed stamp:" << SETPRECISION(15)
-                     << ins_timestamp_;
+          HLOG_ERROR << "lane_match failed stamp:" << ins_timestamp_;
           return;
         }
         bad_lane_match_count_ = 0;
@@ -699,7 +696,7 @@ void MapMatching::procData() {
         T_V_VSF = Sophus::SE3d(Sophus::SO3d::exp(rot), trans);  // flat
         // // _T_W_V_fine = T02_W_V * T_V_VSF;
         _T_W_V_fine = T02_W_V_INPUT * T_V_VSF;
-        HLOG_INFO << "--------pppp " << SETPRECISION(15) << ins_timestamp_
+        HLOG_INFO << "--------pppp " << ins_timestamp_
                   << " " << _T_W_V_fine.translation().x() << " "
                   << _T_W_V_fine.translation().y() << " "
                   << _T_W_V_fine.translation().z() << " "
@@ -716,7 +713,7 @@ void MapMatching::procData() {
         good_match_check = map_match_->GoodMatchCheck(T02_W_VF);
 
         // const auto& debug_point = map_match_->debug_connect();
-        // std::cout << " --------ccccddddaaaa " << std::setprecision(15) <<
+        // std::cout << " --------ccccddddaaaa " << std::
         // ins_timestamp_ << "    "
         //    << _T_W_V_fine.translation().x() << " " <<
         //    _T_W_V_fine.translation().y() << " " <<
@@ -734,7 +731,7 @@ void MapMatching::procData() {
 
   // 优化结果二次校验
   if (!good_match_check) {
-    HLOG_ERROR << "good match check failed stamp:" << SETPRECISION(15)
+    HLOG_ERROR << "good match check failed stamp:"
                << ins_timestamp_;
     t2 = std::chrono::steady_clock::now();
     t = t2.time_since_epoch().count() / 1e9;
@@ -784,7 +781,7 @@ void MapMatching::procData() {
   t = t2.time_since_epoch().count() / 1e9;
   auto proc_time =
       (t2.time_since_epoch() - t1.time_since_epoch()).count() / 1e9;
-  HLOG_INFO << "test mm | proc_time = " << SETPRECISION(15) << proc_time;
+  HLOG_INFO << "test mm | proc_time = " << proc_time;
   static MapMatchingFrameRateRecord mm_effective_fr;
   mm_effective_fr.calFrameRate(t, "mm effective frame rate");
 
@@ -843,8 +840,7 @@ MapMatching::getMmNodeInfo() {
   static SE3 last_T_output;
   static double last_proc_stamp = 0.f;
   if (!output_valid_) {
-    HLOG_INFO << " ------------vvvvvvvv0000 " << SETPRECISION(15)
-              << ins_timestamp_ << " ";
+    HLOG_INFO << " ------------vvvvvvvv0000 " << ins_timestamp_ << " ";
     return generateNodeInfo(T_output_, 0, 0, true);
   } else {
     uint64_t sec = 0;
@@ -862,8 +858,7 @@ MapMatching::getMmNodeInfo() {
         T_output_ = last_T_output * relative_T;
       }
     }
-    HLOG_INFO << " ------------vvvvvvvv1111 " << SETPRECISION(15)
-              << ins_timestamp_ << " ";
+    HLOG_INFO << " ------------vvvvvvvv1111 " << ins_timestamp_ << " ";
     pubVehicle(T_output_, sec, nsec);
     //// pubOdomPoints(kTopicMmOdom, T_output_.translation(),
     ////               T_output_.unit_quaternion(), sec, nsec);
@@ -1274,7 +1269,7 @@ MapMatching::generateNodeInfo(const Sophus::SE3d &T_W_V, uint64_t sec,
   node_info->mutable_quaternion()->set_w(T_W_V.unit_quaternion().w());
 
   if (!has_err) {
-    HLOG_INFO << SETPRECISION(15) << "blh.x()," << blh.x() << ",blh.y(),"
+    HLOG_INFO << "blh.x()," << blh.x() << ",blh.y(),"
               << blh.y() << ",blh.z()" << blh.z() << ",proc_stamp_,"
               << proc_stamp_;
     node_info->set_valid_estimate(true);
@@ -1968,7 +1963,7 @@ bool MapMatching::CheckLaneMatch(const SE3 &T_delta_cur) {
       (bad_lane_match_count_ < mm_params.thre_continue_badmatch) &&
       (fabs(T_delta_cur.translation().y() - T_delta_last_.translation().y()) >
        mm_params.thre_delta_y_diff)) {
-    HLOG_DEBUG << "CheckLaneMatch " << SETPRECISION(15) << ins_timestamp_ << " "
+    HLOG_DEBUG << "CheckLaneMatch " << ins_timestamp_ << " "
                << matched_lane_pair_size_ << " " << bad_lane_match_count_ << " "
                << T_delta_cur.translation().y() << " "
                << T_delta_last_.translation().y();

@@ -93,8 +93,7 @@ void MatchLaneLine::Match(const HdMap &hd_map,
         err_type_ = ErrorType::NO_VALID_PECEP_LANE;
       }
     }
-    HLOG_ERROR << "percep_lanelines_.size() == 0 stamp:" << SETPRECISION(15)
-               << ins_timestamp_;
+    HLOG_ERROR << "percep_lanelines_.size() == 0 stamp:" << ins_timestamp_;
     return;
   } else {
     invalid_pecep_cnt = 0;
@@ -455,7 +454,7 @@ void MatchLaneLine::FilterPercpLaneline(
   }
   int egolane_cnt = 0;
   for (auto &line : lanelines) {
-    HLOG_INFO << "percep-laneinfo " << SETPRECISION(15) << line->Id()
+    HLOG_INFO << "percep-laneinfo " << line->Id()
               << " confid|min|max: " << line->curve_vehicle_coord_.confidence_
               << " " << line->Min() << " " << line->Max()
               << " c0|c1|c2|c3: " << line->curve_vehicle_coord_.c0_ << " "
@@ -476,8 +475,7 @@ void MatchLaneLine::FilterPercpLaneline(
       continue;
     }
     if (line->Max() - line->Min() < mm_params.perceplane_len_lowerbound) {
-      HLOG_DEBUG << "short-percep-lane " << SETPRECISION(15) << line->Id()
-                 << " " << ins_timestamp_;
+      HLOG_DEBUG << "short-percep-lane " << line->Id() << " " << ins_timestamp_;
       continue;
     }
     if (egolane_cnt == 2) {
@@ -898,8 +896,8 @@ bool MatchLaneLine::CheckIsGoodMatch(const SE3 &T) {
   }
   if (match_pair_cnt != 0) {
     double avg_match_y = fabs(match_y_total / match_pair_cnt * 1.f);
-    HLOG_INFO << " avg_match_y  : " << SETPRECISION(15) << ins_timestamp_ << " "
-              << avg_match_y << " ";
+    HLOG_INFO << " avg_match_y  : " << ins_timestamp_ << " " << avg_match_y
+              << " ";
     if (avg_match_y < 0.06) {
       return true;
     } else {
@@ -1091,8 +1089,7 @@ void MatchLaneLine::DebugPrintPoints(
     }
     ss << ") ";
   }
-  HLOG_DEBUG << KEY << " debug_map stamp:" << SETPRECISION(15) << ins_timestamp_
-             << " " << ss.str();
+  HLOG_DEBUG << KEY << " debug_map stamp:" << ins_timestamp_ << " " << ss.str();
   ss.str("");
   for (auto &p : percep_lines) {
     auto lane = std::static_pointer_cast<PerceptionLaneLineList>(p);
@@ -1107,8 +1104,8 @@ void MatchLaneLine::DebugPrintPoints(
          << "|coords:" << c0 << "," << c1 << "," << c2 << "," << c3 << " ";
     }
   }
-  HLOG_DEBUG << KEY << " debug_percep stamp:" << SETPRECISION(15)
-             << ins_timestamp_ << " " << ss.str();
+  HLOG_DEBUG << KEY << " debug_percep stamp:" << ins_timestamp_ << " "
+             << ss.str();
 }
 
 void MatchLaneLine::DebugPrintLines(
@@ -1140,8 +1137,7 @@ void MatchLaneLine::DebugPrintPair(const std::vector<V3> &pairs,
     ss << "pp:" << pp_v.x() << "," << pp_v.y() << "," << pp_v.z();
     ss << "|mm:" << map_v.x() << "," << map_v.y() << "," << map_v.z() << ";";
   }
-  HLOG_DEBUG << KEY << " debug_pairs stamp:" << SETPRECISION(15) << stamp << " "
-             << ss.str();
+  HLOG_DEBUG << KEY << " debug_pairs stamp:" << stamp << " " << ss.str();
 }
 
 void MatchLaneLine::DebugPrintMergedLines(const std::string &KEY) {
@@ -1158,8 +1154,8 @@ void MatchLaneLine::DebugPrintMergedLines(const std::string &KEY) {
     }
     ss << ") ";
   }
-  HLOG_DEBUG << KEY << " merge_lines stamp:" << SETPRECISION(15)
-             << ins_timestamp_ << " " << ss.str();
+  HLOG_DEBUG << KEY << " merge_lines stamp:" << ins_timestamp_ << " "
+             << ss.str();
 }
 
 void MatchLaneLine::DebugPrintMapPpMatch() {
@@ -1189,8 +1185,7 @@ void MatchLaneLine::DebugPrintMapPpMatch() {
     }
     ss << "] ";
   }
-  HLOG_DEBUG << " map_pp_match stamp:" << SETPRECISION(15) << ins_timestamp_
-             << " " << ss.str();
+  HLOG_DEBUG << " map_pp_match stamp:" << ins_timestamp_ << " " << ss.str();
 }
 
 }  // namespace loc

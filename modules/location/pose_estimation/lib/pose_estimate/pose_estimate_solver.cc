@@ -128,7 +128,7 @@ Sophus::SE3d MapMatchSolver::solve2D(const Connect &connect,
   double x = pose.translation().x();
   double y = pose.translation().y();
   double yaw = pose.log().tail<3>().z();
-  // HLOG_DEBUG << "MapMatchSolver::solve2D x_y_yaw:" << SETPRECISION(15)
+  // HLOG_DEBUG << "MapMatchSolver::solve2D x_y_yaw:"
   //   << x << "," << y << "," << yaw;
 
   Eigen::Vector3d pose_plane(x, y, yaw);
@@ -162,8 +162,7 @@ Sophus::SE3d MapMatchSolver::solve2D(const Connect &connect,
   auto duration =
       std::chrono::duration_cast<std::chrono::microseconds>(end - start)
           .count();
-  HLOG_INFO << SETPRECISION(15)
-            << "test mm | solve_time = " << duration * 0.000001 << "s";
+  HLOG_INFO << "test mm | solve_time = " << duration * 0.000001 << "s";
   HLOG_ERROR << "summary.num_successful_steps : "
              << summary.num_successful_steps;
   HLOG_ERROR << "summary.final_cost : " << summary.final_cost;

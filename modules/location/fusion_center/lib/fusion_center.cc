@@ -274,7 +274,7 @@ bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
   Eigen::Quaterniond q(msg.quaternion().w(), msg.quaternion().x(),
                        msg.quaternion().y(), msg.quaternion().z());
   if (q.norm() < 1e-10) {
-    HLOG_ERROR << SETPRECISION(11) << "HafNodeInfo quaternion(w,x,y,z) "
+    HLOG_ERROR << "HafNodeInfo quaternion(w,x,y,z) "
                << msg.quaternion().w() << "," << msg.quaternion().x() << ","
                << msg.quaternion().y() << "," << msg.quaternion().z()
                << " error";
@@ -596,22 +596,22 @@ bool FusionCenter::IsInterpolable(const std::shared_ptr<Node>& n1,
   HLOG_INFO << "src: " << src << ", not interpolatable";
   if (dis_delta >= dis_tol) {
     HLOG_INFO << "big distance: " << dis_delta;
-    HLOG_INFO << SETPRECISION(9) << "n1->enu: " << n1->enu(0) << ","
-              << n1->enu(1) << "," << n1->enu(2);
-    HLOG_INFO << SETPRECISION(9) << "n2->enu: " << n2->enu(0) << ","
-              << n2->enu(2) << "," << n2->enu(3);
+    HLOG_INFO << "n1->enu: " << n1->enu(0) << "," << n1->enu(1) << ","
+              << n1->enu(2);
+    HLOG_INFO << "n2->enu: " << n2->enu(0) << "," << n2->enu(2) << ","
+              << n2->enu(3);
   }
   if (ang_delta >= ang_tol) {
     HLOG_INFO << "big angle: " << ang_delta;
-    HLOG_INFO << SETPRECISION(11) << "n1->orientation: " << n1->orientation(0)
-              << "," << n1->orientation(1) << "," << n1->orientation(2);
-    HLOG_INFO << SETPRECISION(11) << "n2->orientation: " << n2->orientation(0)
-              << "," << n2->orientation(1) << "," << n2->orientation(2);
+    HLOG_INFO << "n1->orientation: " << n1->orientation(0) << ","
+              << n1->orientation(1) << "," << n1->orientation(2);
+    HLOG_INFO << "n2->orientation: " << n2->orientation(0) << ","
+              << n2->orientation(1) << "," << n2->orientation(2);
   }
   if (time_delta >= time_tol) {
-    HLOG_INFO << SETPRECISION(20) << "big time: " << time_delta;
-    HLOG_INFO << SETPRECISION(20) << "n1->ticktime: " << n1->ticktime;
-    HLOG_INFO << SETPRECISION(20) << "n2->ticktime: " << n2->ticktime;
+    HLOG_INFO << "big time: " << time_delta;
+    HLOG_INFO << "n1->ticktime: " << n1->ticktime;
+    HLOG_INFO << "n2->ticktime: " << n2->ticktime;
   }
 
   return false;

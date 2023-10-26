@@ -9,6 +9,7 @@
 #include <adsfi/adb/include/core/core.h>
 
 #include <memory>
+#include <sstream>
 
 #include "modules/dr/include/dr.h"
 #include "modules/local_mapping/local_mapping.h"
@@ -36,6 +37,12 @@ class MappingAdc : public hz_Adsfi::NodeBase {
   int32_t PluginCallback(hz_Adsfi::NodeBundle* input);
 
   virtual void AlgRelease();
+
+ private:
+  template <typename T>
+  const std::string Node2Xyz(const T& p);
+  template <typename T>
+  const std::string Node2Xyzw(const T& p);
 
  private:
   std::unique_ptr<std::thread> dr_thread_ptr_;

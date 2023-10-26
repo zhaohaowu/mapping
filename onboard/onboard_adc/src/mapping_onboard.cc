@@ -83,24 +83,18 @@ int32_t MappingAdc::ChassisImuCallBack(hz_Adsfi::NodeBundle* input) {
       const uint32_t nsec = (loc_res->header().publish_stamp() - sec) * 1e9;
       debug_loc->algDebugframe.header.gnssStamp.sec = sec;
       debug_loc->algDebugframe.header.gnssStamp.nsec = nsec;
-      debug_loc->algDebugframe.msg_2 =
-          "wgs:" +
-          std::to_string(loc_res->pose().wgs().x()) + "," +
-          std::to_string(loc_res->pose().wgs().y()) + "," +
-          std::to_string(loc_res->pose().wgs().z()) + "\n" +
-          "gcj02:" +
-          std::to_string(loc_res->pose().gcj02().x()) + "," +
-          std::to_string(loc_res->pose().gcj02().y()) + "," +
-          std::to_string(loc_res->pose().gcj02().z()) + "\n" +
-          "quaternion(x,y,z,w):" +
-          std::to_string(loc_res->pose().quaternion().x()) + "," +
-          std::to_string(loc_res->pose().quaternion().y()) + "," +
-          std::to_string(loc_res->pose().quaternion().z()) + "," +
-          std::to_string(loc_res->pose().quaternion().w()) + "\n" +
-          "euler_angle:" +
-          std::to_string(loc_res->pose().euler_angle().x()) + "," +
-          std::to_string(loc_res->pose().euler_angle().y()) + "," +
-          std::to_string(loc_res->pose().euler_angle().z()) + "\n";
+      std::stringstream ss_stream;
+      ss_stream << "wgs:" << Node2Xyz(loc_res->pose().wgs()) << "\n" <<
+          "gcj02:" << Node2Xyz(loc_res->pose().gcj02()) << "\n" <<
+          "quaternion(x,y,z,w):" << Node2Xyzw(loc_res->pose().quaternion()) << "\n" <<
+          "euler_angle:" << Node2Xyz(loc_res->pose().euler_angle()) << "\n" <<
+          "using_utm_zone:"<< loc_res->pose().using_utm_zone() << "\n" <<
+          "rtk_status:" << loc_res->rtk_status() << "\n" <<
+          "location_state:" << loc_res->location_state() << "\n" <<
+          "laneid:" << loc_res->laneid() << "\n" <<
+          "local_pose:" << Node2Xyz(loc_res->pose().local_pose()) << "\n" <<
+          "euler_angles_local:" << Node2Xyz(loc_res->pose().euler_angles_local());
+      debug_loc->algDebugframe.msg_2 = ss_stream.str();
 
       debug_loc->algDebugframe.msg_1 = seri_loc;
       hz_Adsfi::NodeBundle output;
@@ -169,6 +163,22 @@ int32_t MappingAdc::PluginCallback(hz_Adsfi::NodeBundle* input) {
 }
 
 void MappingAdc::AlgRelease() { util::RvizAgent::Instance().Term(); }
+
+template <typename T>
+const std::string MappingAdc::Node2Xyz(const T& p) {
+  std::stringstream stream;
+  stream << std::fixed << std::setprecision(10) << p.x() << "," << p.y() << ","
+         << p.z() << ",";
+  return stream.str();
+}
+
+template <typename T>
+const std::string MappingAdc::Node2Xyzw(const T& p) {
+  std::stringstream stream;
+  stream << std::fixed << std::setprecision(10) << p.x() << "," << p.y() << ","
+         << p.z() << "," << p.w() << ",";
+  return stream.str();
+}
 
 }  // namespace mp
 }  // namespace hozon

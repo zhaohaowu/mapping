@@ -162,8 +162,7 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
 
   if (config_.fix_deflection_repeat &&
       FixDeflectionRepeat(last_node_, &curr_node_)) {
-    HLOG_INFO << SETPRECISION(15)
-              << "fix deflection repeat succ. last.tick:" << last_node_.ticktime
+    HLOG_INFO << "fix deflection repeat succ. last.tick:" << last_node_.ticktime
               << ", curr.tick:" << curr_node_.ticktime;
   }
   bool flag = false;

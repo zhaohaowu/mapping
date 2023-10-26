@@ -218,11 +218,11 @@ bool DrFusion::DrNode2DrFusionNode(
   node->mutable_mounting_error()->set_y(origin_node.mounting_error().y());
   node->mutable_mounting_error()->set_z(origin_node.mounting_error().z());
 
-  node->mutable_pos_wgs()->set_x(
+  node->mutable_pos_gcj02()->set_x(
       origin_node.pose().pose_local().position().x());
-  node->mutable_pos_wgs()->set_y(
+  node->mutable_pos_gcj02()->set_y(
       origin_node.pose().pose_local().position().y());
-  node->mutable_pos_wgs()->set_z(
+  node->mutable_pos_gcj02()->set_z(
       origin_node.pose().pose_local().position().z());
 
   node->mutable_quaternion()->set_x(

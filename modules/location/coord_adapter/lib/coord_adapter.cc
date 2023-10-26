@@ -134,10 +134,9 @@ bool CoordAdapter::ConvertDrNode(const HafNodeInfo& msg, Node* const node) {
   Eigen::Quaterniond q(msg.quaternion().w(), msg.quaternion().x(),
                        msg.quaternion().y(), msg.quaternion().z());
   if (q.norm() < 1e-10) {
-    HLOG_WARN << SETPRECISION(11) << "HafNodeInfo quaternion(w,x,y,z) ("
-              << msg.quaternion().w() << "," << msg.quaternion().x() << ","
-              << msg.quaternion().y() << "," << msg.quaternion().z()
-              << ") error";
+    HLOG_WARN << "HafNodeInfo quaternion(w,x,y,z) (" << msg.quaternion().w() << ","
+              << msg.quaternion().x() << "," << msg.quaternion().y() << ","
+              << msg.quaternion().z() << ") error";
     return false;
   }
   node->ticktime = msg.header().gnss_stamp();

@@ -16,6 +16,7 @@ LMapApp::LMapApp(const std::string& config_file) {
   use_perception_match_ = config["use_perception_match"].as<bool>();
   use_bipartite_assoc_match_ = config["use_bipartite_assoc_match"].as<bool>();
   use_rviz_ = config["use_rviz"].as<bool>();
+  use_filter_ = config["use_filter"].as<bool>();
   compute_error = config["compute_error"].as<bool>();
   sample_interval = config["sample_interval"].as<double>();
   BipartiteAssocParams params;
@@ -84,7 +85,7 @@ void LMapApp::OnDr(
     // HLOG_ERROR << "Dr timestamp error";
   }
 
-  if (use_rviz_) {
+  if (use_rviz_ && RVIZ_AGENT.Ok()) {
     auto sec = static_cast<uint64_t>(msg->header().gnss_stamp());
     auto nsec = static_cast<uint64_t>((msg->header().gnss_stamp() - sec) * 1e9);
     CommonUtil::PubOdom(T_W_V_, sec, nsec, "/localmap/odom");
@@ -103,7 +104,7 @@ void LMapApp::OnIns(
   T_G_V_ = Sophus::SE3d(q_G_V, p_G_V);
   static int ins_n = 0;
   ins_n++;
-  if (use_rviz_ && ins_n == 100) {
+  if (use_rviz_ && RVIZ_AGENT.Ok() && ins_n == 100) {
     ins_n = 0;
     if (!dr_inited_) return;
     auto sec = static_cast<uint64_t>(msg->header().gnss_stamp());
@@ -193,26 +194,28 @@ void LMapApp::OnLaneLine(
         mmgr_->SetLaneProperty(lane_id, match.frame_lane_);
       }
     } else if (match.update_type_ == ObjUpdateType::MERGE_OLD) {
-      int lane_start_x = 0;
       std::vector<Eigen::Vector3d> new_lane_pts;
-      // laneOp_->FilterCurve(match.frame_lane_, &new_lane_pts, &lane_start_x,
-      //                      sample_interval);
-      double x, y;
-      for (x = match.frame_lane_->x_start_vrf_;
-           x <= match.frame_lane_->x_end_vrf_; x += sample_interval) {
-        y = CommonUtil::f(
-            x, match.frame_lane_->lane_fit_d_, match.frame_lane_->lane_fit_c_,
-            match.frame_lane_->lane_fit_b_, match.frame_lane_->lane_fit_a_);
-        Eigen::Vector3d pt(x, y, 0);
-        new_lane_pts.emplace_back(pt);
+      if (use_filter_) {
+        if (match.map_lane_->points_.empty()) return;
+        laneOp_->FilterCurve(match.frame_lane_, match.map_lane_,
+                             sample_interval);
+        mmgr_->SetLanePoints(*match.map_lane_);
+      } else {
+        double x, y;
+        for (x = match.frame_lane_->x_start_vrf_;
+             x <= match.frame_lane_->x_end_vrf_; x += sample_interval) {
+          y = CommonUtil::f(
+              x, match.frame_lane_->lane_fit_d_, match.frame_lane_->lane_fit_c_,
+              match.frame_lane_->lane_fit_b_, match.frame_lane_->lane_fit_a_);
+          Eigen::Vector3d pt(x, y, 0);
+          new_lane_pts.emplace_back(pt);
+        }
+        mmgr_->DeleteLanePoints(match.map_lane_->track_id_,
+                                match.frame_lane_->x_start_vrf_);
+
+        auto world_pts = std::make_shared<std::vector<Eigen::Vector3d>>();
+        mmgr_->AppendOldLanePoints(match.map_lane_->track_id_, new_lane_pts);
       }
-      if (new_lane_pts.size() == 0) {
-        continue;
-      }
-      mmgr_->DeleteLanePoints(match.map_lane_->track_id_,
-                              match.frame_lane_->x_start_vrf_);
-      auto world_pts = std::make_shared<std::vector<Eigen::Vector3d>>();
-      mmgr_->AppendOldLanePoints(match.map_lane_->track_id_, new_lane_pts);
       mmgr_->SetLaneProperty(match.map_lane_->track_id_, match.frame_lane_);
     }
   }
@@ -232,7 +235,7 @@ void LMapApp::OnLaneLine(
       std::chrono::duration_cast<std::chrono::milliseconds>(end5 - start5);
   // HLOG_ERROR << "fit && cut time: " << duration.count() << " ms";
   auto start6 = std::chrono::high_resolution_clock::now();
-  if (use_rviz_) {
+  if (use_rviz_ && RVIZ_AGENT.Ok()) {
     CommonUtil::PubPercepPoints(T_W_V_, latest_lanes, sec, nsec,
                                 "/localmap/percep_points", sample_interval);
     CommonUtil::PubMapPoints(mmgr_->local_map_, sec, nsec,
@@ -271,7 +274,7 @@ void LMapApp::OnRoadEdge(
   // Sophus::SE3d T_C_L_edge = T_W_V_edge.inverse() * last_T_W_V_edge;
   // last_T_W_V_edge = T_W_V_edge;
   // mmgr_->UpdateEdge(T_C_L_edge);
-  // if (use_rviz_) {
+  // if (use_rviz_ && RVIZ_AGENT.Ok()) {
   //   CommonUtil::PubEdgePoints(T_W_V_edge, latest_edges_, sec_edge, nsec_edge,
   //                             "/localmap/edge_points", sample_interval);
   // }
@@ -279,7 +282,7 @@ void LMapApp::OnRoadEdge(
 
 void LMapApp::OnImage(
     const std::shared_ptr<const hozon::soc::CompressedImage>& msg) {
-  if (use_rviz_) {
+  if (use_rviz_ && RVIZ_AGENT.Ok()) {
     auto start = std::chrono::high_resolution_clock::now();
     // HLOG_ERROR << "rviz time: " << duration.count() << " ms";
     CommonUtil::PubImage("/localmap/image", msg);

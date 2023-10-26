@@ -237,6 +237,15 @@ void MapManager::GetLanes(std::shared_ptr<std::vector<LocalMapLane>> lane) {
   }
 }
 
+void MapManager::SetLanePoints(const LocalMapLane& new_lane) {
+  for (auto& lane : local_map_.local_map_lane_) {
+    if (new_lane.track_id_ == lane.track_id_) {
+      lane.points_ = new_lane.points_;
+      return;
+    }
+  }
+}
+
 void MapManager::GetEdges(std::shared_ptr<std::vector<LocalMapLane>> edge) {
   *edge = local_map_.local_map_edge_;
 }

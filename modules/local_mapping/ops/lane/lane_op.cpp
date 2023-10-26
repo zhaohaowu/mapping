@@ -102,27 +102,62 @@ void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
 }
 
 void LaneOp::FilterCurve(std::shared_ptr<const Lane> cur_lane,
-                         std::vector<Eigen::Vector3d>* new_pts,
-                         int* lane_start_x, const double& sample_interval) {
-  HLOG_INFO << "FilterCurve";
-  new_pts->clear();
-
-  std::shared_ptr<LaneCubicSpline> filtered_lane_func =
-      std::make_shared<LaneCubicSpline>();
-  if (filter_map_.find(cur_lane->lane_id_) != filter_map_.end()) {
-    HLOG_INFO << "aaaa";
-    filter_map_[cur_lane->lane_id_]->SetCurLanePose(cur_lane_pose_);
-    filter_map_[cur_lane->lane_id_]->LaneProcess(cur_lane, filtered_lane_func);
-    filtered_lane_func->start_point_x_ = cur_lane->x_start_vrf_;
-    filtered_lane_func->end_point_x_ = cur_lane->x_end_vrf_;
-    CommonUtil::SampleCurvePts(*filtered_lane_func, new_pts, sample_interval);
-    *lane_start_x = filtered_lane_func->start_point_x_;
-  } else {
-    HLOG_INFO << "bbbb";
-    filter_map_[cur_lane->lane_id_] = std::make_shared<LaneFilter>();
-    filter_map_[cur_lane->lane_id_]->SetCurLanePose(cur_lane_pose_);
-    filter_map_[cur_lane->lane_id_]->Init(cur_lane);
+                         std::shared_ptr<LocalMapLane> map_lane,
+                         const double& sample_interval) {
+  std::vector<Eigen::Vector3d> new_pts;
+  double delta_y1 = 0;
+  double delta_y2 = 0;
+  for (auto p_map : map_lane->points_) {
+    if (p_map.x() < cur_lane->x_start_vrf_) {
+      new_pts.emplace_back(p_map);
+    } else if (p_map.x() >= cur_lane->x_start_vrf_ &&
+               p_map.x() <= cur_lane->x_end_vrf_) {
+      Eigen::Vector3d p_lane = Eigen::Vector3d::Identity();
+      p_lane.x() = p_map.x();
+      p_lane.y() = cur_lane->lane_fit_a_ * pow(p_lane.x(), 3) +
+                   cur_lane->lane_fit_b_ * pow(p_lane.x(), 2) +
+                   cur_lane->lane_fit_c_ * p_lane.x() + cur_lane->lane_fit_d_;
+      // double update_y = 0.8 * p_map.y() + 0.2 * p_lane.y();
+      double update_y = 0 * p_map.y() + 1.0 * p_lane.y();
+      Eigen::Vector3d tmp(p_map.x(), update_y, 0);
+      new_pts.emplace_back(tmp);
+      // delta_y1 = 0.6 * delta_y1 + (p_map.y() - update_y) * 0.4;
+      // delta_y2 = 0.6 * delta_y2 + (p_lane.y() - update_y) * 0.4;
+    } else if (p_map.x() > cur_lane->x_end_vrf_) {
+      Eigen::Vector3d tmp(p_map.x(), p_map.y() - delta_y1, 0);
+      new_pts.emplace_back(tmp);
+    }
   }
+  double map_x_end = map_lane->points_[map_lane->points_.size() - 1].x();
+  if (map_x_end < cur_lane->x_end_vrf_) {
+    Eigen::Vector3d p_lane = Eigen::Vector3d::Identity();
+    for (double x = map_x_end + 0.8; x <= cur_lane->x_end_vrf_;
+         x += sample_interval) {
+      p_lane.x() = x;
+      p_lane.y() = cur_lane->lane_fit_a_ * pow(p_lane.x(), 3) +
+                   cur_lane->lane_fit_b_ * pow(p_lane.x(), 2) +
+                   cur_lane->lane_fit_c_ * p_lane.x() + cur_lane->lane_fit_d_;
+      Eigen::Vector3d tmp(p_lane.x(), p_lane.y() - delta_y2, 0);
+      new_pts.emplace_back(tmp);
+    }
+  }
+  map_lane->points_ = new_pts;
+  // std::shared_ptr<LaneCubicSpline> filtered_lane_func =
+  //     std::make_shared<LaneCubicSpline>();
+  // if (filter_map_.find(cur_lane->lane_id_) != filter_map_.end()) {
+  //   HLOG_INFO << "aaaa";
+  //   filter_map_[cur_lane->lane_id_]->SetCurLanePose(cur_lane_pose_);
+  //   filter_map_[cur_lane->lane_id_]->LaneProcess(cur_lane,
+  //   filtered_lane_func); filtered_lane_func->start_point_x_ =
+  //   cur_lane->x_start_vrf_; filtered_lane_func->end_point_x_ =
+  //   cur_lane->x_end_vrf_; CommonUtil::SampleCurvePts(*filtered_lane_func,
+  //   new_pts, sample_interval);
+  // } else {
+  //   HLOG_INFO << "bbbb";
+  //   filter_map_[cur_lane->lane_id_] = std::make_shared<LaneFilter>();
+  //   filter_map_[cur_lane->lane_id_]->SetCurLanePose(cur_lane_pose_);
+  //   filter_map_[cur_lane->lane_id_]->Init(cur_lane);
+  // }
 }
 
 bool LaneOp::SetCurLanePose(const double time) {

@@ -155,6 +155,14 @@ class MapManager {
   void GetLanes(std::shared_ptr<std::vector<LocalMapLane>> lanes);
 
   /**
+   * @brief set lane in local map
+   *
+   * @param lane : lane data
+   * @return
+   */
+  void SetLanePoints(const LocalMapLane& lane);
+
+  /**
    * @brief get edge in local map
    *
    * @param edges : edge data

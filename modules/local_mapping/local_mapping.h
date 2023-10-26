@@ -130,6 +130,7 @@ class LMapApp {
   bool use_perception_match_;
   bool use_bipartite_assoc_match_;
   bool use_rviz_;
+  bool use_filter_;
   bool dr_inited_;
   bool laneline_inited_;
   std::shared_ptr<PtFilter> lane_filter_;

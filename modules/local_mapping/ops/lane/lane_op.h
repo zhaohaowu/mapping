@@ -54,7 +54,7 @@ class LaneOp {
    * @return
    */
   void FilterCurve(std::shared_ptr<const Lane> cur_lane,
-                   std::vector<Eigen::Vector3d>* new_pts, int* lane_start_x,
+                   std::shared_ptr<LocalMapLane> map_lane,
                    const double& sample_interval);
 
   //  private:

@@ -34,4 +34,4 @@ monitor_ins_loss_frame_max_time: 0.105
 use_rviz_bridge: false
 use_deflection: true
 use_inspva: false
-use_fixed_quat: true
+use_fixed_quat: false

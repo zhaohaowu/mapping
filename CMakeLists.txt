@@ -172,12 +172,16 @@ if(IND)
         ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/
         ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib/
         DESTINATION ${EXTERNAL_LIB_PATH}
+        FILES_MATCHING
+        PATTERN "*.so*"
     )
 
     if(NOT ${PLATFORM} STREQUAL "orin")
         install(DIRECTORY
             ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/hzavpmap/lib/
             DESTINATION ${EXTERNAL_LIB_PATH}
+            FILES_MATCHING
+            PATTERN "*.so*"
         )
     endif()
 
@@ -193,6 +197,8 @@ if(IND)
             ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fastrtps/lib/
             ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/amap/lib/
             DESTINATION ${EXTERNAL_LIB_PATH}
+            FILES_MATCHING
+            PATTERN "*.so*"
         )
     endif()
 
@@ -200,6 +206,8 @@ if(IND)
         install(
             DIRECTORY ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fast-dds/lib/
             DESTINATION ${EXTERNAL_LIB_PATH}
+            FILES_MATCHING
+            PATTERN "*.so*"
         )
     endif()
 

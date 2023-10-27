@@ -24,7 +24,10 @@ install(DIRECTORY production/scripts DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 if(IND)
   set(NOSLIB ${DEPEND}/nos/${NOS_PLATFORM}/lib)
-  install(DIRECTORY ${NOSLIB}/ DESTINATION ${EXTERNAL_LIB_PATH})
+  install(DIRECTORY ${NOSLIB}/ DESTINATION ${EXTERNAL_LIB_PATH}
+  FILES_MATCHING
+  PATTERN "*.so*"
+  )
 endif()
 
 set(NOSBIN ${DEPEND}/nos/${NOS_PLATFORM}/bin/adf-lite-process)

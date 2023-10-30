@@ -54,7 +54,6 @@ class InsFusion {
 
  private:
   Config config_;
-  uint32_t seq_ = 0;
   bool ref_init_ = false;
   Eigen::Vector3d refpoint_;
 
@@ -79,6 +78,7 @@ class InsFusion {
   InsNode last_node_;
   InsNode curr_node_;
   bool ins_node_is_valid_ = false;
+  bool inspva_node_is_valid_ = false;
 
   // store origin ins from IMU/INS message
   std::mutex ins84_deque_mutex_;

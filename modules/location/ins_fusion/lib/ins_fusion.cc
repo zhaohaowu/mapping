@@ -135,10 +135,10 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
 }
 
 void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
-  if (!inspva.is_valid()) {
+  if (!inspva.is_valid() || !config_.use_inspva) {
     return;
   }
-  ins_node_is_valid_ = true;
+  inspva_node_is_valid_ = true;
   std::unique_lock<std::mutex> lock(inspva_mutex_);
   if (inspva.header().seq() <= latest_inspva_data_.header().seq()) {
     return;
@@ -152,13 +152,13 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
 
   AccumulateGpsStatus(inspva);
 
-  // keep main structure of inspva for passthrough
-  latest_inspva_data_ = inspva;
-
   curr_node_.Reset();
   if (!Extract02InsNode(inspva, &curr_node_)) {
     return;
   }
+
+  // keep main structure of inspva for passthrough
+  latest_inspva_data_ = inspva;
 
   if (config_.fix_deflection_repeat &&
       FixDeflectionRepeat(last_node_, &curr_node_)) {
@@ -195,7 +195,7 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
     return false;
   }
 
-  if (!node_info || !ins_node_is_valid_) {
+  if (!node_info || (!ins_node_is_valid_ && inspva_node_is_valid_)) {
     return false;
   }
 
@@ -211,26 +211,7 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
     }
     node_info->set_type(hozon::localization::HafNodeInfo_NodeType_INS);
     node_info->mutable_header()->set_frame_id("ins_fusion");
-    if (ins_state_enum_ == InsStateEnum::MILD) {
-      if (inspva_deque_.empty()) {
-        return false;
-      }
-      auto inspva_data = inspva_deque_.back();
-      node_info->mutable_header()->set_publish_stamp(
-          inspva_data.header().publish_stamp());
-      node_info->mutable_header()->set_gnss_stamp(
-          inspva_data.header().gnss_stamp());
-      node_info->mutable_pos_wgs()->set_x(inspva_data.pos_wgs().x());
-      node_info->mutable_pos_wgs()->set_y(inspva_data.pos_wgs().y());
-      node_info->mutable_pos_wgs()->set_z(inspva_data.pos_wgs().z());
-      node_info->mutable_gyro_bias()->set_x(inspva_data.gyro_bias().x());
-      node_info->mutable_gyro_bias()->set_y(inspva_data.gyro_bias().y());
-      node_info->mutable_gyro_bias()->set_z(inspva_data.gyro_bias().z());
-      node_info->mutable_accel_bias()->set_x(inspva_data.accel_bias().x());
-      node_info->mutable_accel_bias()->set_y(inspva_data.accel_bias().y());
-      node_info->mutable_accel_bias()->set_z(inspva_data.accel_bias().z());
-      return true;
-    }
+    return true;
   }
 
   hozon::soc::ImuIns origin_ins;
@@ -431,7 +412,7 @@ bool InsFusion::Extract02InsNode(const hozon::localization::HafNodeInfo& inspva,
   }
 
   node->seq = inspva.header().seq();
-  node->ticktime = inspva.header().publish_stamp();
+  node->ticktime = inspva.header().gnss_stamp();
 
   node->refpoint = GetRefpoint();
   node->blh << inspva.pos_gcj02().x(), inspva.pos_gcj02().y(),
@@ -451,13 +432,15 @@ bool InsFusion::Extract84InsNode(const hozon::soc::ImuIns& ins,
   if (config_.use_inspva && !ref_init_) {
     return false;
   }
-
-  if (!node || !ins_node_is_valid_) {
+  Eigen::Vector3d q(ins.ins_info().attitude().x(),
+                    ins.ins_info().attitude().y(),
+                    ins.ins_info().attitude().z());
+  if (!node || !ins_node_is_valid_ || q.norm() < 1e-10) {
     return false;
   }
 
   node->seq = ins.header().seq();
-  node->ticktime = ins.header().publish_stamp();
+  node->ticktime = ins.header().gnss_stamp();
   node->refpoint = GetRefpoint();
   node->blh << ins.ins_info().latitude(), ins.ins_info().longitude(),
       ins.ins_info().altitude();

@@ -43,6 +43,8 @@ def parse_args():
 # 执行shell命令
 def execute_shell(cmd,shell=True,stdout=None):
     result = sp.run(cmd,shell=shell,stdout=stdout)
+    if (result.returncode != 0) :
+        raise(f"{result.returncode}, {cmd} failed")
     return result.stdout
 
 def LOG_INFO(*msg):

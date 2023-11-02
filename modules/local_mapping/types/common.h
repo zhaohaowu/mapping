@@ -20,7 +20,7 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
-enum LanePoseType {
+enum LanePositionType {
   BOLLARD_LEFT = -5,
   FOURTH_LEFT = -4,
   THIRD_LEFT = -3,
@@ -32,6 +32,26 @@ enum LanePoseType {
   FOURTH_RIGHT = 4,
   BOLLARD_RIGHT = 5,
   OTHER = 6
+};
+
+enum LaneType {
+  Unknown = 0,                     // 未知
+  SolidLine = 1,                   // 单实线
+  DashedLine = 2,                  // 单虚线
+  ShortDashedLine = 3,             // 短虚线
+  DoubleSolidLine = 4,             // 双实线
+  DoubleDashedLine = 5,            // 双虚线
+  LeftSolidRightDashed = 6,        // 左实右虚
+  RightSolidLeftDashed = 7,        // 右实左虚
+  ShadedArea = 8,                  // 导流线
+  LaneVirtualMarking = 9,          // 车道虚拟线
+  IntersectionVirualMarking = 10,  // 路口虚拟线
+  CurbVirtualMarking = 11,         // 路边缘虚拟线
+  UnclosedRoad = 12,               // 非封闭路段线
+  RoadVirtualLine = 13,            // 道路虚拟线
+  LaneChangeVirtualLine = 14,      // 变道虚拟线
+  RoadEdge = 15,                   // 路沿
+  Other = 99                       // 其他
 };
 
 class Location {
@@ -49,8 +69,9 @@ class Location {
 class Lane {
  public:
   Lane() = default;
-  int lane_id_;
-  LanePoseType pos_type_;
+  int track_id_;
+  LanePositionType lanepos_;
+  LaneType lanetype_;
   double lane_fit_a_;
   double lane_fit_b_;
   double lane_fit_c_;
@@ -60,8 +81,9 @@ class Lane {
   std::vector<Eigen::Vector3d> control_points_;
 
   Lane(const Lane& lane)
-      : lane_id_(lane.lane_id_),
-        pos_type_(lane.pos_type_),
+      : track_id_(lane.track_id_),
+        lanepos_(lane.lanepos_),
+        lanetype_(lane.lanetype_),
         lane_fit_a_(lane.lane_fit_a_),
         lane_fit_b_(lane.lane_fit_b_),
         lane_fit_c_(lane.lane_fit_c_),
@@ -111,7 +133,8 @@ class LocalMapLane {
 
  public:
   int track_id_;
-  LanePoseType pos_type_;
+  LanePositionType lanepos_;
+  LaneType lanetype_;
   std::vector<Eigen::Vector3d> points_;
   std::vector<Eigen::Vector3d> fit_points_;
   std::vector<LaneCubicSpline> lane_param_;

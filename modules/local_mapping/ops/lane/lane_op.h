@@ -38,13 +38,13 @@ class LaneOp {
    * @return
    */
   void Match(std::shared_ptr<const Lanes> cur_lanes,
-             std::shared_ptr<std::vector<LocalMapLane>> map_lanes,
-             std::shared_ptr<std::vector<LaneMatchInfo>> match_info,
-             bool use_bipartite_assoc_match, const double& sample_interval);
+             std::shared_ptr<LocalMap> local_map,
+             std::shared_ptr<std::vector<LaneMatchInfo>> match_info);
 
   void Match(std::shared_ptr<const Lanes> cur_lanes,
-             std::shared_ptr<const std::vector<LocalMapLane>> map_lanes,
-             std::shared_ptr<std::vector<LaneMatchInfo>> match_info);
+             std::shared_ptr<LocalMap> local_map,
+             std::shared_ptr<std::vector<LaneMatchInfo>> match_info,
+             bool use_bipartite_assoc_match, const double& sample_interval);
   /**
    * @brief filter new lane, map as prediction and new lane as observation
    *
@@ -53,9 +53,8 @@ class LaneOp {
    * @param new_pts : new points, result of filter
    * @return
    */
-  void FilterCurve(std::shared_ptr<const Lane> cur_lane,
-                   std::shared_ptr<LocalMapLane> map_lane,
-                   const double& sample_interval);
+  void FilterCurve(std::shared_ptr<LocalMap> local_map, const Lane& cur_lane,
+                   const LocalMapLane& map_lane, const double& sample_interval);
 
   //  private:
   LaneAssocPtr lane_assoc_ = nullptr;

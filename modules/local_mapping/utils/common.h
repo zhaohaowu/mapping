@@ -230,7 +230,8 @@ class CommonUtil {
    * @param local_map local_map
    * @return
    */
-  static void CubicCurve(LocalMap* local_map, const double& sample_interval) {
+  static void CubicCurve(std::shared_ptr<LocalMap> local_map,
+                         const double& sample_interval) {
     int tmp_num = 10 / sample_interval;
     for (size_t k = 0; k < local_map->local_map_lane_.size(); k++) {
       if (!local_map->local_map_lane_[k].need_fit_) continue;
@@ -334,7 +335,8 @@ class CommonUtil {
    * @param local_map local_map
    * @return
    */
-  static void CatmullRoom(LocalMap* local_map, const double& sample_interval) {
+  static void CatmullRom(std::shared_ptr<LocalMap> local_map,
+                         const double& sample_interval) {
     for (auto& lane : local_map->local_map_lane_) {
       if (!lane.need_fit_) continue;
       lane.lane_param_.clear();
@@ -345,22 +347,30 @@ class CommonUtil {
           pts.push_back(lane.points_[i]);
         }
       }
+      Eigen::Vector3d p0, p1, p2, p3;
       if (pts.size() < 4) continue;
+      p0 = pts[0];
+      p1 = pts[1];
+      p2 = pts[pts.size() - 2];
+      p3 = pts[pts.size() - 1];
+      // pts.push_back(2 * p3 - p2);
+      // pts.insert(pts.begin(), 2 * p0 - p1);
       auto func = [](double p0, double p1, double p2, double p3, double t) {
+        double s = 0.5;
+        double a = -s * p0 + (2 - s) * p1 + (s - 2) * p2 + s * p3;
+        double b = 2 * s * p0 + (s - 3) * p1 + (3 - 2 * s) * p2 - s * p3;
+        double c = -s * p0 + s * p2;
+        double d = p1;
         double t2 = t * t;
         double t3 = t2 * t;
-        double b1 = 0.5 * (-t3 + 2 * t2 - t);
-        double b2 = 0.5 * (3 * t3 - 5 * t2 + 2);
-        double b3 = 0.5 * (-3 * t3 + 4 * t2 + t);
-        double b4 = 0.5 * (t3 - t2);
-        return (p0 * b1 + p1 * b2 + p2 * b3 + p3 * b4);
+        return (a * t3 + b * t2 + c * t + d);
       };
       for (size_t i = 1; i < pts.size() - 2; ++i) {
-        for (double t = 0; t < 1; t += 0.1) {
+        for (int t = 0; t < 10; t++) {
           double px = func(pts[i - 1].x(), pts[i].x(), pts[i + 1].x(),
-                           pts[i + 2].x(), t);
+                           pts[i + 2].x(), t * 0.1);
           double py = func(pts[i - 1].y(), pts[i].y(), pts[i + 1].y(),
-                           pts[i + 2].y(), t);
+                           pts[i + 2].y(), t * 0.1);
           lane.fit_points_.push_back({px, py, 0});
         }
       }
@@ -751,7 +761,7 @@ class CommonUtil {
       lane_pos.mutable_color()->set_g(0);
       lane_pos.mutable_color()->set_b(0);
       lane_pos.mutable_color()->set_a(1);
-      lane_pos.set_text(std::to_string(local_map.local_map_lane_[i].pos_type_));
+      lane_pos.set_text(std::to_string(local_map.local_map_lane_[i].lanepos_));
       lane_pos.mutable_scale()->set_x(1);
       lane_pos.mutable_scale()->set_y(1);
       lane_pos.mutable_scale()->set_z(1);
@@ -835,87 +845,87 @@ class CommonUtil {
     }
     adsfi_proto::viz::MarkerArray markers;
     int id = 0;
-    // for (const auto& lane : lanes) {
-    //   for (const auto& i : lane->lane().left_boundary().curve().segment()) {
-    //     std::vector<Eigen::Vector3d> hq_points;
-    //     for (const auto& point : i.line_segment().point()) {
-    //       Eigen::Vector3d temp_point(point.x(), point.y(), 0);
+    for (const auto& lane : lanes) {
+      for (const auto& i : lane->lane().left_boundary().curve().segment()) {
+        std::vector<Eigen::Vector3d> hq_points;
+        for (const auto& point : i.line_segment().point()) {
+          Eigen::Vector3d temp_point(point.x(), point.y(), 0);
 
-    //       temp_point = T_W_U * temp_point;
-    //       if (hq_pts) hq_pts->push_back(temp_point);
+          temp_point = T_W_U * temp_point;
+          if (hq_pts) hq_pts->push_back(temp_point);
 
-    //       hq_points.emplace_back(temp_point);
-    //     }
-    //     adsfi_proto::viz::Marker marker_msg;
-    //     marker_msg.mutable_header()->set_frameid("localmap");
-    //     marker_msg.set_ns("localmap");
-    //     marker_msg.set_id(id++);
-    //     marker_msg.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
-    //     marker_msg.set_action(adsfi_proto::viz::MarkerAction::ADD);
-    //     marker_msg.mutable_pose()->mutable_orientation()->set_x(0.);
-    //     marker_msg.mutable_pose()->mutable_orientation()->set_y(0.);
-    //     marker_msg.mutable_pose()->mutable_orientation()->set_z(0.);
-    //     marker_msg.mutable_pose()->mutable_orientation()->set_w(1.);
-    //     marker_msg.mutable_scale()->set_x(0.1);
-    //     marker_msg.mutable_lifetime()->set_sec(1);
-    //     marker_msg.mutable_lifetime()->set_nsec(0);
-    //     adsfi_proto::viz::ColorRGBA color;
-    //     color.set_a(1.0);
-    //     color.set_r(1.0);
-    //     color.set_g(1.0);
-    //     color.set_b(1.0);
-    //     marker_msg.mutable_color()->CopyFrom(color);
-    //     for (const auto& p : hq_points) {
-    //       auto predict_pt = marker_msg.add_points();
-    //       predict_pt->set_x(p[0]);
-    //       predict_pt->set_y(p[1]);
-    //       predict_pt->set_z(0);
-    //     }
-    //     if (!marker_msg.points().empty()) {
-    //       markers.add_markers()->CopyFrom(marker_msg);
-    //     }
-    //   }
-    //   for (const auto& i : lane->lane().right_boundary().curve().segment()) {
-    //     std::vector<Eigen::Vector3d> hq_points;
-    //     for (const auto& point : i.line_segment().point()) {
-    //       Eigen::Vector3d temp_point(point.x(), point.y(), 0);
+          hq_points.emplace_back(temp_point);
+        }
+        adsfi_proto::viz::Marker marker_msg;
+        marker_msg.mutable_header()->set_frameid("localmap");
+        marker_msg.set_ns("localmap");
+        marker_msg.set_id(id++);
+        marker_msg.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+        marker_msg.set_action(adsfi_proto::viz::MarkerAction::ADD);
+        marker_msg.mutable_pose()->mutable_orientation()->set_x(0.);
+        marker_msg.mutable_pose()->mutable_orientation()->set_y(0.);
+        marker_msg.mutable_pose()->mutable_orientation()->set_z(0.);
+        marker_msg.mutable_pose()->mutable_orientation()->set_w(1.);
+        marker_msg.mutable_scale()->set_x(0.1);
+        marker_msg.mutable_lifetime()->set_sec(1);
+        marker_msg.mutable_lifetime()->set_nsec(0);
+        adsfi_proto::viz::ColorRGBA color;
+        color.set_a(1.0);
+        color.set_r(1.0);
+        color.set_g(1.0);
+        color.set_b(1.0);
+        marker_msg.mutable_color()->CopyFrom(color);
+        for (const auto& p : hq_points) {
+          auto predict_pt = marker_msg.add_points();
+          predict_pt->set_x(p[0]);
+          predict_pt->set_y(p[1]);
+          predict_pt->set_z(0);
+        }
+        if (!marker_msg.points().empty()) {
+          markers.add_markers()->CopyFrom(marker_msg);
+        }
+      }
+      for (const auto& i : lane->lane().right_boundary().curve().segment()) {
+        std::vector<Eigen::Vector3d> hq_points;
+        for (const auto& point : i.line_segment().point()) {
+          Eigen::Vector3d temp_point(point.x(), point.y(), 0);
 
-    //       temp_point = T_W_U * temp_point;
-    //       hq_points.emplace_back(temp_point);
-    //       if (hq_pts) hq_pts->push_back(temp_point);
-    //     }
+          temp_point = T_W_U * temp_point;
+          hq_points.emplace_back(temp_point);
+          if (hq_pts) hq_pts->push_back(temp_point);
+        }
 
-    //     static int id = 0;
-    //     adsfi_proto::viz::Marker marker_msg;
-    //     marker_msg.mutable_header()->set_frameid("localmap");
-    //     marker_msg.set_ns("localmap");
-    //     marker_msg.set_id(id++);
-    //     marker_msg.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
-    //     marker_msg.set_action(adsfi_proto::viz::MarkerAction::ADD);
-    //     marker_msg.mutable_pose()->mutable_orientation()->set_x(0.);
-    //     marker_msg.mutable_pose()->mutable_orientation()->set_y(0.);
-    //     marker_msg.mutable_pose()->mutable_orientation()->set_z(0.);
-    //     marker_msg.mutable_pose()->mutable_orientation()->set_w(1.);
-    //     marker_msg.mutable_scale()->set_x(0.1);
-    //     marker_msg.mutable_lifetime()->set_sec(1);
-    //     marker_msg.mutable_lifetime()->set_nsec(0);
-    //     adsfi_proto::viz::ColorRGBA color;
-    //     color.set_a(1.0);
-    //     color.set_r(1.0);
-    //     color.set_g(1.0);
-    //     color.set_b(1.0);
-    //     marker_msg.mutable_color()->CopyFrom(color);
-    //     for (const auto& p : hq_points) {
-    //       auto predict_pt = marker_msg.add_points();
-    //       predict_pt->set_x(p[0]);
-    //       predict_pt->set_y(p[1]);
-    //       predict_pt->set_z(0);
-    //     }
-    //     if (!marker_msg.points().empty()) {
-    //       markers.add_markers()->CopyFrom(marker_msg);
-    //     }
-    //   }
-    // }
+        static int id = 0;
+        adsfi_proto::viz::Marker marker_msg;
+        marker_msg.mutable_header()->set_frameid("localmap");
+        marker_msg.set_ns("localmap");
+        marker_msg.set_id(id++);
+        marker_msg.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+        marker_msg.set_action(adsfi_proto::viz::MarkerAction::ADD);
+        marker_msg.mutable_pose()->mutable_orientation()->set_x(0.);
+        marker_msg.mutable_pose()->mutable_orientation()->set_y(0.);
+        marker_msg.mutable_pose()->mutable_orientation()->set_z(0.);
+        marker_msg.mutable_pose()->mutable_orientation()->set_w(1.);
+        marker_msg.mutable_scale()->set_x(0.1);
+        marker_msg.mutable_lifetime()->set_sec(1);
+        marker_msg.mutable_lifetime()->set_nsec(0);
+        adsfi_proto::viz::ColorRGBA color;
+        color.set_a(1.0);
+        color.set_r(1.0);
+        color.set_g(1.0);
+        color.set_b(1.0);
+        marker_msg.mutable_color()->CopyFrom(color);
+        for (const auto& p : hq_points) {
+          auto predict_pt = marker_msg.add_points();
+          predict_pt->set_x(p[0]);
+          predict_pt->set_y(p[1]);
+          predict_pt->set_z(0);
+        }
+        if (!marker_msg.points().empty()) {
+          markers.add_markers()->CopyFrom(marker_msg);
+        }
+      }
+    }
     util::RvizAgent::Instance().Publish(topic, markers);
   }
   /**

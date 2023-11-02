@@ -67,9 +67,6 @@ bool LMapComponent::Init() {
   local_map_publish_thread_ =
       std::thread(&LMapComponent::LocalMapPublish, this);
 
-  // local_map_location_publish_thread_ =
-  //     std::thread(&LMapComponent::LocalMapLocationPublish, this);
-
   if (FLAGS_viz) {
     util::RvizAgent::Instance().Init("ipc:///tmp/rviz_agent_local_map");
   }
@@ -127,7 +124,6 @@ bool LMapComponent::OnLaneLine(
 
 bool LMapComponent::OnRoadEdge(
     const std::shared_ptr<const hozon::perception::TransportElement>& msg) {
-  HLOG_ERROR << "===OnRoadEdge";
   if (!lmap_) {
     return false;
   }
@@ -137,7 +133,6 @@ bool LMapComponent::OnRoadEdge(
 
 bool LMapComponent::OnImg(
     const std::shared_ptr<const hozon::soc::CompressedImage>& msg) {
-  HLOG_ERROR << "===OnImg";
   lmap_->OnImage(msg);
   return true;
 }
@@ -150,18 +145,6 @@ void LMapComponent::LocalMapPublish() {
       result_talker_->Write(result);
     }
     usleep(49.5 * 1e3);
-  }
-}
-
-void LMapComponent::LocalMapLocationPublish() {
-  while (apollo::cyber::OK()) {
-    std::shared_ptr<hozon::localization::Localization> result =
-        std::make_shared<hozon::localization::Localization>();
-    if (lmap_->FetchLocalMapLocation(result) &&
-        result_location_talker_ != nullptr) {
-      result_location_talker_->Write(result);
-    }
-    usleep(10 * 1e3);
   }
 }
 

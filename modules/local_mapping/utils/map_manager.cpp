@@ -27,31 +27,32 @@ void MapManager::Init() {
   */
 }
 
-void MapManager::CutLocalMap(const double& length_x, const double& length_y) {
-  for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
-    for (size_t j = 0; j < local_map_.local_map_lane_[i].points_.size(); ++j) {
-      if (local_map_.local_map_lane_[i].points_[j].x() < -length_x ||
-          local_map_.local_map_lane_[i].points_[j].x() > length_x ||
-          local_map_.local_map_lane_[i].points_[j].y() < -length_y ||
-          local_map_.local_map_lane_[i].points_[j].y() > +length_y) {
-        local_map_.local_map_lane_[i].points_.erase(
-            local_map_.local_map_lane_[i].points_.begin() + j);
+void MapManager::CutLocalMap(std::shared_ptr<LocalMap> local_map,
+                             const double& length_x, const double& length_y) {
+  for (size_t i = 0; i < local_map->local_map_lane_.size(); ++i) {
+    for (size_t j = 0; j < local_map->local_map_lane_[i].points_.size(); ++j) {
+      if (local_map->local_map_lane_[i].points_[j].x() < -length_x ||
+          local_map->local_map_lane_[i].points_[j].x() > length_x ||
+          local_map->local_map_lane_[i].points_[j].y() < -length_y ||
+          local_map->local_map_lane_[i].points_[j].y() > length_y) {
+        local_map->local_map_lane_[i].points_.erase(
+            local_map->local_map_lane_[i].points_.begin() + j);
         --j;
       }
     }
-    for (size_t j = 0; j < local_map_.local_map_lane_[i].fit_points_.size();
+    for (size_t j = 0; j < local_map->local_map_lane_[i].fit_points_.size();
          ++j) {
-      if (local_map_.local_map_lane_[i].fit_points_[j].x() < -length_x ||
-          local_map_.local_map_lane_[i].fit_points_[j].x() > +length_x ||
-          local_map_.local_map_lane_[i].fit_points_[j].y() < -length_y ||
-          local_map_.local_map_lane_[i].fit_points_[j].y() > +length_y) {
-        local_map_.local_map_lane_[i].fit_points_.erase(
-            local_map_.local_map_lane_[i].fit_points_.begin() + j);
+      if (local_map->local_map_lane_[i].fit_points_[j].x() < -length_x ||
+          local_map->local_map_lane_[i].fit_points_[j].x() > length_x ||
+          local_map->local_map_lane_[i].fit_points_[j].y() < -length_y ||
+          local_map->local_map_lane_[i].fit_points_[j].y() > length_y) {
+        local_map->local_map_lane_[i].fit_points_.erase(
+            local_map->local_map_lane_[i].fit_points_.begin() + j);
         --j;
       }
     }
-    if (local_map_.local_map_lane_[i].points_.size() == 0) {
-      local_map_.local_map_lane_.erase(local_map_.local_map_lane_.begin() + i);
+    if (local_map->local_map_lane_[i].points_.size() == 0) {
+      local_map->local_map_lane_.erase(local_map->local_map_lane_.begin() + i);
       --i;
     }
   }
@@ -65,11 +66,12 @@ void MapManager::AddEdge(const LocalMapLane& edge) {
   local_map_.local_map_edge_.emplace_back(edge);
 }
 
-void MapManager::UpdateLane(const Sophus::SE3d& T_C_L) {
+void MapManager::UpdateLane(std::shared_ptr<LocalMap> local_map,
+                            const Sophus::SE3d& T_C_L) {
   Eigen::Matrix3d T = Eigen::Matrix3d::Identity();
   T << T_C_L.matrix()(0, 0), T_C_L.matrix()(0, 1), T_C_L.matrix()(0, 3),
       T_C_L.matrix()(1, 0), T_C_L.matrix()(1, 1), T_C_L.matrix()(1, 3), 0, 0, 1;
-  for (auto& lane : local_map_.local_map_lane_) {
+  for (auto& lane : local_map->local_map_lane_) {
     for (auto& point : lane.points_) {
       point = T_C_L * point;
       // point.x() = T(0, 0) * point.x() + T(0, 1) * point.y() + T(0, 2);
@@ -164,24 +166,85 @@ void MapManager::CreateNewTrackVehicleLane(
   *vehicle_param = CommonUtil::MapVehicleLaneTolane(cur_lane);
 }
 
-double MapManager::CreateNewLane(const std::vector<Eigen::Vector3d>& points) {
+double MapManager::AddNewLane(std::shared_ptr<LocalMap> local_map,
+                              const Lane& frame_lane,
+                              const double& sample_interval) {
   static int max_id = -1;
   max_id++;
   LocalMapLane lane;
   lane.track_id_ = max_id;
-  lane.points_ = points;
+  lane.lanepos_ = frame_lane.lanepos_;
+  lane.lanetype_ = frame_lane.lanetype_;
+  std::vector<Eigen::Vector3d> frame_points;
+  CommonUtil::SampleLanePoints(std::make_shared<Lane>(frame_lane),
+                               &frame_points, sample_interval);
+  lane.points_ = frame_points;
   lane.need_fit_ = true;
-  local_map_.local_map_lane_.emplace_back(lane);
+  local_map->local_map_lane_.emplace_back(lane);
   return max_id;
 }
 
-void MapManager::CreateNewLane(const std::vector<Eigen::Vector3d>& points,
-                               const int& lane_id) {
+void MapManager::AddNewLane(std::shared_ptr<LocalMap> local_map,
+                            const Lane& frame_lane, const int& lane_id) {
   LocalMapLane lane;
-  lane.track_id_ = lane_id;
-  lane.points_ = points;
+  lane.track_id_ = frame_lane.track_id_;
+  lane.lanepos_ = frame_lane.lanepos_;
+  lane.lanetype_ = frame_lane.lanetype_;
+  lane.points_ = frame_lane.control_points_;
   lane.need_fit_ = true;
-  local_map_.local_map_lane_.emplace_back(lane);
+  local_map->local_map_lane_.emplace_back(lane);
+}
+
+void MapManager::MergeOldLane(std::shared_ptr<LocalMap> local_map,
+                              const Lane& cur_lane,
+                              const LocalMapLane& map_lane,
+                              const double& sample_interval) {
+  if (map_lane.points_.empty()) return;
+  std::vector<Eigen::Vector3d> new_pts;
+  double delta_y1 = 0;
+  double delta_y2 = 0;
+  for (auto p_map : map_lane.points_) {
+    if (p_map.x() < cur_lane.x_start_vrf_) {
+      new_pts.emplace_back(p_map);
+    } else if (p_map.x() >= cur_lane.x_start_vrf_ &&
+               p_map.x() <= cur_lane.x_end_vrf_) {
+      Eigen::Vector3d p_lane = Eigen::Vector3d::Identity();
+      p_lane.x() = p_map.x();
+      p_lane.y() = cur_lane.lane_fit_a_ * pow(p_lane.x(), 3) +
+                   cur_lane.lane_fit_b_ * pow(p_lane.x(), 2) +
+                   cur_lane.lane_fit_c_ * p_lane.x() + cur_lane.lane_fit_d_;
+      // double update_y = 0.8 * p_map.y() + 0.2 * p_lane.y();
+      double update_y = 0 * p_map.y() + 1.0 * p_lane.y();
+      Eigen::Vector3d tmp(p_map.x(), update_y, 0);
+      new_pts.emplace_back(tmp);
+      // delta_y1 = 0.6 * delta_y1 + (p_map.y() - update_y) * 0.4;
+      // delta_y2 = 0.6 * delta_y2 + (p_lane.y() - update_y) * 0.4;
+    } else if (p_map.x() > cur_lane.x_end_vrf_) {
+      Eigen::Vector3d tmp(p_map.x(), p_map.y() - delta_y1, 0);
+      new_pts.emplace_back(tmp);
+    }
+  }
+  double map_x_end = map_lane.points_[map_lane.points_.size() - 1].x();
+  if (map_x_end < cur_lane.x_end_vrf_) {
+    Eigen::Vector3d p_lane = Eigen::Vector3d::Identity();
+    for (double x = map_x_end + 0.8; x <= cur_lane.x_end_vrf_;
+         x += sample_interval) {
+      p_lane.x() = x;
+      p_lane.y() = cur_lane.lane_fit_a_ * pow(p_lane.x(), 3) +
+                   cur_lane.lane_fit_b_ * pow(p_lane.x(), 2) +
+                   cur_lane.lane_fit_c_ * p_lane.x() + cur_lane.lane_fit_d_;
+      Eigen::Vector3d tmp(p_lane.x(), p_lane.y() - delta_y2, 0);
+      new_pts.emplace_back(tmp);
+    }
+  }
+  for (auto& lane : local_map->local_map_lane_) {
+    if (lane.track_id_ == map_lane.track_id_) {
+      lane.points_ = new_pts;
+      lane.lanepos_ = cur_lane.lanepos_;
+      lane.lanetype_ = cur_lane.lanetype_;
+      return;
+    }
+  }
 }
 
 void MapManager::AppendEdgePoints(const int& id,
@@ -345,7 +408,7 @@ void MapManager::SetLaneProperty(int lane_id,
                                  const std::shared_ptr<const Lane> frame_lane) {
   for (size_t i = 0; i < local_map_.local_map_lane_.size(); ++i) {
     if (local_map_.local_map_lane_[i].track_id_ == lane_id) {
-      local_map_.local_map_lane_[i].pos_type_ = frame_lane->pos_type_;
+      local_map_.local_map_lane_[i].lanepos_ = frame_lane->lanepos_;
       break;
     }
   }

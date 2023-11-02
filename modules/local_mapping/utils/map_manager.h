@@ -35,7 +35,8 @@ class MapManager {
    * @param cut_region : cut region size
    * @return
    */
-  void CutLocalMap(const double& length_x, const double& length_y);
+  void CutLocalMap(std::shared_ptr<LocalMap> local_map, const double& length_x,
+                   const double& length_y);
 
   /**
    * @brief add new lane in localmap
@@ -59,7 +60,8 @@ class MapManager {
    * @param T_C_L : T_C_L data
    * @return
    */
-  void UpdateLane(const Sophus::SE3d& T_C_L);
+  void UpdateLane(std::shared_ptr<LocalMap> local_map,
+                  const Sophus::SE3d& T_C_L);
 
   /**
    * @brief lane from last to current
@@ -88,21 +90,34 @@ class MapManager {
   /**
    * @brief extend new lane by points
    *
-   * @param points : updated points
-   * @return lane id
+   * @param lane : updated points
+   * @return
    */
-  double CreateNewLane(const std::vector<Eigen::Vector3d>& points);
+  double AddNewLane(std::shared_ptr<LocalMap> local_map, const Lane& frame_lane,
+                    const double& sample_interval);
 
   /**
    * @brief extend new lane by points and specified id
    *
    * @param lane_id : specified id
-   * @param points : updated points
-   * @return lane id
+   * @param lane : updated points
+   * @return
    */
-  void CreateNewLane(const std::vector<Eigen::Vector3d>& points,
-                     const int& lane_id);
+  void AddNewLane(std::shared_ptr<LocalMap> local_map, const Lane& frame_lane,
+                  const int& lane_id);
 
+  /**
+   * @brief extend new lane by points and specified id
+   *
+   * @param local_map : specified id
+   * @param cur_lane : updated points
+   * @param map_lane : updated points
+   * @param sample_interval : updated points
+   * @return
+   */
+  void MergeOldLane(std::shared_ptr<LocalMap> local_map, const Lane& cur_lane,
+                    const LocalMapLane& map_lane,
+                    const double& sample_interval);
   /**
    * @brief extend some points to existed edge of localmap
    *

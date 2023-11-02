@@ -20,6 +20,7 @@
 
 #include "depend/common/utm_projection/coordinate_convertor.h"
 #include "depend/map/hdmap/hdmap.h"
+#include "depend/proto/local_mapping/local_map.pb.h"
 #include "depend/proto/localization/node_info.pb.h"
 #include "depend/proto/map/map.pb.h"
 #include "depend/proto/soc/sensor_image.pb.h"
@@ -102,44 +103,27 @@ class LMapApp {
    */
   bool FetchLocalMap(std::shared_ptr<hozon::mapping::LocalMap> local_map);
 
-  /**
-   * @brief fetch local_map location at current timestamp
-   *
-   * @return `true` for fetching success, `false` for failed
-   */
-  bool FetchLocalMapLocation(
-      std::shared_ptr<hozon::localization::Localization> local_map_location);
-
   ConstDrDataPtr GetDrPoseForTime(double timestamp);
-
-  void SetLaneTimestamp(const double timestamp) {
-    last_lane_timestamp_ = timestamp;
-  }
 
  private:
   std::shared_ptr<LaneOp> laneOp_;
   std::shared_ptr<MapManager> mmgr_;
-
   std::shared_ptr<hozon::hdmap::HDMap> hdmap_;
   std::shared_ptr<hozon::hdmap::Map> crop_map_;
   std::shared_ptr<PriorProvider> provider_;
-  std::shared_ptr<const hozon::soc::CompressedImage> image_msg = nullptr;
-  Sophus::SE3d init_T_, lasted_T_, T_W_V_, T_G_V_;
-
+  std::shared_ptr<LocalMap> local_map_;
+  LocalMap local_map_tmp_;
+  Sophus::SE3d T_W_V_;
   std::mutex localmap_mutex_;
+  std::mutex T_W_V_mutex_;
   bool use_perception_match_;
   bool use_bipartite_assoc_match_;
   bool use_rviz_;
-  bool use_filter_;
   bool dr_inited_;
   bool laneline_inited_;
-  std::shared_ptr<PtFilter> lane_filter_;
-  LocalMap local_map_tmp_;
-
-  double last_lane_timestamp_;
   Loss loss_;
   bool compute_error;
-  double sample_interval;
+  double sample_interval_;
 };
 
 }  // namespace lm

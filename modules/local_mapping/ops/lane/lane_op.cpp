@@ -15,12 +15,12 @@ void LaneOp::Init(BipartiteAssocParams params) {
 }
 
 void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
-                   std::shared_ptr<const std::vector<LocalMapLane>> map_lanes,
+                   std::shared_ptr<LocalMap> local_map,
                    std::shared_ptr<std::vector<LaneMatchInfo>> match_info) {
   HLOG_INFO << "GetMatches";
 
   match_info->clear();
-  if (map_lanes == nullptr || map_lanes->size() == 0) {
+  if (local_map->local_map_lane_.size() == 0) {
     for (auto cur_lane : cur_lanes->lanes_) {
       LaneMatchInfo match;
       match.frame_lane_ = std::make_shared<Lane>(cur_lane);
@@ -34,8 +34,8 @@ void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
     LaneMatchInfo match;
     match.frame_lane_ = std::make_shared<Lane>(cur_lane);
     bool match_success = false;
-    for (auto map_lane : *map_lanes) {
-      if (cur_lane.lane_id_ == map_lane.track_id_) {
+    for (auto map_lane : local_map->local_map_lane_) {
+      if (cur_lane.track_id_ == map_lane.track_id_) {
         match.map_lane_ = std::make_shared<LocalMapLane>(map_lane);
         match_success = true;
       }
@@ -50,12 +50,12 @@ void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
 }
 
 void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
-                   std::shared_ptr<std::vector<LocalMapLane>> map_lanes,
+                   std::shared_ptr<LocalMap> local_map,
                    std::shared_ptr<std::vector<LaneMatchInfo>> match_info,
                    bool use_bipartite_assoc_match,
                    const double& sample_interval) {
   match_info->clear();
-  if (map_lanes->size() == 0) {
+  if (local_map->local_map_lane_.size() == 0) {
     for (auto cur_lane : cur_lanes->lanes_) {
       LaneMatchInfo match;
       match.frame_lane_ = std::make_shared<Lane>(cur_lane);
@@ -75,10 +75,11 @@ void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
 
   std::unordered_map<int, int> map_det_lm;
   if (use_bipartite_assoc_match) {
-    map_det_lm = bipar_lane_assoc_->Process(lanes_points, map_lanes.get());
+    map_det_lm =
+        bipar_lane_assoc_->Process(lanes_points, &local_map->local_map_lane_);
   } else {
     lane_assoc_.reset(new LaneAssoc(lane_assoc_options_));
-    map_det_lm = lane_assoc_->Process(lanes_points, *map_lanes);
+    map_det_lm = lane_assoc_->Process(lanes_points, local_map->local_map_lane_);
   }
 
   for (size_t i = 0; i < cur_lanes->lanes_.size(); ++i) {
@@ -90,8 +91,8 @@ void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
     LaneMatchInfo match;
     match.frame_lane_ = std::make_shared<Lane>(cur_lanes->lanes_[i]);
     if (map_det_lm.find(i) != map_det_lm.end()) {
-      match.map_lane_ =
-          std::make_shared<LocalMapLane>((*map_lanes)[map_det_lm[i]]);
+      match.map_lane_ = std::make_shared<LocalMapLane>(
+          local_map->local_map_lane_[map_det_lm[i]]);
       match.update_type_ = ObjUpdateType::MERGE_OLD;
       // HLOG_ERROR << "merge det " << i << " with lm " << map_det_lm[i];
     } else {
@@ -101,62 +102,67 @@ void LaneOp::Match(std::shared_ptr<const Lanes> cur_lanes,
   }
 }
 
-void LaneOp::FilterCurve(std::shared_ptr<const Lane> cur_lane,
-                         std::shared_ptr<LocalMapLane> map_lane,
+void LaneOp::FilterCurve(std::shared_ptr<LocalMap> local_map,
+                         const Lane& cur_lane, const LocalMapLane& map_lane,
                          const double& sample_interval) {
   std::vector<Eigen::Vector3d> new_pts;
   double delta_y1 = 0;
   double delta_y2 = 0;
-  for (auto p_map : map_lane->points_) {
-    if (p_map.x() < cur_lane->x_start_vrf_) {
+  for (auto p_map : map_lane.points_) {
+    if (p_map.x() < cur_lane.x_start_vrf_) {
       new_pts.emplace_back(p_map);
-    } else if (p_map.x() >= cur_lane->x_start_vrf_ &&
-               p_map.x() <= cur_lane->x_end_vrf_) {
+    } else if (p_map.x() >= cur_lane.x_start_vrf_ &&
+               p_map.x() <= cur_lane.x_end_vrf_) {
       Eigen::Vector3d p_lane = Eigen::Vector3d::Identity();
       p_lane.x() = p_map.x();
-      p_lane.y() = cur_lane->lane_fit_a_ * pow(p_lane.x(), 3) +
-                   cur_lane->lane_fit_b_ * pow(p_lane.x(), 2) +
-                   cur_lane->lane_fit_c_ * p_lane.x() + cur_lane->lane_fit_d_;
+      p_lane.y() = cur_lane.lane_fit_a_ * pow(p_lane.x(), 3) +
+                   cur_lane.lane_fit_b_ * pow(p_lane.x(), 2) +
+                   cur_lane.lane_fit_c_ * p_lane.x() + cur_lane.lane_fit_d_;
       // double update_y = 0.8 * p_map.y() + 0.2 * p_lane.y();
       double update_y = 0 * p_map.y() + 1.0 * p_lane.y();
       Eigen::Vector3d tmp(p_map.x(), update_y, 0);
       new_pts.emplace_back(tmp);
       // delta_y1 = 0.6 * delta_y1 + (p_map.y() - update_y) * 0.4;
       // delta_y2 = 0.6 * delta_y2 + (p_lane.y() - update_y) * 0.4;
-    } else if (p_map.x() > cur_lane->x_end_vrf_) {
+    } else if (p_map.x() > cur_lane.x_end_vrf_) {
       Eigen::Vector3d tmp(p_map.x(), p_map.y() - delta_y1, 0);
       new_pts.emplace_back(tmp);
     }
   }
-  double map_x_end = map_lane->points_[map_lane->points_.size() - 1].x();
-  if (map_x_end < cur_lane->x_end_vrf_) {
+  double map_x_end = map_lane.points_[map_lane.points_.size() - 1].x();
+  if (map_x_end < cur_lane.x_end_vrf_) {
     Eigen::Vector3d p_lane = Eigen::Vector3d::Identity();
-    for (double x = map_x_end + 0.8; x <= cur_lane->x_end_vrf_;
+    for (double x = map_x_end + 0.8; x <= cur_lane.x_end_vrf_;
          x += sample_interval) {
       p_lane.x() = x;
-      p_lane.y() = cur_lane->lane_fit_a_ * pow(p_lane.x(), 3) +
-                   cur_lane->lane_fit_b_ * pow(p_lane.x(), 2) +
-                   cur_lane->lane_fit_c_ * p_lane.x() + cur_lane->lane_fit_d_;
+      p_lane.y() = cur_lane.lane_fit_a_ * pow(p_lane.x(), 3) +
+                   cur_lane.lane_fit_b_ * pow(p_lane.x(), 2) +
+                   cur_lane.lane_fit_c_ * p_lane.x() + cur_lane.lane_fit_d_;
       Eigen::Vector3d tmp(p_lane.x(), p_lane.y() - delta_y2, 0);
       new_pts.emplace_back(tmp);
     }
   }
-  map_lane->points_ = new_pts;
+  for (auto& lane : local_map->local_map_lane_) {
+    if (lane.track_id_ == map_lane.track_id_) {
+      lane.points_ = new_pts;
+      return;
+    }
+  }
   // std::shared_ptr<LaneCubicSpline> filtered_lane_func =
   //     std::make_shared<LaneCubicSpline>();
-  // if (filter_map_.find(cur_lane->lane_id_) != filter_map_.end()) {
+  // if (filter_map_.find(cur_lane->track_id_) != filter_map_.end()) {
   //   HLOG_INFO << "aaaa";
-  //   filter_map_[cur_lane->lane_id_]->SetCurLanePose(cur_lane_pose_);
-  //   filter_map_[cur_lane->lane_id_]->LaneProcess(cur_lane,
+  //   filter_map_[cur_lane->track_id_]->SetCurLanePose(cur_lane_pose_);
+  //   filter_map_[cur_lane->track_id_]->LaneProcess(cur_lane,
   //   filtered_lane_func); filtered_lane_func->start_point_x_ =
   //   cur_lane->x_start_vrf_; filtered_lane_func->end_point_x_ =
   //   cur_lane->x_end_vrf_; CommonUtil::SampleCurvePts(*filtered_lane_func,
   //   new_pts, sample_interval);
   // } else {
   //   HLOG_INFO << "bbbb";
-  //   filter_map_[cur_lane->lane_id_] = std::make_shared<LaneFilter>();
-  //   filter_map_[cur_lane->lane_id_]->SetCurLanePose(cur_lane_pose_);
-  //   filter_map_[cur_lane->lane_id_]->Init(cur_lane);
+  //   filter_map_[cur_lane->track_id_] = std::make_shared<LaneFilter>();
+  //   filter_map_[cur_lane->track_id_]->SetCurLanePose(cur_lane_pose_);
+  //   filter_map_[cur_lane->track_id_]->Init(cur_lane);
   // }
 }
 

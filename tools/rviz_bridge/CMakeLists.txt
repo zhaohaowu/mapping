@@ -4,6 +4,7 @@ project(rviz_bridge)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 set(REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../..)
 get_filename_component(REPO_ROOT ${REPO_ROOT} ABSOLUTE)

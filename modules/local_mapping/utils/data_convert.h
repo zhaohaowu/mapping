@@ -10,6 +10,7 @@
 
 #include "modules/local_mapping/types/common.h"
 #include "modules/util/include/util/temp_log.h"
+#include "proto/perception/transport_element.pb.h"
 
 namespace hozon {
 namespace mp {
@@ -69,9 +70,19 @@ class DataConvert {
    * @param lane_pose_type : inner type
    * @return
    */
-  static void ConvertProtoLanePoseType(
-      const hozon::perception::LanePositionType& raw_lane_pose_type,
-      LanePoseType* lane_pose_type);
+  static void ConvertProtoLanePos(
+      const hozon::perception::LanePositionType& raw_lanepos,
+      LanePositionType* lanepos);
+
+  /**
+   * @brief convert LanePositionType from proto to inner type
+   *
+   * @param raw_lane_pose_type : proto type
+   * @param lane_pose_type : inner type
+   * @return
+   */
+  static void ConvertProtoLaneType(
+      const hozon::perception::LaneType& raw_lanetype, LaneType* lanetype);
 
   /**
    * @brief convert LanePositionType from inerr to proto type
@@ -79,9 +90,17 @@ class DataConvert {
    * @param lane_pose_type : inner type
    * @return proto type
    */
-  static void ConvertInnerLanePoseType(
-      const LanePoseType& inner_lane_pose_type,
-      hozon::mapping::LanePositionType* proto_type);
+  static void ConvertInnerLanePos(const LanePositionType& inner_lanepos,
+                                  hozon::mapping::LanePositionType* lanepos);
+
+  /**
+   * @brief convert LanePositionType from inerr to proto type
+   *
+   * @param lane_pose_type : inner type
+   * @return proto type
+   */
+  static void ConvertInnerLaneType(const LaneType& inner_lanetype,
+                                   hozon::mapping::LaneType* lanetype);
 };
 
 }  // namespace lm

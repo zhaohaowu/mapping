@@ -52,10 +52,6 @@ int32_t LocalMappingOnboard::AlgInit() {
                        std::bind(&LocalMappingOnboard::LocalMapPublish, this,
                                  std::placeholders::_1));
 
-  RegistAlgProcessFunc("send_lm_loc",
-                       std::bind(&LocalMappingOnboard::LocalMapLocationPublish,
-                                 this, std::placeholders::_1));
-
   return 0;
 }
 
@@ -146,29 +142,6 @@ int32_t LocalMappingOnboard::LocalMapPublish(common_onboard::Bundle* output) {
   }
   HLOG_DEBUG << "processed publish localmap";
   usleep(100 * 1e3);
-  return 0;
-}
-
-int32_t LocalMappingOnboard::LocalMapLocationPublish(
-    common_onboard::Bundle* output) {
-  HLOG_DEBUG << "start publish localmap location...";
-  std::shared_ptr<hozon::localization::Localization> result =
-      std::make_shared<hozon::localization::Localization>();
-  if (lmap_->FetchLocalMapLocation(result)) {
-    BaseDataTypePtr workflow1 =
-        std::make_shared<hozon::netaos::adf_lite::BaseData>();
-
-    workflow1->proto_msg = result;
-    Bundle bundle;
-    bundle.Add("local_map_loc", workflow1);
-    SendOutput(&bundle);
-
-    HLOG_DEBUG << "publish localmap location suceessed...";
-  }
-
-  HLOG_DEBUG << "processed publish localmap location";
-  usleep(10 * 1e3);
-
   return 0;
 }
 

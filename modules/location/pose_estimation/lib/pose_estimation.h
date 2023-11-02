@@ -12,9 +12,6 @@
 #include <adsfi_proto/viz/sensor_msgs.pb.h>
 #include <adsfi_proto/viz/visualization_msgs.pb.h>
 #include <google/protobuf/util/json_util.h>
-#include <interface/adsfi_proto/internal/node_info.pb.h>
-#include <interface/adsfi_proto/internal/slam_hd_submap.pb.h>
-#include <timer.h>
 #include <yaml-cpp/yaml.h>
 
 #include <condition_variable>
@@ -28,11 +25,14 @@
 #include <tuple>
 #include <vector>
 
+#include "depend/proto/localization/node_info.pb.h"
+#include "depend/proto/map/map.pb.h"
 #include "modules/location/pose_estimation/lib/hd_map/hd_map.h"
 #include "modules/location/pose_estimation/lib/perception/perception.h"
 #include "modules/location/pose_estimation/lib/pose_estimate/pose_estimate.h"
 #include "modules/location/pose_estimation/lib/pose_estimate/pose_estimate_solver.h"
 #include "modules/location/pose_estimation/lib/util/globals.h"
+#include "modules/location/pose_estimation/lib/util/timer.h"
 #include "modules/util/include/util/geo.h"
 
 namespace hmu = hozon::mp::util;
@@ -40,10 +40,12 @@ namespace hozon {
 namespace mp {
 namespace loc {
 
+using hozon::localization::HafNodeInfo;
+
 struct SensorSync {
   int status = 0;
-  uint32_t frame_id = 0;
-  ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray lanes;
+  int32_t frame_id = 0;
+  hozon::perception::TransportElement transport_element;
   //   ::perception::ObjectList object;
   void setFinsh() { status = 1; }
   bool ok() { return status != 0; }
@@ -90,20 +92,10 @@ struct INTEGRAL_INFO {
   double speed;
   double yawrate;
 };
-// MM故障，后续可补充
-struct MMFault {
-  bool map_lane_match_error = false;  // 感知与地图车道线差距过大
-  bool valid_estimate_last_error = false;  // mm正常优化一段时间后，优化失败了
-  bool valid_estimate = false;           // mm是否正常优化
-  bool pecep_lane_error = false;         // 无有效感知车道线
-  bool map_lane_error = false;           // 无有效地图车道线
-  bool fc_exceed_curb_error = false;     // fc超出高精地图路沿
-  bool fc_offset_onelane_error = false;  // fc偏移一个车道
-};
 
 class MapMatchingFrameRateRecord {
  public:
-  void calFrameRate(const double &ts, const std::string &prefix) {
+  void CalFrameRate(const double &ts, const std::string &prefix) {
     static double last_ts = ts;
     static int cnt = 0;
     static int fps = 0;
@@ -120,44 +112,59 @@ class MapMatchingFrameRateRecord {
 class MapMatching {
  public:
   MapMatching()
-      : mm_err_type_(static_cast<int>(ErrorType::NO_ERROR)),
-        ins_status_type_(static_cast<int>(InsStatus::INVALID)),
-        delay_frame(0),
-        max_frame_buf(0),
-        max_point(0),
+      : ins_status_type_(static_cast<int>(InsStatus::INVALID)),
+        delay_frame_(0),
+        max_frame_buf_(0),
         optimize_success_(false),
-        proc_stamp_(0.f),
         output_valid_(false),
+        proc_stamp_(0.f),
         ins_input_ready_(false),
-        output_stamp_(0),
-        run_status_(LocStatus::UNINIT) {
+        output_stamp_(0.f) {
     map_match_ = std::make_shared<hozon::mp::loc::MapMatch>();
     T_output_ = SE3();
   }
   ~MapMatching();
 
-  void Init(const std::string &config_file, const std::string &cfg_cam_path);
-  void OnHdMap(const std::shared_ptr<adsfi_proto::internal::SubMap> &msg);
-  //   void OnLocation(const std::shared_ptr<const ::location::HafLocation>
-  //   &msg);
-  void OnPerception(
-      const std::shared_ptr<
-          const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray> &msg);
-  //   void OnMarkPole(const std::shared_ptr<const
-  //   ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut> &msg); void
-  //   OnObjectList(const std::shared_ptr<const ::perception::ObjectList> &msg);
+  bool Init(const std::string &config_file, const std::string &cfg_cam_path);
   void OnIns(
-      const std::shared_ptr<const ::adsfi_proto::internal::HafNodeInfo> &msg);
-  bool smoothResult(const Sophus::SE3d &pose);
-  //   void PropagateByIns(double proc_stamp, double location_time,
-  //                       const
-  //                       std::shared_ptr<::adsfi_proto::internal::HafNodeInfo>
-  //                       &ins, Sophus::SE3d &T_W_V);
+      const std::shared_ptr<const ::hozon::localization::HafNodeInfo> &msg);
+  void OnPerception(
+      const std::shared_ptr<const ::hozon::perception::TransportElement> &msg);
+  // void OnLocation(const std::shared_ptr<const ::location::HafLocation> &msg);
+  // void OnMarkPole(
+  //     const std::shared_ptr<const
+  //     ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>
+  //         &msg);
+  // void OnObjectList(const std::shared_ptr<const ::perception::ObjectList>
+  // &msg);
+
+  std::tuple<bool, SensorSync> sensorFront(void);
+  void eraseFront(bool is_erase_buf);
+  void sensorPush(
+      const ::hozon::perception::TransportElement &transport_element,
+      bool is_roadmark);
+  // void sensorPush(const ::perception::ObjectList &object);
+  unsigned int sensorSize();
+
+  void setSubMap(const Eigen::Vector3d &vehicle_position,
+                 const Eigen::Matrix3d &vehicle_rotation);
+  void setFrontRoadMark(const ::hozon::perception::TransportElement &roadmark,
+                        bool is_roadmark);
+  // void setLocation(const ::location::HafLocation &info);
+  // void setObject(const ::perception::ObjectList &object);
+  void setIns(const ::hozon::localization::HafNodeInfo &ins);
+  void interpolateOptimizeResult();
+  void mmProcCallBack(void);
+  // void mmInterpCallBack(void);
   void procData();
-  std::shared_ptr<::adsfi_proto::internal::HafNodeInfo> getMmNodeInfo();
-
+  bool smoothResult(const Sophus::SE3d &pose);
+  void start(void);
+  void reset(void);
+  std::shared_ptr<::hozon::localization::HafNodeInfo> getMmNodeInfo();
+  std::shared_ptr<::hozon::localization::HafNodeInfo> generateNodeInfo(
+      const Sophus::SE3d &T_W_V, uint64_t sec, uint64_t nsec,
+      const bool &has_err);
   inline double normalizeAngle(double z) { return atan2(sin(z), cos(z)); }
-
   inline double transAngleValue2ZeroToTwoPi(double z) {
     return (z < 0) ? (M_PI * 2 + z) : z;
   }
@@ -165,25 +172,27 @@ class MapMatching {
     return (z > M_PI) ? (z - M_PI * 2) : z;
   }
 
-  inline int getMmErrType() { return mm_err_type_; }
-  inline void setMmErrType(int err_type) { mm_err_type_ = err_type; }
-  int delay_frame;
-  int max_frame_buf;
-  int max_point;
-  Timer time;
+ public:
+  std::list<std::shared_ptr<SensorSync>> roadmark_sensor_;
+  std::list<std::shared_ptr<SensorSync>> pole_sensor_;
+  std::list<std::shared_ptr<SensorSync>> object_sensor_;
+  hozon::mp::loc::Map<hozon::hdmap::Map> mhd_map_;
+
   std::thread proc_thread_;
   std::thread interp_thread_;
   bool proc_thread_run_;
   bool interp_thread_run_;
+
   INTEGRAL_INFO integral_info_;
   // hozon::mp::loc::Tracking tracking;
   std::shared_ptr<hozon::mp::loc::MapMatch> map_match_;
-
   // std::shared_ptr<Project> project;
+
   Eigen::Vector3d ref_point_;
   Eigen::Vector3d esti_ref_point_;
   Eigen::Vector3f _att;
-  double ins_altitude_;
+  Eigen::Vector3d map_pos_;
+  Eigen::Quaterniond map_rot_;
 
   SE3 T02_W_V_;
   SE3 T02_W_V_pre_;
@@ -193,128 +202,88 @@ class MapMatching {
   SE3 T_output_;
   SE3 T02_W_VF_last_;
 
-  std::mutex road_mark_mutex;
-  std::mutex map_mutex;
-  std::mutex object_mutex;
-  std::mutex pole_mutex;
-  std::mutex sensor_mutex;
-
-  hozon::mp::loc::Map<adsfi_proto::internal::SubMap> mhd_map;
-
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  double proc_stamp_;
-  double proc_stamp_last_ = -1.0;
-  bool optimize_success_;
+  std::mutex road_mark_mutex_;
+  std::mutex map_mutex_;
+  std::mutex object_mutex_;
+  std::mutex pole_mutex_;
   std::mutex mm_proc_lck_;
-
-  double output_stamp_;
-  bool output_valid_;
   std::mutex mm_output_lck_;
+  std::mutex ins_msg_lck_;
+  std::mutex map_lck_;
+  std::condition_variable ins_input_cv_;
+
+  double proc_stamp_last_ = -1.0;
+  double ins_altitude_ = 0.f;
 
   InsMsg newest_ins_msg_;
   InsMsg mm_nearest_ins_msg_;
-  std::mutex ins_msg_lck_;
-  std::condition_variable ins_input_cv_;
-  bool ins_input_ready_;
-
-  std::tuple<bool, SensorSync> sensorFront(void);
-  unsigned int sensorSize();
-  void eraseFront(bool is_erase_buf);
-  void match(const SensorSync &sensor, const SE3 &T84_W_V, const SE3 &T02_W_V);
-  void sensorPush(
-      const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray &road_marking,
-      bool is_roadmark);
-  //   void sensorPush(const ::perception::ObjectList &object);
-  void interpolateOptimizeResult();
 
   std::string hdmap_topic_;
   std::string location_topic_;
   std::string road_marking_topic_;
   std::string node_info_topic_;
 
-  std::shared_ptr<::adsfi_proto::internal::HafNodeInfo> ins;
-
- public:
-  std::vector<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut> road_marks;
-  std::shared_ptr<::adsfi_proto::internal::HafNodeInfo> generateNodeInfo(
-      const Sophus::SE3d &T_W_V, uint64_t sec, uint64_t nsec,
-      const bool &has_err);
-
-  void setSubMap(const adsfi_proto::internal::SubMap &hd_map);
-  void setFrontRoadMark(
-      const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray &roadmark,
-      bool is_roadmark);
-  //   void setLocation(const ::location::HafLocation &info);
-  //   void setObject(const ::perception::ObjectList &object);
-  void setIns(const ::adsfi_proto::internal::HafNodeInfo &msg);
-  void mmProcCallBack(void);
-  // void mmInterpCallBack(void);
-  void start(void);
-  void reset(void);
-  // bool GetFault(minieye::LocalizationFault *const fault);
-  std::list<std::shared_ptr<SensorSync>> roadmark_sensor;
-  std::list<std::shared_ptr<SensorSync>> pole_sensor;
-  std::list<std::shared_ptr<SensorSync>> object_sensor;
+  Timer time_;
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  private:
-  double ins_timestamp_ = -0.1;
+  void setPoints(const PerceptionLaneLineList &line_list, const SE3 &T_W_V,
+                 VP *points);
+  void pubPoints(const VP &points, const uint64_t &sec, const uint64_t &nsec);
+  void pubOdomPoints(const std::string &topic, const Eigen::Vector3d &trans,
+                     const Eigen::Quaterniond &q, uint64_t sec, uint64_t nsec);
+  void pubVehicle(const SE3 &T, const double &sec, const double &nsec);
+  void pubTimeAndInsStatus(const SE3 &T, double stamp);
+  void pubMatchPoints(const VP &points);
+  void PubMatchPoints(const VP &points, const uint64_t &sec,
+                      const uint64_t &nsec, const std::string &topic_name);
+
+  adsfi_proto::viz::Marker laneToMarker(const VP &points, std::string id,
+                                        bool is_points, bool is_center,
+                                        float point_size = 1,
+                                        bool is_boundary = false);
+  adsfi_proto::viz::Marker lineIdToMarker(const V3 point, std::string id);
+  adsfi_proto::viz::Marker poleToMarker(const VP &points, int id);
+  adsfi_proto::viz::Marker trafficsignToMarker(const std::vector<VP> &vpoints,
+                                               int id);
+  adsfi_proto::viz::Marker roadmarkingToMarker(const std::vector<VP> &vpoints,
+                                               int id);
+  bool CheckLaneMatch(const SE3 &T_delta_cur);
+
+ private:
+  int ins_status_type_;
+  int delay_frame_;
+  int max_frame_buf_;
+
   bool init_ = false;
-  LocStatus run_status_;
+  bool optimize_success_;
+  bool output_valid_;
+  bool ins_input_ready_;
   bool use_inter_;
+  bool use_smooth_ = false;
+  bool use_extrapolate_ = false;
+
+  double map_crop_front_ = 1550.0;
+  double map_crop_width_ = 300.0;
+  double proc_stamp_;
+  double output_stamp_;
+  double ins_timestamp_ = -0.1;
   double stampe_ = -1;
   u_int64_t sec;
   u_int64_t nsec;
-  std::string cfg_path;
-
-  int64_t last_submap_seq_ = -1;
-  double map_crop_front = 1550.0;
-  double map_crop_width = 300.0;
-  std::mutex ins_mutex_;
-
-  bool use_smooth_ = false;
-
-  int mm_err_type_;  // 用于接收map_match_lane_line中的故障
-  int ins_status_type_;
-
-  adsfi_proto::viz::TransformStamped geo_tf;
-  adsfi_proto::viz::Path gnss_gcj02_path_;
-  adsfi_proto::viz::Path gnss_gcj02_inter_path_;
-  VP front_points_;
-
   uint32_t time_sec_ = 0;
   uint32_t time_nsec_ = 0;
+  int64_t last_submap_seq_ = -1;
 
+  std::mutex ins_mutex_;
+
+  adsfi_proto::viz::TransformStamped geo_tf_;
+  adsfi_proto::viz::Path gnss_gcj02_path_;
+  adsfi_proto::viz::Path gnss_gcj02_inter_path_;
+
+  VP front_points_;
   std::deque<SE3> se3_buffer_;
 
-  bool use_extrapolate_ = false;
-
-  // fault diagnosis
-  MMFault mmfault_;
-  // fault debug rviz
-  VP percep_points_;
-  VP nearest_map_points_;
-  // MM模块持续优化成功后，突然优化失败
-  bool use_valid_estimate_last_fault_ = false;
-  int valid_estimate_last_buff_ = 200;
-  int invalid_estimate_last_buff_ = 10;
-  int estimate_last_error_buff_ = 10;
-  int valid_estimate_last_cnt_ = 0;
-  int invalid_estimate_last_cnt_ = 0;
-  int estimate_last_error_cnt_ = 0;
-  // MM模块是否优成功
-  int estimate_buff_ = 5;
-  int valid_estimate_cnt_ = 0;
-  int invalid_estimate_cnt_ = 0;
-  // fc超出高精地图路沿
-  bool use_fc_exceed_curb_fault_ = false;
-  int curb_unknow_cnt_ = 0;
-  int exceed_curb_report_cnt_ = 0;
-  // fc数据接收
-  double fc_timestamp_ = -0.1;
-  Eigen::Vector3d fc_enu_;
-  Eigen::Vector3d fc_enu84_;
-  SE3 T_fc_;
   // 车道线匹配效果校验相关
   int matched_lane_pair_size_;
   SE3 T_delta_last_;
@@ -336,37 +305,6 @@ class MapMatching {
   const std::string kTopicMmTimeStamp = "/mm/time_stamp";
   const std::string kTopicMmPerceptionPointsEdge = "/mm/perception_point_edge";
   const std::string kTopicMmMapPointsEdge = "/mm/map_point_edge";
-
-  void setPoints(const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut &mark,
-                 const SE3 &T_W_V, VP *points);
-  void setPoints(const PerceptionLaneLineList &line_list, const SE3 &T_W_V,
-                 VP *points);
-  void pubPoints(const VP &points, const uint64_t &sec, const uint64_t &nsec);
-  void pubOdomPoints(const std::string &topic, const Eigen::Vector3d &trans,
-                     const Eigen::Quaterniond &q, uint64_t sec, uint64_t nsec);
-  void pubVehicle(const SE3 &T, const double &sec, const double &nsec);
-  void pubTimeAndInsStatus(const SE3 &T, double stamp);
-  void pubMatchPoints(const VP &points);
-  void PubMatchPoints(const VP &points, const uint64_t &sec,
-                      const uint64_t &nsec, const std::string &topic_name);
-
-  adsfi_proto::viz::Marker laneToMarker(const VP &points, int id,
-                                        bool is_points, bool is_center,
-                                        float point_size = 1,
-                                        bool is_boundary = false);
-  adsfi_proto::viz::Marker lineIdToMarker(const V3 point, int id);
-  adsfi_proto::viz::Marker poleToMarker(const VP &points, int id);
-  adsfi_proto::viz::Marker trafficsignToMarker(const std::vector<VP> &vpoints,
-                                               int id);
-  adsfi_proto::viz::Marker roadmarkingToMarker(const std::vector<VP> &vpoints,
-                                               int id);
-  // fault diagnosis
-  void CheckMapLaneMatch();
-  void CheckMMValidEstimateLast(bool good_match_check);
-  void CheckMMValidEstimate(bool good_match_check);
-  // CommonState IsInEdge(const SE3 &pose, const HdMap &hd_map);
-  void CheckFCExceedCurb(CommonState state);
-  bool CheckLaneMatch(const SE3 &T_delta_cur);
 };
 
 }  // namespace loc

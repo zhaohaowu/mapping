@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <sstream>
+#include <string>
 
 #include "modules/dr/include/dr.h"
 #include "modules/local_mapping/local_mapping.h"

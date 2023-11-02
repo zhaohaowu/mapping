@@ -138,7 +138,7 @@ Sophus::SE3d MapMatchSolver::solve2D(const Connect &connect,
   options.minimizer_progress_to_stdout = false;
   options.linear_solver_type = ceres::DENSE_QR;
   options.max_num_iterations = 100;
-
+  options.logging_type = ceres::SILENT;
   ceres::Problem problem;
 
   // used only im autodiff

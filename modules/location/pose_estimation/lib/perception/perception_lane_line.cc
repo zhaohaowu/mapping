@@ -13,7 +13,7 @@ namespace loc {
 
 PerceptionLaneLine::PerceptionLaneLine() {}
 PerceptionLaneLine::PerceptionLaneLine(
-    const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut &lane_line) {
+    const hozon::perception::LaneInfo &lane_line) {
   curve_vehicle_coord_ = PolyLine<LaneLine>(lane_line);
 }
 
@@ -67,15 +67,12 @@ void PerceptionLaneLine::Print() {
 }
 
 PerceptionLaneLineList::PerceptionLaneLineList(
-    const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray &lanes) {
+    const hozon::perception::TransportElement &transport_element) {
   this->type_ = PERCEPTYION_LANE_BOUNDARY_LINE;
-  for (auto i = 0; i < lanes.lane_detection_front_out_size(); ++i) {
-    for (auto j = 0;
-         j < lanes.lane_detection_front_out(i).lane_detection_out_size(); ++j) {
-      auto line = lanes.lane_detection_front_out(i).lane_detection_out(j);
-      auto new_line = std::make_shared<PerceptionLaneLine>(line);
-      lane_line_list_.push_back(new_line);
-    }
+  for (auto line : transport_element.lane()) {
+    auto new_line = std::make_shared<PerceptionLaneLine>(line);
+    // new_line->Print();
+    lane_line_list_.emplace_back(new_line);
   }
   HLOG_INFO << "lane_line_list_.size() = " << lane_line_list_.size();
 }

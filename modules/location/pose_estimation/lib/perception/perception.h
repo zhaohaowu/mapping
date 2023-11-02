@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <interface/adsfi_proto/perception/lanes.pb.h>
-#include <interface/adsfi_proto/perception/object.pb.h>
 #include <math.h>
 
 #include <iostream>
@@ -20,11 +18,13 @@
 #include "modules/location/pose_estimation/lib/perception/perception_lane_line.h"
 #include "modules/location/pose_estimation/lib/util/poly_line.h"
 #include "modules/util/include/util/temp_log.h"
-// #include "modules/location/pose_estimation/lib/perception/perception_pole.h"
+#include "proto/perception/transport_element.pb.h"
 // #include
 // "modules/location/pose_estimation/lib/perception/perception_road_edge.h"
 // #include
-// "modules/location/pose_estimation/lib/perception/perception_traffic_sign.h"
+//     "modules/location/pose_estimation/lib/perception/perception_traffic_sign.h"
+// #include <interface/adsfi_proto/perception/object.pb.h>
+// #include "modules/location/pose_estimation/lib/perception/perception_pole.h"
 
 namespace hozon {
 namespace mp {
@@ -32,15 +32,14 @@ namespace loc {
 class Perception {
  public:
   Perception();
-  Perception(
-      const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray &lane_lines);
+  explicit Perception(const ::hozon::perception::TransportElement &transport_element);
   /**
    * @brief add perception element
    *
    * @param lane_line : perception lane line and road edge
    * @return
    */
-  void Set(const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray &lane_lines);
+  void Set(const ::hozon::perception::TransportElement &transport_element);
 
   /**
    * @brief add perception lane line element
@@ -49,7 +48,7 @@ class Perception {
    * @return
    */
   void SetLaneLineList(
-      const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray &lane_lines);
+      const ::hozon::perception::TransportElement &transport_element);
 
   /**
    * @brief add perception road edge element
@@ -57,8 +56,8 @@ class Perception {
    * @param lane_line : perception lane line
    * @return
    */
-  // void SetRoadEdgeList(const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut
-  // &lane_line);
+  // void SetRoadEdgeList(const ::hozon::perception::TransportElement
+  // &transport_element);
 
   /**
    * @brief get perception element

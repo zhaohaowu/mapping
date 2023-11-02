@@ -52,43 +52,29 @@ class PoseEstimationComponent : public apollo::cyber::Component<> {
   bool Init() override;
 
  private:
-  void OnHdMap(const std::shared_ptr<adsfi_proto::internal::SubMap> &msg);
   void OnPerception(
-      const std::shared_ptr<
-          const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray> &msg);
+      const std::shared_ptr<const ::hozon::perception::TransportElement> &msg);
   void OnIns(
-      const std::shared_ptr<const ::adsfi_proto::internal::HafNodeInfo> &msg);
+      const std::shared_ptr<const hozon::localization::HafNodeInfo> &msg);
   void pubMmMsg();
-  std::thread mm_pub_thread_;
-
-  // void ConverMiniEyeSubMapToAdfSubMap(
-  //     const std::shared_ptr<minieye::SubMap> &minieye_msg,
-  //     std::shared_ptr<adsfi_proto::internal::SubMap> &adf_msg);
-  // void OnHdMap(const std::shared_ptr<const adsfi_proto::internal::SubMap>
-  // &msg);
-  //   void OnLocation(const std::shared_ptr<location::HafLocation> &msg);
-  //   void OnMarkPole(const std::shared_ptr<::perception::Roadmarking> &msg);
-  // void setup_mm_localization_estimate(::adsfi_proto::internal::HafNodeInfo&
-  // node_info);
+  // void OnLocation(const std::shared_ptr<location::HafLocation> &msg);
+  // void OnMarkPole(const std::shared_ptr<::perception::Roadmarking> &msg);
+  // void setup_mm_localization_estimate(
+  //     const hozon::localization::HafNodeInfo &node_info);
 
  private:
-  std::shared_ptr<apollo::cyber::Reader<adsfi_proto::internal::SubMap>>
-      hdmap_reader_;
-  std::shared_ptr<apollo::cyber::Reader<::adsfi_proto::internal::HafNodeInfo>>
+  std::shared_ptr<apollo::cyber::Reader<hozon::localization::HafNodeInfo>>
       ins_reader_;
-  std::shared_ptr<apollo::cyber::Reader<::adsfi_proto::internal::HafNodeInfo>>
-      wo_reader_;
-  std::shared_ptr<
-      apollo::cyber::Reader<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray>>
+  std::shared_ptr<apollo::cyber::Reader<::hozon::perception::TransportElement>>
       road_marking_reader_;
-  std::shared_ptr<apollo::cyber::Writer<::adsfi_proto::internal::HafNodeInfo>>
+  std::shared_ptr<apollo::cyber::Writer<::hozon::localization::HafNodeInfo>>
       node_info_writer_;
-
-  //   std::shared_ptr<apollo::cyber::Reader<::adsfi_proto::internal::HafNodeInfo>>
+  //   std::shared_ptr<apollo::cyber::Reader<::hozon::localization::HafNodeInfo>>
   //       location_reader_;
-  //   std::shared_ptr<apollo::cyber::Writer<minieye::LocalizationFault>>
-  //       fault_writer_ = nullptr;
-
+  std::thread mm_pub_thread_;
+  double last_pub_position_x_;
+  double last_pub_position_y_;
+  double last_pub_position_z_;
   std::string hdmap_topic_;
   std::string location_topic_;
   std::string lane_line_topic_;

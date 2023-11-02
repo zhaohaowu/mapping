@@ -12,6 +12,8 @@ namespace mp {
 namespace loc {
 
 struct MapMatchLaneLineParams {
+  // for get map element
+  double map_distance;
   // perception lane config
   double lane_confidence_thre;
 

@@ -7,15 +7,14 @@
 
 #pragma once
 
-#include <interface/adsfi_proto/perception/lanes.pb.h>
-
 #include <iostream>
+
+#include "proto/perception/transport_element.pb.h"
 
 namespace hozon {
 namespace mp {
 namespace loc {
-using LaneLine = ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut;
-// using RoadEdge = ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut::RoadEdge;
+using LaneLine = ::hozon::perception::LaneInfo;
 
 template <typename T>
 class PolyLine {

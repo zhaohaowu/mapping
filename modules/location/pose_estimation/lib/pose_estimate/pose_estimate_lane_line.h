@@ -36,14 +36,11 @@ class MatchLaneLine {
    * @param hd_map : hd map message
    * @param perception : perception message
    * @param T_W_V : vehicle pose in enu
-   * @param T_fc : fusion center output pose in enu
-   * @param percep_points : perception lane lines' point
-   * @param nearest_map_points : the map lane line points closest vehicle
    * @return
    */
-  void Match(const HdMap &hd_map, const std::shared_ptr<Perception> &perception,
-             const SE3 &T_W_V, const SE3 &T_fc, const VP &percep_points,
-             const VP &nearest_map_points);
+  void Match(const HdMap &hd_map,
+                          const std::shared_ptr<Perception> &perception,
+                          const SE3 &T_W_V);
 
   /**
    * @brief check the solve result
@@ -62,12 +59,6 @@ class MatchLaneLine {
    */
   void FilterPercpLaneline(const std::list<LaneLinePerceptionPtr> &lanelines,
                            std::list<LaneLinePerceptionPtr> *const out);
-  //   void DetectFcOffsetOneLane(
-  //       const HDMap &hd_map,
-  //       const std::shared_ptr<RoadMarkingPerception> &perception,
-  //       const SE3 &T_W_V, VP &percep_points, VP &nearest_map_points);
-  //   bool CheckIsGoodMatchFC(const SE3 &T, double fc_timestamp,
-  //                           double match_dis_max);
 
   /**
    * @brief get match pairs
@@ -75,24 +66,6 @@ class MatchLaneLine {
    * @return match pairs
    */
   inline std::vector<PointMatchPair> get_match_pairs() { return match_pairs_; }
-
-  /**
-   * @brief get debug map lane line points and perception lane line points
-   *
-   * @return debug match pair points
-   */
-  inline std::vector<V3> get_debug_points() { return debug_points_; }
-
-  /**
-   * @brief get error flag
-   * @param has_err : has error flag; err_type : error type
-   *
-   * @return error type
-   */
-  inline void get_error(bool *has_err, int *err_type) {
-    (*has_err) = has_err_;
-    (*err_type) = static_cast<int>(err_type_);
-  }
 
   /**
    * @brief get match lane line size
@@ -136,7 +109,7 @@ class MatchLaneLine {
    *
    * @return
    */
-  void MatchLine2Line(const int &map_line_idx,
+  void MatchLine2Line(const std::string &map_line_idx,
                       const LaneLinePerceptionPtr &pecep,
                       const double &min_match_x, const double &max_match_x,
                       const double &sample_interval, const bool &is_good_check);
@@ -152,7 +125,7 @@ class MatchLaneLine {
    *
    * @return
    */
-  void MatchPoint2Line(const std::vector<int> &map_line_idxs,
+  void MatchPoint2Line(const std::vector<std::string> &map_line_idxs,
                        const LaneLinePerceptionPtr &pecep,
                        const double &min_match_x, const double &max_match_x,
                        const double &sample_interval,
@@ -221,7 +194,7 @@ class MatchLaneLine {
    *
    * @return
    */
-  void FilterMapLane(std::vector<int> *mlane_ids,
+  void FilterMapLane(std::vector<std::string> *mlane_ids,
                      const LaneLinePerceptionPtr &plane);
 
   /**
@@ -231,8 +204,8 @@ class MatchLaneLine {
    *
    * @return
    */
-  void GroupByXProject(const std::vector<int> &mlane_ids,
-                       std::vector<std::list<int>> *groups);
+  void GroupByXProject(const std::vector<std::string> &mlane_ids,
+                       std::vector<std::list<std::string>> *groups);
 
   /**
    * @brief select best map lane, minimum Y distance between perception lane
@@ -243,9 +216,9 @@ class MatchLaneLine {
    * @return true : best map lane line meet the condition exists; false : do not
    * exist
    */
-  bool SelectBestMapLane(const std::list<int> &mlane_ids,
+  bool SelectBestMapLane(const std::list<std::string> &mlane_ids,
                          const LaneLinePerceptionPtr &plane,
-                         int *best_mlane_id);
+                         std::string *best_mlane_id);
 
   /**
    * @brief find both side nearest perception line, max level LL or RR
@@ -270,55 +243,6 @@ class MatchLaneLine {
   void CalLinesMinDist(const LaneLinePerceptionPtr &percep, const SE3 &T_fc,
                        double *const near, double *const far,
                        const double &last_dis);
-
-  /**
-   * @brief print map lane line and perception lane line points
-   * @param boundary_lines : map boundary lane lines
-   * @param percep_lines : perception lane lines
-   * @param KEY : string
-   *
-   * @return
-   */
-  void DebugPrintPoints(const std::shared_ptr<MapBoundaryLine> &boundary_lines,
-                        const std::vector<PerceptionElement::Ptr> &percep_lines,
-                        std::string KEY);
-  /**
-   * @brief print map lane line and perception lane line
-   * @param lines : map lane lines and perception lane lines
-   * @param KEY : string
-   *
-   * @return
-   */
-  void DebugPrintLines(
-      const std::unordered_map<int, std::unordered_set<int>> lines,
-      std::string KEY);
-
-  /**
-   * @brief print matched point pairs
-   * @param pair : map lane lines and perception lane lines' matched points
-   * @param stamp : process timestamp
-   * @param KEY : string
-   *
-   * @return
-   */
-  void DebugPrintPair(const std::vector<V3> &pair, const double &stamp,
-                      const std::string &KEY);
-
-  /**
-   * @brief print merged map lane lines
-   * @param KEY : string
-   *
-   * @return
-   */
-  void DebugPrintMergedLines(const std::string &KEY);
-
-  /**
-   * @brief print matched map and perception points
-   *
-   * @return
-   */
-  void DebugPrintMapPpMatch();
-
   V3 anchor_pt0_{2.0, 0.0, 0.0};
   V3 anchor_pt1_{22.0, 0.0, 0.0};
   static constexpr double max_match_y_thres = 2;
@@ -329,18 +253,13 @@ class MatchLaneLine {
   double ts_;
   double ins_timestamp_;
   std::vector<PointMatchPair> match_pairs_;
-  std::vector<V3> debug_points_;
-  std::unordered_map<int, std::unordered_set<int>> debug_lines_before_merge_,
-      debug_lines_after_merge_;
-  std::map<int, std::vector<V3>> map_merge_lines_;
+  std::map<std::string, std::vector<V3>> map_merge_lines_;
   std::shared_ptr<Perception> percep_;
   std::list<LineMatchPair> line_match_pairs_;
   std::list<std::list<LaneLinePerceptionPtr>> percep_lanelines_;
   std::list<LaneLinePerceptionPtr> *fil_percep_laneline_;
-  bool has_err_;
   bool lanelineconnect_ = true;
   bool is_good_match_;
-  ErrorType err_type_;
   SE3 T_W_V_;
   SE3 T_V_W_;
 };

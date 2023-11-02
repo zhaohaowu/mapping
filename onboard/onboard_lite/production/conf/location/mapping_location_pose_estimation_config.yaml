@@ -1,0 +1,35 @@
+%YAML:1.0
+
+library: "${ADFLITE_ROOT_PATH}/lib/libmapping_onboard_lite_pose_estimation.so"
+depLibPath: ["${ADFLITE_ROOT_PATH}/lib"]
+executorName: PoseEstimationLite
+
+input:
+  - topic: /location/ins_fusion
+    capacity: 2
+  - topic: /perception/fsd/transportelement_1
+    capacity: 2
+ # - topic: [map topic]
+ #   capacity: 
+output:
+  - topic: /location/pose_estimation
+
+trigger:
+  - name: recv_ins_fusion
+    type: EVENT
+    mainSources:
+      - name: /location/ins_fusion
+        timeout: 100
+
+ # - name: receive_map_message
+ #   type: EVENT
+ #   mainSources:
+ #     - name: imu_ins
+ #       timeout: 100
+  
+  - name: recv_perception
+    type: EVENT
+    mainSources:
+      - name: /perception/fsd/transportelement_1
+        timeout: 15
+

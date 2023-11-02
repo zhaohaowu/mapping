@@ -50,4 +50,7 @@ dataSourcesOut:
   - topic: local_map_loc
     type: proto_skeleton
     cmTopic: /localization/local_map_loc
+  - topic: /location/pose_estimation
+    type: proto_skeleton
+    cmTopic: /localization/pe
     cmDomainId: 0

@@ -4,16 +4,9 @@ module_config {
   components {
     class_name: "PoseEstimationComponent"
     config {
-      name: "location"
+      name: "pose_estimation"
       flag_file_path: "conf/mapping/location/pose_estimation/pose_estimation_flag.conf"
       readers: [
-        {
-          channel: "hdmap"
-          qos_profile: {
-            depth: 15
-          }
-          pending_queue_size: 50
-        },
         {
           channel: "perception"
           qos_profile: {
@@ -22,6 +15,18 @@ module_config {
           pending_queue_size: 50
         }
       ]
+    }
+  }
+}
+
+module_config {
+  module_library: "lib/libmapping_mf_cyber.so"
+  timer_components {
+    class_name : "MapServiceComponent"
+    config {
+      name: "map_service"
+      flag_file_path: "conf/mapping/map_fusion/mapservice.txt"
+      interval: 100
     }
   }
 }

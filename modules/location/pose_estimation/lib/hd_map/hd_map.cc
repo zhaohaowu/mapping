@@ -33,26 +33,6 @@ void Map<Map_Type>::Crop(const SE3& T_W_V, double front, double width) {
         p->Crop(T_W_V, front, width);
         break;
       }
-      // case HD_MAP_LANE_CENTER_LINE: {
-      //   auto p = std::static_pointer_cast<MapCentorLine>(elment);
-      //   p->Crop(T_W_V, front, width);
-      //   break;
-      // }
-      // case HD_MAP_ROAD_EDGE: {
-      //   auto p = std::static_pointer_cast<MapRoadEdge>(elment);
-      //   p->Crop(T_W_V, front, width);
-      //   break;
-      // }
-      // case HD_MAP_POLE: {
-      //   auto p = std::static_pointer_cast<MapPole>(elment);
-      //   p->Crop(T_W_V, front, width);
-      //   break;
-      // }
-      // case HD_MAP_TRAFFIC_SIGN: {
-      //   auto p = std::static_pointer_cast<MapTrafficSign>(elment);
-      //   p->Crop(T_W_V, front, width);
-      //   break;
-      // }
       default:
         break;
     }
@@ -61,7 +41,6 @@ void Map<Map_Type>::Crop(const SE3& T_W_V, double front, double width) {
 template <typename Map_Type>
 void Map<Map_Type>::BoxUpdate(const SE3& T_W_V, double front, double width) {
   box_.clear();
-  const SE3 T_V_W = T_W_V.inverse();
   V3 a(front, width, 0);
   V3 b(front, -width, 0);
   V3 c(-front, -width, 0);
@@ -71,25 +50,18 @@ void Map<Map_Type>::BoxUpdate(const SE3& T_W_V, double front, double width) {
   box_.emplace_back(T_W_V * b);
   box_.emplace_back(T_W_V * c);
   box_.emplace_back(T_W_V * d);
-  box_.emplace_back(T_W_V * a);
 }
 template <typename Map_Type>
-void Map<Map_Type>::SetMap(const Map_Type& hd_map) {
+void Map<Map_Type>::SetMap(const hozon::common::PointENU& position,
+                           const Eigen::Matrix3d& rotation,
+                           const double& distance,
+                           const Eigen::Vector3d& ref_point) {
   MapBoundaryLine::Ptr map_boundary_line = std::make_shared<MapBoundaryLine>();
-  map_boundary_line->Set(hd_map, ref_point_);
+  if (!map_boundary_line) {
+    return;
+  }
+  map_boundary_line->Set(position, rotation, distance, ref_point_);
   elment_.emplace_back(map_boundary_line);
-  // MapCentorLine::Ptr map_center_line = std::make_shared<MapCentorLine>();
-  // map_center_line->Set(hd_map, ref_point_);
-  // elment_.emplace_back(map_center_line);
-  // MapRoadEdge::Ptr road_edge = std::make_shared<MapRoadEdge>();
-  // road_edge->Set(hd_map, ref_point_);
-  // elment_.emplace_back(road_edge);
-  // MapPole::Ptr map_pole = std::make_shared<MapPole>();
-  // map_pole->Set(hd_map, ref_point_);
-  // elment_.emplace_back(map_pole);
-  // MapTrafficSign::Ptr map_traffic_sign = std::make_shared<MapTrafficSign>();
-  // map_traffic_sign->Set(hd_map, ref_point_);
-  // elment_.emplace_back(map_traffic_sign);
 }
 template <typename Map_Type>
 MapElement::Ptr Map<Map_Type>::GetElement(int type) const {
@@ -107,7 +79,7 @@ void Map<Map_Type>::Clear(void) {
   box_ = std::vector<V3>();
   elment_ = std::vector<MapElement::Ptr>();
 }
-template class Map<adsfi_proto::internal::SubMap>;
+template class Map<hozon::hdmap::Map>;
 
 }  // namespace loc
 }  // namespace mp

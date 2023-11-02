@@ -7,38 +7,118 @@
 
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_lane_line.h"
 
-#include <vector>
+#include "modules/location/pose_estimation/lib/util/euler.h"
 
 namespace hozon {
 namespace mp {
 namespace loc {
 
-void MapBoundaryLine::Set(const adsfi_proto::internal::SubMap& hd_map,
-                          const V3& ref_point) {
-  for (const auto& line : hd_map.lines()) {
-    auto global_id = line.global_id();
-    auto& bl = boundary_line_[global_id];
-    bl.id_boundary = global_id;
-    bl.line_type = line.linetype();
-    for (const auto& point : line.points()) {
-      const auto& p = point.wgs84_point();
-      Eigen::Vector3d blh(p.latitude(), p.longitude(), p.altitude());
-      Eigen::Vector3d enu = hozon::mp::util::Geo::Gcj02ToEnu(blh, ref_point);
-      ControlPoint cpoint;
-      cpoint.line_type = -1;
-      cpoint.point = enu;
-      bl.control_point.emplace_back(cpoint);
+void MapBoundaryLine::Set(const hozon::common::PointENU &position,
+                          const Eigen::Matrix3d &rotation,
+                          const double &distance, const V3 &ref_point) {
+  Eigen::Vector3d euler = hozon::mp::loc::RotToEuler312(rotation);
+  euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
+  double heading = 90.0 - euler.z();
+  if (heading < 0.0) {
+    heading += 360.0;
+  }
+  heading = hozon::mp::loc::CalHeading(heading);
+  std::vector<hozon::hdmap::LaneInfoConstPtr> lane_ptr_vec;
+  const int ret = GLOBAL_HD_MAP->GetLanesWithHeading(
+      position, distance, heading, M_PI / 4.0, &lane_ptr_vec);
+  if (ret != 0 || lane_ptr_vec.empty()) {
+    HLOG_ERROR << "get nearest lane failed";
+    return;
+  }
+  HLOG_INFO << "lane_ptr_vec.size = " << lane_ptr_vec.size();
+  size_t l_count = 0, r_count = 0;
+  for (const auto &lane_ptr : lane_ptr_vec) {
+    auto lane = (*lane_ptr).lane();
+    if (lane.has_left_boundary()) {
+      auto left_lane_boundary = lane.left_boundary();
+      auto left_lane_boundary_id = left_lane_boundary.id(0).id();
+      if (boundary_line_.find(left_lane_boundary_id) != boundary_line_.end()) {
+        continue;
+      }
+      auto &bl = boundary_line_[left_lane_boundary_id];
+      bl.id_boundary = left_lane_boundary_id;
+      bl.line_type = 0;
+      auto left_lane_boundary_curve = left_lane_boundary.curve();
+      for (const auto &curve_segment : left_lane_boundary_curve.segment()) {
+        auto line_segment = curve_segment.line_segment();
+        for (const auto &p : line_segment.point()) {
+          double x = p.x();
+          double y = p.y();
+          int zone = 51;
+          auto ret = hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
+          if (ret) {
+            Eigen::Vector3d p_gcj(y, x, 0);
+            Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
+            ControlPoint cpoint;
+            cpoint.line_type = 0;
+            cpoint.point = p_enu;
+            bl.control_point.emplace_back(cpoint);
+          } else {
+            HLOG_ERROR << "utm2gcs failed";
+          }
+        }
+      }
+      l_count++;
+    }
+    if (lane.has_right_boundary()) {
+      auto right_lane_boundary = lane.right_boundary();
+      auto right_lane_boundary_id = right_lane_boundary.id(0).id();
+      if (boundary_line_.find(right_lane_boundary_id) != boundary_line_.end()) {
+        continue;
+      }
+      auto &br = boundary_line_[right_lane_boundary_id];
+      br.id_boundary = right_lane_boundary_id;
+      br.line_type = 0;
+      auto right_lane_boundary_curve = right_lane_boundary.curve();
+      for (const auto &curve_segment : right_lane_boundary_curve.segment()) {
+        auto line_segment = curve_segment.line_segment();
+        for (const auto &p : line_segment.point()) {
+          double x = p.x();
+          double y = p.y();
+          int zone = 51;
+          auto ret = hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
+          if (ret) {
+            Eigen::Vector3d p_gcj(y, x, 0);
+            Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
+            ControlPoint cpoint;
+            cpoint.line_type = 0;
+            cpoint.point = p_enu;
+            br.control_point.emplace_back(cpoint);
+          } else {
+            HLOG_ERROR << "utm2gcs failed";
+          }
+        }
+      }
+      r_count++;
     }
   }
+  HLOG_INFO << "l_count = " << l_count << " , r_count = " << r_count;
+  // Print(boundary_line_);
   this->type_ = HD_MAP_LANE_BOUNDARY_LINE;
 }
 
-void MapBoundaryLine::Crop(const SE3& T_W_V, double front, double width) {
+void MapBoundaryLine::Print(
+    const std::unordered_map<std::string, BoundaryLine> &boundarylines) {
+  HLOG_ERROR << "boundarylines.size = " << boundarylines.size();
+  for (auto line : boundarylines) {
+    auto id = line.first;
+    auto cpt = line.second.control_point;
+    HLOG_ERROR << "id = " << id;
+    HLOG_ERROR << "cpt.size = " << cpt.size();
+  }
+}
+
+void MapBoundaryLine::Crop(const SE3 &T_W_V, double front, double width) {
   const SE3 T_V_W = T_W_V.inverse();
-  for (auto& line : boundary_line_) {
-    auto& one_line = line.second;
+  for (auto &line : boundary_line_) {
+    auto &one_line = line.second;
     std::vector<ControlPoint> control_points;
-    for (const auto& p : one_line.control_point) {
+    for (const auto &p : one_line.control_point) {
       V3 temp = p.point;
       temp.z() = 0;
       temp = T_V_W * temp;

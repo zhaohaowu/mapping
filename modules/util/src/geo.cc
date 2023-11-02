@@ -131,21 +131,18 @@ void Geo::MapWgsToUtm(double phi, double lambda, double lambda0,
     return;
   }
   double N, nu2, ep2, t, t2, l;
-  double l3coef, l4coef, l5coef, l6coef, l7coef, l8coef;
-  double tmp;
+  double l3coef, l4coef, l5coef, l6coef;
+  // double tmp;
   ep2 = (std::pow(sm_a_, 2.0) - std::pow(sm_b_, 2.0)) / std::pow(sm_b_, 2.0);
   nu2 = ep2 * std::pow(std::cos(phi), 2.0);
   N = std::pow(sm_a_, 2.0) / (sm_b_ * std::sqrt(1 + nu2));
   t = std::tan(phi);
   t2 = t * t;
-  tmp = (t2 * t2 * t2) - std::pow(t, 6.0);
   l = lambda - lambda0;
   l3coef = 1.0 - t2 + nu2;
   l4coef = 5.0 - t2 + 9 * nu2 + 4.0 * (nu2 * nu2);
   l5coef = 5.0 - 18.0 * t2 + (t2 * t2) + 14.0 * nu2 - 58.0 * t2 * nu2;
   l6coef = 61.0 - 58.0 * t2 + (t2 * t2) + 270.0 * nu2 - 330.0 * t2 * nu2;
-  l7coef = 61.0 - 479.0 * t2 + 179.0 * (t2 * t2) - (t2 * t2 * t2);
-  l8coef = 1385.0 - 3111.0 * t2 + 543.0 * (t2 * t2) - (t2 * t2 * t2);
   (*xy)[0] =
       N * std::cos(phi) * l +
       (N / 6.0 * std::pow(std::cos(phi), 3.0) * l3coef * std::pow(l, 3.0)) +
@@ -231,8 +228,8 @@ double Geo::UtmXyToSpeed(
   std::vector<double> tmp(4, 0);
   int c = 1;
   int count = 0;
-
-  for (auto i = 0; i < pos.size(); ++i) {
+  for (size_t i = 0;
+       i < pos.size(); ++i) {
     if (i == 0) {
       gradient.emplace_back(std::tuple<double, Eigen::Vector3d>{
           std::get<0>(pos[1]) - std::get<0>(pos[0]),
@@ -260,7 +257,7 @@ double Geo::UtmXyToSpeed(
     if (std::get<0>(g) <= 0) {
       continue;
     }
-    for (auto i = 0; i < speed.size(); ++i) {
+    for (size_t i = 0; i < speed.size(); ++i) {
       if (std::get<1>(g)[i] * speed[i] < 0) {
         return -1;
       }
@@ -272,7 +269,7 @@ double Geo::UtmXyToSpeed(
     return -1;
   }
   double sum = 0;
-  for (auto i = 0; i < speed.size(); ++i) {
+  for (size_t i = 0; i < speed.size(); ++i) {
     auto s = speed[i] / count;
     sum += s * s;
   }

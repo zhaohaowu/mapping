@@ -7,15 +7,17 @@
 
 #pragma once
 
-#include <interface/adsfi_proto/internal/slam_hd_submap.pb.h>
-
 #include <Eigen/Core>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "depend/common/utm_projection/coordinate_convertor.h"
+#include "depend/proto/common/types.pb.h"
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_base.h"
+#include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 
 namespace hozon {
@@ -25,7 +27,7 @@ namespace loc {
 struct BoundaryLine {
   size_t line_type;
   size_t id_center;
-  size_t id_boundary;
+  std::string id_boundary;
   std::vector<ControlPoint> control_point;
 };
 
@@ -39,18 +41,24 @@ class MapBoundaryLine : public MapElement {
    * @param width : range in side of the vehicle
    * @return
    */
-  void Crop(const SE3& T_W_V, double front, double width);
-
+  void Crop(const SE3 &T_W_V, double front, double width);
+  void Print(
+      const std::unordered_map<std::string, BoundaryLine> &boundarylines);
   /**
-   * @brief add lane lines
+   * @brief set map lane line element
    *
-   * @param hd_map : hd_map message
-   * @param ref_point : reference point
+   * @param position : vehicle position
+   * @param rotation : vehicle rotation
+   * @param distance : range before vehicle
+   * @param ref_point : reference point for transform coordinate
+   *
    * @return
    */
-  void Set(const adsfi_proto::internal::SubMap& hd_map, const V3& ref_point);
+  void Set(const hozon::common::PointENU &position,
+           const Eigen::Matrix3d &rotation, const double &distance,
+           const V3 &ref_point);
   using Ptr = std::shared_ptr<MapBoundaryLine>;
-  std::unordered_map<size_t, BoundaryLine> boundary_line_;
+  std::unordered_map<std::string, BoundaryLine> boundary_line_;
 };
 
 }  // namespace loc

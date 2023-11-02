@@ -19,14 +19,14 @@
 #include <Sophus/se3.hpp>
 #include <Sophus/so3.hpp>
 
-#include "interface/adsfi_proto/internal/slam_hd_submap.pb.h"
-#include "modules/util/include/util/geo.h"
-#include "modules/util/include/util/temp_log.h"
+#include "depend/proto/map/map.pb.h"
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_base.h"
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_lane_line.h"
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_pole.h"
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_road_edge.h"
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_traffic_sign.h"
+#include "modules/util/include/util/geo.h"
+#include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
 namespace mp {
@@ -36,12 +36,18 @@ template <typename Map_Type>
 class Map {
  public:
   /**
-   * @brief get map element
+   * @brief set map element
    *
-   * @param hd_map : hd_map message
+   * @param position : vehicle position
+   * @param rotation : vehicle rotation
+   * @param distance : range before vehicle
+   * @param ref_point : reference point for transform coordinate
+   *
    * @return
    */
-  void SetMap(const Map_Type& hd_map);
+  void SetMap(const hozon::common::PointENU& position,
+              const Eigen::Matrix3d& rotation, const double& distance,
+              const Eigen::Vector3d& ref_point);
 
   /**
    * @brief crop map to get different element
@@ -56,7 +62,7 @@ class Map {
   /**
    * @brief crop map
    *
-   * @param T_W_V : vehicle pose in the gcj02 coordinates
+   * @param T_W_V : vehicle pose in the enu coordinates
    * @param front : range in front of the vehicle
    * @param width : range in side of the vehicle
    * @return

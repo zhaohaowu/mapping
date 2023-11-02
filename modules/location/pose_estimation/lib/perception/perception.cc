@@ -15,28 +15,26 @@ namespace loc {
 
 Perception::Perception() {}
 Perception::Perception(
-    const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray &lane_lines) {
-  Set(lane_lines);
+    const ::hozon::perception::TransportElement &transport_element) {
+  Set(transport_element);
 }
 
 void Perception::Set(
-    const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray &lane_lines) {
-  SetLaneLineList(lane_lines);
+    const ::hozon::perception::TransportElement &transport_element) {
+  SetLaneLineList(transport_element);
 }
 
 void Perception::SetLaneLineList(
-    const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray &lane_line) {
-  auto p = std::make_shared<PerceptionLaneLineList>(lane_line);
+    const ::hozon::perception::TransportElement &transport_element) {
+  auto p = std::make_shared<PerceptionLaneLineList>(transport_element);
   element_.emplace_back(p);
-  HLOG_ERROR << "SetLaneLineList start_here element_.size = "
-             << element_.size();
 }
 
-// void
-// Perception<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>::SetRoadEdgeList(
+// void Perception<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>::SetRoadEdgeList(
 //     const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut &lane_line) {
-//   auto p =
-//   std::make_shared<PerceptionRoadEdgeList<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>>(lane_line);
+//   auto p = std::make_shared<
+//       PerceptionRoadEdgeList<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>>(
+//       lane_line);
 //   element_.emplace_back(p);
 // }
 

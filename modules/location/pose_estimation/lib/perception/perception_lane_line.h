@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <interface/adsfi_proto/perception/lanes.pb.h>
 #include <math.h>
 
 #include <iostream>
@@ -20,6 +19,7 @@
 #include "modules/location/pose_estimation/lib/util/globals.h"
 #include "modules/location/pose_estimation/lib/util/poly_line.h"
 #include "modules/util/include/util/temp_log.h"
+#include "proto/perception/transport_element.pb.h"
 
 namespace hozon {
 namespace mp {
@@ -28,8 +28,7 @@ namespace loc {
 class PerceptionLaneLine {
  public:
   PerceptionLaneLine();
-  PerceptionLaneLine(
-      const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut &lane_line);
+  explicit PerceptionLaneLine(const hozon::perception::LaneInfo &lane_line);
   /**
    * @brief determine whether the point is on the curve equation
    *
@@ -101,7 +100,7 @@ class PerceptionLaneLine {
 class PerceptionLaneLineList : public PerceptionElement {
  public:
   PerceptionLaneLineList(
-      const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOutArray &lanes);
+      const hozon::perception::TransportElement &transport_element);
   PerceptionLaneLineList();
 
   /**
@@ -110,7 +109,6 @@ class PerceptionLaneLineList : public PerceptionElement {
    * @return
    */
   void Print(void);
-  int cam_id_;
   using Ptr = std::shared_ptr<PerceptionLaneLineList>;
   std::list<std::shared_ptr<PerceptionLaneLine>> lane_line_list_;
 };

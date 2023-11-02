@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <pose_estimate_lane_line.h>
-
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -18,6 +16,9 @@
 #include <queue>
 #include <unordered_map>
 #include <vector>
+#include <string>
+
+#include "modules/location/pose_estimation/lib/perception/perception_lane_line.h"
 
 namespace hozon {
 namespace mp {
@@ -27,31 +28,31 @@ namespace loc {
 // lines, providing DFS function
 class Graph {
  public:
-  Graph(const std::unordered_map<size_t, hozon::mp::loc::BoundaryLine>
+  Graph(const std::unordered_map<std::string, hozon::mp::loc::BoundaryLine>
             &boundary_lines,
         const std::list<std::list<std::shared_ptr<PerceptionLaneLine>>>
             &percep_lanes,
         const SE3 &T_V_W)
       : boundary_lines_(boundary_lines),
-        T_V_W_(T_V_W),
-        percep_lanes_(percep_lanes) {}
+        percep_lanes_(percep_lanes),
+        T_V_W_(T_V_W) {}
 
-  void AddEdge(int v, int w) {
+  void AddEdge(std::string v, std::string w) {
     adj_[v].push_back(w);
     adj_[w].push_back(v);
     visited_[v] = false;
     visited_[w] = false;
   }
 
-  void AddNode(int v) {
+  void AddNode(std::string v) {
     if (adj_.find(v) == adj_.end()) {
-      adj_[v] = std::list<int>();
+      adj_[v] = std::list<std::string>();
     }
     visited_[v] = false;
   }
 
   // note that bfs and dfs here are mutual exclusion.
-  void BFS(int pivot, std::vector<int> *ordered_cluster) {
+  void BFS(std::string pivot, std::vector<std::string> *ordered_cluster) {
     if (!ordered_cluster) {
       return;
     }
@@ -63,12 +64,12 @@ class Graph {
     double most_right = std::numeric_limits<double>::min();
     double cur_left, cur_right, best_left, best_right;
     bool has_branch = false;
-    std::queue<int> que;
+    std::queue<std::string> que;
     MostXValue(pivot, &most_left, &most_right);
     que.push(pivot);
     visited_[pivot] = true;
     while (!que.empty()) {
-      int temp_idx = que.front();
+      std::string temp_idx = que.front();
       que.pop();
       (*ordered_cluster).emplace_back(temp_idx);
       hozon::mp::loc::LaneLinePerceptionPtr best_percep_lane;
@@ -76,7 +77,7 @@ class Graph {
         continue;
       }
       double min_dist = std::numeric_limits<double>::max(), m_p_dist;
-      int best_successor = -1;
+      std::string best_successor = "";
       bool find_successor = false;
       for (auto iter = adj_[temp_idx].begin(); iter != adj_[temp_idx].end();
            ++iter) {
@@ -114,7 +115,7 @@ class Graph {
     }
   }
 
-  void GetNodes(std::vector<int> *nodes) {
+  void GetNodes(std::vector<std::string> *nodes) {
     if (nodes == nullptr) {
       return;
     }
@@ -125,14 +126,14 @@ class Graph {
   }
 
  private:
-  std::map<int, bool> visited_;
-  std::map<int, std::list<int>> adj_;
-  std::unordered_map<size_t, hozon::mp::loc::BoundaryLine> boundary_lines_;
+  std::map<std::string, bool> visited_;
+  std::map<std::string, std::list<std::string>> adj_;
+  std::unordered_map<std::string, hozon::mp::loc::BoundaryLine> boundary_lines_;
   const std::list<std::list<std::shared_ptr<PerceptionLaneLine>>>
       &percep_lanes_;
   const SE3 &T_V_W_;
 
-  bool FindBestPercepLane(int m_idx,
+  bool FindBestPercepLane(std::string m_idx,
                           hozon::mp::loc::LaneLinePerceptionPtr *best_lane) {
     double best_dist = std::numeric_limits<double>::max();
     for (auto &lane_list : percep_lanes_) {
@@ -161,7 +162,7 @@ class Graph {
     return false;
   }
 
-  bool DistPercepMap(const int &m_idx,
+  bool DistPercepMap(const std::string &m_idx,
                      const hozon::mp::loc::LaneLinePerceptionPtr &p_lane,
                      double *m_p_dist) {
     double sum_dist = 0;
@@ -181,7 +182,8 @@ class Graph {
   }
 
   // get most left & right value on X axis
-  void MostXValue(const int &mLanId, double *most_left, double *most_right) {
+  void MostXValue(const std::string &mLanId, double *most_left,
+                  double *most_right) {
     if (most_left == nullptr || most_right == nullptr) {
       return;
     }

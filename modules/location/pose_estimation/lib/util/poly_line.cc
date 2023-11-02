@@ -13,14 +13,14 @@ namespace loc {
 
 template <typename T>
 PolyLine<T>::PolyLine(T t) {
-  min_ = t.lane_fit().x_start_vrf();
-  max_ = t.lane_fit().x_end_vrf();
-  c0_ = t.lane_fit().coefficients().d();
-  c1_ = t.lane_fit().coefficients().c();
-  c2_ = t.lane_fit().coefficients().b();
-  c3_ = t.lane_fit().coefficients().a();
-  id_ = t.laneline_seq();
-  confidence_ = t.geometry_confidence();
+  min_ = t.lane_param().cubic_curve_set(0).start_point_x();
+  max_ = t.lane_param().cubic_curve_set(0).end_point_x();
+  c0_ = t.lane_param().cubic_curve_set(0).c3();
+  c1_ = t.lane_param().cubic_curve_set(0).c2();
+  c2_ = t.lane_param().cubic_curve_set(0).c1();
+  c3_ = t.lane_param().cubic_curve_set(0).c0();
+  id_ = t.track_id();
+  confidence_ = t.confidence();
 }
 
 template class PolyLine<LaneLine>;

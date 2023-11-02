@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "modules/location/pose_estimation/lib/hd_map/hd_map.h"
@@ -27,7 +28,7 @@ namespace loc {
 #define DOUBLE_MAX std::numeric_limits<double>::max()
 #define DOUBLE_MIN std::numeric_limits<double>::min()
 
-using HdMap = Map<adsfi_proto::internal::SubMap>;
+using HdMap = Map<hozon::hdmap::Map>;
 using LaneLinePerceptionPtr = std::shared_ptr<PerceptionLaneLine>;
 // using Perception = Perception<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>;
 // using PerceptionLaneLine =
@@ -39,7 +40,6 @@ using LaneLinePerceptionPtr = std::shared_ptr<PerceptionLaneLine>;
 // using RoadMarkingPerceptionRoadEdgeList =
 //     PerceptionRoadEdgeList<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>;
 enum class LineSide { UNKNOWN_SIDE = 0, LEFT_SIDE = 1, RIGHT_SIDE = 2 };
-enum class LocStatus { UNINIT = 0, INITING = 1, NORMAL = 2 };
 enum CommonState { NO = 0, YES = 1, UNKNOW = 2 };
 enum class PercepLineType {
   UNKOWN = 100000,
@@ -60,16 +60,6 @@ enum class InsStatus {
   PSEUD_DIFF_LOCATION_UNORIEN = 7,    // 伪距差分定位不定向
   RTK_STABLE_LOCATION_UNORIEN = 8,    // RTK稳定解定位不定向
   RTK_FLOAT_LOCATION_UNORIEN = 9      // RTK浮点解定位不定向
-};
-enum class ErrorType : int {
-  NO_ERROR = 0,
-  NO_VALID_PECEP_LANE = 1,   // 无有效感知车道线
-  ERROR_EDGE = 2,            // 路沿错误
-  NO_VALID_MAP_LANE = 3,     // 无有效地图车道线-1
-  NO_MAP_BOUNDARY_LINE = 4,  // 无有效地图车道线-2
-  NO_MERGE_MAP_LANE = 5,     // 无有效地图车道线-3
-  MAP_LANE_MATCH_FAIL = 6,   // 感知和地图车道线偏差大
-  OFFSET_ONELANE = 7         // FC偏移一个车道
 };
 enum MapLineType {
   LaneChangeVirtualLine = adsfi_proto::internal::SubMap::LineType::
@@ -114,22 +104,23 @@ struct JacentMapLine {
   JacentMapLine() {
     nearest_p = V3::Zero();
     last_p = V3::Zero();
-    idx = -1;
+    idx = "";
   }
-  JacentMapLine(const V3 &nearest_p, const V3 &last_p, size_t idx)
+  JacentMapLine(const V3 &nearest_p, const V3 &last_p, std::string idx)
       : nearest_p(nearest_p), last_p(last_p), idx(idx) {}
   V3 nearest_p;
   V3 last_p;
-  size_t idx;
+  std::string idx;
 };
 struct AlternativeMapLine {
   AlternativeMapLine() {
     ref_p = V3::Zero();
-    idx = -1;
+    idx = "";
   }
-  AlternativeMapLine(const V3 &ref_p, size_t idx) : ref_p(ref_p), idx(idx) {}
+  AlternativeMapLine(const V3 &ref_p, std::string idx)
+      : ref_p(ref_p), idx(idx) {}
   V3 ref_p;
-  size_t idx;
+  std::string idx;
 };
 // struct PercpEdgeItem {
 //   PercpEdgeItem(const PerceptionLanelinePtr &edge, const LineSide &side)
@@ -146,10 +137,10 @@ struct LineMatchPair {
     map_line_idxs.clear();
     pecep_line = nullptr;
   }
-  LineMatchPair(const std::vector<int> &map_line_idxs,
+  LineMatchPair(const std::vector<std::string> &map_line_idxs,
                 const LaneLinePerceptionPtr &pecep_line)
       : map_line_idxs(map_line_idxs), pecep_line(pecep_line) {}
-  std::vector<int> map_line_idxs;
+  std::vector<std::string> map_line_idxs;
   LaneLinePerceptionPtr pecep_line;
 };
 // struct EdgeMatchPair {

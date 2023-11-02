@@ -10,15 +10,10 @@ use_smooth: false
 use_interpolate: false
 map_crop_front: 1550.0
 map_crop_width: 300.0
-
+map_distance: 250
 # cyber_topic
-hdmap_topic: "/minieye/hdmap"
-# hdmap_topic: "/amap/ehp"
-# location_topic: "/minieye/haflocation"
-# road_marking_topic: /minieye/front_road_marking/laneline
 lane_line_topic: "/perception/fsd/transportelement_1"
-node_info_topic: "/minieye/node_info_mm"
-# ins_topic: "/minieye/node_info_ins"
+node_info_topic: "/mapping/location/pose_estimate"
 ins_topic: "/mapping/location/ins"
 
 # fault diagnosis

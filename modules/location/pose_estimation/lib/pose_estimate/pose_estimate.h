@@ -30,17 +30,11 @@ class MapMatch {
  public:
   MapMatch();
   void Match(const HdMap &hd_map, const std::shared_ptr<Perception> &perception,
-             const SE3 &T02_W_V, const SE3 &T_fc, const VP &percep_points,
-             const VP &nearest_map_points);
+             const SE3 &T02_W_V);
   Connect Result(void);
   bool GoodMatchCheck(const SE3 &T);
   void SetInsTs(const double &ins_ts);
-  std::vector<V3> Debug();
-  std::vector<V3> DebugConnect();
-  inline bool HasError() { return has_err_; }
-  inline int GetErrorType() { return err_type_; }
   int GetLanePairSize() { return lane_line_->get_match_line_size(); }
-  //   CommonState IsInRoadedge(const SE3 &pose, const HDMap &hd_map);
   //   void Match3D(const HDMap &hd_map, const Tracking &track, const SE3
   //   &T02_W_V);
 
@@ -50,8 +44,6 @@ class MapMatch {
   //   MatchTrafficSign::Ptr traffic_sign;
   //   MatchPole::Ptr pole;
   Connect connect_;
-  bool has_err_;
-  int err_type_;
   double ts_;
   double ins_timestamp_;
 };

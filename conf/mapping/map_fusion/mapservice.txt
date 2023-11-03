@@ -33,3 +33,6 @@
 --map_service_mode=1
 
 --channel_ins_node_info=/localization/location_node
+
+--mf_viz=ipc:///tmp/rviz_agent_mf
+--notopo_rviz

@@ -8,13 +8,22 @@
 #include "map_fusion/map_fusion.h"
 
 #include "map_fusion/map_prediction/map_prediction.h"
+#include "map_fusion/map_service/map_service.h"
 #include "map_fusion/topo_assignment/topo_assignment.h"
+#include "util/rate.h"
+#include "util/tic_toc.h"
 
 namespace hozon {
 namespace mp {
 namespace mf {
 
 int MapFusion::Init(const std::string& conf) {
+  map_service_ = std::make_shared<MapService>();
+  if (!map_service_->Init()) {
+    HLOG_ERROR << "Init MapService failed";
+    return -1;
+  }
+
   topo_ = std::make_shared<TopoAssignment>();
   int ret = topo_->Init();
   if (ret < 0) {
@@ -32,60 +41,109 @@ int MapFusion::Init(const std::string& conf) {
   return 0;
 }
 
-void MapFusion::OnInsNodeInfo(
-    const std::shared_ptr<hozon::localization::HafNodeInfo>& msg) {
-  if (!msg) {
-    HLOG_ERROR << "nullptr ins node info";
-    return;
+void MapFusion::Stop() {
+  HLOG_ERROR << "try stopping map prediction";
+  if (pred_) {
+    pred_->Stop();
   }
-
-  topo_->OnInsNodeInfo(msg);
-  pred_->OnInsNodeInfo(msg);
+  HLOG_ERROR << "done stopping map prediction";
+  HLOG_ERROR << "done stopping map fusion";
 }
 
-void MapFusion::OnHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
-  if (!msg) {
-    HLOG_ERROR << "nullptr HQ map";
-    return;
+int MapFusion::ProcService(
+    const std::shared_ptr<hozon::localization::HafNodeInfo>& curr_node_info,
+    const std::shared_ptr<hozon::planning::ADCTrajectory>& curr_planning,
+    hozon::routing::RoutingResponse* routing) {
+  if (!routing) {
+    HLOG_ERROR << "nullptr input routing";
+    return -1;
   }
 
-  // topo_->OnHQMap(msg);
-  pred_->OnHqMap(msg);
+  if (!curr_node_info) {
+    HLOG_ERROR << "nullptr current plugin node info";
+    return -1;
+  }
+
+  if (!map_service_) {
+    HLOG_ERROR << "nullptr map service";
+    return -1;
+  }
+
+  if (FLAGS_ehp_monitor == 2 || FLAGS_ehp_monitor == 0) {
+    if (!curr_planning) {
+      HLOG_ERROR << "nullptr current planning";
+      return -1;
+    }
+    map_service_->OnInsAdcNodeInfo(*curr_node_info, *curr_planning);
+  } else {
+    hozon::planning::ADCTrajectory empty_planning;
+    map_service_->OnInsAdcNodeInfo(*curr_node_info, empty_planning);
+  }
+
+  auto rout = map_service_->GetRouting();
+  if (rout) {
+    routing->CopyFrom(*rout);
+  }
+  return 0;
 }
 
-void MapFusion::OnLocalMap(
-    const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
-  if (!msg) {
-    HLOG_ERROR << "nullptr local map";
-    return;
+int MapFusion::ProcFusion(
+    const std::shared_ptr<hozon::localization::Localization>& curr_loc,
+    const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
+    hozon::hdmap::Map* fusion_map) {
+  if (!fusion_map) {
+    HLOG_ERROR << "input nullptr fusion map";
+    return -1;
   }
 
-  topo_->OnLocalMap(msg);
+  if (!curr_loc) {
+    HLOG_ERROR << "input nullptr current localization";
+    return -1;
+  }
+
+  if (!curr_local_map) {
+    HLOG_ERROR << "input nullptr current local map";
+    return -1;
+  }
+
+  if (!topo_) {
+    HLOG_ERROR << "nullptr topo assignment";
+    return -1;
+  }
+
+  if (!pred_) {
+    HLOG_ERROR << "nullptr map prediction";
+    return -1;
+  }
+  util::TicToc global_tic;
+  util::TicToc local_tic;
+  topo_->OnLocalization(curr_loc);
+  topo_->OnLocalMap(curr_local_map);
+  topo_->TopoAssign();
+  //! 注意：TopoAssignment内部保证每次返回的都是全新的ptr，
+  //! 不会存在两次调用得到的ptr指向同一片空间;
   auto topo_map = topo_->GetTopoMap();
+  HLOG_INFO << "topo cost " << local_tic.Toc();
+  local_tic.Tic();
 
+  pred_->OnLocalization(curr_loc);
   pred_->OnTopoMap(topo_map);
-  std::shared_ptr<hdmap::Map> map = nullptr;
-  map = pred_->GetPredictionMap();
-  if (map) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    pred_map_ = std::make_shared<hdmap::Map>();
-    pred_map_->CopyFrom(*map);
+  pred_->Prediction();
+
+  //! 注意：MapPrediction内部保证每次返回的都是全新的ptr，
+  //! 不会存在两次调用得到的ptr指向同一片空间;
+  auto map = pred_->GetPredictionMap();
+  if (!map) {
+    HLOG_ERROR << "get nullptr prediction map";
+    return -1;
   }
-}
+  HLOG_INFO << "pred cost " << local_tic.Toc();
+  local_tic.Tic();
+  fusion_map->CopyFrom(*map);
+  HLOG_INFO << "copy fusion_map cost " << local_tic.Toc();
+  HLOG_INFO << "topo+pred cost " << global_tic.Toc();
 
-void MapFusion::OnLocalMapLocation(
-    const std::shared_ptr<hozon::localization::Localization>& msg) {
-  if (!msg) {
-    HLOG_ERROR << "nullptr local map location";
-    return;
-  }
-
-  topo_->OnLocalMapLocation(msg);
-}
-
-std::shared_ptr<hozon::hdmap::Map> MapFusion::GetMap() {
-  std::lock_guard<std::mutex> lock(mtx_);
-  return pred_map_;
+  return 0;
 }
 
 }  // namespace mf

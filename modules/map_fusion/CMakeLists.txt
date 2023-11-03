@@ -16,11 +16,11 @@ set(PREDICTION_SRCS
   src/map_prediction/viz_map.cc
   )
 
-if(${PLATFORM} STREQUAL "orin")
+if (${PLATFORM} STREQUAL "orin")
   message(STATUS "currently MapService is not supported under orin")
   set(MAPSERVICE_SRCS)
   set(AMAP_LIBS)
-else()
+else ()
   set(MAPSERVICE_SRCS
     src/map_service/ehp/amap_core.cc
     src/map_service/ehp/amap_data.cc
@@ -41,8 +41,8 @@ else()
     GAdasUtils
     GPlatformInterface
     third_party_libs
-  )
-endif()
+    )
+endif ()
 
 set(MAP_FUSION_SRCS
   src/map_fusion.cc
@@ -58,6 +58,8 @@ target_link_libraries(mf
   adsfi_proto
   globalproto
   europa_hdmap
+  opencv_flann
+  opencv_core
   ${AMAP_LIBS}
   )
 

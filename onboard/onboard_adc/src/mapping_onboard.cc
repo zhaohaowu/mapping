@@ -40,6 +40,13 @@ int32_t MappingAdc::MappingAdc::AlgInit() {
     return -1;
   }
 
+  mf_ = std::make_unique<mf::MapFusion>();
+  int ret = mf_->Init("");
+  if (ret < 0) {
+    HLOG_ERROR << "Init map fusion failed";
+    return -1;
+  }
+
   dr_data_ptr_ = std::make_shared<hozon::dead_reckoning::DeadReckoning>();
 
   return 0;
@@ -84,22 +91,32 @@ int32_t MappingAdc::ChassisImuCallBack(hz_Adsfi::NodeBundle* input) {
       debug_loc->algDebugframe.header.gnssStamp.sec = sec;
       debug_loc->algDebugframe.header.gnssStamp.nsec = nsec;
       std::stringstream ss_stream;
-      ss_stream << "wgs:" << Node2Xyz(loc_res->pose().wgs()) << "\n" <<
-          "gcj02:" << Node2Xyz(loc_res->pose().gcj02()) << "\n" <<
-          "quaternion(x,y,z,w):" << Node2Xyzw(loc_res->pose().quaternion()) << "\n" <<
-          "euler_angle:" << Node2Xyz(loc_res->pose().euler_angle()) << "\n" <<
-          "using_utm_zone:"<< loc_res->pose().using_utm_zone() << "\n" <<
-          "rtk_status:" << loc_res->rtk_status() << "\n" <<
-          "location_state:" << loc_res->location_state() << "\n" <<
-          "laneid:" << loc_res->laneid() << "\n" <<
-          "local_pose:" << Node2Xyz(loc_res->pose().local_pose()) << "\n" <<
-          "euler_angles_local:" << Node2Xyz(loc_res->pose().euler_angles_local());
+      ss_stream << "wgs:" << Node2Xyz(loc_res->pose().wgs()) << "\n"
+                << "gcj02:" << Node2Xyz(loc_res->pose().gcj02()) << "\n"
+                << "quaternion(x,y,z,w):"
+                << Node2Xyzw(loc_res->pose().quaternion()) << "\n"
+                << "euler_angle:" << Node2Xyz(loc_res->pose().euler_angle())
+                << "\n"
+                << "using_utm_zone:" << loc_res->pose().using_utm_zone() << "\n"
+                << "rtk_status:" << loc_res->rtk_status() << "\n"
+                << "location_state:" << loc_res->location_state() << "\n"
+                << "laneid:" << loc_res->laneid() << "\n"
+                << "local_pose:" << Node2Xyz(loc_res->pose().local_pose())
+                << "\n"
+                << "euler_angles_local:"
+                << Node2Xyz(loc_res->pose().euler_angles_local());
       debug_loc->algDebugframe.msg_2 = ss_stream.str();
 
       debug_loc->algDebugframe.msg_1 = seri_loc;
       hz_Adsfi::NodeBundle output;
       output.Add("npp_debug_msg_31", debug_loc);
       SendOutput(&output);
+
+      {
+        std::lock_guard<std::mutex> lock(loc_mtx_);
+        curr_loc_ =
+            std::make_shared<hozon::localization::Localization>(*loc_res);
+      }
     }
   }
 
@@ -138,8 +155,11 @@ int32_t MappingAdc::LaneCallBack(hz_Adsfi::NodeBundle* input) {
         std::make_shared<hozon::mapping::LocalMap>();
     if (lmap_->FetchLocalMap(result)) {
       loc_->OnLocalMap(*result);
+      {
+        std::lock_guard<std::mutex> lock(local_map_mtx_);
+        curr_local_map_ = std::make_shared<hozon::mapping::LocalMap>(*result);
+      }
     }
-
   } else {
     std::cout << "null lane data" << std::endl;
   }
@@ -157,12 +177,129 @@ int32_t MappingAdc::PluginCallback(hz_Adsfi::NodeBundle* input) {
   if (p_plugin) {
     DataBoard::Adsfi2Proto(*p_plugin, board_.plugin_proto.get());
     loc_->OnInspva(*(board_.plugin_proto));
+    {
+      std::lock_guard<std::mutex> lock(plugin_mtx_);
+      curr_plugin_ = std::make_shared<hozon::localization::HafNodeInfo>(
+          *(board_.plugin_proto));
+    }
   }
 
   return 0;
 }
 
-void MappingAdc::AlgRelease() { util::RvizAgent::Instance().Term(); }
+int32_t MappingAdc::MapServiceCycleCallback(hz_Adsfi::NodeBundle* input) {
+  if (!mf_) {
+    HLOG_ERROR << "nullptr map fusion";
+    return -1;
+  }
+
+  std::shared_ptr<hozon::localization::HafNodeInfo> latest_plugin = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(plugin_mtx_);
+    if (curr_plugin_) {
+      latest_plugin =
+          std::make_shared<hozon::localization::HafNodeInfo>(*curr_plugin_);
+    } else {
+      HLOG_ERROR << "nullptr current plugin node info";
+      return -1;
+    }
+  }
+  std::shared_ptr<hozon::planning::ADCTrajectory> latest_planning = nullptr;
+  hozon::routing::RoutingResponse routing;
+  mf_->ProcService(latest_plugin, latest_planning, &routing);
+  {
+    std::lock_guard<std::mutex> lock(routing_mtx_);
+    curr_routing_ = std::make_shared<hozon::routing::RoutingResponse>(routing);
+  }
+  return 0;
+}
+
+int32_t MappingAdc::MapFusionCycleCallback(hz_Adsfi::NodeBundle* input) {
+  if (!mf_) {
+    HLOG_ERROR << "nullptr map fusion";
+    return -1;
+  }
+
+  std::shared_ptr<hozon::localization::Localization> latest_loc = nullptr;
+  std::shared_ptr<hozon::mapping::LocalMap> latest_local_map = nullptr;
+
+  {
+    std::lock_guard<std::mutex> lock(loc_mtx_);
+    if (curr_loc_) {
+      latest_loc =
+          std::make_shared<hozon::localization::Localization>(*curr_loc_);
+    } else {
+      HLOG_ERROR << "nullptr current localization";
+      return -1;
+    }
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(local_map_mtx_);
+    if (curr_local_map_) {
+      latest_local_map =
+          std::make_shared<hozon::mapping::LocalMap>(*curr_local_map_);
+    } else {
+      HLOG_ERROR << "nullptr current local map";
+      return -1;
+    }
+  }
+
+  std::shared_ptr<hozon::routing::RoutingResponse> latest_routing = nullptr;
+  {
+    std::lock_guard<std::mutex> lock(routing_mtx_);
+    if (curr_routing_) {
+      latest_routing =
+          std::make_shared<hozon::routing::RoutingResponse>(*curr_routing_);
+    } else {
+      HLOG_ERROR << "nullptr current routing";
+      return -1;
+    }
+  }
+
+  auto map = std::make_shared<hozon::hdmap::Map>();
+  int ret = mf_->ProcFusion(latest_loc, latest_local_map, map.get());
+  if (ret < 0) {
+    HLOG_ERROR << "map fusion ProcFusion failed";
+    return -1;
+  }
+
+  std::string ser_map = map->SerializeAsString();
+  std::string ser_routing = latest_routing->SerializeAsString();
+  if (ser_map.empty() || ser_routing.empty()) {
+    HLOG_ERROR << "empty serialized map or routing, map size " << ser_map.size()
+               << ", routing size " << ser_routing.size();
+    return -1;
+  }
+
+  auto debug_map = std::make_shared<hz_Adsfi::AlgPbDebugFrame>();
+  debug_map->algDebugframe.header.seq = map->header().header().seq();
+  debug_map->algDebugframe.header.frameId = map->header().header().frame_id();
+  const uint32_t sec =
+      static_cast<uint32_t>(map->header().header().publish_stamp());
+  const uint32_t nsec = (map->header().header().publish_stamp() - sec) * 1e9;
+  debug_map->algDebugframe.header.stamp.sec = sec;
+  debug_map->algDebugframe.header.stamp.nsec = nsec;
+  debug_map->algDebugframe.msg_1 = ser_map;
+  debug_map->algDebugframe.msg_2 = ser_routing;
+  hz_Adsfi::NodeBundle output;
+  output.Add("npp_debug_msg_32", debug_map);
+  SendOutput(&output);
+
+  return 0;
+}
+
+void MappingAdc::AlgRelease() {
+  if (mf_) {
+    HLOG_INFO << "try stopping map fusion";
+    mf_->Stop();
+    HLOG_INFO << "done stopping map fusion";
+  }
+
+  if (RVIZ_AGENT.Ok()) {
+    RVIZ_AGENT.Term();
+  }
+}
 
 template <typename T>
 const std::string MappingAdc::Node2Xyz(const T& p) {

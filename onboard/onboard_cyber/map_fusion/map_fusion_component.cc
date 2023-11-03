@@ -6,9 +6,13 @@
  ******************************************************************************/
 
 #include "onboard/onboard_cyber/map_fusion/map_fusion_component.h"
-
+#include <cyber/time/rate.h>
+#include <depend/common/adapters/adapter_gflags.h>
+#include <depend/common/configs/config_gflags.h>
+#include <depend/common/utm_projection/coordinate_convertor.h>
 #include <gflags/gflags.h>
 
+#include <Eigen/Geometry>
 #include <memory>
 
 #include "map_fusion/map_fusion.h"
@@ -22,13 +26,17 @@ DEFINE_string(mf_viz, "ipc:///tmp/rviz_agent_mf",
               "RvizAgent for visualization");
 DEFINE_string(channel_fusion_map, "/fusion_map",
               "channel of map fusion result");
-DEFINE_string(channel_node_info, "/PluginNodeInfo", "channel of ins node info");
-DEFINE_string(channel_prior_map, "mf/prior_map",
-              "channel of prior map, maybe HQ or HD");
+DEFINE_string(channel_routing_response, "/hozon/routing_response",
+              "channel of map fusion result");
+DEFINE_string(channel_localization, "/localization",
+              "channel of local and global location from localization");
+DEFINE_string(channel_plugin_node_info, "/PluginNodeInfo",
+              "channel of ins node info");
 DEFINE_string(channel_lm_local_map, "/local_map",
               "channel of local map from local mapping");
-DEFINE_string(channel_local_location, "/local_map/location",
-              "channel of location in local map from localization");
+DEFINE_bool(
+    use_localization, false,
+    "whether use localization result directly from Localization module");
 
 namespace hozon {
 namespace mp {
@@ -51,63 +59,141 @@ bool MapFusionComponent::Init() {
 
   map_writer_ =
       node_->CreateWriter<hozon::hdmap::Map>(FLAGS_channel_fusion_map);
+  routing_writer_ = node_->CreateWriter<hozon::routing::RoutingResponse>(
+      FLAGS_channel_routing_response);
 
-  ins_node_info_reader_ = node_->CreateReader<hozon::localization::HafNodeInfo>(
-      FLAGS_channel_node_info,
-      [this](const std::shared_ptr<hozon::localization::HafNodeInfo>& msg) {
-        OnInsNodeInfo(msg);
-      });
+  localization_reader_ = node_->CreateReader<hozon::localization::Localization>(
+      FLAGS_channel_localization);
 
-  hq_map_reader_ = node_->CreateReader<hozon::hdmap::Map>(
-      FLAGS_channel_prior_map,
-      [this](const std::shared_ptr<hozon::hdmap::Map>& msg) { OnHQMap(msg); });
+  plugin_node_info_reader_ =
+      node_->CreateReader<hozon::localization::HafNodeInfo>(
+          FLAGS_channel_plugin_node_info);
 
-  local_map_reader_ = node_->CreateReader<hozon::mapping::LocalMap>(
-      FLAGS_channel_lm_local_map,
-      [this](const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
-        OnLocalMap(msg);
-      });
+  local_map_reader_ =
+      node_->CreateReader<hozon::mapping::LocalMap>(FLAGS_channel_lm_local_map);
 
-  local_map_location_reader_ =
-      node_->CreateReader<hozon::localization::Localization>(
-          FLAGS_channel_local_location,
-          [this](
-              const std::shared_ptr<hozon::localization::Localization>& msg) {
-            OnLocalMapLocation(msg);
-          });
+  planning_reader_ = node_->CreateReader<hozon::planning::ADCTrajectory>(
+      FLAGS_planning_trajectory_topic);
+
+  running_proc_service_.store(true);
+  proc_service_ =
+      std::make_shared<std::thread>(&MapFusionComponent::ProcForService, this);
 
   return true;
 }
 
 void MapFusionComponent::Clear() {
+  HLOG_INFO << "try stopping proc_service_ thread";
+  if (proc_service_ && proc_service_->joinable()) {
+    running_proc_service_.store(false);
+    proc_service_->join();
+  }
+  HLOG_INFO << "done stopping proc_service_ thread";
+
+  HLOG_INFO << "try stopping map fusion";
+  if (mf_) {
+    mf_->Stop();
+  }
+  HLOG_INFO << "done stopping map fusion";
+
   if (!FLAGS_mf_viz.empty() && RVIZ_AGENT.Ok()) {
     RVIZ_AGENT.Term();
   }
 }
 
-void MapFusionComponent::OnInsNodeInfo(
-    const std::shared_ptr<hozon::localization::HafNodeInfo>& msg) {
-  mf_->OnInsNodeInfo(msg);
-}
+bool MapFusionComponent::Proc() {
+  std::shared_ptr<hozon::localization::Localization> latest_loc = nullptr;
+  if (FLAGS_use_localization) {
+    localization_reader_->Observe();
+    latest_loc = localization_reader_->GetLatestObserved();
+    if (!latest_loc) {
+      HLOG_ERROR << "localization msg not ready";
+      return false;
+    }
+  } else {
+    plugin_node_info_reader_->Observe();
+    auto latest_plugin = plugin_node_info_reader_->GetLatestObserved();
+    if (!latest_plugin) {
+      HLOG_ERROR << "plugin node info msg not ready";
+      return false;
+    }
 
-void MapFusionComponent::OnHQMap(
-    const std::shared_ptr<hozon::hdmap::Map>& msg) {
-  mf_->OnHQMap(msg);
-}
+    latest_loc = std::make_shared<hozon::localization::Localization>();
+    latest_loc->Clear();
+    latest_loc->mutable_header()->CopyFrom(latest_plugin->header());
+    latest_loc->mutable_header()->set_publish_stamp(
+        latest_loc->header().gnss_stamp());
 
-void MapFusionComponent::OnLocalMap(
-    const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
-  mf_->OnLocalMap(msg);
-
-  auto fusion_map = mf_->GetMap();
-  if (!fusion_map) {
-    map_writer_->Write(fusion_map);
+    // 从ins里获取全局定位
+    Eigen::Quaterniond quat;
+    quat.w() = latest_plugin->quaternion().w();
+    quat.x() = latest_plugin->quaternion().x();
+    quat.y() = latest_plugin->quaternion().y();
+    quat.z() = latest_plugin->quaternion().z();
+    Eigen::Matrix3d rot = quat.toRotationMatrix();
+    Eigen::Vector3d euler = rot.eulerAngles(2, 0, 1);
+    latest_loc->mutable_pose()->mutable_euler_angles()->set_x(euler[1]);
+    latest_loc->mutable_pose()->mutable_euler_angles()->set_y(euler[2]);
+    latest_loc->mutable_pose()->mutable_euler_angles()->set_z(euler[0]);
+    uint32_t zone = std::floor(latest_plugin->pos_gcj02().y() / 6.0 + 31);
+    double x = latest_plugin->pos_gcj02().x();
+    double y = latest_plugin->pos_gcj02().y();
+    hozon::common::coordinate_convertor::GCS2UTM(zone, &y, &x);
+    latest_loc->mutable_pose()->mutable_pos_utm_01()->set_x(y);
+    latest_loc->mutable_pose()->mutable_pos_utm_01()->set_y(x);
+    latest_loc->mutable_pose()->mutable_pos_utm_01()->set_z(0);
+    latest_loc->mutable_pose()->set_utm_zone_01(zone);
   }
+
+  local_map_reader_->Observe();
+  auto latest_local_map = local_map_reader_->GetLatestObserved();
+  if (!latest_local_map) {
+    HLOG_ERROR << "local map msg not ready";
+    return false;
+  }
+  hozon::hdmap::Map fusion_map;
+  int ret = mf_->ProcFusion(latest_loc, latest_local_map, &fusion_map);
+  if (ret < 0) {
+    HLOG_ERROR << "ProcFusion failed";
+    return false;
+  }
+
+  map_writer_->Write(fusion_map);
+  return true;
 }
 
-void MapFusionComponent::OnLocalMapLocation(
-    const std::shared_ptr<hozon::localization::Localization>& msg) {
-  mf_->OnLocalMapLocation(msg);
+void MapFusionComponent::ProcForService() {
+  apollo::cyber::Rate rate(10.);
+  while (running_proc_service_.load()) {
+    plugin_node_info_reader_->Observe();
+    auto latest_plugin = plugin_node_info_reader_->GetLatestObserved();
+    if (!latest_plugin) {
+      HLOG_ERROR << "plugin node info msg not ready";
+      rate.Sleep();
+      continue;
+    }
+
+    std::shared_ptr<hozon::planning::ADCTrajectory> latest_planning = nullptr;
+    if (FLAGS_ehp_monitor == 2 || FLAGS_ehp_monitor == 0) {
+      planning_reader_->Observe();
+      latest_planning = planning_reader_->GetLatestObserved();  // NOLINT
+      if (!latest_planning) {
+        HLOG_ERROR << "planning msg is not ready!";
+        rate.Sleep();
+        continue;
+      }
+    }
+
+    hozon::routing::RoutingResponse routing;
+    int ret = mf_->ProcService(latest_plugin, latest_planning, &routing);
+    if (ret < 0) {
+      HLOG_ERROR << "ProcService failed";
+      rate.Sleep();
+      continue;
+    }
+    routing_writer_->Write(routing);
+    rate.Sleep();
+  }
 }
 
 }  // namespace mf

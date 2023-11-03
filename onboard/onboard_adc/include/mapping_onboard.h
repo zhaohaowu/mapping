@@ -12,6 +12,7 @@
 #include <sstream>
 #include <string>
 
+#include "map_fusion/map_fusion.h"
 #include "modules/dr/include/dr.h"
 #include "modules/local_mapping/local_mapping.h"
 #include "modules/location/location.h"
@@ -37,6 +38,9 @@ class MappingAdc : public hz_Adsfi::NodeBase {
                                      // local_mapping线程
   int32_t PluginCallback(hz_Adsfi::NodeBundle* input);
 
+  int32_t MapServiceCycleCallback(hz_Adsfi::NodeBundle* input);
+  int32_t MapFusionCycleCallback(hz_Adsfi::NodeBundle* input);
+
   virtual void AlgRelease();
 
  private:
@@ -51,8 +55,15 @@ class MappingAdc : public hz_Adsfi::NodeBase {
   std::unique_ptr<dr::DRInterface> dr_ = nullptr;
   std::unique_ptr<lm::LMapApp> lmap_ = nullptr;
   std::unique_ptr<loc::Localization> loc_ = nullptr;
-  // std::unique_ptr<mf::TopoAssignment> topo_ = nullptr;
-  // std::unique_ptr<mf::MapPrediction> mpre_ = nullptr;
+  std::unique_ptr<mf::MapFusion> mf_ = nullptr;
+  std::mutex plugin_mtx_;
+  std::shared_ptr<hozon::localization::HafNodeInfo> curr_plugin_ = nullptr;
+  std::mutex routing_mtx_;
+  std::shared_ptr<hozon::routing::RoutingResponse> curr_routing_ = nullptr;
+  std::mutex loc_mtx_;
+  std::shared_ptr<hozon::localization::Localization> curr_loc_ = nullptr;
+  std::mutex local_map_mtx_;
+  std::shared_ptr<hozon::mapping::LocalMap> curr_local_map_ = nullptr;
 
   std::shared_ptr<hozon::dead_reckoning::DeadReckoning> dr_data_ptr_;
 

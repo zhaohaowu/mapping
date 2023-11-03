@@ -40,10 +40,6 @@ double NowInSeconds() {
 }
 
 int VizMap::Init() {
-  int ret = RVIZ_AGENT.Init(FLAGS_viz_addr_mp);
-  if (ret < 0) {
-    HLOG_WARN << "RvizAgent init failed";
-  }
   if (viz_ && RVIZ_AGENT.Ok()) {
     int ret =
         RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_localmap_line_);
@@ -92,7 +88,7 @@ int VizMap::Init() {
     }
   }
 
-  ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>("TuoPu");
+  int ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>("TuoPu");
   if (ret < 0) {
     HLOG_WARN << "RvizAgent register "
               << "tuopu"
@@ -129,6 +125,10 @@ void VizMap::VizLocalMapLaneLine(
     Init();
     HLOG_ERROR << "Register Successfull!";
     viz_flag_ = false;
+  }
+
+  if (!RVIZ_AGENT.Ok()) {
+    return;
   }
 
   std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>
@@ -278,6 +278,11 @@ void VizMap::VizHqMapRoad(
     HLOG_ERROR << "Register Successfull!";
     viz_flag_ = false;
   }
+
+  if (!RVIZ_AGENT.Ok()) {
+    return;
+  }
+
   adsfi_proto::viz::MarkerArray markers;
   for (const auto& hq_road : roads) {
     for (const auto& id : road_id_) {
@@ -359,6 +364,9 @@ void VizMap::RoadEdgeToMarker(const std::vector<Eigen::Vector3d>& road_edge,
 
 void VizMap::VizAddSideLaneLine(
     const std::vector<std::vector<Eigen::Vector3d>>& addLaneLines) {
+  if (!RVIZ_AGENT.Ok()) {
+    return;
+  }
   // 可视化预测的左右车道线
   adsfi_proto::viz::MarkerArray markers;
   for (const auto& add_lane : addLaneLines) {
@@ -411,6 +419,9 @@ void VizMap::AddLanelineToMarker(const std::vector<Eigen::Vector3d>& lane_line,
 void VizMap::VizAddAheadLaneLine(
     const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
         aheadLaneLines) {
+  if (!RVIZ_AGENT.Ok()) {
+    return;
+  }
   // 开始可视化前方的车道线
   adsfi_proto::viz::MarkerArray markers;
   for (const auto& ahead_lane : aheadLaneLines) {
@@ -464,6 +475,9 @@ void VizMap::AheadLanelineToMarker(
 void VizMap::VizLaneLine(
     std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
         predictLaneLines) {
+  if (!RVIZ_AGENT.Ok()) {
+    return;
+  }
   adsfi_proto::viz::PointCloud lane_points;
   static uint32_t seq = 0;
   int curr_seq = seq++;
@@ -488,6 +502,9 @@ void VizMap::VizLaneLine(
 
 void VizMap::VizLaneID(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
                        const Eigen::Vector3d& local_enu_center_) {
+  if (!RVIZ_AGENT.Ok()) {
+    return;
+  }
   // 对车道ID进行可视化
   adsfi_proto::viz::MarkerArray ID_markers;
   for (const auto& lane : local_msg->lane()) {
@@ -555,6 +572,9 @@ void VizMap::VizLaneID(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
 
 void VizMap::VizCompanLane(
     const std::vector<std::vector<Eigen::Vector3d>>& compan_lines) {
+  if (!RVIZ_AGENT.Ok()) {
+    return;
+  }
   if (compan_lines.empty()) {
     return;
   }
@@ -609,6 +629,10 @@ void VizMap::ComLaneLineToMarker(const std::vector<Eigen::Vector3d>& lane_line,
 
 
 void VizMap::VizCenterLane(const std::vector<Vec2d>& cent_points) {
+  if (!RVIZ_AGENT.Ok()) {
+    return;
+  }
+
   if (cent_points.empty()) {
     return;
   }
@@ -653,6 +677,9 @@ void VizMap::VizCenterLane(const std::vector<Vec2d>& cent_points) {
 
 void VizMap::VizLocalMsg(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
                          const Eigen::Vector3d& pose) {
+  if (!RVIZ_AGENT.Ok()) {
+    return;
+  }
   // 现在开始呈现所有的元素
   // 存储所有的道路边界
   MapProtoMarker marker;

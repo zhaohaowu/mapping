@@ -11,9 +11,12 @@
 #include <depend/proto/localization/localization.pb.h>
 #include <depend/proto/localization/node_info.pb.h>
 #include <depend/proto/map/map.pb.h>
+#include <depend/proto/planning/planning.pb.h>
+#include <depend/proto/routing/routing.pb.h>
 
 #include <memory>
 #include <string>
+#include <thread>
 
 namespace hozon {
 namespace mp {
@@ -21,27 +24,28 @@ namespace mf {
 
 class TopoAssignment;
 class MapPrediction;
+class MapService;
 
 class MapFusion {
  public:
   MapFusion() = default;
   ~MapFusion() = default;
   int Init(const std::string& conf);
-  void OnInsNodeInfo(
-      const std::shared_ptr<hozon::localization::HafNodeInfo>& msg);
-  void OnHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg);
-  void OnLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& msg);
-  void OnLocalMapLocation(
-      const std::shared_ptr<hozon::localization::Localization>& msg);
+  void Stop();
 
-  std::shared_ptr<hozon::hdmap::Map> GetMap();
+  int ProcService(
+      const std::shared_ptr<hozon::localization::HafNodeInfo>& curr_node_info,
+      const std::shared_ptr<hozon::planning::ADCTrajectory>& curr_planning,
+      hozon::routing::RoutingResponse* routing);
+  int ProcFusion(
+      const std::shared_ptr<hozon::localization::Localization>& curr_loc,
+      const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
+      hozon::hdmap::Map* fusion_map);
 
  private:
+  std::shared_ptr<MapService> map_service_ = nullptr;
   std::shared_ptr<TopoAssignment> topo_ = nullptr;
   std::shared_ptr<MapPrediction> pred_ = nullptr;
-
-  std::shared_ptr<hozon::hdmap::Map> pred_map_ = nullptr;
-  std::mutex mtx_;
 };
 
 }  // namespace mf

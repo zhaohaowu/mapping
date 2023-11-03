@@ -25,9 +25,14 @@ int32_t main(int argc, char** argv) {
   mapping.RegistAlgProcessFunc(
       "plugin_cb", std::bind(&hozon::mp::MappingAdc::PluginCallback, &mapping,
                              std::placeholders::_1));
-  // mapping.RegistAlgProcessFunc(
-  //     "MapFusion", std::bind(&hozon::mp::MappingAdc::Process,
-  //                       &mapping, std::placeholders::_1));
+  mapping.RegistAlgProcessFunc(
+      "map_service_cycle_cb",
+      std::bind(&hozon::mp::MappingAdc::MapServiceCycleCallback, &mapping,
+                std::placeholders::_1));
+  mapping.RegistAlgProcessFunc(
+      "map_fusion_cycle_cb",
+      std::bind(&hozon::mp::MappingAdc::MapFusionCycleCallback, &mapping,
+                std::placeholders::_1));
 
   std::string work_root = "/opt/app/1";
   std::string socadf_yaml =

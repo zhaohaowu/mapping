@@ -298,7 +298,7 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo &ins) {
     is_chging_map_ref_ = true;
     is_chging_ins_ref_ = true;
     enu = hozon::mp::util::Geo::Gcj02ToEnu(pose, ref_point_);
-    HLOG_INFO << "ref point changed: " << SETPRECISION(18) << ins_timestamp_
+    HLOG_INFO << "ref point changed: " << ins_timestamp_
               << " newref: " << ref_point_.x() << " " << ref_point_.y() << " "
               << ref_point_.z();
   }
@@ -1168,7 +1168,7 @@ MapMatching::generateNodeInfo(const Sophus::SE3d &T_W_V, uint64_t sec,
   node_info->mutable_pos_gcj02()->set_y(blh.y());
   node_info->mutable_pos_gcj02()->set_z(blh.z());
   if (!has_err) {
-    HLOG_INFO << SETPRECISION(18) << "blh.x()," << blh.x() << ",blh.y(),"
+    HLOG_INFO << "blh.x()," << blh.x() << ",blh.y(),"
               << blh.y() << ",blh.z()" << blh.z() << ",proc_stamp_,"
               << proc_stamp_;
     node_info->set_valid_estimate(true);

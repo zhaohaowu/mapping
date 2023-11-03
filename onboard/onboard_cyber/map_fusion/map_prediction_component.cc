@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include "onboard/onboard_cyber/map_fusion/map_prediction_component.h"
-
 #include <gflags/gflags.h>
 
 #include <memory>
@@ -48,6 +47,12 @@ bool MapPredictionComponent::Init() {
         OnTopoMap(msg);
       });
   return true;
+}
+
+void MapPredictionComponent::Clear() {
+  if (prediction_) {
+    prediction_->Stop();
+  }
 }
 
 void MapPredictionComponent::OnInsNodeInfo(
@@ -92,7 +97,6 @@ void MapPredictionComponent::OnTopoMap(
   auto map = prediction_->GetPredictionMap();
   pred_writer_->Write(map);
 }
-
 
 }  // namespace mf
 }  // namespace mp

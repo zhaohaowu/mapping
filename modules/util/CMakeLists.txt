@@ -27,6 +27,7 @@ set(UTIL_SRCS
     ${NODELINK_SRCS}
     ${RVIZ_AGENT_SRCS}
     ${GEO_SRCS}
+    src/rate.cc
 )
 
 add_mapping_library(util ${UTIL_SRCS})

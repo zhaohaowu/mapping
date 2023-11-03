@@ -17,6 +17,9 @@ namespace mf {
 adsfi_proto::viz::TransformStamped MapProtoMarker::CarTrackTF(
     const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
     const hozon::common::Header& stamp, bool utm) {
+  if (!RVIZ_AGENT.Ok()) {
+    return {};
+  }
   adsfi_proto::viz::TransformStamped geo_tf;
   static uint32_t seq = 0;
   int curr_seq = seq++;
@@ -619,7 +622,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftNeighborForward(
   adsfi_proto::viz::MarkerArray arrow_markers;
   int color_index = 0;
   for (const auto& lane : prior_map->lane()) {
-    HLOG_ERROR << "===== laneId " << lane.id().id();
+    // HLOG_ERROR << "===== laneId " << lane.id().id();
     u_int64_t laneId = std::stoll(lane.id().id());
     int remainder = laneId / 10000;
     const auto start_lane_curve_left = lane.left_boundary().curve();

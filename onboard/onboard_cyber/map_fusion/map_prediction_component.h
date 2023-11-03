@@ -29,6 +29,7 @@ class MapPredictionComponent final : public apollo::cyber::Component<> {
   ~MapPredictionComponent() = default;
 
   bool Init() override;
+  void Clear() override;
 
  private:
   void OnInsNodeInfo(

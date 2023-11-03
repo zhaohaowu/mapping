@@ -1,11 +1,11 @@
-// /******************************************************************************
-//  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
-//  *   file       ： lane_center_constructor.h
-//  *   author     ： zhangshuo
-//  *   date       ： 2023.10
-//  ******************************************************************************/
+/******************************************************************************
+ *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： lane_center_constructor.h
+ *   author     ： zhangshuo
+ *   date       ： 2023.10
+ ******************************************************************************/
 
-// #pragma once
+#pragma once
 // #include "Eigen/Core"
 // #include "Eigen/Dense"
 // #include "Eigen/Geometry"
@@ -59,8 +59,8 @@
 //                                std::vector<Eigen::Vector3d>* right_points,
 //                                double min_lane_width,
 //                                std::vector<Eigen::Vector3d>* ori_left_points,
-//                                std::vector<Eigen::Vector3d>* ori_right_points,
-//                                double min_length);
+//                                std::vector<Eigen::Vector3d>*
+//                                ori_right_points, double min_length);
 //   Status BuildCentralLine(const std::vector<Eigen::Vector3d>& left_line,
 //                           const std::vector<Eigen::Vector3d>& right_line,
 //                           const double& weight_left_boundary,
@@ -69,8 +69,10 @@
 //   static Status DoProjection(const std::vector<Eigen::Vector3d>& refV,
 //                              const double& width,
 //                              std::vector<Eigen::Vector3d>* results);
-//   static bool FindPerpendicular(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1,
-//                                 const double& distance, Eigen::Vector3d* res);
+//   static bool FindPerpendicular(const Eigen::Vector3d& p0, const
+//   Eigen::Vector3d& p1,
+//                                 const double& distance, Eigen::Vector3d*
+//                                 res);
 // };
 
 // }  // namespace mf

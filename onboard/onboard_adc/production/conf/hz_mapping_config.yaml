@@ -31,7 +31,8 @@ sendInstances:
 log:
     name: mal
     description: mapping
-    file: ./
+    # 注意：必须这个路径，不然打不出来
+    file: /opt/usr/log/hz_log
     mode: 0 #mode: 日志模式 |0-remote日志，异步日志|1-console日志，同步日志|2-本地文件存储日志，同步日志|3-remote+console日志|4-remote+本地文件存储日志|5-console+本地文件存储日志|6-remote+console+本地文件存储日志
     level: 4 #日志等级 0: verbose, 1: debug, 2: info, 3: warn, 4: error, 5: fatal, 6: off
 
@@ -54,3 +55,10 @@ trigger:
       mainSources:
           - name: plugin
             timeout: 100
+    - name: map_service_cycle_cb
+      type: PERIOD
+      period: 100
+    - name: map_fusion_cycle_cb
+      type: PERIOD
+      period: 100
+

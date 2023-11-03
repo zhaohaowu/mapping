@@ -1,3 +1,14 @@
 --adc_viz=false
 --adc_viz_addr=tcp://10.6.73.235:9100
 --lm_config=conf/mapping/local_mapping/local_mapping_conf.yaml
+
+# MapFusion
+--vehicle_config_path=conf/vehicle_param/ep40/vehicle_param.pb.txt
+--map_dir=/opt/usr/hd_map
+--use_ehp
+--use_ehp_odd_to_stop=false
+--ehp_monitor=1
+--enable_ehp_routing=false
+--using_record_ehp_data=false
+--ehp_log_root_dir=/opt/usr/hd_map/ehp_log
+--map_service_mode=1

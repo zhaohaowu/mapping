@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include "onboard/onboard_cyber/map_fusion/topo_assignment_component.h"
-
 #include <gflags/gflags.h>
 
 #include <iomanip>
@@ -21,8 +20,6 @@ DEFINE_string(channel_ins_node_info_tac, "/PluginNodeInfo",
               "channel of ins msg from ins fusion");
 DEFINE_string(channel_local_map, "/local_map",
               "channel of local map msg from local mapping");
-DEFINE_string(channel_local_map_location, "/local_map/location",
-              "channel of local map location msg from local mapping");
 
 DEFINE_string(viz_addr_topo, "ipc:///tmp/rviz_agent_lm_pv",
               "RvizAgent working address, may like "
@@ -33,12 +30,6 @@ DEFINE_string(viz_addr_topo, "ipc:///tmp/rviz_agent_lm_pv",
 namespace hozon {
 namespace mp {
 namespace mf {
-
-TopoAssignmentComponent::~TopoAssignmentComponent() {
-  if (RVIZ_AGENT.Ok()) {
-    RVIZ_AGENT.Term();
-  }
-}
 
 bool TopoAssignmentComponent::Init() {
   if (!FLAGS_viz_addr_topo.empty()) {
@@ -64,13 +55,13 @@ bool TopoAssignmentComponent::Init() {
         OnLocalMap(msg);
       });
 
-  lm_location_reader_ = node_->CreateReader<hozon::localization::Localization>(
-      FLAGS_channel_local_map_location,
-      [this](const std::shared_ptr<hozon::localization::Localization>& msg) {
-        OnLocalMapLocation(msg);
-      });
-
   return true;
+}
+
+void TopoAssignmentComponent::Clear() {
+  if (!FLAGS_viz_addr_topo.empty() && RVIZ_AGENT.Ok()) {
+    RVIZ_AGENT.Term();
+  }
 }
 
 void TopoAssignmentComponent::OnInsNodeInfo(
@@ -97,23 +88,10 @@ void TopoAssignmentComponent::OnLocalMap(
     return;
   }
   topo_assign_->OnLocalMap(msg);
+  topo_assign_->TopoAssign();
   // 发出拓扑地图
   auto map = topo_assign_->GetTopoMap();
   topo_writer_->Write(map);
-}
-
-void TopoAssignmentComponent::OnLocalMapLocation(
-    const std::shared_ptr<hozon::localization::Localization>& msg) {
-  if (!msg) {
-    HLOG_ERROR << "message local map is null";
-    return;
-  }
-  if (!topo_assign_) {
-    HLOG_ERROR << "nullptr tppo map assignment";
-    return;
-  }
-
-  topo_assign_->OnLocalMapLocation(msg);
 }
 
 }  // namespace mf

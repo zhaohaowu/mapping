@@ -7,11 +7,13 @@
 
 #pragma once
 
+#include <cyber/component/timer_component.h>
 #include <cyber/cyber.h>
 #include <depend/proto/local_mapping/local_map.pb.h>
 #include <depend/proto/localization/localization.pb.h>
 #include <depend/proto/localization/node_info.pb.h>
 #include <depend/proto/map/map.pb.h>
+#include <depend/proto/planning/planning.pb.h>
 
 #include <memory>
 
@@ -21,36 +23,34 @@ namespace mf {
 
 class MapFusion;
 
-class MapFusionComponent final : public apollo::cyber::Component<> {
+class MapFusionComponent final : public apollo::cyber::TimerComponent {
  public:
   MapFusionComponent() = default;
   ~MapFusionComponent() override = default;
 
- public:
   bool Init() override;
   void Clear() override;
+  bool Proc() override;
 
  private:
-  void OnInsNodeInfo(
-      const std::shared_ptr<hozon::localization::HafNodeInfo>& msg);
-  void OnHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg);
-  void OnLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& msg);
-  void OnLocalMapLocation(
-      const std::shared_ptr<hozon::localization::Localization>& msg);
-
- private:
+  void ProcForService();
   std::shared_ptr<apollo::cyber::Writer<hozon::hdmap::Map>> map_writer_ =
       nullptr;
+  std::shared_ptr<apollo::cyber::Writer<hozon::routing::RoutingResponse>>
+      routing_writer_ = nullptr;
+  std::shared_ptr<apollo::cyber::Reader<hozon::localization::Localization>>
+      localization_reader_ = nullptr;
   std::shared_ptr<apollo::cyber::Reader<hozon::localization::HafNodeInfo>>
-      ins_node_info_reader_ = nullptr;
-  std::shared_ptr<apollo::cyber::Reader<hozon::hdmap::Map>> hq_map_reader_ =
-      nullptr;
+      plugin_node_info_reader_ = nullptr;
   std::shared_ptr<apollo::cyber::Reader<hozon::mapping::LocalMap>>
       local_map_reader_ = nullptr;
-  std::shared_ptr<apollo::cyber::Reader<hozon::localization::Localization>>
-      local_map_location_reader_ = nullptr;
+  std::shared_ptr<apollo::cyber::Reader<hozon::planning::ADCTrajectory>>
+      planning_reader_ = nullptr;
 
   std::shared_ptr<MapFusion> mf_ = nullptr;
+  std::mutex mtx_;
+  std::atomic_bool running_proc_service_ = {false};
+  std::shared_ptr<std::thread> proc_service_ = nullptr;
 };
 
 CYBER_REGISTER_COMPONENT(MapFusionComponent);

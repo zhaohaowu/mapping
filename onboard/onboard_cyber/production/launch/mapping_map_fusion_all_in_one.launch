@@ -1,7 +1,17 @@
 <cyber>
-  <module>
-    <name>map_fusion</name>
-    <dag_conf>dag/map_fusion/mapping_map_fusion_all_in_one.dag</dag_conf>
-    <process_name>map_fusion</process_name>
+   <module>
+    <name>map_dr</name>
+    <dag_conf>dag/mapping_dr.dag</dag_conf>
+    <process_name>map_dr</process_name>
   </module>
+  <module>
+    <name>local_mapping</name>
+    <dag_conf>dag/mapping_local_mapping.dag</dag_conf>
+    <process_name>local_mapping</process_name>
+  </module>
+<!-- <module>-->
+<!--   <name>map_fusion</name>-->
+<!--   <dag_conf>dag/map_fusion/mapping_map_fusion_all_in_one.dag</dag_conf>-->
+<!--   <process_name>map_fusion</process_name>-->
+<!-- </module>-->
 </cyber>

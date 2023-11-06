@@ -214,6 +214,9 @@ bool DrFusion::DrNode2DrFusionNode(
   node->mutable_header()->set_frame_id("dr");
   node->set_valid_estimate(true);
 
+  node->set_type(hozon::localization::HafNodeInfo_NodeType_DR);
+  node->set_is_valid(true);
+
   node->mutable_mounting_error()->set_x(origin_node.mounting_error().x());
   node->mutable_mounting_error()->set_y(origin_node.mounting_error().y());
   node->mutable_mounting_error()->set_z(origin_node.mounting_error().z());

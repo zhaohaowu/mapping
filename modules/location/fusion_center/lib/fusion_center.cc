@@ -299,7 +299,7 @@ bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
 
   node->refpoint = Refpoint();
 
-  if (msg.type() == hozon::localization::HafNodeInfo_NodeType_PoseEstimate) {
+  if (msg.type() == hozon::localization::HafNodeInfo_NodeType_DR) {
     // dr fusion pos_gcj02 means local pose in dr coord
     node->enu = node->blh;
   } else {

@@ -153,6 +153,9 @@ void VizMap::VizLocalMapLaneLine(
       id_ -= 1;
     }
     // 存储右边线
+    if (!lane.right_neighbor_forward_lane_id().empty()) {
+      continue;
+    }
     std::vector<Eigen::Vector3d> right_line_point;
     for (const auto& right_line : lane.right_boundary().curve().segment()) {
       for (const auto& point : right_line.line_segment().point()) {
@@ -527,6 +530,11 @@ void VizMap::VizLaneID(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
       //       util::Geo::Gcj02ToEnu(point_gcj, local_enu_center_);
     }
 
+    if (lane.id().id().empty()) {
+      HLOG_ERROR << "VizLaneID have empty lane id!";
+      continue;
+    }
+
     adsfi_proto::viz::Marker marker;
     int64_t laneId = std::stoll(lane.id().id());
     marker.mutable_header()->set_frameid("map");
@@ -689,10 +697,10 @@ void VizMap::VizLocalMsg(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
   adsfi_proto::viz::MarkerArray lane = result[0];
   // adsfi_proto::viz::MarkerArray left = result[1];
   // adsfi_proto::viz::MarkerArray right = result[2];
-  adsfi_proto::viz::MarkerArray TuoPu =
-      marker.LaneLeftNeighborForward(local_msg, pose);
-  adsfi_proto::viz::MarkerArray TuoPu2 =
-      marker.LaneRightNeighborForward(local_msg, pose);
+  // adsfi_proto::viz::MarkerArray TuoPu =
+  //     marker.LaneLeftNeighborForward(local_msg, pose);
+  // adsfi_proto::viz::MarkerArray TuoPu2 =
+  //     marker.LaneRightNeighborForward(local_msg, pose);
   // adsfi_proto::viz::MarkerArray TuoPu3 =
   //     marker.LanePredecessor(local_msg, pose);
   // adsfi_proto::viz::MarkerArray TuoPu4 =
@@ -700,8 +708,8 @@ void VizMap::VizLocalMsg(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
   RVIZ_AGENT.Publish("lane", lane);
   // RVIZ_AGENT.Publish("left", left);
   // RVIZ_AGENT.Publish("right", right);
-  RVIZ_AGENT.Publish("TuoPu", TuoPu);
-  RVIZ_AGENT.Publish("TuoPu2", TuoPu2);
+  // RVIZ_AGENT.Publish("TuoPu", TuoPu);
+  // RVIZ_AGENT.Publish("TuoPu2", TuoPu2);
   // RVIZ_AGENT.Publish("TuoPu3", TuoPu3);
   // RVIZ_AGENT.Publish("TuoPu4", TuoPu4);
   // 可视化所有的车道线

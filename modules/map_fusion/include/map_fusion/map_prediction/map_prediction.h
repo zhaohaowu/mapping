@@ -162,6 +162,7 @@ class MapPrediction {
   void AddResTopo();
   void CatmullRoom(const std::vector<Eigen::Vector3d>& compan_point,
                    std::vector<Eigen::Vector3d>* cat_points);
+  void SmoothAlignment();
   Eigen::Vector3d UtmPtToLocalEnu(const hozon::common::PointENU& utm_pt);
 
   std::mutex mtx_;
@@ -194,6 +195,7 @@ class MapPrediction {
   std::set<std::string> add_lane_ids_;
   std::vector<std::string> add_section_ids_;
   std::unordered_map<std::string, uint32_t> end_prev_ids_;
+  std::vector<std::string> all_section_ids_;
 };
 
 }  // namespace mf

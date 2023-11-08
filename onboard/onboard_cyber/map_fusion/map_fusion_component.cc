@@ -28,14 +28,14 @@ DEFINE_string(channel_fusion_map, "/fusion_map",
               "channel of map fusion result");
 DEFINE_string(channel_routing_response, "/hozon/routing_response",
               "channel of map fusion result");
-DEFINE_string(channel_localization, "/localization",
+DEFINE_string(channel_localization, "/mapping/location/fc",
               "channel of local and global location from localization");
 DEFINE_string(channel_plugin_node_info, "/PluginNodeInfo",
               "channel of ins node info");
 DEFINE_string(channel_lm_local_map, "/local_map",
               "channel of local map from local mapping");
 DEFINE_bool(
-    use_localization, false,
+    use_localization, true,
     "whether use localization result directly from Localization module");
 
 namespace hozon {

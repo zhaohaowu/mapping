@@ -160,6 +160,9 @@ class TopoAssignment {
                             const Eigen::Vector2d& p1);
   // 可视化的class
   MapProtoMarker marker_rviz_;
+
+  hozon::common::Pose init_pose_;
+  std::string init_pose_ser_;
 };
 
 }  // namespace mf

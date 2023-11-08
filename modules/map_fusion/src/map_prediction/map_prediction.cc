@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cfloat>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -58,12 +59,31 @@
 
 DEFINE_bool(pred_run, true, "pred thread run");
 DEFINE_uint32(pred_thread_interval, 100, "pred thread interval ms");
+DEFINE_bool(viz_odom_map_in_local, false,
+            "whether publish viz msgs of odometry and map in local frame");
+DEFINE_string(viz_topic_odom_in_local, "/mf/pred/odom_local",
+              "viz topic of odometry in local frame");
+DEFINE_string(viz_topic_map_in_local, "/mf/pred/map_local",
+              "viz topic of map in local frame");
 
 namespace hozon {
 namespace mp {
 namespace mf {
 
 using Vec2d = common::math::Vec2d;
+
+void SplitSecs(double secs, uint32_t* sec, uint32_t* nsec) {
+  if (!sec || !nsec) {
+    return;
+  }
+  if (secs < 0) {
+    return;
+  }
+  auto s = static_cast<uint32_t>(secs);
+  auto ns = static_cast<uint32_t>((secs - s) * 1e9);
+  *sec = s;
+  *nsec = ns;
+}
 
 int MapPrediction::Init() {
   topo_map_ = std::make_shared<hozon::hdmap::Map>();
@@ -111,16 +131,52 @@ void MapPrediction::OnLocalization(
   Eigen::Vector3d pos_global(utm_y, utm_x, 0);
   OnLocationInGlobal(pos_global, zone, msg->pose().pos_utm_01().x(),
                      msg->pose().pos_utm_01().y());
+
+  stamp_loc_ = msg->header().gnss_stamp();
+  pos_local_ << msg->pose().local_pose().x(), msg->pose().local_pose().y(),
+      msg->pose().local_pose().z();
+  auto yaw = msg->pose().euler_angles_local().z();
+  auto roll = msg->pose().euler_angles_local().x();
+  auto pitch = msg->pose().euler_angles_local().y();
+  quat_local_ = Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
+                Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
+                Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY());
+
+  if (local_enu_center_flag_) {
+    HLOG_WARN
+        << "local_enu_center_ not init yet, not update T_local_enu_to_local_";
+    return;
+  }
+
+  Eigen::Isometry3d T_veh_to_local;
+  T_veh_to_local.setIdentity();
+  T_veh_to_local.rotate(quat_local_);
+  T_veh_to_local.pretranslate(pos_local_);
+
+  Eigen::Vector3d pos_local_enu =
+      util::Geo::Gcj02ToEnu(pos_global, local_enu_center_);
+
+  yaw = msg->pose().euler_angles().z();
+  roll = msg->pose().euler_angles().x();
+  pitch = msg->pose().euler_angles().y();
+  Eigen::Quaterniond quat_enu =
+      Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
+      Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
+      Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY());
+
+  Eigen::Isometry3d T_veh_to_local_enu;
+  T_veh_to_local_enu.setIdentity();
+  T_veh_to_local_enu.rotate(quat_enu);
+  T_veh_to_local_enu.pretranslate(pos_local_enu);
+
+  T_local_enu_to_local_.setIdentity();
+  T_local_enu_to_local_ = T_veh_to_local * T_veh_to_local_enu.inverse();
 }
 
 void MapPrediction::OnLocationInGlobal(const Eigen::Vector3d& pos_gcj02,
                                        uint32_t utm_zone_id, double utm_x,
                                        double utm_y) {
   std::lock_guard<std::mutex> lock(mtx_);
-  if (local_enu_center_flag_) {
-    local_enu_center_ << pos_gcj02;
-    local_enu_center_flag_ = false;
-  }
   location_ = pos_gcj02;
   location_utm_.x() = utm_x;
   location_utm_.y() = utm_y;
@@ -195,6 +251,20 @@ void MapPrediction::OnTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
   uint32_t utm_zone = 0;
   {
     std::lock_guard<std::mutex> lock(mtx_);
+    if (local_enu_center_flag_ && !msg->header().id().empty()) {
+      bool parsed = init_pose_.ParseFromString(msg->header().id());
+      if (!parsed) {
+        HLOG_ERROR << "parse init pose failed";
+        return;
+      }
+      local_enu_center_ << init_pose_.gcj02().x(), init_pose_.gcj02().y(),
+          init_pose_.gcj02().z();
+
+      HLOG_ERROR << "init_pose_:\n" << init_pose_.DebugString();
+
+      local_enu_center_flag_ = false;
+    }
+
     //    local_msg_ = msg;
     local_msg_ = std::make_shared<hozon::hdmap::Map>();
     local_msg_->Clear();
@@ -2856,14 +2926,17 @@ void MapPrediction::AddResTopo() {
   HLOG_ERROR << "pred AddResTopo insert pts " << tic.Toc();
   tic.Tic();
 
+  ConvertToLocal();
+  HLOG_ERROR << "pred ConvertToLocal cost " << tic.Toc();
+  tic.Tic();
+
   //  hozon::hdmap::Header raw_header;
   //  raw_header.CopyFrom(local_msg_->header());
   local_msg_->Clear();
   //  local_msg_->CopyFrom(*hq_map);
   //  local_msg_->mutable_header()->CopyFrom(raw_header);
 
-  HLOG_ERROR << "pred AddResTopo local_msg_ copyfrom " << tic.Toc();
-  tic.Tic();
+  HLOG_ERROR << "pred clear local_msg_ cost " << tic.Toc();
 
 #if 0
   // 向3公里剩余的一段添加拓扑关系
@@ -2930,6 +3003,88 @@ void MapPrediction::AddResTopo() {
     }
   }
 #endif
+}
+
+void MapPrediction::ConvertToLocal() {
+  if (!hq_map_) {
+    HLOG_ERROR << "nullptr hq_map_";
+    return;
+  }
+
+  if (local_enu_center_flag_) {
+    HLOG_ERROR << "init_pose_ not inited";
+    return;
+  }
+
+  auto zone = utm_zone_;
+
+  for (auto& hq_lane : *hq_map_->mutable_lane()) {
+    for (auto& seg : *hq_lane.mutable_central_curve()->mutable_segment()) {
+      for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
+        Eigen::Vector3d pt_local_enu(pt.x(), pt.y(), pt.z());
+        Eigen::Vector3d pt_local = T_local_enu_to_local_ * pt_local_enu;
+        pt.set_x(pt_local.x());
+        pt.set_y(pt_local.y());
+        pt.set_z(pt_local.z());
+      }
+    }
+
+    for (auto& seg :
+         *hq_lane.mutable_left_boundary()->mutable_curve()->mutable_segment()) {
+      for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
+        Eigen::Vector3d pt_local_enu(pt.x(), pt.y(), pt.z());
+        Eigen::Vector3d pt_local = T_local_enu_to_local_ * pt_local_enu;
+        pt.set_x(pt_local.x());
+        pt.set_y(pt_local.y());
+        pt.set_z(pt_local.z());
+      }
+    }
+
+    for (auto& seg : *hq_lane.mutable_right_boundary()
+                          ->mutable_curve()
+                          ->mutable_segment()) {
+      for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
+        Eigen::Vector3d pt_local_enu(pt.x(), pt.y(), pt.z());
+        Eigen::Vector3d pt_local = T_local_enu_to_local_ * pt_local_enu;
+        pt.set_x(pt_local.x());
+        pt.set_y(pt_local.y());
+        pt.set_z(pt_local.z());
+      }
+    }
+  }
+
+  for (auto& hq_road : *hq_map_->mutable_road()) {
+    for (auto& sec : *hq_road.mutable_section()) {
+      for (auto& edge :
+           *sec.mutable_boundary()->mutable_outer_polygon()->mutable_edge()) {
+        for (auto& seg : *edge.mutable_curve()->mutable_segment()) {
+          for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
+            Eigen::Vector3d pt_utm(pt.x(), pt.y(), pt.z());
+            double utm_x = pt.x();
+            double utm_y = pt.y();
+            bool ret = hozon::common::coordinate_convertor::UTM2GCS(
+                zone, &utm_x, &utm_y);
+            if (!ret) {
+              HLOG_ERROR << "UTM2GCS road point failed, set DBL_MAX value";
+              pt.set_x(DBL_MAX);
+              pt.set_y(DBL_MAX);
+              pt.set_z(DBL_MAX);
+              continue;
+            }
+
+            Eigen::Vector3d pt_gcj(utm_y, utm_x, 0);
+            Eigen::Vector3d pt_local_enu =
+                util::Geo::Gcj02ToEnu(pt_gcj, local_enu_center_);
+
+            Eigen::Vector3d pt_local = T_local_enu_to_local_ * pt_local_enu;
+            pt.set_x(pt_local.x());
+            pt.set_y(pt_local.y());
+            pt.set_z(pt_local.z());
+          }
+        }
+      }
+    }
+  }
 }
 
 void MapPrediction::FitLaneCenterline() {
@@ -3387,8 +3542,195 @@ void MapPrediction::Prediction() {
   AddResTopo();
   HLOG_INFO << "pred Prediction AddResTopo cost " << local_tic.Toc();
   local_tic.Tic();
+
+  VizLocAndHqMap();
+  HLOG_INFO << "pred Prediction VizLocAndHqMap cost " << local_tic.Toc();
+  local_tic.Tic();
+
   auto global_cost = global_tic.Toc();
   HLOG_INFO << "pred Prediction cost " << global_cost;
+}
+
+void MapPrediction::VizLocAndHqMap() {
+  if (!FLAGS_viz_odom_map_in_local) {
+    return;
+  }
+
+  if (!RVIZ_AGENT.Ok()) {
+    HLOG_ERROR << "RvizAgent not ok";
+    return;
+  }
+
+  if (!RVIZ_AGENT.Registered(FLAGS_viz_topic_odom_in_local)) {
+    int ret = RVIZ_AGENT.Register<adsfi_proto::viz::Odometry>(
+        FLAGS_viz_topic_odom_in_local);
+    if (ret < 0) {
+      HLOG_ERROR << "register " << FLAGS_viz_topic_odom_in_local << " failed";
+      return;
+    }
+  }
+  if (!RVIZ_AGENT.Registered(FLAGS_viz_topic_map_in_local)) {
+    int ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(
+        FLAGS_viz_topic_map_in_local);
+    if (ret < 0) {
+      HLOG_ERROR << "register " << FLAGS_viz_topic_map_in_local << " failed";
+      return;
+    }
+  }
+
+  const std::string kLocalFrameId = "local";
+  const double kMarkerLifetime = 0.1;
+  uint32_t lifetime_sec, lifetime_nsec;
+  SplitSecs(kMarkerLifetime, &lifetime_sec, &lifetime_nsec);
+
+  adsfi_proto::viz::Odometry odom;
+  odom.mutable_header()->set_frameid(kLocalFrameId);
+  uint32_t sec, nsec;
+  SplitSecs(stamp_loc_, &sec, &nsec);
+  odom.mutable_header()->mutable_timestamp()->set_sec(sec);
+  odom.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+  odom.mutable_pose()->mutable_pose()->mutable_position()->set_x(
+      pos_local_.x());
+  odom.mutable_pose()->mutable_pose()->mutable_position()->set_y(
+      pos_local_.y());
+  odom.mutable_pose()->mutable_pose()->mutable_position()->set_z(
+      pos_local_.z());
+  odom.mutable_pose()->mutable_pose()->mutable_orientation()->set_w(
+      quat_local_.w());
+  odom.mutable_pose()->mutable_pose()->mutable_orientation()->set_x(
+      quat_local_.x());
+  odom.mutable_pose()->mutable_pose()->mutable_orientation()->set_y(
+      quat_local_.y());
+  odom.mutable_pose()->mutable_pose()->mutable_orientation()->set_z(
+      quat_local_.z());
+
+  RVIZ_AGENT.Publish(FLAGS_viz_topic_odom_in_local, odom);
+
+  if (!hq_map_) {
+    HLOG_ERROR << "nullptr hq_maq_";
+    return;
+  }
+
+  adsfi_proto::viz::MarkerArray ma;
+  for (const auto& hq_lane : hq_map_->lane()) {
+    std::string ns = hq_lane.id().id();
+    std::vector<Eigen::Vector3d> center_pts;
+    for (const auto& seg : hq_lane.central_curve().segment()) {
+      for (const auto& pt : seg.line_segment().point()) {
+        Eigen::Vector3d cpt(pt.x(), pt.y(), pt.z());
+        center_pts.emplace_back(cpt);
+      }
+    }
+
+    std::vector<Eigen::Vector3d> left_pts;
+    for (const auto& seg : hq_lane.left_boundary().curve().segment()) {
+      for (const auto& pt : seg.line_segment().point()) {
+        Eigen::Vector3d lpt(pt.x(), pt.y(), pt.z());
+        left_pts.emplace_back(lpt);
+      }
+    }
+    std::vector<Eigen::Vector3d> right_pts;
+    for (const auto& seg : hq_lane.right_boundary().curve().segment()) {
+      for (const auto& pt : seg.line_segment().point()) {
+        Eigen::Vector3d rpt(pt.x(), pt.y(), pt.z());
+        right_pts.emplace_back(rpt);
+      }
+    }
+
+    if (!center_pts.empty()) {
+      auto marker = ma.add_markers();
+      marker->mutable_header()->set_frameid(kLocalFrameId);
+      marker->mutable_header()->mutable_timestamp()->set_sec(sec);
+      marker->mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      std::string line_ns = ns + "/center_line";
+      marker->set_ns(line_ns);
+      marker->set_id(0);
+      marker->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+      marker->mutable_pose()->mutable_orientation()->set_x(0.);
+      marker->mutable_pose()->mutable_orientation()->set_y(0.);
+      marker->mutable_pose()->mutable_orientation()->set_z(0.);
+      marker->mutable_pose()->mutable_orientation()->set_w(1.);
+      marker->mutable_scale()->set_x(0.3);
+      marker->mutable_lifetime()->set_sec(lifetime_sec);
+      marker->mutable_lifetime()->set_nsec(lifetime_nsec);
+      marker->mutable_color()->set_a(0.8);
+      marker->mutable_color()->set_r(1.0);
+      marker->mutable_color()->set_g(1.0);
+      marker->mutable_color()->set_b(1.0);
+      marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+
+      for (const auto& pt : center_pts) {
+        auto mpt = marker->add_points();
+        mpt->set_x(pt.x());
+        mpt->set_y(pt.y());
+        mpt->set_z(pt.z());
+      }
+    }
+
+    if (!left_pts.empty()) {
+      auto marker = ma.add_markers();
+      marker->mutable_header()->set_frameid(kLocalFrameId);
+      marker->mutable_header()->mutable_timestamp()->set_sec(sec);
+      marker->mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      std::string line_ns = ns + "/left_line";
+      marker->set_ns(line_ns);
+      marker->set_id(0);
+      marker->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+      marker->mutable_pose()->mutable_orientation()->set_x(0.);
+      marker->mutable_pose()->mutable_orientation()->set_y(0.);
+      marker->mutable_pose()->mutable_orientation()->set_z(0.);
+      marker->mutable_pose()->mutable_orientation()->set_w(1.);
+      marker->mutable_scale()->set_x(0.2);
+      marker->mutable_lifetime()->set_sec(lifetime_sec);
+      marker->mutable_lifetime()->set_nsec(lifetime_nsec);
+      marker->mutable_color()->set_a(1.0);
+      marker->mutable_color()->set_r(0.0);
+      marker->mutable_color()->set_g(1.0);
+      marker->mutable_color()->set_b(0.0);
+      marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+
+      for (const auto& pt : left_pts) {
+        auto mpt = marker->add_points();
+        mpt->set_x(pt.x());
+        mpt->set_y(pt.y());
+        mpt->set_z(pt.z());
+      }
+    }
+
+    if (!right_pts.empty()) {
+      auto marker = ma.add_markers();
+      marker->mutable_header()->set_frameid(kLocalFrameId);
+      marker->mutable_header()->mutable_timestamp()->set_sec(sec);
+      marker->mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      std::string line_ns = ns + "/right_line";
+      marker->set_ns(line_ns);
+      marker->set_id(0);
+      marker->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+      marker->mutable_pose()->mutable_orientation()->set_x(0.);
+      marker->mutable_pose()->mutable_orientation()->set_y(0.);
+      marker->mutable_pose()->mutable_orientation()->set_z(0.);
+      marker->mutable_pose()->mutable_orientation()->set_w(1.);
+      marker->mutable_scale()->set_x(0.2);
+      marker->mutable_lifetime()->set_sec(lifetime_sec);
+      marker->mutable_lifetime()->set_nsec(lifetime_nsec);
+      marker->mutable_color()->set_a(1.0);
+      marker->mutable_color()->set_r(0.0);
+      marker->mutable_color()->set_g(1.0);
+      marker->mutable_color()->set_b(0.0);
+      marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+
+      for (const auto& pt : right_pts) {
+        auto mpt = marker->add_points();
+        mpt->set_x(pt.x());
+        mpt->set_y(pt.y());
+        mpt->set_z(pt.z());
+      }
+    }
+  }
+
+  if (!ma.markers().empty()) {
+    RVIZ_AGENT.Publish(FLAGS_viz_topic_map_in_local, ma);
+  }
 }
 
 }  // namespace mf

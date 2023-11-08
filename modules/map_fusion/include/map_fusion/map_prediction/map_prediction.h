@@ -164,6 +164,8 @@ class MapPrediction {
                    std::vector<Eigen::Vector3d>* cat_points);
   void SmoothAlignment();
   Eigen::Vector3d UtmPtToLocalEnu(const hozon::common::PointENU& utm_pt);
+  void ConvertToLocal();
+  void VizLocAndHqMap();
 
   std::mutex mtx_;
   std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>
@@ -183,6 +185,11 @@ class MapPrediction {
 
   Eigen::Vector3d local_enu_center_;
   bool local_enu_center_flag_ = true;
+  hozon::common::Pose init_pose_;
+  Eigen::Isometry3d T_local_enu_to_local_;
+  Eigen::Vector3d pos_local_;
+  Eigen::Quaterniond quat_local_;
+  double stamp_loc_ = 0.;
   VizMap viz_map_;
 
   std::unordered_map<std::string, FarLane> far_table_;

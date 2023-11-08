@@ -118,12 +118,18 @@ int MapFusion::ProcFusion(
   util::TicToc global_tic;
   util::TicToc local_tic;
   topo_->OnLocalization(curr_loc);
+  HLOG_INFO << "topo OnLocalization cost " << local_tic.Toc();
+  local_tic.Tic();
   topo_->OnLocalMap(curr_local_map);
+  HLOG_INFO << "topo OnLocalMap cost " << local_tic.Toc();
+  local_tic.Tic();
   topo_->TopoAssign();
+  HLOG_INFO << "topo TopoAssign cost " << local_tic.Toc();
+  local_tic.Tic();
   //! 注意：TopoAssignment内部保证每次返回的都是全新的ptr，
   //! 不会存在两次调用得到的ptr指向同一片空间;
   auto topo_map = topo_->GetTopoMap();
-  HLOG_INFO << "topo cost " << local_tic.Toc();
+  HLOG_INFO << "topo GetTopoMap cost " << local_tic.Toc();
   local_tic.Tic();
 
   pred_->OnLocalization(curr_loc);

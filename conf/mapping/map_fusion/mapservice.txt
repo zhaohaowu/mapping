@@ -35,4 +35,5 @@
 --channel_ins_node_info=/localization/location_node
 
 --mf_viz=ipc:///tmp/rviz_agent_mf
---notopo_rviz
+--topo_rviz=false
+--viz_odom_map_in_local=false

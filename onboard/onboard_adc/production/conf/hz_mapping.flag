@@ -12,3 +12,5 @@
 --using_record_ehp_data=false
 --ehp_log_root_dir=/opt/usr/hd_map/ehp_log
 --map_service_mode=1
+--topo_rviz=false
+--viz_odom_map_in_local=false

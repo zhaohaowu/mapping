@@ -137,7 +137,44 @@ void TopoAssignment::OnLocalization(
       Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
       Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY());
 
-  OnLocationInGlobal(pos_global, quat_global, stamp);
+  // 更新车辆ins位置
+  {
+    std::lock_guard<std::mutex> lock_vehicle_pose(vehicle_pose_mtx_);
+    vehicle_pose_ = pos_global;
+  }
+
+  // orientation in local enu frame
+  Eigen::Quaterniond q_W_V = quat_global;
+  if (!init_) {
+    HLOG_INFO << "ref_point_ = pose";
+    ref_point_ = vehicle_pose_;
+
+    init_pose_.Clear();
+    init_pose_.mutable_gcj02()->set_x(utm_y);
+    init_pose_.mutable_gcj02()->set_y(utm_x);
+    init_pose_.mutable_gcj02()->set_z(0);
+    init_pose_.mutable_pos_utm_01()->CopyFrom(msg->pose().pos_utm_01());
+    init_pose_.set_utm_zone_01(msg->pose().utm_zone_01());
+    init_pose_.mutable_euler_angles()->CopyFrom(msg->pose().euler_angles());
+    init_pose_.mutable_local_pose()->CopyFrom(msg->pose().local_pose());
+    init_pose_.mutable_euler_angles_local()->CopyFrom(
+        msg->pose().euler_angles_local());
+    init_pose_ser_ = init_pose_.SerializeAsString();
+    init_ = true;
+  }
+
+  Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(vehicle_pose_, ref_point_);
+
+  // 可视化vehicle position
+  if (FLAGS_topo_rviz) {
+    VizLocation(enu, q_W_V, stamp);
+  }
+
+  {
+    std::lock_guard<std::mutex> lock_pose(pose_mtx_);
+    ins_q_w_v_ = q_W_V;
+    ins_pose_ = enu;
+  }
 }
 
 void TopoAssignment::OnInsNodeInfo(
@@ -153,34 +190,7 @@ void TopoAssignment::OnInsNodeInfo(
 
 void TopoAssignment::OnLocationInGlobal(const Eigen::Vector3d& pos,
                                         const Eigen::Quaterniond& quat,
-                                        double stamp) {
-  // 更新车辆ins位置
-  {
-    std::lock_guard<std::mutex> lock_vehicle_pose(vehicle_pose_mtx_);
-    vehicle_pose_ = pos;
-  }
-
-  // orientation in local enu frame
-  Eigen::Quaterniond q_W_V = quat;
-  if (!init_) {
-    HLOG_INFO << "ref_point_ = pose";
-    ref_point_ = vehicle_pose_;
-  }
-  init_ = true;
-
-  Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(vehicle_pose_, ref_point_);
-
-  // 可视化vehicle position
-  if (FLAGS_topo_rviz) {
-    VizLocation(enu, q_W_V, stamp);
-  }
-
-  {
-    std::lock_guard<std::mutex> lock_pose(pose_mtx_);
-    ins_q_w_v_ = q_W_V;
-    ins_pose_ = enu;
-  }
-}
+                                        double stamp) {}
 
 void TopoAssignment::OnLocalMap(
     const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
@@ -828,10 +838,8 @@ void TopoAssignment::TopoAssign() {
   // 设置header,这边复用localmap的header
   topo_map_->mutable_header()->mutable_header()->CopyFrom(local_map_->header());
 
-  // 设置站心位置
-  topo_map_->mutable_header()->set_j02longitude(ref_point_.y());
-  topo_map_->mutable_header()->set_j02latitude(ref_point_.x());
-  topo_map_->mutable_header()->set_j02altitude(ref_point_.z());
+  // 注意：用map.header.id来承载初始化的位姿，包含local enu站心
+  topo_map_->mutable_header()->set_id(init_pose_ser_);
 
   AppendTopoMap(all_lanes, topo_map_);
   if (FLAGS_topo_rviz) {

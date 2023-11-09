@@ -63,6 +63,7 @@ struct Node {
   uint32_t sys_status = 0;
   uint32_t rtk_status = 0;
   uint32_t location_state = 0;
+  double heading = 0;
 };
 
 struct Context {

@@ -243,7 +243,16 @@ bool DrFusion::DrNode2DrFusionNode(
       origin_node.pose().pose_local().euler_angle().y());
   node->mutable_attitude()->set_z(
       origin_node.pose().pose_local().euler_angle().z());
-  node->set_heading(origin_node.pose().pose_local().heading());
+  // dr 是逆时针（0-360），fc是顺时针（-180~180），局部坐标系是以y轴为0度，顺时针。
+  auto heading = 360 - origin_node.pose().pose_local().heading();
+  heading = heading > 180.0 ? heading - 360.0 : heading;
+  while (heading < -180) {
+    heading += 360;
+  }
+  while (heading > 180) {
+    heading -= 360;
+  }
+  node->set_heading(heading);
 
   // node->mutable_pos_gcj02()->set_x(origin_node.pose().pose_local().gcj02().x());
   // node->mutable_pos_gcj02()->set_y(origin_node.pose().pose_local().gcj02().y());

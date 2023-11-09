@@ -104,7 +104,8 @@ int32_t MappingAdc::ChassisImuCallBack(hz_Adsfi::NodeBundle* input) {
                 << "local_pose:" << Node2Xyz(loc_res->pose().local_pose())
                 << "\n"
                 << "euler_angles_local:"
-                << Node2Xyz(loc_res->pose().euler_angles_local());
+                << Node2Xyz(loc_res->pose().euler_angles_local()) << "\n"
+                << "local_heading:" << loc_res->pose().local_heading();
       debug_loc->algDebugframe.msg_2 = ss_stream.str();
 
       debug_loc->algDebugframe.msg_1 = seri_loc;

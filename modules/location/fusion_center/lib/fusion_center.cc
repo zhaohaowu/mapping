@@ -296,7 +296,13 @@ bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
   node->quaternion = q;
   node->sys_status = msg.sys_status();
   node->rtk_status = msg.gps_status();
-
+  node->heading = msg.heading() + 90;
+  while (node->heading < 0) {
+    node->heading += 360;
+  }
+  while (node->heading > 360) {
+    node->heading -= 360;
+  }
   node->refpoint = Refpoint();
 
   if (msg.type() == hozon::localization::HafNodeInfo_NodeType_DR) {
@@ -547,6 +553,7 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose->mutable_local_pose()->set_x(local_node.enu(0));
   pose->mutable_local_pose()->set_y(local_node.enu(1));
   pose->mutable_local_pose()->set_z(local_node.enu(2));
+  pose->set_local_heading(local_node.heading);
 
   pose->mutable_angular_velocity_raw_vrf()->set_x(
       imu.imuvb_angular_velocity().x());

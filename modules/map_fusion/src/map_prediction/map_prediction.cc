@@ -421,6 +421,7 @@ void MapPrediction::OnTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
               }
             }
             if (!edge_point.empty()) {
+              viz_map_.VizHqMapRoad(edge_point);
               section.left_boundary.emplace_back(edge_point);
             }
           }
@@ -434,6 +435,7 @@ void MapPrediction::OnTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
               }
             }
             if (!edge_point.empty()) {
+              viz_map_.VizHqMapRoad(edge_point);
               section.right_boundary.emplace_back(edge_point);
             }
           }
@@ -477,7 +479,39 @@ void MapPrediction::OnTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
         }
       }
       // 额外定义一个哈希表用于存储local_msg中最左和最有的lane
-      if (it.left_neighbor_forward_lane_id().empty()) {
+      const auto& left_seg = it.left_boundary().curve().segment_size();
+      const auto& right_seg = it.right_boundary().curve().segment_size();
+      auto road_id = local_lane.road_id;
+      auto section_id = local_lane.section_id;
+      if (road_table_.find(road_id) == road_table_.end()) {
+        HLOG_ERROR << "road not found in road_table";
+        continue;
+      }
+      const auto& local_road = road_table_.at(road_id);
+      if (local_road.section_ids.empty()) {
+        HLOG_ERROR << "empty section ids";
+        continue;
+      }
+      if (local_road.section_ids.find(section_id) ==
+          local_road.section_ids.end()) {
+        HLOG_ERROR << "section not found in section ids";
+        continue;
+      }
+      bool far_left = false;
+      bool far_right = false;
+      if (it.id().id() ==
+              local_road.section_ids.at(section_id).lane_id.back() &&
+          left_seg != 0) {
+        far_left = true;
+      }
+      if (it.id().id() ==
+              local_road.section_ids.at(section_id).lane_id.front() &&
+          right_seg != 0) {
+        far_right = true;
+      }
+      if ((it.left_neighbor_forward_lane_id().empty() &&
+           !it.right_neighbor_forward_lane_id().empty() && !far_left) ||
+          (!it.left_neighbor_forward_lane_id().empty() && left_seg == 0)) {
         const auto& lane_id = it.id().id();
         FarLane far_lane;
         far_lane.lane_id = lane_id;
@@ -507,11 +541,45 @@ void MapPrediction::OnTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
         }
         far_table_.insert_or_assign(lane_id, far_lane);
       }
-      if (it.right_neighbor_forward_lane_id().empty()) {
+      if ((it.right_neighbor_forward_lane_id().empty() &&
+           !it.left_neighbor_forward_lane_id().empty() && !far_right) ||
+          (!it.right_neighbor_forward_lane_id().empty() && right_seg == 0)) {
         const auto& lane_id = it.id().id();
         FarLane far_lane;
         far_lane.lane_id = lane_id;
         far_lane.flag = 1;
+        for (const auto& itt : it.left_boundary().curve().segment()) {
+          for (const auto& point : itt.line_segment().point()) {
+            Eigen::Vector3d left_line(point.x(), point.y(), point.z());
+            if (!far_lane.left_line.empty() &&
+                std::find(far_lane.left_line.begin(), far_lane.left_line.end(),
+                          left_line) != far_lane.left_line.end()) {
+              continue;
+            }
+            far_lane.left_line.emplace_back(left_line);
+          }
+        }
+        for (const auto& itt : it.right_boundary().curve().segment()) {
+          for (const auto& point : itt.line_segment().point()) {
+            Eigen::Vector3d right_line(point.x(), point.y(), point.z());
+            if (!far_lane.right_line.empty() &&
+                std::find(far_lane.right_line.begin(),
+                          far_lane.right_line.end(),
+                          right_line) != far_lane.right_line.end()) {
+              continue;
+            }
+            far_lane.right_line.emplace_back(right_line);
+          }
+        }
+        far_table_.insert_or_assign(lane_id, far_lane);
+      }
+
+      if (it.right_neighbor_forward_lane_id().empty() &&
+          it.left_neighbor_forward_lane_id().empty()) {
+        const auto& lane_id = it.id().id();
+        FarLane far_lane;
+        far_lane.lane_id = lane_id;
+        far_lane.flag = 2;
         for (const auto& itt : it.left_boundary().curve().segment()) {
           for (const auto& point : itt.line_segment().point()) {
             Eigen::Vector3d left_line(point.x(), point.y(), point.z());
@@ -721,15 +789,12 @@ void MapPrediction::PredictLeftRightLaneline(
     //     end_lane_ids_.end()) {
     //   continue;
     // }
+
     const auto& local_lane = lane_table_.at(it.first);
-    if (it.second.flag == 0) {
+    if (it.second.flag == 0 || it.second.flag == 2) {
       auto left_seg_size = it.second.left_line.size();
       auto road_id = local_lane.road_id;
       auto section_id = local_lane.section_id;
-      if (road_table_.find(road_id) == road_table_.end()) {
-        HLOG_ERROR << "road not found in road_table";
-        continue;
-      }
       const auto& local_road = road_table_.at(road_id);
       if (local_road.section_ids.empty()) {
         HLOG_ERROR << "empty section ids";
@@ -740,10 +805,10 @@ void MapPrediction::PredictLeftRightLaneline(
         HLOG_ERROR << "section not found in section ids";
         continue;
       }
-      if (local_road.section_ids.at(section_id).lane_id.back() == it.first &&
-          left_seg_size != 0) {
-        continue;
-      }
+      // if (local_road.section_ids.at(section_id).lane_id.back() == it.first &&
+      //     left_seg_size != 0) {
+      //   continue;
+      // }
       // 如果上面没有continue，则有缺失车道，计算缺失车道数量
       uint32_t mis_num = 0;
       bool flag = false;
@@ -773,7 +838,8 @@ void MapPrediction::PredictLeftRightLaneline(
         curr_left_line.second = far_table_.at(it.first).right_line;
       }
       AddLeftOrRightLine(edge1_, curr_left_line, mis_num, 0);
-    } else if (it.second.flag == 1) {
+    }
+    if (it.second.flag == 1 || it.second.flag == 2) {
       auto right_seg_size = it.second.right_line.size();
       auto road_id = local_lane.road_id;
       auto section_id = local_lane.section_id;
@@ -791,10 +857,11 @@ void MapPrediction::PredictLeftRightLaneline(
         HLOG_ERROR << "section not found in section ids";
         continue;
       }
-      if (local_road.section_ids.at(section_id).lane_id.front() == it.first &&
-          right_seg_size != 0) {
-        continue;
-      }
+      // if (local_road.section_ids.at(section_id).lane_id.front() == it.first
+      // &&
+      //     right_seg_size != 0) {
+      //   continue;
+      // }
       // 如果上面没有continue，则有缺失车道，计算缺失车道数量
       uint32_t mis_num = 0;
       bool flag = true;
@@ -806,6 +873,7 @@ void MapPrediction::PredictLeftRightLaneline(
           flag = false;
         }
       }
+
       std::vector<std::vector<Eigen::Vector3d>> boundary2 =
           local_road.section_ids.at(section_id).right_boundary;
       std::vector<Eigen::Vector3d> edge2_;
@@ -1256,7 +1324,7 @@ void MapPrediction::AddLeftOrRightLine(
     return;
   }
   // 对预测的左右缺失车道线进行可视化
-  viz_map_.VizAddSideLaneLine(predict_line);
+  // viz_map_.VizAddSideLaneLine(predict_line);
 
   // 将预测的车道线添加到local_msg中，并赋予拓扑关系
   AddSideTopological(predict_line, record, curr_line.first);
@@ -1293,8 +1361,6 @@ void MapPrediction::AddSideTopological(
         flag = false;
         continue;
       }
-      // 定义一个新的车道
-      auto new_lane = local_msg_->add_lane();
       // 从topo_map_中找取对应id的左邻和后继id
       std::string id_left_id;
       std::string id_next_id;
@@ -1304,15 +1370,30 @@ void MapPrediction::AddSideTopological(
         HLOG_ERROR << "lane not found in lane_table";
         continue;
       }
-      if (!lane_table_.at(id_).left_lane_ids.empty()) {
-        id_left_id = lane_table_.at(id_).left_lane_ids.front();
-        // 赋予id
-        new_lane->mutable_id()->set_id(id_left_id);
-      }
-      if (new_lane->id().id().empty()) {
-        HLOG_ERROR << "AddSideTopological have no lane id!";
+      if (lane_table_.at(id_).left_lane_ids.empty()) {
+        HLOG_ERROR << "left lane id is empty!";
         continue;
       }
+      id_left_id = lane_table_.at(id_).left_lane_ids.front();
+      if (std::find(topo_lane_ids_.begin(), topo_lane_ids_.end(), id_left_id) !=
+          topo_lane_ids_.end()) {
+        HLOG_ERROR << "new lane id has in topo_lane_ids";
+        for (auto& lane : *local_msg_->mutable_lane()) {
+          if (lane.id().id() == id_) {
+            lane.add_left_neighbor_reverse_lane_id()->set_id(id_left_id);
+          }
+          if (lane.id().id() == id_left_id) {
+            lane.add_right_neighbor_forward_lane_id()->set_id(id_);
+          }
+        }
+        continue;
+      }
+      // 定义一个新的车道
+      auto new_lane = local_msg_->add_lane();
+      // 赋予id
+      new_lane->mutable_id()->set_id(id_left_id);
+      topo_lane_ids_.emplace_back(id_left_id);
+
       if (!lane_table_.at(id_).next_lane_ids.empty()) {
         id_next_id = lane_table_.at(id_).next_lane_ids.front();
       }
@@ -1416,8 +1497,6 @@ void MapPrediction::AddSideTopological(
         flag = false;
         continue;
       }
-      // 定义一个新的车道
-      auto new_lane = local_msg_->add_lane();
       // 从topo_map_中找取对应id的左邻和后继id
       std::string id_right_id;
       std::string id_next_id;
@@ -1427,15 +1506,29 @@ void MapPrediction::AddSideTopological(
         HLOG_ERROR << "lane not found in lane_table";
         continue;
       }
-      if (!lane_table_.at(id_).right_lane_ids.empty()) {
-        id_right_id = lane_table_.at(id_).right_lane_ids.front();
-        // 赋予id
-        new_lane->mutable_id()->set_id(id_right_id);
-      }
-      if (new_lane->id().id().empty()) {
-        HLOG_ERROR << "AddSideTopological have no lane id!";
+      if (lane_table_.at(id_).right_lane_ids.empty()) {
+        HLOG_ERROR << "left lane id is empty!";
         continue;
       }
+      id_right_id = lane_table_.at(id_).right_lane_ids.front();
+      if (std::find(topo_lane_ids_.begin(), topo_lane_ids_.end(),
+                    id_right_id) != topo_lane_ids_.end()) {
+        HLOG_ERROR << "lane id has in topo_lane_ids";
+        for (auto& lane : *local_msg_->mutable_lane()) {
+          if (lane.id().id() == id_) {
+            lane.add_right_neighbor_reverse_lane_id()->set_id(id_right_id);
+          }
+          if (lane.id().id() == id_right_id) {
+            lane.add_left_neighbor_forward_lane_id()->set_id(id_);
+          }
+        }
+        continue;
+      }
+      // 定义一个新的车道
+      auto new_lane = local_msg_->add_lane();
+      // 赋予id
+      new_lane->mutable_id()->set_id(id_right_id);
+      topo_lane_ids_.emplace_back(id_right_id);
       if (!lane_table_.at(id_).next_lane_ids.empty()) {
         id_next_id = lane_table_.at(id_).next_lane_ids.front();
       }
@@ -1454,8 +1547,6 @@ void MapPrediction::AddSideTopological(
       // if (id_right_id.empty()) {
       //   break;
       // }
-      // new_lane赋予新id
-      new_lane->mutable_id()->set_id(id_right_id);
 
       // new_lane赋予新几何
       auto right_seg =
@@ -1526,8 +1617,6 @@ void MapPrediction::PredictAheadLaneLine(
   if (add_section_ids_.empty() || lane_table_.empty() || road_table_.empty()) {
     return;
   }
-  std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>
-      predict_lanelines;
 #if 0
   // 存储已经计算过的section
   std::vector<std::string> has_section;
@@ -1570,6 +1659,8 @@ void MapPrediction::PredictAheadLaneLine(
   // 这里有个假设，即add_section_id严格的按照顺序执行的
   for (const auto& sec : add_section_ids_) {
     std::string curr_lane_id;
+    std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>
+        predict_lanelines;
     for (const auto& it : add_lane_ids_) {
       if (lane_table_.find(it) == lane_table_.end()) {
         HLOG_ERROR << "road not found in road_table";
@@ -1583,7 +1674,6 @@ void MapPrediction::PredictAheadLaneLine(
     if (curr_lane_id.empty()) {
       continue;
     }
-    // STD!!!
     const auto& local_lane = lane_table_.at(curr_lane_id);
     auto road_id = local_lane.road_id;
     auto section_id = local_lane.section_id;
@@ -1974,7 +2064,8 @@ void MapPrediction::ExpansionLaneLine(
       // 右
       int right_line_id = complete_lines.size() - 1 - seq;
 
-      if (com_fit == 0 || com_fit == 2) {
+      if ((com_fit == 0 || com_fit == 2) &&
+          !lane.left_boundary().curve().segment().empty()) {
         // 左边界
         // 临时加了一个判断条件
         if (lane.left_boundary().curve().segment().empty()) {
@@ -2668,6 +2759,11 @@ void MapPrediction::AheadTopological(
         end_lane_ids_.end()) {
       continue;
     }
+    if (std::find(topo_lane_ids_.begin(), topo_lane_ids_.end(),
+                  section_lane_id[section_lane_id.size() - i - 1]) !=
+        topo_lane_ids_.end()) {
+      continue;
+    }
     // 定义新车道
     hozon::hdmap::Lane new_lane;
     // 为新车道赋予Id
@@ -2677,6 +2773,7 @@ void MapPrediction::AheadTopological(
       HLOG_ERROR << "AheadTopological have empty lane id!";
       continue;
     }
+    topo_lane_ids_.emplace_back(new_lane.id().id());
     // 为新车道添加几何信息
     // 左
     auto left_seg =
@@ -2748,7 +2845,6 @@ void MapPrediction::AheadTopological(
       }
     }
   }
-
   // 补全预测车道之间的左右邻关系
   // AddAheadLeftRightTopo(local_msg_);
 }
@@ -3519,7 +3615,6 @@ void MapPrediction::Prediction() {
   HLOG_INFO << "pred Prediction PredictLeftRightLaneline cost "
             << local_tic.Toc();
   local_tic.Tic();
-  // viz_map_.VizHqMapRoad(roads_in_range, all_road_id_, local_enu_center_);
 
   // 现在对预测的道路边界补充几何信息
   PredictAheadLaneLine(add_section_ids_, lane_table_, road_table_);

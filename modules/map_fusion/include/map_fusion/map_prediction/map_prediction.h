@@ -72,7 +72,7 @@ struct LocalRoad {
 
 struct FarLane {
   std::string lane_id;
-  uint32_t flag;
+  uint32_t flag; //0-->left, 1-->right, 2-->left和right
   std::vector<Eigen::Vector3d> left_line;
   std::vector<Eigen::Vector3d> right_line;
 };

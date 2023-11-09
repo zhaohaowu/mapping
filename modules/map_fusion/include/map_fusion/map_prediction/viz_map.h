@@ -48,9 +48,7 @@ class VizMap {
   void PointsToMarker(const double stamp,
                       const std::vector<Eigen::Vector3d>& points,
                       adsfi_proto::viz::Marker* marker, double color_type);
-  void VizHqMapRoad(const std::vector<hozon::hdmap::RoadInfoConstPtr>& roads,
-                    const std::set<std::string>& road_id_,
-                    const Eigen::Vector3d& local_enu_center_);
+  void VizHqMapRoad(const std::vector<Eigen::Vector3d>& edge);
   void LaneLineToMarker(
       const std::pair<uint32_t, std::vector<Eigen::Vector3d>>& lane_line,
       adsfi_proto::viz::Marker* marker);

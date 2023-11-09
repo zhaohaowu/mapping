@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include "map_fusion/map_prediction/viz_map.h"
-
 #include <gflags/gflags.h>
 
 #include <cmath>
@@ -272,53 +271,16 @@ void VizMap::LaneLineToMarker(
   }
 }
 
-void VizMap::VizHqMapRoad(
-    const std::vector<hozon::hdmap::RoadInfoConstPtr>& roads,
-    const std::set<std::string>& road_id_,
-    const Eigen::Vector3d& local_enu_center_) {
-  if (viz_flag_) {
-    Init();
-    HLOG_ERROR << "Register Successfull!";
-    viz_flag_ = false;
-  }
-
+void VizMap::VizHqMapRoad(const std::vector<Eigen::Vector3d>& edge) {
   if (!RVIZ_AGENT.Ok()) {
     return;
   }
 
   adsfi_proto::viz::MarkerArray markers;
-  for (const auto& hq_road : roads) {
-    for (const auto& id : road_id_) {
-      if (hq_road->id().id().c_str() == id) {
-        for (const auto& hq_road_section : hq_road->sections()) {
-          for (const auto& hq_road_section_line :
-               hq_road_section.boundary().outer_polygon().edge()) {
-            std::vector<Eigen::Vector3d> edge_point;
-            for (const auto& edge : hq_road_section_line.curve().segment()) {
-              for (const auto& point : edge.line_segment().point()) {
-                // 这里点的坐标是在utm坐标系下，需要将其转到enu坐标系下
-                Eigen::Vector3d point_utm(point.x(), point.y(), point.z());
-                int zone = 51;
-                double x = point_utm.x();
-                double y = point_utm.y();
-                hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
-                Eigen::Vector3d point_gcj(y, x, 0);
-                Eigen::Vector3d point_enu =
-                    util::Geo::Gcj02ToEnu(point_gcj, local_enu_center_);
-                edge_point.emplace_back(point_enu);
-              }
-            }
-            if (!edge_point.empty()) {
-              adsfi_proto::viz::Marker marker;
-              RoadEdgeToMarker(edge_point, &marker);
-              if (!marker.points().empty()) {
-                markers.add_markers()->CopyFrom(marker);
-              }
-            }
-          }
-        }
-      }
-    }
+  adsfi_proto::viz::Marker marker;
+  RoadEdgeToMarker(edge, &marker);
+  if (!marker.points().empty()) {
+    markers.add_markers()->CopyFrom(marker);
   }
   RVIZ_AGENT.Publish(viz_hqmap_road_, markers);
 }
@@ -634,7 +596,6 @@ void VizMap::ComLaneLineToMarker(const std::vector<Eigen::Vector3d>& lane_line,
     predict_pt->set_z(0);
   }
 }
-
 
 void VizMap::VizCenterLane(const std::vector<Vec2d>& cent_points) {
   if (!RVIZ_AGENT.Ok()) {

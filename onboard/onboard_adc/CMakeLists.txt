@@ -3,6 +3,7 @@ project(mapping_onboard_adc)
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../../modules/map_fusion/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../modules/util/include
 )
 
 # add_library(mapping_onboard_adc

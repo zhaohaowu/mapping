@@ -7,12 +7,15 @@
 #include "onboard/onboard_adc/include/mapping_onboard.h"
 
 #include "ap-release/include/adsfi/include/data_types/debug/pbdebug.h"
+#include "util/tic_toc.h"
 
 DEFINE_string(lm_config, "conf/mapping/local_mapping/local_mapping_conf.yaml",
               "path to local mapping conf yaml");
 DEFINE_bool(adc_viz, false, "if use rviz");
 DEFINE_string(adc_viz_addr, "tcp://10.6.73.235:9100",
               "RvizAgent's working address");
+DEFINE_int32(save_map_every_cnt, 0,
+             "save sent map to file every specified count");
 
 namespace hozon {
 namespace mp {
@@ -221,6 +224,8 @@ int32_t MappingAdc::MapFusionCycleCallback(hz_Adsfi::NodeBundle* input) {
     return -1;
   }
 
+  util::TicToc large_tic;
+  util::TicToc small_tic;
   std::shared_ptr<hozon::localization::Localization> latest_loc = nullptr;
   std::shared_ptr<hozon::mapping::LocalMap> latest_local_map = nullptr;
 
@@ -234,6 +239,8 @@ int32_t MappingAdc::MapFusionCycleCallback(hz_Adsfi::NodeBundle* input) {
       return -1;
     }
   }
+  HLOG_INFO << "get latest loc cost " << small_tic.Toc();
+  small_tic.Tic();
 
   {
     std::lock_guard<std::mutex> lock(local_map_mtx_);
@@ -245,6 +252,8 @@ int32_t MappingAdc::MapFusionCycleCallback(hz_Adsfi::NodeBundle* input) {
       return -1;
     }
   }
+  HLOG_INFO << "get latest local map cost " << small_tic.Toc();
+  small_tic.Tic();
 
   std::shared_ptr<hozon::routing::RoutingResponse> latest_routing = nullptr;
   {
@@ -257,6 +266,8 @@ int32_t MappingAdc::MapFusionCycleCallback(hz_Adsfi::NodeBundle* input) {
       return -1;
     }
   }
+  HLOG_INFO << "get latest routing cost " << small_tic.Toc();
+  small_tic.Tic();
 
   auto map = std::make_shared<hozon::hdmap::Map>();
   int ret = mf_->ProcFusion(latest_loc, latest_local_map, map.get());
@@ -264,6 +275,8 @@ int32_t MappingAdc::MapFusionCycleCallback(hz_Adsfi::NodeBundle* input) {
     HLOG_ERROR << "map fusion ProcFusion failed";
     return -1;
   }
+  HLOG_INFO << "ProcFusion cost " << small_tic.Toc();
+  small_tic.Tic();
 
   std::string ser_map = map->SerializeAsString();
   std::string ser_routing = latest_routing->SerializeAsString();
@@ -272,6 +285,8 @@ int32_t MappingAdc::MapFusionCycleCallback(hz_Adsfi::NodeBundle* input) {
                << ", routing size " << ser_routing.size();
     return -1;
   }
+  HLOG_INFO << "serialize map and routing cost " << small_tic.Toc();
+  small_tic.Tic();
 
   auto debug_map = std::make_shared<hz_Adsfi::AlgPbDebugFrame>();
   debug_map->algDebugframe.header.seq = map->header().header().seq();
@@ -286,6 +301,32 @@ int32_t MappingAdc::MapFusionCycleCallback(hz_Adsfi::NodeBundle* input) {
   hz_Adsfi::NodeBundle output;
   output.Add("npp_debug_msg_32", debug_map);
   SendOutput(&output);
+  HLOG_INFO << "assemble msg_32 cost " << small_tic.Toc();
+  small_tic.Tic();
+
+  if (FLAGS_save_map_every_cnt > 0) {
+    static int cnt = 0;
+    if (cnt % FLAGS_save_map_every_cnt == 0) {
+      std::ofstream file;
+      std::string file_name = "fusion_map_" + std::to_string(cnt) + ".txt";
+      file.open(file_name);
+      file << "------loc.header------\n";
+      file << latest_loc->header().DebugString();
+      file << "------loc.pose------\n";
+      file << latest_loc->pose().DebugString();
+      file << "------map------\n";
+      file << map->DebugString();
+      file << "------routing------\n";
+      file << latest_routing->DebugString();
+      file.close();
+    }
+    cnt++;
+    HLOG_INFO << "save map to file cost " << small_tic.Toc();
+    small_tic.Tic();
+  }
+
+  HLOG_INFO << "MapFusionCycleCallback cost " << large_tic.Toc();
+  large_tic.Tic();
 
   return 0;
 }

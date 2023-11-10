@@ -336,6 +336,7 @@ void MapPrediction::OnTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
     hq_map_ = std::make_shared<hozon::hdmap::Map>();
     GLOBAL_HD_MAP->GetMapWithoutLaneGeometry(hq_map_.get());
     hq_map_->mutable_header()->CopyFrom(msg->header());
+    hq_map_->mutable_header()->mutable_id()->clear();
     HLOG_INFO << "pred OnTopoMap GetMapWithoutLaneGeometry cost "
               << local_tic.Toc();
     local_tic.Tic();

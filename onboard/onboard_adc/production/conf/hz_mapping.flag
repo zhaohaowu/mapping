@@ -14,3 +14,4 @@
 --map_service_mode=1
 --topo_rviz=false
 --viz_odom_map_in_local=false
+--save_map_every_cnt=0

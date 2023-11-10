@@ -296,13 +296,7 @@ bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
   node->quaternion = q;
   node->sys_status = msg.sys_status();
   node->rtk_status = msg.gps_status();
-  node->heading = msg.heading() + 90;
-  while (node->heading < 0) {
-    node->heading += 360;
-  }
-  while (node->heading > 360) {
-    node->heading -= 360;
-  }
+  node->heading = msg.heading();
   node->refpoint = Refpoint();
 
   if (msg.type() == hozon::localization::HafNodeInfo_NodeType_DR) {

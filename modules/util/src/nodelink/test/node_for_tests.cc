@@ -1,3 +1,10 @@
+/******************************************************************************
+ *   Copyright (C) 2021 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： node_for_tests.cc
+ *   author     ： taoshaoyuan
+ *   date       ： 2023.01
+ ******************************************************************************/
+
 #include <yaml-cpp/yaml.h>
 
 #include "util/nodelink/core.h"
@@ -6,7 +13,7 @@
 namespace hozon {
 namespace mp {
 
-using namespace std::chrono_literals;
+using namespace std::chrono_literals; // NOLINT
 
 /*
  * topic_from_foo: Foo
@@ -54,7 +61,7 @@ class IndFooNode : public Node {
     if (!pub_) return;
 
     for (int i = 0; i != cnt_; ++i) {
-      pub_->Pub((void*)msg_.data(), msg_.size());
+      pub_->Pub(reinterpret_cast<void*>(msg_.data()), msg_.size());
 
       std::this_thread::sleep_for(10ms);
     }

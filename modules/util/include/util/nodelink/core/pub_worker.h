@@ -40,7 +40,7 @@ class PubWorker {
 
   std::vector<std::string> Addrs();
 
-  void AddData(const std::string& topic, void* data, size_t size);
+  void AddData(const std::string& topic, const void* data, size_t size);
 
   static std::shared_ptr<PubWorker> Create(
       void* zmq_ctx, const std::vector<std::string>& addrs) {
@@ -49,6 +49,7 @@ class PubWorker {
 
  private:
   void Loop();
+  void OpenSocket();
 
  private:
   std::vector<std::string> addrs_;

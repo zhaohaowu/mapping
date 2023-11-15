@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <zmq/zmq.h>
+
 #include <atomic>
 #include <functional>
 #include <map>
@@ -61,6 +63,8 @@ class SubWorker {
   void GenId();
   std::string Id();
   int SendTerm();
+  bool OpenSocket();
+  bool RecvMsg(zmq_msg_t* recv_topic, zmq_msg_t* recv_content);
 
  private:
   std::vector<std::string> addrs_;

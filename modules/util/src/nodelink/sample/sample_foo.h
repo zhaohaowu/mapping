@@ -7,6 +7,9 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+
 #include "util/nodelink/core.h"
 #include "util/nodelink/deploy.h"
 

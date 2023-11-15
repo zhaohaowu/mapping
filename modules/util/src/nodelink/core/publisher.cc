@@ -15,8 +15,12 @@ namespace mp {
 std::string Publisher::Topic() { return topic_; }
 
 void Publisher::Pub(void* data, size_t size) {
-  if (!worker_) return;
-  if (!data || size <= 0) return;
+  if (!worker_) {
+    return;
+  }
+  if ((data == nullptr) || size <= 0) {
+    return;
+  }
 
   worker_->AddData(topic_, data, size);
 }

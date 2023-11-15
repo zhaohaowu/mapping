@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include "util/nodelink/core/sub_worker.h"
-
 #include <zmq/zmq.h>
 
 #include <utility>
@@ -22,9 +21,13 @@ int SubWorker::Init() {
     return -1;
   }
 
-  if (!ctx_ || addrs_.empty()) return -1;
+  if ((ctx_ == nullptr) || addrs_.empty()) {
+    return -1;
+  }
   for (const auto& addr : addrs_) {
-    if (addr.empty()) return -1;
+    if (addr.empty()) {
+      return -1;
+    }
   }
 
   term_skt_ = zmq_socket(ctx_, ZMQ_PUB);
@@ -32,7 +35,7 @@ int SubWorker::Init() {
   term_content_ = Id();
   HLOG_INFO << "SubWorker term_addr_ " << term_addr_;
   int ret = zmq_bind(term_skt_, term_addr_.c_str());
-  if (ret < 0 && term_skt_) {
+  if (ret < 0 && (term_skt_ != nullptr)) {
     HLOG_ERROR << "zmq_bind term addr " << term_addr_ << " error";
     zmq_close(term_skt_);
     term_skt_ = nullptr;
@@ -59,7 +62,7 @@ void SubWorker::Term() {
     sub_thread_ = nullptr;
   }
 
-  if (term_skt_) {
+  if (term_skt_ != nullptr) {
     zmq_close(term_skt_);
     term_skt_ = nullptr;
   }
@@ -96,6 +99,87 @@ void SubWorker::RegAll(SubAllCallback callback) {
 void SubWorker::UnRegAll() { all_topics_cbk_ = nullptr; }
 
 void SubWorker::Loop() {
+  if (!OpenSocket()) {
+    HLOG_ERROR << "OpenSocket failed";
+    return;
+  }
+
+  while (running_.load()) {
+    zmq_msg_t recv_topic;
+    zmq_msg_t recv_content;
+    if (!RecvMsg(&recv_topic, &recv_content)) {
+      HLOG_ERROR << "RecvMsg failed";
+      continue;
+    }
+
+    void* topic_data = zmq_msg_data(&recv_topic);
+    size_t topic_size = zmq_msg_size(&recv_topic);
+    void* content_data = zmq_msg_data(&recv_content);
+    size_t content_size = zmq_msg_size(&recv_content);
+
+    std::string topic(static_cast<const char*>(topic_data), topic_size);
+
+    if (topic == kTermTopic &&
+        std::string(static_cast<const char*>(content_data), content_size) ==
+            term_content_) {
+      HLOG_INFO << "receive term msg";
+      zmq_msg_close(&recv_topic);
+      zmq_msg_close(&recv_content);
+      break;
+    }
+
+    if (all_topics_cbk_ != nullptr) {
+      std::lock_guard<std::mutex> lock(mtx_);
+      all_topics_cbk_(topic, content_data, content_size);
+    }
+
+    {
+      std::lock_guard<std::mutex> lock(mtx_);
+      auto it = all_cbk_.find(topic);
+      if (started_.load() && it != all_cbk_.end()) {
+        auto cbk = it->second;
+        cbk(content_data, content_size);
+      }
+    }
+    zmq_msg_close(&recv_topic);
+    zmq_msg_close(&recv_content);
+  }
+
+  if (skt_ != nullptr) {
+    zmq_close(skt_);
+    skt_ = nullptr;
+  }
+}
+
+void SubWorker::GenId() {
+  const auto* this_ptr = static_cast<const void*>(this);
+  std::stringstream ss;
+  ss << this_ptr;
+  id_ = ss.str();
+}
+
+std::string SubWorker::Id() { return id_; }
+
+int SubWorker::SendTerm() {
+  if (term_skt_ == nullptr) {
+    HLOG_INFO << "invalid term_skt_, maybe already termed";
+    return 0;
+  }
+  int ret =
+      zmq_send(term_skt_, kTermTopic.c_str(), kTermTopic.length(), ZMQ_SNDMORE);
+  if (ret < 0) {
+    HLOG_ERROR << "zmq_send " << kTermTopic << " error";
+    return -1;
+  }
+  ret = zmq_send(term_skt_, term_content_.c_str(), term_content_.length(), 0);
+  if (ret < 0) {
+    HLOG_ERROR << "zmq_send " << term_content_ << " error";
+    return -1;
+  }
+  return 0;
+}
+
+bool SubWorker::OpenSocket() {
   std::vector<std::string> all_addr(addrs_);
   all_addr.push_back(term_addr_);
 
@@ -131,112 +215,52 @@ void SubWorker::Loop() {
   }
 
   if (err) {
-    if (skt_) {
+    if (skt_ != nullptr) {
       zmq_close(skt_);
       skt_ = nullptr;
     }
-    return;
+    return false;
   }
-
-  while (running_.load()) {
-    zmq_msg_t recv_topic;
-    zmq_msg_init(&recv_topic);
-
-    ret = zmq_msg_recv(&recv_topic, skt_, 0);
-    if (ret < 0) {
-      HLOG_ERROR << "zmq_msg_recv topic error";
-      zmq_msg_close(&recv_topic);
-      continue;
-    }
-
-    void* data = zmq_msg_data(&recv_topic);
-    size_t size = zmq_msg_size(&recv_topic);
-    std::string topic((const char*)data, size);
-
-    int more = zmq_msg_more(&recv_topic);
-    zmq_msg_close(&recv_topic);
-
-    if (!more) {
-      HLOG_ERROR << "No more message after received topic";
-      continue;
-    }
-
-    zmq_msg_t recv_content;
-    zmq_msg_init(&recv_content);
-
-    ret = zmq_msg_recv(&recv_content, skt_, 0);
-    if (ret < 0) {
-      HLOG_ERROR << "zmq_msg_recv content error";
-      zmq_msg_close(&recv_content);
-      continue;
-    }
-
-    more = zmq_msg_more(&recv_content);
-
-    if (more) {
-      HLOG_ERROR << "More messages after already received one message";
-      zmq_msg_close(&recv_content);
-      continue;
-    }
-
-    data = zmq_msg_data(&recv_content);
-    size = zmq_msg_size(&recv_content);
-
-    if (topic == kTermTopic &&
-        std::string((const char*)data, size) == term_content_) {
-      HLOG_INFO << "receive term msg";
-      zmq_msg_close(&recv_content);
-      break;
-    }
-
-    if (all_topics_cbk_ != nullptr) {
-      std::lock_guard<std::mutex> lock(mtx_);
-      all_topics_cbk_(topic, data, size);
-    }
-
-    {
-      std::lock_guard<std::mutex> lock(mtx_);
-      auto it = all_cbk_.find(topic);
-      if (started_.load() && it != all_cbk_.end()) {
-        auto cbk = it->second;
-        cbk(data, size);
-      }
-    }
-    zmq_msg_close(&recv_content);
-  }
-
-  if (skt_) {
-    zmq_close(skt_);
-    skt_ = nullptr;
-  }
+  return true;
 }
 
-void SubWorker::GenId() {
-  auto this_ptr = static_cast<const void*>(this);
-  std::stringstream ss;
-  ss << this_ptr;
-  id_ = ss.str();
-}
+bool SubWorker::RecvMsg(zmq_msg_t* recv_topic, zmq_msg_t* recv_content) {
+  if (recv_topic == nullptr || recv_content == nullptr) {
+    return false;
+  }
+  zmq_msg_init(recv_topic);
 
-std::string SubWorker::Id() { return id_; }
+  int ret = zmq_msg_recv(recv_topic, skt_, 0);
+  if (ret < 0) {
+    HLOG_ERROR << "zmq_msg_recv topic error";
+    zmq_msg_close(recv_topic);
+    return false;
+  }
 
-int SubWorker::SendTerm() {
-  if (!term_skt_) {
-    HLOG_INFO << "invalid term_skt_, maybe already termed";
-    return 0;
+  int more = zmq_msg_more(recv_topic);
+  if (more == 0) {
+    HLOG_ERROR << "No more message after received topic";
+    zmq_msg_close(recv_topic);
+    return false;
   }
-  int ret =
-      zmq_send(term_skt_, kTermTopic.c_str(), kTermTopic.length(), ZMQ_SNDMORE);
+
+  zmq_msg_init(recv_content);
+  ret = zmq_msg_recv(recv_content, skt_, 0);
   if (ret < 0) {
-    HLOG_ERROR << "zmq_send " << kTermTopic << " error";
-    return -1;
+    HLOG_ERROR << "zmq_msg_recv content error";
+    zmq_msg_close(recv_topic);
+    zmq_msg_close(recv_content);
+    return false;
   }
-  ret = zmq_send(term_skt_, term_content_.c_str(), term_content_.length(), 0);
-  if (ret < 0) {
-    HLOG_ERROR << "zmq_send " << term_content_ << " error";
-    return -1;
+  more = zmq_msg_more(recv_content);
+  if (more != 0) {
+    HLOG_ERROR << "More messages after already received one message";
+    zmq_msg_close(recv_topic);
+    zmq_msg_close(recv_content);
+    return false;
   }
-  return 0;
+
+  return true;
 }
 
 }  // namespace mp

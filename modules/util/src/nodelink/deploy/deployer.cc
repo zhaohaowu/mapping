@@ -1,12 +1,11 @@
 /******************************************************************************
  *   Copyright (C) 2021 HOZON-AUTO Ltd. All rights reserved.
- *   file       ： address.h
+ *   file       ： deployer.h
  *   author     ： taoshaoyuan
  *   date       ： 2023.01
  ******************************************************************************/
 
 #include "util/nodelink/deploy/deployer.h"
-
 #include <yaml-cpp/yaml.h>
 
 #include <fstream>
@@ -22,7 +21,7 @@ namespace hozon {
 namespace mp {
 
 int Deployer::Deploy(const std::string& deploy_file, bool dynamic_load) {
-  if (Parse(deploy_file, deployer_config_) < 0) {
+  if (Parse(deploy_file, &deployer_config_) < 0) {
     HLOG_ERROR << "parse " << deploy_file << " failed";
     return -1;
   }
@@ -33,10 +32,10 @@ int Deployer::Deploy(const std::string& deploy_file, bool dynamic_load) {
       if (!n.lib.empty()) {
         libs.push_back(n.lib);
       }
-      //      else {
-      //        HLOG_ERROR << "node " << n.name << " not specify lib path";
-      //        return -1;
-      //      }
+      // else {
+      //   HLOG_ERROR << "node " << n.name << " not specify lib path";
+      //   return -1;
+      // }
     }
 
     if (InitLoaderAndLoadLibs(libs) < 0) {
@@ -115,14 +114,27 @@ std::string Deployer::Topo() {
     }
   }
 
-  auto single_node_mermaid = [](NodePubSub node) {
+  auto single_node_mermaid = [](const NodePubSub& node) {
     std::string output;
     for (const auto& pub : node.pubs) {
-      output.append("\n    " + node.name + " --> " + pub + "([" + pub + "])");
+      std::string line_pub = "\n    ";
+      line_pub += node.name;
+      line_pub += " --> ";
+      line_pub += pub;
+      line_pub += "([";
+      line_pub += pub;
+      line_pub += "])";
+      output.append(line_pub);
     }
 
     for (const auto& sub : node.subs) {
-      output.append("\n    " + sub + "([" + sub + "])" + " --> " + node.name);
+      std::string line_sub = "\n    ";
+      line_sub += sub;
+      line_sub += "([";
+      line_sub += sub;
+      line_sub += "]) --> ";
+      line_sub += node.name;
+      output.append(line_sub);
     }
 
     // no pubs and subs, only display node name
@@ -155,7 +167,11 @@ void Deployer::TopoToMd(const std::string& md_path) {
 }
 
 int Deployer::Parse(const std::string& deploy_file,
-                    DeployerConfig& deployer_config) {
+                    DeployerConfig* deployer_config) {
+  if (deployer_config == nullptr) {
+    return -1;
+  }
+
   YAML::Node root;
   try {
     root = YAML::LoadFile(deploy_file);
@@ -174,46 +190,60 @@ int Deployer::Parse(const std::string& deploy_file,
     return -1;
   }
 
+  if (!CollectNodeInfo(nodes, &deployer_config->nodes)) {
+    HLOG_ERROR << "CollectNodeInfo failed";
+    return -1;
+  }
+
+  if (root["sub_from_external"].IsDefined()) {
+    deployer_config->external.sub_from_external =
+        root["sub_from_external"].as<std::vector<std::string>>();
+  }
+
+  if (root["pub_to_external"].IsDefined()) {
+    deployer_config->external.pub_to_external =
+        root["pub_to_external"].as<std::vector<std::string>>();
+  }
+
+  return 0;
+}
+
+bool Deployer::CollectNodeInfo(
+    const std::vector<std::map<std::string, std::string>>& nodes,
+    std::vector<DeployerConfig::NodeInfo>* node_infos) {
+  if (node_infos == nullptr) {
+    return false;
+  }
+
   std::set<std::string> already_exist;
-  for (auto& node : nodes) {
-    if (node.count("name") == 0 || node["name"].empty()) {
+  for (const auto& node : nodes) {
+    if (node.count("name") == 0 || node.at("name").empty()) {
       HLOG_ERROR << "not assign `name` of node or `name` is empty";
-      return -1;
+      return false;
     }
 
-    std::string name = node["name"];
+    std::string name = node.at("name");
 
     std::string conf;
     if (node.count("conf") != 0) {
-      conf = node["conf"];
+      conf = node.at("conf");
     }
     std::string lib;
     if (node.count("lib") != 0) {
-      lib = node["lib"];
+      lib = node.at("lib");
     }
 
     if (already_exist.count(name) != 0) {
       HLOG_ERROR << "duplicated node " << name;
-      return -1;
+      return false;
     }
     already_exist.insert(name);
 
     DeployerConfig::NodeInfo info = {.name = name, .conf = conf, .lib = lib};
 
-    deployer_config.nodes.push_back(info);
+    node_infos->emplace_back(info);
   }
-
-  if (root["sub_from_external"]) {
-    deployer_config.external.sub_from_external =
-        root["sub_from_external"].as<std::vector<std::string>>();
-  }
-
-  if (root["pub_to_external"]) {
-    deployer_config.external.pub_to_external =
-        root["pub_to_external"].as<std::vector<std::string>>();
-  }
-
-  return 0;
+  return true;
 }
 
 int Deployer::InitLoaderAndLoadLibs(const std::vector<std::string>& lib_paths) {
@@ -252,32 +282,19 @@ int Deployer::InitNodes(
 int Deployer::InitLinkerAndLinkNodes() {
   void* ctx = Context::Instance().Get();
   linker_ = Linker::Create(ctx);
-  for (auto& n : inited_nodes_) {
-    if (n.second) {
-      HLOG_INFO << "LinkNode " << n.first;
-      if (linker_->LinkNode(n.second) < 0) {
-        HLOG_ERROR << "LinkNode " << n.first << " failed";
-        return -1;
-      }
-    }
+  if (!LinkNode()) {
+    HLOG_ERROR << "LinkNode failed";
+    return -1;
   }
 
-  for (const auto& addr : deployer_config_.external.sub_from_external) {
-    if (linker_->LinkFrontend(addr) < 0) {
-      HLOG_ERROR << "Link sub external addr " << addr << " failed";
-      return -1;
-    } else {
-      HLOG_INFO << "Link sub external addr " << addr;
-    }
+  if (!LinkFrontend()) {
+    HLOG_ERROR << "LinkFrontend failed";
+    return -1;
   }
 
-  for (const auto& addr : deployer_config_.external.pub_to_external) {
-    if (linker_->LinkBackend(addr) < 0) {
-      HLOG_ERROR << "Link pub external addr " << addr << " failed";
-      return -1;
-    } else {
-      HLOG_INFO << "Link pub external addr " << addr;
-    }
+  if (!LinkBackend()) {
+    HLOG_ERROR << "LinkBackend failed";
+    return -1;
   }
 
   if (linker_->Start() < 0) {
@@ -298,6 +315,54 @@ int Deployer::StartNodes() {
     }
   }
   return 0;
+}
+
+bool Deployer::LinkNode() {
+  if (linker_ == nullptr) {
+    return false;
+  }
+
+  for (auto& n : inited_nodes_) {
+    if (n.second == nullptr) {
+      continue;
+    }
+    HLOG_INFO << "LinkNode " << n.first;
+    if (linker_->LinkNode(n.second) < 0) {
+      HLOG_ERROR << "LinkNode " << n.first << " failed";
+      return false;
+    }
+  }
+  return true;
+}
+
+bool Deployer::LinkFrontend() {
+  if (linker_ == nullptr) {
+    return false;
+  }
+
+  for (const auto& addr : deployer_config_.external.sub_from_external) {
+    if (linker_->LinkFrontend(addr) < 0) {
+      HLOG_ERROR << "Link sub external addr " << addr << " failed";
+      return false;
+    }
+    HLOG_INFO << "Link sub external addr " << addr;
+  }
+  return true;
+}
+
+bool Deployer::LinkBackend() {
+  if (linker_ == nullptr) {
+    return false;
+  }
+
+  for (const auto& addr : deployer_config_.external.pub_to_external) {
+    if (linker_->LinkBackend(addr) < 0) {
+      HLOG_ERROR << "Link pub external addr " << addr << " failed";
+      return false;
+    }
+    HLOG_INFO << "Link pub external addr " << addr;
+  }
+  return true;
 }
 
 }  // namespace mp

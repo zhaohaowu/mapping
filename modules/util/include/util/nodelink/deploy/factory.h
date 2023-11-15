@@ -9,7 +9,9 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
+#include <utility>
 
 namespace hozon {
 namespace mp {
@@ -65,7 +67,7 @@ class Factory {
     }                                                                    \
   };                                                                     \
   static ProxyType##name##id g_register_class_##name##id;                \
-  }
+  }  // namespace
 
 }  // namespace mp
 }  // namespace hozon

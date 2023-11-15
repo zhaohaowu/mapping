@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <string>
-
 // auto generated
 #include <adsfi_proto/viz/geometry_msgs.pb.h>
 #include <adsfi_proto/viz/msg_info.pb.h>
@@ -16,6 +14,9 @@
 #include <adsfi_proto/viz/sensor_msgs.pb.h>
 #include <adsfi_proto/viz/tf2_msgs.pb.h>
 #include <adsfi_proto/viz/visualization_msgs.pb.h>
+
+#include <memory>
+#include <string>
 
 /*
  * 能不能设计成这样：所有支持的类型都是在这个头文件里定义，从类型alias直接得到具体的类型；
@@ -27,20 +28,20 @@ namespace mp {
 namespace util {
 
 // type alias
-static const std::string kCompressedImage = "CompressedImage";
-static const std::string kOdometry = "Odometry";
-static const std::string kPath = "Path";
-static const std::string kTransformStamped = "TransformStamped";
-static const std::string kMarker = "Marker";
-static const std::string kMarkerArray = "MarkerArray";
-static const std::string kTwistStamped = "TwistStamped";
-static const std::string kPolygonStamped = "PolygonStamped";
-static const std::string kPointCloud = "PointCloud";
-static const std::string kPointCloud2 = "PointCloud2";
-static const std::string kPoseArray = "PoseArray";
-static const std::string kOccupancyGrid = "OccupancyGrid";
+static const std::string kCompressedImage = "CompressedImage";    // NOLINT
+static const std::string kOdometry = "Odometry";                  // NOLINT
+static const std::string kPath = "Path";                          // NOLINT
+static const std::string kTransformStamped = "TransformStamped";  // NOLINT
+static const std::string kMarker = "Marker";                      // NOLINT
+static const std::string kMarkerArray = "MarkerArray";            // NOLINT
+static const std::string kTwistStamped = "TwistStamped";          // NOLINT
+static const std::string kPolygonStamped = "PolygonStamped";      // NOLINT
+static const std::string kPointCloud = "PointCloud";              // NOLINT
+static const std::string kPointCloud2 = "PointCloud2";            // NOLINT
+static const std::string kPoseArray = "PoseArray";                // NOLINT
+static const std::string kOccupancyGrid = "OccupancyGrid";        // NOLINT
 
-static const std::string kCtrlTopic = "/RvizAgent/Ctrl";
+static const std::string kCtrlTopic = "/RvizAgent/Ctrl";  // NOLINT
 
 class MetaMsg {
  public:

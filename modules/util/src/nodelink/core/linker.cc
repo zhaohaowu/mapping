@@ -15,7 +15,7 @@
 namespace hozon {
 namespace mp {
 
-using namespace std::chrono_literals;
+using namespace std::chrono_literals; // NOLINT
 
 // Should execute before Start()
 int Linker::LinkNode(const std::shared_ptr<Node>& node) {
@@ -23,11 +23,15 @@ int Linker::LinkNode(const std::shared_ptr<Node>& node) {
   auto pub_addrs = node->PubAddrs();
 
   for (const auto& ad : sub_addrs) {
-    if (LinkBackend(ad) < 0) return -1;
+    if (LinkBackend(ad) < 0) {
+      return -1;
+    }
   }
 
   for (const auto& ad : pub_addrs) {
-    if (LinkFrontend(ad) < 0) return -1;
+    if (LinkFrontend(ad) < 0) {
+      return -1;
+    }
   }
 
   return 0;
@@ -101,35 +105,22 @@ void Linker::UnLinkBackend(const std::string& addr) {
 }
 
 int Linker::Start() {
-  if (!ctx_) {
+  if (ctx_ == nullptr) {
     HLOG_ERROR << "Linker start error, invalid context";
     return -1;
   }
 
-  if (bind_addrs_.empty()) {
-    HLOG_INFO << "no bind address (i.e. no nodes pub), no need to link";
+  if (!NeedLink()) {
+    HLOG_INFO
+        << "no bind and address (i.e. no nodes pub and sub), no need to link";
     return 0;
   }
 
-  if (conn_addrs_.empty()) {
-    HLOG_INFO << "no connect address (i.e. no nodes sub), no need to link";
-    return 0;
+  if (!ValidAddrs()) {
+    return -1;
   }
 
-  for (const auto& ad : bind_addrs_) {
-    if (ad.empty()) {
-      HLOG_ERROR << "Linker start error, empty bind address";
-      return -1;
-    }
-  }
-  for (const auto& ad : conn_addrs_) {
-    if (ad.empty()) {
-      HLOG_ERROR << "Linker start error, empty connect address";
-      return -1;
-    }
-  }
-
-  auto this_ptr = static_cast<const void*>(this);
+  const auto* this_ptr = static_cast<const void*>(this);
   std::stringstream ss;
   ss << this_ptr;
   std::string this_str = ss.str();
@@ -139,7 +130,7 @@ int Linker::Start() {
 
   term_cmd_skt_ = zmq_socket(ctx_, ZMQ_PUB);
   int ret = zmq_bind(term_cmd_skt_, term_addr_.c_str());
-  if (ret < 0 && term_cmd_skt_) {
+  if (ret < 0 && (term_cmd_skt_ != nullptr)) {
     HLOG_ERROR << "zmq_bind term addr " << term_addr_ << " error";
     zmq_close(term_cmd_skt_);
     term_cmd_skt_ = nullptr;
@@ -183,7 +174,7 @@ int Linker::Start() {
 }
 
 void Linker::Term() {
-  if (!term_cmd_skt_) {
+  if (term_cmd_skt_ == nullptr) {
     HLOG_INFO << "invalid term_cmd_skt_, maybe already termed";
     return;
   }
@@ -199,14 +190,53 @@ void Linker::Term() {
     proxy_thread_ = nullptr;
   }
 
-  if (term_cmd_skt_) {
+  if (term_cmd_skt_ != nullptr) {
     zmq_close(term_cmd_skt_);
     term_cmd_skt_ = nullptr;
   }
 }
 
 void Linker::Loop() {
-  std::set<std::string> conn_addrs, bind_addrs;
+  OpenSockets();
+
+  if (loop_prepare_error_.load()) {
+    CloseSockets();
+    loop_prepare_over_.store(true);
+    HLOG_ERROR << "Linker Loop start failed";
+    return;
+  }
+
+  loop_prepare_over_.store(true);
+
+  // block, wait term msg
+  zmq_proxy_steerable(frontend_skt_, backend_skt_, nullptr, term_skt_);
+
+  // zmq_proxy_steerable return, close socket
+  CloseSockets();
+}
+
+bool Linker::NeedLink() {
+  return !(bind_addrs_.empty() && conn_addrs_.empty());
+}
+
+bool Linker::ValidAddrs() {
+  if (std::any_of(bind_addrs_.begin(), bind_addrs_.end(),
+                  [](const auto& ad) { return ad.empty(); })) {
+    HLOG_ERROR << "Linker start error, empty bind address";
+    return false;
+  }
+  if (std::any_of(conn_addrs_.begin(), conn_addrs_.end(),
+                  [](const auto& ad) { return ad.empty(); })) {
+    HLOG_ERROR << "Linker start error, empty connect address";
+    return false;
+  }
+
+  return true;
+}
+
+void Linker::OpenSockets() {
+  std::set<std::string> conn_addrs;
+  std::set<std::string> bind_addrs;
   {
     std::lock_guard<std::mutex> lock(mtx_);
     conn_addrs = conn_addrs_;
@@ -244,36 +274,21 @@ void Linker::Loop() {
     HLOG_ERROR << "zmq_setsockopt error";
     loop_prepare_error_.store(true);
   }
+}
 
-  auto close_skt = [&] {
-    if (frontend_skt_) {
-      zmq_close(frontend_skt_);
-      frontend_skt_ = nullptr;
-    }
-    if (backend_skt_) {
-      zmq_close(backend_skt_);
-      backend_skt_ = nullptr;
-    }
-    if (term_skt_) {
-      zmq_close(term_skt_);
-      term_skt_ = nullptr;
-    }
-  };
-
-  if (loop_prepare_error_.load()) {
-    close_skt();
-    loop_prepare_over_.store(true);
-    HLOG_ERROR << "Linker Loop start failed";
-    return;
+void Linker::CloseSockets() {
+  if (frontend_skt_ != nullptr) {
+    zmq_close(frontend_skt_);
+    frontend_skt_ = nullptr;
   }
-
-  loop_prepare_over_.store(true);
-
-  // block, wait term msg
-  zmq_proxy_steerable(frontend_skt_, backend_skt_, nullptr, term_skt_);
-
-  // zmq_proxy_steerable return, close socket
-  close_skt();
+  if (backend_skt_ != nullptr) {
+    zmq_close(backend_skt_);
+    backend_skt_ = nullptr;
+  }
+  if (term_skt_ != nullptr) {
+    zmq_close(term_skt_);
+    term_skt_ = nullptr;
+  }
 }
 
 }  // namespace mp

@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include "util/rviz_agent/rviz_agent.h"
-
 #include <adsfi_proto/viz/msg_info.pb.h>
 
 #include "util/nodelink/core.h"
@@ -15,7 +14,7 @@ namespace hozon {
 namespace mp {
 namespace util {
 
-using namespace std::chrono_literals;
+using namespace std::chrono_literals; // NOLINT
 
 RvizAgent::~RvizAgent() noexcept { Term(); }
 
@@ -59,10 +58,7 @@ bool RvizAgent::Registered(const std::string& topic) {
     return false;
   }
   std::lock_guard<std::mutex> lock(ctrl_mtx_);
-  if (reg_msgs_.find(topic) == reg_msgs_.end()) {
-    return false;
-  }
-  return true;
+  return reg_msgs_.find(topic) != reg_msgs_.end();
 }
 
 int RvizAgent::Publish(const std::string& topic, const std::string& data_str) {
@@ -71,7 +67,8 @@ int RvizAgent::Publish(const std::string& topic, const std::string& data_str) {
     return -1;
   }
 
-  pub_->AddData(topic, (void*)data_str.data(), data_str.size());
+  pub_->AddData(topic, static_cast<const void*>(data_str.data()),
+                data_str.size());
   return 0;
 }
 
@@ -106,14 +103,15 @@ void RvizAgent::CtrlLoop() {
     {
       std::lock_guard<std::mutex> lock(ctrl_mtx_);
       for (const auto& it : reg_msgs_) {
-        auto msg = msgs.mutable_msgs()->Add();
+        auto* msg = msgs.mutable_msgs()->Add();
         msg->set_topic(it.first);
         msg->set_alias(it.second);
       }
     }
     std::string ser_msgs = msgs.SerializeAsString();
     if (!ser_msgs.empty()) {
-      pub_->AddData(kCtrlTopic, (void*)ser_msgs.data(), ser_msgs.size());
+      pub_->AddData(kCtrlTopic, static_cast<const void*>(ser_msgs.data()),
+                    ser_msgs.size());
     }
 
     std::this_thread::sleep_for(1s);

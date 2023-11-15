@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include "util/nodelink/deploy/loader.h"
-
 #include <dlfcn.h>
 
 #include <filesystem>
@@ -34,13 +33,9 @@ int Loader::Load(const std::vector<std::string>& lib_paths) {
         continue;
       }
 
-      handler = dlopen(canon_path.c_str(), RTLD_LAZY);
+      handler = LoadLib(canon_path.string());
       if (handler == nullptr) {
-        HLOG_ERROR << "dlopen " << canon_path.string() << " failed";
-        const char* err = dlerror();
-        if (err) {
-          HLOG_ERROR << "dlerror: " << std::string(err);
-        }
+        HLOG_ERROR << "LoadLib " << canon_path.string() << " failed";
         return -1;
       }
       HLOG_INFO << canon_path.string() << " loaded";
@@ -55,6 +50,18 @@ void Loader::Term() {
   //! 但由于每个Node注册时都生成了一个 全局变量, 因此这里如果直接dlclose,
   //! 全局变量是最后析构的, 那么那些全局变量会有问题, 因此这里选择什么都不做,
   //! 依赖操作系统在进程结束时关闭各个lib. 后面想想有没有更好的办法.
+}
+
+void* Loader::LoadLib(const std::string& lib_path) {
+  void* handler = dlopen(lib_path.c_str(), RTLD_LAZY);
+  if (handler == nullptr) {
+    HLOG_ERROR << "dlopen " << lib_path << " failed";
+    const char* err = dlerror();
+    if (err != nullptr) {
+      HLOG_ERROR << "dlerror: " << std::string(err);
+    }
+  }
+  return handler;
 }
 
 }  // namespace mp

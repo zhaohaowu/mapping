@@ -14,15 +14,15 @@ namespace hozon {
 namespace mp {
 namespace util {
 
-Rate::Rate(double hz) : expected_cycle_time_(1. / hz), actual_cycle_time_(0.) {
-  start_ = NowInSeconds();
-}
+Rate::Rate(double hz)
+    : start_(NowInSeconds()),
+      expected_cycle_time_(1. / hz),
+      actual_cycle_time_(0.) {}
 
 Rate::Rate(uint64_t us)
-    : expected_cycle_time_(static_cast<double>(us) * 1e-6),
-      actual_cycle_time_(0.) {
-  start_ = NowInSeconds();
-}
+    : start_(NowInSeconds()),
+      expected_cycle_time_(static_cast<double>(us) * 1e-6),
+      actual_cycle_time_(0.) {}
 
 bool Rate::Sleep() {
   double expected_end = start_ + expected_cycle_time_;

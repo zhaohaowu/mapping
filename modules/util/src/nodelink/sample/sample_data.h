@@ -11,11 +11,11 @@ namespace hozon {
 namespace mp {
 
 struct DataFoo {
-  int foo;
+  int foo = 0;
 };
 
 struct DataBar {
-  int bar;
+  int bar = 0;
 };
 
 }  // namespace mp

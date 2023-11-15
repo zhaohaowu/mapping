@@ -1,3 +1,10 @@
+/******************************************************************************
+ *   Copyright (C) 2021 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： test_nodelink.cc
+ *   author     ： taoshaoyuan
+ *   date       ： 2023.01
+ ******************************************************************************/
+
 #include <gtest/gtest.h>
 #include <yaml-cpp/yaml.h>
 #include <zmq/zmq.h>
@@ -7,8 +14,8 @@
 #include "util/nodelink/core.h"
 #include "util/nodelink/deploy.h"
 
-using namespace hozon::mp;
-using namespace std::chrono_literals;
+using namespace hozon::mp;             // NOLINT
+using namespace std::chrono_literals;  // NOLINT
 
 TEST(TestPubWorker, simple) {
   void* ctx = Context::Instance().Get();
@@ -126,14 +133,15 @@ TEST(TestPubWorker, simple) {
     const std::string& topic = topics[i];
     const std::string& content = contents[i];
 
-    pub_worker->AddData(topic, (void*)content.data(), content.size());
+    pub_worker->AddData(topic, reinterpret_cast<void*>(content.data()),
+                        content.size());
   }
 
   for (const auto& ct : contents_a) {
-    pub_a->Pub((void*)ct.c_str(), ct.size());
+    pub_a->Pub(reinterpret_cast<void*>(ct.c_str()), ct.size());
   }
   for (const auto& ct : contents_b) {
-    pub_b->Pub((void*)ct.c_str(), ct.size());
+    pub_b->Pub(reinterpret_cast<void*>(ct.c_str()), ct.size());
   }
 
   std::this_thread::sleep_for(5s);
@@ -625,11 +633,11 @@ class NodeA : public Node {
   void Loop() {
     for (int i = 0; i < 10; ++i) {
       std::string data_a("Data_A_" + std::to_string(i));
-      pub_a_->Pub((void*)data_a.c_str(), data_a.length());
+      pub_a_->Pub(reinterpret_cast<void*>(data_a.c_str()), data_a.length());
       sent_a.push_back(data_a);
 
       std::string data_b("Data_B_" + std::to_string(i));
-      pub_b_->Pub((void*)data_b.c_str(), data_b.length());
+      pub_b_->Pub(reinterpret_cast<void*>(data_b.c_str()), data_b.length());
       sent_b.push_back(data_b);
     }
   }
@@ -694,11 +702,11 @@ class NodeB : public Node {
   void Loop() {
     for (int i = 0; i < 10; ++i) {
       std::string data_c("Data_C_" + std::to_string(i));
-      pub_c_->Pub((void*)data_c.c_str(), data_c.length());
+      pub_c_->Pub(reinterpret_cast<void*>(data_c.c_str()), data_c.length());
       sent_c.push_back(data_c);
 
       std::string data_d("Data_D_" + std::to_string(i));
-      pub_d_->Pub((void*)data_d.c_str(), data_d.length());
+      pub_d_->Pub(reinterpret_cast<void*>(data_d.c_str()), data_d.length());
       sent_d.push_back(data_d);
     }
   }
@@ -819,7 +827,7 @@ class FooNode : public Node {
     if (!pub_) return;
 
     for (int i = 0; i != cnt_; ++i) {
-      pub_->Pub((void*)msg_.data(), msg_.size());
+      pub_->Pub(reinterpret_cast<void*>(msg_.data()), msg_.size());
       g_pub_msgs.push_back(msg_);
       std::this_thread::sleep_for(10ms);
     }

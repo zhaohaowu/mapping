@@ -9,6 +9,7 @@
 
 #include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace hozon {
@@ -29,6 +30,7 @@ class Loader {
   void Term();
 
  private:
+  void* LoadLib(const std::string& lib_path);
   // key: lib's full canonical path
   // value: lib handle from dlopen
   std::map<std::string, void*> lib_handles_;

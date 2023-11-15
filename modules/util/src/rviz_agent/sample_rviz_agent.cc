@@ -8,8 +8,9 @@
 #include <gflags/gflags.h>
 
 #include <Eigen/Geometry>
-#include <opencv2/opencv.hpp>
 #include <random>
+
+#include <opencv2/opencv.hpp>
 
 #include "util/rviz_agent/rviz_agent.h"
 
@@ -19,23 +20,23 @@ DEFINE_string(viz_addr, "ipc:///tmp/sample_rviz_agent",
               "inproc://sample_rviz_agent or "
               "tcp://127.0.0.1:9100");
 
-using namespace hozon::mp::util;
-using namespace std::chrono_literals;
+using namespace hozon::mp::util; // NOLINT
+using namespace std::chrono_literals; // NOLINT
 
 bool g_stop = false;
 void SigIntHandler(int sig) { g_stop = true; }
 
-void GenImage(adsfi_proto::viz::CompressedImage& img);
-void GenOdom(adsfi_proto::viz::Odometry& odom);
+void GenImage(adsfi_proto::viz::CompressedImage* img);
+void GenOdom(adsfi_proto::viz::Odometry* odom);
 void GenPath(const adsfi_proto::viz::Odometry& odom,
-             adsfi_proto::viz::Path& path);
+             adsfi_proto::viz::Path* path);
 void GenTf(const adsfi_proto::viz::Odometry& odom,
-           adsfi_proto::viz::TransformStamped& tf);
-void GenMarker(adsfi_proto::viz::Marker& marker);
-void GenMarkerArray(adsfi_proto::viz::MarkerArray& marker_array);
-void GenTwist(adsfi_proto::viz::TwistStamped& twist);
-void GenPolygon(adsfi_proto::viz::PolygonStamped& polygon);
-void GenPointCloud2(adsfi_proto::viz::PointCloud2& point_cloud);
+           adsfi_proto::viz::TransformStamped* tf);
+void GenMarker(adsfi_proto::viz::Marker* marker);
+void GenMarkerArray(adsfi_proto::viz::MarkerArray* marker_array);
+void GenTwist(adsfi_proto::viz::TwistStamped* twist);
+void GenPolygon(adsfi_proto::viz::PolygonStamped* polygon);
+void GenPointCloud2(adsfi_proto::viz::PointCloud2* point_cloud);
 
 int main(int argc, char** argv) {
   gflags::ParseCommandLineFlags(&argc, &argv, false);
@@ -163,7 +164,7 @@ int main(int argc, char** argv) {
      */
     adsfi_proto::viz::CompressedImage img;
     img.Clear();
-    GenImage(img);
+    GenImage(&img);
     ret = RvizAgent::Instance().Publish(kImageTopic, img);
     if (ret < 0) {
       HLOG_ERROR << "pub image error";
@@ -172,7 +173,7 @@ int main(int argc, char** argv) {
 
     adsfi_proto::viz::Odometry odom;
     odom.Clear();
-    GenOdom(odom);
+    GenOdom(&odom);
     RvizAgent::Instance().Publish(kOdomTopic, odom);
     if (ret < 0) {
       HLOG_ERROR << "pub odom error";
@@ -181,7 +182,7 @@ int main(int argc, char** argv) {
 
     adsfi_proto::viz::Path path;
     path.Clear();
-    GenPath(odom, path);
+    GenPath(odom, &path);
     RvizAgent::Instance().Publish(kPathTopic, path);
     if (ret < 0) {
       HLOG_ERROR << "pub path error";
@@ -190,7 +191,7 @@ int main(int argc, char** argv) {
 
     adsfi_proto::viz::TransformStamped tf;
     tf.Clear();
-    GenTf(odom, tf);
+    GenTf(odom, &tf);
     RvizAgent::Instance().Publish(kTfTopic, tf);
     if (ret < 0) {
       HLOG_ERROR << "pub tf error";
@@ -199,7 +200,7 @@ int main(int argc, char** argv) {
 
     adsfi_proto::viz::Marker marker;
     marker.Clear();
-    GenMarker(marker);
+    GenMarker(&marker);
     RvizAgent::Instance().Publish(kMarkerTopic, marker);
     if (ret < 0) {
       HLOG_ERROR << "pub marker error";
@@ -208,7 +209,7 @@ int main(int argc, char** argv) {
 
     adsfi_proto::viz::MarkerArray marker_array;
     marker_array.Clear();
-    GenMarkerArray(marker_array);
+    GenMarkerArray(&marker_array);
     RvizAgent::Instance().Publish(kMarkerArrayTopic, marker_array);
     if (ret < 0) {
       HLOG_ERROR << "pub marker array error";
@@ -217,7 +218,7 @@ int main(int argc, char** argv) {
 
     adsfi_proto::viz::TwistStamped twist;
     twist.Clear();
-    GenTwist(twist);
+    GenTwist(&twist);
     RvizAgent::Instance().Publish(kTwistTopic, twist);
     if (ret < 0) {
       HLOG_ERROR << "pub twist error";
@@ -226,7 +227,7 @@ int main(int argc, char** argv) {
 
     adsfi_proto::viz::PolygonStamped polygon;
     polygon.Clear();
-    GenPolygon(polygon);
+    GenPolygon(&polygon);
     RvizAgent::Instance().Publish(kPolygonTopic, polygon);
     if (ret < 0) {
       HLOG_ERROR << "pub polygon error";
@@ -235,7 +236,7 @@ int main(int argc, char** argv) {
 
     adsfi_proto::viz::PointCloud2 point_cloud;
     point_cloud.Clear();
-    GenPointCloud2(point_cloud);
+    GenPointCloud2(&point_cloud);
     RvizAgent::Instance().Publish(kPointCloud2Topic, point_cloud);
     if (ret < 0) {
       HLOG_ERROR << "pub point cloud2 error";
@@ -253,16 +254,16 @@ int main(int argc, char** argv) {
   RvizAgent::Instance().Term();
 }
 
-void GenImage(adsfi_proto::viz::CompressedImage& img) {
+void GenImage(adsfi_proto::viz::CompressedImage* img) {
   static int seq = 0;
 
-  img.mutable_header()->set_frameid("camera");
-  img.mutable_header()->set_seq(seq);
+  img->mutable_header()->set_frameid("camera");
+  img->mutable_header()->set_seq(seq);
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
-  img.mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
-  img.mutable_header()->mutable_timestamp()->set_nsec(ts.tv_nsec);
-  img.set_format("jpeg");
+  img->mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
+  img->mutable_header()->mutable_timestamp()->set_nsec(ts.tv_nsec);
+  img->set_format("jpeg");
 
   cv::Scalar bgr(255, 0, 0);
   cv::Mat mat(1080, 1920, CV_8UC3, bgr);
@@ -274,7 +275,7 @@ void GenImage(adsfi_proto::viz::CompressedImage& img) {
   std::vector<uchar> buf;
   cv::imencode(".jpg", mat, buf, param);
   for (unsigned char i : buf) {
-    img.mutable_data()->push_back(i);
+    img->mutable_data()->push_back(i);
   }
 
   seq++;
@@ -289,66 +290,66 @@ struct Pose {
   double yaw = 0.;
 };
 
-void GenPose(double x, Pose& pose) {
+void GenPose(double x, Pose* pose) {
   // y = -(x-100)^2/100+100
   // y' = -2x/100+2
-  pose.x = x;
-  pose.y = -(x - 100) * (x - 100) / 100 + 100;
-  pose.z = 0;
+  pose->x = x;
+  pose->y = -(x - 100) * (x - 100) / 100 + 100;
+  pose->z = 0;
   double slope = -2 * x / 100 + 2;
-  pose.yaw = atan(slope);
-  pose.pitch = 0;
-  pose.roll = 0;
+  pose->yaw = atan(slope);
+  pose->pitch = 0;
+  pose->roll = 0;
 }
 
-void GenOdom(adsfi_proto::viz::Odometry& odom) {
+void GenOdom(adsfi_proto::viz::Odometry* odom) {
   static int seq = 0;
 
   static Pose curr_pose;
   static double x = 0.;
 
-  odom.mutable_header()->set_frameid("local_enu");
-  odom.mutable_header()->set_seq(seq++);
+  odom->mutable_header()->set_frameid("local_enu");
+  odom->mutable_header()->set_seq(seq++);
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
-  odom.mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
-  odom.mutable_header()->mutable_timestamp()->set_nsec(ts.tv_nsec);
+  odom->mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
+  odom->mutable_header()->mutable_timestamp()->set_nsec(ts.tv_nsec);
 
   x += 0.1;
   GenPose(x, curr_pose);
-  odom.mutable_pose()->mutable_pose()->mutable_position()->set_x(curr_pose.x);
-  odom.mutable_pose()->mutable_pose()->mutable_position()->set_y(curr_pose.y);
-  odom.mutable_pose()->mutable_pose()->mutable_position()->set_z(curr_pose.z);
+  odom->mutable_pose()->mutable_pose()->mutable_position()->set_x(curr_pose.x);
+  odom->mutable_pose()->mutable_pose()->mutable_position()->set_y(curr_pose.y);
+  odom->mutable_pose()->mutable_pose()->mutable_position()->set_z(curr_pose.z);
 
   Eigen::AngleAxisd roll(curr_pose.roll, Eigen::Vector3d::UnitX());
   Eigen::AngleAxisd pitch(curr_pose.pitch, Eigen::Vector3d::UnitY());
   Eigen::AngleAxisd yaw(curr_pose.yaw, Eigen::Vector3d::UnitZ());
   Eigen::Quaterniond q = yaw * roll * pitch;
 
-  odom.mutable_pose()->mutable_pose()->mutable_orientation()->set_x(q.x());
-  odom.mutable_pose()->mutable_pose()->mutable_orientation()->set_y(q.y());
-  odom.mutable_pose()->mutable_pose()->mutable_orientation()->set_z(q.z());
-  odom.mutable_pose()->mutable_pose()->mutable_orientation()->set_w(q.w());
-  odom.set_child_frame_id("vehicle");
+  odom->mutable_pose()->mutable_pose()->mutable_orientation()->set_x(q.x());
+  odom->mutable_pose()->mutable_pose()->mutable_orientation()->set_y(q.y());
+  odom->mutable_pose()->mutable_pose()->mutable_orientation()->set_z(q.z());
+  odom->mutable_pose()->mutable_pose()->mutable_orientation()->set_w(q.w());
+  odom->set_child_frame_id("vehicle");
   for (int i = 0; i < 36; ++i) {
-    odom.mutable_pose()->add_covariance(0);
+    odom->mutable_pose()->add_covariance(0);
   }
 
-  odom.mutable_twist()->mutable_twist()->mutable_linear()->set_x(seq * 0.1);
-  odom.mutable_twist()->mutable_twist()->mutable_linear()->set_y(seq * 0.1);
-  odom.mutable_twist()->mutable_twist()->mutable_linear()->set_z(seq * 0.1);
-  odom.mutable_twist()->mutable_twist()->mutable_angular()->set_x(seq * 0.01);
-  odom.mutable_twist()->mutable_twist()->mutable_angular()->set_y(seq * 0.01);
-  odom.mutable_twist()->mutable_twist()->mutable_angular()->set_z(seq * 0.01);
+  odom->mutable_twist()->mutable_twist()->mutable_linear()->set_x(seq * 0.1);
+  odom->mutable_twist()->mutable_twist()->mutable_linear()->set_y(seq * 0.1);
+  odom->mutable_twist()->mutable_twist()->mutable_linear()->set_z(seq * 0.1);
+  odom->mutable_twist()->mutable_twist()->mutable_angular()->set_x(seq * 0.01);
+  odom->mutable_twist()->mutable_twist()->mutable_angular()->set_y(seq * 0.01);
+  odom->mutable_twist()->mutable_twist()->mutable_angular()->set_z(seq * 0.01);
   for (int i = 0; i < 36; ++i) {
-    odom.mutable_twist()->add_covariance(0);
+    odom->mutable_twist()->add_covariance(0);
   }
 
   seq++;
 }
 
 void GenPath(const adsfi_proto::viz::Odometry& odom,
-             adsfi_proto::viz::Path& path) {
+             adsfi_proto::viz::Path* path) {
   static int seq = 0;
   static adsfi_proto::viz::Path last_path;
 
@@ -379,64 +380,64 @@ void GenPath(const adsfi_proto::viz::Odometry& odom,
   pose->mutable_pose()->mutable_orientation()->set_z(q.z());
   pose->mutable_pose()->mutable_orientation()->set_w(q.w());
 
-  path = last_path;
+  path->CopyFrom(last_path);
 
   seq++;
 }
 
 void GenTf(const adsfi_proto::viz::Odometry& odom,
-           adsfi_proto::viz::TransformStamped& tf) {
+           adsfi_proto::viz::TransformStamped* tf) {
   static int seq = 0;
 
-  tf.mutable_header()->set_frameid("local_enu");
-  tf.mutable_header()->set_seq(seq);
-  tf.mutable_header()->mutable_timestamp()->set_sec(
+  tf->mutable_header()->set_frameid("local_enu");
+  tf->mutable_header()->set_seq(seq);
+  tf->mutable_header()->mutable_timestamp()->set_sec(
       odom.header().timestamp().sec());
-  tf.mutable_header()->mutable_timestamp()->set_nsec(
+  tf->mutable_header()->mutable_timestamp()->set_nsec(
       odom.header().timestamp().nsec());
-  tf.set_child_frame_id("vehicle");
+  tf->set_child_frame_id("vehicle");
   auto p = odom.pose().pose().position();
-  tf.mutable_transform()->mutable_translation()->set_x(p.x());
-  tf.mutable_transform()->mutable_translation()->set_y(p.y());
-  tf.mutable_transform()->mutable_translation()->set_z(p.z());
+  tf->mutable_transform()->mutable_translation()->set_x(p.x());
+  tf->mutable_transform()->mutable_translation()->set_y(p.y());
+  tf->mutable_transform()->mutable_translation()->set_z(p.z());
 
   auto q = odom.pose().pose().orientation();
-  tf.mutable_transform()->mutable_rotation()->set_x(q.x());
-  tf.mutable_transform()->mutable_rotation()->set_y(q.y());
-  tf.mutable_transform()->mutable_rotation()->set_z(q.z());
-  tf.mutable_transform()->mutable_rotation()->set_w(q.w());
+  tf->mutable_transform()->mutable_rotation()->set_x(q.x());
+  tf->mutable_transform()->mutable_rotation()->set_y(q.y());
+  tf->mutable_transform()->mutable_rotation()->set_z(q.z());
+  tf->mutable_transform()->mutable_rotation()->set_w(q.w());
 
   seq++;
 }
 
-void GenMarker(adsfi_proto::viz::Marker& marker) {
+void GenMarker(adsfi_proto::viz::Marker* marker) {
   static int seq = 0;
 
-  marker.mutable_header()->set_frameid("vehicle");
-  marker.mutable_header()->set_seq(seq);
+  marker->mutable_header()->set_frameid("vehicle");
+  marker->mutable_header()->set_seq(seq);
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
-  marker.mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
-  marker.mutable_header()->mutable_timestamp()->set_nsec(ts.tv_nsec);
-  marker.set_ns("sample_marker");
-  marker.set_id(0);
-  marker.set_type(adsfi_proto::viz::MarkerType::LINE_LIST);
-  marker.set_action(adsfi_proto::viz::MarkerAction::MODIFY);
-  marker.mutable_pose()->mutable_orientation()->set_x(0.);
-  marker.mutable_pose()->mutable_orientation()->set_y(0.);
-  marker.mutable_pose()->mutable_orientation()->set_z(0.);
-  marker.mutable_pose()->mutable_orientation()->set_w(1.);
-  marker.mutable_scale()->set_x(0.2);
-  marker.mutable_color()->set_r(1.0);
-  marker.mutable_color()->set_g(1.0);
-  marker.mutable_color()->set_b(1.0);
-  marker.mutable_color()->set_a(1.0);
+  marker->mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
+  marker->mutable_header()->mutable_timestamp()->set_nsec(ts.tv_nsec);
+  marker->set_ns("sample_marker");
+  marker->set_id(0);
+  marker->set_type(adsfi_proto::viz::MarkerType::LINE_LIST);
+  marker->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+  marker->mutable_pose()->mutable_orientation()->set_x(0.);
+  marker->mutable_pose()->mutable_orientation()->set_y(0.);
+  marker->mutable_pose()->mutable_orientation()->set_z(0.);
+  marker->mutable_pose()->mutable_orientation()->set_w(1.);
+  marker->mutable_scale()->set_x(0.2);
+  marker->mutable_color()->set_r(1.0);
+  marker->mutable_color()->set_g(1.0);
+  marker->mutable_color()->set_b(1.0);
+  marker->mutable_color()->set_a(1.0);
 
-  auto pt1 = marker.add_points();
+  auto pt1 = marker->add_points();
   pt1->set_x(10.);
   pt1->set_y(10.);
   pt1->set_z(0.);
-  auto pt2 = marker.add_points();
+  auto pt2 = marker->add_points();
   pt2->set_x(10.);
   pt2->set_y(-10.);
   pt2->set_z(0.);
@@ -444,11 +445,11 @@ void GenMarker(adsfi_proto::viz::Marker& marker) {
   seq++;
 }
 
-void GenMarkerArray(adsfi_proto::viz::MarkerArray& marker_array) {
+void GenMarkerArray(adsfi_proto::viz::MarkerArray* marker_array) {
   static int seq = 0;
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
-  auto m0 = marker_array.add_markers();
+  auto m0 = marker_array->add_markers();
   m0->mutable_header()->set_frameid("vehicle");
   m0->mutable_header()->set_seq(seq);
   m0->mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
@@ -476,7 +477,7 @@ void GenMarkerArray(adsfi_proto::viz::MarkerArray& marker_array) {
   pt2->set_y(2.5);
   pt2->set_z(0.);
 
-  auto m1 = marker_array.add_markers();
+  auto m1 = marker_array->add_markers();
   m1->mutable_header()->set_frameid("vehicle");
   m1->mutable_header()->set_seq(seq);
   m1->mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
@@ -507,21 +508,21 @@ void GenMarkerArray(adsfi_proto::viz::MarkerArray& marker_array) {
   seq++;
 }
 
-void GenTwist(adsfi_proto::viz::TwistStamped& twist) {
+void GenTwist(adsfi_proto::viz::TwistStamped* twist) {
   static int seq = 0;
 
-  twist.mutable_header()->set_frameid("vehicle");
-  twist.mutable_header()->set_seq(seq);
+  twist->mutable_header()->set_frameid("vehicle");
+  twist->mutable_header()->set_seq(seq);
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
-  twist.mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
-  twist.mutable_header()->mutable_timestamp()->set_nsec(ts.tv_nsec);
-  twist.mutable_twist()->mutable_linear()->set_x(2.);
-  twist.mutable_twist()->mutable_linear()->set_y(0.);
-  twist.mutable_twist()->mutable_linear()->set_z(0.);
-  twist.mutable_twist()->mutable_angular()->set_x(0.);
-  twist.mutable_twist()->mutable_angular()->set_y(0.);
-  twist.mutable_twist()->mutable_angular()->set_z(0.2);
+  twist->mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
+  twist->mutable_header()->mutable_timestamp()->set_nsec(ts.tv_nsec);
+  twist->mutable_twist()->mutable_linear()->set_x(2.);
+  twist->mutable_twist()->mutable_linear()->set_y(0.);
+  twist->mutable_twist()->mutable_linear()->set_z(0.);
+  twist->mutable_twist()->mutable_angular()->set_x(0.);
+  twist->mutable_twist()->mutable_angular()->set_y(0.);
+  twist->mutable_twist()->mutable_angular()->set_z(0.2);
 
   seq++;
 }
@@ -531,8 +532,8 @@ struct Point2D {
   double y;
 };
 
-void GenArrow(std::vector<Point2D>& pts) {
-  pts.clear();
+void GenArrow(std::vector<Point2D>* pts) {
+  pts->clear();
   Point2D pt1 = {0, 0.15};
   Point2D pt2 = {0, -0.15};
   Point2D pt3 = {3.6, -0.15};
@@ -540,28 +541,28 @@ void GenArrow(std::vector<Point2D>& pts) {
   Point2D pt5 = {6, 0};
   Point2D pt6 = {3.6, 0.45};
   Point2D pt7 = {3.6, 0.15};
-  pts.push_back(pt1);
-  pts.push_back(pt2);
-  pts.push_back(pt3);
-  pts.push_back(pt4);
-  pts.push_back(pt5);
-  pts.push_back(pt6);
-  pts.push_back(pt7);
+  pts->push_back(pt1);
+  pts->push_back(pt2);
+  pts->push_back(pt3);
+  pts->push_back(pt4);
+  pts->push_back(pt5);
+  pts->push_back(pt6);
+  pts->push_back(pt7);
 }
-void GenPolygon(adsfi_proto::viz::PolygonStamped& polygon) {
+void GenPolygon(adsfi_proto::viz::PolygonStamped* polygon) {
   static int seq = 0;
 
-  polygon.mutable_header()->set_frameid("vehicle");
-  polygon.mutable_header()->set_seq(seq);
+  polygon->mutable_header()->set_frameid("vehicle");
+  polygon->mutable_header()->set_seq(seq);
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
-  polygon.mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
-  polygon.mutable_header()->mutable_timestamp()->set_nsec(ts.tv_nsec);
+  polygon->mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
+  polygon->mutable_header()->mutable_timestamp()->set_nsec(ts.tv_nsec);
 
   std::vector<Point2D> pts;
   GenArrow(pts);
   for (auto it : pts) {
-    auto ppt = polygon.mutable_polygon()->add_points();
+    auto ppt = polygon->mutable_polygon()->add_points();
     ppt->set_x(it.x + 10);
     ppt->set_y(it.y);
     ppt->set_z(0.);
@@ -576,32 +577,32 @@ struct PointXYZI {
   float z;
   unsigned char intensity;
 };
-void GenPointCloud2(adsfi_proto::viz::PointCloud2& point_cloud) {
+void GenPointCloud2(adsfi_proto::viz::PointCloud2* point_cloud) {
   static int seq = 0;
 
-  point_cloud.mutable_header()->set_frameid("vehicle");
-  point_cloud.mutable_header()->set_seq(seq);
+  point_cloud->mutable_header()->set_frameid("vehicle");
+  point_cloud->mutable_header()->set_seq(seq);
   timespec ts;
   clock_gettime(CLOCK_REALTIME, &ts);
-  point_cloud.mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
-  point_cloud.mutable_header()->mutable_timestamp()->set_nsec(ts.tv_nsec);
+  point_cloud->mutable_header()->mutable_timestamp()->set_sec(ts.tv_sec);
+  point_cloud->mutable_header()->mutable_timestamp()->set_nsec(ts.tv_nsec);
 
-  auto fx = point_cloud.add_fields();
+  auto fx = point_cloud->add_fields();
   fx->set_name("x");
   fx->set_offset(0);
   fx->set_datatype(adsfi_proto::viz::PointField::FLOAT32);
   fx->set_count(1);
-  auto fy = point_cloud.add_fields();
+  auto fy = point_cloud->add_fields();
   fy->set_name("y");
   fy->set_offset(4);
   fy->set_datatype(adsfi_proto::viz::PointField::FLOAT32);
   fy->set_count(1);
-  auto fz = point_cloud.add_fields();
+  auto fz = point_cloud->add_fields();
   fz->set_name("z");
   fz->set_offset(8);
   fz->set_datatype(adsfi_proto::viz::PointField::FLOAT32);
   fz->set_count(1);
-  auto fi = point_cloud.add_fields();
+  auto fi = point_cloud->add_fields();
   fi->set_name("intensity");
   fi->set_offset(12);
   fi->set_datatype(adsfi_proto::viz::PointField::UINT8);
@@ -626,18 +627,18 @@ void GenPointCloud2(adsfi_proto::viz::PointCloud2& point_cloud) {
     data.push_back(lpt);
     data.push_back(rpt);
   }
-  point_cloud.set_height(1);
-  point_cloud.set_width(data.size());
-  char* ptr = (char*)data.data();
+  point_cloud->set_height(1);
+  point_cloud->set_width(data.size());
+  char* ptr = reinterpret_cast<char*>(data.data());
   int bytes_num = data.size() * sizeof(PointXYZI);
   for (int i = 0; i < bytes_num; ++i) {
-    point_cloud.mutable_data()->push_back(ptr[i]);
+    point_cloud->mutable_data()->push_back(ptr[i]);
   }
 
-  point_cloud.set_is_bigendian(false);
-  point_cloud.set_point_step(sizeof(PointXYZI));
-  point_cloud.set_row_step(bytes_num);
-  point_cloud.set_is_dense(true);
+  point_cloud->set_is_bigendian(false);
+  point_cloud->set_point_step(sizeof(PointXYZI));
+  point_cloud->set_row_step(bytes_num);
+  point_cloud->set_is_dense(true);
 
   seq++;
 }

@@ -56,6 +56,10 @@ class Linker {
 
  private:
   void Loop();
+  bool NeedLink();
+  bool ValidAddrs();
+  void OpenSockets();
+  void CloseSockets();
 
  private:
   std::mutex mtx_;

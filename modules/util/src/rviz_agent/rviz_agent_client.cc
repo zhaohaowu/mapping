@@ -32,9 +32,11 @@ int RvizAgentClient::Init(const std::vector<std::string>& addrs) {
 
   void* context = Context::Instance().Get();
   sub_ = SubWorker::Create(context, addrs);
-  auto cbk = std::bind(&RvizAgentClient::CallbackForAllTopics, this,
-                       std::placeholders::_1, std::placeholders::_2,
-                       std::placeholders::_3);
+  auto cbk = [this](auto&& PH1, auto&& PH2, auto&& PH3) {
+    CallbackForAllTopics(std::forward<decltype(PH1)>(PH1),
+                         std::forward<decltype(PH2)>(PH2),
+                         std::forward<decltype(PH3)>(PH3));
+  };
   sub_->RegAll(cbk);
   if (sub_->Init() < 0) {
     HLOG_ERROR << "SubWorker Init failed";
@@ -60,7 +62,7 @@ bool RvizAgentClient::CheckAddr(const std::string& addr) {
 
 void RvizAgentClient::CallbackForAllTopics(const std::string& topic, void* data,
                                            size_t size) {
-  if (topic.empty() || !data || !size) {
+  if (topic.empty() || (data == nullptr) || (size == 0U)) {
     HLOG_ERROR << "Invalid callback data";
     return;
   }

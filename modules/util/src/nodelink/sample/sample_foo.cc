@@ -5,13 +5,15 @@
  *   date       ： 2023.01
  ******************************************************************************/
 
-#include "sample_foo.h"
-
+#include "modules/util/src/nodelink/sample/sample_foo.h"
 #include <yaml-cpp/yaml.h>
 
 #include <iostream>
+#include <memory>
+#include <string>
+#include <utility>
 
-#include "sample_data.h"
+#include "./sample_data.h"
 
 namespace hozon {
 namespace mp {
@@ -35,8 +37,9 @@ int SampleFoo::Init(const std::string& config) {
   pub_foo_ = Advertise(pub_topic);
 
   const std::string sub_topic = "Bar";
-  auto callback = std::bind(&SampleFoo::OnBar, this, std::placeholders::_1,
-                            std::placeholders::_2);
+  auto callback = [this](auto&& PH1, auto&& PH2) {
+    OnBar(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
+  };
   Subscribe(sub_topic, callback);
 
   return 0;
@@ -58,7 +61,7 @@ void SampleFoo::OnBar(void* data, size_t size) {
     std::cout << "Error: wrong size, maybe data is mismatched";
     return;
   }
-  auto* bar = (DataBar*)data;
+  auto* bar = static_cast<DataBar*>(data);
   std::cout << "OnBar " << bar->bar << std::endl;
 }
 

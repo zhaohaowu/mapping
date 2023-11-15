@@ -7,13 +7,14 @@
 
 #include "util/nodelink/core/node.h"
 
-#include "util/nodelink/core/address.h"
 #include "util/nodelink/core/context.h"
 #include "util/nodelink/core/pub_worker.h"
 #include "util/temp_log.h"
 
 namespace hozon {
 namespace mp {
+
+const std::string kLinkerBindAddr = "inproc://LinkerBindAddr"; // NOLINT
 
 int Node::InitNode(const std::string& config) {
   class_name_ = typeid(*this).name();

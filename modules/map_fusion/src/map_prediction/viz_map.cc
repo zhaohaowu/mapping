@@ -152,9 +152,9 @@ void VizMap::VizLocalMapLaneLine(
       id_ -= 1;
     }
     // 存储右边线
-    if (!lane.right_neighbor_forward_lane_id().empty()) {
-      continue;
-    }
+    // if (!lane.right_neighbor_forward_lane_id().empty()) {
+    //   continue;
+    // }
     std::vector<Eigen::Vector3d> right_line_point;
     for (const auto& right_line : lane.right_boundary().curve().segment()) {
       for (const auto& point : right_line.line_segment().point()) {
@@ -414,7 +414,7 @@ void VizMap::AheadLanelineToMarker(
   marker->mutable_pose()->mutable_orientation()->set_z(0.);
   marker->mutable_pose()->mutable_orientation()->set_w(1.);
   marker->mutable_scale()->set_x(
-      0.3);  // 这里lane_line.width()的值都为0，手动改为了0.1
+      0.1);  // 这里lane_line.width()的值都为0，手动改为了0.1
   marker->mutable_lifetime()->set_sec(0);
   //  marker.mutable_lifetime()->set_nsec(500000000);
   marker->mutable_lifetime()->set_nsec(200000000);

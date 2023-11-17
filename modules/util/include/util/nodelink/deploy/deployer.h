@@ -64,9 +64,9 @@ class Deployer {
   void TopoToMd(const std::string& md_path);
 
  private:
-  int Parse(const std::string& deploy_file, DeployerConfig* deployer_config);
+  static int Parse(const std::string& deploy_file, DeployerConfig* deployer_config);
 
-  bool CollectNodeInfo(
+  static bool CollectNodeInfo(
       const std::vector<std::map<std::string, std::string>>& nodes,
       std::vector<DeployerConfig::NodeInfo>* node_infos);
 

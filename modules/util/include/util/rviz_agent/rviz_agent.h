@@ -120,7 +120,7 @@ class RvizAgent {
   void CtrlLoop();
 
   bool CheckPub(const std::string& topic);
-  bool CheckAddr(const std::string& addr);
+  static bool CheckAddr(const std::string& addr);
 
   std::shared_ptr<PubWorker> pub_ = nullptr;
 

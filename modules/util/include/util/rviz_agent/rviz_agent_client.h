@@ -257,7 +257,9 @@ class RvizAgentClient {
   std::map<std::string, std::string> reg_msgs_;
   std::mutex mtx_;
   std::atomic_bool running_ = {false};
-  bool CheckAddr(const std::string& addr);
+  static bool CheckAddr(const std::string& addr);
+  void ProcCtrlMsg(void* data, size_t size);
+  void ProcCommonMsg(const std::string& topic, void* data, size_t size);
   void CallbackForAllTopics(const std::string& topic, void* data, size_t size);
 
   // declare singleton

@@ -111,11 +111,11 @@ class MapPrediction {
   void CreatRoadTable(
       const std::vector<hozon::hdmap::RoadInfoConstPtr>& roads_in_range);
   void CreatIdVector(const std::shared_ptr<hozon::hdmap::Map>& local_msg_);
-  void CreatendIdVector(const hozon::hdmap::Lane& it, std::string& lane_id,
+  void CreatendIdVector(const hozon::hdmap::Lane& it, std::string* lane_id,
                         const LocalLane& local_lane);
   void CreateFarTable(const hozon::hdmap::Lane& it,
                       const LocalLane& local_lane);
-  static void CreateLaneline(const hozon::hdmap::Lane& it, FarLane& far_lane);
+  static void CreateLaneline(const hozon::hdmap::Lane& it, FarLane* far_lane);
   void CreatAddIdVector(const std::vector<std::string>& end_lane_ids_);
   void PredictLeftRightLaneline(
       const std::set<std::string>& topo_section_ids_,
@@ -148,8 +148,8 @@ class MapPrediction {
           predict_lanelines);
   void FitLaneCenterline();
   static void StoreLaneline(const hozon::hdmap::Lane& lane,
-                            std::vector<Vec2d>& left_point,
-                            std::vector<Vec2d>& right_point);
+                            std::vector<Vec2d>* left_point,
+                            std::vector<Vec2d>* right_point);
   void AddSideTopological(
       const std::vector<std::vector<Eigen::Vector3d>>& predict_line,
       const uint32_t& record, const std::string& curr_id);
@@ -158,9 +158,9 @@ class MapPrediction {
   void AddRight(const std::vector<std::vector<Eigen::Vector3d>>& predict_line,
                const std::string& curr_id);
   void AddSideTopoLeft(const std::vector<Eigen::Vector3d>& line,
-                       std::string& id_);
+                       std::string* id_);
   void AddSideTopoRight(const std::vector<Eigen::Vector3d>& line,
-                        std::string& id_);
+                        std::string* id_);
   void AheadTopological(
       const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
           predict_lanelines,
@@ -176,19 +176,19 @@ class MapPrediction {
       const std::vector<std::string>& com_id,
       const std::vector<std::string>& sec_id);
   static void ExpansionLeft(
-      hozon::hdmap::Lane& lane, const int& left_line_id,
+      hdmap::Lane* lane, const int& left_line_id,
       const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
           complete_lines);
   static void ExpansionRight(
-      hozon::hdmap::Lane& lane, const int& right_line_id,
+      hdmap::Lane* lane, const int& right_line_id,
       const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
           complete_lines);
-  void JudgeDiection(uint32_t& com_fit, const std::string& end_id);
+  void JudgeDiection(uint32_t* com_fit, const std::string& end_id);
   static void PointToLineDist(
       const Eigen::Vector3d& end_point,
       const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
           complete_lines,
-      const int& line_id, uint32_t& index, double& min_distance);
+      const int& line_id, uint32_t* index, double* min_distance);
   void AddResTopo();
   static void CatmullRoom(const std::vector<Eigen::Vector3d>& compan_point,
                           std::vector<Eigen::Vector3d>* cat_points);
@@ -198,11 +198,11 @@ class MapPrediction {
   void LaneToLocal();
   void RoadToLocal(const int& zone);
   void VizLocAndHqMap();
-  void DealHqLine(adsfi_proto::viz::MarkerArray& ma);
+  void DealHqLine(adsfi_proto::viz::MarkerArray* ma);
   void LineToMarker(const std::vector<Eigen::Vector3d>& center_pts,
                     const std::vector<Eigen::Vector3d>& left_pts,
                     const std::vector<Eigen::Vector3d>& right_pts,
-                    adsfi_proto::viz::MarkerArray& ma, const std::string& ns);
+                    adsfi_proto::viz::MarkerArray* ma, const std::string& ns);
 
   std::mutex mtx_;
   std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>

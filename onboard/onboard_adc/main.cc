@@ -3,9 +3,6 @@
  * Licensed Hozon
  ******************************************************************************/
 
-#include <stdio.h>
-#include <termios.h>
-
 #include <csignal>
 #include <iostream>
 #include <string>
@@ -13,43 +10,53 @@
 #include "onboard/onboard_adc/include/mapping_onboard.h"
 
 int32_t main(int argc, char** argv) {
-  google::ParseCommandLineFlags(&argc, &argv, true);
-  hozon::mp::MappingAdc mapping;
+  try {
+    google::ParseCommandLineFlags(&argc, &argv, true);
+    hozon::mp::MappingAdc mapping;
 
-  mapping.RegistAlgProcessFunc(
-      "ChassisImuCB", std::bind(&hozon::mp::MappingAdc::ChassisImuCallBack,
-                                &mapping, std::placeholders::_1));
-  mapping.RegistAlgProcessFunc(
-      "LaneCB", std::bind(&hozon::mp::MappingAdc::LaneCallBack, &mapping,
-                          std::placeholders::_1));
-  mapping.RegistAlgProcessFunc(
-      "plugin_cb", std::bind(&hozon::mp::MappingAdc::PluginCallback, &mapping,
-                             std::placeholders::_1));
-  mapping.RegistAlgProcessFunc(
-      "map_service_cycle_cb",
-      std::bind(&hozon::mp::MappingAdc::MapServiceCycleCallback, &mapping,
-                std::placeholders::_1));
-  mapping.RegistAlgProcessFunc(
-      "map_fusion_cycle_cb",
-      std::bind(&hozon::mp::MappingAdc::MapFusionCycleCallback, &mapping,
-                std::placeholders::_1));
+    mapping.RegistAlgProcessFunc("ChassisImuCB", [ObjectPtr =
+                                                      &mapping](auto&& PH1) {
+      return ObjectPtr->ChassisImuCallBack(std::forward<decltype(PH1)>(PH1));
+    });
+    mapping.RegistAlgProcessFunc("LaneCB", [ObjectPtr = &mapping](auto&& PH1) {
+      return ObjectPtr->LaneCallBack(std::forward<decltype(PH1)>(PH1));
+    });
+    mapping.RegistAlgProcessFunc(
+        "plugin_cb", [ObjectPtr = &mapping](auto&& PH1) {
+          return ObjectPtr->PluginCallback(std::forward<decltype(PH1)>(PH1));
+        });
+    mapping.RegistAlgProcessFunc("map_service_cycle_cb",
+                                 [ObjectPtr = &mapping](auto&& PH1) {
+                                   return ObjectPtr->MapServiceCycleCallback(
+                                       std::forward<decltype(PH1)>(PH1));
+                                 });
+    mapping.RegistAlgProcessFunc("map_fusion_cycle_cb",
+                                 [ObjectPtr = &mapping](auto&& PH1) {
+                                   return ObjectPtr->MapFusionCycleCallback(
+                                       std::forward<decltype(PH1)>(PH1));
+                                 });
 
-  std::string work_root = "/opt/app/1";
-  std::string socadf_yaml =
-      "/runtime_service/mapping/conf/"
-      "hz_mapping_config.yaml";
-  const char* env_p = std::getenv("DEBUG_MAPPING_WORK_ROOT");
-  if (env_p != nullptr) {
-    work_root = std::string(env_p);
-    std::cout << "work_root: " << work_root << std::endl;
+    std::string work_root = "/opt/app/1";
+    std::string socadf_yaml =
+        "/runtime_service/mapping/conf/"
+        "hz_mapping_config.yaml";
+    const char* env_p = std::getenv("DEBUG_MAPPING_WORK_ROOT");
+    if (env_p != nullptr) {
+      work_root = std::string(env_p);
+      std::cout << "work_root: " << work_root << std::endl;
+    }
+    std::string abs_yaml = work_root + socadf_yaml;
+    std::cout << "yamal path: " << abs_yaml << std::endl;
+    mapping.Start(abs_yaml);
+
+    while (!mapping.NeedStop()) {
+      sleep(1);
+    }
+    mapping.Stop();
+  } catch (std::exception const& e) {
+    std::cerr << "throw " << e.what() << std::endl;
+  } catch (...) {
+    std::cerr << "throw (...)" << std::endl;
   }
-  std::string abs_yaml = work_root + socadf_yaml;
-  std::cout << "yamal path: " << abs_yaml << std::endl;
-  mapping.Start(abs_yaml);
-
-  while (!mapping.NeedStop()) {
-    sleep(1);
-  }
-  mapping.Stop();
   return 0;
 }

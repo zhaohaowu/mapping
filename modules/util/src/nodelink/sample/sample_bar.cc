@@ -26,7 +26,7 @@ int SampleBar::Init(const std::string& config) {
   pub_bar_ = Advertise(pub_topic);
 
   const std::string sub_topic = "Foo";
-  auto callback = [this](auto&& PH1, auto&& PH2) {
+  auto callback = [](auto&& PH1, auto&& PH2) {
     OnFoo(std::forward<decltype(PH1)>(PH1), std::forward<decltype(PH2)>(PH2));
   };
   Subscribe(sub_topic, callback);

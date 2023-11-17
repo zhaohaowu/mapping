@@ -32,11 +32,11 @@ struct DataBoard {
   static void Adsfi2Proto(const hz_Adsfi::AlgLaneDetectionOutArray &stu,
                           hozon::perception::TransportElement *proto);
 
-  void Adsfi2Proto(
+  static void Adsfi2Proto(
       const std::shared_ptr<hz_Adsfi::AlgImuIns> &imuinsDataPtr_,
       std::shared_ptr<hozon::soc::ImuIns> &imu_proto);  // NOLINT
 
-  void Adsfi2Proto(
+  static void Adsfi2Proto(
       const std::shared_ptr<hz_Adsfi::AlgChassisInfo> &chassisDataPtr_,
       std::shared_ptr<hozon::soc::Chassis> &chassis_proto);  // NOLINT
 

@@ -19,7 +19,6 @@ Eigen::Vector3d Geo::BlhToEnu(const Eigen::Vector3d& pos,
   double dgr2rad = M_PI / 180.0;
   double lat0 = ref[0] * dgr2rad;
   double lon0 = ref[1] * dgr2rad;
-  double alt0 = ref[2];
   double sinlon = std::sin(lon0);
   double coslon = std::cos(lon0);
   double sinlat = std::sin(lat0);
@@ -55,7 +54,6 @@ Eigen::Vector3d Geo::EnuToBlh(const Eigen::Vector3d& pos,
   double rad2dgr = 180.0 / M_PI;
   double lat0 = ref[0] * dgr2rad;
   double lon0 = ref[1] * dgr2rad;
-  double alt0 = ref[2];
   double sinlon = std::sin(lon0);
   double coslon = std::cos(lon0);
   double sinlat = std::sin(lat0);
@@ -98,10 +96,10 @@ Eigen::Vector3d Geo::EnuToGcj02(const Eigen::Vector3d& blh,
 }
 
 void Geo::WgsToUtm(const Eigen::Vector3d& pos, Eigen::Vector3d* const xy) {
-  if (!xy) {
+  if (xy == nullptr) {
     return;
   }
-  int zone = std::floor((pos[1] + 180.0) / 6.0) + 1;
+  int zone = static_cast<int>(std::floor((pos[1] + 180.0) / 6.0) + 1);
   MapWgsToUtm(pos[0] / 180 * PI_, pos[1] / 180 * PI_, UtmCentralMeridian(zone),
               xy);
   (*xy)[0] = (*xy)[0] * utm_scale_factor_ + 500000.0;
@@ -113,11 +111,11 @@ void Geo::WgsToUtm(const Eigen::Vector3d& pos, Eigen::Vector3d* const xy) {
 
 void Geo::LatLonToUtmXy(uint32_t zone, double lon, double lat,
                         Eigen::Vector3d* const xy) {
-  if (!xy) {
+  if (xy == nullptr) {
     return;
   }
-  MapWgsToUtm(lat / 180.0 * M_PI, lon / 180.0 * M_PI, UtmCentralMeridian(zone),
-              xy);
+  MapWgsToUtm(lat / 180.0 * M_PI, lon / 180.0 * M_PI,
+              UtmCentralMeridian(static_cast<int>(zone)), xy);
   (*xy)[0] = (*xy)[0] * utm_scale_factor_ + 500000.0;
   (*xy)[1] = (*xy)[1] * utm_scale_factor_;
   if ((*xy)[1] < 0.0) {
@@ -127,22 +125,21 @@ void Geo::LatLonToUtmXy(uint32_t zone, double lon, double lat,
 
 void Geo::MapWgsToUtm(double phi, double lambda, double lambda0,
                       Eigen::Vector3d* const xy) {
-  if (!xy) {
+  if (xy == nullptr) {
     return;
   }
-  double N, nu2, ep2, t, t2, l;
-  double l3coef, l4coef, l5coef, l6coef;
-  // double tmp;
-  ep2 = (std::pow(sm_a_, 2.0) - std::pow(sm_b_, 2.0)) / std::pow(sm_b_, 2.0);
-  nu2 = ep2 * std::pow(std::cos(phi), 2.0);
-  N = std::pow(sm_a_, 2.0) / (sm_b_ * std::sqrt(1 + nu2));
-  t = std::tan(phi);
-  t2 = t * t;
-  l = lambda - lambda0;
-  l3coef = 1.0 - t2 + nu2;
-  l4coef = 5.0 - t2 + 9 * nu2 + 4.0 * (nu2 * nu2);
-  l5coef = 5.0 - 18.0 * t2 + (t2 * t2) + 14.0 * nu2 - 58.0 * t2 * nu2;
-  l6coef = 61.0 - 58.0 * t2 + (t2 * t2) + 270.0 * nu2 - 330.0 * t2 * nu2;
+
+  double ep2 =
+      (std::pow(sm_a_, 2.0) - std::pow(sm_b_, 2.0)) / std::pow(sm_b_, 2.0);
+  double nu2 = ep2 * std::pow(std::cos(phi), 2.0);
+  double N = std::pow(sm_a_, 2.0) / (sm_b_ * std::sqrt(1 + nu2));
+  double t = std::tan(phi);
+  double t2 = t * t;
+  double l = lambda - lambda0;
+  double l3coef = 1.0 - t2 + nu2;
+  double l4coef = 5.0 - t2 + 9 * nu2 + 4.0 * (nu2 * nu2);
+  double l5coef = 5.0 - 18.0 * t2 + (t2 * t2) + 14.0 * nu2 - 58.0 * t2 * nu2;
+  double l6coef = 61.0 - 58.0 * t2 + (t2 * t2) + 270.0 * nu2 - 330.0 * t2 * nu2;
   (*xy)[0] =
       N * std::cos(phi) * l +
       (N / 6.0 * std::pow(std::cos(phi), 3.0) * l3coef * std::pow(l, 3.0)) +
@@ -162,19 +159,19 @@ double Geo::UtmCentralMeridian(int zone) {
 double Geo::DegToRad(double deg) { return (deg / 180.0 * PI_); }
 
 double Geo::ArcLengthOfMeridian(double phi) {
-  double alpha, beta, gamma, delta, epsilon, n;
-  double result;
-  n = (sm_a_ - sm_b_) / (sm_a_ + sm_b_);
-  alpha = ((sm_a_ + sm_b_) / 2.0) *
-          (1.0 + (std::pow(n, 2.0) / 4.0) + (std::pow(n, 4.0) / 64.0));
-  beta = (-3.0 * n / 2.0) + (9.0 * std::pow(n, 3.0) / 16.0) +
-         (-3.0 * std::pow(n, 5.0) / 32.0);
-  gamma = (15.0 * std::pow(n, 2.0) / 16.0) + (-15.0 * std::pow(n, 4.0) / 32.0);
-  delta =
+  double n = (sm_a_ - sm_b_) / (sm_a_ + sm_b_);
+  double alpha = ((sm_a_ + sm_b_) / 2.0) *
+                 (1.0 + (std::pow(n, 2.0) / 4.0) + (std::pow(n, 4.0) / 64.0));
+  double beta = (-3.0 * n / 2.0) + (9.0 * std::pow(n, 3.0) / 16.0) +
+                (-3.0 * std::pow(n, 5.0) / 32.0);
+  double gamma =
+      (15.0 * std::pow(n, 2.0) / 16.0) + (-15.0 * std::pow(n, 4.0) / 32.0);
+  double delta =
       (-35.0 * std::pow(n, 3.0) / 48.0) + (105.0 * std::pow(n, 5.0) / 256.0);
-  epsilon = (315.0 * std::pow(n, 4.0) / 512.0);
-  result = phi + (beta * std::sin(2.0 * phi)) + (gamma * std::sin(4.0 * phi)) +
-           (delta * std::sin(6.0 * phi)) + (epsilon * std::sin(8.0 * phi));
+  double epsilon = (315.0 * std::pow(n, 4.0) / 512.0);
+  double result =
+      phi + (beta * std::sin(2.0 * phi)) + (gamma * std::sin(4.0 * phi)) +
+      (delta * std::sin(6.0 * phi)) + (epsilon * std::sin(8.0 * phi));
   result = alpha * result;
   return result;
 }
@@ -194,7 +191,7 @@ Vec3d Geo::Wgs84ToGcj02(const Vec3d& blh) {
   d_lon = (d_lon * 180.0) / (a / sqrt_magic * cos(rad_lat) * M_PI);
   double mg_lat = lat + d_lat;
   double mg_lon = lon + d_lon;
-  return Vec3d(mg_lat, mg_lon, blh.z());
+  return {mg_lat, mg_lon, blh.z()};
 }
 
 double Geo::TransformLat(double x, double y) {
@@ -228,28 +225,26 @@ double Geo::UtmXyToSpeed(
   std::vector<double> tmp(4, 0);
   int c = 1;
   int count = 0;
-  for (size_t i = 0;
-       i < pos.size(); ++i) {
+  for (size_t i = 0; i < pos.size(); ++i) {
     if (i == 0) {
-      gradient.emplace_back(std::tuple<double, Eigen::Vector3d>{
+      gradient.emplace_back(
           std::get<0>(pos[1]) - std::get<0>(pos[0]),
           Eigen::Vector3d(std::get<1>(pos[1])[0] - std::get<1>(pos[0])[0],
                           std::get<1>(pos[1])[1] - std::get<1>(pos[0])[1],
-                          std::get<1>(pos[1])[2] - std::get<1>(pos[0])[2])});
+                          std::get<1>(pos[1])[2] - std::get<1>(pos[0])[2]));
     } else if (i + 1 == pos.size()) {
-      gradient.emplace_back(std::tuple<double, Eigen::Vector3d>{
+      gradient.emplace_back(
           std::get<0>(pos[2]) - std::get<0>(pos[1]),
-          Eigen::Vector3d(
-              std::get<1>(pos[i])[0] - std::get<1>(pos[i - 1])[0],
-              std::get<1>(pos[i])[1] - std::get<1>(pos[i - 1])[1],
-              std::get<1>(pos[i])[2] - std::get<1>(pos[i - 1])[2])});
+          Eigen::Vector3d(std::get<1>(pos[i])[0] - std::get<1>(pos[i - 1])[0],
+                          std::get<1>(pos[i])[1] - std::get<1>(pos[i - 1])[1],
+                          std::get<1>(pos[i])[2] - std::get<1>(pos[i - 1])[2]));
     } else {
-      gradient.emplace_back(std::tuple<double, Eigen::Vector3d>{
+      gradient.emplace_back(
           (std::get<0>(pos[2]) - std::get<0>(pos[0])) / 2,
           Eigen::Vector3d(
               (std::get<1>(pos[i + 1])[0] - std::get<1>(pos[i - 1])[0]) / 2,
               (std::get<1>(pos[i + 1])[1] - std::get<1>(pos[i - 1])[1]) / 2,
-              (std::get<1>(pos[i + 1])[2] - std::get<1>(pos[i - 1])[2]) / 2)});
+              (std::get<1>(pos[i + 1])[2] - std::get<1>(pos[i - 1])[2]) / 2));
     }
   }
   std::vector<double> speed(3, 0);
@@ -258,10 +253,10 @@ double Geo::UtmXyToSpeed(
       continue;
     }
     for (size_t i = 0; i < speed.size(); ++i) {
-      if (std::get<1>(g)[i] * speed[i] < 0) {
+      if (std::get<1>(g)[static_cast<int32_t>(i)] * speed[i] < 0) {
         return -1;
       }
-      speed[i] += std::get<1>(g)[i] / std::get<0>(g);
+      speed[i] += std::get<1>(g)[static_cast<int32_t>(i)] / std::get<0>(g);
     }
     ++count;
   }
@@ -269,8 +264,8 @@ double Geo::UtmXyToSpeed(
     return -1;
   }
   double sum = 0;
-  for (size_t i = 0; i < speed.size(); ++i) {
-    auto s = speed[i] / count;
+  for (double i : speed) {
+    auto s = i / count;
     sum += s * s;
   }
   return std::sqrt(sum);

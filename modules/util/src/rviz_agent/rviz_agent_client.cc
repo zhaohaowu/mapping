@@ -60,34 +60,26 @@ bool RvizAgentClient::CheckAddr(const std::string& addr) {
   return true;
 }
 
-void RvizAgentClient::CallbackForAllTopics(const std::string& topic, void* data,
-                                           size_t size) {
-  if (topic.empty() || (data == nullptr) || (size == 0U)) {
-    HLOG_ERROR << "Invalid callback data";
-    return;
+void RvizAgentClient::ProcCtrlMsg(void* data, size_t size) {
+  adsfi_proto::viz::MsgInfoArray infos;
+  infos.ParseFromArray(data, static_cast<int>(size));
+
+  for (const auto& it : infos.msgs()) {
+    reg_msgs_[it.topic()] = it.alias();
   }
-
-  std::lock_guard<std::mutex> lock(mtx_);
-
-  if (topic == kCtrlTopic) {
-    adsfi_proto::viz::MsgInfoArray infos;
-    infos.ParseFromArray(data, static_cast<int>(size));
-
-    for (const auto& it : infos.msgs()) {
-      reg_msgs_[it.topic()] = it.alias();
-    }
-    HLOG_INFO << "recv ctrl msg:\n" << infos.DebugString();
-    std::string msg_str;
-    for (const auto& msg : reg_msgs_) {
-      msg_str += msg.first;
-      msg_str += " : ";
-      msg_str += msg.second;
-      msg_str += "\n";
-    }
-    HLOG_INFO << "all registered msg:\n" << msg_str;
-    return;
+  HLOG_INFO << "recv ctrl msg:\n" << infos.DebugString();
+  std::string msg_str;
+  for (const auto& msg : reg_msgs_) {
+    msg_str += msg.first;
+    msg_str += " : ";
+    msg_str += msg.second;
+    msg_str += "\n";
   }
+  HLOG_INFO << "all registered msg:\n" << msg_str;
+}
 
+void RvizAgentClient::ProcCommonMsg(const std::string& topic, void* data,
+                                    size_t size) {
   const std::string& type = reg_msgs_[topic];
   if (type == kCompressedImage && img_cbk_ != nullptr) {
     auto proto = std::make_shared<adsfi_proto::viz::CompressedImage>();
@@ -138,6 +130,23 @@ void RvizAgentClient::CallbackForAllTopics(const std::string& topic, void* data,
     proto->ParseFromArray(data, static_cast<int>(size));
     occupancy_grid_cbk_(topic, proto);
   }
+}
+
+void RvizAgentClient::CallbackForAllTopics(const std::string& topic, void* data,
+                                           size_t size) {
+  if (topic.empty() || (data == nullptr) || (size == 0U)) {
+    HLOG_ERROR << "Invalid callback data";
+    return;
+  }
+
+  std::lock_guard<std::mutex> lock(mtx_);
+
+  if (topic == kCtrlTopic) {
+    ProcCtrlMsg(data, size);
+    return;
+  }
+
+  ProcCommonMsg(topic, data, size);
 }
 
 void RvizAgentClient::Term() {

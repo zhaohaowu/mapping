@@ -26,7 +26,7 @@ class Rate {
   double ExpectedCycleTime() const;
 
  private:
-  double NowInSeconds();
+  static double NowInSeconds();
   double start_ = 0.;
   double expected_cycle_time_ = 0.;
   double actual_cycle_time_ = 0.;

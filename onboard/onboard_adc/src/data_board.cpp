@@ -18,7 +18,7 @@ DataBoard::DataBoard() {
 
 void DataBoard::Adsfi2Proto(const hz_Adsfi::AlgLaneDetectionOutArray& stu,
                             hozon::perception::TransportElement* proto) {
-  if (!proto) {
+  if (proto == nullptr) {
     return;
   }
 
@@ -28,7 +28,7 @@ void DataBoard::Adsfi2Proto(const hz_Adsfi::AlgLaneDetectionOutArray& stu,
       stu.header.gnssStamp.sec + stu.header.gnssStamp.nsec * 1e-9;
   proto->mutable_header()->set_publish_stamp(tick);
   proto->mutable_header()->set_gnss_stamp(gnssstamp);
-  proto->mutable_header()->set_seq(stu.header.seq);
+  proto->mutable_header()->set_seq(static_cast<int32_t>(stu.header.seq));
   proto->mutable_header()->set_frame_id(stu.header.frameID);
 
   auto all_lanes = stu.laneDetectionFrontOut;
@@ -36,7 +36,7 @@ void DataBoard::Adsfi2Proto(const hz_Adsfi::AlgLaneDetectionOutArray& stu,
                    stu.laneDetectionRearOut.end());
   for (const auto& it : all_lanes) {
     for (const auto& itt : it) {
-      auto proto_line = proto->add_lane();
+      auto* proto_line = proto->add_lane();
       // proto_line->set_track_id(itt.track_id);
       switch (static_cast<int>(itt.cls)) {
         case 0:  // 单实线
@@ -114,13 +114,13 @@ void DataBoard::Adsfi2Proto(const hz_Adsfi::AlgLaneDetectionOutArray& stu,
       }
 
       for (const auto& rpt : itt.pointVehicleCoord) {
-        auto ppt = proto_line->add_points();
+        auto* ppt = proto_line->add_points();
         ppt->set_x(rpt.x);
         ppt->set_y(rpt.y);
         ppt->set_z(rpt.z);
       }
 
-      auto curve = proto_line->mutable_lane_param()->add_cubic_curve_set();
+      auto* curve = proto_line->mutable_lane_param()->add_cubic_curve_set();
       curve->set_start_point_x(itt.laneFit.xStartVRF);
       curve->set_end_point_x(itt.laneFit.xEndVRF);
       curve->set_c0(itt.laneFit.coefficients.d);  // x^0
@@ -168,7 +168,8 @@ void DataBoard::Adsfi2Proto(
     return;
   }
 
-  imu_proto->mutable_header()->set_seq(imuinsDataPtr_->header.seq);
+  imu_proto->mutable_header()->set_seq(
+      static_cast<int32_t>(imuinsDataPtr_->header.seq));
   const double tick = imuinsDataPtr_->header.timestamp.sec +
                       imuinsDataPtr_->header.timestamp.nsec * 1e-9;
   const double gnssstamp = imuinsDataPtr_->header.gnssStamp.sec +
@@ -242,8 +243,6 @@ void DataBoard::Adsfi2Proto(
 
   imu_proto->set_gps_sec(imuinsDataPtr_->gpsSec);
   imu_proto->set_gps_week(imuinsDataPtr_->gpsWeek);
-
-  return;
 }
 
 void DataBoard::Adsfi2Proto(
@@ -286,9 +285,6 @@ void DataBoard::Adsfi2Proto(
           hozon::soc::Chassis::GearPosition::Chassis_GearPosition_GEAR_LOW);
       break;
     case 7:
-      chassis_proto->set_gear_location(
-          hozon::soc::Chassis::GearPosition::Chassis_GearPosition_GEAR_INVALID);
-      break;
     default:
       chassis_proto->set_gear_location(
           hozon::soc::Chassis::GearPosition::Chassis_GearPosition_GEAR_INVALID);
@@ -439,13 +435,13 @@ void DataBoard::Adsfi2Proto(
 
 void DataBoard::Adsfi2Proto(const hz_Adsfi::AlgLocationNodeInfo& stu,
                             hozon::localization::HafNodeInfo* const proto) {
-  if (!proto) {
+  if (proto == nullptr) {
     return;
   }
 
   const auto& node_info = stu.location_node_info;
   proto->Clear();
-  proto->mutable_header()->set_seq(node_info.header.seq);
+  proto->mutable_header()->set_seq(static_cast<int32_t>(node_info.header.seq));
   proto->mutable_header()->set_frame_id(node_info.header.frameId);
 
   const double tick =

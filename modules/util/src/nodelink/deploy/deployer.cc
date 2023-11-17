@@ -305,7 +305,7 @@ int Deployer::InitLinkerAndLinkNodes() {
 }
 
 int Deployer::StartNodes() {
-  for (auto& n : inited_nodes_) {
+  for (const auto& n : inited_nodes_) {
     if (n.second) {
       HLOG_INFO << "Start node " << n.first;
       if (n.second->StartNode() < 0) {
@@ -322,7 +322,8 @@ bool Deployer::LinkNode() {
     return false;
   }
 
-  for (auto& n : inited_nodes_) {
+  // NOLINTNEXTLINE
+  for (const auto& n : inited_nodes_) {
     if (n.second == nullptr) {
       continue;
     }
@@ -340,6 +341,7 @@ bool Deployer::LinkFrontend() {
     return false;
   }
 
+  // NOLINTNEXTLINE
   for (const auto& addr : deployer_config_.external.sub_from_external) {
     if (linker_->LinkFrontend(addr) < 0) {
       HLOG_ERROR << "Link sub external addr " << addr << " failed";
@@ -355,6 +357,7 @@ bool Deployer::LinkBackend() {
     return false;
   }
 
+  // NOLINTNEXTLINE
   for (const auto& addr : deployer_config_.external.pub_to_external) {
     if (linker_->LinkBackend(addr) < 0) {
       HLOG_ERROR << "Link pub external addr " << addr << " failed";

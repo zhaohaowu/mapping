@@ -92,7 +92,7 @@ for rep in report['reports']:
 
 other_num = total_num - sum(stat_nums)
 
-stat_str = '----== Statistics by directories ==----\n'
+stat_str = '\n----== Statistics by directories ==----\n'
 for (stat_dir, stat_num) in zip(STAT_DIRS, stat_nums):
   stat_str += stat_dir + ': ' + str(stat_num) + '\n'
 stat_str += 'OTHERS: ' + str(other_num) + '\n'

@@ -476,19 +476,19 @@ void MapPrediction::CreatIdVector(
     const auto& local_lane = lane_table_[lane_id];
     topo_section_ids_.insert(local_lane.section_id);
 
-    CreatendIdVector(it, lane_id, local_lane);
+    CreatendIdVector(it, &lane_id, local_lane);
     CreateFarTable(it, local_lane);
   }
 }
 
 void MapPrediction::CreatendIdVector(const hozon::hdmap::Lane& it,
-                                     std::string& lane_id,
+                                     std::string* lane_id,
                                      const LocalLane& local_lane) {
   // 创建end_lane_id和end_section_id表
   if (!it.successor_id().empty()) {
     return;
   }
-  end_lane_ids_.emplace_back(lane_id);
+  end_lane_ids_.emplace_back(*lane_id);
   end_section_ids_.insert(local_lane.section_id);
 
   // 判断当前lane是否都有左右边线
@@ -496,11 +496,11 @@ void MapPrediction::CreatendIdVector(const hozon::hdmap::Lane& it,
   auto right_seg = it.right_boundary().curve().segment_size();
   while ((left_seg == 0 && right_seg != 0) ||
          (left_seg != 0 && right_seg == 0)) {
-    if (lane_table_.find(lane_id) == lane_table_.end() ||
-        lane_table_.at(lane_id).prev_lane_ids.empty()) {
+    if (lane_table_.find(*lane_id) == lane_table_.end() ||
+        lane_table_.at(*lane_id).prev_lane_ids.empty()) {
       break;
     }
-    const auto& prev_id = lane_table_.at(lane_id).prev_lane_ids[0];
+    const auto& prev_id = lane_table_.at(*lane_id).prev_lane_ids[0];
     if (lane_table_.find(prev_id) == lane_table_.end()) {
       break;
     }
@@ -517,7 +517,7 @@ void MapPrediction::CreatendIdVector(const hozon::hdmap::Lane& it,
       if (itt.id().id() == prev_id) {
         left_seg = itt.left_boundary().curve().segment_size();
         right_seg = itt.right_boundary().curve().segment_size();
-        lane_id = itt.id().id();
+        *lane_id = itt.id().id();
         break;
       }
       count += 1;
@@ -568,7 +568,7 @@ void MapPrediction::CreateFarTable(const hozon::hdmap::Lane& it,
     FarLane far_lane;
     far_lane.lane_id = lane_id;
     far_lane.flag = 0;
-    CreateLaneline(it, far_lane);
+    CreateLaneline(it, &far_lane);
     far_table_.insert_or_assign(lane_id, far_lane);
   }
   if ((it.right_neighbor_forward_lane_id().empty() &&
@@ -578,7 +578,7 @@ void MapPrediction::CreateFarTable(const hozon::hdmap::Lane& it,
     FarLane far_lane;
     far_lane.lane_id = lane_id;
     far_lane.flag = 1;
-    CreateLaneline(it, far_lane);
+    CreateLaneline(it, &far_lane);
     far_table_.insert_or_assign(lane_id, far_lane);
   }
 
@@ -588,34 +588,34 @@ void MapPrediction::CreateFarTable(const hozon::hdmap::Lane& it,
     FarLane far_lane;
     far_lane.lane_id = lane_id;
     far_lane.flag = 2;
-    CreateLaneline(it, far_lane);
+    CreateLaneline(it, &far_lane);
     far_table_.insert_or_assign(lane_id, far_lane);
   }
 }
 
 void MapPrediction::CreateLaneline(const hozon::hdmap::Lane& it,
-                                   FarLane& far_lane) {
+                                   FarLane* far_lane) {
   // 存储车道的两个边线
   for (const auto& itt : it.left_boundary().curve().segment()) {
     for (const auto& point : itt.line_segment().point()) {
       Eigen::Vector3d left_line(point.x(), point.y(), point.z());
-      if (!far_lane.left_line.empty() &&
-          std::find(far_lane.left_line.begin(), far_lane.left_line.end(),
-                    left_line) != far_lane.left_line.end()) {
+      if (!far_lane->left_line.empty() &&
+          std::find(far_lane->left_line.begin(), far_lane->left_line.end(),
+                    left_line) != far_lane->left_line.end()) {
         continue;
       }
-      far_lane.left_line.emplace_back(left_line);
+      far_lane->left_line.emplace_back(left_line);
     }
   }
   for (const auto& itt : it.right_boundary().curve().segment()) {
     for (const auto& point : itt.line_segment().point()) {
       Eigen::Vector3d right_line(point.x(), point.y(), point.z());
-      if (!far_lane.right_line.empty() &&
-          std::find(far_lane.right_line.begin(), far_lane.right_line.end(),
-                    right_line) != far_lane.right_line.end()) {
+      if (!far_lane->right_line.empty() &&
+          std::find(far_lane->right_line.begin(), far_lane->right_line.end(),
+                    right_line) != far_lane->right_line.end()) {
         continue;
       }
-      far_lane.right_line.emplace_back(right_line);
+      far_lane->right_line.emplace_back(right_line);
     }
   }
 }
@@ -881,7 +881,7 @@ void MapPrediction::AddLeft(
       flag = false;
       continue;
     }
-    AddSideTopoLeft(line, id_);
+    AddSideTopoLeft(line, &id_);
     if (id_.empty()) {
       break;
     }
@@ -912,7 +912,7 @@ void MapPrediction::AddRight(
       flag = false;
       continue;
     }
-    AddSideTopoRight(line, id_);
+    AddSideTopoRight(line, &id_);
     if (id_.empty()) {
       break;
     }
@@ -920,31 +920,31 @@ void MapPrediction::AddRight(
 }
 
 void MapPrediction::AddSideTopoLeft(const std::vector<Eigen::Vector3d>& line,
-                                    std::string& id_) {
+                                    std::string* id_) {
   // 预测左
   // 从topo_map_中找取对应id的左邻和后继id
   std::string id_left_id;
   std::string id_next_id;
 
   // 这里要注意id_left_id/id_next_id是否为空
-  if (lane_table_.find(id_) == lane_table_.end()) {
+  if (lane_table_.find(*id_) == lane_table_.end()) {
     HLOG_ERROR << "lane not found in lane_table";
     return;
   }
-  if (lane_table_.at(id_).left_lane_ids.empty()) {
+  if (lane_table_.at(*id_).left_lane_ids.empty()) {
     HLOG_ERROR << "left lane id is empty!";
     return;
   }
-  id_left_id = lane_table_.at(id_).left_lane_ids.front();
+  id_left_id = lane_table_.at(*id_).left_lane_ids.front();
   if (std::find(topo_lane_ids_.begin(), topo_lane_ids_.end(), id_left_id) !=
       topo_lane_ids_.end()) {
     HLOG_ERROR << "new lane id has in topo_lane_ids";
     for (auto& lane : *local_msg_->mutable_lane()) {
-      if (lane.id().id() == id_) {
+      if (lane.id().id() == *id_) {
         lane.add_left_neighbor_reverse_lane_id()->set_id(id_left_id);
       }
       if (lane.id().id() == id_left_id) {
-        lane.add_right_neighbor_forward_lane_id()->set_id(id_);
+        lane.add_right_neighbor_forward_lane_id()->set_id(*id_);
       }
     }
     return;
@@ -955,8 +955,8 @@ void MapPrediction::AddSideTopoLeft(const std::vector<Eigen::Vector3d>& line,
   new_lane->mutable_id()->set_id(id_left_id);
   topo_lane_ids_.emplace_back(id_left_id);
 
-  if (!lane_table_.at(id_).next_lane_ids.empty()) {
-    id_next_id = lane_table_.at(id_).next_lane_ids.front();
+  if (!lane_table_.at(*id_).next_lane_ids.empty()) {
+    id_next_id = lane_table_.at(*id_).next_lane_ids.front();
   }
 
   // new_lane赋予新几何
@@ -989,7 +989,7 @@ void MapPrediction::AddSideTopoLeft(const std::vector<Eigen::Vector3d>& line,
 
   // new_lane加入到local_msg
   for (auto& lane : *local_msg_->mutable_lane()) {
-    if (lane.id().id() == id_ && !id_.empty()) {
+    if (lane.id().id() == *id_ && !id_->empty()) {
       new_lane->mutable_right_boundary()->CopyFrom(lane.left_boundary());
       // new_lane->add_right_neighbor_forward_lane_id()->set_id(lane.id().id());
       // lane.add_left_neighbor_forward_lane_id()->set_id(new_lane->id().id());
@@ -1004,35 +1004,35 @@ void MapPrediction::AddSideTopoLeft(const std::vector<Eigen::Vector3d>& line,
   //   }
   // }
 
-  id_ = id_left_id;
+  *id_ = id_left_id;
 }
 
 void MapPrediction::AddSideTopoRight(const std::vector<Eigen::Vector3d>& line,
-                                     std::string& id_) {
+                                     std::string* id_) {
   // 预测右
   // 从topo_map_中找取对应id的左邻和后继id
   std::string id_right_id;
   std::string id_next_id;
 
   // 这里要注意id_left_id/id_next_id是否为空
-  if (lane_table_.find(id_) == lane_table_.end()) {
+  if (lane_table_.find(*id_) == lane_table_.end()) {
     HLOG_ERROR << "lane not found in lane_table";
     return;
   }
-  if (lane_table_.at(id_).right_lane_ids.empty()) {
+  if (lane_table_.at(*id_).right_lane_ids.empty()) {
     HLOG_ERROR << "left lane id is empty!";
     return;
   }
-  id_right_id = lane_table_.at(id_).right_lane_ids.front();
+  id_right_id = lane_table_.at(*id_).right_lane_ids.front();
   if (std::find(topo_lane_ids_.begin(), topo_lane_ids_.end(), id_right_id) !=
       topo_lane_ids_.end()) {
     HLOG_ERROR << "lane id has in topo_lane_ids";
     for (auto& lane : *local_msg_->mutable_lane()) {
-      if (lane.id().id() == id_) {
+      if (lane.id().id() == *id_) {
         lane.add_right_neighbor_reverse_lane_id()->set_id(id_right_id);
       }
       if (lane.id().id() == id_right_id) {
-        lane.add_left_neighbor_forward_lane_id()->set_id(id_);
+        lane.add_left_neighbor_forward_lane_id()->set_id(*id_);
       }
     }
     return;
@@ -1042,8 +1042,8 @@ void MapPrediction::AddSideTopoRight(const std::vector<Eigen::Vector3d>& line,
   // 赋予id
   new_lane->mutable_id()->set_id(id_right_id);
   topo_lane_ids_.emplace_back(id_right_id);
-  if (!lane_table_.at(id_).next_lane_ids.empty()) {
-    id_next_id = lane_table_.at(id_).next_lane_ids.front();
+  if (!lane_table_.at(*id_).next_lane_ids.empty()) {
+    id_next_id = lane_table_.at(*id_).next_lane_ids.front();
   }
 
   // new_lane赋予新几何
@@ -1073,7 +1073,7 @@ void MapPrediction::AddSideTopoRight(const std::vector<Eigen::Vector3d>& line,
 
   // new_lane加入到local_msg中
   for (auto& lane : *local_msg_->mutable_lane()) {
-    if (lane.id().id() == id_ && !id_.empty()) {
+    if (lane.id().id() == *id_ && !id_->empty()) {
       new_lane->mutable_left_boundary()->CopyFrom(lane.right_boundary());
       // new_lane->add_left_neighbor_forward_lane_id()->set_id(lane.id().id());
       // lane.add_right_neighbor_forward_lane_id()->set_id(new_lane->id().id());
@@ -1089,7 +1089,7 @@ void MapPrediction::AddSideTopoRight(const std::vector<Eigen::Vector3d>& line,
   //   }
   // }
 
-  id_ = id_right_id;
+  *id_ = id_right_id;
 }
 
 void MapPrediction::PredictAheadLaneLine(
@@ -1250,7 +1250,7 @@ void MapPrediction::ExpansionLaneLine(
       }
       // 定义全局标识符
       uint32_t com_fit = 2;
-      JudgeDiection(com_fit, end_id);
+      JudgeDiection(&com_fit, end_id);
       // 求该道路的两个边界到拟合的车道线的最近距离
       int seq = 0;  // section_id从右-->左
       for (const auto& it : sec_id) {
@@ -1273,7 +1273,7 @@ void MapPrediction::ExpansionLaneLine(
         // if (lane.left_boundary().curve().segment().empty()) {
         //   continue;
         // }
-        ExpansionLeft(lane, left_line_id, complete_lines);
+        ExpansionLeft(&lane, left_line_id, complete_lines);
       }
 
       if ((com_fit == 1 || com_fit == 2) &&
@@ -1286,7 +1286,7 @@ void MapPrediction::ExpansionLaneLine(
         // if (lane.right_boundary().curve().segment().empty()) {
         //   continue;
         // }
-        ExpansionRight(lane, right_line_id, complete_lines);
+        ExpansionRight(&lane, right_line_id, complete_lines);
       }
     }
   }
@@ -1294,30 +1294,30 @@ void MapPrediction::ExpansionLaneLine(
   // viz_map_.VizCompanLane(compan_lines);
 }
 
-void MapPrediction::JudgeDiection(uint32_t& com_fit,
+void MapPrediction::JudgeDiection(uint32_t* com_fit,
                                   const std::string& end_id) {
   // 判断左右延伸方向
   if (end_prev_ids_.find(end_id) != end_prev_ids_.end() &&
       end_prev_ids_.at(end_id) == 0) {
     // 只延伸左侧
-    com_fit = 0;
+    *com_fit = 0;
   } else if (end_prev_ids_.find(end_id) != end_prev_ids_.end() &&
              end_prev_ids_.at(end_id) == 1) {
     // 只延伸右侧
-    com_fit = 1;
+    *com_fit = 1;
   } else {
     // 左右都延伸
-    com_fit = 2;
+    *com_fit = 2;
   }
 }
 
 void MapPrediction::ExpansionLeft(
-    hozon::hdmap::Lane& lane, const int& left_line_id,
+    hdmap::Lane* lane, const int& left_line_id,
     const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
         complete_lines) {
   // 延伸左
-  int seg_size = lane.left_boundary().curve().segment().size();
-  int point_size = lane.left_boundary()
+  int seg_size = lane->left_boundary().curve().segment().size();
+  int point_size = lane->left_boundary()
                        .curve()
                        .segment()[seg_size - 1]
                        .line_segment()
@@ -1329,7 +1329,7 @@ void MapPrediction::ExpansionLeft(
   }
   // 存储左边线的所有点
   std::vector<Eigen::Vector3d> com_left_line;
-  for (const auto& seg : lane.left_boundary().curve().segment()) {
+  for (const auto& seg : lane->left_boundary().curve().segment()) {
     for (const auto& point : seg.line_segment().point()) {
       Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
       com_left_line.emplace_back(point_enu);
@@ -1344,15 +1344,15 @@ void MapPrediction::ExpansionLeft(
   uint32_t flag_count_left = 0;
 
   // uint32_t count_left = 0;  // 记录从第几个点开始扩充
-  PointToLineDist(left_end_point, complete_lines, left_line_id, flag_count_left,
-                  min_distance_left);
+  PointToLineDist(left_end_point, complete_lines, left_line_id,
+                  &flag_count_left, &min_distance_left);
   // 判断是否满足距离要求
   if (min_distance_left == std::numeric_limits<double>::max()) {
     return;
   }
 
   // STD!!!!
-  auto seg_num = lane.left_boundary().curve().segment_size();
+  auto seg_num = lane->left_boundary().curve().segment_size();
   // 临时加入判断条件
   if (seg_num == 0 || flag_count_left == 0) {
     return;
@@ -1362,7 +1362,7 @@ void MapPrediction::ExpansionLeft(
   if (complete_lines[left_line_id].second.size() - flag_count_left <= 2) {
     // 直接连接complete_lines中的最后一个点
     const auto& complete_line_size = complete_lines[left_line_id].second.size();
-    auto* pt = lane.mutable_left_boundary()
+    auto* pt = lane->mutable_left_boundary()
                    ->mutable_curve()
                    ->mutable_segment(seg_size - 1)
                    ->mutable_line_segment()
@@ -1374,7 +1374,7 @@ void MapPrediction::ExpansionLeft(
     if (com_left_line.size() <= 2) {
       for (size_t i = flag_count_left + 2;
            i < complete_lines[left_line_id].second.size(); ++i) {
-        auto* pt = lane.mutable_left_boundary()
+        auto* pt = lane->mutable_left_boundary()
                        ->mutable_curve()
                        ->mutable_segment(seg_size - 1)
                        ->mutable_line_segment()
@@ -1400,7 +1400,7 @@ void MapPrediction::ExpansionLeft(
       CatmullRoom(interp_points, &cat_points);
       // cat_points.emplace_back(com_second);
       // 去除最后一个点
-      auto* ptt = lane.mutable_left_boundary()
+      auto* ptt = lane->mutable_left_boundary()
                       ->mutable_curve()
                       ->mutable_segment(seg_size - 1)
                       ->mutable_line_segment()
@@ -1412,7 +1412,7 @@ void MapPrediction::ExpansionLeft(
 
       for (size_t i = flag_count_left + 2;
            i < complete_lines[left_line_id].second.size(); ++i) {
-        auto* pt = lane.mutable_left_boundary()
+        auto* pt = lane->mutable_left_boundary()
                        ->mutable_curve()
                        ->mutable_segment(seg_size - 1)
                        ->mutable_line_segment()
@@ -1426,12 +1426,12 @@ void MapPrediction::ExpansionLeft(
 }
 
 void MapPrediction::ExpansionRight(
-    hozon::hdmap::Lane& lane, const int& right_line_id,
+    hdmap::Lane* lane, const int& right_line_id,
     const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
         complete_lines) {
   // 延伸右
-  int seg_size_ = lane.right_boundary().curve().segment().size();
-  int point_size_ = lane.right_boundary()
+  int seg_size_ = lane->right_boundary().curve().segment().size();
+  int point_size_ = lane->right_boundary()
                         .curve()
                         .segment(seg_size_ - 1)
                         .line_segment()
@@ -1443,7 +1443,7 @@ void MapPrediction::ExpansionRight(
   }
   // 存储右边线的所有点
   std::vector<Eigen::Vector3d> com_right_line;
-  for (const auto& seg : lane.right_boundary().curve().segment()) {
+  for (const auto& seg : lane->right_boundary().curve().segment()) {
     for (const auto& point : seg.line_segment().point()) {
       Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
       com_right_line.emplace_back(point_enu);
@@ -1458,13 +1458,13 @@ void MapPrediction::ExpansionRight(
 
   // uint32_t count_right = 1;  // 记录从第几个点开始扩充
   PointToLineDist(right_end_point, complete_lines, right_line_id,
-                  flag_count_right, min_distance_right);
+                  &flag_count_right, &min_distance_right);
   // 判断是否满足距离要求
   if (min_distance_right == std::numeric_limits<double>::max()) {
     return;
   }
 
-  auto seg_num_right = lane.right_boundary().curve().segment_size();
+  auto seg_num_right = lane->right_boundary().curve().segment_size();
   // 临时加入判断条件
   if (seg_num_right == 0 || flag_count_right == 0) {
     return;
@@ -1475,7 +1475,7 @@ void MapPrediction::ExpansionRight(
     // 直接连接complete_lines中的最后一个点
     const auto& complete_line_size =
         complete_lines[right_line_id].second.size();
-    auto* pt = lane.mutable_right_boundary()
+    auto* pt = lane->mutable_right_boundary()
                    ->mutable_curve()
                    ->mutable_segment(seg_size_ - 1)
                    ->mutable_line_segment()
@@ -1487,7 +1487,7 @@ void MapPrediction::ExpansionRight(
     if (com_right_line.size() <= 2) {
       for (size_t i = flag_count_right + 2;
            i < complete_lines[right_line_id].second.size(); ++i) {
-        auto* pt = lane.mutable_right_boundary()
+        auto* pt = lane->mutable_right_boundary()
                        ->mutable_curve()
                        ->mutable_segment(seg_size_ - 1)
                        ->mutable_line_segment()
@@ -1513,7 +1513,7 @@ void MapPrediction::ExpansionRight(
       CatmullRoom(interp_points_right, &cat_points);
       // cat_points.emplace_back(com_second);
 
-      auto* ptt = lane.mutable_right_boundary()
+      auto* ptt = lane->mutable_right_boundary()
                       ->mutable_curve()
                       ->mutable_segment(seg_size_ - 1)
                       ->mutable_line_segment()
@@ -1525,7 +1525,7 @@ void MapPrediction::ExpansionRight(
 
       for (size_t i = flag_count_right + 2;
            i < complete_lines[right_line_id].second.size(); ++i) {
-        auto* pt = lane.mutable_right_boundary()
+        auto* pt = lane->mutable_right_boundary()
                        ->mutable_curve()
                        ->mutable_segment(seg_size_ - 1)
                        ->mutable_line_segment()
@@ -1542,7 +1542,7 @@ void MapPrediction::PointToLineDist(
     const Eigen::Vector3d& end_point,
     const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
         complete_lines,
-    const int& line_id, uint32_t& index, double& min_distance) {
+    const int& line_id, uint32_t* index, double* min_distance) {
   // point to line distance
   uint32_t count = 1;  // 记录从第几个点开始扩充
   for (size_t i = 1; i < complete_lines[line_id].second.size(); ++i) {
@@ -1567,9 +1567,9 @@ void MapPrediction::PointToLineDist(
     t = std::max(0.0, std::min(t, 1.0));
     Eigen::Vector3d C = A + t * AB;  // 点到线段的最近点
     double dis = (P - C).norm();
-    if (dis < min_distance && dis < 3.75) {
-      min_distance = dis;
-      index = count;
+    if (dis < *min_distance && dis < 3.75) {
+      *min_distance = dis;
+      *index = count;
     }
     break;
   }
@@ -2168,7 +2168,7 @@ void MapPrediction::FitLaneCenterline() {
     std::vector<Vec2d> right_point;
 
     // 存储左右边线
-    StoreLaneline(lane, left_point, right_point);
+    StoreLaneline(lane, &left_point, &right_point);
     std::vector<Vec2d> cent_points;
     if (left_point.empty() || right_point.empty()) {
       continue;
@@ -2198,29 +2198,30 @@ void MapPrediction::FitLaneCenterline() {
 }
 
 void MapPrediction::StoreLaneline(const hozon::hdmap::Lane& lane,
-                                  std::vector<Vec2d>& left_point,
-                                  std::vector<Vec2d>& right_point) {
+                                  std::vector<Vec2d>* left_point,
+                                  std::vector<Vec2d>* right_point) {
   // 存储左
   for (const auto& seg : lane.left_boundary().curve().segment()) {
     for (const auto& point : seg.line_segment().point()) {
       Vec2d point_enu(point.x(), point.y());
-      if (!left_point.empty() && std::find(left_point.begin(), left_point.end(),
-                                           point_enu) != left_point.end()) {
+      if (!left_point->empty() &&
+          std::find(left_point->begin(), left_point->end(), point_enu) !=
+              left_point->end()) {
         continue;
       }
-      left_point.emplace_back(point_enu);
+      left_point->emplace_back(point_enu);
     }
   }
   // 存储右
   for (const auto& seg : lane.right_boundary().curve().segment()) {
     for (const auto& point : seg.line_segment().point()) {
       Vec2d point_enu(point.x(), point.y());
-      if (!right_point.empty() &&
-          std::find(right_point.begin(), right_point.end(), point_enu) !=
-              right_point.end()) {
+      if (!right_point->empty() &&
+          std::find(right_point->begin(), right_point->end(), point_enu) !=
+              right_point->end()) {
         continue;
       }
-      right_point.emplace_back(point_enu);
+      right_point->emplace_back(point_enu);
     }
   }
 }
@@ -2618,14 +2619,14 @@ void MapPrediction::VizLocAndHqMap() {
   }
 
   adsfi_proto::viz::MarkerArray ma;
-  DealHqLine(ma);
+  DealHqLine(&ma);
 
   if (!ma.markers().empty()) {
     RVIZ_AGENT.Publish(FLAGS_viz_topic_map_in_local, ma);
   }
 }
 
-void MapPrediction::DealHqLine(adsfi_proto::viz::MarkerArray& ma) {
+void MapPrediction::DealHqLine(adsfi_proto::viz::MarkerArray* ma) {
   for (const auto& hq_lane : hq_map_->lane()) {
     std::string ns = hq_lane.id().id();
     std::vector<Eigen::Vector3d> center_pts;
@@ -2658,11 +2659,11 @@ void MapPrediction::DealHqLine(adsfi_proto::viz::MarkerArray& ma) {
 void MapPrediction::LineToMarker(const std::vector<Eigen::Vector3d>& center_pts,
                                  const std::vector<Eigen::Vector3d>& left_pts,
                                  const std::vector<Eigen::Vector3d>& right_pts,
-                                 adsfi_proto::viz::MarkerArray& ma,
+                                 adsfi_proto::viz::MarkerArray* ma,
                                  const std::string& ns) {
   // 可视化
   if (!center_pts.empty()) {
-    auto* marker = ma.add_markers();
+    auto* marker = ma->add_markers();
     marker->mutable_header()->set_frameid(kLocalFrameId_);
     marker->mutable_header()->mutable_timestamp()->set_sec(sec_);
     marker->mutable_header()->mutable_timestamp()->set_nsec(nsec_);
@@ -2692,7 +2693,7 @@ void MapPrediction::LineToMarker(const std::vector<Eigen::Vector3d>& center_pts,
   }
 
   if (!left_pts.empty()) {
-    auto* marker = ma.add_markers();
+    auto* marker = ma->add_markers();
     marker->mutable_header()->set_frameid(kLocalFrameId_);
     marker->mutable_header()->mutable_timestamp()->set_sec(sec_);
     marker->mutable_header()->mutable_timestamp()->set_nsec(nsec_);
@@ -2722,7 +2723,7 @@ void MapPrediction::LineToMarker(const std::vector<Eigen::Vector3d>& center_pts,
   }
 
   if (!right_pts.empty()) {
-    auto* marker = ma.add_markers();
+    auto* marker = ma->add_markers();
     marker->mutable_header()->set_frameid(kLocalFrameId_);
     marker->mutable_header()->mutable_timestamp()->set_sec(sec_);
     marker->mutable_header()->mutable_timestamp()->set_nsec(nsec_);

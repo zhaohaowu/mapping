@@ -28,8 +28,7 @@ namespace mp {
 
 class MappingAdc : public hz_Adsfi::NodeBase {
  public:
-  virtual int32_t AlgInit();
-  int32_t Process(hz_Adsfi::NodeBundle* input);  // map_fusion,10hz运行
+  int32_t AlgInit() override;
   int32_t ChassisImuCallBack(
       hz_Adsfi::NodeBundle* input);  // chassis和imu回调，回调中notify_one
                                      // dr线程
@@ -41,13 +40,20 @@ class MappingAdc : public hz_Adsfi::NodeBase {
   int32_t MapServiceCycleCallback(hz_Adsfi::NodeBundle* input);
   int32_t MapFusionCycleCallback(hz_Adsfi::NodeBundle* input);
 
-  virtual void AlgRelease();
+  void AlgRelease() override;
 
  private:
   template <typename T>
-  const std::string Node2Xyz(const T& p);
+  std::string Node2Xyz(const T& p);
   template <typename T>
-  const std::string Node2Xyzw(const T& p);
+  std::string Node2Xyzw(const T& p);
+
+  std::shared_ptr<hozon::localization::Localization> GetLatestLoc();
+  std::shared_ptr<hozon::mapping::LocalMap> GetLatestLocalMap();
+  std::shared_ptr<hozon::routing::RoutingResponse> GetLatestRouting();
+  int SendFusionResult(const std::shared_ptr<hozon::localization::Localization>& loc,
+      const std::shared_ptr<hozon::hdmap::Map>& map,
+                        const std::shared_ptr<hozon::routing::RoutingResponse>& routing);
 
  private:
   std::unique_ptr<std::thread> dr_thread_ptr_;

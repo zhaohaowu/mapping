@@ -33,7 +33,7 @@ class SampleBar : public Node {
   void Stop() override;
 
  private:
-  void OnFoo(void* data, size_t size);
+  static void OnFoo(void* data, size_t size);
 
   void Proc();
 

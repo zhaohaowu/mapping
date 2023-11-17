@@ -41,40 +41,37 @@ class VizMap {
   int Init();
 
  public:
-  void VizLocalMapLaneLine(
-      const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-          localMapLaneLines,
-      const std::shared_ptr<hozon::hdmap::Map>& msg);
-  void PointsToMarker(const double stamp,
-                      const std::vector<Eigen::Vector3d>& points,
-                      adsfi_proto::viz::Marker* marker, double color_type);
+  void VizLocalMapLaneLine(const std::shared_ptr<hozon::hdmap::Map>& msg);
+  void StoreLaneLine(
+      const std::shared_ptr<hozon::hdmap::Map>& msg,
+      std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
+          localmap_lanelines);
+//   void PointsToMarker(const double stamp,
+//                       const std::vector<Eigen::Vector3d>& points,
+//                       adsfi_proto::viz::Marker* marker, double color_type);
   void VizHqMapRoad(const std::vector<Eigen::Vector3d>& edge);
-  void LaneLineToMarker(
+  static void LaneLineToMarker(
       const std::pair<uint32_t, std::vector<Eigen::Vector3d>>& lane_line,
       adsfi_proto::viz::Marker* marker);
-  void RoadEdgeToMarker(const std::vector<Eigen::Vector3d>& road_edge,
-                        adsfi_proto::viz::Marker* marker);
+  static void RoadEdgeToMarker(const std::vector<Eigen::Vector3d>& road_edge,
+                               adsfi_proto::viz::Marker* marker);
   void VizAddSideLaneLine(
       const std::vector<std::vector<Eigen::Vector3d>>& addLaneLines);
-  void AddLanelineToMarker(const std::vector<Eigen::Vector3d>& lane_line,
-                           adsfi_proto::viz::Marker* marker);
+  static void AddLanelineToMarker(const std::vector<Eigen::Vector3d>& lane_line,
+                                  adsfi_proto::viz::Marker* marker);
   void VizAddAheadLaneLine(
       const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
           aheadLaneLines);
-  void AheadLanelineToMarker(
+  static void AheadLanelineToMarker(
       const std::pair<uint32_t, std::vector<Eigen::Vector3d>>& lane_line,
       adsfi_proto::viz::Marker* marker);
-  void VizLaneLine(
-      std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-          predictLaneLines);
-  void VizLaneID(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
-                 const Eigen::Vector3d& local_enu_center_);
+  void VizLaneID(const std::shared_ptr<hozon::hdmap::Map>& local_msg);
   void VizCompanLane(
       const std::vector<std::vector<Eigen::Vector3d>>& compan_lines);
-  void ComLaneLineToMarker(const std::vector<Eigen::Vector3d>& lane_line,
-                           adsfi_proto::viz::Marker* marker);
-  void VizLocalMsg(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
-                   const Eigen::Vector3d& pose);
+  static void ComLaneLineToMarker(const std::vector<Eigen::Vector3d>& lane_line,
+                                  adsfi_proto::viz::Marker* marker);
+  static void VizLocalMsg(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
+                          const Eigen::Vector3d& pose);
   void VizCenterLane(const std::vector<Vec2d>& cent_points);
 
  private:

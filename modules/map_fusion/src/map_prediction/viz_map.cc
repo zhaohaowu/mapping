@@ -47,43 +47,33 @@ int VizMap::Init() {
     if (ret < 0) {
       HLOG_ERROR << "RvizAgent register" << viz_localmap_line_;
     }
-  }
-  if (viz_ && RVIZ_AGENT.Ok()) {
-    int ret =
-        RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_hqmap_road_);
+
+    ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_hqmap_road_);
     if (ret < 0) {
       HLOG_ERROR << "RvizAgent register" << viz_hqmap_road_;
     }
-  }
-  if (viz_ && RVIZ_AGENT.Ok()) {
-    int ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_add_line_);
+
+    ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_add_line_);
     if (ret < 0) {
       HLOG_ERROR << "RvizAgent register" << viz_add_line_;
     }
-  }
-  if (viz_ && RVIZ_AGENT.Ok()) {
-    int ret =
-        RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(viz_ahead_line_);
+
+    ret = RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(viz_ahead_line_);
     if (ret < 0) {
       HLOG_ERROR << "RvizAgent register" << viz_ahead_line_;
     }
-  }
-  if (viz_ && RVIZ_AGENT.Ok()) {
-    int ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_lane_id_);
+
+    ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_lane_id_);
     if (ret < 0) {
       HLOG_ERROR << "RvizAgent register" << viz_lane_id_;
     }
-  }
-  if (viz_ && RVIZ_AGENT.Ok()) {
-    int ret =
-        RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_com_lane_id_);
+
+    ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_com_lane_id_);
     if (ret < 0) {
       HLOG_ERROR << "RvizAgent register" << viz_com_lane_id_;
     }
-  }
-  if (viz_ && RVIZ_AGENT.Ok()) {
-    int ret =
-        RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_center_lane_);
+
+    ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_center_lane_);
     if (ret < 0) {
       HLOG_ERROR << "RvizAgent register" << viz_center_lane_;
     }
@@ -118,8 +108,6 @@ int VizMap::Init() {
 }
 
 void VizMap::VizLocalMapLaneLine(
-    const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-        localMapLaneLines,
     const std::shared_ptr<hozon::hdmap::Map>& msg) {
   // 开始进行可视化操作
   if (viz_flag_) {
@@ -134,6 +122,26 @@ void VizMap::VizLocalMapLaneLine(
 
   std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>
       localmap_lanelines;
+  // 存储边线
+  StoreLaneLine(msg, localmap_lanelines);
+
+  adsfi_proto::viz::MarkerArray markers;
+  for (const auto& lane_line : localmap_lanelines) {
+    adsfi_proto::viz::Marker marker;
+    LaneLineToMarker(lane_line, &marker);
+    if (!marker.points().empty()) {
+      markers.add_markers()->CopyFrom(marker);
+    }
+  }
+
+  RVIZ_AGENT.Publish(viz_localmap_line_, markers);
+}
+
+void VizMap::StoreLaneLine(
+    const std::shared_ptr<hozon::hdmap::Map>& msg,
+    std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
+        localmap_lanelines) {
+  // 存储边线
   for (const auto& lane : msg->lane()) {
     // 存储左边线
     std::vector<Eigen::Vector3d> left_line_point;
@@ -150,7 +158,7 @@ void VizMap::VizLocalMapLaneLine(
       }
     }
     if (!left_line_point.empty()) {
-      localmap_lanelines.emplace_back(std::make_pair(id_, left_line_point));
+      localmap_lanelines.emplace_back(id_, left_line_point);
       id_ -= 1;
     }
     // 存储右边线
@@ -172,23 +180,13 @@ void VizMap::VizLocalMapLaneLine(
       }
     }
     if (!right_line_point.empty()) {
-      localmap_lanelines.emplace_back(std::make_pair(id_, right_line_point));
+      localmap_lanelines.emplace_back(id_, right_line_point);
       id_ -= 1;
     }
   }
-
-  adsfi_proto::viz::MarkerArray markers;
-  for (const auto& lane_line : localmap_lanelines) {
-    adsfi_proto::viz::Marker marker;
-    LaneLineToMarker(lane_line, &marker);
-    if (!marker.points().empty()) {
-      markers.add_markers()->CopyFrom(marker);
-    }
-  }
-
-  RVIZ_AGENT.Publish(viz_localmap_line_, markers);
 }
 
+#if 0
 void VizMap::PointsToMarker(const double stamp,
                             const std::vector<Eigen::Vector3d>& points,
                             adsfi_proto::viz::Marker* marker,
@@ -233,6 +231,7 @@ void VizMap::PointsToMarker(const double stamp,
     HLOG_WARN << "empty lane line";
   }
 }
+#endif
 
 void VizMap::LaneLineToMarker(
     const std::pair<uint32_t, std::vector<Eigen::Vector3d>>& lane_line,
@@ -266,7 +265,7 @@ void VizMap::LaneLineToMarker(
     return;
   }
   for (const auto& line : lane_line.second) {
-    auto predict_pt = marker->add_points();
+    auto* predict_pt = marker->add_points();
     predict_pt->set_x(line.x());
     predict_pt->set_y(line.y());
     predict_pt->set_z(0);
@@ -289,7 +288,7 @@ void VizMap::VizHqMapRoad(const std::vector<Eigen::Vector3d>& edge) {
 
 void VizMap::RoadEdgeToMarker(const std::vector<Eigen::Vector3d>& road_edge,
                               adsfi_proto::viz::Marker* marker) {
-  if (!marker) {
+  if (marker == nullptr) {
     return;
   }
 
@@ -322,7 +321,7 @@ void VizMap::RoadEdgeToMarker(const std::vector<Eigen::Vector3d>& road_edge,
     return;
   }
   for (const auto& road : road_edge) {
-    auto predict_pt = marker->add_points();
+    auto* predict_pt = marker->add_points();
     predict_pt->set_x(road.x());
     predict_pt->set_y(road.y());
     predict_pt->set_z(0);
@@ -376,7 +375,7 @@ void VizMap::AddLanelineToMarker(const std::vector<Eigen::Vector3d>& lane_line,
     return;
   }
   for (const auto& add_line : lane_line) {
-    auto predict_pt = marker->add_points();
+    auto* predict_pt = marker->add_points();
     predict_pt->set_x(add_line.x());
     predict_pt->set_y(add_line.y());
     predict_pt->set_z(0);
@@ -432,43 +431,14 @@ void VizMap::AheadLanelineToMarker(
     return;
   }
   for (const auto& ahead_line : lane_line.second) {
-    auto predict_pt = marker->add_points();
+    auto* predict_pt = marker->add_points();
     predict_pt->set_x(ahead_line.x());
     predict_pt->set_y(ahead_line.y());
     predict_pt->set_z(0);
   }
 }
 
-void VizMap::VizLaneLine(
-    std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-        predictLaneLines) {
-  if (!RVIZ_AGENT.Ok()) {
-    return;
-  }
-  adsfi_proto::viz::PointCloud lane_points;
-  static uint32_t seq = 0;
-  int curr_seq = seq++;
-
-  lane_points.mutable_header()->set_seq(curr_seq);
-  // lane_points.mutable_header()->mutable_timestamp()->CopyFrom(stamp);
-  lane_points.mutable_header()->set_frameid("map");
-
-  auto* channels = lane_points.add_channels();
-  channels->set_name("rgb");
-
-  for (const auto& line : predictLaneLines) {
-    for (const auto& point : line.second) {
-      auto* points_ = lane_points.add_points();
-      points_->set_x(point.x());
-      points_->set_y(point.y());
-      points_->set_z(point.z());
-    }
-  }
-  RVIZ_AGENT.Publish(viz_ahead_line_, lane_points);
-}
-
-void VizMap::VizLaneID(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
-                       const Eigen::Vector3d& local_enu_center_) {
+void VizMap::VizLaneID(const std::shared_ptr<hozon::hdmap::Map>& local_msg) {
   if (!RVIZ_AGENT.Ok()) {
     return;
   }
@@ -485,13 +455,6 @@ void VizMap::VizLaneID(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
       auto point =
           lane.left_boundary().curve().segment()[0].line_segment().point()[0];
       point_utm << point.x(), point.y(), point.z();
-      //   int zone = 51;
-      //   double x = point_utm.x();
-      //   double y = point_utm.y();
-      //  hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
-      //   Eigen::Vector3d point_gcj(y, x, 0);
-      //   point_enu =
-      //       util::Geo::Gcj02ToEnu(point_gcj, local_enu_center_);
     }
 
     if (lane.id().id().empty()) {
@@ -502,9 +465,9 @@ void VizMap::VizLaneID(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
     adsfi_proto::viz::Marker marker;
     int64_t laneId = std::stoll(lane.id().id());
     marker.mutable_header()->set_frameid("map");
-    int remainder = laneId / 10000;
+    int remainder = static_cast<int>(laneId / 10000);
     marker.set_ns("ns_prior_map_lane" + std::to_string(remainder));
-    marker.set_id(laneId % 10000);
+    marker.set_id(static_cast<int>(laneId % 10000));
     marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
     marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
     marker.mutable_pose()->mutable_position()->set_x(point_utm.x());
@@ -534,7 +497,7 @@ void VizMap::VizLaneID(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
     marker.mutable_color()->set_r(1.0);
     marker.mutable_color()->set_g(1.0);
     marker.mutable_color()->set_b(1.0);
-    auto text = marker.mutable_text();
+    auto* text = marker.mutable_text();
     *text = "ID: " + lane.id().id();
 
     ID_markers.add_markers()->CopyFrom(marker);
@@ -592,7 +555,7 @@ void VizMap::ComLaneLineToMarker(const std::vector<Eigen::Vector3d>& lane_line,
     return;
   }
   for (const auto& line : lane_line) {
-    auto predict_pt = marker->add_points();
+    auto* predict_pt = marker->add_points();
     predict_pt->set_x(line.x());
     predict_pt->set_y(line.y());
     predict_pt->set_z(0);
@@ -634,7 +597,7 @@ void VizMap::VizCenterLane(const std::vector<Vec2d>& cent_points) {
   marker.mutable_color()->CopyFrom(color);
 
   for (const auto& cen_point : cent_points) {
-    auto predict_pt = marker.add_points();
+    auto* predict_pt = marker.add_points();
     predict_pt->set_x(cen_point.x());
     predict_pt->set_y(cen_point.y());
     predict_pt->set_z(0);

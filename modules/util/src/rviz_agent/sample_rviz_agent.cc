@@ -14,11 +14,13 @@
 
 #include "util/rviz_agent/rviz_agent.h"
 
+// NOLINTBEGIN
 DEFINE_string(viz_addr, "ipc:///tmp/sample_rviz_agent",
               "RvizAgent working address, may like "
               "ipc:///tmp/sample_rviz_agent or "
               "inproc://sample_rviz_agent or "
               "tcp://127.0.0.1:9100");
+// NOLINTEND
 
 using namespace hozon::mp::util; // NOLINT
 using namespace std::chrono_literals; // NOLINT

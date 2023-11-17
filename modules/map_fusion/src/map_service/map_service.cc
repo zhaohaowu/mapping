@@ -29,36 +29,38 @@
 #include "proto/routing/routing.pb.h"
 #include "util/temp_log.h"
 
+// NOLINTBEGIN
 DEFINE_double(radius, 500, "radius of the vehicle position");
 DEFINE_double(transform_distance, 200, "distance to update the map");
+// NOLINTEND
 
 namespace hozon {
 namespace mp {
 namespace mf {
 
 bool MapService::Init() {
-  #ifndef ISORIN
+#ifndef ISORIN
   amap_adapter_.Init();
   amap_adapter_.SetUUID("LUZHRQASDHNVQCQNIH4CLM5OTA7VQ489");
-  #endif
+#endif
   routing_ = std::make_shared<hozon::routing::RoutingResponse>();
   auto global_hd_map = hozon::mp::GlobalHdMap::Instance();
 
   if (FLAGS_map_service_mode == 0) {
     global_hd_map->GetHdMap()->LoadMapFromFile(FLAGS_map_dir + "/base_map.bin");
   } else if (FLAGS_map_service_mode == 1) {
-    #ifndef ISORIN
+#ifndef ISORIN
     ehr_ = std::make_unique<hozon::ehr::AmapEhrImpl>();
-    #else
+#else
     HLOG_ERROR << "Amap is not supported under orin";
     return false;
-    #endif
+#endif
   } else if (FLAGS_map_service_mode == 2) {
-    // todo map api
-    #ifdef ISORIN
+// todo map api
+#ifdef ISORIN
     HLOG_ERROR << "Amap is not supported under orin";
     return false;
-    #endif
+#endif
   }
 
   return true;
@@ -90,11 +92,11 @@ void MapService::OnInsAdcNodeInfo(
     //    HLOG_ERROR << "hdmap set error";
     //  }
   } else if (FLAGS_map_service_mode == 1) {
-    #ifndef ISORIN
+#ifndef ISORIN
     EhpProc(ins_msg, adc_msg, routing_);
-    #else
+#else
     HLOG_ERROR << "not supported under orin";
-    #endif
+#endif
   }
 }
 

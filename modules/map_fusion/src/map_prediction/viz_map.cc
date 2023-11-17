@@ -20,11 +20,13 @@
 #include "map_fusion/map_service/map_proto_maker.h"
 #include "util/temp_log.h"
 
+// NOLINTBEGIN
 DEFINE_string(viz_addr_mp, "ipc:///tmp/rviz_agent_mp",
               "RvizAgent working address, may like "
               "ipc:///tmp/sample_rviz_agent or "
               "inproc://sample_rviz_agent or "
               "tcp://127.0.0.1:9100");
+// NOLINTEND
 
 namespace hozon {
 namespace mp {

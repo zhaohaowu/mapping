@@ -6,19 +6,20 @@
  ******************************************************************************/
 
 #include "map_fusion/local_map_provider/local_map_provider.h"
-
 #include <gflags/gflags.h>
 
 #include <mutex>
 
 #include "util/temp_log.h"
 
+// NOLINTBEGIN
 DEFINE_string(viz_addr, "",
               "RvizAgent working address, may like "
               "ipc:///tmp/sample_rviz_agent or "
               "inproc://sample_rviz_agent or "
               "tcp://127.0.0.1:9100");
 DEFINE_bool(viz, false, "enable rivz or not");
+// NOLINTEND
 
 namespace hozon {
 namespace mp {

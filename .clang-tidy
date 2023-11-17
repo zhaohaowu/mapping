@@ -58,7 +58,6 @@ Checks: >
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-avoid-non-const-global-variables,
   -cppcoreguidelines-avoid-const-or-ref-data-members,
-  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   -google-build-namespaces,
   -google-runtime-references,
   -modernize-concat-nested-namespaces,

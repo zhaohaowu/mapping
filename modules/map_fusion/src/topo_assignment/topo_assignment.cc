@@ -15,9 +15,12 @@
 #include "util/temp_log.h"
 #include "util/tic_toc.h"
 
+// NOLINTBEGIN
 DEFINE_bool(topo_rviz, false, "topo assignment use rviz or not");
 DEFINE_double(topo_lane_line_dist, 1.5,
               "the distance threshold for laneline belonging to a lane");
+// NOLINTEND
+
 namespace hozon {
 namespace mp {
 namespace mf {

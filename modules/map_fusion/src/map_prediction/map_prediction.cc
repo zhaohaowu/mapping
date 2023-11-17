@@ -57,6 +57,7 @@
 #include "util/temp_log.h"
 #include "util/tic_toc.h"
 
+// NOLINTBEGIN
 // DEFINE_bool(pred_run, true, "pred thread run");
 // DEFINE_uint32(pred_thread_interval, 100, "pred thread interval ms");
 DEFINE_bool(viz_odom_map_in_local, false,
@@ -65,6 +66,7 @@ DEFINE_string(viz_topic_odom_in_local, "/mf/pred/odom_local",
               "viz topic of odometry in local frame");
 DEFINE_string(viz_topic_map_in_local, "/mf/pred/map_local",
               "viz topic of map in local frame");
+// NOLINTEND
 
 namespace hozon {
 namespace mp {

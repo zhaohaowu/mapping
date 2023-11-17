@@ -5,7 +5,9 @@
  *****************************************************************************/
 #include "modules/local_mapping/local_mapping.h"
 
+// NOLINTBEGIN
 DEFINE_uint32(zone, 51, "time zone");
+// NOLINTEND
 
 namespace hozon {
 namespace mp {

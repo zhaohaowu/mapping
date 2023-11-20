@@ -6,6 +6,8 @@
  ******************************************************************************/
 #include <gflags/gflags.h>
 
+#include <cstdint>
+
 #include "common/utm_projection/coordinate_convertor.h"
 #include "map_fusion/map_service/map_proto_maker.h"
 #include "util/temp_log.h"
@@ -22,7 +24,7 @@ adsfi_proto::viz::TransformStamped MapProtoMarker::CarTrackTF(
   }
   adsfi_proto::viz::TransformStamped geo_tf;
   static uint32_t seq = 0;
-  int curr_seq = seq++;
+  uint32_t curr_seq = seq++;
   geo_tf.mutable_header()->set_seq(curr_seq);
   auto sec = static_cast<uint32_t>(stamp.publish_stamp());
   auto nsec = static_cast<uint32_t>((stamp.publish_stamp() - sec) * 1e9);
@@ -46,7 +48,7 @@ void MapProtoMarker::CarTrack(const Eigen::Vector3d& pose,
                               adsfi_proto::viz::Path* location_path_,
                               const hozon::common::Header& stamp, bool utm) {
   static uint32_t seq = 0;
-  int curr_seq = seq++;
+  uint32_t curr_seq = seq++;
   auto* location_pose = location_path_->add_poses();
   location_path_->mutable_header()->set_seq(curr_seq);
   auto sec = static_cast<uint32_t>(stamp.publish_stamp());
@@ -81,9 +83,9 @@ std::vector<adsfi_proto::viz::MarkerArray> MapProtoMarker::LaneToMarker(
     auto lane_marker = std::make_unique<adsfi_proto::viz::Marker>();
     lane_marker->mutable_header()->set_frameid("map");
     u_int64_t laneId = std::stoll(lane.id().id());
-    int remainder = laneId / 10000;
+    u_int64_t remainder = laneId / 10000;
     lane_marker->set_ns("ns_prior_map_lane" + std::to_string(remainder));
-    lane_marker->set_id(laneId % 10000);
+    lane_marker->set_id(static_cast<int32_t>(laneId % 10000));
     lane_marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
     lane_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
     // 位姿
@@ -118,13 +120,13 @@ std::vector<adsfi_proto::viz::MarkerArray> MapProtoMarker::LaneToMarker(
           hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
           Eigen::Vector3d point_gcj(y, x, 0);
           Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
-          auto pt = lane_marker->add_points();
+          auto* pt = lane_marker->add_points();
           pt->set_x(point_enu.x());
           pt->set_y(point_enu.y());
           pt->set_z(point_enu.z());
         } else {
           Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
-          auto pt = lane_marker->add_points();
+          auto* pt = lane_marker->add_points();
           pt->set_x(point_enu.x());
           pt->set_y(point_enu.y());
           pt->set_z(point_enu.z());
@@ -154,9 +156,9 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftBoundaryMarker(
     auto lane_marker = std::make_unique<adsfi_proto::viz::Marker>();
     lane_marker->mutable_header()->set_frameid("map");
     u_int64_t laneId = std::stoll(lane.id().id());
-    int remainder = laneId / 10000;
+    u_int64_t remainder = laneId / 10000;
     lane_marker->set_ns("ns_prior_map_lane" + std::to_string(remainder));
-    lane_marker->set_id(laneId % 10000);
+    lane_marker->set_id(static_cast<int32_t>(laneId % 10000));
     lane_marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
     lane_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
     // 位姿
@@ -191,13 +193,13 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftBoundaryMarker(
           hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
           Eigen::Vector3d point_gcj(y, x, 0);
           Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
-          auto pt = lane_marker->add_points();
+          auto* pt = lane_marker->add_points();
           pt->set_x(point_enu.x());
           pt->set_y(point_enu.y());
           pt->set_z(point_enu.z());
         } else {
           Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
-          auto pt = lane_marker->add_points();
+          auto* pt = lane_marker->add_points();
           pt->set_x(point_enu.x());
           pt->set_y(point_enu.y());
           pt->set_z(point_enu.z());
@@ -219,9 +221,9 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneRightBoundaryMarker(
     auto lane_marker = std::make_unique<adsfi_proto::viz::Marker>();
     lane_marker->mutable_header()->set_frameid("map");
     u_int64_t laneId = std::stoll(lane.id().id());
-    int remainder = laneId / 10000;
+    u_int64_t remainder = laneId / 10000;
     lane_marker->set_ns("ns_prior_map_lane" + std::to_string(remainder));
-    lane_marker->set_id(laneId % 10000);
+    lane_marker->set_id(static_cast<int32_t>(laneId % 10000));
     lane_marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
     lane_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
     // 位姿
@@ -256,13 +258,13 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneRightBoundaryMarker(
           hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
           Eigen::Vector3d point_gcj(y, x, 0);
           Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
-          auto pt = lane_marker->add_points();
+          auto* pt = lane_marker->add_points();
           pt->set_x(point_enu.x());
           pt->set_y(point_enu.y());
           pt->set_z(point_enu.z());
         } else {
           Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
-          auto pt = lane_marker->add_points();
+          auto* pt = lane_marker->add_points();
           pt->set_x(point_enu.x());
           pt->set_y(point_enu.y());
           pt->set_z(point_enu.z());
@@ -282,7 +284,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneID(
   adsfi_proto::viz::MarkerArray ID_markers;
   for (const auto& lane : prior_map->lane()) {
     u_int64_t laneId = std::stoll(lane.id().id());
-    int remainder = laneId / 10000;
+    u_int64_t remainder = laneId / 10000;
     for (int i = 0; i < lane.left_boundary().curve().segment().size(); ++i) {
       const auto& segment = lane.left_boundary().curve().segment(i);
       for (int j = 0; j < segment.line_segment().point().size(); ++j) {
@@ -302,7 +304,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneID(
         auto text_marker = std::make_unique<adsfi_proto::viz::Marker>();
         text_marker->mutable_header()->set_frameid("map");
         text_marker->set_ns("ns_prior_map_lane" + std::to_string(remainder));
-        text_marker->set_id(laneId % 10000);
+        text_marker->set_id(static_cast<int32_t>(laneId % 10000));
         text_marker->set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
         text_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
         text_marker->mutable_pose()->mutable_position()->set_x(point_enu.x());
@@ -336,7 +338,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneRightNeighborForward(
   int color_index = 0;
   for (const auto& lane : prior_map->lane()) {
     u_int64_t laneId = std::stoll(lane.id().id());
-    int remainder = laneId / 10000;
+    u_int64_t remainder = laneId / 10000;
     const auto start_lane_curve_left = lane.left_boundary().curve();
     const auto start_lane_curve_right = lane.right_boundary().curve();
     if (start_lane_curve_right.segment().empty() ||
@@ -430,7 +432,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneRightNeighborForward(
       point_enu_start =
           Eigen::Vector3d(start_point.x(), start_point.y(), start_point.z());
     }
-    if (lane.right_neighbor_forward_lane_id_size()) {
+    if (lane.right_neighbor_forward_lane_id_size() != 0) {
       // 获取右侧相邻的lane ID
       for (const auto& neighbor_id : lane.right_neighbor_forward_lane_id()) {
         const std::string& neighbor_lane_id = neighbor_id.id();
@@ -541,16 +543,16 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneRightNeighborForward(
             arrow_marker->mutable_header()->set_frameid("map");
             arrow_marker->set_ns("ns_right_neighbor_forward" +
                                  std::to_string(remainder));
-            arrow_marker->set_id(laneId % 10000);
+            arrow_marker->set_id(static_cast<int>(laneId % 10000));
             arrow_marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
             arrow_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
-            auto start_point_marker = arrow_marker->add_points();
+            auto* start_point_marker = arrow_marker->add_points();
             start_point_marker->set_x(point_enu_start.x());
             start_point_marker->set_y(point_enu_start.y());
             start_point_marker->set_z(point_enu_start.z() - 2);
 
             // 添加终点
-            auto end_point_marker = arrow_marker->add_points();
+            auto* end_point_marker = arrow_marker->add_points();
             end_point_marker->set_x(point_enu_end.x());
             end_point_marker->set_y(point_enu_end.y());
             end_point_marker->set_z(point_enu_end.z() - 2);
@@ -578,7 +580,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneRightNeighborForward(
             sphere_marker->mutable_header()->set_frameid("map");
             sphere_marker->set_ns("ns_right_neighbor_forward_sphere" +
                                   std::to_string(remainder));
-            sphere_marker->set_id(laneId % 10000);
+            sphere_marker->set_id(static_cast<int>(laneId % 10000));
 
             sphere_marker->set_type(adsfi_proto::viz::MarkerType::CUBE);
             sphere_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -624,7 +626,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftNeighborForward(
   for (const auto& lane : prior_map->lane()) {
     // HLOG_ERROR << "===== laneId " << lane.id().id();
     u_int64_t laneId = std::stoll(lane.id().id());
-    int remainder = laneId / 10000;
+    u_int64_t remainder = laneId / 10000;
     const auto start_lane_curve_left = lane.left_boundary().curve();
     const auto start_lane_curve_right = lane.right_boundary().curve();
     if (start_lane_curve_left.segment().empty() ||
@@ -723,7 +725,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftNeighborForward(
       point_enu_start =
           Eigen::Vector3d(start_point.x(), start_point.y(), start_point.z());
     }
-    if (lane.left_neighbor_forward_lane_id_size()) {
+    if (lane.left_neighbor_forward_lane_id_size() != 0) {
       // 获取右侧相邻的lane ID
       for (const auto& neighbor_id : lane.left_neighbor_forward_lane_id()) {
         const std::string& neighbor_lane_id = neighbor_id.id();
@@ -841,17 +843,17 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftNeighborForward(
             arrow_left_marker->mutable_header()->set_frameid("map");
             arrow_left_marker->set_ns("ns_left_neighbor_forward" +
                                       std::to_string(remainder));
-            arrow_left_marker->set_id(laneId % 10000);
+            arrow_left_marker->set_id(static_cast<int>(laneId % 10000));
             arrow_left_marker->set_type(
                 adsfi_proto::viz::MarkerType::LINE_STRIP);
             arrow_left_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
-            auto start_point_marker = arrow_left_marker->add_points();
+            auto* start_point_marker = arrow_left_marker->add_points();
             start_point_marker->set_x(point_enu_start.x());
             start_point_marker->set_y(point_enu_start.y());
             start_point_marker->set_z(point_enu_start.z() - 3);
 
             // 添加终点
-            auto end_point_marker = arrow_left_marker->add_points();
+            auto* end_point_marker = arrow_left_marker->add_points();
             end_point_marker->set_x(point_enu_end.x());
             end_point_marker->set_y(point_enu_end.y());
             end_point_marker->set_z(point_enu_end.z() - 3);
@@ -878,7 +880,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftNeighborForward(
             sphere_marker->mutable_header()->set_frameid("map");
             sphere_marker->set_ns("ns_left_neighbor_forward_sphere" +
                                   std::to_string(remainder));
-            sphere_marker->set_id(laneId % 10000);
+            sphere_marker->set_id(static_cast<int>(laneId % 10000));
 
             sphere_marker->set_type(adsfi_proto::viz::MarkerType::CUBE);
             sphere_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -923,21 +925,21 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
   adsfi_proto::viz::MarkerArray arrow_markers;
   for (const auto& lane : prior_map->lane()) {
     u_int64_t laneId = std::stoll(lane.id().id());
-    int remainder = laneId / 10000;
+    u_int64_t remainder = laneId / 10000;
     const auto lane_left_curve = lane.left_boundary().curve();
-    uint32_t seg_size_left = lane_left_curve.segment().size();
+    int seg_size_left = lane_left_curve.segment().size();
     // right
     const auto lane_right_curve = lane.right_boundary().curve();
-    uint32_t seg_size = lane_right_curve.segment().size();
+    int seg_size = lane_right_curve.segment().size();
 
     hozon::common::PointENU start_point_a;
     hozon::common::PointENU start_point_b;
     hozon::common::PointENU start_point;
     if (seg_size_left > 0 && seg_size > 0) {
-      uint32_t point_size_left = lane_left_curve.segment()[seg_size_left - 1]
-                                     .line_segment()
-                                     .point()
-                                     .size();
+      int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
+                                .line_segment()
+                                .point()
+                                .size();
       const auto lane_left_curve_point0 =
           lane_left_curve.segment()[0].line_segment().point()[0];
       const auto lane_left_curve_point1 =
@@ -945,10 +947,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
               .line_segment()
               .point()[point_size_left - 1];
 
-      uint32_t point_size = lane_right_curve.segment()[seg_size - 1]
-                                .line_segment()
-                                .point()
-                                .size();
+      int point_size = lane_right_curve.segment()[seg_size - 1]
+                           .line_segment()
+                           .point()
+                           .size();
       const auto lane_right_curve_point0 =
           lane_right_curve.segment()[0].line_segment().point()[0];
       const auto lane_right_curve_point1 =
@@ -997,10 +999,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
       start_point.set_y(start_point_a_enu.y() + kDistance * vec_ab.y());
       start_point.set_z(start_point_a_enu.z() + kDistance * vec_ab.z());
     } else if (seg_size_left > 0 && seg_size == 0) {
-      uint32_t point_size_left = lane_left_curve.segment()[seg_size_left - 1]
-                                     .line_segment()
-                                     .point()
-                                     .size();
+      int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
+                                .line_segment()
+                                .point()
+                                .size();
 
       const auto lane_left_curve_point0 =
           lane_left_curve.segment()[0].line_segment().point()[0];
@@ -1045,10 +1047,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
         start_point.set_y(lane_left_curve_point0.z());
       }
     } else if (seg_size_left == 0 && seg_size > 0) {
-      uint32_t point_size = lane_right_curve.segment()[seg_size - 1]
-                                .line_segment()
-                                .point()
-                                .size();
+      int point_size = lane_right_curve.segment()[seg_size - 1]
+                           .line_segment()
+                           .point()
+                           .size();
       const auto lane_right_curve_point0 =
           lane_right_curve.segment()[0].line_segment().point()[0];
       if (point_size > 1) {
@@ -1092,7 +1094,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
         start_point.set_y(lane_right_curve_point0.z());
       }
     }
-    if (lane.predecessor_id_size()) {
+    if (lane.predecessor_id_size() != 0) {
       int s = 0;
       for (const auto& neighbor_id : lane.predecessor_id()) {
         const std::string& neighbor_lane_id = neighbor_id.id();
@@ -1103,14 +1105,14 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
             hozon::common::PointENU end_point;
             const auto target_lane_left_curve =
                 target_lane.left_boundary().curve();
-            uint32_t seg_size_left = target_lane_left_curve.segment().size();
+            int seg_size_left = target_lane_left_curve.segment().size();
 
             // right
             const auto target_lane_right_curve =
                 target_lane.right_boundary().curve();
-            uint32_t seg_size = target_lane_right_curve.segment().size();
+            int seg_size = target_lane_right_curve.segment().size();
             if (seg_size_left > 0 && seg_size > 0) {
-              uint32_t point_size_left =
+              int point_size_left =
                   target_lane_left_curve.segment()[seg_size_left - 1]
                       .line_segment()
                       .point()
@@ -1121,11 +1123,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
                   target_lane_left_curve.segment()[seg_size_left - 1]
                       .line_segment()
                       .point()[point_size_left - 1];
-              uint32_t point_size =
-                  target_lane_right_curve.segment()[seg_size - 1]
-                      .line_segment()
-                      .point()
-                      .size();
+              int point_size = target_lane_right_curve.segment()[seg_size - 1]
+                                   .line_segment()
+                                   .point()
+                                   .size();
               const auto target_lane_right_curve_point0 =
                   target_lane_right_curve.segment()[0]
                       .line_segment()
@@ -1183,7 +1184,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
               end_point.set_y(end_point_b_enu.y() - kDistance * vec_ab.y());
               end_point.set_z(end_point_b_enu.z() - kDistance * vec_ab.z());
             } else if (seg_size_left > 0 && seg_size == 0) {
-              uint32_t point_size_left =
+              int point_size_left =
                   target_lane_left_curve.segment()[seg_size_left - 1]
                       .line_segment()
                       .point()
@@ -1237,11 +1238,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
                 end_point.set_y(target_lane_left_curve_point0.z());
               }
             } else if (seg_size_left == 0 && seg_size > 0) {
-              uint32_t point_size =
-                  target_lane_right_curve.segment()[seg_size - 1]
-                      .line_segment()
-                      .point()
-                      .size();
+              int point_size = target_lane_right_curve.segment()[seg_size - 1]
+                                   .line_segment()
+                                   .point()
+                                   .size();
               const auto target_lane_right_curve_point0 =
                   target_lane_right_curve.segment()[0]
                       .line_segment()
@@ -1300,7 +1300,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
             arrow_predecessor_marker->set_ns("ns_prior_map_arrow_predecessor" +
                                              std::to_string(remainder) +
                                              std::to_string(s));
-            arrow_predecessor_marker->set_id(laneId % 10000);
+            arrow_predecessor_marker->set_id(static_cast<int>(laneId % 10000));
             // arrow_predecessor_marker->set_type(
             //     adsfi_proto::viz::MarkerType::LINE_STRIP);
             arrow_predecessor_marker->set_type(
@@ -1354,7 +1354,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
             sphere_marker->set_ns("ns_prior_map_arrow_predecessor_sphere" +
                                   std::to_string(remainder) +
                                   std::to_string(s));
-            sphere_marker->set_id(laneId % 10000);
+            sphere_marker->set_id(static_cast<int>(laneId % 10000));
 
             sphere_marker->set_type(adsfi_proto::viz::MarkerType::SPHERE);
             sphere_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -1399,20 +1399,20 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
   adsfi_proto::viz::MarkerArray arrow_markers;
   for (const auto& lane : prior_map->lane()) {
     u_int64_t laneId = std::stoll(lane.id().id());
-    int remainder = laneId / 10000;
+    u_int64_t remainder = laneId / 10000;
     const auto lane_left_curve = lane.left_boundary().curve();
-    uint32_t seg_size_left = lane_left_curve.segment().size();
+    int seg_size_left = lane_left_curve.segment().size();
     // right
     const auto lane_right_curve = lane.right_boundary().curve();
-    uint32_t seg_size = lane_right_curve.segment().size();
+    int seg_size = lane_right_curve.segment().size();
     hozon::common::PointENU start_point_a;
     hozon::common::PointENU start_point_b;
     hozon::common::PointENU start_point;
     if (seg_size_left > 0 && seg_size > 0) {
-      uint32_t point_size_left = lane_left_curve.segment()[seg_size_left - 1]
-                                     .line_segment()
-                                     .point()
-                                     .size();
+      int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
+                                .line_segment()
+                                .point()
+                                .size();
       const auto lane_left_curve_point0 =
           lane_left_curve.segment()[0].line_segment().point()[0];
       const auto lane_left_curve_point1 =
@@ -1420,10 +1420,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
               .line_segment()
               .point()[point_size_left - 1];
 
-      uint32_t point_size = lane_right_curve.segment()[seg_size - 1]
-                                .line_segment()
-                                .point()
-                                .size();
+      int point_size = lane_right_curve.segment()[seg_size - 1]
+                           .line_segment()
+                           .point()
+                           .size();
       const auto lane_right_curve_point0 =
           lane_right_curve.segment()[0].line_segment().point()[0];
       const auto lane_right_curve_point1 =
@@ -1472,10 +1472,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
       start_point.set_y(start_point_b_enu.y() - kDistance * vec_ab.y());
       start_point.set_z(start_point_b_enu.z() - kDistance * vec_ab.z());
     } else if (seg_size_left > 0 && seg_size == 0) {
-      uint32_t point_size_left = lane_left_curve.segment()[seg_size_left - 1]
-                                     .line_segment()
-                                     .point()
-                                     .size();
+      int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
+                                .line_segment()
+                                .point()
+                                .size();
 
       const auto lane_left_curve_point0 =
           lane_left_curve.segment()[0].line_segment().point()[0];
@@ -1520,10 +1520,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
         start_point.set_y(lane_left_curve_point0.z());
       }
     } else if (seg_size_left == 0 && seg_size > 0) {
-      uint32_t point_size = lane_right_curve.segment()[seg_size - 1]
-                                .line_segment()
-                                .point()
-                                .size();
+      int point_size = lane_right_curve.segment()[seg_size - 1]
+                           .line_segment()
+                           .point()
+                           .size();
       const auto lane_right_curve_point0 =
           lane_right_curve.segment()[0].line_segment().point()[0];
       if (point_size > 1) {
@@ -1568,7 +1568,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
       }
     }
 
-    if (lane.successor_id_size()) {
+    if (lane.successor_id_size() != 0) {
       int s = 0;
       for (const auto& neighbor_id : lane.successor_id()) {
         const std::string& neighbor_lane_id = neighbor_id.id();
@@ -1579,23 +1579,23 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
             hozon::common::PointENU end_point;
             if (target_lane.left_boundary().curve().segment_size() > 0 &&
                 target_lane.right_boundary().curve().segment_size() > 0) {
-              uint32_t seg_size_left_target =
+              int seg_size_left_target =
                   target_lane.left_boundary().curve().segment().size();
-              uint32_t point_size_left_target =
+              int point_size_left_target =
                   target_lane.left_boundary()
                       .curve()
                       .segment()[seg_size_left_target - 1]
                       .line_segment()
                       .point()
                       .size();
-              uint32_t seg_size_target =
+              int seg_size_target =
                   target_lane.right_boundary().curve().segment().size();
-              uint32_t point_size_target = target_lane.right_boundary()
-                                               .curve()
-                                               .segment()[seg_size_target - 1]
-                                               .line_segment()
-                                               .point()
-                                               .size();
+              int point_size_target = target_lane.right_boundary()
+                                          .curve()
+                                          .segment()[seg_size_target - 1]
+                                          .line_segment()
+                                          .point()
+                                          .size();
               end_point_a.set_x((target_lane.left_boundary()
                                      .curve()
                                      .segment()[0]
@@ -1714,7 +1714,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
             arrow_predecessor_marker->set_ns("ns_prior_map_arrow_successor" +
                                              std::to_string(remainder) +
                                              std::to_string(s));
-            arrow_predecessor_marker->set_id(laneId % 10000);
+            arrow_predecessor_marker->set_id(static_cast<int>(laneId % 10000));
             // arrow_predecessor_marker->set_type(
             //     adsfi_proto::viz::MarkerType::LINE_STRIP);
             arrow_predecessor_marker->set_type(
@@ -1722,13 +1722,13 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
 
             arrow_predecessor_marker->set_action(
                 adsfi_proto::viz::MarkerAction::ADD);
-            auto start_point_marker = arrow_predecessor_marker->add_points();
+            auto* start_point_marker = arrow_predecessor_marker->add_points();
             start_point_marker->set_x(start_point.x());
             start_point_marker->set_y(start_point.y());
             start_point_marker->set_z(start_point.z() + 2);
 
             // 添加终点
-            auto end_point_marker = arrow_predecessor_marker->add_points();
+            auto* end_point_marker = arrow_predecessor_marker->add_points();
             end_point_marker->set_x(end_point.x());
             end_point_marker->set_y(end_point.y());
             end_point_marker->set_z(end_point.z() + 2);
@@ -1768,7 +1768,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
             sphere_marker->set_ns("ns_prior_map_arrow_successor_sphere" +
                                   std::to_string(remainder) +
                                   std::to_string(s));
-            sphere_marker->set_id(laneId % 10000);
+            sphere_marker->set_id(static_cast<int>(laneId % 10000));
 
             sphere_marker->set_type(adsfi_proto::viz::MarkerType::SPHERE);
             sphere_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -1817,10 +1817,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::JunctionToMarker(
     junction_marker->mutable_header()->set_frameid("map");
 
     u_int64_t JunctionId = std::stoll(junction.id().id());
-    int remainder = JunctionId / 10000;
+    u_int64_t remainder = JunctionId / 10000;
     junction_marker->set_ns("ns_prior_map_junction" +
                             std::to_string(remainder));
-    junction_marker->set_id(JunctionId % 10000);
+    junction_marker->set_id(static_cast<int>(JunctionId % 10000));
 
     junction_marker->set_type(adsfi_proto::viz::MarkerType::SPHERE);
     junction_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -1845,7 +1845,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::JunctionToMarker(
     color.set_b(0);
     junction_marker->mutable_color()->CopyFrom(color);
     for (const auto& point : junction.polygon().point()) {
-      auto pt = junction_marker->add_points();
+      auto* pt = junction_marker->add_points();
       pt->set_x(point.x());
       pt->set_y(point.y());
       pt->set_z(point.z());
@@ -1870,9 +1870,9 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::RoadToMarker(
           road_marker->mutable_header()->set_frameid("map");
 
           u_int64_t RoadId = std::stoll(road.id().id());
-          int remainder = RoadId / 10000;
+          u_int64_t remainder = RoadId / 10000;
           road_marker->set_ns("ns_prior_map_road" + std::to_string(remainder));
-          road_marker->set_id(RoadId % 10000);
+          road_marker->set_id(static_cast<int>(RoadId % 10000));
 
           road_marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
           road_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -1908,13 +1908,13 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::RoadToMarker(
               Eigen::Vector3d point_gcj(y, x, 0);
               Eigen::Vector3d point_enu =
                   util::Geo::Gcj02ToEnu(point_gcj, enupos);
-              auto pt = road_marker->add_points();
+              auto* pt = road_marker->add_points();
               pt->set_x(point_enu.x());
               pt->set_y(point_enu.y());
               pt->set_z(point_enu.z());
             } else {
               Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
-              auto pt = road_marker->add_points();
+              auto* pt = road_marker->add_points();
               pt->set_x(point_enu.x());
               pt->set_y(point_enu.y());
               pt->set_z(point_enu.z());
@@ -1939,9 +1939,9 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::SignalToMarker(
     signal_marker->mutable_header()->set_frameid("map");
 
     u_int64_t SignalId = std::stoll(signal.id().id());
-    int remainder = SignalId / 10000;
+    u_int64_t remainder = SignalId / 10000;
     signal_marker->set_ns("ns_prior_map_signal" + std::to_string(remainder));
-    signal_marker->set_id(SignalId % 10000);
+    signal_marker->set_id(static_cast<int>(SignalId % 10000));
 
     signal_marker->set_type(adsfi_proto::viz::MarkerType::CUBE_LIST);  // SPHERE
     signal_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -1976,13 +1976,13 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::SignalToMarker(
         hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
         Eigen::Vector3d point_gcj(y, x, 0);
         Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
-        auto pt = signal_marker->add_points();
+        auto* pt = signal_marker->add_points();
         pt->set_x(point_enu.x());
         pt->set_y(point_enu.y());
         pt->set_z(point_enu.z());
       } else {
         Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
-        auto pt = signal_marker->add_points();
+        auto* pt = signal_marker->add_points();
         pt->set_x(point_enu.x());
         pt->set_y(point_enu.y());
         pt->set_z(point_enu.z());
@@ -2004,10 +2004,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::CrossWalkToMarker(
     cross_walk_marker->mutable_header()->set_frameid("map");
 
     u_int64_t CrossWalkId = std::stoll(crosswalk.id().id());
-    int remainder = CrossWalkId / 10000;
+    u_int64_t remainder = CrossWalkId / 10000;
     cross_walk_marker->set_ns("ns_prior_map_crosswalk" +
                               std::to_string(remainder));
-    cross_walk_marker->set_id(CrossWalkId % 10000);
+    cross_walk_marker->set_id(static_cast<int>(CrossWalkId % 10000));
 
     cross_walk_marker->set_type(adsfi_proto::viz::MarkerType::LINE_LIST);
     cross_walk_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -2041,7 +2041,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::CrossWalkToMarker(
       hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
       Eigen::Vector3d point_gcj(y, x, 0);
       Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
-      auto pt = cross_walk_marker->add_points();
+      auto* pt = cross_walk_marker->add_points();
       pt->set_x(point_enu.x());
       pt->set_y(point_enu.y());
       pt->set_z(point_enu.z());
@@ -2062,10 +2062,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::StopSignToMarker(
     stop_sign_marker->mutable_header()->set_frameid("map");
 
     u_int64_t StopSignId = std::stoll(stop_sign.id().id());
-    int remainder = StopSignId / 10000;
+    u_int64_t remainder = StopSignId / 10000;
     stop_sign_marker->set_ns("ns_prior_map_stop_sign" +
                              std::to_string(remainder));
-    stop_sign_marker->set_id(StopSignId % 10000);
+    stop_sign_marker->set_id(static_cast<int>(StopSignId % 10000));
 
     stop_sign_marker->set_type(adsfi_proto::viz::MarkerType::CUBE);
     stop_sign_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -2092,7 +2092,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::StopSignToMarker(
     stop_sign_marker->mutable_color()->CopyFrom(color);
     for (const auto& stop_line : stop_sign.stop_line()) {
       for (const auto& segment : stop_line.segment()) {
-        for (int j = 0; segment.line_segment().point().size(); ++j) {
+        for (int j = 0; j < segment.line_segment().point().size(); ++j) {
           const auto& point = segment.line_segment().point(j);
           Eigen::Vector3d point_utm(point.x(), point.y(), point.z());
           int zone = 51;
@@ -2101,7 +2101,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::StopSignToMarker(
           hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
           Eigen::Vector3d point_gcj(y, x, 0);
           Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
-          auto pt = stop_sign_marker->add_points();
+          auto* pt = stop_sign_marker->add_points();
           pt->set_x(point_enu.x());
           pt->set_y(point_enu.y());
           pt->set_z(point_enu.z());
@@ -2124,10 +2124,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::ClearAreaToMarker(
     clear_area_marker->mutable_header()->set_frameid("map");
 
     u_int64_t ClearAreaId = std::stoll(clear_area.id().id());
-    int remainder = ClearAreaId / 10000;
+    u_int64_t remainder = ClearAreaId / 10000;
     clear_area_marker->set_ns("ns_prior_map_clear_area" +
                               std::to_string(remainder));
-    clear_area_marker->set_id(ClearAreaId % 10000);
+    clear_area_marker->set_id(static_cast<int>(ClearAreaId % 10000));
 
     clear_area_marker->set_type(adsfi_proto::viz::MarkerType::SPHERE);
     clear_area_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -2160,7 +2160,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::ClearAreaToMarker(
       hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
       Eigen::Vector3d point_gcj(y, x, 0);
       Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
-      auto pt = clear_area_marker->add_points();
+      auto* pt = clear_area_marker->add_points();
       pt->set_x(point_enu.x());
       pt->set_y(point_enu.y());
       pt->set_z(point_enu.z());
@@ -2181,10 +2181,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::SpeedBumpToMarker(
     speed_bump_marker->mutable_header()->set_frameid("map");
 
     u_int64_t SpeedBumpId = std::stoll(speed_bump.id().id());
-    int remainder = SpeedBumpId / 10000;
+    u_int64_t remainder = SpeedBumpId / 10000;
     speed_bump_marker->set_ns("ns_prior_map_speed_bump" +
                               std::to_string(remainder));
-    speed_bump_marker->set_id(SpeedBumpId % 10000);
+    speed_bump_marker->set_id(static_cast<int>(SpeedBumpId % 10000));
 
     speed_bump_marker->set_type(adsfi_proto::viz::MarkerType::CUBE);
     speed_bump_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -2211,7 +2211,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::SpeedBumpToMarker(
     speed_bump_marker->mutable_color()->CopyFrom(color);
     for (const auto& position : speed_bump.position()) {
       for (const auto& segment : position.segment()) {
-        for (int j = 0; segment.line_segment().point().size(); ++j) {
+        for (int j = 0; j < segment.line_segment().point().size(); ++j) {
           const auto& point = segment.line_segment().point(j);
           Eigen::Vector3d point_utm(point.x(), point.y(), point.z());
           int zone = 51;
@@ -2220,7 +2220,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::SpeedBumpToMarker(
           hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
           Eigen::Vector3d point_gcj(y, x, 0);
           Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
-          auto pt = speed_bump_marker->add_points();
+          auto* pt = speed_bump_marker->add_points();
           pt->set_x(point_enu.x());
           pt->set_y(point_enu.y());
           pt->set_z(point_enu.z());

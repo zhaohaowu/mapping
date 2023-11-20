@@ -26,22 +26,23 @@ class MapProtoMarker {
   MapProtoMarker() = default;
   ~MapProtoMarker() = default;
 
-  adsfi_proto::viz::TransformStamped CarTrackTF(
+  static adsfi_proto::viz::TransformStamped CarTrackTF(
       const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
       const hozon::common::Header& stamp, bool utm = false);
   //   用时将location_path设成私有变量
-  void CarTrack(const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
-                adsfi_proto::viz::Path* location_path,
-                const hozon::common::Header& stamp, bool utm = false);
-  adsfi_proto::viz::MarkerArray LaneID(
+  static void CarTrack(const Eigen::Vector3d& pose,
+                       const Eigen::Quaterniond& q_W_V,
+                       adsfi_proto::viz::Path* location_path,
+                       const hozon::common::Header& stamp, bool utm = false);
+  static adsfi_proto::viz::MarkerArray LaneID(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
   // right_neighbor_forward message
-  adsfi_proto::viz::MarkerArray LaneRightNeighborForward(
+  static adsfi_proto::viz::MarkerArray LaneRightNeighborForward(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
   // left_neighbor_forward messag
-  adsfi_proto::viz::MarkerArray LaneLeftNeighborForward(
+  static adsfi_proto::viz::MarkerArray LaneLeftNeighborForward(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
   // predecessor message
@@ -80,14 +81,14 @@ class MapProtoMarker {
 
  private:
   std::shared_ptr<hozon::hdmap::Map> prior_map_ = nullptr;
-  adsfi_proto::viz::MarkerArray LaneLeftBoundaryMarker(
+  static adsfi_proto::viz::MarkerArray LaneLeftBoundaryMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
-  adsfi_proto::viz::MarkerArray LaneRightBoundaryMarker(
+  static adsfi_proto::viz::MarkerArray LaneRightBoundaryMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
-  Eigen::Vector3d ConvertPoint(const hozon::common::PointENU& end_point,
-                               const Eigen::Vector3d& enupos) {
+  static Eigen::Vector3d ConvertPoint(const hozon::common::PointENU& end_point,
+                                      const Eigen::Vector3d& enupos) {
     Eigen::Vector3d point_utm_end(end_point.x(), end_point.y(), end_point.z());
     int zone = 51;
     double x_end = point_utm_end.x();

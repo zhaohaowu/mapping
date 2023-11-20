@@ -106,7 +106,7 @@ bool AmapAdapter::Process(
     return false;
   }
   ehp_system_->SetUUID(uid_);
-  auto localization = localization_input;
+  // const auto& localization = localization_input;
   current_time_ = hozon::common::Clock::NowInSeconds();
   bool over_time(false);
   if (FLAGS_ehp_monitor == 2 || FLAGS_ehp_monitor == 0) {  // NOLINT
@@ -181,12 +181,16 @@ bool AmapAdapter::Process(
   sign_data.gnss.isNS = '0';
   sign_data.gnss.isEW = 'w';
 
-  sign_data.gnss.lon = static_cast<int>(localization.pos_gcj02().y() * 1e6);
-  sign_data.gnss.lat = static_cast<int>(localization.pos_gcj02().x() * 1e6);
-  sign_data.gnss.lonS = static_cast<int>(localization.pos_wgs().y() * 1e6);
-  sign_data.gnss.latS = static_cast<int>(localization.pos_wgs().x() * 1e6);
-  auto speed = sqrt(pow(localization.linear_velocity().x(), 2) +
-                    pow(localization.linear_velocity().y(), 2));
+  sign_data.gnss.lon =
+      static_cast<int>(localization_input.pos_gcj02().y() * 1e6);
+  sign_data.gnss.lat =
+      static_cast<int>(localization_input.pos_gcj02().x() * 1e6);
+  sign_data.gnss.lonS =
+      static_cast<int>(localization_input.pos_wgs().y() * 1e6);
+  sign_data.gnss.latS =
+      static_cast<int>(localization_input.pos_wgs().x() * 1e6);
+  auto speed = sqrt(pow(localization_input.linear_velocity().x(), 2) +
+                    pow(localization_input.linear_velocity().y(), 2));
   HLOG_ERROR << "current lon " << sign_data.gnss.lon << " lat "
              << sign_data.gnss.lat;
 
@@ -204,7 +208,7 @@ bool AmapAdapter::Process(
   // if (sign_data.gnss.course > 360) {
   //   sign_data.gnss.course -= 360;
   // }
-  sign_data.gnss.course = localization.heading();
+  sign_data.gnss.course = localization_input.heading();
   HLOG_ERROR << "ehp heading: " << sign_data.gnss.course;
 
   sign_data.gnss.num = 20;

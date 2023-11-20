@@ -3,7 +3,6 @@
  * Description:  ehp
  */
 #include "map_fusion/map_service/ehp/amap_system.h"
-
 #include <memory.h>
 #include <sys/statfs.h>
 
@@ -43,11 +42,11 @@ const char* SystemDeviceImp::getUid() {
 
 int64_t SystemDeviceImp::getDiskFreeSize() {
 #ifdef ISMDC
-  struct statfs diskInfo;
+  struct statfs diskInfo {};
   statfs("/opt/usr/hd_map", &diskInfo);
   uint64_t blocksize = diskInfo.f_bsize;
-  uint64_t totalsize = blocksize * diskInfo.f_blocks;
-  uint64_t availableDisk = diskInfo.f_bavail * blocksize;
+  // uint64_t totalsize = blocksize * diskInfo.f_blocks;
+  int64_t availableDisk = diskInfo.f_bavail * blocksize;
   return availableDisk;
 #endif
   return -1;

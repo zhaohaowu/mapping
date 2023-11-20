@@ -44,7 +44,7 @@ bool MapService::Init() {
   amap_adapter_.SetUUID("LUZHRQASDHNVQCQNIH4CLM5OTA7VQ489");
 #endif
   routing_ = std::make_shared<hozon::routing::RoutingResponse>();
-  auto global_hd_map = hozon::mp::GlobalHdMap::Instance();
+  auto* global_hd_map = hozon::mp::GlobalHdMap::Instance();
 
   if (FLAGS_map_service_mode == 0) {
     global_hd_map->GetHdMap()->LoadMapFromFile(FLAGS_map_dir + "/base_map.bin");

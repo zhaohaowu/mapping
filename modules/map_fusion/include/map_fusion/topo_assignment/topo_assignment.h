@@ -133,7 +133,7 @@ class TopoAssignment {
   void AppendTopoMap(const std::map<std::string, Lane>& all_lanes,
                      const std::shared_ptr<hozon::hdmap::Map>& topo_map);
   void VizLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
-                   const Eigen::Isometry3d& T_U_W);
+                   const Eigen::Isometry3d& T_U_V);
   void VizLocation(const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
                    const double stamp);
   void VizHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg);

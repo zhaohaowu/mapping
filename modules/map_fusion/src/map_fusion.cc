@@ -18,6 +18,7 @@ namespace mp {
 namespace mf {
 
 int MapFusion::Init(const std::string& conf) {
+  (void)(conf);
   map_service_ = std::make_shared<MapService>();
   if (!map_service_->Init()) {
     HLOG_ERROR << "Init MapService failed";
@@ -54,7 +55,7 @@ int MapFusion::ProcService(
     const std::shared_ptr<hozon::localization::HafNodeInfo>& curr_node_info,
     const std::shared_ptr<hozon::planning::ADCTrajectory>& curr_planning,
     hozon::routing::RoutingResponse* routing) {
-  if (!routing) {
+  if (routing == nullptr) {
     HLOG_ERROR << "nullptr input routing";
     return -1;
   }
@@ -91,7 +92,7 @@ int MapFusion::ProcFusion(
     const std::shared_ptr<hozon::localization::Localization>& curr_loc,
     const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
     hozon::hdmap::Map* fusion_map) {
-  if (!fusion_map) {
+  if (fusion_map == nullptr) {
     HLOG_ERROR << "input nullptr fusion map";
     return -1;
   }

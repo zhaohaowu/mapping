@@ -1936,11 +1936,11 @@ int TopoAssignment::FindNearestPointIndex(
 
 int TopoAssignment::KnnSearchNearestPointIndex(
     const int dim, const std::vector<float>& query_points,
-    const std::shared_ptr<cv::flann::Index>& kd_tee) {
+    const std::shared_ptr<cv::flann::Index>& kd_tree) {
   std::vector<int> nearest_index(dim);
   std::vector<float> nearest_dist(dim);
 
-  kd_tee->knnSearch(query_points, nearest_index, nearest_dist, dim,
+  kd_tree->knnSearch(query_points, nearest_index, nearest_dist, dim,
                     cv::flann::SearchParams(-1));
   return nearest_index[0];
 }

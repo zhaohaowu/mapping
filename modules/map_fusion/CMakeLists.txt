@@ -6,7 +6,6 @@ include_directories(
 )
 
 set(TOPO_SRCS
-  src/local_map_provider/local_map_provider.cc
   src/topo_assignment/topo_assignment.cc
   )
 

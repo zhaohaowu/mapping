@@ -48,7 +48,7 @@ int32_t LocalMappingOnboard::AlgInit() {
   if (config["use_rviz"].as<bool>()) {
     HLOG_INFO << "Start RvizAgent!!!";
     int ret = hozon::mp::util::RvizAgent::Instance().Init(
-        "ipc:///tmp/rviz_agent_local_map");
+        config["rviz_addr"].as<std::string>());
     if (ret < 0) {
       HLOG_ERROR << "RvizAgent start failed";
     }

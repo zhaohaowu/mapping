@@ -85,14 +85,22 @@ void LaneOp::Match(const Perception& cur_lane_lines, const LocalMap& local_map,
   }
 }
 
-bool LaneOp::MergePointsLeftRight(const std::vector<cv::Point2f>& cv_points,
-                                  LaneLine* query_lane_line,
-                                  LaneLine* other_lane_line) {
+bool LaneOp::MatchLeftRight(const LaneLine& query_lane_line,
+                            const LaneLine& other_lane_line) {
+  std::vector<cv::Point2f> cv_points;
+  for (const auto& point : other_lane_line.points_) {
+    cv::Point2f tmp_point = {static_cast<float>(point.x()),
+                             static_cast<float>(point.y())};
+    cv_points.emplace_back(tmp_point);
+  }
+  if (cv_points.empty()) {
+    return false;
+  }
   cv::flann::KDTreeIndexParams index_params(1);
   std::shared_ptr<cv::flann::Index> kdtree = std::make_shared<cv::flann::Index>(
       cv::Mat(cv_points).reshape(1), index_params);
   int num = 0;
-  for (auto query_point : query_lane_line->points_) {
+  for (auto query_point : query_lane_line.points_) {
     if (query_point.x() > 50) {
       continue;
     }
@@ -111,11 +119,13 @@ bool LaneOp::MergePointsLeftRight(const std::vector<cv::Point2f>& cv_points,
     }
     num++;
   }
-  if (num == 0) {
-    return false;
-  }
+  return num > 0;
+}
+
+void LaneOp::MergePointsLeftRight(LaneLine* query_lane_line,
+                                  LaneLine* other_lane_line) {
+  std::vector<Eigen::Vector3d> new_points;
   if (query_lane_line->points_[0].x() < other_lane_line->points_[0].x()) {
-    std::vector<Eigen::Vector3d> new_points;
     for (auto point : query_lane_line->points_) {
       if (point.x() > other_lane_line->points_[0].x() - 0.9) {
         break;
@@ -125,9 +135,7 @@ bool LaneOp::MergePointsLeftRight(const std::vector<cv::Point2f>& cv_points,
     for (const auto& point : other_lane_line->points_) {
       new_points.emplace_back(point);
     }
-    other_lane_line->points_ = new_points;
   } else {
-    std::vector<Eigen::Vector3d> new_points;
     for (auto point : other_lane_line->points_) {
       if (point.x() > query_lane_line->points_[0].x() - 0.9) {
         break;
@@ -137,10 +145,16 @@ bool LaneOp::MergePointsLeftRight(const std::vector<cv::Point2f>& cv_points,
     for (const auto& point : query_lane_line->points_) {
       new_points.emplace_back(point);
     }
+  }
+  if (query_lane_line->track_id_ < other_lane_line->track_id_) {
+    other_lane_line->track_id_ = query_lane_line->track_id_;
+    other_lane_line->lanepos_ = query_lane_line->lanepos_;
+    other_lane_line->lanetype_ = query_lane_line->lanetype_;
+    other_lane_line->points_ = new_points;
+  } else {
     other_lane_line->points_ = new_points;
   }
   query_lane_line->need_delete_ = true;
-  return true;
 }
 
 void LaneOp::MergeMapLeftRight(LocalMap* local_map) {
@@ -157,22 +171,10 @@ void LaneOp::MergeMapLeftRight(LocalMap* local_map) {
       if (!other_lane_line.need_merge_) {
         continue;
       }
-      std::vector<cv::Point2f> cv_points;
-      for (const auto& point : other_lane_line.points_) {
-        if (point.x() < -0.5) {
-          continue;
-        }
-        cv::Point2f tmp_point = {static_cast<float>(point.x()),
-                                 static_cast<float>(point.y())};
-        cv_points.emplace_back(tmp_point);
-      }
-      if (cv_points.empty()) {
+      if (!MatchLeftRight(query_lane_line, other_lane_line)) {
         continue;
       }
-      if (!MergePointsLeftRight(cv_points, &query_lane_line,
-                                &other_lane_line)) {
-        continue;
-      }
+      MergePointsLeftRight(&query_lane_line, &other_lane_line);
     }
   }
   for (int i = 0; i < static_cast<int>(local_map->lane_lines_.size()); i++) {
@@ -184,9 +186,9 @@ void LaneOp::MergeMapLeftRight(LocalMap* local_map) {
   }
 }
 
-bool LaneOp::MergePointsFrontBack(LaneLine* query_lane_line,
-                                  LaneLine* other_lane_line) {
-  int n = static_cast<int>(other_lane_line->points_.size());
+bool LaneOp::MatchFrontBack(const LaneLine& query_lane_line,
+                            const LaneLine& other_lane_line) {
+  int n = static_cast<int>(other_lane_line.points_.size());
   if (n <= 1) {
     return false;
   }
@@ -194,15 +196,15 @@ bool LaneOp::MergePointsFrontBack(LaneLine* query_lane_line,
   Eigen::VectorXd b(n);
   for (int j = 0; j < n; j++) {
     // 拟合直线
-    A(j, 0) = other_lane_line->points_[j].x();
+    A(j, 0) = other_lane_line.points_[j].x();
     A(j, 1) = 1.0;
-    b(j) = other_lane_line->points_[j].y();
+    b(j) = other_lane_line.points_[j].y();
   }
   Eigen::Vector2d x = (A.transpose() * A).inverse() * A.transpose() * b;
 
   double sum_distance = 0;
   int count = 0;
-  for (auto query_point : query_lane_line->points_) {
+  for (auto query_point : query_lane_line.points_) {
     if (query_point.x() > 50) {
       continue;
     }
@@ -210,17 +212,18 @@ bool LaneOp::MergePointsFrontBack(LaneLine* query_lane_line,
                     std::sqrt(x[0] * x[0] + 1);
     count++;
   }
-  if (count == 0 || sum_distance / count > 1) {
-    return false;
-  }
+  return count > 0 && sum_distance / count <= 1;
+}
+
+bool LaneOp::MergePointsFrontBack(LaneLine* query_lane_line,
+                                  LaneLine* other_lane_line) {
+  std::vector<Eigen::Vector3d> new_points;
   if (other_lane_line->points_.front().x() >
       query_lane_line->points_.back().x()) {
     if (fabs(other_lane_line->points_.front().y() -
              query_lane_line->points_.back().y()) > 1) {
       return false;
     }
-    std::vector<Eigen::Vector3d> new_points;
-    new_points.reserve(400);
     for (const auto& point : query_lane_line->points_) {
       new_points.emplace_back(point);
     }
@@ -238,14 +241,11 @@ bool LaneOp::MergePointsFrontBack(LaneLine* query_lane_line,
     for (const auto& point : other_lane_line->points_) {
       new_points.emplace_back(point);
     }
-    other_lane_line->points_ = new_points;
   } else {
     if (fabs(query_lane_line->points_.front().y() -
              other_lane_line->points_.back().y()) > 1) {
       return false;
     }
-    std::vector<Eigen::Vector3d> new_points;
-    new_points.reserve(400);
     for (const auto& point : other_lane_line->points_) {
       new_points.emplace_back(point);
     }
@@ -263,6 +263,13 @@ bool LaneOp::MergePointsFrontBack(LaneLine* query_lane_line,
     for (const auto& point : query_lane_line->points_) {
       new_points.emplace_back(point);
     }
+  }
+  if (query_lane_line->track_id_ < other_lane_line->track_id_) {
+    other_lane_line->track_id_ = query_lane_line->track_id_;
+    other_lane_line->lanepos_ = query_lane_line->lanepos_;
+    other_lane_line->lanetype_ = query_lane_line->lanetype_;
+    other_lane_line->points_ = new_points;
+  } else {
     other_lane_line->points_ = new_points;
   }
   query_lane_line->need_delete_ = true;
@@ -294,7 +301,11 @@ void LaneOp::MergeMapFrontBack(LocalMap* local_map) {
             other_lane_line.points_.back().x()) &&
            (query_lane_line.points_.back().x() >
             other_lane_line.points_.front().x())) ||
-          (other_lane_line.c2_ > 0.001)) {
+          (other_lane_line.c2_ > 0.001) ||
+          query_lane_line.lanetype_ != other_lane_line.lanetype_) {
+        continue;
+      }
+      if (!MatchFrontBack(query_lane_line, other_lane_line)) {
         continue;
       }
       if (!MergePointsFrontBack(&query_lane_line, &other_lane_line)) {

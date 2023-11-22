@@ -29,13 +29,14 @@ int32_t MappingAdc::MappingAdc::AlgInit() {
       HLOG_ERROR << "RvizAgent start failed";
     }
   }
-  lmap_ = std::make_unique<lm::LMapApp>(FLAGS_lm_config);
+  std::string mapping_path;
+  lmap_ = std::make_unique<lm::LMapApp>(mapping_path, FLAGS_lm_config);
   dr_ = std::make_unique<dr::DRInterface>();
   if (dr_ == nullptr) {
     HLOG_ERROR << "make dr ptr failed.";
     return -1;
   }
-  
+
   loc_ = std::make_unique<loc::Localization>();
   if (!loc_->Init()) {
     return -1;
@@ -170,6 +171,7 @@ int32_t MappingAdc::PluginCallback(hz_Adsfi::NodeBundle* input) {
   if (p_plugin) {
     DataBoard::Adsfi2Proto(*p_plugin, board_.plugin_proto.get());
     loc_->OnInspva(*(board_.plugin_proto));
+    lmap_->OnIns(board_.plugin_proto);
     {
       std::lock_guard<std::mutex> lock(plugin_mtx_);
       curr_plugin_ = std::make_shared<hozon::localization::HafNodeInfo>(

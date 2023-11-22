@@ -33,6 +33,7 @@
 #include "modules/local_mapping/utils/data_convert.h"
 #include "modules/local_mapping/utils/fetch_hq.h"
 #include "modules/local_mapping/utils/map_manager.h"
+#include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/temp_log.h"
 namespace hozon {
@@ -40,7 +41,18 @@ namespace mp {
 namespace lm {
 class LMapApp {
  public:
-  explicit LMapApp(const std::string& config_file);
+  explicit LMapApp(const std::string& mapping_path,
+                   const std::string& config_file);
+
+  ~LMapApp();
+
+  LMapApp(const LMapApp& other);
+
+  LMapApp& operator=(const LMapApp& other);
+
+  LMapApp(LMapApp&& other) noexcept;
+
+  LMapApp& operator=(LMapApp&& other) noexcept;
 
   /**
    * @brief receive location message
@@ -104,25 +116,29 @@ class LMapApp {
   bool FetchLocalMap(
       const std::shared_ptr<hozon::mapping::LocalMap>& local_map);
 
+  void RvizFunc();
+
  private:
   std::shared_ptr<LaneOp> laneOp_;
   std::shared_ptr<MapManager> mmgr_;
   std::shared_ptr<hozon::hdmap::HDMap> hdmap_ = nullptr;
-  std::shared_ptr<hozon::hdmap::Map> crop_map_;
+  std::shared_ptr<hozon::hdmap::Map> hqmap_ = nullptr;
   std::shared_ptr<PriorProvider> provider_;
-  std::shared_ptr<LocalMap> local_map_ = std::make_shared<LocalMap>();
-  LocalMap local_map_tmp_;
-  Sophus::SE3d T_W_V_;
+  LocalMap local_map_;
+  Perception perception_;
+  Sophus::SE3d T_W_V_, T_G_V_;
   std::mutex localmap_mutex_;
-  std::mutex T_W_V_mutex_;
+  std::mutex perception_mutex_;
+  std::mutex T_mutex_;
+  std::string map_file_;
   bool use_point_tracking_;
   bool use_perception_match_;
   bool use_horizon_assoc_match_;
   bool use_rviz_;
   bool dr_inited_ = false;
   bool laneline_inited_ = false;
-  bool compute_error;
-  double sample_interval_;
+  bool ins_inited_ = false;
+  std::thread rviz_thread_;
 };
 
 }  // namespace lm

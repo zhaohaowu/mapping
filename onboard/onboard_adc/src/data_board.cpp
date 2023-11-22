@@ -28,6 +28,7 @@ void DataBoard::Adsfi2Proto(const hz_Adsfi::AlgLaneDetectionOutArray& stu,
       stu.header.gnssStamp.sec + stu.header.gnssStamp.nsec * 1e-9;
   proto->mutable_header()->set_publish_stamp(tick);
   proto->mutable_header()->set_gnss_stamp(gnssstamp);
+  proto->mutable_header()->set_data_stamp(gnssstamp);
   proto->mutable_header()->set_seq(static_cast<int32_t>(stu.header.seq));
   proto->mutable_header()->set_frame_id(stu.header.frameID);
 
@@ -176,7 +177,8 @@ void DataBoard::Adsfi2Proto(
                            imuinsDataPtr_->header.gnssStamp.nsec * 1e-9;
   imu_proto->mutable_header()->set_publish_stamp(tick);
   imu_proto->mutable_header()->set_gnss_stamp(gnssstamp);
-  imu_proto->mutable_header()->mutable_sensor_stamp()->set_imuins_stamp(gnssstamp);
+  imu_proto->mutable_header()->mutable_sensor_stamp()->set_imuins_stamp(
+      gnssstamp);
   imu_proto->mutable_header()->set_data_stamp(gnssstamp);
   imu_proto->mutable_header()->set_frame_id(imuinsDataPtr_->header.frameID);
   // imu
@@ -261,7 +263,8 @@ void DataBoard::Adsfi2Proto(
   chassis_proto->mutable_header()->set_publish_stamp(tick);
   chassis_proto->mutable_header()->set_gnss_stamp(gnssstamp);
   chassis_proto->mutable_header()->set_data_stamp(gnssstamp);
-  chassis_proto->mutable_header()->mutable_sensor_stamp()->set_chassis_stamp(gnssstamp);
+  chassis_proto->mutable_header()->mutable_sensor_stamp()->set_chassis_stamp(
+      gnssstamp);
   // 档位
   auto gear_pos = chassisDataPtr_->vcu_info.VCU_ActGearPosition;
   switch (gear_pos) {

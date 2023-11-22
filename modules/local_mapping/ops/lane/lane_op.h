@@ -33,9 +33,12 @@ class LaneOp {
   void Match(const Perception& cur_lane_lines, const LocalMap& local_map,
              std::vector<LaneMatchInfo>* match_info,
              bool use_horizon_assoc_match);
-  static bool MergePointsLeftRight(const std::vector<cv::Point2f>& cv_points,
-                                   LaneLine* query_lane_line,
+  static bool MatchLeftRight(const LaneLine& query_lane_line,
+                             const LaneLine& other_lane_line);
+  static void MergePointsLeftRight(LaneLine* query_lane_line,
                                    LaneLine* other_lane_line);
+  static bool MatchFrontBack(const LaneLine& query_lane_line,
+                             const LaneLine& other_lane_line);
   static bool MergePointsFrontBack(LaneLine* query_lane_line,
                                    LaneLine* other_lane_line);
   static void MergeMapLeftRight(LocalMap* local_map);

@@ -13,6 +13,9 @@ target_link_libraries(onboard_lite_localmapping
   # fastrtps
   # gflags
   lmap_core
+  opencv_core
+  opencv_imgproc
+  opencv_imgcodecs
 
 )
 

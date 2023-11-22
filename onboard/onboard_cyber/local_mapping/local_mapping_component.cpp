@@ -15,14 +15,18 @@ DEFINE_string(output_topic, "/local_map", "location topic");
 DEFINE_string(image_topic, "/CameraFrontWide/compresseds", "image topic");
 DEFINE_string(config_yaml, "conf/mapping/local_mapping/local_mapping_conf.yaml",
               "path to local mapping conf yaml");
-DEFINE_bool(viz, true, "use rviz");
+DEFINE_bool(lm_viz, true, "use rviz");
 // NOLINTEND
 namespace hozon {
 namespace mp {
 namespace lm {
 
 bool LMapComponent::Init() {
-  lmap_ = std::make_shared<LMapApp>(FLAGS_config_yaml);
+  if (FLAGS_lm_viz) {
+    util::RvizAgent::Instance().Init("ipc:///tmp/rviz_agent_local_map");
+  }
+  std::string mapping_path;
+  lmap_ = std::make_shared<LMapApp>(mapping_path, FLAGS_config_yaml);
 
   location_listener_ = node_->CreateReader<hozon::localization::Localization>(
       FLAGS_location_topic,
@@ -64,15 +68,11 @@ bool LMapComponent::Init() {
   local_map_publish_thread_ =
       std::thread(&LMapComponent::LocalMapPublish, this);
 
-  if (FLAGS_viz) {
-    util::RvizAgent::Instance().Init("ipc:///tmp/rviz_agent_local_map");
-  }
-
   return true;
 }
 
 LMapComponent::~LMapComponent() {
-  if (FLAGS_viz) {
+  if (FLAGS_lm_viz) {
     util::RvizAgent::Instance().Term();
   }
 }

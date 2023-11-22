@@ -16,6 +16,10 @@ elseif(${PLATFORM} STREQUAL "orin")
 elseif((${PLATFORM} STREQUAL "x86") OR (${PLATFORM} STREQUAL "x86_2004"))
     set(TARGET_PLATFORM x86_2004)
     set(LOCAL_TARGET_PLATFORM x86)
+
+    if(MIDDLEWARE MATCHES LITE)
+        add_definitions(-DX86_LITE)
+    endif()
 endif()
 
 unset(BUILD_BY_PERCEPTION CACHE)

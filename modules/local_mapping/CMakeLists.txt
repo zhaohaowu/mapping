@@ -22,6 +22,7 @@ target_link_libraries(lmap_core
   opencv_highgui 
   opencv_imgproc 
   opencv_flann
+  mf
 )
 
 set_target_properties(lmap_core PROPERTIES LINKER_LANGUAGE CXX)

@@ -9,7 +9,8 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
-int PriorProvider::Init(const std::string& conf) {
+int PriorProvider::Init(const std::string& mapping_path,
+                        const std::string& conf) {
   YAML::Node root;
   try {
     root = YAML::LoadFile(conf);
@@ -26,7 +27,7 @@ int PriorProvider::Init(const std::string& conf) {
     return -1;
   }
 
-  const auto map_file = root[key].as<std::string>();
+  const auto map_file = mapping_path + root[key].as<std::string>();
   std::ifstream map_stream(map_file, std::ios::in | std::ios::binary);
   if (!map_stream) {
     HLOG_ERROR << "Failed to open " << map_file;

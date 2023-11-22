@@ -14,7 +14,7 @@ void DataConvert::SetLocation(const hozon::localization::Localization& msg,
 
 void DataConvert::SetDr(const hozon::dead_reckoning::DeadReckoning& msg,
                         Location* dr_location) {
-  dr_location->timestamp_ = msg.header().gnss_stamp();
+  dr_location->timestamp_ = msg.header().data_stamp();
   dr_location->position_.x() = msg.pose().pose_local().position().x();
   dr_location->position_.y() = msg.pose().pose_local().position().y();
   dr_location->position_.z() = msg.pose().pose_local().position().z();
@@ -34,8 +34,8 @@ void DataConvert::SetDr(const hozon::dead_reckoning::DeadReckoning& msg,
   dr_location->heading_ = msg.pose().pose_local().heading();
 }
 
-void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
-                              Perception* lane_lines) {
+void DataConvert::SetLaneLinePoint(
+    const hozon::perception::TransportElement& msg, Perception* lane_lines) {
   lane_lines->timestamp_ = msg.header().data_stamp();
   for (const auto& lane_line : msg.lane()) {
     if (lane_line.points().empty() ||
@@ -76,9 +76,8 @@ void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
 }
 
 void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
-                              Perception* lane_lines,
-                              const double& sample_interval) {
-  lane_lines->timestamp_ = msg.header().gnss_stamp();
+                              Perception* lane_lines) {
+  lane_lines->timestamp_ = msg.header().data_stamp();
   for (const auto& lane_line : msg.lane()) {
     if (lane_line.lanepos() == hozon::perception::OTHER ||
         lane_line.lanetype() == hozon::perception::RoadEdge ||
@@ -104,7 +103,7 @@ void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
                  lane_line_tmp.c2_ * x * x + lane_line_tmp.c3_ * x * x * x;
       Eigen::Vector3d point_tmp = {x, y, 0};
       lane_line_tmp.points_.emplace_back(point_tmp);
-      x += sample_interval;
+      x++;
     }
     if (lane_line_tmp.points_.empty()) {
       continue;

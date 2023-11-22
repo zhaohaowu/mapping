@@ -9,6 +9,8 @@ input:
       capacity: 5
     - topic: dr 
       capacity: 5
+    - topic: lm_image 
+      capacity: 5
 
 # output:
 #     - topic: /localization/local_map_loc
@@ -24,6 +26,11 @@ trigger:
     type: EVENT
     mainSources:
       - name: dr
+        timeout: 1000
+  - name: recv_image
+    type: EVENT
+    mainSources:
+      - name: lm_image
         timeout: 1000
   
   - name: send_lm # send workresult1,workresult2

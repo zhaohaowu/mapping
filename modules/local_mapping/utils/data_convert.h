@@ -43,8 +43,8 @@ class DataConvert {
    * @param msg : laneline message
    * @return
    */
-  static void SetLaneLine(const hozon::perception::TransportElement& msg,
-                          Perception* lane_lines);
+  static void SetLaneLinePoint(const hozon::perception::TransportElement& msg,
+                               Perception* lane_lines);
 
   /**
    * @brief convert laneline message into internal class
@@ -53,8 +53,7 @@ class DataConvert {
    * @return
    */
   static void SetLaneLine(const hozon::perception::TransportElement& msg,
-                          Perception* lane_lines,
-                          const double& sample_interval);
+                          Perception* lane_lines);
 
   /**
    * @brief convert laneline message into internal class

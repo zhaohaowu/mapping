@@ -32,7 +32,7 @@
 #map fusion
 --map_service_mode=1
 
---channel_ins_node_info=/localization/location_node
+--channel_ins_node_info=/PluginNodeInfo
 
 --mf_viz=ipc:///tmp/rviz_agent_mf
 --topo_rviz=false

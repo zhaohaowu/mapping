@@ -19,3 +19,15 @@ module_config {
     }
   }
 }
+
+module_config {
+  module_library: "lib/libmapping_mf_cyber.so"
+  timer_components {
+    class_name : "MapServiceComponent"
+    config {
+      name: "map_service"
+      flag_file_path: "conf/mapping/map_fusion/mapservice.txt"
+      interval: 100
+    }
+  }
+}

@@ -9,45 +9,99 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
-LMapApp::LMapApp(const std::string& config_file) {
+LMapApp::LMapApp(const std::string& mapping_path,
+                 const std::string& config_file) {
   YAML::Node config = YAML::LoadFile(config_file);
   use_point_tracking_ = config["use_point_tracking"].as<bool>();
   use_perception_match_ = config["use_perception_match"].as<bool>();
   use_horizon_assoc_match_ = config["use_horizon_assoc_match"].as<bool>();
+  map_file_ = config["map_file"].as<std::string>();
   use_rviz_ = config["use_rviz"].as<bool>();
-  compute_error = config["compute_error"].as<bool>();
-  sample_interval_ = config["sample_interval"].as<double>();
   laneOp_ = std::make_shared<LaneOp>();
   mmgr_ = std::make_shared<MapManager>();
-  // load hdmap
+  // load city hdmap
   provider_ = std::make_shared<PriorProvider>();
-  provider_->Init(config_file);
+  provider_->Init(mapping_path, config_file);
   auto map = provider_->GetPrior();
-  // hdmap_ = std::make_shared<hozon::hdmap::HDMap>();
-  // hdmap_->LoadMapFromProto(*map);
-  auto& local_data = LocalDataSingleton::GetInstance();
+  if (map) {
+    hdmap_ = std::make_shared<hozon::hdmap::HDMap>();
+    hdmap_->LoadMapFromProto(*map);
+  }
+  if (use_rviz_ && RVIZ_AGENT.Ok()) {
+    rviz_thread_ = std::thread(&LMapApp::RvizFunc, this);
+  }
+}
+
+LMapApp::~LMapApp() { rviz_thread_.join(); }
+
+void LMapApp::RvizFunc() {
+  while (true) {
+    T_mutex_.lock();
+    Sophus::SE3d T_W_V = T_W_V_;
+    Sophus::SE3d T_G_V = T_G_V_;
+    T_mutex_.unlock();
+    localmap_mutex_.lock();
+    LocalMap local_map = local_map_;
+    localmap_mutex_.unlock();
+    perception_mutex_.lock();
+    Perception perception = perception_;
+    perception_mutex_.unlock();
+    auto sec = static_cast<uint64_t>(perception.timestamp_);
+    auto nsec = static_cast<uint64_t>(
+        (perception.timestamp_ - static_cast<double>(sec)) * 1e9);
+    static int rviz_count = 0;
+    rviz_count++;
+    if (rviz_count >= 10 && ins_inited_) {
+      rviz_count = 0;
+      if (hdmap_) {
+        CommonUtil::PubHdMapPoints(T_G_V, T_W_V, hdmap_, sec, nsec,
+                                   "/localmap/hd_map_points");
+      }
+      CommonUtil::PubHqMapPoints(T_G_V, T_W_V, sec, nsec,
+                                 "/localmap/hq_map_points");
+    }
+    CommonUtil::PubPercepPoints(T_W_V, perception, sec, nsec,
+                                "/localmap/percep_points");
+    CommonUtil::PubMapPoints(local_map, sec, nsec, "/localmap/map_points",
+                             T_W_V);
+    CommonUtil::PubMapPointsMarker(local_map, sec, nsec,
+                                   "/localmap/map_points/marker", T_W_V);
+    CommonUtil::PubPercepPointsMarker(T_W_V, perception, sec, nsec,
+                                      "/localmap/percep_points/marker");
+    CommonUtil::PubOriMapPoints(local_map, sec, nsec,
+                                "/localmap/ori_map_points", T_W_V);
+    CommonUtil::PubMapControlPoints(local_map, sec, nsec,
+                                    "/localmap/map_control_points", T_W_V);
+    CommonUtil::PubLane(local_map, sec, nsec, "/localmap/lane", T_W_V);
+    CommonUtil::PubMapLane(local_map, sec, nsec, "/localmap/map_lane", T_W_V);
+    CommonUtil::PubOdom(T_W_V, sec, nsec, "/localmap/odom");
+    CommonUtil::PubTf(T_W_V, sec, nsec, "/localmap/tf");
+    CommonUtil::PubPath(T_W_V, sec, nsec, "/localmap/path");
+    usleep(100 * 1e3);
+  }
 }
 
 void LMapApp::OnLocation(
     const std::shared_ptr<const hozon::localization::Localization>& msg) {
-  Location latest_location;
-  DataConvert::SetLocation(*msg, &latest_location);
+  std::shared_ptr<Location> latest_location = std::make_shared<Location>();
+  DataConvert::SetLocation(*msg, latest_location.get());
 }
 
 void LMapApp::OnDr(
     const std::shared_ptr<const hozon::dead_reckoning::DeadReckoning>& msg) {
-  Location latest_dr;
-  DataConvert::SetDr(*msg, &latest_dr);
+  std::shared_ptr<Location> latest_dr = std::make_shared<Location>();
+  DataConvert::SetDr(*msg, latest_dr.get());
   static bool dr_flag = true;
   static Sophus::SE3d init_T;
   if (dr_flag) {
     dr_flag = false;
+    init_T = Sophus::SE3d(latest_dr->quaternion_, latest_dr->position_);
   }
   Sophus::SE3d latest_T =
-      Sophus::SE3d(latest_dr.quaternion_, latest_dr.position_);
-  Sophus::SE3d T_W_V = init_T.inverse() * latest_T;
-  Eigen::Vector3d trans_pose = T_W_V.translation();
-  Eigen::Quaterniond trans_quat = T_W_V.so3().unit_quaternion();
+      Sophus::SE3d(latest_dr->quaternion_, latest_dr->position_);
+  Sophus::SE3d T_W_V_dr = init_T.inverse() * latest_T;
+  Eigen::Vector3d trans_pose = T_W_V_dr.translation();
+  Eigen::Quaterniond trans_quat = T_W_V_dr.so3().unit_quaternion();
   auto& local_data = LocalDataSingleton::GetInstance();
   // HLOG_ERROR << "Dr buffer size: " <<
   // local_data.dr_buffer().buffer_size();
@@ -55,14 +109,14 @@ void LMapApp::OnDr(
   // HLOG_ERROR << "Dr timestamp: " << std::setprecision(20)
   //            << latest_dr->timestamp_;
   if (local_data.dr_buffer().is_empty() ||
-      local_data.dr_buffer().back()->timestamp < latest_dr.timestamp_) {
+      local_data.dr_buffer().back()->timestamp < latest_dr->timestamp_) {
     DrDataPtr dr_data_ptr = std::make_shared<DrData>();
-    dr_data_ptr->timestamp = latest_dr.timestamp_;
+    dr_data_ptr->timestamp = latest_dr->timestamp_;
     dr_data_ptr->pose = trans_pose;
     dr_data_ptr->quaternion = trans_quat;
-    dr_data_ptr->local_omg = latest_dr.angular_vrf_;
-    dr_data_ptr->local_vel = latest_dr.linear_vrf_;
-    local_data.dr_buffer().push_new_message(latest_dr.timestamp_, dr_data_ptr);
+    dr_data_ptr->local_omg = latest_dr->angular_vrf_;
+    dr_data_ptr->local_vel = latest_dr->linear_vrf_;
+    local_data.dr_buffer().push_new_message(latest_dr->timestamp_, dr_data_ptr);
   } else {
     // HLOG_ERROR << "Dr timestamp error";
   }
@@ -76,72 +130,45 @@ void LMapApp::OnIns(
   Eigen::Quaterniond q_G_V(msg->quaternion().w(), msg->quaternion().x(),
                            msg->quaternion().y(), msg->quaternion().z());
   Sophus::SE3d T_G_V = Sophus::SE3d(q_G_V, p_G_V);
-  static int ins_n = 0;
-  ins_n++;
-  if (use_rviz_ && RVIZ_AGENT.Ok() && ins_n == 100 && hdmap_ != nullptr) {
-    ins_n = 0;
-    if (!dr_inited_) {
-      return;
-    }
-    auto sec = static_cast<uint64_t>(msg->header().gnss_stamp());
-    auto nsec = static_cast<uint64_t>(
-        (msg->header().gnss_stamp() - static_cast<double>(sec)) * 1e9);
-    if (compute_error) {
-      std::vector<Eigen::Vector3d> hq_pts;
-      T_W_V_mutex_.lock();
-      CommonUtil::PubHdMapPoints(T_G_V, T_W_V_, hdmap_, sec, nsec,
-                                 "/localmap/hq_map_points", &hq_pts);
-      T_W_V_mutex_.unlock();
-      localmap_mutex_.lock();
-      if (!hq_pts.empty() && !local_map_tmp_.lane_lines_.empty()) {
-        // float error = Loss::Process(hq_pts, local_map_tmp_.lane_lines_);
-      }
-      localmap_mutex_.unlock();
-    } else {
-      T_W_V_mutex_.lock();
-      CommonUtil::PubHdMapPoints(T_G_V, T_W_V_, hdmap_, sec, nsec,
-                                 "/localmap/hq_map_points");
-      T_W_V_mutex_.unlock();
-    }
-  }
+  T_mutex_.lock();
+  T_G_V_ = T_G_V;
+  T_mutex_.unlock();
+  ins_inited_ = true;
 }
 
 void LMapApp::OnLaneLine(
     const std::shared_ptr<const hozon::perception::TransportElement>& msg) {
   // auto start = std::chrono::high_resolution_clock::now();
-  std::shared_ptr<Perception> latest_lane_lines =
-      std::make_shared<Perception>();
+  std::shared_ptr<Perception> perception = std::make_shared<Perception>();
   if (use_point_tracking_) {
-    DataConvert::SetLaneLine(*msg, latest_lane_lines.get());
+    DataConvert::SetLaneLinePoint(*msg, perception.get());
   } else {
-    DataConvert::SetLaneLine(*msg, latest_lane_lines.get(), sample_interval_);
+    DataConvert::SetLaneLine(*msg, perception.get());
   }
   // HLOG_ERROR << "LaneLine timestamp: " << std::setprecision(20)
-  //            << latest_lane_lines->timestamp_;
+  //            << perception->timestamp_;
   ConstDrDataPtr lane_line_pose =
-      laneOp_->GetDrPoseForTime(latest_lane_lines->timestamp_);
+      laneOp_->GetDrPoseForTime(perception->timestamp_);
   if (lane_line_pose == nullptr) {
     HLOG_ERROR << "lane_line_pose is nullptr";
     return;
   }
   Sophus::SE3d T_W_V =
       Sophus::SE3d(lane_line_pose->quaternion, lane_line_pose->pose);
-  T_W_V_mutex_.lock();
-  T_W_V_ = T_W_V;
-  T_W_V_mutex_.unlock();
   static Sophus::SE3d last_T_W_V;
   Sophus::SE3d T_C_L = T_W_V.inverse() * last_T_W_V;
   last_T_W_V = T_W_V;
-  mmgr_->UpdateLaneLine(local_map_.get(), T_C_L);
-  local_map_->timestamp = latest_lane_lines->timestamp_;
+  std::shared_ptr<LocalMap> local_map = std::make_shared<LocalMap>(local_map_);
+  mmgr_->UpdateLaneLine(local_map.get(), T_C_L);
+  local_map->timestamp = perception->timestamp_;
   std::vector<LaneMatchInfo> lane_line_matches;
   if (use_perception_match_) {
-    laneOp_->Match(*latest_lane_lines, *local_map_, &lane_line_matches);
+    laneOp_->Match(*perception, *local_map, &lane_line_matches);
   } else {
-    laneOp_->Match(*latest_lane_lines, *local_map_, &lane_line_matches,
+    laneOp_->Match(*perception, *local_map, &lane_line_matches,
                    use_horizon_assoc_match_);
   }
-  for (auto& lane_line : local_map_->lane_lines_) {
+  for (auto& lane_line : local_map->lane_lines_) {
     lane_line.need_fit_ = false;
     for (const auto& match : lane_line_matches) {
       if (match.map_lane_line_ == nullptr) {
@@ -155,55 +182,34 @@ void LMapApp::OnLaneLine(
   }
   for (const auto& match : lane_line_matches) {
     if (match.update_type_ == ObjUpdateType::ADD_NEW) {
-      mmgr_->AddNewLaneLine(local_map_.get(), *match.frame_lane_line_,
+      mmgr_->AddNewLaneLine(local_map.get(), *match.frame_lane_line_,
                             use_perception_match_);
     } else if (match.update_type_ == ObjUpdateType::MERGE_OLD) {
-      mmgr_->MergeOldLaneLine(local_map_.get(), *match.frame_lane_line_,
+      mmgr_->MergeOldLaneLine(local_map.get(), *match.frame_lane_line_,
                               *match.map_lane_line_);
     }
   }
-  if (!use_perception_match_) {
-    laneOp_->MergeMapLeftRight(local_map_.get());
-    laneOp_->MergeMapFrontBack(local_map_.get());
-  }
-  for (auto& lane_line : local_map_->lane_lines_) {
+  laneOp_->MergeMapLeftRight(local_map.get());
+  laneOp_->MergeMapFrontBack(local_map.get());
+  for (auto& lane_line : local_map->lane_lines_) {
     if (!lane_line.need_fit_) {
       lane_line.lanepos_ = LanePositionType::OTHER;
     }
   }
-  CommonUtil::FitLocalMap(local_map_.get());
-  mmgr_->CutLocalMap(local_map_.get(), 150, 150);
+  CommonUtil::FitLocalMap(local_map.get());
+  mmgr_->CutLocalMap(local_map.get(), 150, 150);
   // add Lane
-  mmgr_->UpdateLane(local_map_.get(), *latest_lane_lines);
+  mmgr_->UpdateLaneByPerception(local_map.get(), *perception);
+  mmgr_->UpdateLaneByLocalmap(local_map.get());
   localmap_mutex_.lock();
-  local_map_tmp_ = *local_map_;
+  local_map_ = *local_map;
   localmap_mutex_.unlock();
-  // auto start2 = std::chrono::high_resolution_clock::now();
-  if (use_rviz_ && RVIZ_AGENT.Ok()) {
-    auto sec = static_cast<uint64_t>(latest_lane_lines->timestamp_);
-    auto nsec = static_cast<uint64_t>(
-        (latest_lane_lines->timestamp_ - static_cast<double>(sec)) * 1e9);
-    CommonUtil::PubPercepPoints(T_W_V, *latest_lane_lines, sec, nsec,
-                                "/localmap/percep_points");
-    CommonUtil::PubMapPoints(*local_map_, sec, nsec, "/localmap/map_points",
-                             T_W_V);
-    CommonUtil::PubMapPointsMarker(*local_map_, sec, nsec,
-                                   "/localmap/map_points/marker", T_W_V);
-    CommonUtil::PubPercepPointsMarker(T_W_V, *latest_lane_lines, sec, nsec,
-                                      "/localmap/percep_points/marker");
-    CommonUtil::PubOriMapPoints(*local_map_, sec, nsec,
-                                "/localmap/ori_map_points", T_W_V);
-    CommonUtil::PubMapControlPoints(*local_map_, sec, nsec,
-                                    "/localmap/map_control_points", T_W_V);
-    CommonUtil::PubMapLane(*local_map_, sec, nsec, "/localmap/lane", T_W_V);
-    CommonUtil::PubOdom(T_W_V, sec, nsec, "/localmap/odom");
-    CommonUtil::PubTf(T_W_V, sec, nsec, "/localmap/tf");
-    CommonUtil::PubPath(T_W_V, sec, nsec, "/localmap/path");
-  }
-  // auto end2 = std::chrono::high_resolution_clock::now();
-  // auto duration2 =
-  //     std::chrono::duration_cast<std::chrono::milliseconds>(end2 - start2);
-  // HLOG_ERROR << "rviz time: " << duration2.count() << " ms";
+  perception_mutex_.lock();
+  perception_ = *perception;
+  perception_mutex_.unlock();
+  T_mutex_.lock();
+  T_W_V_ = T_W_V;
+  T_mutex_.unlock();
   laneline_inited_ = true;
   // auto end = std::chrono::high_resolution_clock::now();
   // auto duration =
@@ -232,7 +238,7 @@ bool LMapApp::FetchLocalMap(
   }
 
   localmap_mutex_.lock();
-  auto local_map_msg = local_map_tmp_;
+  auto local_map_msg = local_map_;
   localmap_mutex_.unlock();
   static int seq = 0;
   local_map->mutable_header()->set_seq(seq++);

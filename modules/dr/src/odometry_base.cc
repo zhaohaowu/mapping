@@ -313,7 +313,7 @@ bool OdometryBase::InterpolatePose(double time, OdometryData& odom_data) {
     odom_data.loc_omg = ref_omg;
     return true;
   }
-  
+
   // interpolate
   auto cmp = [](const OdometryData& x, const OdometryData& y) -> bool {
     return x.timestamp < y.timestamp;

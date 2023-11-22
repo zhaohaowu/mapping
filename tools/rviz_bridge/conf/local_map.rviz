@@ -8,9 +8,8 @@ Panels:
         - /Status1
         - /Odometry1/Shape1
         - /map1
-        - /lane1
       Splitter Ratio: 0.46355140209198
-    Tree Height: 1075
+    Tree Height: 363
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -207,7 +206,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /localmap/hq_map_points
+      Marker Topic: /localmap/hd_map_points
       Name: hdmap_marker
       Namespaces:
         {}
@@ -262,9 +261,25 @@ Visualization Manager:
       Queue Size: 100
       Value: true
     - Class: rviz/MarkerArray
-      Enabled: true
+      Enabled: false
       Marker Topic: /localmap/lane
       Name: lane
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /localmap/hq_map_points
+      Name: hqmap_marker
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /localmap/map_lane
+      Name: map_lane
       Namespaces:
         "": true
       Queue Size: 100
@@ -297,7 +312,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 87.79315185546875
+      Distance: 170.09197998046875
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -305,9 +320,9 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 12.962578773498535
-        Y: 2.0016629695892334
-        Z: 4.821611404418945
+        X: 31.69171142578125
+        Y: -1.9794362783432007
+        Z: -33.982093811035156
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
@@ -315,7 +330,7 @@ Visualization Manager:
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
       Target Frame: vehicle
-      Yaw: 3.0803985595703125
+      Yaw: 3.2103989124298096
     Saved: ~
 Window Geometry:
   Displays:

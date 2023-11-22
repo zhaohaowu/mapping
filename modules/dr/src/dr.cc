@@ -217,12 +217,12 @@ void DRInterface::SetLocationData(
   // static int32_t count_ = 0;
   locationDataPtr->mutable_header()->set_seq(latest_odom.chassis_seq);
 
-  // std::cout << std::setprecision(15) << "dr imu  " << " seq "<< latest_odom.chassis_seq<< "  "<<locationDataPtr->mutable_header()->seq()
+  // std::cout << std::setprecision(15) << "dr imu  " << " seq "<<
+  // latest_odom.chassis_seq<< "  "<<locationDataPtr->mutable_header()->seq()
   //           << std::endl;
   // ++count_;
   locationDataPtr->mutable_header()->set_gnss_stamp(latest_odom.timestamp);
   locationDataPtr->mutable_header()->set_data_stamp(latest_odom.timestamp);
-
 
   locationDataPtr->mutable_header()->mutable_sensor_stamp()->set_chassis_stamp(
       latest_odom.chassis_stamp);
@@ -235,7 +235,9 @@ void DRInterface::SetLocationData(
   locationDataPtr->mutable_header()->set_frame_id("HZ_DR");
 
   // std::cout << std::setprecision(15) << "dr imu datastamp*** ---111 : "
-  //           << locationDataPtr->mutable_header()->data_stamp() << " seq "<< latest_odom.chassis_seq<< "  "<<locationDataPtr->mutable_header()->seq()
+  //           << locationDataPtr->mutable_header()->data_stamp() << " seq "<<
+  //           latest_odom.chassis_seq<< "
+  //           "<<locationDataPtr->mutable_header()->seq()
   //           << std::endl;
 }
 
@@ -263,8 +265,9 @@ void DRInterface::ConvertImuData(
 
   // imu_data.timestamp = imu_proto->header().data_stamp();
   imu_data.timestamp = imu_proto->header().sensor_stamp().imuins_stamp();
-  // imu_data.seq = 
-  // std::cout << std::setprecision(15) << "Imu datastamp: " << imu_data.timestamp
+  // imu_data.seq =
+  // std::cout << std::setprecision(15) << "Imu datastamp: " <<
+  // imu_data.timestamp
   //           << std::endl;
   // HLOG_ERROR << "Imu datastamp: " << imu_data.timestamp;
 
@@ -336,7 +339,8 @@ void DRInterface::ConvertChassisData(
       chassis_proto->wheel_counter().wheel_counter_rr();
   wheel_data.rear_right_dir = chassis_proto->wheel_speed().wheel_direction_rr();
   // 后左轮速度(km/h)
-  if (wheel_data.rear_left_dir == hozon::soc::WheelSpeed_WheelSpeedType::WheelSpeed_WheelSpeedType_BACKWARD) {
+  if (wheel_data.rear_left_dir == hozon::soc::WheelSpeed_WheelSpeedType::
+                                      WheelSpeed_WheelSpeedType_BACKWARD) {
     wheel_data.rear_left_speed = -chassis_proto->wheel_speed().wheel_spd_rl();
     // -chassis_proto->wheel_info.ESC_RLWheelSpeed;
     wheel_data.rear_right_speed = -chassis_proto->wheel_speed().wheel_spd_rr();

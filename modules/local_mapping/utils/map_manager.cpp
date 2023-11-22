@@ -81,7 +81,12 @@ void MapManager::AddNewLaneLine(LocalMap* local_map,
                                 const LaneLine& cur_lane_line,
                                 const bool& use_perception_match) {
   LaneLine lane_line;
-  static int tmp_id = 0;
+  int tmp_id = 0;
+  for (const auto& lane_line : local_map->lane_lines_) {
+    if (lane_line.track_id_ > tmp_id) {
+      tmp_id = lane_line.track_id_;
+    }
+  }
   tmp_id++;
   if (use_perception_match) {
     lane_line.track_id_ = cur_lane_line.track_id_;
@@ -112,7 +117,7 @@ void MapManager::MergeOldLaneLine(LocalMap* local_map,
   if (!new_pts.empty()) {
     tmp_x = new_pts[new_pts.size() - 1].x() + 1;
   } else {
-    tmp_x = cur_lane_line.start_point_x_ + 1;
+    tmp_x = cur_lane_line.start_point_x_;
   }
   double x = tmp_x;
   while (x <= cur_lane_line.end_point_x_) {
@@ -134,13 +139,12 @@ void MapManager::MergeOldLaneLine(LocalMap* local_map,
   }
 }
 
-void MapManager::UpdateLane(LocalMap* local_map,
-                            const Perception& cur_lane_lines) {
+void MapManager::UpdateLaneByPerception(LocalMap* local_map,
+                                        const Perception& cur_lane_lines) {
   if (cur_lane_lines.lane_lines_.size() < 2) {
     local_map->lanes_.clear();
     return;
   }
-  std::vector<Lane> lanes;
   int left_lanepos = 0;
   int right_lanepos = 0;
   for (const auto& cur_lane_line : cur_lane_lines.lane_lines_) {
@@ -152,7 +156,9 @@ void MapManager::UpdateLane(LocalMap* local_map,
   if (left_lanepos == 0 || right_lanepos == 0) {
     return;
   }
-  UpdateLeftAndRightLine(left_lanepos, right_lanepos, cur_lane_lines, &lanes);
+  std::vector<Lane> lanes;
+  UpdateLeftAndRightLine(left_lanepos, right_lanepos,
+                         cur_lane_lines.lane_lines_, &lanes);
   // add width, center_points, left_lane_id and right_lane_id
   for (auto& lane : lanes) {
     double width = 0;
@@ -213,12 +219,12 @@ void MapManager::UpdateLane(LocalMap* local_map,
 }
 
 void MapManager::UpdateLeftAndRightLine(int left_lanepos, int right_lanepos,
-                                        const Perception& cur_lane_lines,
+                                        const std::vector<LaneLine>& lane_lines,
                                         std::vector<Lane>* lanes) {
   for (int i = left_lanepos; i < -1; i++) {
     Lane lane;
     lane.lane_id_ = i + 1;
-    for (const auto& cur_lane_line : cur_lane_lines.lane_lines_) {
+    for (const auto& cur_lane_line : lane_lines) {
       if (static_cast<int>(cur_lane_line.lanepos_) == i) {
         lane.left_line_ = cur_lane_line;
       }
@@ -231,7 +237,7 @@ void MapManager::UpdateLeftAndRightLine(int left_lanepos, int right_lanepos,
 
   Lane cur_lane;
   cur_lane.lane_id_ = 0;
-  for (const auto& cur_lane_line : cur_lane_lines.lane_lines_) {
+  for (const auto& cur_lane_line : lane_lines) {
     if (static_cast<int>(cur_lane_line.lanepos_) == -1) {
       cur_lane.left_line_ = cur_lane_line;
     }
@@ -244,7 +250,7 @@ void MapManager::UpdateLeftAndRightLine(int left_lanepos, int right_lanepos,
   for (int i = 1; i < right_lanepos; i++) {
     Lane lane;
     lane.lane_id_ = i;
-    for (const auto& cur_lane_line : cur_lane_lines.lane_lines_) {
+    for (const auto& cur_lane_line : lane_lines) {
       if (static_cast<int>(cur_lane_line.lanepos_) == i) {
         lane.left_line_ = cur_lane_line;
       }
@@ -254,6 +260,112 @@ void MapManager::UpdateLeftAndRightLine(int left_lanepos, int right_lanepos,
     }
     lanes->push_back(lane);
   }
+}
+
+void MapManager::UpdateLaneByLocalmap(LocalMap* local_map) {
+  if (local_map->lane_lines_.size() < 2) {
+    local_map->lanes_.clear();
+    return;
+  }
+  int left_lanepos = 0;
+  int right_lanepos = 0;
+  double left_y = 0;
+  double right_y = 0;
+  for (const auto& lane_line : local_map->lane_lines_) {
+    if (lane_line.fit_points_.empty() ||
+        lane_line.lanepos_ == LanePositionType::OTHER) {
+      continue;
+    }
+    left_lanepos = std::min(left_lanepos, static_cast<int>(lane_line.lanepos_));
+    right_lanepos =
+        std::max(right_lanepos, static_cast<int>(lane_line.lanepos_));
+    left_y =
+        std::max(left_y, static_cast<double>(lane_line.fit_points_.back().y()));
+    right_y = std::min(right_y,
+                       static_cast<double>(lane_line.fit_points_.back().y()));
+  }
+  if (left_lanepos == 0 || right_lanepos == 0) {
+    return;
+  }
+  for (auto& lane_line : local_map->lane_lines_) {
+    if (lane_line.fit_points_.empty() ||
+        lane_line.lanepos_ != LanePositionType::OTHER) {
+      continue;
+    }
+    if (lane_line.fit_points_.back().y() > left_y) {
+      lane_line.lanepos_ = static_cast<LanePositionType>(left_lanepos - 1);
+      left_lanepos--;
+      left_y = lane_line.fit_points_.back().y();
+    }
+    if (lane_line.fit_points_.back().y() < right_y) {
+      lane_line.lanepos_ = static_cast<LanePositionType>(right_lanepos + 1);
+      right_lanepos++;
+      right_y = lane_line.fit_points_.back().y();
+    }
+  }
+  // HLOG_ERROR << "left_lanepos " << left_lanepos << " right_lanepos "
+  //            << right_lanepos;
+  // HLOG_ERROR << "left_y " << left_y << " right_y " << right_y;
+  std::vector<Lane> map_lanes;
+  UpdateLeftAndRightLine(left_lanepos, right_lanepos, local_map->lane_lines_,
+                         &map_lanes);
+  // add width, center_points, left_lane_id and right_lane_id
+  for (auto& lane : map_lanes) {
+    double width = 0;
+    int num = 0;
+    for (int x = 0; x < 5; x++) {
+      double left_y = lane.left_line_.c0_ + lane.left_line_.c1_ * x +
+                      lane.left_line_.c2_ * x * x +
+                      lane.left_line_.c3_ * x * x * x;
+      double right_y = lane.right_line_.c0_ + lane.right_line_.c1_ * x +
+                       lane.right_line_.c2_ * x * x +
+                       lane.right_line_.c3_ * x * x * x;
+      width += (left_y - right_y);
+      num++;
+    }
+    width = width / num;
+    lane.width_ = width;
+
+    std::vector<Eigen::Vector3d> center_points;
+    double x_max =
+        std::min(lane.left_line_.end_point_x_, lane.right_line_.end_point_x_);
+    double x = 0;
+    while (x < x_max) {
+      double left_y = lane.left_line_.c0_ + lane.left_line_.c1_ * x +
+                      lane.left_line_.c2_ * x * x +
+                      lane.left_line_.c3_ * x * x * x;
+      double right_y = lane.right_line_.c0_ + lane.right_line_.c1_ * x +
+                       lane.right_line_.c2_ * x * x +
+                       lane.right_line_.c3_ * x * x * x;
+      double y = (left_y + right_y) / 2;
+      Eigen::Vector3d center_point = {x, y, 0};
+      center_points.emplace_back(center_point);
+      x++;
+    }
+    lane.center_line_.points_ = center_points;
+    if (static_cast<int>(lane.left_line_.lanepos_) == left_lanepos &&
+        static_cast<int>(lane.right_line_.lanepos_) == right_lanepos) {
+      lane.left_lane_id_ = 1000;
+      lane.right_lane_id_ = 1000;
+      break;
+    }
+    if (static_cast<int>(lane.left_line_.lanepos_) == left_lanepos) {
+      lane.left_lane_id_ = 1000;
+      lane.right_lane_id_ = lane.lane_id_ + 1;
+      break;
+    }
+    if (static_cast<int>(lane.right_line_.lanepos_) == right_lanepos) {
+      lane.left_lane_id_ = lane.lane_id_ - 1;
+      lane.right_lane_id_ = 1000;
+      break;
+    }
+    lane.left_lane_id_ = lane.lane_id_ - 1;
+    lane.right_lane_id_ = lane.lane_id_ + 1;
+  }
+  if (map_lanes.empty()) {
+    return;
+  }
+  local_map->map_lanes_ = map_lanes;
 }
 
 }  // namespace lm

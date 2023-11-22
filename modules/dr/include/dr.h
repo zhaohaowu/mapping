@@ -8,17 +8,16 @@
 #include <iomanip>
 #include <memory>
 #include <string>
-#include <iomanip>
 
 #include "base/utils/log.h"
 #include "modules/dr/include/odometry2D.h"
 #include "modules/dr/include/odometry_base.h"
 #include "modules/dr/include/slam_data_types.h"
 #include "modules/dr/include/wheel_odom.h"
+#include "proto/common/header.pb.h"
 #include "proto/dead_reckoning/dr.pb.h"
 #include "proto/soc/chassis.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
-#include "proto/common/header.pb.h"
 
 namespace hozon {
 namespace mp {

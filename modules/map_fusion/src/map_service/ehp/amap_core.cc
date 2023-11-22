@@ -192,8 +192,8 @@ bool AmapAdapter::Process(
       static_cast<int>(localization_input.pos_wgs().x() * 1e6);
   auto speed = sqrt(pow(localization_input.linear_velocity().x(), 2) +
                     pow(localization_input.linear_velocity().y(), 2));
-  HLOG_ERROR << "current lon " << sign_data.gnss.lon << " lat "
-             << sign_data.gnss.lat;
+  // HLOG_ERROR << "current lon " << sign_data.gnss.lon << " lat "
+  //            << sign_data.gnss.lat;
 
   if (speed < 0.1) {
     speed = 10;
@@ -210,7 +210,7 @@ bool AmapAdapter::Process(
   //   sign_data.gnss.course -= 360;
   // }
   sign_data.gnss.course = localization_input.heading();
-  HLOG_ERROR << "ehp heading: " << sign_data.gnss.course;
+  // HLOG_ERROR << "ehp heading: " << sign_data.gnss.course;
 
   sign_data.gnss.num = 20;
   sign_data.gnss.hdop = 1.0;

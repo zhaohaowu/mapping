@@ -157,6 +157,7 @@ class LocalMap {
   std::vector<LaneLine> lane_lines_;
   std::vector<LaneLine> edge_lines_;
   std::vector<Lane> lanes_;
+  std::vector<Lane> map_lanes_;
 };
 
 class LaneMatchInfo {

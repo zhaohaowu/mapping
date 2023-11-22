@@ -12,6 +12,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <Sophus/se3.hpp>
@@ -19,7 +20,6 @@
 #include "modules/local_mapping/types/types.h"
 #include "modules/local_mapping/utils/common.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
-
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -40,11 +40,14 @@ class MapManager {
                                const LaneLine& cur_lane_line,
                                const LaneLine& map_lane_line);
 
-  static void UpdateLane(LocalMap* local_map, const Perception& cur_lane_lines);
+  static void UpdateLaneByPerception(LocalMap* local_map,
+                                     const Perception& cur_lane_lines);
 
   static void UpdateLeftAndRightLine(int left_lanepos, int right_lanepos,
-                                     const Perception& cur_lane_lines,
+                                     const std::vector<LaneLine>& lane_lines,
                                      std::vector<Lane>* lanes);
+
+  static void UpdateLaneByLocalmap(LocalMap* local_map);
 };
 
 }  // namespace lm

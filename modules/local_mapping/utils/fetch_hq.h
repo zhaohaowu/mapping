@@ -26,7 +26,7 @@ class PriorProvider {
   PriorProvider() = default;
   ~PriorProvider() = default;
 
-  int Init(const std::string& conf);
+  int Init(const std::string& mapping_path, const std::string& conf);
 
   std::shared_ptr<hozon::hdmap::Map> GetPrior();
 

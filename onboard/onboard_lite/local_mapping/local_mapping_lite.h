@@ -33,6 +33,8 @@ class LocalMappingOnboard : public OnboardLite {
 
   int32_t OnIns(Bundle* input);
 
+  int32_t OnImage(Bundle* input);
+
   // int32_t OnRoadEdge(Bundle* input);
 
   int32_t LocalMapPublish(Bundle* output);

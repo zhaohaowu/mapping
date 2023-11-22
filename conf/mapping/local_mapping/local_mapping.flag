@@ -7,4 +7,4 @@
 --output_topic=/local_map
 --v=2
 --alsologtostderr
---viz=true
+--lm_viz=true

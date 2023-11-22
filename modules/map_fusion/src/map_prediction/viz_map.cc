@@ -41,68 +41,70 @@ double NowInSeconds() {
 }
 
 int VizMap::Init() {
-  if (viz_ && RVIZ_AGENT.Ok()) {
-    int ret =
-        RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_localmap_line_);
-    if (ret < 0) {
-      HLOG_ERROR << "RvizAgent register" << viz_localmap_line_;
-    }
-
-    ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_hqmap_road_);
-    if (ret < 0) {
-      HLOG_ERROR << "RvizAgent register" << viz_hqmap_road_;
-    }
-
-    ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_add_line_);
-    if (ret < 0) {
-      HLOG_ERROR << "RvizAgent register" << viz_add_line_;
-    }
-
-    ret = RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(viz_ahead_line_);
-    if (ret < 0) {
-      HLOG_ERROR << "RvizAgent register" << viz_ahead_line_;
-    }
-
-    ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_lane_id_);
-    if (ret < 0) {
-      HLOG_ERROR << "RvizAgent register" << viz_lane_id_;
-    }
-
-    ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_com_lane_id_);
-    if (ret < 0) {
-      HLOG_ERROR << "RvizAgent register" << viz_com_lane_id_;
-    }
-
-    ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_center_lane_);
-    if (ret < 0) {
-      HLOG_ERROR << "RvizAgent register" << viz_center_lane_;
-    }
+  if (!viz_ || !RVIZ_AGENT.Ok()) {
+    return 0;
   }
 
-  int ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>("TuoPu");
+  int ret =
+      RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_localmap_line_);
   if (ret < 0) {
-    HLOG_WARN << "RvizAgent register "
-              << "tuopu"
-              << " failed";
+    HLOG_ERROR << "RvizAgent register" << viz_localmap_line_;
   }
-  ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>("TuoPu2");
+
+  ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_hqmap_road_);
   if (ret < 0) {
-    HLOG_WARN << "RvizAgent register "
-              << "tuopu"
-              << " failed";
+    HLOG_ERROR << "RvizAgent register" << viz_hqmap_road_;
   }
-  ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>("TuoPu3");
+
+  ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_add_line_);
   if (ret < 0) {
-    HLOG_WARN << "RvizAgent register "
-              << "tuopu"
-              << " failed";
+    HLOG_ERROR << "RvizAgent register" << viz_add_line_;
   }
-  ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>("TuoPu4");
+
+  ret = RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(viz_ahead_line_);
   if (ret < 0) {
-    HLOG_WARN << "RvizAgent register "
-              << "tuopu"
-              << " failed";
+    HLOG_ERROR << "RvizAgent register" << viz_ahead_line_;
   }
+
+  ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_lane_id_);
+  if (ret < 0) {
+    HLOG_ERROR << "RvizAgent register" << viz_lane_id_;
+  }
+
+  ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_com_lane_id_);
+  if (ret < 0) {
+    HLOG_ERROR << "RvizAgent register" << viz_com_lane_id_;
+  }
+
+  ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(viz_center_lane_);
+  if (ret < 0) {
+    HLOG_ERROR << "RvizAgent register" << viz_center_lane_;
+  }
+
+  // ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>("TuoPu");
+  // if (ret < 0) {
+  //   HLOG_WARN << "RvizAgent register "
+  //             << "tuopu"
+  //             << " failed";
+  // }
+  // ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>("TuoPu2");
+  // if (ret < 0) {
+  //   HLOG_WARN << "RvizAgent register "
+  //             << "tuopu"
+  //             << " failed";
+  // }
+  // ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>("TuoPu3");
+  // if (ret < 0) {
+  //   HLOG_WARN << "RvizAgent register "
+  //             << "tuopu"
+  //             << " failed";
+  // }
+  // ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>("TuoPu4");
+  // if (ret < 0) {
+  //   HLOG_WARN << "RvizAgent register "
+  //             << "tuopu"
+  //             << " failed";
+  // }
 
   return 0;
 }
@@ -144,19 +146,9 @@ void VizMap::StoreLaneLine(
   // 存储边线
   for (const auto& lane : msg->lane()) {
     // 存储左边线
+
     std::vector<Eigen::Vector3d> left_line_point;
-    for (const auto& left_line : lane.left_boundary().curve().segment()) {
-      for (const auto& point : left_line.line_segment().point()) {
-        Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
-        double x = point_enu.x();
-        double y = point_enu.y();
-        if (std::isnan(x) || std::isnan(y)) {
-          HLOG_ERROR << "have nan!!!";
-          continue;
-        }
-        left_line_point.emplace_back(point_enu);
-      }
-    }
+    StoreLeftLine(lane, &left_line_point);
     if (!left_line_point.empty()) {
       localmap_lanelines.emplace_back(id_, left_line_point);
       id_ -= 1;
@@ -166,22 +158,43 @@ void VizMap::StoreLaneLine(
     //   continue;
     // }
     std::vector<Eigen::Vector3d> right_line_point;
-    for (const auto& right_line : lane.right_boundary().curve().segment()) {
-      for (const auto& point : right_line.line_segment().point()) {
-        Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
-        // int zone = 51;
-        double x = point_enu.x();
-        double y = point_enu.y();
-        if (std::isnan(x) || std::isnan(y)) {
-          HLOG_ERROR << "have nan!!!";
-          continue;
-        }
-        right_line_point.emplace_back(point_enu);
-      }
-    }
+    StoreRightLine(lane, &right_line_point);
     if (!right_line_point.empty()) {
       localmap_lanelines.emplace_back(id_, right_line_point);
       id_ -= 1;
+    }
+  }
+}
+
+void VizMap::StoreLeftLine(const hozon::hdmap::Lane& lane,
+                           std::vector<Eigen::Vector3d>* left_line_point) {
+  for (const auto& left_line : lane.left_boundary().curve().segment()) {
+    for (const auto& point : left_line.line_segment().point()) {
+      Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
+      double x = point_enu.x();
+      double y = point_enu.y();
+      if (std::isnan(x) || std::isnan(y)) {
+        HLOG_ERROR << "have nan!!!";
+        continue;
+      }
+      left_line_point->emplace_back(point_enu);
+    }
+  }
+}
+
+void VizMap::StoreRightLine(const hozon::hdmap::Lane& lane,
+                            std::vector<Eigen::Vector3d>* right_line_point) {
+  for (const auto& right_line : lane.right_boundary().curve().segment()) {
+    for (const auto& point : right_line.line_segment().point()) {
+      Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
+      // int zone = 51;
+      double x = point_enu.x();
+      double y = point_enu.y();
+      if (std::isnan(x) || std::isnan(y)) {
+        HLOG_ERROR << "have nan!!!";
+        continue;
+      }
+      right_line_point->emplace_back(point_enu);
     }
   }
 }
@@ -445,7 +458,7 @@ void VizMap::VizLaneID(const std::shared_ptr<hozon::hdmap::Map>& local_msg) {
   // 对车道ID进行可视化
   adsfi_proto::viz::MarkerArray ID_markers;
   for (const auto& lane : local_msg->lane()) {
-    Eigen::Vector3d point_utm;
+    Eigen::Vector3d point_utm(0, 0, 0);
     if (!lane.left_boundary().curve().segment().empty() && !lane.left_boundary()
                                                                 .curve()
                                                                 .segment()[0]

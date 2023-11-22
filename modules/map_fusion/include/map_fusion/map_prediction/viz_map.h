@@ -46,9 +46,13 @@ class VizMap {
       const std::shared_ptr<hozon::hdmap::Map>& msg,
       std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
           localmap_lanelines);
-//   void PointsToMarker(const double stamp,
-//                       const std::vector<Eigen::Vector3d>& points,
-//                       adsfi_proto::viz::Marker* marker, double color_type);
+  static void StoreLeftLine(const hozon::hdmap::Lane& lane,
+                            std::vector<Eigen::Vector3d>* left_line_point);
+  static void StoreRightLine(const hozon::hdmap::Lane& lane,
+                             std::vector<Eigen::Vector3d>* right_line_point);
+  //   void PointsToMarker(const double stamp,
+  //                       const std::vector<Eigen::Vector3d>& points,
+  //                       adsfi_proto::viz::Marker* marker, double color_type);
   void VizHqMapRoad(const std::vector<Eigen::Vector3d>& edge);
   static void LaneLineToMarker(
       const std::pair<uint32_t, std::vector<Eigen::Vector3d>>& lane_line,

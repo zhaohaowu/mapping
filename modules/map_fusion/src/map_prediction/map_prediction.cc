@@ -372,6 +372,14 @@ void MapPrediction::CreatLaneTable(
       }
     }
 
+    // 存储每条lane右边线最后两个点的单位向量
+    const auto& right_size = local_lane.right_line.size();
+    const auto& last_normal = (local_lane.right_line[right_size - 2] -
+                               local_lane.right_line[right_size - 1])
+                                  .normalized();
+    local_lane.last_normal = last_normal;
+
+    // 存储拓扑
     for (const auto& it : lane->lane().left_neighbor_forward_lane_id()) {
       local_lane.left_lane_ids.emplace_back(it.id());
     }
@@ -868,6 +876,10 @@ void MapPrediction::AddLeft(
     if (id_ == curr_id && flag) {
       for (auto& lane : *local_msg_->mutable_lane()) {
         if (lane.id().id() == id_ && !id_.empty()) {
+          const auto& seg_size = lane.left_boundary().curve().segment_size();
+          if (seg_size != 0) {
+            break;
+          }
           auto* left_seg =
               lane.mutable_left_boundary()->mutable_curve()->add_segment();
           for (const auto& point : line) {
@@ -899,6 +911,10 @@ void MapPrediction::AddRight(
     if (id_ == curr_id && flag) {
       for (auto& lane : *local_msg_->mutable_lane()) {
         if (lane.id().id() == id_ && !id_.empty()) {
+          const auto& seg_size = lane.right_boundary().curve().segment_size();
+          if (seg_size != 0) {
+            break;
+          }
           auto* right_seg =
               lane.mutable_right_boundary()->mutable_curve()->add_segment();
           for (const auto& point : line) {
@@ -1105,16 +1121,7 @@ void MapPrediction::PredictAheadLaneLine(
     std::string curr_lane_id;
     std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>
         predict_lanelines;
-    for (const auto& it : add_lane_ids_) {
-      if (lane_table_.find(it) == lane_table_.end()) {
-        HLOG_ERROR << "road not found in road_table";
-        continue;
-      }
-      if (lane_table_.at(it).section_id == sec) {
-        curr_lane_id = it;
-        break;
-      }
-    }
+    GetCurrLaneId(sec, &curr_lane_id);
     if (curr_lane_id.empty()) {
       continue;
     }
@@ -1139,13 +1146,7 @@ void MapPrediction::PredictAheadLaneLine(
     // }
     // 查找其是否包含end_lane_ids_;
     bool flag = false;
-    for (const auto& it : local_road.section_ids.at(sec).lane_id) {
-      if (std::find(topo_lane_ids_.begin(), topo_lane_ids_.end(), it) !=
-          topo_lane_ids_.end()) {
-        flag = true;
-        break;
-      }
-    }
+    JudgeFlag(local_road.section_ids.at(sec).lane_id, &flag);
     if (flag) {
       continue;
     }
@@ -1156,7 +1157,7 @@ void MapPrediction::PredictAheadLaneLine(
     std::vector<Eigen::Vector3d> road_boundary =
         local_road.section_ids.at(sec).road_boundary;
 
-    uint32_t lane_num = local_road.section_ids.at(sec).lane_id.size();
+    // uint32_t lane_num = local_road.section_ids.at(sec).lane_id.size();
     FitPredLaneLine(road_boundary, local_road.section_ids.at(sec).lane_id,
                     predict_lanelines);
     // FitAheadLaneLine(boundary1, boundary2, predict_lanelines, lane_num);
@@ -1167,27 +1168,42 @@ void MapPrediction::PredictAheadLaneLine(
   }
 }
 
+void MapPrediction::GetCurrLaneId(const std::string& sec,
+                                  std::string* curr_lane_id) {
+  for (const auto& it : add_lane_ids_) {
+    if (lane_table_.find(it) == lane_table_.end()) {
+      HLOG_ERROR << "road not found in road_table";
+      continue;
+    }
+    if (lane_table_.at(it).section_id == sec) {
+      *curr_lane_id = it;
+      break;
+    }
+  }
+}
+
+void MapPrediction::JudgeFlag(const std::vector<std::string>& sec_lane_id,
+                              bool* flag) {
+  for (const auto& it : sec_lane_id) {
+    if (std::find(topo_lane_ids_.begin(), topo_lane_ids_.end(), it) !=
+        topo_lane_ids_.end()) {
+      *flag = true;
+      break;
+    }
+  }
+}
+
 void MapPrediction::CompleteLaneline(
-    const std::vector<std::string>& end_lane_id_,
+    const std::vector<std::string>& end_lane_ids_,
     const std::set<std::string>& end_section_id,
     const std::unordered_map<std::string, LocalRoad>& road_table) {
-  if (end_lane_id_.empty() || end_section_id.empty() || road_table.empty()) {
+  if (end_lane_ids_.empty() || end_section_id.empty() || road_table.empty()) {
     return;
   }
   for (const auto& sec : end_section_id) {
     std::vector<std::string> com_id;
     std::string road_id;
-    for (const auto& end_lane_id : end_lane_id_) {
-      if (lane_table_.find(end_lane_id) == lane_table_.end()) {
-        HLOG_ERROR << "end lane id not found in lane_table";
-        continue;
-      }
-      if (lane_table_[end_lane_id].section_id != sec) {
-        continue;
-      }
-      com_id.emplace_back(end_lane_id);
-      road_id = lane_table_[end_lane_id].road_id;
-    }
+    GetCorresId(&com_id, &road_id, sec);
 
     //    for (const auto& sec_lane_id : hash_table.at(sec).lane_id) {
     //      if (std::find(end_lane_id_.begin(), end_lane_id_.end(),
@@ -1221,13 +1237,28 @@ void MapPrediction::CompleteLaneline(
     // 拟合线
     std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>
         complete_lines;
-    uint32_t lane_num = hash_table.at(sec).lane_id.size();
+    // uint32_t lane_num = hash_table.at(sec).lane_id.size();
     FitPredLaneLine(road_boundary, hash_table.at(sec).lane_id, complete_lines);
     // FitAheadLaneLine(left_boundary, right_boundary, complete_lines,
     // lane_num);
     viz_map_.VizAddAheadLaneLine(complete_lines);
     // 延伸
     ExpansionLaneLine(complete_lines, com_id, hash_table.at(sec).lane_id);
+  }
+}
+
+void MapPrediction::GetCorresId(std::vector<std::string>* com_id,
+                                std::string* road_id, const std::string& sec) {
+  for (const auto& end_lane_id : end_lane_ids_) {
+    if (lane_table_.find(end_lane_id) == lane_table_.end()) {
+      HLOG_ERROR << "end lane id not found in lane_table";
+      continue;
+    }
+    if (lane_table_[end_lane_id].section_id != sec) {
+      continue;
+    }
+    com_id->emplace_back(end_lane_id);
+    *road_id = lane_table_[end_lane_id].road_id;
   }
 }
 
@@ -1362,14 +1393,27 @@ void MapPrediction::ExpansionLeft(
   if (complete_lines[left_line_id].second.size() - flag_count_left <= 2) {
     // 直接连接complete_lines中的最后一个点
     const auto& complete_line_size = complete_lines[left_line_id].second.size();
-    auto* pt = lane->mutable_left_boundary()
-                   ->mutable_curve()
-                   ->mutable_segment(seg_size - 1)
-                   ->mutable_line_segment()
-                   ->add_point();
-    pt->set_x(complete_lines[left_line_id].second.back().x());
-    pt->set_y(complete_lines[left_line_id].second.back().y());
-    pt->set_z(complete_lines[left_line_id].second.back().z());
+    // 去除最后一个点
+    if (com_left_line.size() > 1) {
+      auto* ptt = lane->mutable_left_boundary()
+                      ->mutable_curve()
+                      ->mutable_segment(seg_size - 1)
+                      ->mutable_line_segment()
+                      ->mutable_point(point_size - 1);
+      ptt->Clear();
+      ptt->set_x(complete_lines[left_line_id].second.back().x());
+      ptt->set_y(complete_lines[left_line_id].second.back().y());
+      ptt->set_z(complete_lines[left_line_id].second.back().z());
+    } else {
+      auto* pt = lane->mutable_left_boundary()
+                     ->mutable_curve()
+                     ->mutable_segment(seg_size - 1)
+                     ->mutable_line_segment()
+                     ->add_point();
+      pt->set_x(complete_lines[left_line_id].second.back().x());
+      pt->set_y(complete_lines[left_line_id].second.back().y());
+      pt->set_z(complete_lines[left_line_id].second.back().z());
+    }
   } else {
     if (com_left_line.size() <= 2) {
       for (size_t i = flag_count_left + 2;
@@ -1473,16 +1517,28 @@ void MapPrediction::ExpansionRight(
 
   if (complete_lines[right_line_id].second.size() - flag_count_right <= 2) {
     // 直接连接complete_lines中的最后一个点
-    const auto& complete_line_size =
-        complete_lines[right_line_id].second.size();
-    auto* pt = lane->mutable_right_boundary()
-                   ->mutable_curve()
-                   ->mutable_segment(seg_size_ - 1)
-                   ->mutable_line_segment()
-                   ->add_point();
-    pt->set_x(complete_lines[right_line_id].second.back().x());
-    pt->set_y(complete_lines[right_line_id].second.back().y());
-    pt->set_z(complete_lines[right_line_id].second.back().z());
+    if (com_right_line.size() > 1) {
+      const auto& complete_line_size =
+          complete_lines[right_line_id].second.size();
+      auto* ptt = lane->mutable_right_boundary()
+                      ->mutable_curve()
+                      ->mutable_segment(seg_size_ - 1)
+                      ->mutable_line_segment()
+                      ->mutable_point(point_size_ - 1);
+      ptt->Clear();
+      ptt->set_x(complete_lines[right_line_id].second.back().x());
+      ptt->set_y(complete_lines[right_line_id].second.back().y());
+      ptt->set_z(complete_lines[right_line_id].second.back().z());
+    } else {
+      auto* pt = lane->mutable_right_boundary()
+                     ->mutable_curve()
+                     ->mutable_segment(seg_size_ - 1)
+                     ->mutable_line_segment()
+                     ->add_point();
+      pt->set_x(complete_lines[right_line_id].second.back().x());
+      pt->set_y(complete_lines[right_line_id].second.back().y());
+      pt->set_z(complete_lines[right_line_id].second.back().z());
+    }
   } else {
     if (com_right_line.size() <= 2) {
       for (size_t i = flag_count_right + 2;
@@ -1628,6 +1684,23 @@ void MapPrediction::FitPredLaneLine(
   }
   std::vector<std::vector<Eigen::Vector3d>> predict_line(sec_lane_id.size() +
                                                          1);
+  // 拟合中间点
+  FitMiddlePoint(road_boundary, sec_lane_id, &predict_line);
+  // 求最后一个点的左右点
+  FitLastPoint(road_boundary, sec_lane_id, &predict_line);
+
+  if (!predict_line.empty()) {
+    for (const auto& it : predict_line) {
+      predict_lanelines.emplace_back(id, it);
+      id -= 1;
+    }
+  }
+}
+
+void MapPrediction::FitMiddlePoint(
+    const std::vector<Eigen::Vector3d>& road_boundary,
+    const std::vector<std::string>& sec_lane_id,
+    std::vector<std::vector<Eigen::Vector3d>>* predict_line) {
   const auto& road_size = road_boundary.size();
   int index = 0;  // 表示第几个点的索引
   double s = 0.;
@@ -1635,8 +1708,18 @@ void MapPrediction::FitPredLaneLine(
   for (size_t i = 1; i < road_size; ++i) {
     const auto& A = road_boundary[i - 1];
     const auto& B = road_boundary[i];
+    // if ((A - B).norm() < 1.0 && i + 1 < road_size) {
+    //   B = road_boundary[i + 1];
+    // }
     Eigen::Vector3d AB = B - A;
     Eigen::Vector3d AB_N = AB.normalized();
+    if (i == 1) {
+      const auto& last_id = sec_lane_id.back();
+      LaneLastNormal(&AB_N, last_id);
+    } else {
+      AB_N = AB.normalized();
+    }
+
     Eigen::Vector3d AB_C(-AB_N.y(), AB_N.x(), 0);
     // 根据距离求其他的点
     // 先求左侧的车道线点
@@ -1653,8 +1736,8 @@ void MapPrediction::FitPredLaneLine(
     //   continue;
     // }
     Eigen::Vector3d first_point = A + AB_C * first_width[index];
-    predict_line.at(0).push_back(first_point);
-    predict_line.at(1).push_back(A);
+    predict_line->at(0).push_back(first_point);
+    predict_line->at(1).push_back(A);
     double width = 0.;
     if (sec_lane_id.size() < 2) {
       continue;
@@ -1666,24 +1749,54 @@ void MapPrediction::FitPredLaneLine(
       const auto& wid = lane_table_.at(sec_lane_id[j]).lane_width;
       width += wid[index];
       Eigen::Vector3d point = A - AB_C * width;
-      predict_line.at(sec_lane_id.size() - j).push_back(point);
+      predict_line->at(sec_lane_id.size() - j).push_back(point);
     }
   }
-  // 求最后一个点的左右点
-  const auto& A = road_boundary[road_size - 1];
-  const auto& B = road_boundary[road_size - 2];
-  Eigen::Vector3d AB = B - A;
-  Eigen::Vector3d AB_N = AB.normalized();
-  Eigen::Vector3d AB_C(-AB_N.y(), AB_N.x(), 0);
+}
+
+void MapPrediction::LaneLastNormal(Eigen::Vector3d* AB_N,
+                                   const std::string& last_id) {
+  if (lane_table_.find(last_id) == lane_table_.end()) {
+    HLOG_ERROR << "lane id not in lane table!";
+    return;
+  }
+  const auto& last_id_pre = lane_table_.at(last_id).prev_lane_ids;
+  if (last_id_pre.empty()) {
+    HLOG_ERROR << "the last id have no prev lane id!";
+    return;
+  }
+  const auto& prev_id = last_id_pre.front();
+  if (lane_table_.find(prev_id) == lane_table_.end()) {
+    HLOG_ERROR << "prev lane id not in lane table!";
+    return;
+  }
+  const auto& last_normal = lane_table_.at(prev_id).last_normal;
+  *AB_N << -last_normal.x(), -last_normal.y(), 0;
+}
+
+void MapPrediction::FitLastPoint(
+    const std::vector<Eigen::Vector3d>& road_boundary,
+    const std::vector<std::string>& sec_lane_id,
+    std::vector<std::vector<Eigen::Vector3d>>* predict_line) {
+  // const auto& road_size = road_boundary.size();
+  // const auto& A = road_boundary[road_size - 1];
+  // const auto& B = road_boundary[road_size - 2];
+  // Eigen::Vector3d AB = B - A;
+  // Eigen::Vector3d AB_N = AB.normalized();
+  // Eigen::Vector3d AB_C(-AB_N.y(), AB_N.x(), 0);
   // 先求右侧的车道线点
   if (lane_table_.find(sec_lane_id.back()) == lane_table_.end()) {
     HLOG_ERROR << "lane id not in lane table!";
     return;
   }
+  const auto& A = road_boundary.back();
+  Eigen::Vector3d AB_N = lane_table_.at(sec_lane_id.back()).last_normal;
+  Eigen::Vector3d AB_C(-AB_N.y(), AB_N.x(), 0);
+
   const auto& end_width = lane_table_.at(sec_lane_id.back()).lane_width;
   Eigen::Vector3d first_point = A - AB_C * end_width.back();
-  predict_line.at(0).push_back(first_point);
-  predict_line.at(1).push_back(A);
+  predict_line->at(0).push_back(first_point);
+  predict_line->at(1).push_back(A);
   double width = 0.;
   if (sec_lane_id.size() < 2) {
     HLOG_ERROR << "sec_lane_id.size() < 2";
@@ -1697,14 +1810,7 @@ void MapPrediction::FitPredLaneLine(
     const auto& wid = lane_table_.at(sec_lane_id[j]).lane_width;
     width += wid.back();
     Eigen::Vector3d point = A + AB_C * width;
-    predict_line.at(sec_lane_id.size() - j).push_back(point);
-  }
-
-  if (!predict_line.empty()) {
-    for (const auto& it : predict_line) {
-      predict_lanelines.emplace_back(id, it);
-      id -= 1;
-    }
+    predict_line->at(sec_lane_id.size() - j).push_back(point);
   }
 }
 
@@ -2123,32 +2229,37 @@ void MapPrediction::RoadToLocal(const int& zone) {
     for (auto& sec : *hq_road.mutable_section()) {
       for (auto& edge :
            *sec.mutable_boundary()->mutable_outer_polygon()->mutable_edge()) {
-        for (auto& seg : *edge.mutable_curve()->mutable_segment()) {
-          for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
-            Eigen::Vector3d pt_utm(pt.x(), pt.y(), pt.z());
-            double utm_x = pt.x();
-            double utm_y = pt.y();
-            bool ret = hozon::common::coordinate_convertor::UTM2GCS(
-                zone, &utm_x, &utm_y);
-            if (!ret) {
-              HLOG_ERROR << "UTM2GCS road point failed, set DBL_MAX value";
-              pt.set_x(DBL_MAX);
-              pt.set_y(DBL_MAX);
-              pt.set_z(DBL_MAX);
-              continue;
-            }
-
-            Eigen::Vector3d pt_gcj(utm_y, utm_x, 0);
-            Eigen::Vector3d pt_local_enu =
-                util::Geo::Gcj02ToEnu(pt_gcj, local_enu_center_);
-
-            Eigen::Vector3d pt_local = T_local_enu_to_local_ * pt_local_enu;
-            pt.set_x(pt_local.x());
-            pt.set_y(pt_local.y());
-            pt.set_z(pt_local.z());
-          }
-        }
+        DeelEdge(&edge, zone);
       }
+    }
+  }
+}
+
+void MapPrediction::DeelEdge(hozon::hdmap::BoundaryEdge* edge,
+                             const int& zone) {
+  for (auto& seg : *edge->mutable_curve()->mutable_segment()) {
+    for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
+      Eigen::Vector3d pt_utm(pt.x(), pt.y(), pt.z());
+      double utm_x = pt.x();
+      double utm_y = pt.y();
+      bool ret =
+          hozon::common::coordinate_convertor::UTM2GCS(zone, &utm_x, &utm_y);
+      if (!ret) {
+        HLOG_ERROR << "UTM2GCS road point failed, set DBL_MAX value";
+        pt.set_x(DBL_MAX);
+        pt.set_y(DBL_MAX);
+        pt.set_z(DBL_MAX);
+        continue;
+      }
+
+      Eigen::Vector3d pt_gcj(utm_y, utm_x, 0);
+      Eigen::Vector3d pt_local_enu =
+          util::Geo::Gcj02ToEnu(pt_gcj, local_enu_center_);
+
+      Eigen::Vector3d pt_local = T_local_enu_to_local_ * pt_local_enu;
+      pt.set_x(pt_local.x());
+      pt.set_y(pt_local.y());
+      pt.set_z(pt_local.z());
     }
   }
 }

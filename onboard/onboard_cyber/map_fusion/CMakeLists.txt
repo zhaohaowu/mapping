@@ -10,7 +10,6 @@ set(MAPSERVICE_CYBER_SRCS
   )
 
 set(TOPO_CYBER_SRCS
-  local_map_provider_component.cc
   topo_assignment_component.cc
   )
 

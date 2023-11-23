@@ -216,19 +216,7 @@ void MapPrediction::OnTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
   // uint32_t utm_zone = 0;
   {
     std::lock_guard<std::mutex> lock(mtx_);
-    if (local_enu_center_flag_ && !msg->header().id().empty()) {
-      bool parsed = init_pose_.ParseFromString(msg->header().id());
-      if (!parsed) {
-        HLOG_ERROR << "parse init pose failed";
-        return;
-      }
-      local_enu_center_ << init_pose_.gcj02().x(), init_pose_.gcj02().y(),
-          init_pose_.gcj02().z();
-
-      HLOG_ERROR << "init_pose_:\n" << init_pose_.DebugString();
-
-      local_enu_center_flag_ = false;
-    }
+    LocalEnuCenter(msg);
 
     //    local_msg_ = msg;
     local_msg_ = std::make_shared<hozon::hdmap::Map>();
@@ -278,25 +266,8 @@ void MapPrediction::OnTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
     util::TicToc local_tic;
     const double range = 300.;
     std::vector<hozon::hdmap::LaneInfoConstPtr> lanes_in_range;
-    if (!GLOBAL_HD_MAP) {
-      HLOG_ERROR << "nullptr hq_map_server_";
-      return;
-    }
-    int ret = GLOBAL_HD_MAP->GetLanes(utm_pos, range, &lanes_in_range);
-    if (ret != 0) {
-      HLOG_ERROR << "get local map lanes failed";
-      return;
-    }
-    HLOG_INFO << "pred OnTopoMap GetLanes cost " << local_tic.Toc();
-    local_tic.Tic();
     std::vector<hozon::hdmap::RoadInfoConstPtr> roads_in_range;
-    ret = GLOBAL_HD_MAP->GetRoads(utm_pos, range, &roads_in_range);
-    if (ret != 0) {
-      HLOG_ERROR << "get local map roads failed";
-      return;
-    }
-    HLOG_INFO << "pred OnTopoMap GetRoads cost " << local_tic.Toc();
-    local_tic.Tic();
+    ObtainLaneAndRoad(utm_pos, range, &lanes_in_range, &roads_in_range);
 
     hq_map_ = std::make_shared<hozon::hdmap::Map>();
     GLOBAL_HD_MAP->GetMapWithoutLaneGeometry(hq_map_.get());
@@ -336,6 +307,44 @@ void MapPrediction::OnTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
     HLOG_INFO << "end_section_ids_.size() " << end_section_ids_.size();
     HLOG_INFO << "add_lane_ids_.size() " << add_lane_ids_.size();
     HLOG_INFO << "add_section_ids_.size() " << add_section_ids_.size();
+  }
+}
+
+void MapPrediction::LocalEnuCenter(
+    const std::shared_ptr<hozon::hdmap::Map>& msg) {
+  if (local_enu_center_flag_ && !msg->header().id().empty()) {
+    bool parsed = init_pose_.ParseFromString(msg->header().id());
+    if (!parsed) {
+      HLOG_ERROR << "parse init pose failed";
+      return;
+    }
+    local_enu_center_ << init_pose_.gcj02().x(), init_pose_.gcj02().y(),
+        init_pose_.gcj02().z();
+
+    HLOG_ERROR << "init_pose_:\n" << init_pose_.DebugString();
+
+    local_enu_center_flag_ = false;
+  }
+}
+
+void MapPrediction::ObtainLaneAndRoad(
+    const hozon::common::PointENU& utm_pos,
+    const double& range,
+    std::vector<hozon::hdmap::LaneInfoConstPtr>* lanes_in_range,
+    std::vector<hozon::hdmap::RoadInfoConstPtr>* roads_in_range) {
+  if (!GLOBAL_HD_MAP) {
+    HLOG_ERROR << "nullptr hq_map_server_";
+    return;
+  }
+  int ret = GLOBAL_HD_MAP->GetLanes(utm_pos, range, lanes_in_range);
+  if (ret != 0) {
+    HLOG_ERROR << "get local map lanes failed";
+    return;
+  }
+  ret = GLOBAL_HD_MAP->GetRoads(utm_pos, range, roads_in_range);
+  if (ret != 0) {
+    HLOG_ERROR << "get local map roads failed";
+    return;
   }
 }
 
@@ -875,20 +884,7 @@ void MapPrediction::AddLeft(
     // 现将当前lane的左边线补充完整
     if (id_ == curr_id && flag) {
       for (auto& lane : *local_msg_->mutable_lane()) {
-        if (lane.id().id() == id_ && !id_.empty()) {
-          const auto& seg_size = lane.left_boundary().curve().segment_size();
-          if (seg_size != 0) {
-            break;
-          }
-          auto* left_seg =
-              lane.mutable_left_boundary()->mutable_curve()->add_segment();
-          for (const auto& point : line) {
-            auto* pt = left_seg->mutable_line_segment()->add_point();
-            pt->set_x(point.x());
-            pt->set_y(point.y());
-            pt->set_z(point.z());
-          }
-        }
+        AddCurrLeftLine(&lane, id_, line);
       }
       flag = false;
       continue;
@@ -896,6 +892,25 @@ void MapPrediction::AddLeft(
     AddSideTopoLeft(line, &id_);
     if (id_.empty()) {
       break;
+    }
+  }
+}
+
+void MapPrediction::AddCurrLeftLine(hozon::hdmap::Lane* lane,
+                                    const std::string& id_,
+                                    const std::vector<Eigen::Vector3d>& line) {
+  if (lane->id().id() == id_ && !id_.empty()) {
+    const auto& seg_size = lane->left_boundary().curve().segment_size();
+    if (seg_size != 0) {
+      return;
+    }
+    auto* left_seg =
+        lane->mutable_left_boundary()->mutable_curve()->add_segment();
+    for (const auto& point : line) {
+      auto* pt = left_seg->mutable_line_segment()->add_point();
+      pt->set_x(point.x());
+      pt->set_y(point.y());
+      pt->set_z(point.z());
     }
   }
 }
@@ -910,20 +925,7 @@ void MapPrediction::AddRight(
     // 现将当前lane的右边线补充完整
     if (id_ == curr_id && flag) {
       for (auto& lane : *local_msg_->mutable_lane()) {
-        if (lane.id().id() == id_ && !id_.empty()) {
-          const auto& seg_size = lane.right_boundary().curve().segment_size();
-          if (seg_size != 0) {
-            break;
-          }
-          auto* right_seg =
-              lane.mutable_right_boundary()->mutable_curve()->add_segment();
-          for (const auto& point : line) {
-            auto* pt = right_seg->mutable_line_segment()->add_point();
-            pt->set_x(point.x());
-            pt->set_y(point.y());
-            pt->set_z(point.z());
-          }
-        }
+        AddCurrRightLine(&lane, id_, line);
       }
       flag = false;
       continue;
@@ -931,6 +933,25 @@ void MapPrediction::AddRight(
     AddSideTopoRight(line, &id_);
     if (id_.empty()) {
       break;
+    }
+  }
+}
+
+void MapPrediction::AddCurrRightLine(hozon::hdmap::Lane* lane,
+                                     const std::string& id_,
+                                     const std::vector<Eigen::Vector3d>& line) {
+  if (lane->id().id() == id_ && !id_.empty()) {
+    const auto& seg_size = lane->right_boundary().curve().segment_size();
+    if (seg_size != 0) {
+      return;
+    }
+    auto* right_seg =
+        lane->mutable_right_boundary()->mutable_curve()->add_segment();
+    for (const auto& point : line) {
+      auto* pt = right_seg->mutable_line_segment()->add_point();
+      pt->set_x(point.x());
+      pt->set_y(point.y());
+      pt->set_z(point.z());
     }
   }
 }
@@ -1623,7 +1644,7 @@ void MapPrediction::PointToLineDist(
     t = std::max(0.0, std::min(t, 1.0));
     Eigen::Vector3d C = A + t * AB;  // 点到线段的最近点
     double dis = (P - C).norm();
-    if (dis < *min_distance && dis < 3.75) {
+    if (dis < *min_distance) {  //&& dis < 3.75
       *min_distance = dis;
       *index = count;
     }
@@ -2277,7 +2298,6 @@ void MapPrediction::FitLaneCenterline() {
   for (auto& lane : *local_msg_->mutable_lane()) {
     std::vector<Vec2d> left_point;
     std::vector<Vec2d> right_point;
-
     // 存储左右边线
     StoreLaneline(lane, &left_point, &right_point);
     std::vector<Vec2d> cent_points;
@@ -2290,21 +2310,26 @@ void MapPrediction::FitLaneCenterline() {
     viz_map_.VizCenterLane(cent_points);
 
     // 此时获得了中心线上的点,塞入local_msg_中
-    if (cent_points.empty()) {
+    InsertCenterPoint(&lane, cent_points);
+  }
+}
+
+void MapPrediction::InsertCenterPoint(hozon::hdmap::Lane* lane,
+                                      const std::vector<Vec2d>& cent_points) {
+  if (cent_points.empty()) {
+    return;
+  }
+
+  auto* seg = lane->mutable_central_curve()->add_segment();
+  for (const auto& cen_point : cent_points) {
+    if (std::isnan(cen_point.x()) || std::isnan(cen_point.y())) {
+      HLOG_ERROR << "x or y isnan!";
       continue;
     }
-
-    auto* seg = lane.mutable_central_curve()->add_segment();
-    for (const auto& cen_point : cent_points) {
-      if (std::isnan(cen_point.x()) || std::isnan(cen_point.y())) {
-        HLOG_ERROR << "x or y isnan!";
-        continue;
-      }
-      auto* pt = seg->mutable_line_segment()->add_point();
-      pt->set_x(cen_point.x());
-      pt->set_y(cen_point.y());
-      pt->set_z(0.);
-    }
+    auto* pt = seg->mutable_line_segment()->add_point();
+    pt->set_x(cen_point.x());
+    pt->set_y(cen_point.y());
+    pt->set_z(0.);
   }
 }
 

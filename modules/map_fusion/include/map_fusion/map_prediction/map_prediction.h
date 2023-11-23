@@ -104,9 +104,12 @@ class MapPrediction {
  private:
   void OnLocationInGlobal(const Eigen::Vector3d& pos_gcj02, uint32_t utm_zone,
                           double utm_x, double utm_y);
-  //  void HashTable(const hozon::hdmap::RoadInfoConstPtr& road_ptr,
-  //                 const hozon::hdmap::LaneInfoConstPtr& lane_ptr,
-  //                 std::unordered_map<std::string, Boundary>* hash_table);
+  void LocalEnuCenter(const std::shared_ptr<hozon::hdmap::Map>& msg);
+  static void ObtainLaneAndRoad(
+      const hozon::common::PointENU& utm_pos,
+      const double& range,
+      std::vector<hozon::hdmap::LaneInfoConstPtr>* lanes_in_range,
+      std::vector<hozon::hdmap::RoadInfoConstPtr>* roads_in_range);
   void CreatLaneTable(
       const std::vector<hozon::hdmap::LaneInfoConstPtr>& lanes_in_range);
   void CreatRoadTable(
@@ -157,6 +160,8 @@ class MapPrediction {
                     const std::vector<std::string>& sec_lane_id,
                     std::vector<std::vector<Eigen::Vector3d>>* predict_line);
   void FitLaneCenterline();
+  static void InsertCenterPoint(hozon::hdmap::Lane* lane,
+                                const std::vector<Vec2d>& cent_points);
   static void StoreLaneline(const hozon::hdmap::Lane& lane,
                             std::vector<Vec2d>* left_point,
                             std::vector<Vec2d>* right_point);
@@ -165,8 +170,12 @@ class MapPrediction {
       const uint32_t& record, const std::string& curr_id);
   void AddLeft(const std::vector<std::vector<Eigen::Vector3d>>& predict_line,
                const std::string& curr_id);
+  static void AddCurrLeftLine(hozon::hdmap::Lane* lane, const std::string& id_,
+                              const std::vector<Eigen::Vector3d>& line);
   void AddRight(const std::vector<std::vector<Eigen::Vector3d>>& predict_line,
                 const std::string& curr_id);
+  static void AddCurrRightLine(hozon::hdmap::Lane* lane, const std::string& id_,
+                               const std::vector<Eigen::Vector3d>& line);
   void AddSideTopoLeft(const std::vector<Eigen::Vector3d>& line,
                        std::string* id_);
   void AddSideTopoRight(const std::vector<Eigen::Vector3d>& line,

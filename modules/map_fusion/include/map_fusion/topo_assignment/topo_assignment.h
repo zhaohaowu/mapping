@@ -68,9 +68,6 @@ class TopoAssignment {
   ~TopoAssignment() = default;
 
   int Init();
-  //! 临时使用，用原始ins作为全局系定位，以后统一用OnLocalization
-  void OnInsNodeInfo(
-      const std::shared_ptr<hozon::localization::HafNodeInfo>& msg);
   void OnLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& msg);
   void OnLocalization(
       const std::shared_ptr<hozon::localization::Localization>& msg);
@@ -78,14 +75,13 @@ class TopoAssignment {
   std::shared_ptr<hozon::hdmap::Map> GetTopoMap();
 
  private:
-  void OnLocationInGlobal(const Eigen::Vector3d& pos,
-                          const Eigen::Quaterniond& quat, double stamp);
-
   std::shared_ptr<hozon::hdmap::Map> topo_map_ = nullptr;
   std::shared_ptr<hozon::mapping::LocalMap> local_map_ = nullptr;
   // gcj02 global position
   Eigen::Vector3d vehicle_pose_;
   Eigen::Vector3d ref_point_;
+
+  int utm_zone_ = 0;
 
   std::vector<std::string> location_left_id_;
   std::vector<std::string> location_right_id_;
@@ -118,10 +114,38 @@ class TopoAssignment {
 
   adsfi_proto::viz::Path location_path_;
 
-  void AppendLaneLine(const std::string& lane_id,
-                      hozon::mp::mf::LaneLine* lane_line,
-                      const Eigen::Vector2d& p0, const Eigen::Vector2d& p1,
-                      const bool left);
+  void AppendAllLaneInfo(
+      const std::vector<hozon::hdmap::LaneInfoConstPtr>& lanes);
+  void AppendLocationLaneId(const hozon::hdmap::LaneInfoConstPtr& lane_ptr);
+  void AppendLaneLineCaseLeft(hozon::mp::mf::LaneLine* lane_line,
+                              const Eigen::Vector2d& p0,
+                              const Eigen::Vector2d& p1, const size_t size);
+  void AppendLaneLineCaseRight(hozon::mp::mf::LaneLine* lane_line,
+                               const Eigen::Vector2d& p0,
+                               const Eigen::Vector2d& p1, const size_t size);
+  void AppendLaneLineCaseLeftRight(hozon::mp::mf::LaneLine* lane_line,
+                                   const Eigen::Vector2d& p0,
+                                   const Eigen::Vector2d& p1,
+                                   const size_t size);
+  void AppendLaneLineLeft(const std::string& lane_id,
+                          hozon::mp::mf::LaneLine* lane_line,
+                          const Eigen::Vector2d& p0, const Eigen::Vector2d& p1);
+  void AppendLaneLineLeftOutside(const std::string& lane_id,
+                                 hozon::mp::mf::LaneLine* lane_line,
+                                 const Eigen::Vector2d& p0,
+                                 const Eigen::Vector2d& p1,
+                                 const double distance_p0,
+                                 const double distance_p1);
+  void AppendLaneLineRight(const std::string& lane_id,
+                           hozon::mp::mf::LaneLine* lane_line,
+                           const Eigen::Vector2d& p0,
+                           const Eigen::Vector2d& p1);
+  void AppendLaneLineRightOutside(const std::string& lane_id,
+                                  hozon::mp::mf::LaneLine* lane_line,
+                                  const Eigen::Vector2d& p0,
+                                  const Eigen::Vector2d& p1,
+                                  const double distance_p0,
+                                  const double distance_p1);
   std::vector<std::string> FindLaneLineHead(const std::string& lane_id,
                                             const Eigen::Vector2d& pt,
                                             const bool left);
@@ -130,31 +154,59 @@ class TopoAssignment {
                                             const bool left);
   void AppendLane(const std::map<int32_t, LaneLine>& all_lanelines,
                   std::map<std::string, Lane>* all_lanes);
+  void AppendLaneLanes(std::map<std::string, Lane>* all_lanes);
   void AppendTopoMap(const std::map<std::string, Lane>& all_lanes,
                      const std::shared_ptr<hozon::hdmap::Map>& topo_map);
+  void AppendTopoMapLeftLanes(
+      const std::pair<const std::string, hozon::mp::mf::Lane>& lane_it,
+      hozon::hdmap::Lane* lane,
+      const std::vector<Eigen::Vector2d>& hq_lane_left_points,
+      const size_t size);
+  void AppendTopoMapRightLanes(
+      const std::pair<const std::string, hozon::mp::mf::Lane>& lane_it,
+      hozon::hdmap::Lane* lane,
+      const std::vector<Eigen::Vector2d>& hq_lane_right_points,
+      const size_t size);
+  void AppendTopoMapLanePoints(hozon::hdmap::Lane* lane, const int start_index,
+                               const int end_index, const int track_id);
   void VizLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
                    const Eigen::Isometry3d& T_U_V);
   void VizLocation(const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
                    const double stamp);
   void VizHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg);
+  void VizHQMapRoad(const std::shared_ptr<hozon::hdmap::Map>& msg,
+                    adsfi_proto::viz::MarkerArray* markers_road);
+  void VizHQMapLane(const std::shared_ptr<hozon::hdmap::Map>& msg,
+                    adsfi_proto::viz::MarkerArray* markers_lane);
+  Eigen::Vector3d UtmPtToLocalEnu(const hozon::common::PointENU& point_utm);
+  void VizHQMap();
   void VizTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg);
-  void PointsToMarker(const double stamp,
-                      const std::vector<Eigen::Vector3d>& points,
-                      adsfi_proto::viz::Marker* marker, double color_type);
-  void LineIdToMarker(const double stamp, const Eigen::Vector3d& point,
-                      const std::string& id, adsfi_proto::viz::Marker* marker);
-  int FindNearestPointIndex(const Eigen::Vector2d& point,
-                            const std::vector<hozon::common::Point3D>& points);
-  int KnnSearchNearestPointIndex(
+  void VizTopoMapRoad(const std::shared_ptr<hozon::hdmap::Map>& msg,
+                      adsfi_proto::viz::MarkerArray* markers_road) const;
+  void VizTopoMapLane(const std::shared_ptr<hozon::hdmap::Map>& msg,
+                      adsfi_proto::viz::MarkerArray* markers_lane) const;
+  static void PointsToMarker(const double stamp,
+                             const std::vector<Eigen::Vector3d>& points,
+                             adsfi_proto::viz::Marker* marker,
+                             double color_type);
+  static void LineIdToMarker(const double stamp, const Eigen::Vector3d& point,
+                             const std::string& id,
+                             adsfi_proto::viz::Marker* marker);
+  static size_t FindNearestPointIndex(
+      const Eigen::Vector2d& point,
+      const std::vector<hozon::common::Point3D>& points);
+  static int KnnSearchNearestPointIndex(
       const int dim, const std::vector<float>& query_points,
       const std::shared_ptr<cv::flann::Index>& kd_tree);
-  bool PerpendicularFootInSegment(const Eigen::Vector2d& p0,
-                                  const Eigen::Vector2d& p1,
-                                  const Eigen::Vector2d& pt);
-  std::vector<Eigen::Vector2d> GetLaneStartAndEndPoint(
-      const hozon::hdmap::Lane& lane, const bool left);
-  double PointDistanceToSegment(const std::vector<Eigen::Vector2d>& points,
-                                const Eigen::Vector2d& pt);
+  static bool PerpendicularFootInSegment(const Eigen::Vector2d& p0,
+                                         const Eigen::Vector2d& p1,
+                                         const Eigen::Vector2d& pt);
+  std::vector<Eigen::Vector2d> GetLaneLeftStartAndEndPoint(
+      const hozon::hdmap::Lane& lane);
+  std::vector<Eigen::Vector2d> GetLaneRightStartAndEndPoint(
+      const hozon::hdmap::Lane& lane);
+  static double PointDistanceToSegment(
+      const std::vector<Eigen::Vector2d>& points, const Eigen::Vector2d& pt);
   bool LaneLineBelongToLane(const std::vector<std::string>& lanes,
                             const bool left, const Eigen::Vector2d& p0,
                             const Eigen::Vector2d& p1);

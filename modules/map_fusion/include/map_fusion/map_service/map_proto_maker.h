@@ -28,12 +28,12 @@ class MapProtoMarker {
 
   static adsfi_proto::viz::TransformStamped CarTrackTF(
       const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
-      const hozon::common::Header& stamp, bool utm = false);
+      const hozon::common::Header& stamp);
   //   用时将location_path设成私有变量
   static void CarTrack(const Eigen::Vector3d& pose,
                        const Eigen::Quaterniond& q_W_V,
                        adsfi_proto::viz::Path* location_path,
-                       const hozon::common::Header& stamp, bool utm = false);
+                       const hozon::common::Header& stamp);
   static adsfi_proto::viz::MarkerArray LaneID(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
@@ -54,12 +54,12 @@ class MapProtoMarker {
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
   // 地图坐标系UTM  VECTOR <CENTRAL CURVE ; LEFT ;RIGHT>
-  std::vector<adsfi_proto::viz::MarkerArray> LaneToMarker(
+  static std::vector<adsfi_proto::viz::MarkerArray> LaneToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
   adsfi_proto::viz::MarkerArray JunctionToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-      const Eigen::Vector3d& enupos, bool utm = false);
+      const Eigen::Vector3d& enupos);
   adsfi_proto::viz::MarkerArray RoadToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
@@ -68,16 +68,16 @@ class MapProtoMarker {
       const Eigen::Vector3d& enupos, bool utm = false);
   adsfi_proto::viz::MarkerArray CrossWalkToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-      const Eigen::Vector3d& enupos, bool utm = false);
+      const Eigen::Vector3d& enupos);
   adsfi_proto::viz::MarkerArray StopSignToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-      const Eigen::Vector3d& enupos, bool utm = false);
+      const Eigen::Vector3d& enupos);
   adsfi_proto::viz::MarkerArray ClearAreaToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-      const Eigen::Vector3d& enupos, bool utm = false);
+      const Eigen::Vector3d& enupos);
   adsfi_proto::viz::MarkerArray SpeedBumpToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-      const Eigen::Vector3d& enupos, bool utm = false);
+      const Eigen::Vector3d& enupos);
 
  private:
   std::shared_ptr<hozon::hdmap::Map> prior_map_ = nullptr;

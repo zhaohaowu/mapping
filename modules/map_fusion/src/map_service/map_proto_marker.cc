@@ -18,7 +18,7 @@ namespace mf {
 
 adsfi_proto::viz::TransformStamped MapProtoMarker::CarTrackTF(
     const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
-    const hozon::common::Header& stamp, bool utm) {
+    const hozon::common::Header& stamp) {
   if (!RVIZ_AGENT.Ok()) {
     return {};
   }
@@ -46,7 +46,7 @@ adsfi_proto::viz::TransformStamped MapProtoMarker::CarTrackTF(
 void MapProtoMarker::CarTrack(const Eigen::Vector3d& pose,
                               const Eigen::Quaterniond& q_W_V,
                               adsfi_proto::viz::Path* location_path_,
-                              const hozon::common::Header& stamp, bool utm) {
+                              const hozon::common::Header& stamp) {
   static uint32_t seq = 0;
   uint32_t curr_seq = seq++;
   auto* location_pose = location_path_->add_poses();
@@ -297,9 +297,9 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneID(
           double y = point_utm.y();
           hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
           Eigen::Vector3d point_gcj(y, x, 0);
-          Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
+          point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
         } else {
-          Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
+          point_enu = Eigen::Vector3d(point.x(), point.y(), point.z());
         }
         auto text_marker = std::make_unique<adsfi_proto::viz::Marker>();
         text_marker->mutable_header()->set_frameid("map");
@@ -1809,7 +1809,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
 }
 adsfi_proto::viz::MarkerArray MapProtoMarker::JunctionToMarker(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-    const Eigen::Vector3d& enupos, bool utm) {
+    const Eigen::Vector3d& enupos) {
   adsfi_proto::viz::MarkerArray junction_markers;
   for (const auto& junction : prior_map->junction()) {
     auto junction_marker = std::make_unique<adsfi_proto::viz::Marker>();
@@ -1997,7 +1997,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::SignalToMarker(
 }
 adsfi_proto::viz::MarkerArray MapProtoMarker::CrossWalkToMarker(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-    const Eigen::Vector3d& enupos, bool utm) {
+    const Eigen::Vector3d& enupos) {
   adsfi_proto::viz::MarkerArray cross_walk_markers;
   for (const auto& crosswalk : prior_map->crosswalk()) {
     auto cross_walk_marker = std::make_unique<adsfi_proto::viz::Marker>();
@@ -2055,7 +2055,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::CrossWalkToMarker(
 }
 adsfi_proto::viz::MarkerArray MapProtoMarker::StopSignToMarker(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-    const Eigen::Vector3d& enupos, bool utm) {
+    const Eigen::Vector3d& enupos) {
   adsfi_proto::viz::MarkerArray stop_sign_markers;
   for (const auto& stop_sign : prior_map->stop_sign()) {
     auto stop_sign_marker = std::make_unique<adsfi_proto::viz::Marker>();
@@ -2117,7 +2117,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::StopSignToMarker(
 }
 adsfi_proto::viz::MarkerArray MapProtoMarker::ClearAreaToMarker(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-    const Eigen::Vector3d& enupos, bool utm) {
+    const Eigen::Vector3d& enupos) {
   adsfi_proto::viz::MarkerArray clear_area_markers;
   for (const auto& clear_area : prior_map->clear_area()) {
     auto clear_area_marker = std::make_unique<adsfi_proto::viz::Marker>();
@@ -2174,7 +2174,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::ClearAreaToMarker(
 }
 adsfi_proto::viz::MarkerArray MapProtoMarker::SpeedBumpToMarker(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-    const Eigen::Vector3d& enupos, bool utm) {
+    const Eigen::Vector3d& enupos) {
   adsfi_proto::viz::MarkerArray speed_bump_markers;
   for (const auto& speed_bump : prior_map->speed_bump()) {
     auto speed_bump_marker = std::make_unique<adsfi_proto::viz::Marker>();

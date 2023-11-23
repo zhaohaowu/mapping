@@ -336,6 +336,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneRightNeighborForward(
     const Eigen::Vector3d& enupos, bool utm) {
   adsfi_proto::viz::MarkerArray arrow_markers;
   int color_index = 0;
+  // NOLINTBEGIN
   for (const auto& lane : prior_map->lane()) {
     u_int64_t laneId = std::stoll(lane.id().id());
     u_int64_t remainder = laneId / 10000;
@@ -616,6 +617,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneRightNeighborForward(
       }
     }
   }
+  // NOLINTEND
   return arrow_markers;
 }  // namespace mf
 adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftNeighborForward(
@@ -623,6 +625,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftNeighborForward(
     const Eigen::Vector3d& enupos, bool utm) {
   adsfi_proto::viz::MarkerArray arrow_markers;
   int color_index = 0;
+  // NOLINTBEGIN
   for (const auto& lane : prior_map->lane()) {
     // HLOG_ERROR << "===== laneId " << lane.id().id();
     u_int64_t laneId = std::stoll(lane.id().id());
@@ -916,6 +919,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftNeighborForward(
       }
     }
   }
+  // NOLINTEND
   return arrow_markers;
 }
 
@@ -923,6 +927,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
   adsfi_proto::viz::MarkerArray arrow_markers;
+  // NOLINTBEGIN
   for (const auto& lane : prior_map->lane()) {
     u_int64_t laneId = std::stoll(lane.id().id());
     u_int64_t remainder = laneId / 10000;
@@ -1308,13 +1313,13 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
 
             arrow_predecessor_marker->set_action(
                 adsfi_proto::viz::MarkerAction::ADD);
-            auto start_point_marker = arrow_predecessor_marker->add_points();
+            auto* start_point_marker = arrow_predecessor_marker->add_points();
             start_point_marker->set_x(start_point.x());
             start_point_marker->set_y(start_point.y());
             start_point_marker->set_z(start_point.z());
 
             // 添加终点
-            auto end_point_marker = arrow_predecessor_marker->add_points();
+            auto* end_point_marker = arrow_predecessor_marker->add_points();
             end_point_marker->set_x(end_point.x());
             end_point_marker->set_y(end_point.y());
             end_point_marker->set_z(end_point.z());
@@ -1391,12 +1396,14 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
       }
     }
   }
+  // NOLINTEND
   return arrow_markers;
 }
 adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
   adsfi_proto::viz::MarkerArray arrow_markers;
+  // NOLINTBEGIN
   for (const auto& lane : prior_map->lane()) {
     u_int64_t laneId = std::stoll(lane.id().id());
     u_int64_t remainder = laneId / 10000;
@@ -1805,11 +1812,11 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
       }
     }
   }
+  // NOLINTEND
   return arrow_markers;
 }
 adsfi_proto::viz::MarkerArray MapProtoMarker::JunctionToMarker(
-    const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-    const Eigen::Vector3d& enupos) {
+    const std::shared_ptr<hozon::hdmap::Map>& prior_map) {
   adsfi_proto::viz::MarkerArray junction_markers;
   for (const auto& junction : prior_map->junction()) {
     auto junction_marker = std::make_unique<adsfi_proto::viz::Marker>();
@@ -1899,26 +1906,7 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::RoadToMarker(
           road_marker->mutable_color()->CopyFrom(color);
           for (int j = 0; j < segment.line_segment().point().size(); ++j) {
             const auto& point = segment.line_segment().point(j);
-            if (utm) {
-              Eigen::Vector3d point_utm(point.x(), point.y(), point.z());
-              int zone = 51;
-              double x = point_utm.x();
-              double y = point_utm.y();
-              hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
-              Eigen::Vector3d point_gcj(y, x, 0);
-              Eigen::Vector3d point_enu =
-                  util::Geo::Gcj02ToEnu(point_gcj, enupos);
-              auto* pt = road_marker->add_points();
-              pt->set_x(point_enu.x());
-              pt->set_y(point_enu.y());
-              pt->set_z(point_enu.z());
-            } else {
-              Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
-              auto* pt = road_marker->add_points();
-              pt->set_x(point_enu.x());
-              pt->set_y(point_enu.y());
-              pt->set_z(point_enu.z());
-            }
+            AddPointToMarker(point, road_marker.get(), enupos, utm);
           }
           if (road_marker->points().empty()) {
             HLOG_WARN << "empty road";

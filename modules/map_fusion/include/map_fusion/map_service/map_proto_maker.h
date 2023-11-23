@@ -46,36 +46,35 @@ class MapProtoMarker {
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
   // predecessor message
-  adsfi_proto::viz::MarkerArray LanePredecessor(
+  static adsfi_proto::viz::MarkerArray LanePredecessor(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
   // successor message
-  adsfi_proto::viz::MarkerArray LaneSuccessor(
+  static adsfi_proto::viz::MarkerArray LaneSuccessor(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
   // 地图坐标系UTM  VECTOR <CENTRAL CURVE ; LEFT ;RIGHT>
   static std::vector<adsfi_proto::viz::MarkerArray> LaneToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
-  adsfi_proto::viz::MarkerArray JunctionToMarker(
-      const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-      const Eigen::Vector3d& enupos);
-  adsfi_proto::viz::MarkerArray RoadToMarker(
-      const std::shared_ptr<hozon::hdmap::Map>& prior_map,
-      const Eigen::Vector3d& enupos, bool utm = false);
-  adsfi_proto::viz::MarkerArray SignalToMarker(
+  static adsfi_proto::viz::MarkerArray JunctionToMarker(
+      const std::shared_ptr<hozon::hdmap::Map>& prior_map);
+  static adsfi_proto::viz::MarkerArray RoadToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
-  adsfi_proto::viz::MarkerArray CrossWalkToMarker(
+  static adsfi_proto::viz::MarkerArray SignalToMarker(
+      const std::shared_ptr<hozon::hdmap::Map>& prior_map,
+      const Eigen::Vector3d& enupos, bool utm = false);
+  static adsfi_proto::viz::MarkerArray CrossWalkToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos);
-  adsfi_proto::viz::MarkerArray StopSignToMarker(
+  static adsfi_proto::viz::MarkerArray StopSignToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos);
-  adsfi_proto::viz::MarkerArray ClearAreaToMarker(
+  static adsfi_proto::viz::MarkerArray ClearAreaToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos);
-  adsfi_proto::viz::MarkerArray SpeedBumpToMarker(
+  static adsfi_proto::viz::MarkerArray SpeedBumpToMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos);
 
@@ -99,6 +98,29 @@ class MapProtoMarker {
         util::Geo::Gcj02ToEnu(point_gcj_end, enupos);
 
     return point_enu_end;
+  }
+  static void AddPointToMarker(const hozon::common::PointENU& point,
+                               adsfi_proto::viz::Marker* marker,
+                               const Eigen::Vector3d& enupos, bool utm) {
+    if (utm) {
+      Eigen::Vector3d point_utm(point.x(), point.y(), point.z());
+      int zone = 51;
+      double x = point_utm.x();
+      double y = point_utm.y();
+      hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
+      Eigen::Vector3d point_gcj(y, x, 0);
+      Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
+      auto* pt = marker->add_points();
+      pt->set_x(point_enu.x());
+      pt->set_y(point_enu.y());
+      pt->set_z(point_enu.z());
+    } else {
+      Eigen::Vector3d point_enu(point.x(), point.y(), point.z());
+      auto* pt = marker->add_points();
+      pt->set_x(point_enu.x());
+      pt->set_y(point_enu.y());
+      pt->set_z(point_enu.z());
+    }
   }
 };
 

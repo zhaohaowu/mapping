@@ -178,19 +178,28 @@ void DataBoard::Adsfi2Proto(
   imu_proto->mutable_header()->set_gnss_stamp(gnssstamp);
   imu_proto->mutable_header()->set_frame_id(imuinsDataPtr_->header.frameID);
   // imu
+  // std::cout << "time: " << std::setprecision(16) << tick
+  //           << " angx: " << imuinsDataPtr_->imu_info.angularVelocity.x << " y
+  //           "
+  //           << imuinsDataPtr_->imu_info.angularVelocity.y << " z "
+  //           << imuinsDataPtr_->imu_info.angularVelocity.z << " accx "
+  //           << imuinsDataPtr_->imu_info.linearAcceleration.x << " y "
+  //           << imuinsDataPtr_->imu_info.linearAcceleration.y << " z "
+  //           << imuinsDataPtr_->imu_info.linearAcceleration.z << std::endl;
+
   imu_proto->mutable_imu_info()->mutable_angular_velocity()->set_x(
-      imuinsDataPtr_->imu_info.angularVelocity.x * M_PI / 180.0);
+      imuinsDataPtr_->imu_info.angularVelocity.x);
   imu_proto->mutable_imu_info()->mutable_angular_velocity()->set_y(
-      imuinsDataPtr_->imu_info.angularVelocity.y * M_PI / 180.0);
+      imuinsDataPtr_->imu_info.angularVelocity.y);
   imu_proto->mutable_imu_info()->mutable_angular_velocity()->set_z(
-      imuinsDataPtr_->imu_info.angularVelocity.z * M_PI / 180.0);
+      imuinsDataPtr_->imu_info.angularVelocity.z);
 
   imu_proto->mutable_imu_info()->mutable_linear_acceleration()->set_x(
-      imuinsDataPtr_->imu_info.linearAcceleration.x * 9.80645);
+      imuinsDataPtr_->imu_info.linearAcceleration.x);
   imu_proto->mutable_imu_info()->mutable_linear_acceleration()->set_y(
-      imuinsDataPtr_->imu_info.linearAcceleration.y * 9.80645);
+      imuinsDataPtr_->imu_info.linearAcceleration.y);
   imu_proto->mutable_imu_info()->mutable_linear_acceleration()->set_z(
-      imuinsDataPtr_->imu_info.linearAcceleration.z * 9.80645);
+      imuinsDataPtr_->imu_info.linearAcceleration.z);
 
   imu_proto->mutable_imu_info()->set_imuyaw(imuinsDataPtr_->imu_info.imuyaw);
 

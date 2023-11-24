@@ -35,6 +35,8 @@ struct WheelOdometry {
 };
 
 struct OdometryData {
+  OdometryData() = default;
+
   double timestamp;
   // double pub_time;
   // hozon::perception::base::Pose odometry;
@@ -45,7 +47,7 @@ struct OdometryData {
   int gear = 100;
 
   // ins data
-  int gpsStatus;             // 定位状态
+  int gpsStatus = -1;             // 定位状态
   double latitude;           // 纬度 Unit: deg
   double longitude;          // 经度 Unit: deg
   double altitude;           // 海拔高度 Unit: meter
@@ -54,6 +56,7 @@ struct OdometryData {
 
 // hozon
 struct WheelDataHozon {
+  WheelDataHozon() = default;
   double timestamp;
   double recv_time;
   // 脉冲数

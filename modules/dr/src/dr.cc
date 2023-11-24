@@ -31,11 +31,8 @@ bool DRInterface::SetLocation(
     // frame->eulerAngle = eulerAngle * 57.3;
 
     //   frame->loc_omg = latest_odom.loc_omg * 57.3;
-    SetLocationData(locationDataPtr, latest_odom, eulerAngle);
+    SetLocationData(std::move(locationDataPtr), latest_odom, eulerAngle);
     return true;
-  } else {
-    // HLOG_INFO << "dr is not init";
-    return false;
   }
   return false;
 }
@@ -57,12 +54,14 @@ Eigen::Vector3d DRInterface::Qat2EulerAngle(const Eigen::Quaterniond& q) {
   double siny_cosp = +2.0 * (q.w() * q.z() + q.x() * q.y());
   double cosy_cosp = +1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z());
   eulerangle[2] = atan2(siny_cosp, cosy_cosp);
-  if (eulerangle[2] < 0) eulerangle[2] += 2 * M_PI;
+  if (eulerangle[2] < 0) {
+    eulerangle[2] += 2 * M_PI;
+  }
   return eulerangle;
 }
 
 void DRInterface::SetInsData2Location(
-    std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
+    const std::shared_ptr<hozon::dead_reckoning::DeadReckoning>& locationDataPtr,
     const OdometryData& odom_data) {
   // 位置的欧拉角
   locationDataPtr->mutable_pose()
@@ -136,19 +135,19 @@ void DRInterface::SetLocationData(
   locationDataPtr->mutable_pose()
       ->mutable_pose_local()
       ->mutable_quaternion()
-      ->set_w(latest_odom.odometry.qw);
+      ->set_w(static_cast<float>(latest_odom.odometry.qw));
   locationDataPtr->mutable_pose()
       ->mutable_pose_local()
       ->mutable_quaternion()
-      ->set_x(latest_odom.odometry.qx);
+      ->set_x(static_cast<float>(latest_odom.odometry.qx));
   locationDataPtr->mutable_pose()
       ->mutable_pose_local()
       ->mutable_quaternion()
-      ->set_y(latest_odom.odometry.qy);
+      ->set_y(static_cast<float>(latest_odom.odometry.qy));
   locationDataPtr->mutable_pose()
       ->mutable_pose_local()
       ->mutable_quaternion()
-      ->set_z(latest_odom.odometry.qz);
+      ->set_z(static_cast<float>(latest_odom.odometry.qz));
 
   SetInsData2Location(locationDataPtr, latest_odom);
 
@@ -157,8 +156,9 @@ void DRInterface::SetLocationData(
       ->mutable_euler_angle()
       ->set_z(eulerAngle[2]);
 
-  locationDataPtr->mutable_pose()->mutable_pose_local()->set_heading(
-      eulerAngle[2]);
+  locationDataPtr->mutable_pose()->mutable_pose_local()
+      ->set_heading(
+        static_cast<float>(eulerAngle[2]));
 
   //   HLOG_INFO << "==== init ===="
   //             << " output---vel " << latest_odom.loc_vel[1] << " acc  "
@@ -168,57 +168,57 @@ void DRInterface::SetLocationData(
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_linear_vrf()
-      ->set_x(latest_odom.loc_vel[0]);
+      ->set_x(static_cast<float>(latest_odom.loc_vel[0]));
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_linear_vrf()
-      ->set_y(latest_odom.loc_vel[1]);
+      ->set_y(static_cast<float>(latest_odom.loc_vel[1]));
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_linear_vrf()
-      ->set_z(latest_odom.loc_vel[2]);
+      ->set_z(static_cast<float>(latest_odom.loc_vel[2]));
 
   // 原始角速度
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_angular_raw_vrf()
-      ->set_x(latest_odom.loc_omg[0]);
+      ->set_x(static_cast<float>(latest_odom.loc_omg[0]));
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_angular_raw_vrf()
-      ->set_y(latest_odom.loc_omg[1]);
+      ->set_y(static_cast<float>(latest_odom.loc_omg[1]));
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_angular_raw_vrf()
-      ->set_z(latest_odom.loc_omg[2]);
+      ->set_z(static_cast<float>(latest_odom.loc_omg[2]));
 
   // 计算角速度
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_angular_vrf()
-      ->set_x(latest_odom.loc_omg[0]);
+      ->set_x(static_cast<float>(latest_odom.loc_omg[0]));
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_angular_vrf()
-      ->set_y(latest_odom.loc_omg[1]);
+      ->set_y(static_cast<float>(latest_odom.loc_omg[1]));
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_angular_vrf()
-      ->set_z(latest_odom.loc_omg[2]);
+      ->set_z(static_cast<float>(latest_odom.loc_omg[2]));
 
   // 加速度
   locationDataPtr->mutable_acceleration()
       ->mutable_linear_vrf()
       ->mutable_linear_raw_vrf()
-      ->set_x(latest_odom.loc_acc[0] / 9.80645);
+      ->set_x(static_cast<float>(latest_odom.loc_acc[0] / 9.80645));
   locationDataPtr->mutable_acceleration()
       ->mutable_linear_vrf()
       ->mutable_linear_raw_vrf()
-      ->set_y(latest_odom.loc_acc[1] / 9.80645);
+      ->set_y(static_cast<float>(latest_odom.loc_acc[1] / 9.80645));
   locationDataPtr->mutable_acceleration()
       ->mutable_linear_vrf()
       ->mutable_linear_raw_vrf()
-      ->set_z(latest_odom.loc_acc[2] / 9.80645);
+      ->set_z(static_cast<float>(latest_odom.loc_acc[2] / 9.80645));
 
   // locationDataPtr->mutable_acceleration()
   //     ->mutable_linear_vrf()
@@ -285,23 +285,23 @@ void DRInterface::SetLocationData(
 }
 
 void DRInterface::AddImuData(
-    const std::shared_ptr<const hozon::soc::ImuIns> imu_proto) {
+    const std::shared_ptr<const hozon::soc::ImuIns>& imu_proto) {
   ImuDataHozon imu_data;
   ConvertImuData(imu_proto, imu_data);
   dr_estimator_->add_imu_data(imu_data);
 }
 
 void DRInterface::AddChassisData(
-    const std::shared_ptr<const hozon::soc::Chassis> chassis_proto) {
+    const std::shared_ptr<const hozon::soc::Chassis>& chassis_proto) {
   WheelDataHozon wheel_data;
   ConvertChassisData(chassis_proto, wheel_data);
   dr_estimator_->add_wheel_data(wheel_data);
 }
 
 void DRInterface::ConvertImuData(
-    const std::shared_ptr<const hozon::soc::ImuIns> imu_proto,
+    const std::shared_ptr<const hozon::soc::ImuIns>& imu_proto,
     ImuDataHozon& imu_data) {
-  if (!imu_proto) {
+  if (imu_proto == nullptr) {
     HLOG_ERROR << "Parking_SLAM: no imu data !";
     // fm_.ReportFault(LOC_IMU_DATA_ERROR);
     return;
@@ -327,7 +327,7 @@ void DRInterface::ConvertImuData(
   //                                       imu_proto->ins_info().attitude().y());
   // imu_data.ins_data.gpsStatus = imu_proto->ins_info.gpsStatus;
 
-  imu_data.gpsStatus = imu_proto->ins_info().gps_status();
+  imu_data.gpsStatus = static_cast<int>(imu_proto->ins_info().gps_status());
   // imu_proto->ins_info.gpsStatus;
   imu_data.latitude = imu_proto->ins_info().latitude();
   // imu_proto->ins_info.latitude;
@@ -353,7 +353,7 @@ void DRInterface::ConvertImuData(
 }
 
 void DRInterface::ConvertChassisData(
-    const std::shared_ptr<const hozon::soc::Chassis> chassis_proto,
+    const std::shared_ptr<const hozon::soc::Chassis>& chassis_proto,
     WheelDataHozon& wheel_data) {
   if (!chassis_proto) {
     // fm_.ReportFault(LOC_IMU_DATA_ERROR);

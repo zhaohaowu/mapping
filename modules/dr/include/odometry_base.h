@@ -67,9 +67,8 @@ class OdometryBase {
 
   void add_imu_data(const ImuDataHozon& imu_data);
 
-  WheelDataHozon filter_wheel_data(const WheelDataHozon& wheel_data);
-  Eigen::Vector3d filter_vel(const Eigen::Vector3d& cur_vel);
-  double filter_cnt(double cnt);
+  static Eigen::Vector3d filter_vel(const Eigen::Vector3d& cur_vel);
+  static double filter_cnt(double cnt);
   bool add_wheel_data(const WheelDataHozon& wheel_data);
 
   std::vector<WheelDataHozon> get_oldest_two_wheel();
@@ -88,9 +87,9 @@ class OdometryBase {
   bool InterpolatePose(double time, OdometryData& odom_data);     // NOLINT
 
   OdometryData get_latest_odom_data();
-  void AddOdomData(OdometryData new_odom, double delta_dis);
+  void AddOdomData(const OdometryData& new_odom/*, double delta_dis*/);
 
-  void Qat2EulerAngle(const Eigen::Quaterniond& q,
+  static void Qat2EulerAngle(const Eigen::Quaterniond& q,
                       double& roll,   // NOLINT
                       double& pitch,  // NOLINT
                       double& yaw);   // NOLINT

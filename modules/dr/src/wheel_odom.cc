@@ -30,13 +30,13 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
       std::cout << "error wheel direction " << std::endl;
     return false;
   }
-  double begin_wl_1 = last.front_left_wheel;
-  double begin_wr_1 = last.front_right_wheel;
+  // double begin_wl_1 = last.front_left_wheel;
+  // double begin_wr_1 = last.front_right_wheel;
   double end_wl_1 = last.rear_left_wheel;
   double end_wr_1 = last.rear_right_wheel;
 
-  double begin_wl_2 = cur.front_left_wheel;
-  double begin_wr_2 = cur.front_right_wheel;
+  // double begin_wl_2 = cur.front_left_wheel;
+  // double begin_wr_2 = cur.front_right_wheel;
   double end_wl_2 = cur.rear_left_wheel;
   double end_wr_2 = cur.rear_right_wheel;
 
@@ -47,9 +47,13 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   double end_wr_2_tmp = end_wr_2;
   // 前后两次的脉冲差
   double left_diff = end_wl_2_tmp - end_wl_1_tmp;
-  if (left_diff < 0) left_diff += MAX_WHEEL_COUNT;
+  if (left_diff < 0) {
+    left_diff += MAX_WHEEL_COUNT;
+  }
   double right_diff = end_wr_2_tmp - end_wr_1_tmp;
-  if (right_diff < 0) right_diff += MAX_WHEEL_COUNT;
+  if (right_diff < 0) {
+    right_diff += MAX_WHEEL_COUNT;
+  }
   // 左轮运动距离
   double left_dist = left_diff * wheel_param_.kl_;
   if (cur.rear_left_dir == 1) {
@@ -61,8 +65,8 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
     right_dist *= -1.0;
     //  std::cout << "right back direction" << std::endl;
   }
-  left_diff = filter_cnt(left_diff);
-  right_diff = filter_cnt(right_diff);
+  left_diff = WheelOdom::filter_cnt(left_diff);
+  right_diff = WheelOdom::filter_cnt(right_diff);
 
   double delta_yaw = (right_diff - left_diff) / wheel_param_.b_;
   double delta_dist = (right_dist + left_dist) * 0.5;
@@ -84,7 +88,7 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
     total_w += i;
   }
   double avg_w = 0.0;
-  avg_w = total_w / wheel_w.size();
+  avg_w = total_w / static_cast<double>(wheel_w.size());
 
   Eigen::Quaterniond delta_qat;
   Eigen::AngleAxisd rollAngle(Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX()));
@@ -122,7 +126,7 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   for (auto i : wheel_vel) {
     total_vel += i;
   }
-  double avg_vel = total_vel / wheel_vel.size();
+  double avg_vel = total_vel / static_cast<double>(wheel_vel.size());
 
   /////////////////////////////////////
   static std::deque<double> wheel_vel2 = {};
@@ -138,12 +142,12 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
     total_vel2 += i;
   }
 
-  avg_vel2 = total_vel2 / wheel_vel2.size();
+  avg_vel2 = total_vel2 / static_cast<double>(wheel_vel2.size());
 
   // Eigen::Vector3d eg_wheel = {v_by_wheel_, 0, 0};
   // cur_odom_data.loc_vel = filter_vel(eg_wheel);
 
-  Eigen::Vector3d fl_vel = filter_vel({v_by_wheel_, 0, 0});
+  // Eigen::Vector3d fl_vel = WheelOdom::filter_vel({v_by_wheel_, 0, 0});
 
   // HLOG_INFO << "==== init ====  filtered vel !!! "
   //           << "origin vec," << v_by_wheel_ << " ,avg wheel, " << avg_vel
@@ -171,7 +175,7 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   }
   double avg_acc = 0.0;
   if (wheel_acc.size() > 18) {
-    avg_acc = total_acc / wheel_acc.size();
+    avg_acc = total_acc / static_cast<double>(wheel_acc.size());
   } else {
     avg_acc = 0.0;
   }
@@ -184,11 +188,15 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   //           << cur.rear_right_speed << " ,avg2," << avg_vel2 << " ,acc,"
   //           << avg_acc << ",yaw," << delta_yaw << ",avg yaw," << avg_w;
 
-  AddOdomData(cur_odom_data, delta_dist);
+  AddOdomData(cur_odom_data/*, delta_dist*/);
 
   double yaw = 2 * atan2(qat_.z(), qat_.w());
-  if (yaw > M_PI) yaw -= 2 * M_PI;
-  if (yaw < -M_PI) yaw += 2 * M_PI;
+  if (yaw > M_PI) {
+    yaw -= 2 * M_PI;
+  }
+  if (yaw < -M_PI) {
+    yaw += 2 * M_PI;
+  }
 
   // v_by_wheel_ = delta_dist / delta_t;
   // w_by_wheel_ = delta_yaw / delta_t;

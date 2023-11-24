@@ -27,10 +27,10 @@ class DRInterface {
   DRInterface();
   ~DRInterface() {}
 
-  void AddImuData(const std::shared_ptr<const hozon::soc::ImuIns> imu_proto);
+  void AddImuData(const std::shared_ptr<const hozon::soc::ImuIns>& imu_proto);
 
   void AddChassisData(
-      const std::shared_ptr<const hozon::soc::Chassis> chassis_proto);
+      const std::shared_ptr<const hozon::soc::Chassis>& chassis_proto);
 
   bool SetLocation(
       std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr);
@@ -46,22 +46,22 @@ class DRInterface {
     return result;
   }
 
-  void SetInsData2Location(
-      std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
+  static void SetInsData2Location(
+      const std::shared_ptr<hozon::dead_reckoning::DeadReckoning>& locationDataPtr,
       const OdometryData &odom_data);
 
   void SetLocationData(
       std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
       OdometryData &latest_odom, Eigen::Vector3d &eulerAngle);  // NOLINT
 
-  void ConvertImuData(const std::shared_ptr<const hozon::soc::ImuIns> imu_proto,
+  static void ConvertImuData(const std::shared_ptr<const hozon::soc::ImuIns>& imu_proto,
                       ImuDataHozon &imu_data);  // NOLINT
 
-  void ConvertChassisData(
-      const std::shared_ptr<const hozon::soc::Chassis> chassis_proto,
+  static void ConvertChassisData(
+      const std::shared_ptr<const hozon::soc::Chassis>& chassis_proto,
       WheelDataHozon &wheel_data);  // NOLINT
 
-  Eigen::Vector3d Qat2EulerAngle(const Eigen::Quaterniond &q);
+  static Eigen::Vector3d Qat2EulerAngle(const Eigen::Quaterniond &q);
 
  private:
   std::shared_ptr<OdometryBase> dr_estimator_;

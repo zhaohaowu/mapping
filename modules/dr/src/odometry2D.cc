@@ -18,9 +18,8 @@ bool Odometry2D::update() {
   if (!initialized_) {
     if (CanInitialize()) {
       return Initialize();
-    } else {
-      return false;
     }
+    return false;
   }
   int update_cnt = 0;
   while (true) {
@@ -49,7 +48,7 @@ bool Odometry2D::update() {
 
     Eigen::Vector3d pos_pre = pos_;
     Eigen::Quaterniond qat_pre = qat_;
-    unsigned int imu_cnt = 0;
+    // unsigned int imu_cnt = 0;
     auto itr = imu_datas.begin() + 1;
     for (; itr != imu_datas.end(); itr++) {
       // imu数据更新姿态
@@ -79,7 +78,7 @@ bool Odometry2D::update() {
       }
 
       double dt = itr->timestamp - itr_pre->timestamp;
-      imu_cnt++;
+      // imu_cnt++;
       UpdateOrientationByIMU(*itr_pre, *itr);
 
       // HLOG_INFO << "==== init ==== qat ===update !! " << qat_.x() << " "
@@ -142,7 +141,7 @@ bool Odometry2D::update() {
           sys_mat * error_state_cov_ * sys_mat.transpose() + prc_mat;
     }
     Eigen::Quaterniond qat_veh_pdt = extrinsic_Q_ * qat_;
-    Eigen::Vector3d eulerAngle_pdt = qat_veh_pdt.matrix().eulerAngles(2, 1, 0);
+    // Eigen::Vector3d eulerAngle_pdt = qat_veh_pdt.matrix().eulerAngles(2, 1, 0);
 
     // update pos
     Eigen::Vector3d delta_t_veh(delta_dis, 0, 0);
@@ -172,7 +171,7 @@ bool Odometry2D::update() {
     // transe to the wheel coordinate
     Eigen::Quaterniond qat_veh = qat_ * extrinsic_Q_.conjugate();
     Eigen::Vector3d pos_veh = pos_ - qat_veh * extrinsic_T_;
-    Eigen::Vector3d vel_veh = extrinsic_Q_.conjugate() * vel_;
+    // Eigen::Vector3d vel_veh = extrinsic_Q_.conjugate() * vel_;
 
     cur_odom_data.timestamp = wheel_time;
 
@@ -199,14 +198,14 @@ bool Odometry2D::update() {
     cur_odom_data.attitude = imu_itr->attitude;
     cur_odom_data.gpsStatus = imu_itr->gpsStatus;
 
-    AddOdomData(cur_odom_data, delta_dis);
+    AddOdomData(cur_odom_data/*, delta_dis*/);
     last_local_vel = local_vel;
 
     // HLOG_INFO << "==== init ===="
     //           << " local_vel; " << local_vel(0) << " acc:" <<
     //           acc_by_gyro_(0);
   }
-  return update_cnt > 0 ? true : false;
+  return update_cnt > 0;
 }
 
 bool Odometry2D::Initialize() {
@@ -260,7 +259,7 @@ bool Odometry2D::Initialize() {
   cur_odom_data.loc_omg = {0, 0, 0};
   cur_odom_data.loc_acc = {0, 0, 0};
   cur_odom_data.gear = 0;
-  AddOdomData(cur_odom_data, 0.0);
+  AddOdomData(cur_odom_data/*, 0.0*/);
   // HLOG_INFO << "DR initialize done";
   std::cout << "DR initialize done" << std::endl;
   return true;
@@ -270,13 +269,13 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
     const WheelDataHozon& last, const WheelDataHozon& cur) {
   is_car_standstill_ = false;
 
-  double begin_wl_1 = last.front_left_wheel;
-  double begin_wr_1 = last.front_right_wheel;
+  // double begin_wl_1 = last.front_left_wheel;
+  // double begin_wr_1 = last.front_right_wheel;
   double end_wl_1 = last.rear_left_wheel;
   double end_wr_1 = last.rear_right_wheel;
 
-  double begin_wl_2 = cur.front_left_wheel;
-  double begin_wr_2 = cur.front_right_wheel;
+  // double begin_wl_2 = cur.front_left_wheel;
+  // double begin_wr_2 = cur.front_right_wheel;
   double end_wl_2 = cur.rear_left_wheel;
   double end_wr_2 = cur.rear_right_wheel;
 
@@ -287,9 +286,13 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
   double end_wr_2_tmp = end_wr_2;
 
   double left_diff = end_wl_2_tmp - end_wl_1_tmp;
-  if (left_diff < 0) left_diff += MAX_WHEEL_COUNT;
+  if (left_diff < 0) {
+    left_diff += MAX_WHEEL_COUNT;
+  }
   double right_diff = end_wr_2_tmp - end_wr_1_tmp;
-  if (right_diff < 0) right_diff += MAX_WHEEL_COUNT;
+  if (right_diff < 0) {
+    right_diff += MAX_WHEEL_COUNT;
+  }
 
   double left_dist = left_diff * wheel_param_.kl_;
   if (cur.rear_left_dir == 1) {
@@ -301,7 +304,7 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
     right_dist *= -1.0;
     // std::cout << "right back direction" << std::endl;
   }
-  double delta_yaw = (right_dist - left_dist) / wheel_param_.b_;
+  // double delta_yaw = (right_dist - left_dist) / wheel_param_.b_;
   double delta_dist = (right_dist + left_dist) * 0.5;
 
   // double wheel_speed = delta_dist / (cur.timestamp - last.timestamp);
@@ -311,7 +314,7 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
   if (wheel_vel_buffer_.size() > 10) {
     wheel_vel_buffer_.pop_front();
   }
-  wheel_vel_buffer_.push_back(
+  wheel_vel_buffer_.emplace_back(
       std::pair<double, double>(cur.timestamp, wheel_speed));
   Eigen::Vector3d vel(wheel_speed, 0, 0);
   return std::make_tuple(vel, delta_dist);
@@ -397,7 +400,7 @@ bool Odometry2D::EstimatedRollPitch() {
   }
 
   Eigen::Vector3d sum_acc(0., 0., 0.);
-  for (const auto acc : imu_acc_buffer_) {
+  for (const auto& acc : imu_acc_buffer_) {
     sum_acc += acc;
   }
 
@@ -405,7 +408,7 @@ bool Odometry2D::EstimatedRollPitch() {
       sum_acc / static_cast<double>(imu_acc_buffer_.size());
 
   Eigen::Vector3d sum_err2(0., 0., 0.);
-  for (const auto acc : imu_acc_buffer_) {
+  for (const auto& acc : imu_acc_buffer_) {
     sum_err2 += (acc - mean_acc).cwiseAbs2();
   }
   const Eigen::Vector3d std_acc =
@@ -445,10 +448,14 @@ bool Odometry2D::EstimatedRollPitch() {
   R_i_w.block<3, 1>(0, 2) = z_axis;
 
   Eigen::Quaterniond qat_tmp = Eigen::Quaterniond(R_i_w.transpose());
-  double roll, pitch, yaw;
+  double roll = 0.0;
+  double pitch = 0.0;
+  double yaw = 0.0;
   Qat2EulerAngle(qat_tmp, roll, pitch, yaw);
 
-  double roll_pre, pitch_pre, yaw_pre;
+  double roll_pre = 0.0;
+  double pitch_pre = 0.0;
+  double yaw_pre = 0.0;
   Qat2EulerAngle(qat_, roll_pre, pitch_pre, yaw_pre);
 
   Eigen::AngleAxisd roll_aa(roll * M_PI / 180.0, Eigen::Vector3d::UnitX());

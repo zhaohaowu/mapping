@@ -167,12 +167,12 @@ class TopoAssignment {
       hozon::hdmap::Lane* lane,
       const std::vector<Eigen::Vector2d>& hq_lane_right_points,
       const size_t size);
-  void AppendTopoMapLeftLanePoints(hozon::hdmap::Lane* lane,
-                                   const int start_index, const int end_index,
-                                   const int track_id);
-  void AppendTopoMapRightLanePoints(hozon::hdmap::Lane* lane,
-                                    const int start_index, const int end_index,
-                                    const int track_id);
+  void AppendTopoMapLeftLanePoints(
+      const std::vector<Eigen::Vector2d>& lane_points, hozon::hdmap::Lane* lane,
+      const int start_index, const int end_index, const int track_id);
+  void AppendTopoMapRightLanePoints(
+      const std::vector<Eigen::Vector2d>& lane_points, hozon::hdmap::Lane* lane,
+      const int start_index, const int end_index, const int track_id);
   void VizLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
                    const Eigen::Isometry3d& T_U_V);
   void VizLocation(const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
@@ -211,8 +211,11 @@ class TopoAssignment {
       const hozon::hdmap::Lane& lane);
   static double PointDistanceToSegment(
       const std::vector<Eigen::Vector2d>& points, const Eigen::Vector2d& pt);
-  bool LaneLineBelongToLane(const std::vector<std::string>& lanes,
-                            const bool left, const Eigen::Vector2d& p0,
+  void LaneLineBelongToLane(std::vector<std::string>* lanes, const bool left,
+                            const Eigen::Vector2d& p0,
+                            const Eigen::Vector2d& p1);
+  bool LaneBelongToLaneLine(const std::vector<Eigen::Vector2d>& lane_points,
+                            const Eigen::Vector2d& p0,
                             const Eigen::Vector2d& p1);
 
   hozon::common::Pose init_pose_;

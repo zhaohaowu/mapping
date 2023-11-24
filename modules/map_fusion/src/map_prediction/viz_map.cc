@@ -629,9 +629,8 @@ void VizMap::VizLocalMsg(const std::shared_ptr<hozon::hdmap::Map>& local_msg,
   }
   // 现在开始呈现所有的元素
   // 存储所有的道路边界
-  MapProtoMarker marker;
   std::vector<adsfi_proto::viz::MarkerArray> result =
-      marker.LaneToMarker(local_msg, pose, false);
+      MapProtoMarker::LaneToMarker(local_msg, pose, false);
 
   adsfi_proto::viz::MarkerArray lane = result[0];
   // adsfi_proto::viz::MarkerArray left = result[1];

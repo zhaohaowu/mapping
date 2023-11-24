@@ -98,6 +98,7 @@ bool AmapAdapter::Init() {
   return true;
 }
 
+// NOLINTBEGIN
 bool AmapAdapter::Process(
     const hozon::localization::HafNodeInfo& localization_input,
     const hozon::planning::ADCTrajectory& adc_trajectory,
@@ -272,6 +273,7 @@ bool AmapAdapter::Process(
   ehp_data_listener_->GetEhpData(ehp_data);
   return true;
 }
+// NOLINTEND
 
 bool AmapAdapter::IsOverTime(double new_time) const {
   if (std::abs(current_time_ - new_time) > 3.0 &&

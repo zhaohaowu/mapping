@@ -167,8 +167,12 @@ class TopoAssignment {
       hozon::hdmap::Lane* lane,
       const std::vector<Eigen::Vector2d>& hq_lane_right_points,
       const size_t size);
-  void AppendTopoMapLanePoints(hozon::hdmap::Lane* lane, const int start_index,
-                               const int end_index, const int track_id);
+  void AppendTopoMapLeftLanePoints(hozon::hdmap::Lane* lane,
+                                   const int start_index, const int end_index,
+                                   const int track_id);
+  void AppendTopoMapRightLanePoints(hozon::hdmap::Lane* lane,
+                                    const int start_index, const int end_index,
+                                    const int track_id);
   void VizLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
                    const Eigen::Isometry3d& T_U_V);
   void VizLocation(const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
@@ -210,8 +214,6 @@ class TopoAssignment {
   bool LaneLineBelongToLane(const std::vector<std::string>& lanes,
                             const bool left, const Eigen::Vector2d& p0,
                             const Eigen::Vector2d& p1);
-  // 可视化的class
-  MapProtoMarker marker_rviz_;
 
   hozon::common::Pose init_pose_;
   std::string init_pose_ser_;

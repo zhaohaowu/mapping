@@ -19,6 +19,8 @@
 DEFINE_bool(topo_rviz, false, "topo assignment use rviz or not");
 DEFINE_double(topo_lane_line_dist, 1.5,
               "the distance threshold for laneline belonging to a lane");
+DEFINE_double(topo_lane_line_point_dist, 10.0,
+              "the distance threshold for laneline point belonging to a lane");
 // NOLINTEND
 
 namespace hozon {
@@ -1109,9 +1111,15 @@ void TopoAssignment::AppendTopoMapLeftLanes(
                                            hq_lane_left_points[size - 1], p1);
       flag_pt = PerpendicularFootInSegment(p0, p1, hq_lane_left_points[0]);
 
+      double dist_p0 = PointDistanceToSegment(hq_lane_left_points, p0);
+      double dist_p1 = PointDistanceToSegment(hq_lane_left_points, p1);
+
+      flag_p0 = flag_p0 && (dist_p0 <= FLAGS_topo_lane_line_point_dist);
+      flag_p1 = flag_p1 && (dist_p1 <= FLAGS_topo_lane_line_point_dist);
+
       if (flag_p0 && flag_p1) {
         // 不用找index
-        AppendTopoMapLanePoints(lane, 0, point_size - 1, left_line_it);
+        AppendTopoMapLeftLanePoints(lane, 0, point_size - 1, left_line_it);
       }
       if (flag_p0 && !flag_p1) {
         // 找到后面一个点最近的index
@@ -1122,7 +1130,7 @@ void TopoAssignment::AppendTopoMapLeftLanes(
         const auto index = KnnSearchNearestPointIndex(
             dim, query_points, all_lanelines_[left_line_it].lane_line_kdtree);
 
-        AppendTopoMapLanePoints(lane, 0, index, left_line_it);
+        AppendTopoMapLeftLanePoints(lane, 0, index, left_line_it);
       }
       if (!flag_p0 && flag_p1) {
         // 找到前面一个点最近的index
@@ -1136,7 +1144,7 @@ void TopoAssignment::AppendTopoMapLeftLanes(
         const auto point_size =
             static_cast<int>(all_lanelines_[left_line_it].points.size());
 
-        AppendTopoMapLanePoints(lane, index, point_size - 1, left_line_it);
+        AppendTopoMapLeftLanePoints(lane, index, point_size - 1, left_line_it);
       }
       if (!flag_p0 && !flag_p1 && flag_pt) {
         // 找到两个点最近的index
@@ -1154,7 +1162,7 @@ void TopoAssignment::AppendTopoMapLeftLanes(
             dim, query_points_end,
             all_lanelines_[left_line_it].lane_line_kdtree);
 
-        AppendTopoMapLanePoints(lane, start_index, end_index, left_line_it);
+        AppendTopoMapLeftLanePoints(lane, start_index, end_index, left_line_it);
       }
     }
   }
@@ -1192,9 +1200,15 @@ void TopoAssignment::AppendTopoMapRightLanes(
                                            hq_lane_right_points[size - 1], p1);
       flag_pt = PerpendicularFootInSegment(p0, p1, hq_lane_right_points[0]);
 
+      double dist_p0 = PointDistanceToSegment(hq_lane_right_points, p0);
+      double dist_p1 = PointDistanceToSegment(hq_lane_right_points, p1);
+
+      flag_p0 = flag_p0 && (dist_p0 <= FLAGS_topo_lane_line_point_dist);
+      flag_p1 = flag_p1 && (dist_p1 <= FLAGS_topo_lane_line_point_dist);
+
       if (flag_p0 && flag_p1) {
         // 不用找index
-        AppendTopoMapLanePoints(lane, 0, point_size - 1, right_line_it);
+        AppendTopoMapRightLanePoints(lane, 0, point_size - 1, right_line_it);
       }
       if (flag_p0 && !flag_p1) {
         // 找到后面一个点最近的index
@@ -1205,7 +1219,7 @@ void TopoAssignment::AppendTopoMapRightLanes(
         const auto index = KnnSearchNearestPointIndex(
             dim, query_points, all_lanelines_[right_line_it].lane_line_kdtree);
 
-        AppendTopoMapLanePoints(lane, 0, index, right_line_it);
+        AppendTopoMapRightLanePoints(lane, 0, index, right_line_it);
       }
       if (!flag_p0 && flag_p1) {
         // 找到前面一个点最近的index
@@ -1218,7 +1232,8 @@ void TopoAssignment::AppendTopoMapRightLanes(
         const auto point_size =
             static_cast<int>(all_lanelines_[right_line_it].points.size());
 
-        AppendTopoMapLanePoints(lane, index, point_size - 1, right_line_it);
+        AppendTopoMapRightLanePoints(lane, index, point_size - 1,
+                                     right_line_it);
       }
       if (!flag_p0 && !flag_p1 && flag_pt) {
         // 找到两个点最近的index
@@ -1236,16 +1251,30 @@ void TopoAssignment::AppendTopoMapRightLanes(
             dim, query_points_end,
             all_lanelines_[right_line_it].lane_line_kdtree);
 
-        AppendTopoMapLanePoints(lane, start_index, end_index, right_line_it);
+        AppendTopoMapRightLanePoints(lane, start_index, end_index,
+                                     right_line_it);
       }
     }
   }
 }
 
-void TopoAssignment::AppendTopoMapLanePoints(hozon::hdmap::Lane* lane,
-                                             const int start_index,
-                                             const int end_index,
-                                             const int track_id) {
+void TopoAssignment::AppendTopoMapLeftLanePoints(hozon::hdmap::Lane* lane,
+                                                 const int start_index,
+                                                 const int end_index,
+                                                 const int track_id) {
+  auto* segment = lane->mutable_left_boundary()->mutable_curve()->add_segment();
+  for (int i = start_index; i <= end_index; ++i) {
+    auto* topo_point = segment->mutable_line_segment()->add_point();
+    topo_point->set_x(all_lanelines_[track_id].points[i].x());
+    topo_point->set_y(all_lanelines_[track_id].points[i].y());
+    topo_point->set_z(all_lanelines_[track_id].points[i].z());
+  }
+}
+
+void TopoAssignment::AppendTopoMapRightLanePoints(hozon::hdmap::Lane* lane,
+                                                  const int start_index,
+                                                  const int end_index,
+                                                  const int track_id) {
   auto* segment =
       lane->mutable_right_boundary()->mutable_curve()->add_segment();
   for (int i = start_index; i <= end_index; ++i) {
@@ -1436,7 +1465,7 @@ void TopoAssignment::VizHQMap() {
         std::make_shared<hozon::hdmap::Map>();
     GLOBAL_HD_MAP->GetMap(hq_map.get());
     std::vector<adsfi_proto::viz::MarkerArray> result =
-        marker_rviz_.LaneToMarker(hq_map, ref_point_, true);
+        MapProtoMarker::LaneToMarker(hq_map, ref_point_, true);
     // adsfi_proto::viz::MarkerArray lane = result[0];
     adsfi_proto::viz::MarkerArray left = result[1];
     adsfi_proto::viz::MarkerArray right = result[2];

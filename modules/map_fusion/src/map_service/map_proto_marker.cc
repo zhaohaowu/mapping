@@ -331,12 +331,12 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneID(
   }
   return ID_markers;
 }
+// NOLINTBEGIN
 adsfi_proto::viz::MarkerArray MapProtoMarker::LaneRightNeighborForward(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
   adsfi_proto::viz::MarkerArray arrow_markers;
   int color_index = 0;
-  // NOLINTBEGIN
   for (const auto& lane : prior_map->lane()) {
     u_int64_t laneId = std::stoll(lane.id().id());
     u_int64_t remainder = laneId / 10000;
@@ -617,15 +617,16 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneRightNeighborForward(
       }
     }
   }
-  // NOLINTEND
   return arrow_markers;
-}  // namespace mf
+}
+// NOLINTEND
+
+// NOLINTBEGIN
 adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftNeighborForward(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
   adsfi_proto::viz::MarkerArray arrow_markers;
   int color_index = 0;
-  // NOLINTBEGIN
   for (const auto& lane : prior_map->lane()) {
     // HLOG_ERROR << "===== laneId " << lane.id().id();
     u_int64_t laneId = std::stoll(lane.id().id());
@@ -919,15 +920,15 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftNeighborForward(
       }
     }
   }
-  // NOLINTEND
   return arrow_markers;
 }
+// NOLINTEND
 
+// NOLINTBEGIN
 adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
   adsfi_proto::viz::MarkerArray arrow_markers;
-  // NOLINTBEGIN
   for (const auto& lane : prior_map->lane()) {
     u_int64_t laneId = std::stoll(lane.id().id());
     u_int64_t remainder = laneId / 10000;
@@ -1396,14 +1397,15 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
       }
     }
   }
-  // NOLINTEND
   return arrow_markers;
 }
+// NOLINTEND
+
+// NOLINTBEGIN
 adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
   adsfi_proto::viz::MarkerArray arrow_markers;
-  // NOLINTBEGIN
   for (const auto& lane : prior_map->lane()) {
     u_int64_t laneId = std::stoll(lane.id().id());
     u_int64_t remainder = laneId / 10000;
@@ -1812,9 +1814,10 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
       }
     }
   }
-  // NOLINTEND
   return arrow_markers;
 }
+// NOLINTEND
+
 adsfi_proto::viz::MarkerArray MapProtoMarker::JunctionToMarker(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map) {
   adsfi_proto::viz::MarkerArray junction_markers;
@@ -1864,6 +1867,8 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::JunctionToMarker(
   }
   return junction_markers;
 }
+
+// NOLINTBEGIN
 adsfi_proto::viz::MarkerArray MapProtoMarker::RoadToMarker(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
@@ -1918,6 +1923,8 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::RoadToMarker(
   }
   return road_markers;
 }
+// NOLINTEND
+
 adsfi_proto::viz::MarkerArray MapProtoMarker::SignalToMarker(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {

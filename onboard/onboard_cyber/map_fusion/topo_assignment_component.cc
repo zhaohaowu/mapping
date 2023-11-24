@@ -74,7 +74,7 @@ void TopoAssignmentComponent::OnInsNodeInfo(
     HLOG_ERROR << "nullptr tppo map assignment";
     return;
   }
-  topo_assign_->OnInsNodeInfo(msg);
+  // topo_assign_->OnInsNodeInfo(msg);
 }
 
 void TopoAssignmentComponent::OnLocalMap(

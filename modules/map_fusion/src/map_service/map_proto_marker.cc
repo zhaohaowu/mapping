@@ -331,15 +331,12 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneID(
   }
   return ID_markers;
 }
-// NOLINTBEGIN
 adsfi_proto::viz::MarkerArray MapProtoMarker::LaneRightNeighborForward(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
   adsfi_proto::viz::MarkerArray arrow_markers;
   int color_index = 0;
   for (const auto& lane : prior_map->lane()) {
-    u_int64_t laneId = std::stoll(lane.id().id());
-    u_int64_t remainder = laneId / 10000;
     const auto start_lane_curve_left = lane.left_boundary().curve();
     const auto start_lane_curve_right = lane.right_boundary().curve();
     if (start_lane_curve_right.segment().empty() ||
@@ -352,285 +349,29 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneRightNeighborForward(
         start_lane_curve_left.segment()[0].line_segment().point()[0];
     const auto start_lane_curve_right_point0 =
         start_lane_curve_right.segment()[0].line_segment().point()[0];
-    hozon::common::PointENU start_point;
-    if (start_lane_curve_left.segment_size() > 0 &&
-        start_lane_curve_right.segment_size() > 0) {
-      start_point.set_x((start_lane_curve_left_point0.x() +
-                         start_lane_curve_right_point0.x()) /
-                        2);
-      start_point.set_y((start_lane_curve_left_point0.y() +
-                         start_lane_curve_right_point0.y()) /
-                        2);
-      start_point.set_z((start_lane_curve_left_point0.z() +
-                         start_lane_curve_right_point0.z()) /
-                        2);
-    } else if (start_lane_curve_left.segment_size() > 0 &&
-               start_lane_curve_right.segment_size() == 0) {
-      bool all_points_size_one = true;
-      for (const auto& segment : start_lane_curve_left.segment()) {
-        if (segment.line_segment().point_size() > 1) {
-          const auto& start_segment = segment.line_segment();
-          const auto& start_point_0 = start_segment.point(0);
-          const auto& start_point_1 = start_segment.point(1);
-          // 计算向量长度和方向
-          double dx = start_point_1.x() - start_point_0.x();
-          double dy = start_point_1.y() - start_point_0.y();
-          double length = std::sqrt(dx * dx + dy * dy);
-          double direction_x = dx / length;
-          double direction_y = dy / length;
-          // 计算在向量左侧的点坐标
-          double offset = 0.1;  // 偏移量，可以根据需求调整
-          double target_x = start_point_0.x() - direction_y * offset * length;
-          double target_y = start_point_0.y() + direction_x * offset * length;
-          start_point.set_x(target_x);
-          start_point.set_y(target_y);
-          all_points_size_one = false;
-          break;
-        }
-      }
-      if (all_points_size_one) {
-        start_point.set_x(start_lane_curve_left_point0.x());
-        start_point.set_y(start_lane_curve_left_point0.y());
-        start_point.set_z(start_lane_curve_left_point0.z());
-      }
-    } else if (start_lane_curve_left.segment_size() == 0 &&
-               start_lane_curve_right.segment_size() > 0) {
-      bool all_points_size_one = true;
-      for (const auto& segment : start_lane_curve_right.segment()) {
-        if (segment.line_segment().point_size() > 1) {
-          const auto& start_segment = segment.line_segment();
-          const auto& start_point_0 = start_segment.point(0);
-          const auto& start_point_1 = start_segment.point(1);
-
-          // 计算向量长度和方向
-          double dx = start_point_1.x() - start_point_0.x();
-          double dy = start_point_1.y() - start_point_0.y();
-          double length = std::sqrt(dx * dx + dy * dy);
-          double direction_x = dx / length;
-          double direction_y = dy / length;
-
-          // 计算在向量右侧的点坐标
-          double offset = 0.1;  // 偏移量，可以根据需求调整
-          double target_x = start_point_0.x() + direction_y * offset * length;
-          double target_y = start_point_0.y() - direction_x * offset * length;
-
-          start_point.set_x(target_x);
-          start_point.set_y(target_y);
-          all_points_size_one = false;
-          break;
-        }
-      }
-      if (all_points_size_one) {
-        start_point.set_x(start_lane_curve_right_point0.x());
-        start_point.set_y(start_lane_curve_right_point0.y());
-        start_point.set_z(start_lane_curve_right_point0.z());
-      }
-    }
-    Eigen::Vector3d point_enu_start;
-    if (utm) {
-      point_enu_start = ConvertPoint(start_point, enupos);
-    } else {
-      point_enu_start =
-          Eigen::Vector3d(start_point.x(), start_point.y(), start_point.z());
-    }
+    const auto start_point =
+        CalculatePoint(start_lane_curve_left, start_lane_curve_right);
+    const auto point_enu_start = ConvertPoint(start_point, enupos, utm);
     if (lane.right_neighbor_forward_lane_id_size() != 0) {
       // 获取右侧相邻的lane ID
       for (const auto& neighbor_id : lane.right_neighbor_forward_lane_id()) {
         const std::string& neighbor_lane_id = neighbor_id.id();
         // 遍历所有lane，找到匹配的相邻lane
         // int color_index = 0;
-        for (const auto& target_lane : prior_map->lane()) {
-          if (target_lane.id().id() == neighbor_lane_id) {
-            // 确定箭头终点位置
-            const auto lane_curve_left = target_lane.left_boundary().curve();
-            const auto lane_curve_right = target_lane.right_boundary().curve();
-            if (lane_curve_right.segment().empty() ||
-                lane_curve_left.segment().empty() ||
-                lane_curve_left.segment()[0].line_segment().point().empty() ||
-                lane_curve_right.segment()[0].line_segment().point().empty()) {
-              continue;
-            }
-            const auto lane_curve_left_point0 =
-                lane_curve_left.segment()[0].line_segment().point()[0];
-            const auto lane_curve_right_point0 =
-                lane_curve_right.segment()[0].line_segment().point()[0];
-            hozon::common::PointENU end_point;
-            if (lane_curve_left.segment_size() > 0 &&
-                lane_curve_right.segment_size() > 0) {
-              end_point.set_x(
-                  (lane_curve_left_point0.x() + lane_curve_right_point0.x()) /
-                  2);
-              end_point.set_y(
-                  (lane_curve_left_point0.y() + lane_curve_right_point0.y()) /
-                  2);
-              end_point.set_z(
-                  (lane_curve_left_point0.z() + lane_curve_right_point0.z()) /
-                  2);
-            } else if (lane_curve_left.segment_size() > 0 &&
-                       lane_curve_right.segment_size() == 0) {
-              bool all_points_size_one = true;
-              for (const auto& segment : lane_curve_left.segment()) {
-                if (segment.line_segment().point_size() > 1) {
-                  const auto& start_segment = segment.line_segment();
-                  const auto& end_point_0 = start_segment.point(0);
-                  const auto& end_point_1 = start_segment.point(1);
-                  // 计算向量长度和方向
-                  double dx = end_point_1.x() - end_point_0.x();
-                  double dy = end_point_1.y() - end_point_0.y();
-                  double length = std::sqrt(dx * dx + dy * dy);
-                  double direction_x = dx / length;
-                  double direction_y = dy / length;
-                  // 计算在向量左侧的点坐标
-                  double offset = 0.1;  // 偏移量，可以根据需求调整
-                  double target_x =
-                      end_point_0.x() - direction_y * offset * length;
-                  double target_y =
-                      end_point_0.y() + direction_x * offset * length;
-                  end_point.set_x(target_x);
-                  end_point.set_y(target_y);
-                  all_points_size_one = false;
-                  break;
-                }
-              }
-              if (all_points_size_one) {
-                end_point.set_x(lane_curve_left_point0.x());
-                end_point.set_y(lane_curve_left_point0.y());
-                end_point.set_z(lane_curve_left_point0.z());
-              }
-            } else if (lane_curve_left.segment_size() == 0 &&
-                       lane_curve_right.segment_size() > 0) {
-              bool all_points_size_one = true;
-              for (const auto& segment : lane_curve_right.segment()) {
-                if (segment.line_segment().point_size() > 1) {
-                  const auto& start_segment = segment.line_segment();
-                  const auto& end_point_0 = start_segment.point(0);
-                  const auto& end_point_1 = start_segment.point(1);
-
-                  // 计算向量长度和方向
-                  double dx = end_point_1.x() - end_point_0.x();
-                  double dy = end_point_1.y() - end_point_0.y();
-                  double length = std::sqrt(dx * dx + dy * dy);
-                  double direction_x = dx / length;
-                  double direction_y = dy / length;
-
-                  // 计算在向量右侧的点坐标
-                  double offset = 0.1;  // 偏移量，可以根据需求调整
-                  double target_x =
-                      end_point_0.x() + direction_y * offset * length;
-                  double target_y =
-                      end_point_0.y() - direction_x * offset * length;
-
-                  end_point.set_x(target_x);
-                  end_point.set_y(target_y);
-                  all_points_size_one = false;
-                  break;
-                }
-              }
-              if (all_points_size_one) {
-                end_point.set_x(lane_curve_right_point0.x());
-                end_point.set_y(lane_curve_right_point0.y());
-                end_point.set_z(lane_curve_right_point0.z());
-              }
-            }
-            Eigen::Vector3d point_enu_end;
-            if (utm) {
-              point_enu_end = ConvertPoint(end_point, enupos);
-            } else {
-              point_enu_end =
-                  Eigen::Vector3d(end_point.x(), end_point.y(), end_point.z());
-            }
-            auto arrow_marker = std::make_unique<adsfi_proto::viz::Marker>();
-            arrow_marker->clear_points();
-            arrow_marker->mutable_header()->set_frameid("map");
-            arrow_marker->set_ns("ns_right_neighbor_forward" +
-                                 std::to_string(remainder));
-            arrow_marker->set_id(static_cast<int>(laneId % 10000));
-            arrow_marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
-            arrow_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
-            auto* start_point_marker = arrow_marker->add_points();
-            start_point_marker->set_x(point_enu_start.x());
-            start_point_marker->set_y(point_enu_start.y());
-            start_point_marker->set_z(point_enu_start.z() - 2);
-
-            // 添加终点
-            auto* end_point_marker = arrow_marker->add_points();
-            end_point_marker->set_x(point_enu_end.x());
-            end_point_marker->set_y(point_enu_end.y());
-            end_point_marker->set_z(point_enu_end.z() - 2);
-
-            // 设置颜色和尺寸
-            arrow_marker->mutable_scale()->set_x(0.2);  // 设置线段的宽度
-            arrow_marker->mutable_scale()->set_y(0.2);  // 设置线段的高度
-            arrow_marker->mutable_scale()->set_z(0.2);  // 设置线段的高度
-            arrow_marker->mutable_lifetime()->set_sec(0);
-            arrow_marker->mutable_lifetime()->set_nsec(0);
-            arrow_marker->mutable_pose()->mutable_orientation()->set_x(0.);
-            arrow_marker->mutable_pose()->mutable_orientation()->set_y(0.);
-            arrow_marker->mutable_pose()->mutable_orientation()->set_z(0.);
-            arrow_marker->mutable_pose()->mutable_orientation()->set_w(1.);
-            arrow_marker->mutable_lifetime()->set_sec(0);
-            arrow_marker->mutable_lifetime()->set_nsec(0);
-            adsfi_proto::viz::ColorRGBA color;
-            color.set_a(1);
-            color.set_r(0);    // 增加颜色分量变化幅度
-            color.set_g(0.6);  // 增加颜色分量变化幅度
-            color.set_b(1);    // 增加颜色分量变化幅度
-            arrow_marker->mutable_color()->CopyFrom(color);
-            // sphere marker
-            auto sphere_marker = std::make_unique<adsfi_proto::viz::Marker>();
-            sphere_marker->mutable_header()->set_frameid("map");
-            sphere_marker->set_ns("ns_right_neighbor_forward_sphere" +
-                                  std::to_string(remainder));
-            sphere_marker->set_id(static_cast<int>(laneId % 10000));
-
-            sphere_marker->set_type(adsfi_proto::viz::MarkerType::CUBE);
-            sphere_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
-            sphere_marker->mutable_pose()->mutable_position()->set_x(
-                point_enu_end.x());
-            sphere_marker->mutable_pose()->mutable_position()->set_y(
-                point_enu_end.y());
-            sphere_marker->mutable_pose()->mutable_position()->set_z(
-                point_enu_end.z() - 2);
-
-            // 设置颜色和尺寸
-            sphere_marker->mutable_scale()->set_x(0.4);  // 设置球体直径
-            sphere_marker->mutable_scale()->set_y(0.4);
-            sphere_marker->mutable_scale()->set_z(0.4);
-            sphere_marker->mutable_pose()->mutable_orientation()->set_x(0.);
-            sphere_marker->mutable_pose()->mutable_orientation()->set_y(0.);
-            sphere_marker->mutable_pose()->mutable_orientation()->set_z(0.);
-            sphere_marker->mutable_pose()->mutable_orientation()->set_w(1.);
-            sphere_marker->mutable_lifetime()->set_sec(0);
-            sphere_marker->mutable_lifetime()->set_nsec(0);
-            adsfi_proto::viz::ColorRGBA colors;
-            colors.set_a(1);
-            colors.set_r(0);  // 增加颜色分量变化幅度
-            colors.set_g(0);  // 增加颜色分量变化幅度
-            colors.set_b(0);  // 增加颜色分量变化幅度
-            // 设置颜色和尺寸
-            sphere_marker->mutable_color()->CopyFrom(colors);
-            arrow_markers.add_markers()->CopyFrom(*arrow_marker);
-            arrow_markers.add_markers()->CopyFrom(*sphere_marker);
-            break;
-          }
-        }
+        ProcessLaneRightNeighborForward(lane, neighbor_lane_id, prior_map,
+                                        point_enu_start, utm, enupos,
+                                        &arrow_markers);
       }
     }
   }
   return arrow_markers;
 }
-// NOLINTEND
-
-// NOLINTBEGIN
 adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftNeighborForward(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
   adsfi_proto::viz::MarkerArray arrow_markers;
   int color_index = 0;
   for (const auto& lane : prior_map->lane()) {
-    // HLOG_ERROR << "===== laneId " << lane.id().id();
-    u_int64_t laneId = std::stoll(lane.id().id());
-    u_int64_t remainder = laneId / 10000;
     const auto start_lane_curve_left = lane.left_boundary().curve();
     const auto start_lane_curve_right = lane.right_boundary().curve();
     if (start_lane_curve_left.segment().empty() ||
@@ -639,292 +380,22 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneLeftNeighborForward(
         start_lane_curve_right.segment(0).line_segment().point().empty()) {
       continue;
     }
+    const auto start_point =
+        CalculatePoint(start_lane_curve_left, start_lane_curve_right);
+    const auto point_enu_start = ConvertPoint(start_point, enupos, utm);
 
-    hozon::common::PointENU start_point;
-    if (start_lane_curve_left.segment_size() > 0 &&
-        start_lane_curve_right.segment_size() > 0) {
-      const auto start_lane_curve_left_point0 =
-          start_lane_curve_left.segment()[0].line_segment().point()[0];
-      const auto start_lane_curve_right_point0 =
-          start_lane_curve_right.segment()[0].line_segment().point()[0];
-      start_point.set_x((start_lane_curve_left_point0.x() +
-                         start_lane_curve_right_point0.x()) /
-                        2);
-      start_point.set_y((start_lane_curve_left_point0.y() +
-                         start_lane_curve_right_point0.y()) /
-                        2);
-      start_point.set_z((start_lane_curve_left_point0.z() +
-                         start_lane_curve_right_point0.z()) /
-                        2);
-    } else if (start_lane_curve_left.segment_size() > 0 &&
-               start_lane_curve_right.segment_size() == 0) {
-      const auto start_lane_curve_left_point0 =
-          start_lane_curve_left.segment()[0].line_segment().point()[0];
-      bool all_points_size_one = true;
-      for (const auto& segment : start_lane_curve_left.segment()) {
-        if (segment.line_segment().point_size() > 1) {
-          const auto& start_segment = segment.line_segment();
-          const auto& start_point_0 = start_segment.point(0);
-          const auto& start_point_1 = start_segment.point(1);
-          // 计算向量长度和方向
-          double dx = start_point_1.x() - start_point_0.x();
-          double dy = start_point_1.y() - start_point_0.y();
-          double length = std::sqrt(dx * dx + dy * dy);
-          double direction_x = dx / length;
-          double direction_y = dy / length;
-          // 计算在向量左侧的点坐标
-          double offset = 0.1;  // 偏移量，可以根据需求调整
-          double target_x = start_point_0.x() - direction_y * offset * length;
-          double target_y = start_point_0.y() + direction_x * offset * length;
-          start_point.set_x(target_x);
-          start_point.set_y(target_y);
-          all_points_size_one = false;
-          break;
-        }
-      }
-      if (all_points_size_one) {
-        start_point.set_x(start_lane_curve_left_point0.x());
-        start_point.set_y(start_lane_curve_left_point0.y());
-        start_point.set_z(start_lane_curve_left_point0.z());
-      }
-    } else if (start_lane_curve_left.segment_size() == 0 &&
-               start_lane_curve_right.segment_size() > 0) {
-      const auto start_lane_curve_right_point0 =
-          start_lane_curve_right.segment()[0].line_segment().point()[0];
-      bool all_points_size_one = true;
-      for (const auto& segment : start_lane_curve_right.segment()) {
-        if (segment.line_segment().point_size() > 1) {
-          const auto& start_segment = segment.line_segment();
-          const auto& start_point_0 = start_segment.point(0);
-          const auto& start_point_1 = start_segment.point(1);
-
-          // 计算向量长度和方向
-          double dx = start_point_1.x() - start_point_0.x();
-          double dy = start_point_1.y() - start_point_0.y();
-          double length = std::sqrt(dx * dx + dy * dy);
-          double direction_x = dx / length;
-          double direction_y = dy / length;
-
-          // 计算在向量右侧的点坐标
-          double offset = 0.1;  // 偏移量，可以根据需求调整
-          double target_x = start_point_0.x() + direction_y * offset * length;
-          double target_y = start_point_0.y() - direction_x * offset * length;
-
-          start_point.set_x(target_x);
-          start_point.set_y(target_y);
-          all_points_size_one = false;
-          break;
-        }
-      }
-      if (all_points_size_one) {
-        start_point.set_x(start_lane_curve_right_point0.x());
-        start_point.set_y(start_lane_curve_right_point0.y());
-        start_point.set_z(start_lane_curve_right_point0.z());
-      }
-    }
-    Eigen::Vector3d point_enu_start;
-    if (utm) {
-      point_enu_start = ConvertPoint(start_point, enupos);
-    } else {
-      point_enu_start =
-          Eigen::Vector3d(start_point.x(), start_point.y(), start_point.z());
-    }
     if (lane.left_neighbor_forward_lane_id_size() != 0) {
       // 获取右侧相邻的lane ID
       for (const auto& neighbor_id : lane.left_neighbor_forward_lane_id()) {
         const std::string& neighbor_lane_id = neighbor_id.id();
-        // 遍历所有lane，找到匹配的相邻lane
-        for (const auto& target_lane : prior_map->lane()) {
-          if (target_lane.id().id() == neighbor_lane_id) {
-            // 确定箭头终点位置
-            const auto lane_curve_left = target_lane.left_boundary().curve();
-            const auto lane_curve_right = target_lane.right_boundary().curve();
-
-            if (lane_curve_left.segment().empty() ||
-                lane_curve_right.segment().empty() ||
-                lane_curve_left.segment()[0].line_segment().point().empty() ||
-                lane_curve_right.segment()[0].line_segment().point().empty()) {
-              continue;
-            }
-
-            hozon::common::PointENU end_point;
-            if (lane_curve_left.segment_size() > 0 &&
-                lane_curve_right.segment_size() > 0) {
-              const auto lane_curve_left_point0 =
-                  lane_curve_left.segment()[0].line_segment().point()[0];
-              const auto lane_curve_right_point0 =
-                  lane_curve_right.segment()[0].line_segment().point()[0];
-              end_point.set_x(
-                  (lane_curve_left_point0.x() + lane_curve_right_point0.x()) /
-                  2);
-              end_point.set_y(
-                  (lane_curve_left_point0.y() + lane_curve_right_point0.y()) /
-                  2);
-              end_point.set_z(
-                  (lane_curve_left_point0.z() + lane_curve_right_point0.z()) /
-                  2);
-            } else if (lane_curve_left.segment_size() > 0 &&
-                       lane_curve_right.segment_size() == 0) {
-              const auto lane_curve_left_point0 =
-                  lane_curve_left.segment()[0].line_segment().point()[0];
-              bool all_points_size_one = true;
-              for (const auto& segment : lane_curve_left.segment()) {
-                if (segment.line_segment().point_size() > 1) {
-                  const auto& start_segment = segment.line_segment();
-                  const auto& end_point_0 = start_segment.point(0);
-                  const auto& end_point_1 = start_segment.point(1);
-                  // 计算向量长度和方向
-                  double dx = end_point_1.x() - end_point_0.x();
-                  double dy = end_point_1.y() - end_point_0.y();
-                  double length = std::sqrt(dx * dx + dy * dy);
-                  double direction_x = dx / length;
-                  double direction_y = dy / length;
-                  // 计算在向量左侧的点坐标
-                  double offset = 0.1;  // 偏移量，可以根据需求调整
-                  double target_x =
-                      end_point_0.x() - direction_y * offset * length;
-                  double target_y =
-                      end_point_0.y() + direction_x * offset * length;
-                  end_point.set_x(target_x);
-                  end_point.set_y(target_y);
-                  all_points_size_one = false;
-                  break;
-                }
-              }
-              if (all_points_size_one) {
-                end_point.set_x(lane_curve_left_point0.x());
-                end_point.set_y(lane_curve_left_point0.y());
-                end_point.set_z(lane_curve_left_point0.z());
-              }
-            } else if (lane_curve_left.segment_size() == 0 &&
-                       lane_curve_right.segment_size() > 0) {
-              const auto lane_curve_right_point0 =
-                  lane_curve_right.segment()[0].line_segment().point()[0];
-              bool all_points_size_one = true;
-              for (const auto& segment : lane_curve_right.segment()) {
-                if (segment.line_segment().point_size() > 1) {
-                  const auto& start_segment = segment.line_segment();
-                  const auto& end_point_0 = start_segment.point(0);
-                  const auto& end_point_1 = start_segment.point(1);
-
-                  // 计算向量长度和方向
-                  double dx = end_point_1.x() - end_point_0.x();
-                  double dy = end_point_1.y() - end_point_0.y();
-                  double length = std::sqrt(dx * dx + dy * dy);
-                  double direction_x = dx / length;
-                  double direction_y = dy / length;
-
-                  // 计算在向量右侧的点坐标
-                  double offset = 0.1;  // 偏移量，可以根据需求调整
-                  double target_x =
-                      end_point_0.x() + direction_y * offset * length;
-                  double target_y =
-                      end_point_0.y() - direction_x * offset * length;
-
-                  end_point.set_x(target_x);
-                  end_point.set_y(target_y);
-                  all_points_size_one = false;
-                  break;
-                }
-              }
-              if (all_points_size_one) {
-                end_point.set_x(lane_curve_right_point0.x());
-                end_point.set_y(lane_curve_right_point0.y());
-                end_point.set_z(lane_curve_right_point0.z());
-              }
-            }
-            Eigen::Vector3d point_enu_end;
-            if (utm) {
-              point_enu_end = ConvertPoint(end_point, enupos);
-            } else {
-              point_enu_end =
-                  Eigen::Vector3d(end_point.x(), end_point.y(), end_point.z());
-            }
-            // 创建箭头Marker
-            auto arrow_left_marker =
-                std::make_unique<adsfi_proto::viz::Marker>();
-            arrow_left_marker->clear_points();
-            arrow_left_marker->mutable_header()->set_frameid("map");
-            arrow_left_marker->set_ns("ns_left_neighbor_forward" +
-                                      std::to_string(remainder));
-            arrow_left_marker->set_id(static_cast<int>(laneId % 10000));
-            arrow_left_marker->set_type(
-                adsfi_proto::viz::MarkerType::LINE_STRIP);
-            arrow_left_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
-            auto* start_point_marker = arrow_left_marker->add_points();
-            start_point_marker->set_x(point_enu_start.x());
-            start_point_marker->set_y(point_enu_start.y());
-            start_point_marker->set_z(point_enu_start.z() - 3);
-
-            // 添加终点
-            auto* end_point_marker = arrow_left_marker->add_points();
-            end_point_marker->set_x(point_enu_end.x());
-            end_point_marker->set_y(point_enu_end.y());
-            end_point_marker->set_z(point_enu_end.z() - 3);
-
-            // 设置颜色和尺寸
-            arrow_left_marker->mutable_scale()->set_x(0.2);  // 设置线段的宽度
-            arrow_left_marker->mutable_scale()->set_y(0.2);  // 设置线段的高度
-            arrow_left_marker->mutable_scale()->set_z(0.2);  // 设置线段的高度
-            arrow_left_marker->mutable_lifetime()->set_sec(0);
-            arrow_left_marker->mutable_lifetime()->set_nsec(0);
-            arrow_left_marker->mutable_pose()->mutable_orientation()->set_x(0.);
-            arrow_left_marker->mutable_pose()->mutable_orientation()->set_y(0.);
-            arrow_left_marker->mutable_pose()->mutable_orientation()->set_z(0.);
-            arrow_left_marker->mutable_pose()->mutable_orientation()->set_w(1.);
-            arrow_left_marker->mutable_lifetime()->set_sec(0);
-            arrow_left_marker->mutable_lifetime()->set_nsec(0);
-            adsfi_proto::viz::ColorRGBA color;
-            color.set_a(1);
-            color.set_r(1);  // 增加颜色分量变化幅度
-            color.set_g(1);  // 增加颜色分量变化幅度
-            color.set_b(1);  // 增加颜色分量变化幅度
-            arrow_left_marker->mutable_color()->CopyFrom(color);
-            auto sphere_marker = std::make_unique<adsfi_proto::viz::Marker>();
-            sphere_marker->mutable_header()->set_frameid("map");
-            sphere_marker->set_ns("ns_left_neighbor_forward_sphere" +
-                                  std::to_string(remainder));
-            sphere_marker->set_id(static_cast<int>(laneId % 10000));
-
-            sphere_marker->set_type(adsfi_proto::viz::MarkerType::CUBE);
-            sphere_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
-            sphere_marker->mutable_pose()->mutable_position()->set_x(
-                point_enu_end.x());
-            sphere_marker->mutable_pose()->mutable_position()->set_y(
-                point_enu_end.y());
-            sphere_marker->mutable_pose()->mutable_position()->set_z(
-                point_enu_end.z() - 3);
-
-            // 设置颜色和尺寸
-            sphere_marker->mutable_scale()->set_x(0.3);  // 设置球体直径
-            sphere_marker->mutable_scale()->set_y(0.3);
-            sphere_marker->mutable_scale()->set_z(0.3);
-            sphere_marker->mutable_pose()->mutable_orientation()->set_x(0.);
-            sphere_marker->mutable_pose()->mutable_orientation()->set_y(0.);
-            sphere_marker->mutable_pose()->mutable_orientation()->set_z(0.);
-            sphere_marker->mutable_pose()->mutable_orientation()->set_w(1.);
-            sphere_marker->mutable_lifetime()->set_sec(0);
-            sphere_marker->mutable_lifetime()->set_nsec(0);
-            adsfi_proto::viz::ColorRGBA colors;
-            colors.set_a(1);
-            colors.set_r(1);  // 增加颜色分量变化幅度
-            colors.set_g(1);  // 增加颜色分量变化幅度
-            colors.set_b(0);  // 增加颜色分量变化幅度
-            // 设置颜色和尺寸
-            sphere_marker->mutable_color()->CopyFrom(colors);
-            arrow_markers.add_markers()->CopyFrom(*arrow_left_marker);
-            arrow_markers.add_markers()->CopyFrom(*sphere_marker);
-            break;
-          }
-        }
+        ProcessLaneLeftNeighborForward(lane, neighbor_lane_id, prior_map,
+                                       point_enu_start, utm, enupos,
+                                       &arrow_markers);
       }
     }
   }
   return arrow_markers;
 }
-// NOLINTEND
-
-// NOLINTBEGIN
 adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
@@ -933,372 +404,21 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
     u_int64_t laneId = std::stoll(lane.id().id());
     u_int64_t remainder = laneId / 10000;
     const auto lane_left_curve = lane.left_boundary().curve();
-    int seg_size_left = lane_left_curve.segment().size();
-    // right
     const auto lane_right_curve = lane.right_boundary().curve();
-    int seg_size = lane_right_curve.segment().size();
-
-    hozon::common::PointENU start_point_a;
-    hozon::common::PointENU start_point_b;
-    hozon::common::PointENU start_point;
-    if (seg_size_left > 0 && seg_size > 0) {
-      int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
-                                .line_segment()
-                                .point()
-                                .size();
-      const auto lane_left_curve_point0 =
-          lane_left_curve.segment()[0].line_segment().point()[0];
-      const auto lane_left_curve_point1 =
-          lane_left_curve.segment()[seg_size_left - 1]
-              .line_segment()
-              .point()[point_size_left - 1];
-
-      int point_size = lane_right_curve.segment()[seg_size - 1]
-                           .line_segment()
-                           .point()
-                           .size();
-      const auto lane_right_curve_point0 =
-          lane_right_curve.segment()[0].line_segment().point()[0];
-      const auto lane_right_curve_point1 =
-          lane_right_curve.segment()[seg_size - 1]
-              .line_segment()
-              .point()[point_size - 1];
-      start_point_a.set_x(
-          (lane_left_curve_point0.x() + lane_right_curve_point0.x()) / 2);
-      start_point_a.set_y(
-          (lane_left_curve_point0.y() + lane_right_curve_point0.y()) / 2);
-      start_point_a.set_z(
-          (lane_left_curve_point0.z() + lane_right_curve_point0.z()) / 2);
-      start_point_b.set_x(
-          (lane_left_curve_point1.x() + lane_right_curve_point1.x()) / 2);
-      start_point_b.set_y(
-          (lane_left_curve_point1.y() + lane_right_curve_point1.y()) / 2);
-      start_point_b.set_z(
-          (lane_left_curve_point1.z() + lane_right_curve_point1.z()) / 2);
-      Eigen::Vector3d start_point_a_enu;
-      if (utm) {
-        start_point_a_enu = ConvertPoint(start_point_a, enupos);
-      } else {
-        start_point_a_enu = Eigen::Vector3d(
-            start_point_a.x(), start_point_a.y(), start_point_a.z());
-      }
-      Eigen::Vector3d start_point_b_enu;
-      if (utm) {
-        start_point_b_enu = ConvertPoint(start_point_b, enupos);
-      } else {
-        start_point_b_enu = Eigen::Vector3d(
-            start_point_b.x(), start_point_b.y(), start_point_b.z());
-      }
-      auto vec_ab = hozon::common::PointENU();
-      vec_ab.set_x(start_point_b_enu.x() - start_point_a_enu.x());
-      vec_ab.set_y(start_point_b_enu.y() - start_point_a_enu.y());
-      vec_ab.set_z(start_point_b_enu.z() - start_point_a_enu.z());
-      double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
-                            pow(vec_ab.z(), 2));  // 向量的模
-      if (norm_ab > 0) {
-        vec_ab.set_x(vec_ab.x() / norm_ab);
-        vec_ab.set_y(vec_ab.y() / norm_ab);
-        vec_ab.set_z(vec_ab.z() / norm_ab);
-      }
-      const double kDistance = 1.0;  // 在向量上所需移动的距离
-      start_point.set_x(start_point_a_enu.x() + kDistance * vec_ab.x());
-      start_point.set_y(start_point_a_enu.y() + kDistance * vec_ab.y());
-      start_point.set_z(start_point_a_enu.z() + kDistance * vec_ab.z());
-    } else if (seg_size_left > 0 && seg_size == 0) {
-      int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
-                                .line_segment()
-                                .point()
-                                .size();
-
-      const auto lane_left_curve_point0 =
-          lane_left_curve.segment()[0].line_segment().point()[0];
-      if (point_size_left > 1) {
-        const auto lane_left_curve_point1 =
-            lane_left_curve.segment()[seg_size_left - 1]
-                .line_segment()
-                .point()[point_size_left - 1];
-        // 计算向量长度
-        auto vec_ab = hozon::common::PointENU();
-        vec_ab.set_x(lane_left_curve_point1.x() - lane_left_curve_point0.x());
-        vec_ab.set_y(lane_left_curve_point1.y() - lane_left_curve_point0.y());
-        vec_ab.set_z(lane_left_curve_point1.z() - lane_left_curve_point0.z());
-        double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
-                              pow(vec_ab.z(), 2));  // 向量的模
-        if (norm_ab > 0) {
-          vec_ab.set_x(vec_ab.x() / norm_ab);
-          vec_ab.set_y(vec_ab.y() / norm_ab);
-          vec_ab.set_z(vec_ab.z() / norm_ab);
-        }
-        const double kDistance = 1.0;  // 在向量上所需移动的距离
-        start_point.set_x(lane_left_curve_point0.x() + kDistance * vec_ab.x());
-        start_point.set_y(lane_left_curve_point0.y() + kDistance * vec_ab.y());
-        start_point.set_z(lane_left_curve_point0.z() + kDistance * vec_ab.z());
-        // 计算垂直单位向量vec_vertical_unit
-        auto vec_vertical_unit = hozon::common::PointENU();
-        vec_vertical_unit.set_x(-vec_ab.y());
-        vec_vertical_unit.set_y(vec_ab.x());
-        vec_vertical_unit.set_z(vec_ab.z());
-        // 定义平移距离kShiftDistance
-        double kShiftDistance = 1.0;  // 根据实际需要设定平移距离
-        // 计算平移向量shift_vector 和新点
-        start_point.set_x(start_point.x() +
-                          vec_vertical_unit.x() * kShiftDistance);
-        start_point.set_y(start_point.y() +
-                          vec_vertical_unit.y() * kShiftDistance);
-        start_point.set_y(start_point.z() +
-                          vec_vertical_unit.z() * kShiftDistance);
-      } else {
-        start_point.set_x(lane_left_curve_point0.x());
-        start_point.set_y(lane_left_curve_point0.y());
-        start_point.set_y(lane_left_curve_point0.z());
-      }
-    } else if (seg_size_left == 0 && seg_size > 0) {
-      int point_size = lane_right_curve.segment()[seg_size - 1]
-                           .line_segment()
-                           .point()
-                           .size();
-      const auto lane_right_curve_point0 =
-          lane_right_curve.segment()[0].line_segment().point()[0];
-      if (point_size > 1) {
-        const auto lane_right_curve_point1 =
-            lane_right_curve.segment()[seg_size - 1]
-                .line_segment()
-                .point()[point_size - 1];
-        // 计算向量长度
-        auto vec_ab = hozon::common::PointENU();
-        vec_ab.set_x(lane_right_curve_point1.x() - lane_right_curve_point0.x());
-        vec_ab.set_y(lane_right_curve_point1.y() - lane_right_curve_point0.y());
-        vec_ab.set_z(lane_right_curve_point1.z() - lane_right_curve_point0.z());
-        double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
-                              pow(vec_ab.z(), 2));  // 向量的模
-        if (norm_ab > 0) {
-          vec_ab.set_x(vec_ab.x() / norm_ab);
-          vec_ab.set_y(vec_ab.y() / norm_ab);
-          vec_ab.set_z(vec_ab.z() / norm_ab);
-        }
-        const double kDistance = 1.0;  // 在向量上所需移动的距离
-        start_point.set_x(lane_right_curve_point0.x() + kDistance * vec_ab.x());
-        start_point.set_y(lane_right_curve_point0.y() + kDistance * vec_ab.y());
-        start_point.set_z(lane_right_curve_point0.z() + kDistance * vec_ab.z());
-        // 计算垂直单位向量vec_vertical_unit
-        auto vec_vertical_unit = hozon::common::PointENU();
-        vec_vertical_unit.set_x(-vec_ab.y());
-        vec_vertical_unit.set_y(vec_ab.x());
-        vec_vertical_unit.set_z(vec_ab.z());
-        // 定义平移距离kShiftDistance
-        double kShiftDistance = 1.0;  // 根据实际需要设定平移距离
-        // 计算平移向量shift_vector 和新点
-        start_point.set_x(start_point.x() -
-                          vec_vertical_unit.x() * kShiftDistance);
-        start_point.set_y(start_point.y() -
-                          vec_vertical_unit.y() * kShiftDistance);
-        start_point.set_y(start_point.z() -
-                          vec_vertical_unit.z() * kShiftDistance);
-      } else {
-        start_point.set_x(lane_right_curve_point0.x());
-        start_point.set_y(lane_right_curve_point0.y());
-        start_point.set_y(lane_right_curve_point0.z());
-      }
-    }
+    const auto start_point = CalculatePointPredecessor(
+        lane_left_curve, lane_right_curve, enupos, utm);
     if (lane.predecessor_id_size() != 0) {
       int s = 0;
       for (const auto& neighbor_id : lane.predecessor_id()) {
         const std::string& neighbor_lane_id = neighbor_id.id();
         for (const auto& target_lane : prior_map->lane()) {
           if (target_lane.id().id() == neighbor_lane_id) {
-            hozon::common::PointENU end_point_a;
-            hozon::common::PointENU end_point_b;
-            hozon::common::PointENU end_point;
             const auto target_lane_left_curve =
                 target_lane.left_boundary().curve();
-            int seg_size_left = target_lane_left_curve.segment().size();
-
-            // right
             const auto target_lane_right_curve =
                 target_lane.right_boundary().curve();
-            int seg_size = target_lane_right_curve.segment().size();
-            if (seg_size_left > 0 && seg_size > 0) {
-              int point_size_left =
-                  target_lane_left_curve.segment()[seg_size_left - 1]
-                      .line_segment()
-                      .point()
-                      .size();
-              const auto target_lane_left_curve_point0 =
-                  target_lane_left_curve.segment()[0].line_segment().point()[0];
-              const auto target_lane_left_curve_point1 =
-                  target_lane_left_curve.segment()[seg_size_left - 1]
-                      .line_segment()
-                      .point()[point_size_left - 1];
-              int point_size = target_lane_right_curve.segment()[seg_size - 1]
-                                   .line_segment()
-                                   .point()
-                                   .size();
-              const auto target_lane_right_curve_point0 =
-                  target_lane_right_curve.segment()[0]
-                      .line_segment()
-                      .point()[0];
-              const auto target_lane_right_curve_point1 =
-                  target_lane_right_curve.segment()[seg_size - 1]
-                      .line_segment()
-                      .point()[point_size - 1];
-              end_point_a.set_x((target_lane_left_curve_point0.x() +
-                                 target_lane_right_curve_point0.x()) /
-                                2);
-              end_point_a.set_y((target_lane_left_curve_point0.y() +
-                                 target_lane_right_curve_point0.y()) /
-                                2);
-              end_point_a.set_z((target_lane_left_curve_point0.z() +
-                                 target_lane_right_curve_point0.z()) /
-                                2);
-              end_point_b.set_x((target_lane_left_curve_point1.x() +
-                                 target_lane_right_curve_point1.x()) /
-                                2);
-              end_point_b.set_y((target_lane_left_curve_point1.y() +
-                                 target_lane_right_curve_point1.y()) /
-                                2);
-              end_point_b.set_z((target_lane_left_curve_point1.z() +
-                                 target_lane_right_curve_point1.z()) /
-                                2);
-              Eigen::Vector3d end_point_a_enu;
-              if (utm) {
-                end_point_a_enu = ConvertPoint(end_point_a, enupos);
-              } else {
-                end_point_a_enu = Eigen::Vector3d(
-                    end_point_a.x(), end_point_a.y(), end_point_a.z());
-              }
-              Eigen::Vector3d end_point_b_enu;
-              if (utm) {
-                end_point_b_enu = ConvertPoint(end_point_b, enupos);
-              } else {
-                end_point_b_enu = Eigen::Vector3d(
-                    end_point_b.x(), end_point_b.y(), end_point_b.z());
-              }
-
-              auto vec_ab = hozon::common::PointENU();
-              vec_ab.set_x(end_point_b_enu.x() - end_point_a_enu.x());
-              vec_ab.set_y(end_point_b_enu.y() - end_point_a_enu.y());
-              vec_ab.set_z(end_point_b_enu.z() - end_point_a_enu.z());
-              double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
-                                    pow(vec_ab.z(), 2));  // 向量的模
-              if (norm_ab > 0) {
-                vec_ab.set_x(vec_ab.x() / norm_ab);
-                vec_ab.set_y(vec_ab.y() / norm_ab);
-                vec_ab.set_z(vec_ab.z() / norm_ab);
-              }
-              const double kDistance = 1.0;  // 在向量上所需移动的距离
-              end_point.set_x(end_point_b_enu.x() - kDistance * vec_ab.x());
-              end_point.set_y(end_point_b_enu.y() - kDistance * vec_ab.y());
-              end_point.set_z(end_point_b_enu.z() - kDistance * vec_ab.z());
-            } else if (seg_size_left > 0 && seg_size == 0) {
-              int point_size_left =
-                  target_lane_left_curve.segment()[seg_size_left - 1]
-                      .line_segment()
-                      .point()
-                      .size();
-              const auto target_lane_left_curve_point0 =
-                  target_lane_left_curve.segment()[0].line_segment().point()[0];
-              if (point_size_left > 1) {
-                const auto target_lane_left_curve_point1 =
-                    target_lane_left_curve.segment()[seg_size_left - 1]
-                        .line_segment()
-                        .point()[point_size_left - 1];
-                // 计算向量长度
-                auto vec_ab = hozon::common::PointENU();
-                vec_ab.set_x(target_lane_left_curve_point1.x() -
-                             target_lane_left_curve_point0.x());
-                vec_ab.set_y(target_lane_left_curve_point1.y() -
-                             target_lane_left_curve_point0.y());
-                vec_ab.set_z(target_lane_left_curve_point1.z() -
-                             target_lane_left_curve_point0.z());
-                double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
-                                      pow(vec_ab.z(), 2));  // 向量的模
-                if (norm_ab > 0) {
-                  vec_ab.set_x(vec_ab.x() / norm_ab);
-                  vec_ab.set_y(vec_ab.y() / norm_ab);
-                  vec_ab.set_z(vec_ab.z() / norm_ab);
-                }
-                const double kDistance = 1.0;  // 在向量上所需移动的距离
-                end_point.set_x(target_lane_left_curve_point1.x() -
-                                kDistance * vec_ab.x());
-                end_point.set_y(target_lane_left_curve_point1.y() -
-                                kDistance * vec_ab.y());
-                end_point.set_z(target_lane_left_curve_point1.z() -
-                                kDistance * vec_ab.z());
-                // 计算垂直单位向量vec_vertical_unit
-                auto vec_vertical_unit = hozon::common::PointENU();
-                vec_vertical_unit.set_x(-vec_ab.y());
-                vec_vertical_unit.set_y(vec_ab.x());
-                vec_vertical_unit.set_z(vec_ab.z());
-                // 定义平移距离kShiftDistance
-                double kShiftDistance = 1.0;  // 根据实际需要设定平移距离
-                // 计算平移向量shift_vector 和新点
-                end_point.set_x(end_point.x() +
-                                vec_vertical_unit.x() * kShiftDistance);
-                end_point.set_y(end_point.y() +
-                                vec_vertical_unit.y() * kShiftDistance);
-                end_point.set_y(end_point.z() +
-                                vec_vertical_unit.z() * kShiftDistance);
-              } else {
-                end_point.set_x(target_lane_left_curve_point0.x());
-                end_point.set_y(target_lane_left_curve_point0.y());
-                end_point.set_y(target_lane_left_curve_point0.z());
-              }
-            } else if (seg_size_left == 0 && seg_size > 0) {
-              int point_size = target_lane_right_curve.segment()[seg_size - 1]
-                                   .line_segment()
-                                   .point()
-                                   .size();
-              const auto target_lane_right_curve_point0 =
-                  target_lane_right_curve.segment()[0]
-                      .line_segment()
-                      .point()[0];
-              if (point_size > 1) {
-                const auto target_lane_right_curve_point1 =
-                    target_lane_right_curve.segment()[seg_size - 1]
-                        .line_segment()
-                        .point()[point_size - 1];
-                // 计算向量长度
-                auto vec_ab = hozon::common::PointENU();
-                vec_ab.set_x(target_lane_right_curve_point1.x() -
-                             target_lane_right_curve_point0.x());
-                vec_ab.set_y(target_lane_right_curve_point1.y() -
-                             target_lane_right_curve_point0.y());
-                vec_ab.set_z(target_lane_right_curve_point1.z() -
-                             target_lane_right_curve_point0.z());
-                double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
-                                      pow(vec_ab.z(), 2));  // 向量的模
-                if (norm_ab > 0) {
-                  vec_ab.set_x(vec_ab.x() / norm_ab);
-                  vec_ab.set_y(vec_ab.y() / norm_ab);
-                  vec_ab.set_z(vec_ab.z() / norm_ab);
-                }
-                const double kDistance = 1.0;  // 在向量上所需移动的距离
-                end_point.set_x(target_lane_right_curve_point1.x() -
-                                kDistance * vec_ab.x());
-                end_point.set_y(target_lane_right_curve_point1.y() -
-                                kDistance * vec_ab.y());
-                end_point.set_z(target_lane_right_curve_point1.z() -
-                                kDistance * vec_ab.z());
-                // 计算垂直单位向量vec_vertical_unit
-                auto vec_vertical_unit = hozon::common::PointENU();
-                vec_vertical_unit.set_x(-vec_ab.y());
-                vec_vertical_unit.set_y(vec_ab.x());
-                vec_vertical_unit.set_z(vec_ab.z());
-                // 定义平移距离kShiftDistance
-                double kShiftDistance = 1.0;  // 根据实际需要设定平移距离
-                // 计算平移向量shift_vector 和新点
-                end_point.set_x(end_point.x() -
-                                vec_vertical_unit.x() * kShiftDistance);
-                end_point.set_y(end_point.y() -
-                                vec_vertical_unit.y() * kShiftDistance);
-                end_point.set_y(end_point.z() -
-                                vec_vertical_unit.z() * kShiftDistance);
-              } else {
-                end_point.set_x(target_lane_right_curve_point0.x());
-                end_point.set_y(target_lane_right_curve_point0.y());
-                end_point.set_y(target_lane_right_curve_point0.z());
-              }
-            }
+            const auto end_point = CalculatePointPredecessorBack(
+                target_lane_left_curve, target_lane_right_curve, enupos, utm);
             // 创建箭头Marker
             auto arrow_predecessor_marker =
                 std::make_unique<adsfi_proto::viz::Marker>();
@@ -1399,9 +519,6 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LanePredecessor(
   }
   return arrow_markers;
 }
-// NOLINTEND
-
-// NOLINTBEGIN
 adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
@@ -1410,312 +527,21 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
     u_int64_t laneId = std::stoll(lane.id().id());
     u_int64_t remainder = laneId / 10000;
     const auto lane_left_curve = lane.left_boundary().curve();
-    int seg_size_left = lane_left_curve.segment().size();
-    // right
     const auto lane_right_curve = lane.right_boundary().curve();
-    int seg_size = lane_right_curve.segment().size();
-    hozon::common::PointENU start_point_a;
-    hozon::common::PointENU start_point_b;
-    hozon::common::PointENU start_point;
-    if (seg_size_left > 0 && seg_size > 0) {
-      int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
-                                .line_segment()
-                                .point()
-                                .size();
-      const auto lane_left_curve_point0 =
-          lane_left_curve.segment()[0].line_segment().point()[0];
-      const auto lane_left_curve_point1 =
-          lane_left_curve.segment()[seg_size_left - 1]
-              .line_segment()
-              .point()[point_size_left - 1];
-
-      int point_size = lane_right_curve.segment()[seg_size - 1]
-                           .line_segment()
-                           .point()
-                           .size();
-      const auto lane_right_curve_point0 =
-          lane_right_curve.segment()[0].line_segment().point()[0];
-      const auto lane_right_curve_point1 =
-          lane_right_curve.segment()[seg_size - 1]
-              .line_segment()
-              .point()[point_size - 1];
-      start_point_a.set_x(
-          (lane_left_curve_point0.x() + lane_right_curve_point0.x()) / 2);
-      start_point_a.set_y(
-          (lane_left_curve_point0.y() + lane_right_curve_point0.y()) / 2);
-      start_point_a.set_z(
-          (lane_left_curve_point0.z() + lane_right_curve_point0.z()) / 2);
-      start_point_b.set_x(
-          (lane_left_curve_point1.x() + lane_right_curve_point1.x()) / 2);
-      start_point_b.set_y(
-          (lane_left_curve_point1.y() + lane_right_curve_point1.y()) / 2);
-      start_point_b.set_z(
-          (lane_left_curve_point1.z() + lane_right_curve_point1.z()) / 2);
-      Eigen::Vector3d start_point_a_enu;
-      if (utm) {
-        start_point_a_enu = ConvertPoint(start_point_a, enupos);
-      } else {
-        start_point_a_enu = Eigen::Vector3d(
-            start_point_a.x(), start_point_a.y(), start_point_a.z());
-      }
-      Eigen::Vector3d start_point_b_enu;
-      if (utm) {
-        start_point_b_enu = ConvertPoint(start_point_b, enupos);
-      } else {
-        start_point_b_enu = Eigen::Vector3d(
-            start_point_b.x(), start_point_b.y(), start_point_b.z());
-      }
-      auto vec_ab = hozon::common::PointENU();
-      vec_ab.set_x(start_point_b_enu.x() - start_point_a_enu.x());
-      vec_ab.set_y(start_point_b_enu.y() - start_point_a_enu.y());
-      vec_ab.set_z(start_point_b_enu.z() - start_point_a_enu.z());
-      double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
-                            pow(vec_ab.z(), 2));  // 向量的模
-      if (norm_ab > 0) {
-        vec_ab.set_x(vec_ab.x() / norm_ab);
-        vec_ab.set_y(vec_ab.y() / norm_ab);
-        vec_ab.set_z(vec_ab.z() / norm_ab);
-      }
-      const double kDistance = 1.0;  // 在向量上所需移动的距离
-      start_point.set_x(start_point_b_enu.x() - kDistance * vec_ab.x());
-      start_point.set_y(start_point_b_enu.y() - kDistance * vec_ab.y());
-      start_point.set_z(start_point_b_enu.z() - kDistance * vec_ab.z());
-    } else if (seg_size_left > 0 && seg_size == 0) {
-      int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
-                                .line_segment()
-                                .point()
-                                .size();
-
-      const auto lane_left_curve_point0 =
-          lane_left_curve.segment()[0].line_segment().point()[0];
-      if (point_size_left > 1) {
-        const auto lane_left_curve_point1 =
-            lane_left_curve.segment()[seg_size_left - 1]
-                .line_segment()
-                .point()[point_size_left - 1];
-        // 计算向量长度
-        auto vec_ab = hozon::common::PointENU();
-        vec_ab.set_x(lane_left_curve_point1.x() - lane_left_curve_point0.x());
-        vec_ab.set_y(lane_left_curve_point1.y() - lane_left_curve_point0.y());
-        vec_ab.set_z(lane_left_curve_point1.z() - lane_left_curve_point0.z());
-        double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
-                              pow(vec_ab.z(), 2));  // 向量的模
-        if (norm_ab > 0) {
-          vec_ab.set_x(vec_ab.x() / norm_ab);
-          vec_ab.set_y(vec_ab.y() / norm_ab);
-          vec_ab.set_z(vec_ab.z() / norm_ab);
-        }
-        const double kDistance = 1.0;  // 在向量上所需移动的距离
-        start_point.set_x(lane_left_curve_point1.x() - kDistance * vec_ab.x());
-        start_point.set_y(lane_left_curve_point1.y() - kDistance * vec_ab.y());
-        start_point.set_z(lane_left_curve_point1.z() - kDistance * vec_ab.z());
-        // 计算垂直单位向量vec_vertical_unit
-        auto vec_vertical_unit = hozon::common::PointENU();
-        vec_vertical_unit.set_x(-vec_ab.y());
-        vec_vertical_unit.set_y(vec_ab.x());
-        vec_vertical_unit.set_z(vec_ab.z());
-        // 定义平移距离kShiftDistance
-        double kShiftDistance = 1.0;  // 根据实际需要设定平移距离
-        // 计算平移向量shift_vector 和新点
-        start_point.set_x(start_point.x() +
-                          vec_vertical_unit.x() * kShiftDistance);
-        start_point.set_y(start_point.y() +
-                          vec_vertical_unit.y() * kShiftDistance);
-        start_point.set_y(start_point.z() +
-                          vec_vertical_unit.z() * kShiftDistance);
-      } else {
-        start_point.set_x(lane_left_curve_point0.x());
-        start_point.set_y(lane_left_curve_point0.y());
-        start_point.set_y(lane_left_curve_point0.z());
-      }
-    } else if (seg_size_left == 0 && seg_size > 0) {
-      int point_size = lane_right_curve.segment()[seg_size - 1]
-                           .line_segment()
-                           .point()
-                           .size();
-      const auto lane_right_curve_point0 =
-          lane_right_curve.segment()[0].line_segment().point()[0];
-      if (point_size > 1) {
-        const auto lane_right_curve_point1 =
-            lane_right_curve.segment()[seg_size - 1]
-                .line_segment()
-                .point()[point_size - 1];
-        // 计算向量长度
-        auto vec_ab = hozon::common::PointENU();
-        vec_ab.set_x(lane_right_curve_point1.x() - lane_right_curve_point0.x());
-        vec_ab.set_y(lane_right_curve_point1.y() - lane_right_curve_point0.y());
-        vec_ab.set_z(lane_right_curve_point1.z() - lane_right_curve_point0.z());
-        double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
-                              pow(vec_ab.z(), 2));  // 向量的模
-        if (norm_ab > 0) {
-          vec_ab.set_x(vec_ab.x() / norm_ab);
-          vec_ab.set_y(vec_ab.y() / norm_ab);
-          vec_ab.set_z(vec_ab.z() / norm_ab);
-        }
-        const double kDistance = 1.0;  // 在向量上所需移动的距离
-        start_point.set_x(lane_right_curve_point1.x() - kDistance * vec_ab.x());
-        start_point.set_y(lane_right_curve_point1.y() - kDistance * vec_ab.y());
-        start_point.set_z(lane_right_curve_point1.z() - kDistance * vec_ab.z());
-        // 计算垂直单位向量vec_vertical_unit
-        auto vec_vertical_unit = hozon::common::PointENU();
-        vec_vertical_unit.set_x(-vec_ab.y());
-        vec_vertical_unit.set_y(vec_ab.x());
-        vec_vertical_unit.set_z(vec_ab.z());
-        // 定义平移距离kShiftDistance
-        double kShiftDistance = 1.0;  // 根据实际需要设定平移距离
-        // 计算平移向量shift_vector 和新点
-        start_point.set_x(start_point.x() -
-                          vec_vertical_unit.x() * kShiftDistance);
-        start_point.set_y(start_point.y() -
-                          vec_vertical_unit.y() * kShiftDistance);
-        start_point.set_y(start_point.z() -
-                          vec_vertical_unit.z() * kShiftDistance);
-      } else {
-        start_point.set_x(lane_right_curve_point0.x());
-        start_point.set_y(lane_right_curve_point0.y());
-        start_point.set_y(lane_right_curve_point0.z());
-      }
-    }
-
+    const auto start_point =
+        CalculatePointSuccessor(lane_left_curve, lane_right_curve, enupos, utm);
     if (lane.successor_id_size() != 0) {
       int s = 0;
       for (const auto& neighbor_id : lane.successor_id()) {
         const std::string& neighbor_lane_id = neighbor_id.id();
         for (const auto& target_lane : prior_map->lane()) {
           if (target_lane.id().id() == neighbor_lane_id) {
-            hozon::common::PointENU end_point_a;
-            hozon::common::PointENU end_point_b;
-            hozon::common::PointENU end_point;
-            if (target_lane.left_boundary().curve().segment_size() > 0 &&
-                target_lane.right_boundary().curve().segment_size() > 0) {
-              int seg_size_left_target =
-                  target_lane.left_boundary().curve().segment().size();
-              int point_size_left_target =
-                  target_lane.left_boundary()
-                      .curve()
-                      .segment()[seg_size_left_target - 1]
-                      .line_segment()
-                      .point()
-                      .size();
-              int seg_size_target =
-                  target_lane.right_boundary().curve().segment().size();
-              int point_size_target = target_lane.right_boundary()
-                                          .curve()
-                                          .segment()[seg_size_target - 1]
-                                          .line_segment()
-                                          .point()
-                                          .size();
-              end_point_a.set_x((target_lane.left_boundary()
-                                     .curve()
-                                     .segment()[0]
-                                     .line_segment()
-                                     .point()[0]
-                                     .x() +
-                                 target_lane.right_boundary()
-                                     .curve()
-                                     .segment()[0]
-                                     .line_segment()
-                                     .point()[0]
-                                     .x()) /
-                                2);
-              end_point_a.set_y((target_lane.left_boundary()
-                                     .curve()
-                                     .segment()[0]
-                                     .line_segment()
-                                     .point()[0]
-                                     .y() +
-                                 target_lane.right_boundary()
-                                     .curve()
-                                     .segment()[0]
-                                     .line_segment()
-                                     .point()[0]
-                                     .y()) /
-                                2);
-              end_point_a.set_z((target_lane.left_boundary()
-                                     .curve()
-                                     .segment()[0]
-                                     .line_segment()
-                                     .point()[0]
-                                     .z() +
-                                 target_lane.right_boundary()
-                                     .curve()
-                                     .segment()[0]
-                                     .line_segment()
-                                     .point()[0]
-                                     .z()) /
-                                2);
-
-              end_point_b.set_x((target_lane.left_boundary()
-                                     .curve()
-                                     .segment()[seg_size_left_target - 1]
-                                     .line_segment()
-                                     .point()[point_size_left_target - 1]
-                                     .x() +
-                                 target_lane.right_boundary()
-                                     .curve()
-                                     .segment()[seg_size_target - 1]
-                                     .line_segment()
-                                     .point()[point_size_target - 1]
-                                     .x()) /
-                                2);
-              end_point_b.set_y((target_lane.left_boundary()
-                                     .curve()
-                                     .segment()[seg_size_left_target - 1]
-                                     .line_segment()
-                                     .point()[point_size_left_target - 1]
-                                     .y() +
-                                 target_lane.right_boundary()
-                                     .curve()
-                                     .segment()[seg_size_target - 1]
-                                     .line_segment()
-                                     .point()[point_size_target - 1]
-                                     .y()) /
-                                2);
-              end_point_b.set_z((target_lane.left_boundary()
-                                     .curve()
-                                     .segment()[seg_size_left_target - 1]
-                                     .line_segment()
-                                     .point()[point_size_left_target - 1]
-                                     .z() +
-                                 target_lane.right_boundary()
-                                     .curve()
-                                     .segment()[seg_size_target - 1]
-                                     .line_segment()
-                                     .point()[point_size_target - 1]
-                                     .z()) /
-                                2);
-              Eigen::Vector3d end_point_a_enu;
-              if (utm) {
-                end_point_a_enu = ConvertPoint(end_point_a, enupos);
-              } else {
-                end_point_a_enu = Eigen::Vector3d(
-                    end_point_a.x(), end_point_a.y(), end_point_a.z());
-              }
-              Eigen::Vector3d end_point_b_enu;
-              if (utm) {
-                end_point_b_enu = ConvertPoint(end_point_b, enupos);
-              } else {
-                end_point_b_enu = Eigen::Vector3d(
-                    end_point_b.x(), end_point_b.y(), end_point_b.z());
-              }
-              auto vec_ab_end = hozon::common::PointENU();
-              vec_ab_end.set_x(end_point_b_enu.x() - end_point_a_enu.x());
-              vec_ab_end.set_y(end_point_b_enu.y() - end_point_a_enu.y());
-              vec_ab_end.set_z(end_point_b_enu.z() - end_point_a_enu.z());
-              double norm_ab_end =
-                  sqrt(pow(vec_ab_end.x(), 2) + pow(vec_ab_end.y(), 2) +
-                       pow(vec_ab_end.z(), 2));  // 向量的模
-              if (norm_ab_end > 0) {
-                vec_ab_end.set_x(vec_ab_end.x() / norm_ab_end);
-                vec_ab_end.set_y(vec_ab_end.y() / norm_ab_end);
-                vec_ab_end.set_z(vec_ab_end.z() / norm_ab_end);
-              }
-              const double kDistance = 1.0;  // 在向量上所需移动的距离
-              end_point.set_x(end_point_a_enu.x() + kDistance * vec_ab_end.x());
-              end_point.set_y(end_point_a_enu.y() + kDistance * vec_ab_end.y());
-              end_point.set_z(end_point_a_enu.z() + kDistance * vec_ab_end.z());
-            }
-
+            const auto target_lane_left_curve =
+                target_lane.left_boundary().curve();
+            const auto target_lane_right_curve =
+                target_lane.right_boundary().curve();
+            const auto end_point = CalculatePointSuccessorBack(
+                target_lane_left_curve, target_lane_right_curve, enupos, utm);
             // 创建箭头Marker
             auto arrow_predecessor_marker =
                 std::make_unique<adsfi_proto::viz::Marker>();
@@ -1771,7 +597,6 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
             color.set_g(0);
             color.set_b(1);
             arrow_predecessor_marker->mutable_color()->CopyFrom(color);
-
             auto sphere_marker = std::make_unique<adsfi_proto::viz::Marker>();
             sphere_marker->mutable_header()->set_frameid("map");
             sphere_marker->set_ns("ns_prior_map_arrow_successor_sphere" +
@@ -1816,8 +641,6 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneSuccessor(
   }
   return arrow_markers;
 }
-// NOLINTEND
-
 adsfi_proto::viz::MarkerArray MapProtoMarker::JunctionToMarker(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map) {
   adsfi_proto::viz::MarkerArray junction_markers;
@@ -1868,7 +691,6 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::JunctionToMarker(
   return junction_markers;
 }
 
-// NOLINTBEGIN
 adsfi_proto::viz::MarkerArray MapProtoMarker::RoadToMarker(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
@@ -1877,54 +699,13 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::RoadToMarker(
     for (const auto& road_section : road.section()) {
       for (const auto& road_section_line :
            road_section.boundary().outer_polygon().edge()) {
-        for (const auto& segment : road_section_line.curve().segment()) {
-          auto road_marker = std::make_unique<adsfi_proto::viz::Marker>();
-          road_marker->mutable_header()->set_frameid("map");
-
-          u_int64_t RoadId = std::stoll(road.id().id());
-          u_int64_t remainder = RoadId / 10000;
-          road_marker->set_ns("ns_prior_map_road" + std::to_string(remainder));
-          road_marker->set_id(static_cast<int>(RoadId % 10000));
-
-          road_marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
-          road_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
-          // 位姿
-          road_marker->mutable_pose()->mutable_position()->set_x(0);
-          road_marker->mutable_pose()->mutable_position()->set_y(0);
-          road_marker->mutable_pose()->mutable_position()->set_z(0);
-          road_marker->mutable_pose()->mutable_orientation()->set_x(0.);
-          road_marker->mutable_pose()->mutable_orientation()->set_y(0.);
-          road_marker->mutable_pose()->mutable_orientation()->set_z(0.);
-          road_marker->mutable_pose()->mutable_orientation()->set_w(1.);
-          // 尺寸
-          road_marker->mutable_scale()->set_x(0.7);
-          road_marker->mutable_scale()->set_y(0.7);
-          road_marker->mutable_scale()->set_z(0.7);
-          road_marker->mutable_lifetime()->set_sec(0);
-          road_marker->mutable_lifetime()->set_nsec(0);
-
-          adsfi_proto::viz::ColorRGBA color;
-          color.set_a(0.8);
-          color.set_r(0);
-          color.set_g(0);
-          color.set_b(1);
-          road_marker->mutable_color()->CopyFrom(color);
-          for (int j = 0; j < segment.line_segment().point().size(); ++j) {
-            const auto& point = segment.line_segment().point(j);
-            AddPointToMarker(point, road_marker.get(), enupos, utm);
-          }
-          if (road_marker->points().empty()) {
-            HLOG_WARN << "empty road";
-          }
-          road_markers.add_markers()->CopyFrom(*road_marker);
-        }
+        AddSegmentToMarker(road, road_section_line.curve().segment(),
+                           &road_markers, enupos, utm);
       }
     }
   }
   return road_markers;
 }
-// NOLINTEND
-
 adsfi_proto::viz::MarkerArray MapProtoMarker::SignalToMarker(
     const std::shared_ptr<hozon::hdmap::Map>& prior_map,
     const Eigen::Vector3d& enupos, bool utm) {
@@ -2229,7 +1010,737 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::SpeedBumpToMarker(
   }
   return speed_bump_markers;
 }
+void MapProtoMarker::AddSegmentToMarker(
+    const hozon::hdmap::Road& road,
+    const google::protobuf::RepeatedPtrField<hozon::hdmap::CurveSegment>&
+        segments,
+    adsfi_proto::viz::MarkerArray* road_markers, const Eigen::Vector3d& enupos,
+    bool utm) {
+  for (const auto& segment : segments) {
+    auto road_marker = std::make_unique<adsfi_proto::viz::Marker>();
+    road_marker->mutable_header()->set_frameid("map");
+    u_int64_t RoadId = std::stoll(road.id().id());
+    u_int64_t remainder = RoadId / 10000;
+    road_marker->set_ns("ns_prior_map_road" + std::to_string(remainder));
+    road_marker->set_id(static_cast<int>(RoadId % 10000));
 
+    road_marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+    road_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
+    // 位姿
+    road_marker->mutable_pose()->mutable_position()->set_x(0);
+    road_marker->mutable_pose()->mutable_position()->set_y(0);
+    road_marker->mutable_pose()->mutable_position()->set_z(0);
+    road_marker->mutable_pose()->mutable_orientation()->set_x(0.);
+    road_marker->mutable_pose()->mutable_orientation()->set_y(0.);
+    road_marker->mutable_pose()->mutable_orientation()->set_z(0.);
+    road_marker->mutable_pose()->mutable_orientation()->set_w(1.);
+    // 尺寸
+    road_marker->mutable_scale()->set_x(0.7);
+    road_marker->mutable_scale()->set_y(0.7);
+    road_marker->mutable_scale()->set_z(0.7);
+    road_marker->mutable_lifetime()->set_sec(0);
+    road_marker->mutable_lifetime()->set_nsec(0);
+
+    adsfi_proto::viz::ColorRGBA color;
+    color.set_a(0.8);
+    color.set_r(0);
+    color.set_g(0);
+    color.set_b(1);
+    road_marker->mutable_color()->CopyFrom(color);
+    for (int j = 0; j < segment.line_segment().point().size(); ++j) {
+      const auto& point = segment.line_segment().point(j);
+      AddPointToMarker(point, road_marker.get(), enupos, utm);
+    }
+    if (road_marker->points().empty()) {
+      HLOG_WARN << "empty road";
+    }
+    road_markers->add_markers()->CopyFrom(*road_marker);
+  }
+}
+hozon::common::PointENU MapProtoMarker::CalculatePoint(
+    const hozon::hdmap::Curve& start_lane_curve_left,
+    const hozon::hdmap::Curve& start_lane_curve_right) {
+  hozon::common::PointENU start_point;
+  if (start_lane_curve_left.segment_size() > 0 &&
+      start_lane_curve_right.segment_size() > 0) {
+    const auto start_lane_curve_left_point0 =
+        start_lane_curve_left.segment()[0].line_segment().point()[0];
+    const auto start_lane_curve_right_point0 =
+        start_lane_curve_right.segment()[0].line_segment().point()[0];
+    start_point.set_x(
+        (start_lane_curve_left_point0.x() + start_lane_curve_right_point0.x()) /
+        2);
+    start_point.set_y(
+        (start_lane_curve_left_point0.y() + start_lane_curve_right_point0.y()) /
+        2);
+    start_point.set_z(
+        (start_lane_curve_left_point0.z() + start_lane_curve_right_point0.z()) /
+        2);
+  } else if (start_lane_curve_left.segment_size() > 0 &&
+             start_lane_curve_right.segment_size() == 0) {
+    const auto start_lane_curve_left_point0 =
+        start_lane_curve_left.segment()[0].line_segment().point()[0];
+    bool all_points_size_one = true;
+    for (const auto& segment : start_lane_curve_left.segment()) {
+      if (segment.line_segment().point_size() > 1) {
+        const auto& start_segment = segment.line_segment();
+        const auto& start_point_0 = start_segment.point(0);
+        const auto& start_point_1 = start_segment.point(1);
+        // 计算向量长度和方向
+        double dx = start_point_1.x() - start_point_0.x();
+        double dy = start_point_1.y() - start_point_0.y();
+        double length = std::sqrt(dx * dx + dy * dy);
+        double direction_x = dx / length;
+        double direction_y = dy / length;
+        // 计算在向量左侧的点坐标
+        double offset = 0.1;  // 偏移量，可以根据需求调整
+        double target_x = start_point_0.x() - direction_y * offset * length;
+        double target_y = start_point_0.y() + direction_x * offset * length;
+        start_point.set_x(target_x);
+        start_point.set_y(target_y);
+        all_points_size_one = false;
+        break;
+      }
+    }
+    if (all_points_size_one) {
+      start_point.set_x(start_lane_curve_left_point0.x());
+      start_point.set_y(start_lane_curve_left_point0.y());
+      start_point.set_z(start_lane_curve_left_point0.z());
+    }
+  } else if (start_lane_curve_left.segment_size() == 0 &&
+             start_lane_curve_right.segment_size() > 0) {
+    const auto start_lane_curve_right_point0 =
+        start_lane_curve_right.segment()[0].line_segment().point()[0];
+    bool all_points_size_one = true;
+    for (const auto& segment : start_lane_curve_right.segment()) {
+      if (segment.line_segment().point_size() > 1) {
+        const auto& start_segment = segment.line_segment();
+        const auto& start_point_0 = start_segment.point(0);
+        const auto& start_point_1 = start_segment.point(1);
+
+        // 计算向量长度和方向
+        double dx = start_point_1.x() - start_point_0.x();
+        double dy = start_point_1.y() - start_point_0.y();
+        double length = std::sqrt(dx * dx + dy * dy);
+        double direction_x = dx / length;
+        double direction_y = dy / length;
+
+        // 计算在向量右侧的点坐标
+        double offset = 0.1;  // 偏移量，可以根据需求调整
+        double target_x = start_point_0.x() + direction_y * offset * length;
+        double target_y = start_point_0.y() - direction_x * offset * length;
+
+        start_point.set_x(target_x);
+        start_point.set_y(target_y);
+        all_points_size_one = false;
+        break;
+      }
+    }
+    if (all_points_size_one) {
+      start_point.set_x(start_lane_curve_right_point0.x());
+      start_point.set_y(start_lane_curve_right_point0.y());
+      start_point.set_z(start_lane_curve_right_point0.z());
+    }
+  }
+  return start_point;
+}
+void MapProtoMarker::ProcessLaneRightNeighborForward(
+    const hozon::hdmap::Lane& lane, const std::string& neighbor_lane_id,
+    const std::shared_ptr<hozon::hdmap::Map>& prior_map,
+    Eigen::Vector3d point_enu_start, bool utm, const Eigen::Vector3d& enupos,
+    adsfi_proto::viz::MarkerArray* arrow_markers) {
+  u_int64_t laneId = std::stoll(lane.id().id());
+  u_int64_t remainder = laneId / 10000;
+  for (const auto& target_lane : prior_map->lane()) {
+    if (target_lane.id().id() == neighbor_lane_id) {
+      // 确定箭头终点位置
+      const auto lane_curve_left = target_lane.left_boundary().curve();
+      const auto lane_curve_right = target_lane.right_boundary().curve();
+      if (lane_curve_right.segment().empty() ||
+          lane_curve_left.segment().empty() ||
+          lane_curve_left.segment()[0].line_segment().point().empty() ||
+          lane_curve_right.segment()[0].line_segment().point().empty()) {
+        continue;
+      }
+      const auto end_point = CalculatePoint(lane_curve_left, lane_curve_right);
+      const auto point_enu_end = ConvertPoint(end_point, enupos, utm);
+      auto arrow_marker = std::make_unique<adsfi_proto::viz::Marker>();
+      arrow_marker->clear_points();
+      arrow_marker->mutable_header()->set_frameid("map");
+      arrow_marker->set_ns("ns_right_neighbor_forward" +
+                           std::to_string(remainder));
+      arrow_marker->set_id(static_cast<int>(laneId % 10000));
+      arrow_marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+      arrow_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
+      auto* start_point_marker = arrow_marker->add_points();
+      start_point_marker->set_x(point_enu_start.x());
+      start_point_marker->set_y(point_enu_start.y());
+      start_point_marker->set_z(point_enu_start.z() - 2);
+
+      // 添加终点
+      auto* end_point_marker = arrow_marker->add_points();
+      end_point_marker->set_x(point_enu_end.x());
+      end_point_marker->set_y(point_enu_end.y());
+      end_point_marker->set_z(point_enu_end.z() - 2);
+
+      // 设置颜色和尺寸
+      arrow_marker->mutable_scale()->set_x(0.2);  // 设置线段的宽度
+      arrow_marker->mutable_scale()->set_y(0.2);  // 设置线段的高度
+      arrow_marker->mutable_scale()->set_z(0.2);  // 设置线段的高度
+      arrow_marker->mutable_lifetime()->set_sec(0);
+      arrow_marker->mutable_lifetime()->set_nsec(0);
+      arrow_marker->mutable_pose()->mutable_orientation()->set_x(0.);
+      arrow_marker->mutable_pose()->mutable_orientation()->set_y(0.);
+      arrow_marker->mutable_pose()->mutable_orientation()->set_z(0.);
+      arrow_marker->mutable_pose()->mutable_orientation()->set_w(1.);
+      arrow_marker->mutable_lifetime()->set_sec(0);
+      arrow_marker->mutable_lifetime()->set_nsec(0);
+      adsfi_proto::viz::ColorRGBA color;
+      color.set_a(1);
+      color.set_r(0);    // 增加颜色分量变化幅度
+      color.set_g(0.6);  // 增加颜色分量变化幅度
+      color.set_b(1);    // 增加颜色分量变化幅度
+      arrow_marker->mutable_color()->CopyFrom(color);
+      // sphere marker
+      auto sphere_marker = std::make_unique<adsfi_proto::viz::Marker>();
+      sphere_marker->mutable_header()->set_frameid("map");
+      sphere_marker->set_ns("ns_right_neighbor_forward_sphere" +
+                            std::to_string(remainder));
+      sphere_marker->set_id(static_cast<int>(laneId % 10000));
+
+      sphere_marker->set_type(adsfi_proto::viz::MarkerType::CUBE);
+      sphere_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
+      sphere_marker->mutable_pose()->mutable_position()->set_x(
+          point_enu_end.x());
+      sphere_marker->mutable_pose()->mutable_position()->set_y(
+          point_enu_end.y());
+      sphere_marker->mutable_pose()->mutable_position()->set_z(
+          point_enu_end.z() - 2);
+
+      // 设置颜色和尺寸
+      sphere_marker->mutable_scale()->set_x(0.4);  // 设置球体直径
+      sphere_marker->mutable_scale()->set_y(0.4);
+      sphere_marker->mutable_scale()->set_z(0.4);
+      sphere_marker->mutable_pose()->mutable_orientation()->set_x(0.);
+      sphere_marker->mutable_pose()->mutable_orientation()->set_y(0.);
+      sphere_marker->mutable_pose()->mutable_orientation()->set_z(0.);
+      sphere_marker->mutable_pose()->mutable_orientation()->set_w(1.);
+      sphere_marker->mutable_lifetime()->set_sec(0);
+      sphere_marker->mutable_lifetime()->set_nsec(0);
+      adsfi_proto::viz::ColorRGBA colors;
+      colors.set_a(1);
+      colors.set_r(0);  // 增加颜色分量变化幅度
+      colors.set_g(0);  // 增加颜色分量变化幅度
+      colors.set_b(0);  // 增加颜色分量变化幅度
+      // 设置颜色和尺寸
+      sphere_marker->mutable_color()->CopyFrom(colors);
+      arrow_markers->add_markers()->CopyFrom(*arrow_marker);
+      arrow_markers->add_markers()->CopyFrom(*sphere_marker);
+      break;
+    }
+  }
+}
+void MapProtoMarker::ProcessLaneLeftNeighborForward(
+    const hozon::hdmap::Lane& lane, const std::string& neighbor_lane_id,
+    const std::shared_ptr<hozon::hdmap::Map>& prior_map,
+    Eigen::Vector3d point_enu_start, bool utm, const Eigen::Vector3d& enupos,
+    adsfi_proto::viz::MarkerArray* arrow_markers) {
+  u_int64_t laneId = std::stoll(lane.id().id());
+  u_int64_t remainder = laneId / 10000;
+  for (const auto& target_lane : prior_map->lane()) {
+    if (target_lane.id().id() == neighbor_lane_id) {
+      // 确定箭头终点位置
+      const auto lane_curve_left = target_lane.left_boundary().curve();
+      const auto lane_curve_right = target_lane.right_boundary().curve();
+
+      if (lane_curve_left.segment().empty() ||
+          lane_curve_right.segment().empty() ||
+          lane_curve_left.segment()[0].line_segment().point().empty() ||
+          lane_curve_right.segment()[0].line_segment().point().empty()) {
+        continue;
+      }
+      const auto end_point = CalculatePoint(lane_curve_left, lane_curve_right);
+      const auto point_enu_end = ConvertPoint(end_point, enupos, utm);
+      // 创建箭头Marker
+      auto arrow_left_marker = std::make_unique<adsfi_proto::viz::Marker>();
+      arrow_left_marker->clear_points();
+      arrow_left_marker->mutable_header()->set_frameid("map");
+      arrow_left_marker->set_ns("ns_left_neighbor_forward" +
+                                std::to_string(remainder));
+      arrow_left_marker->set_id(static_cast<int>(laneId % 10000));
+      arrow_left_marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+      arrow_left_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
+      auto* start_point_marker = arrow_left_marker->add_points();
+      start_point_marker->set_x(point_enu_start.x());
+      start_point_marker->set_y(point_enu_start.y());
+      start_point_marker->set_z(point_enu_start.z() - 3);
+
+      // 添加终点
+      auto* end_point_marker = arrow_left_marker->add_points();
+      end_point_marker->set_x(point_enu_end.x());
+      end_point_marker->set_y(point_enu_end.y());
+      end_point_marker->set_z(point_enu_end.z() - 3);
+
+      // 设置颜色和尺寸
+      arrow_left_marker->mutable_scale()->set_x(0.2);  // 设置线段的宽度
+      arrow_left_marker->mutable_scale()->set_y(0.2);  // 设置线段的高度
+      arrow_left_marker->mutable_scale()->set_z(0.2);  // 设置线段的高度
+      arrow_left_marker->mutable_lifetime()->set_sec(0);
+      arrow_left_marker->mutable_lifetime()->set_nsec(0);
+      arrow_left_marker->mutable_pose()->mutable_orientation()->set_x(0.);
+      arrow_left_marker->mutable_pose()->mutable_orientation()->set_y(0.);
+      arrow_left_marker->mutable_pose()->mutable_orientation()->set_z(0.);
+      arrow_left_marker->mutable_pose()->mutable_orientation()->set_w(1.);
+      arrow_left_marker->mutable_lifetime()->set_sec(0);
+      arrow_left_marker->mutable_lifetime()->set_nsec(0);
+      adsfi_proto::viz::ColorRGBA color;
+      color.set_a(1);
+      color.set_r(1);  // 增加颜色分量变化幅度
+      color.set_g(1);  // 增加颜色分量变化幅度
+      color.set_b(1);  // 增加颜色分量变化幅度
+      arrow_left_marker->mutable_color()->CopyFrom(color);
+      auto sphere_marker = std::make_unique<adsfi_proto::viz::Marker>();
+      sphere_marker->mutable_header()->set_frameid("map");
+      sphere_marker->set_ns("ns_left_neighbor_forward_sphere" +
+                            std::to_string(remainder));
+      sphere_marker->set_id(static_cast<int>(laneId % 10000));
+
+      sphere_marker->set_type(adsfi_proto::viz::MarkerType::CUBE);
+      sphere_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
+      sphere_marker->mutable_pose()->mutable_position()->set_x(
+          point_enu_end.x());
+      sphere_marker->mutable_pose()->mutable_position()->set_y(
+          point_enu_end.y());
+      sphere_marker->mutable_pose()->mutable_position()->set_z(
+          point_enu_end.z() - 3);
+
+      // 设置颜色和尺寸
+      sphere_marker->mutable_scale()->set_x(0.3);  // 设置球体直径
+      sphere_marker->mutable_scale()->set_y(0.3);
+      sphere_marker->mutable_scale()->set_z(0.3);
+      sphere_marker->mutable_pose()->mutable_orientation()->set_x(0.);
+      sphere_marker->mutable_pose()->mutable_orientation()->set_y(0.);
+      sphere_marker->mutable_pose()->mutable_orientation()->set_z(0.);
+      sphere_marker->mutable_pose()->mutable_orientation()->set_w(1.);
+      sphere_marker->mutable_lifetime()->set_sec(0);
+      sphere_marker->mutable_lifetime()->set_nsec(0);
+      adsfi_proto::viz::ColorRGBA colors;
+      colors.set_a(1);
+      colors.set_r(1);  // 增加颜色分量变化幅度
+      colors.set_g(1);  // 增加颜色分量变化幅度
+      colors.set_b(0);  // 增加颜色分量变化幅度
+      // 设置颜色和尺寸
+      sphere_marker->mutable_color()->CopyFrom(colors);
+      arrow_markers->add_markers()->CopyFrom(*arrow_left_marker);
+      arrow_markers->add_markers()->CopyFrom(*sphere_marker);
+      break;
+    }
+  }
+}
+hozon::common::PointENU MapProtoMarker::CalculatePointPredecessor(
+    const hozon::hdmap::Curve& lane_left_curve,
+    const hozon::hdmap::Curve& lane_right_curve, const Eigen::Vector3d& enupos,
+    bool utm) {
+  int seg_size_left = lane_left_curve.segment().size();
+  int seg_size = lane_right_curve.segment().size();
+  hozon::common::PointENU start_point_a;
+  hozon::common::PointENU start_point_b;
+  hozon::common::PointENU start_point;
+  if (seg_size_left > 0 && seg_size > 0) {
+    int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
+                              .line_segment()
+                              .point()
+                              .size();
+    const auto lane_left_curve_point0 =
+        lane_left_curve.segment()[0].line_segment().point()[0];
+    const auto lane_left_curve_point1 =
+        lane_left_curve.segment()[seg_size_left - 1]
+            .line_segment()
+            .point()[point_size_left - 1];
+
+    int point_size =
+        lane_right_curve.segment()[seg_size - 1].line_segment().point().size();
+    const auto lane_right_curve_point0 =
+        lane_right_curve.segment()[0].line_segment().point()[0];
+    const auto lane_right_curve_point1 =
+        lane_right_curve.segment()[seg_size - 1]
+            .line_segment()
+            .point()[point_size - 1];
+    start_point_a.set_x(
+        (lane_left_curve_point0.x() + lane_right_curve_point0.x()) / 2);
+    start_point_a.set_y(
+        (lane_left_curve_point0.y() + lane_right_curve_point0.y()) / 2);
+    start_point_a.set_z(
+        (lane_left_curve_point0.z() + lane_right_curve_point0.z()) / 2);
+    start_point_b.set_x(
+        (lane_left_curve_point1.x() + lane_right_curve_point1.x()) / 2);
+    start_point_b.set_y(
+        (lane_left_curve_point1.y() + lane_right_curve_point1.y()) / 2);
+    start_point_b.set_z(
+        (lane_left_curve_point1.z() + lane_right_curve_point1.z()) / 2);
+    const auto start_point_a_enu = ConvertPoint(start_point_a, enupos, utm);
+    const auto start_point_b_enu = ConvertPoint(start_point_b, enupos, utm);
+    auto vec_ab = hozon::common::PointENU();
+    vec_ab.set_x(start_point_b_enu.x() - start_point_a_enu.x());
+    vec_ab.set_y(start_point_b_enu.y() - start_point_a_enu.y());
+    vec_ab.set_z(start_point_b_enu.z() - start_point_a_enu.z());
+    double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
+                          pow(vec_ab.z(), 2));  // 向量的模
+    if (norm_ab > 0) {
+      vec_ab.set_x(vec_ab.x() / norm_ab);
+      vec_ab.set_y(vec_ab.y() / norm_ab);
+      vec_ab.set_z(vec_ab.z() / norm_ab);
+    }
+    const double kDistance = 1.0;  // 在向量上所需移动的距离
+    start_point.set_x(start_point_a_enu.x() + kDistance * vec_ab.x());
+    start_point.set_y(start_point_a_enu.y() + kDistance * vec_ab.y());
+    start_point.set_z(start_point_a_enu.z() + kDistance * vec_ab.z());
+  } else if (seg_size_left > 0 && seg_size == 0) {
+    int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
+                              .line_segment()
+                              .point()
+                              .size();
+
+    const auto lane_left_curve_point0 =
+        lane_left_curve.segment()[0].line_segment().point()[0];
+    const auto lane_left_curve_point1 =
+        lane_left_curve.segment()[seg_size_left - 1]
+            .line_segment()
+            .point()[point_size_left - 1];
+    CalculatePointPredecessorOne(point_size_left, lane_left_curve_point0,
+                                 lane_left_curve_point1, true, false);
+  } else if (seg_size_left == 0 && seg_size > 0) {
+    int point_size =
+        lane_right_curve.segment()[seg_size - 1].line_segment().point().size();
+    const auto lane_right_curve_point0 =
+        lane_right_curve.segment()[0].line_segment().point()[0];
+    const auto lane_right_curve_point1 =
+        lane_right_curve.segment()[seg_size - 1]
+            .line_segment()
+            .point()[point_size - 1];
+    CalculatePointPredecessorOne(point_size, lane_right_curve_point0,
+                                 lane_right_curve_point1, false, false);
+  }
+  return start_point;
+}
+hozon::common::PointENU MapProtoMarker::CalculatePointSuccessor(
+    const hozon::hdmap::Curve& lane_left_curve,
+    const hozon::hdmap::Curve& lane_right_curve, const Eigen::Vector3d& enupos,
+    bool utm) {
+  int seg_size_left = lane_left_curve.segment().size();
+  int seg_size = lane_right_curve.segment().size();
+  hozon::common::PointENU start_point_a;
+  hozon::common::PointENU start_point_b;
+  hozon::common::PointENU start_point;
+  if (seg_size_left > 0 && seg_size > 0) {
+    int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
+                              .line_segment()
+                              .point()
+                              .size();
+    const auto lane_left_curve_point0 =
+        lane_left_curve.segment()[0].line_segment().point()[0];
+    const auto lane_left_curve_point1 =
+        lane_left_curve.segment()[seg_size_left - 1]
+            .line_segment()
+            .point()[point_size_left - 1];
+
+    int point_size =
+        lane_right_curve.segment()[seg_size - 1].line_segment().point().size();
+    const auto lane_right_curve_point0 =
+        lane_right_curve.segment()[0].line_segment().point()[0];
+    const auto lane_right_curve_point1 =
+        lane_right_curve.segment()[seg_size - 1]
+            .line_segment()
+            .point()[point_size - 1];
+    start_point_a.set_x(
+        (lane_left_curve_point0.x() + lane_right_curve_point0.x()) / 2);
+    start_point_a.set_y(
+        (lane_left_curve_point0.y() + lane_right_curve_point0.y()) / 2);
+    start_point_a.set_z(
+        (lane_left_curve_point0.z() + lane_right_curve_point0.z()) / 2);
+    start_point_b.set_x(
+        (lane_left_curve_point1.x() + lane_right_curve_point1.x()) / 2);
+    start_point_b.set_y(
+        (lane_left_curve_point1.y() + lane_right_curve_point1.y()) / 2);
+    start_point_b.set_z(
+        (lane_left_curve_point1.z() + lane_right_curve_point1.z()) / 2);
+    const auto start_point_a_enu = ConvertPoint(start_point_a, enupos, utm);
+    const auto start_point_b_enu = ConvertPoint(start_point_b, enupos, utm);
+    auto vec_ab = hozon::common::PointENU();
+    vec_ab.set_x(start_point_b_enu.x() - start_point_a_enu.x());
+    vec_ab.set_y(start_point_b_enu.y() - start_point_a_enu.y());
+    vec_ab.set_z(start_point_b_enu.z() - start_point_a_enu.z());
+    double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
+                          pow(vec_ab.z(), 2));  // 向量的模
+    if (norm_ab > 0) {
+      vec_ab.set_x(vec_ab.x() / norm_ab);
+      vec_ab.set_y(vec_ab.y() / norm_ab);
+      vec_ab.set_z(vec_ab.z() / norm_ab);
+    }
+    const double kDistance = 1.0;  // 在向量上所需移动的距离
+    start_point.set_x(start_point_a_enu.x() - kDistance * vec_ab.x());
+    start_point.set_y(start_point_a_enu.y() - kDistance * vec_ab.y());
+    start_point.set_z(start_point_a_enu.z() - kDistance * vec_ab.z());
+  } else if (seg_size_left > 0 && seg_size == 0) {
+    int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
+                              .line_segment()
+                              .point()
+                              .size();
+
+    const auto lane_left_curve_point0 =
+        lane_left_curve.segment()[0].line_segment().point()[0];
+    const auto lane_left_curve_point1 =
+        lane_left_curve.segment()[seg_size_left - 1]
+            .line_segment()
+            .point()[point_size_left - 1];
+    CalculatePointPredecessorOne(point_size_left, lane_left_curve_point0,
+                                 lane_left_curve_point1, true, true);
+  } else if (seg_size_left == 0 && seg_size > 0) {
+    int point_size =
+        lane_right_curve.segment()[seg_size - 1].line_segment().point().size();
+    const auto lane_right_curve_point0 =
+        lane_right_curve.segment()[0].line_segment().point()[0];
+    const auto lane_right_curve_point1 =
+        lane_right_curve.segment()[seg_size - 1]
+            .line_segment()
+            .point()[point_size - 1];
+    CalculatePointPredecessorOne(point_size, lane_right_curve_point0,
+                                 lane_right_curve_point1, false, true);
+  }
+  return start_point;
+}
+hozon::common::PointENU MapProtoMarker::CalculatePointPredecessorOne(
+    const int& point_size_left,
+    const hozon::common::PointENU& lane_left_curve_point0,
+    const hozon::common::PointENU& lane_left_curve_point1, bool left,
+    bool back) {
+  hozon::common::PointENU start_point;
+  if (point_size_left > 1) {
+    // 计算向量长度
+    auto vec_ab = hozon::common::PointENU();
+    vec_ab.set_x(lane_left_curve_point1.x() - lane_left_curve_point0.x());
+    vec_ab.set_y(lane_left_curve_point1.y() - lane_left_curve_point0.y());
+    vec_ab.set_z(lane_left_curve_point1.z() - lane_left_curve_point0.z());
+    double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
+                          pow(vec_ab.z(), 2));  // 向量的模
+    if (norm_ab > 0) {
+      vec_ab.set_x(vec_ab.x() / norm_ab);
+      vec_ab.set_y(vec_ab.y() / norm_ab);
+      vec_ab.set_z(vec_ab.z() / norm_ab);
+    }
+    const double kDistance = 1.0;  // 在向量上所需移动的距离
+    if (back) {
+      start_point.set_x(lane_left_curve_point0.x() - kDistance * vec_ab.x());
+      start_point.set_y(lane_left_curve_point0.y() - kDistance * vec_ab.y());
+      start_point.set_z(lane_left_curve_point0.z() - kDistance * vec_ab.z());
+    } else {
+      start_point.set_x(lane_left_curve_point0.x() + kDistance * vec_ab.x());
+      start_point.set_y(lane_left_curve_point0.y() + kDistance * vec_ab.y());
+      start_point.set_z(lane_left_curve_point0.z() + kDistance * vec_ab.z());
+    }
+    // 计算垂直单位向量vec_vertical_unit
+    auto vec_vertical_unit = hozon::common::PointENU();
+    vec_vertical_unit.set_x(-vec_ab.y());
+    vec_vertical_unit.set_y(vec_ab.x());
+    vec_vertical_unit.set_z(vec_ab.z());
+    // 定义平移距离kShiftDistance
+    double kShiftDistance = 1.0;  // 根据实际需要设定平移距离
+    // 计算平移向量shift_vector 和新点
+    if (left) {
+      start_point.set_x(start_point.x() +
+                        vec_vertical_unit.x() * kShiftDistance);
+      start_point.set_y(start_point.y() +
+                        vec_vertical_unit.y() * kShiftDistance);
+      start_point.set_y(start_point.z() +
+                        vec_vertical_unit.z() * kShiftDistance);
+    } else {
+      start_point.set_x(start_point.x() -
+                        vec_vertical_unit.x() * kShiftDistance);
+      start_point.set_y(start_point.y() -
+                        vec_vertical_unit.y() * kShiftDistance);
+      start_point.set_y(start_point.z() -
+                        vec_vertical_unit.z() * kShiftDistance);
+    }
+
+  } else {
+    start_point.set_x(lane_left_curve_point0.x());
+    start_point.set_y(lane_left_curve_point0.y());
+    start_point.set_y(lane_left_curve_point0.z());
+  }
+  return start_point;
+}
+hozon::common::PointENU MapProtoMarker::CalculatePointPredecessorBack(
+    const hozon::hdmap::Curve& lane_left_curve,
+    const hozon::hdmap::Curve& lane_right_curve, const Eigen::Vector3d& enupos,
+    bool utm) {
+  int seg_size_left = lane_left_curve.segment().size();
+  int seg_size = lane_right_curve.segment().size();
+  hozon::common::PointENU start_point_a;
+  hozon::common::PointENU start_point_b;
+  hozon::common::PointENU start_point;
+  if (seg_size_left > 0 && seg_size > 0) {
+    int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
+                              .line_segment()
+                              .point()
+                              .size();
+    const auto lane_left_curve_point0 =
+        lane_left_curve.segment()[0].line_segment().point()[0];
+    const auto lane_left_curve_point1 =
+        lane_left_curve.segment()[seg_size_left - 1]
+            .line_segment()
+            .point()[point_size_left - 1];
+
+    int point_size =
+        lane_right_curve.segment()[seg_size - 1].line_segment().point().size();
+    const auto lane_right_curve_point0 =
+        lane_right_curve.segment()[0].line_segment().point()[0];
+    const auto lane_right_curve_point1 =
+        lane_right_curve.segment()[seg_size - 1]
+            .line_segment()
+            .point()[point_size - 1];
+    start_point_a.set_x(
+        (lane_left_curve_point0.x() + lane_right_curve_point0.x()) / 2);
+    start_point_a.set_y(
+        (lane_left_curve_point0.y() + lane_right_curve_point0.y()) / 2);
+    start_point_a.set_z(
+        (lane_left_curve_point0.z() + lane_right_curve_point0.z()) / 2);
+    start_point_b.set_x(
+        (lane_left_curve_point1.x() + lane_right_curve_point1.x()) / 2);
+    start_point_b.set_y(
+        (lane_left_curve_point1.y() + lane_right_curve_point1.y()) / 2);
+    start_point_b.set_z(
+        (lane_left_curve_point1.z() + lane_right_curve_point1.z()) / 2);
+    const auto start_point_a_enu = ConvertPoint(start_point_a, enupos, utm);
+    const auto start_point_b_enu = ConvertPoint(start_point_b, enupos, utm);
+    auto vec_ab = hozon::common::PointENU();
+    vec_ab.set_x(start_point_b_enu.x() - start_point_a_enu.x());
+    vec_ab.set_y(start_point_b_enu.y() - start_point_a_enu.y());
+    vec_ab.set_z(start_point_b_enu.z() - start_point_a_enu.z());
+    double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
+                          pow(vec_ab.z(), 2));  // 向量的模
+    if (norm_ab > 0) {
+      vec_ab.set_x(vec_ab.x() / norm_ab);
+      vec_ab.set_y(vec_ab.y() / norm_ab);
+      vec_ab.set_z(vec_ab.z() / norm_ab);
+    }
+    const double kDistance = 1.0;  // 在向量上所需移动的距离
+    start_point.set_x(start_point_a_enu.x() - kDistance * vec_ab.x());
+    start_point.set_y(start_point_a_enu.y() - kDistance * vec_ab.y());
+    start_point.set_z(start_point_a_enu.z() - kDistance * vec_ab.z());
+  } else if (seg_size_left > 0 && seg_size == 0) {
+    int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
+                              .line_segment()
+                              .point()
+                              .size();
+
+    const auto lane_left_curve_point0 =
+        lane_left_curve.segment()[0].line_segment().point()[0];
+    const auto lane_left_curve_point1 =
+        lane_left_curve.segment()[seg_size_left - 1]
+            .line_segment()
+            .point()[point_size_left - 1];
+    CalculatePointPredecessorOne(point_size_left, lane_left_curve_point0,
+                                 lane_left_curve_point1, true, true);
+  } else if (seg_size_left == 0 && seg_size > 0) {
+    int point_size =
+        lane_right_curve.segment()[seg_size - 1].line_segment().point().size();
+    const auto lane_right_curve_point0 =
+        lane_right_curve.segment()[0].line_segment().point()[0];
+    const auto lane_right_curve_point1 =
+        lane_right_curve.segment()[seg_size - 1]
+            .line_segment()
+            .point()[point_size - 1];
+    CalculatePointPredecessorOne(point_size, lane_right_curve_point0,
+                                 lane_right_curve_point1, false, true);
+  }
+  return start_point;
+}
+hozon::common::PointENU MapProtoMarker::CalculatePointSuccessorBack(
+    const hozon::hdmap::Curve& lane_left_curve,
+    const hozon::hdmap::Curve& lane_right_curve, const Eigen::Vector3d& enupos,
+    bool utm) {
+  int seg_size_left = lane_left_curve.segment().size();
+  int seg_size = lane_right_curve.segment().size();
+  hozon::common::PointENU start_point_a;
+  hozon::common::PointENU start_point_b;
+  hozon::common::PointENU start_point;
+  if (seg_size_left > 0 && seg_size > 0) {
+    int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
+                              .line_segment()
+                              .point()
+                              .size();
+    const auto lane_left_curve_point0 =
+        lane_left_curve.segment()[0].line_segment().point()[0];
+    const auto lane_left_curve_point1 =
+        lane_left_curve.segment()[seg_size_left - 1]
+            .line_segment()
+            .point()[point_size_left - 1];
+
+    int point_size =
+        lane_right_curve.segment()[seg_size - 1].line_segment().point().size();
+    const auto lane_right_curve_point0 =
+        lane_right_curve.segment()[0].line_segment().point()[0];
+    const auto lane_right_curve_point1 =
+        lane_right_curve.segment()[seg_size - 1]
+            .line_segment()
+            .point()[point_size - 1];
+    start_point_a.set_x(
+        (lane_left_curve_point0.x() + lane_right_curve_point0.x()) / 2);
+    start_point_a.set_y(
+        (lane_left_curve_point0.y() + lane_right_curve_point0.y()) / 2);
+    start_point_a.set_z(
+        (lane_left_curve_point0.z() + lane_right_curve_point0.z()) / 2);
+    start_point_b.set_x(
+        (lane_left_curve_point1.x() + lane_right_curve_point1.x()) / 2);
+    start_point_b.set_y(
+        (lane_left_curve_point1.y() + lane_right_curve_point1.y()) / 2);
+    start_point_b.set_z(
+        (lane_left_curve_point1.z() + lane_right_curve_point1.z()) / 2);
+    const auto start_point_a_enu = ConvertPoint(start_point_a, enupos, utm);
+    const auto start_point_b_enu = ConvertPoint(start_point_b, enupos, utm);
+    auto vec_ab = hozon::common::PointENU();
+    vec_ab.set_x(start_point_b_enu.x() - start_point_a_enu.x());
+    vec_ab.set_y(start_point_b_enu.y() - start_point_a_enu.y());
+    vec_ab.set_z(start_point_b_enu.z() - start_point_a_enu.z());
+    double norm_ab = sqrt(pow(vec_ab.x(), 2) + pow(vec_ab.y(), 2) +
+                          pow(vec_ab.z(), 2));  // 向量的模
+    if (norm_ab > 0) {
+      vec_ab.set_x(vec_ab.x() / norm_ab);
+      vec_ab.set_y(vec_ab.y() / norm_ab);
+      vec_ab.set_z(vec_ab.z() / norm_ab);
+    }
+    const double kDistance = 1.0;  // 在向量上所需移动的距离
+    start_point.set_x(start_point_a_enu.x() + kDistance * vec_ab.x());
+    start_point.set_y(start_point_a_enu.y() + kDistance * vec_ab.y());
+    start_point.set_z(start_point_a_enu.z() + kDistance * vec_ab.z());
+  } else if (seg_size_left > 0 && seg_size == 0) {
+    int point_size_left = lane_left_curve.segment()[seg_size_left - 1]
+                              .line_segment()
+                              .point()
+                              .size();
+
+    const auto lane_left_curve_point0 =
+        lane_left_curve.segment()[0].line_segment().point()[0];
+    const auto lane_left_curve_point1 =
+        lane_left_curve.segment()[seg_size_left - 1]
+            .line_segment()
+            .point()[point_size_left - 1];
+    CalculatePointPredecessorOne(point_size_left, lane_left_curve_point0,
+                                 lane_left_curve_point1, true, false);
+  } else if (seg_size_left == 0 && seg_size > 0) {
+    int point_size =
+        lane_right_curve.segment()[seg_size - 1].line_segment().point().size();
+    const auto lane_right_curve_point0 =
+        lane_right_curve.segment()[0].line_segment().point()[0];
+    const auto lane_right_curve_point1 =
+        lane_right_curve.segment()[seg_size - 1]
+            .line_segment()
+            .point()[point_size - 1];
+    CalculatePointPredecessorOne(point_size, lane_right_curve_point0,
+                                 lane_right_curve_point1, false, false);
+  }
+  return start_point;
+}
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon

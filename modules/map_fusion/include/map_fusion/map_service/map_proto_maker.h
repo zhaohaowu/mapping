@@ -86,8 +86,38 @@ class MapProtoMarker {
   static adsfi_proto::viz::MarkerArray LaneRightBoundaryMarker(
       const std::shared_ptr<hozon::hdmap::Map>& prior_map,
       const Eigen::Vector3d& enupos, bool utm = false);
+  static void AddSegmentToMarker(
+      const hozon::hdmap::Road& road,
+      const google::protobuf::RepeatedPtrField<hozon::hdmap::CurveSegment>&
+          segment,
+      adsfi_proto::viz::MarkerArray* road_markers,
+      const Eigen::Vector3d& enupos, bool utm);
+  static hozon::common::PointENU CalculatePoint(
+      const hozon::hdmap::Curve& start_lane_curve_left,
+      const hozon::hdmap::Curve& start_lane_curve_right);
+  static hozon::common::PointENU CalculatePointPredecessor(
+      const hozon::hdmap::Curve& lane_left_curve,
+      const hozon::hdmap::Curve& lane_right_curve,
+      const Eigen::Vector3d& enupos, bool utm);
+  static hozon::common::PointENU CalculatePointPredecessorOne(
+      const int& point_size_left,
+      const hozon::common::PointENU& lane_left_curve_point0,
+      const hozon::common::PointENU& lane_left_curve_point1, bool left,
+      bool back);
+  static hozon::common::PointENU CalculatePointPredecessorBack(
+      const hozon::hdmap::Curve& lane_left_curve,
+      const hozon::hdmap::Curve& lane_right_curve,
+      const Eigen::Vector3d& enupos, bool utm);
+  static hozon::common::PointENU CalculatePointSuccessor(
+      const hozon::hdmap::Curve& lane_left_curve,
+      const hozon::hdmap::Curve& lane_right_curve,
+      const Eigen::Vector3d& enupos, bool utm);
+  static hozon::common::PointENU CalculatePointSuccessorBack(
+      const hozon::hdmap::Curve& lane_left_curve,
+      const hozon::hdmap::Curve& lane_right_curve,
+      const Eigen::Vector3d& enupos, bool utm);
   static Eigen::Vector3d ConvertPoint(const hozon::common::PointENU& end_point,
-                                      const Eigen::Vector3d& enupos) {
+                                      const Eigen::Vector3d& enupos, bool utm) {
     Eigen::Vector3d point_utm_end(end_point.x(), end_point.y(), end_point.z());
     int zone = 51;
     double x_end = point_utm_end.x();
@@ -96,9 +126,22 @@ class MapProtoMarker {
     Eigen::Vector3d point_gcj_end(y_end, x_end, 0);
     Eigen::Vector3d point_enu_end =
         util::Geo::Gcj02ToEnu(point_gcj_end, enupos);
-
-    return point_enu_end;
+    if (utm) {
+      return point_enu_end;
+    } else {
+      return point_utm_end;
+    }
   }
+  static void ProcessLaneRightNeighborForward(
+      const hozon::hdmap::Lane& lane, const std::string& neighbor_lane_id,
+      const std::shared_ptr<hozon::hdmap::Map>& prior_map,
+      Eigen::Vector3d point_enu_start, bool utm, const Eigen::Vector3d& enupos,
+      adsfi_proto::viz::MarkerArray* arrow_markers);
+  static void ProcessLaneLeftNeighborForward(
+      const hozon::hdmap::Lane& lane, const std::string& neighbor_lane_id,
+      const std::shared_ptr<hozon::hdmap::Map>& prior_map,
+      Eigen::Vector3d point_enu_start, bool utm, const Eigen::Vector3d& enupos,
+      adsfi_proto::viz::MarkerArray* arrow_markers);
   static void AddPointToMarker(const hozon::common::PointENU& point,
                                adsfi_proto::viz::Marker* marker,
                                const Eigen::Vector3d& enupos, bool utm) {

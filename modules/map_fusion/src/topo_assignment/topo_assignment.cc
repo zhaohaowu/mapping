@@ -503,7 +503,8 @@ void TopoAssignment::TopoAssign() {
   // HLOG_ERROR << "YYYYYYYYYYYYYYYYYYYYYYYYY";
 
   // 从all_lanelines构造all_lanes
-  std::map<std::string, Lane> all_lanes;
+  std::pair<bool, std::map<std::string, Lane>> all_lanes;
+  all_lanes.first = false;
   //! 从lane line构造lane
   AppendLane(all_lanelines_, &all_lanes);
 
@@ -572,6 +573,12 @@ void TopoAssignment::AppendAllLaneInfo(
     }
     for (const auto& itt : it->lane().successor_id()) {
       info.next_lane_ids.emplace_back(itt.id());
+    }
+    if (!it->lane().extra_left_boundary().curve().segment().empty()) {
+      info.extra_boundary = 1;
+    }
+    if (!it->lane().extra_right_boundary().curve().segment().empty()) {
+      info.extra_boundary = 2;
     }
     all_lane_info_.insert_or_assign(id, info);
   }
@@ -962,26 +969,30 @@ std::vector<std::string> TopoAssignment::FindLaneLineTail(
 
 void TopoAssignment::AppendLane(
     const std::map<int32_t, LaneLine>& all_lanelines,
-    std::map<std::string, Lane>* all_lanes) {
+    std::pair<bool, std::map<std::string, Lane>>* all_lanes) {
   for (const auto& line_it : all_lanelines) {
     for (const auto& left_lane_it : line_it.second.left_lanes) {
-      if (all_lanes->find(left_lane_it) == all_lanes->end()) {
+      if (all_lanes->second.find(left_lane_it) == all_lanes->second.end()) {
         Lane lane;
         lane.id = left_lane_it;
         lane.left_lines.emplace_back(line_it.second.id);
-        (*all_lanes)[left_lane_it] = lane;
+        (*all_lanes).second[left_lane_it] = lane;
       } else {
-        (*all_lanes)[left_lane_it].left_lines.emplace_back(line_it.second.id);
+        (*all_lanes)
+            .second[left_lane_it]
+            .left_lines.emplace_back(line_it.second.id);
       }
     }
     for (const auto& right_lane_it : line_it.second.right_lanes) {
-      if (all_lanes->find(right_lane_it) == all_lanes->end()) {
+      if (all_lanes->second.find(right_lane_it) == all_lanes->second.end()) {
         Lane lane;
         lane.id = right_lane_it;
         lane.right_lines.emplace_back(line_it.second.id);
-        (*all_lanes)[right_lane_it] = lane;
+        (*all_lanes).second[right_lane_it] = lane;
       } else {
-        (*all_lanes)[right_lane_it].right_lines.emplace_back(line_it.second.id);
+        (*all_lanes)
+            .second[right_lane_it]
+            .right_lines.emplace_back(line_it.second.id);
       }
     }
   }
@@ -989,50 +1000,63 @@ void TopoAssignment::AppendLane(
   AppendLaneLanes(all_lanes);
 }
 
-void TopoAssignment::AppendLaneLanes(std::map<std::string, Lane>* all_lanes) {
+void TopoAssignment::AppendLaneLanes(
+    std::pair<bool, std::map<std::string, Lane>>* all_lanes) {
   // 再构造前后左右
-  for (auto& lane_it : (*all_lanes)) {
+  for (auto& lane_it : (*all_lanes).second) {
     const std::string lane_id = lane_it.second.id;
     if (all_lane_info_.find(lane_id) == all_lane_info_.end()) {
       continue;
     }
-
+    lane_it.second.extra_boundary = all_lane_info_[lane_id].extra_boundary;
     const auto& left_ids = all_lane_info_[lane_id].left_lane_ids;
 
     for (const auto& left_lane_it : left_ids) {
       auto left_lane_it_id = left_lane_it;
-      if (all_lanes->find(left_lane_it_id) != all_lanes->end()) {
+      if (all_lanes->second.find(left_lane_it_id) != all_lanes->second.end()) {
         lane_it.second.left_lanes.emplace_back(left_lane_it_id);
       }
     }
     const auto& right_ids = all_lane_info_[lane_id].right_lane_ids;
     for (const auto& right_lane_it : right_ids) {
       auto right_lane_it_id = right_lane_it;
-      if (all_lanes->find(right_lane_it_id) != all_lanes->end()) {
+      if (all_lanes->second.find(right_lane_it_id) != all_lanes->second.end()) {
         lane_it.second.right_lanes.emplace_back(right_lane_it_id);
       }
     }
     const auto& prev_ids = all_lane_info_[lane_id].prev_lane_ids;
     for (const auto& prev_lane_it : prev_ids) {
       auto prev_lane_it_id = prev_lane_it;
-      if (all_lanes->find(prev_lane_it_id) != all_lanes->end()) {
+      if (all_lanes->second.find(prev_lane_it_id) != all_lanes->second.end()) {
         lane_it.second.prev_lanes.emplace_back(prev_lane_it_id);
       }
     }
     const auto& next_ids = all_lane_info_[lane_id].next_lane_ids;
     for (const auto& next_lane_it : next_ids) {
       auto next_lane_it_id = next_lane_it;
-      if (all_lanes->find(next_lane_it_id) != all_lanes->end()) {
+      if (all_lanes->second.find(next_lane_it_id) != all_lanes->second.end()) {
         lane_it.second.next_lanes.emplace_back(next_lane_it_id);
       }
+    }
+  }
+  AppendLaneLanesSplit(all_lanes);
+}
+
+void TopoAssignment::AppendLaneLanesSplit(
+    std::pair<bool, std::map<std::string, Lane>>* all_lanes) {
+  // 判断split case
+  for (auto& lane_it : (*all_lanes).second) {
+    if (lane_it.second.extra_boundary > 0) {
+      (*all_lanes).first = true;
+      break;
     }
   }
 }
 
 void TopoAssignment::AppendTopoMap(
-    const std::map<std::string, Lane>& all_lanes,
+    const std::pair<bool, std::map<std::string, Lane>>& all_lanes,
     const std::shared_ptr<hozon::hdmap::Map>& topo_map) {
-  for (const auto& lane_it : all_lanes) {
+  for (const auto& lane_it : all_lanes.second) {
     const std::string lane_id = lane_it.second.id;
     if (all_lane_info_.find(lane_id) == all_lane_info_.end()) {
       continue;
@@ -1065,9 +1089,9 @@ void TopoAssignment::AppendTopoMap(
     auto hq_lane_right_points_size = hq_lane_right_points.size();
 
     AppendTopoMapLeftLanes(lane_it, lane, hq_lane_left_points,
-                           hq_lane_left_points_size);
+                           hq_lane_left_points_size, all_lanes.first);
     AppendTopoMapRightLanes(lane_it, lane, hq_lane_right_points,
-                            hq_lane_right_points_size);
+                            hq_lane_right_points_size, all_lanes.first);
 
     if (lane->left_boundary().curve().segment().empty() &&
         lane->right_boundary().curve().segment().empty()) {
@@ -1079,8 +1103,8 @@ void TopoAssignment::AppendTopoMap(
 void TopoAssignment::AppendTopoMapLeftLanes(
     const std::pair<const std::string, hozon::mp::mf::Lane>& lane_it,
     hozon::hdmap::Lane* lane,
-    const std::vector<Eigen::Vector2d>& hq_lane_left_points,
-    const size_t size) {
+    const std::vector<Eigen::Vector2d>& hq_lane_left_points, const size_t size,
+    const bool split) {
   if (hq_lane_left_points.empty()) {
     return;
   }
@@ -1117,7 +1141,7 @@ void TopoAssignment::AppendTopoMapLeftLanes(
       if (flag_p0 && flag_p1) {
         // 不用找index
         AppendTopoMapLeftLanePoints(hq_lane_left_points, lane, 0,
-                                    point_size - 1, left_line_it);
+                                    point_size - 1, left_line_it, split);
       }
       if (flag_p0 && !flag_p1) {
         // 找到后面一个点最近的index
@@ -1129,7 +1153,7 @@ void TopoAssignment::AppendTopoMapLeftLanes(
             dim, query_points, all_lanelines_[left_line_it].lane_line_kdtree);
 
         AppendTopoMapLeftLanePoints(hq_lane_left_points, lane, 0, index,
-                                    left_line_it);
+                                    left_line_it, split);
       }
       if (!flag_p0 && flag_p1) {
         // 找到前面一个点最近的index
@@ -1144,7 +1168,7 @@ void TopoAssignment::AppendTopoMapLeftLanes(
             static_cast<int>(all_lanelines_[left_line_it].points.size());
 
         AppendTopoMapLeftLanePoints(hq_lane_left_points, lane, index,
-                                    point_size - 1, left_line_it);
+                                    point_size - 1, left_line_it, split);
       }
       if (!flag_p0 && !flag_p1 && flag_pt) {
         // 找到两个点最近的index
@@ -1163,7 +1187,7 @@ void TopoAssignment::AppendTopoMapLeftLanes(
             all_lanelines_[left_line_it].lane_line_kdtree);
 
         AppendTopoMapLeftLanePoints(hq_lane_left_points, lane, start_index,
-                                    end_index, left_line_it);
+                                    end_index, left_line_it, split);
       }
     }
   }
@@ -1172,8 +1196,8 @@ void TopoAssignment::AppendTopoMapLeftLanes(
 void TopoAssignment::AppendTopoMapRightLanes(
     const std::pair<const std::string, hozon::mp::mf::Lane>& lane_it,
     hozon::hdmap::Lane* lane,
-    const std::vector<Eigen::Vector2d>& hq_lane_right_points,
-    const size_t size) {
+    const std::vector<Eigen::Vector2d>& hq_lane_right_points, const size_t size,
+    const bool split) {
   if (hq_lane_right_points.empty()) {
     return;
   }
@@ -1210,7 +1234,7 @@ void TopoAssignment::AppendTopoMapRightLanes(
       if (flag_p0 && flag_p1) {
         // 不用找index
         AppendTopoMapRightLanePoints(hq_lane_right_points, lane, 0,
-                                     point_size - 1, right_line_it);
+                                     point_size - 1, right_line_it, split);
       }
       if (flag_p0 && !flag_p1) {
         // 找到后面一个点最近的index
@@ -1222,7 +1246,7 @@ void TopoAssignment::AppendTopoMapRightLanes(
             dim, query_points, all_lanelines_[right_line_it].lane_line_kdtree);
 
         AppendTopoMapRightLanePoints(hq_lane_right_points, lane, 0, index,
-                                     right_line_it);
+                                     right_line_it, split);
       }
       if (!flag_p0 && flag_p1) {
         // 找到前面一个点最近的index
@@ -1236,7 +1260,7 @@ void TopoAssignment::AppendTopoMapRightLanes(
             static_cast<int>(all_lanelines_[right_line_it].points.size());
 
         AppendTopoMapRightLanePoints(hq_lane_right_points, lane, index,
-                                     point_size - 1, right_line_it);
+                                     point_size - 1, right_line_it, split);
       }
       if (!flag_p0 && !flag_p1 && flag_pt) {
         // 找到两个点最近的index
@@ -1255,7 +1279,7 @@ void TopoAssignment::AppendTopoMapRightLanes(
             all_lanelines_[right_line_it].lane_line_kdtree);
 
         AppendTopoMapRightLanePoints(hq_lane_right_points, lane, start_index,
-                                     end_index, right_line_it);
+                                     end_index, right_line_it, split);
       }
     }
   }
@@ -1263,13 +1287,14 @@ void TopoAssignment::AppendTopoMapRightLanes(
 
 void TopoAssignment::AppendTopoMapLeftLanePoints(
     const std::vector<Eigen::Vector2d>& lane_points, hozon::hdmap::Lane* lane,
-    const int start_index, const int end_index, const int track_id) {
+    const int start_index, const int end_index, const int track_id,
+    const bool split) {
   auto start_point = all_lanelines_[track_id].points[start_index];
   auto end_point = all_lanelines_[track_id].points[end_index];
 
   Eigen::Vector2d p0(start_point.x(), start_point.y());
   Eigen::Vector2d p1(end_point.x(), end_point.y());
-  if (LaneBelongToLaneLine(lane_points, p0, p1)) {
+  if (LaneBelongToLaneLine(lane_points, p0, p1) && split) {
     return;
   }
   auto* segment = lane->mutable_left_boundary()->mutable_curve()->add_segment();
@@ -1283,13 +1308,14 @@ void TopoAssignment::AppendTopoMapLeftLanePoints(
 
 void TopoAssignment::AppendTopoMapRightLanePoints(
     const std::vector<Eigen::Vector2d>& lane_points, hozon::hdmap::Lane* lane,
-    const int start_index, const int end_index, const int track_id) {
+    const int start_index, const int end_index, const int track_id,
+    const bool split) {
   auto start_point = all_lanelines_[track_id].points[start_index];
   auto end_point = all_lanelines_[track_id].points[end_index];
 
   Eigen::Vector2d p0(start_point.x(), start_point.y());
   Eigen::Vector2d p1(end_point.x(), end_point.y());
-  if (LaneBelongToLaneLine(lane_points, p0, p1)) {
+  if (LaneBelongToLaneLine(lane_points, p0, p1) && split) {
     return;
   }
   auto* segment =
@@ -1859,7 +1885,7 @@ bool TopoAssignment::LaneBelongToLaneLine(
   double dist_p0 = PointDistanceToSegment(lane_points, p0);
   double dist_p1 = PointDistanceToSegment(lane_points, p1);
 
-  return dist_p0 >= FLAGS_topo_lane_line_dist &&
+  return dist_p0 >= FLAGS_topo_lane_line_dist ||
          dist_p1 >= FLAGS_topo_lane_line_dist;
 }
 

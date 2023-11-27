@@ -141,7 +141,8 @@ bool Odometry2D::update() {
           sys_mat * error_state_cov_ * sys_mat.transpose() + prc_mat;
     }
     Eigen::Quaterniond qat_veh_pdt = extrinsic_Q_ * qat_;
-    // Eigen::Vector3d eulerAngle_pdt = qat_veh_pdt.matrix().eulerAngles(2, 1, 0);
+    // Eigen::Vector3d eulerAngle_pdt = qat_veh_pdt.matrix().eulerAngles(2, 1,
+    // 0);
 
     // update pos
     Eigen::Vector3d delta_t_veh(delta_dis, 0, 0);
@@ -198,7 +199,7 @@ bool Odometry2D::update() {
     cur_odom_data.attitude = imu_itr->attitude;
     cur_odom_data.gpsStatus = imu_itr->gpsStatus;
 
-    AddOdomData(cur_odom_data/*, delta_dis*/);
+    AddOdomData(cur_odom_data /*, delta_dis*/);
     last_local_vel = local_vel;
 
     // HLOG_INFO << "==== init ===="
@@ -259,7 +260,7 @@ bool Odometry2D::Initialize() {
   cur_odom_data.loc_omg = {0, 0, 0};
   cur_odom_data.loc_acc = {0, 0, 0};
   cur_odom_data.gear = 0;
-  AddOdomData(cur_odom_data/*, 0.0*/);
+  AddOdomData(cur_odom_data /*, 0.0*/);
   // HLOG_INFO << "DR initialize done";
   std::cout << "DR initialize done" << std::endl;
   return true;

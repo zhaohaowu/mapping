@@ -30,8 +30,8 @@ double OdometryBase::filter_cnt(double cnt) {
   static double Qk = 0.01;  // 预测得误差
   static double Rk = 0.25;  // 观测得误差
 
-  static double xk = 0;  // 第一次预测值
-  static double pk = 1;  // 预测得方差
+  static double xk = 0;     // 第一次预测值
+  static double pk = 1;     // 预测得方差
 
   double xk_pre = xk;       // 假设匀速运动
   double pk_pre = pk + Qk;  //
@@ -48,7 +48,7 @@ Eigen::Vector3d OdometryBase::filter_vel(const Eigen::Vector3d& cur_vel) {
   static Eigen::Matrix3d Qk =
       Eigen::Matrix3d::Identity() * 0.001;  // 0.01,0.001,0.01,0.001
   static Eigen::Matrix3d Rk =
-      Eigen::Matrix3d::Identity() * 0.1;  // 0.1,0.05,0.5,0.1
+      Eigen::Matrix3d::Identity() * 0.1;    // 0.1,0.05,0.5,0.1
 
   static Eigen::Vector3d xk = {0, 0, 0};
   static Eigen::Matrix3d pk = Eigen::Matrix3d::Identity();
@@ -124,9 +124,8 @@ bool OdometryBase::get_imu_before_and_pop(
   }
   if (imu_datas.size() > 1) {
     DRWriteLockGuard lock(imu_rw_lock_);
-    imu_datas_.erase(imu_datas_.begin(),
-                     imu_datas_.begin() + imu_datas.size() -
-                      static_cast<size_t>(1));
+    imu_datas_.erase(imu_datas_.begin(), imu_datas_.begin() + imu_datas.size() -
+                                             static_cast<size_t>(1));
   }
   return true;
 }
@@ -226,7 +225,7 @@ bool OdometryBase::GetOdomByTimestamp(double time, WheelOdometry& odometry) {
     odometry = iter_pre->odometry;
     return true;
   }
-  
+
   if ((1 - ratio) < 1e-3) {
     odometry = iter_next->odometry;
     return true;
@@ -254,7 +253,8 @@ bool OdometryBase::GetOdomByTimestamp(double time, WheelOdometry& odometry) {
 
 // bool GetImuByTimestamp(double time, ImuDataHozon& imu_data) { return true; }
 
-void OdometryBase::AddOdomData(const OdometryData& new_odom/*, double delta_dis*/) {
+void OdometryBase::AddOdomData(
+    const OdometryData& new_odom /*, double delta_dis*/) {
   {
     DRWriteLockGuard lock(odom_rw_lock_);
     odom_datas_.push_back(new_odom);
@@ -315,9 +315,8 @@ bool OdometryBase::InterpolatePose(double time, OdometryData& odom_data) {
   auto cmp = [](const OdometryData& x, const OdometryData& y) -> bool {
     return x.timestamp < y.timestamp;
   };
-  auto iter_next =
-      std::lower_bound(odom_datas_.begin(), odom_datas_.end(),
-                        OdometryData({time, WheelOdometry()}), cmp);
+  auto iter_next = std::lower_bound(odom_datas_.begin(), odom_datas_.end(),
+                                    OdometryData({time, WheelOdometry()}), cmp);
 
   if (iter_next == odom_datas_.end() || iter_next == odom_datas_.begin()) {
     // std::cout << "maybe odom delay,not find" << std::endl;
@@ -325,7 +324,7 @@ bool OdometryBase::InterpolatePose(double time, OdometryData& odom_data) {
   }
   auto iter_pre = std::prev(iter_next);
   auto ratio = (time - iter_pre->timestamp) /
-                (iter_next->timestamp - iter_pre->timestamp);
+               (iter_next->timestamp - iter_pre->timestamp);
 
   // std::cout << "ratio:" << ratio << std::endl;
   assert(ratio >= 0.0 && ratio <= 1.0);
@@ -334,7 +333,7 @@ bool OdometryBase::InterpolatePose(double time, OdometryData& odom_data) {
                             iter_pre->odometry.z};
     Eigen::Quaterniond qat =
         Eigen::Quaterniond(iter_pre->odometry.qw, iter_pre->odometry.qx,
-                            iter_pre->odometry.qy, iter_pre->odometry.qz);
+                           iter_pre->odometry.qy, iter_pre->odometry.qz);
     odom_data.odometry.x = pose[0];
     odom_data.odometry.y = pose[1];
     odom_data.odometry.z = pose[2];
@@ -347,13 +346,13 @@ bool OdometryBase::InterpolatePose(double time, OdometryData& odom_data) {
     odom_data.loc_omg = iter_pre->loc_omg;
     return true;
   }
-  
+
   if ((1 - ratio) < 1e-2) {
     Eigen::Vector3d pose = {iter_next->odometry.x, iter_next->odometry.y,
                             iter_next->odometry.z};
     Eigen::Quaterniond qat =
         Eigen::Quaterniond(iter_next->odometry.qw, iter_next->odometry.qx,
-                            iter_next->odometry.qy, iter_next->odometry.qz);
+                           iter_next->odometry.qy, iter_next->odometry.qz);
     odom_data.odometry.x = pose[0];
     odom_data.odometry.y = pose[1];
     odom_data.odometry.z = pose[2];
@@ -397,7 +396,7 @@ bool OdometryBase::InterpolatePose(double time, OdometryData& odom_data) {
       (1 - ratio) * iter_pre->loc_acc[2] + ratio * iter_next->loc_acc[2];
   // 球面线性插值
   Eigen::Quaterniond pre_qat(iter_pre->odometry.qw, iter_pre->odometry.qx,
-                              iter_pre->odometry.qy, iter_pre->odometry.qz);
+                             iter_pre->odometry.qy, iter_pre->odometry.qz);
   Eigen::Quaterniond next_qat(iter_next->odometry.qw, iter_next->odometry.qx,
                               iter_next->odometry.qy, iter_next->odometry.qz);
   Eigen::Quaterniond inter_qat = pre_qat.slerp(ratio, next_qat);

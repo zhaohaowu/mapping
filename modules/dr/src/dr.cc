@@ -61,7 +61,8 @@ Eigen::Vector3d DRInterface::Qat2EulerAngle(const Eigen::Quaterniond& q) {
 }
 
 void DRInterface::SetInsData2Location(
-    const std::shared_ptr<hozon::dead_reckoning::DeadReckoning>& locationDataPtr,
+    const std::shared_ptr<hozon::dead_reckoning::DeadReckoning>&
+        locationDataPtr,
     const OdometryData& odom_data) {
   // 位置的欧拉角
   locationDataPtr->mutable_pose()
@@ -156,9 +157,8 @@ void DRInterface::SetLocationData(
       ->mutable_euler_angle()
       ->set_z(eulerAngle[2]);
 
-  locationDataPtr->mutable_pose()->mutable_pose_local()
-      ->set_heading(
-        static_cast<float>(eulerAngle[2]));
+  locationDataPtr->mutable_pose()->mutable_pose_local()->set_heading(
+      static_cast<float>(eulerAngle[2]));
 
   //   HLOG_INFO << "==== init ===="
   //             << " output---vel " << latest_odom.loc_vel[1] << " acc  "

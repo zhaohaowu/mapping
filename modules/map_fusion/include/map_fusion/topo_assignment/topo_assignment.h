@@ -158,17 +158,19 @@ class TopoAssignment {
   void AppendLaneLanes(std::pair<bool, std::map<std::string, Lane>>* all_lanes);
   static void AppendLaneLanesSplit(
       std::pair<bool, std::map<std::string, Lane>>* all_lanes);
-  void AppendTopoMap(
-      const std::pair<bool, std::map<std::string, Lane>>& all_lanes,
+  void AppendTopoMapGeometry(
+      std::pair<bool, std::map<std::string, Lane>>* all_lanes,
+      const std::shared_ptr<hozon::hdmap::Map>& topo_map_geo);
+  static void AppendTopoMapTopology(
+      const std::map<std::string, Lane>& all_lanes,
+      const std::shared_ptr<hozon::hdmap::Map>& topo_map_geo,
       const std::shared_ptr<hozon::hdmap::Map>& topo_map);
   void AppendTopoMapLeftLanes(
-      const std::pair<const std::string, hozon::mp::mf::Lane>& lane_it,
-      hozon::hdmap::Lane* lane,
+      const hozon::mp::mf::Lane& lane_it, hozon::hdmap::Lane* lane,
       const std::vector<Eigen::Vector2d>& hq_lane_left_points,
       const size_t size, const bool split);
   void AppendTopoMapRightLanes(
-      const std::pair<const std::string, hozon::mp::mf::Lane>& lane_it,
-      hozon::hdmap::Lane* lane,
+      const hozon::mp::mf::Lane& lane_it, hozon::hdmap::Lane* lane,
       const std::vector<Eigen::Vector2d>& hq_lane_right_points,
       const size_t size, const bool split);
   void AppendTopoMapLeftLanePoints(

@@ -548,7 +548,11 @@ void TopoAssignment::TopoAssign() {
   // 注意：用map.header.id来承载初始化的位姿，包含local enu站心
   topo_map_->mutable_header()->set_id(init_pose_ser_);
 
-  AppendTopoMap(all_lanes, topo_map_);
+  std::shared_ptr<hozon::hdmap::Map> topo_map_geo =
+      std::make_shared<hozon::hdmap::Map>();
+
+  AppendTopoMapGeometry(&all_lanes, topo_map_geo);
+  AppendTopoMapTopology(all_lanes.second, topo_map_geo, topo_map_);
   if (FLAGS_topo_rviz) {
     VizTopoMap(topo_map_);
   }
@@ -1053,62 +1057,89 @@ void TopoAssignment::AppendLaneLanesSplit(
   }
 }
 
-void TopoAssignment::AppendTopoMap(
-    const std::pair<bool, std::map<std::string, Lane>>& all_lanes,
-    const std::shared_ptr<hozon::hdmap::Map>& topo_map) {
-  for (const auto& lane_it : all_lanes.second) {
-    const std::string lane_id = lane_it.second.id;
+void TopoAssignment::AppendTopoMapGeometry(
+    std::pair<bool, std::map<std::string, Lane>>* all_lanes,
+    const std::shared_ptr<hozon::hdmap::Map>& topo_map_geo) {
+  for (auto lane_it = all_lanes->second.begin();
+       lane_it != all_lanes->second.end();) {
+    const std::string lane_id = lane_it->second.id;
     if (all_lane_info_.find(lane_id) == all_lane_info_.end()) {
       continue;
     }
 
-    if (lane_it.second.left_lines.empty() &&
-        lane_it.second.right_lines.empty()) {
+    if (lane_it->second.left_lines.empty() &&
+        lane_it->second.right_lines.empty()) {
       continue;
     }
 
     // 后续需要该一下改成map里面有点再加入
-    auto* lane = topo_map->add_lane();
-    lane->mutable_id()->set_id(lane_it.second.id);
-    for (const auto& left_lane_it : lane_it.second.left_lanes) {
-      lane->add_left_neighbor_forward_lane_id()->set_id(left_lane_it);
-    }
-    for (const auto& right_lane_it : lane_it.second.right_lanes) {
-      lane->add_right_neighbor_forward_lane_id()->set_id(right_lane_it);
-    }
-    for (const auto& prev_lane_it : lane_it.second.prev_lanes) {
-      lane->add_predecessor_id()->set_id(prev_lane_it);
-    }
-    for (const auto& next_lane_it : lane_it.second.next_lanes) {
-      lane->add_successor_id()->set_id(next_lane_it);
-    }
+    auto* lane = topo_map_geo->add_lane();
+    lane->mutable_id()->set_id(lane_id);
     // 更新topo map的左右车道线
     auto hq_lane_left_points = all_lane_info_[lane_id].left_start_end;
     auto hq_lane_right_points = all_lane_info_[lane_id].right_start_end;
     auto hq_lane_left_points_size = hq_lane_left_points.size();
     auto hq_lane_right_points_size = hq_lane_right_points.size();
 
-    AppendTopoMapLeftLanes(lane_it, lane, hq_lane_left_points,
-                           hq_lane_left_points_size, all_lanes.first);
-    AppendTopoMapRightLanes(lane_it, lane, hq_lane_right_points,
-                            hq_lane_right_points_size, all_lanes.first);
+    AppendTopoMapLeftLanes(lane_it->second, lane, hq_lane_left_points,
+                           hq_lane_left_points_size, all_lanes->first);
+    AppendTopoMapRightLanes(lane_it->second, lane, hq_lane_right_points,
+                            hq_lane_right_points_size, all_lanes->first);
 
     if (lane->left_boundary().curve().segment().empty() &&
         lane->right_boundary().curve().segment().empty()) {
-      topo_map->mutable_lane()->RemoveLast();
+      topo_map_geo->mutable_lane()->RemoveLast();
+      lane_it = all_lanes->second.erase(lane_it);
+    } else {
+      ++lane_it;
+    }
+  }
+}
+
+void TopoAssignment::AppendTopoMapTopology(
+    const std::map<std::string, Lane>& all_lanes,
+    const std::shared_ptr<hozon::hdmap::Map>& topo_map_geo,
+    const std::shared_ptr<hozon::hdmap::Map>& topo_map) {
+  for (const auto& lane_geo : topo_map_geo->lane()) {
+    auto* lane = topo_map->add_lane();
+    lane->CopyFrom(lane_geo);
+
+    auto lane_it = all_lanes.find(lane_geo.id().id());
+    if (lane_it == all_lanes.end()) {
+      continue;
+    }
+
+    for (const auto& left_lane_it : lane_it->second.left_lanes) {
+      if (all_lanes.find(left_lane_it) != all_lanes.end()) {
+        lane->add_left_neighbor_forward_lane_id()->set_id(left_lane_it);
+      }
+    }
+    for (const auto& right_lane_it : lane_it->second.right_lanes) {
+      if (all_lanes.find(right_lane_it) != all_lanes.end()) {
+        lane->add_right_neighbor_forward_lane_id()->set_id(right_lane_it);
+      }
+    }
+    for (const auto& prev_lane_it : lane_it->second.prev_lanes) {
+      if (all_lanes.find(prev_lane_it) != all_lanes.end()) {
+        lane->add_predecessor_id()->set_id(prev_lane_it);
+      }
+    }
+    for (const auto& next_lane_it : lane_it->second.next_lanes) {
+      if (all_lanes.find(next_lane_it) != all_lanes.end()) {
+        lane->add_successor_id()->set_id(next_lane_it);
+      }
     }
   }
 }
 
 void TopoAssignment::AppendTopoMapLeftLanes(
-    const std::pair<const std::string, hozon::mp::mf::Lane>& lane_it,
-    hozon::hdmap::Lane* lane,
+    const hozon::mp::mf::Lane& lane_it, hozon::hdmap::Lane* lane,
     const std::vector<Eigen::Vector2d>& hq_lane_left_points, const size_t size,
     const bool split) {
   if (hq_lane_left_points.empty()) {
     return;
   }
-  for (const auto& left_line_it : lane_it.second.left_lines) {
+  for (const auto& left_line_it : lane_it.left_lines) {
     // 打断给到lane_it 里面去
     bool flag_p0 = false;
     bool flag_p1 = false;
@@ -1194,14 +1225,13 @@ void TopoAssignment::AppendTopoMapLeftLanes(
 }
 
 void TopoAssignment::AppendTopoMapRightLanes(
-    const std::pair<const std::string, hozon::mp::mf::Lane>& lane_it,
-    hozon::hdmap::Lane* lane,
+    const hozon::mp::mf::Lane& lane_it, hozon::hdmap::Lane* lane,
     const std::vector<Eigen::Vector2d>& hq_lane_right_points, const size_t size,
     const bool split) {
   if (hq_lane_right_points.empty()) {
     return;
   }
-  for (const auto& right_line_it : lane_it.second.right_lines) {
+  for (const auto& right_line_it : lane_it.right_lines) {
     // 打断给到lant_it 里面去
     bool flag_p0 = false;
     bool flag_p1 = false;

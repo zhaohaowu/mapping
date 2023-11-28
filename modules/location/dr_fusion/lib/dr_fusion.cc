@@ -5,13 +5,12 @@
  *   date       ： 2023.09
  ******************************************************************************/
 #include "modules/location/dr_fusion/lib/dr_fusion.h"
-
 #include <yaml-cpp/yaml.h>
+
 #include <iomanip>
 
 #include <Sophus/se3.hpp>
 #include <boost/filesystem.hpp>
-
 
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/temp_log.h"
@@ -22,9 +21,7 @@ namespace mp {
 namespace loc {
 
 namespace hmu = hozon::mp::util;
-const char kNewestDrOdom[] = "/dr/fusion";
-
-DrFusion::~DrFusion() {}
+const char* const kNewestDrOdom = "/dr/fusion";
 
 DrInitStatus DrFusion::Init(const std::string& dr_configfile) {
   boost::filesystem::path dr_path(dr_configfile);
@@ -83,7 +80,7 @@ void DrFusion::OnDr(const hozon::dead_reckoning::DeadReckoning& dr_node) {
 }
 
 bool DrFusion::GetResult(hozon::localization::HafNodeInfo* const node) {
-  if (!node) {
+  if (node == nullptr) {
     HLOG_ERROR << "Get Dr Fusion result failed";
     return false;
   }
@@ -147,8 +144,8 @@ bool DrFusion::PublishTopic() {
     odom.mutable_header()->set_frameid("use_dr");
   }
 
-  uint64_t sec = uint64_t(node.ticktime);
-  uint64_t nsec = uint64_t((node.ticktime - sec) * 1e9);
+  const auto sec = static_cast<uint32_t>(node.ticktime);
+  const auto nsec = static_cast<uint32_t>((node.ticktime - sec) * 1e9);
   odom.mutable_header()->mutable_timestamp()->set_sec(sec);
   odom.mutable_header()->mutable_timestamp()->set_nsec(nsec);
   odom.mutable_pose()->mutable_pose()->mutable_position()->set_x(node.enu(0));
@@ -170,7 +167,7 @@ bool DrFusion::PublishTopic() {
 
 bool DrFusion::Extract02InsNode(
     const hozon::localization::HafNodeInfo& origin_node, InsNode* const node) {
-  if (!node) {
+  if (node == nullptr) {
     return false;
   }
 
@@ -192,7 +189,7 @@ bool DrFusion::Extract02InsNode(
   return true;
 }
 
-int DrFusion::DrFusionState() {
+int DrFusion::DrFusionState() const {
   if (!use_dr_ && !use_ins_fusion_) {
     return -1;
   }
@@ -205,7 +202,7 @@ int DrFusion::DrFusionState() {
 bool DrFusion::DrNode2DrFusionNode(
     const hozon::dead_reckoning::DeadReckoning& origin_node,
     hozon::localization::HafNodeInfo* const node) {
-  if (!node) {
+  if (node == nullptr) {
     return false;
   }
   node->mutable_header()->set_seq(origin_node.header().seq());
@@ -243,9 +240,10 @@ bool DrFusion::DrNode2DrFusionNode(
       origin_node.pose().pose_local().euler_angle().y());
   node->mutable_attitude()->set_z(
       origin_node.pose().pose_local().euler_angle().z());
-  // dr 是逆时针（0-360），fc是顺时针（-180~180），局部坐标系是以y轴为0度，顺时针。
+  // dr是逆时针（0-360），fc是顺时针（-180~180)
+  // 局部坐标系是以y轴为0度，顺时针。
   auto heading = 360 - origin_node.pose().pose_local().heading();
-  heading = heading > 180.0 ? heading - 360.0 : heading;
+  heading = heading > 180.0F ? heading - 360.0F : heading;
   while (heading < -180) {
     heading += 360;
   }

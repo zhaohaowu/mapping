@@ -6,8 +6,8 @@
  ******************************************************************************/
 
 #include "modules/location/coord_adapter/lib/coord_adapter.h"
-
 #include <yaml-cpp/yaml.h>
+
 #include <boost/filesystem.hpp>
 
 #include "modules/location/common/data_verify.h"
@@ -73,10 +73,10 @@ HafNodeInfo CoordAdapter::GetSysInitDrFusion() const {
   Eigen::AngleAxisd pitch(dr.attitude().y(), Eigen::Vector3d::UnitY());
   Eigen::AngleAxisd yaw(dr.attitude().z(), Eigen::Vector3d::UnitZ());
   Eigen::Quaterniond quat = yaw * roll * pitch;
-  dr.mutable_quaternion()->set_x(quat.x());
-  dr.mutable_quaternion()->set_y(quat.y());
-  dr.mutable_quaternion()->set_z(quat.z());
-  dr.mutable_quaternion()->set_w(quat.w());
+  dr.mutable_quaternion()->set_x(static_cast<float>(quat.x()));
+  dr.mutable_quaternion()->set_y(static_cast<float>(quat.y()));
+  dr.mutable_quaternion()->set_z(static_cast<float>(quat.z()));
+  dr.mutable_quaternion()->set_w(static_cast<float>(quat.w()));
 
   dr.mutable_linear_velocity()->set_x(init_dr_node_.velocity(0));
   dr.mutable_linear_velocity()->set_y(init_dr_node_.velocity(1));
@@ -127,16 +127,16 @@ bool CoordAdapter::LoadParams(const std::string& configfile) {
 }
 
 bool CoordAdapter::ConvertDrNode(const HafNodeInfo& msg, Node* const node) {
-  if (!node) {
+  if (node == nullptr) {
     return false;
   }
 
   Eigen::Quaterniond q(msg.quaternion().w(), msg.quaternion().x(),
                        msg.quaternion().y(), msg.quaternion().z());
   if (q.norm() < 1e-10) {
-    HLOG_WARN << "HafNodeInfo quaternion(w,x,y,z) (" << msg.quaternion().w() << ","
-              << msg.quaternion().x() << "," << msg.quaternion().y() << ","
-              << msg.quaternion().z() << ") error";
+    HLOG_WARN << "HafNodeInfo quaternion(w,x,y,z) (" << msg.quaternion().w()
+              << "," << msg.quaternion().x() << "," << msg.quaternion().y()
+              << "," << msg.quaternion().z() << ") error";
     return false;
   }
   node->ticktime = msg.header().gnss_stamp();
@@ -152,23 +152,23 @@ bool CoordAdapter::IsInterpolable(const Node& n1, const Node& n2,
                                   double time_tol) {
   const double dis_delta = (n1.enu - n2.enu).norm();
   const double ang_delta = (Sophus::SO3d::exp(n1.orientation).inverse() *
-                            Sophus::SO3d::exp(n2.orientation)).log().norm();
+                            Sophus::SO3d::exp(n2.orientation))
+                               .log()
+                               .norm();
   const double time_delta = fabs(n2.ticktime - n1.ticktime);
-  if (dis_delta >= dis_tol || ang_delta >= ang_tol || time_delta >= time_tol) {
-    return false;
-  }
-  return true;
+  return (dis_delta < dis_tol && ang_delta < ang_tol && time_delta < time_tol);
 }
 
 bool CoordAdapter::Interpolate(double ticktime,
                                const std::deque<std::shared_ptr<Node>>& d,
                                Node* const node, double dis_tol, double ang_tol,
                                double time_tol) {
-  if (!node) {
+  if (node == nullptr) {
     return false;
   }
   int i = 0;
-  for (; i < d.size(); ++i) {
+  const int dlen = static_cast<int>(d.size());
+  for (; i < dlen; ++i) {
     if (fabs(d[i]->ticktime - ticktime) < 1e-3) {
       *node = *(d[i]);
       return true;
@@ -177,7 +177,7 @@ bool CoordAdapter::Interpolate(double ticktime,
       break;
     }
   }
-  if (i == 0 || i == d.size()) {
+  if (i == 0 || i == dlen) {
     return false;
   }
 
@@ -189,8 +189,8 @@ bool CoordAdapter::Interpolate(double ticktime,
   Sophus::SE3d p2 = Node2SE3(d[i]);
   Sophus::SE3d delta = p1.inverse() * p2;
 
-  double ratio = (ticktime - d[i - 1]->ticktime) /
-      (d[i]->ticktime - d[i - 1]->ticktime);
+  double ratio =
+      (ticktime - d[i - 1]->ticktime) / (d[i]->ticktime - d[i - 1]->ticktime);
   if (std::isnan(ratio) || std::isinf(ratio)) {
     return false;
   }
@@ -206,7 +206,7 @@ bool CoordAdapter::Interpolate(double ticktime,
 }
 
 Sophus::SE3d CoordAdapter::Node2SE3(const Node& node) {
-  return Sophus::SE3d(Sophus::SO3d::exp(node.orientation), node.enu);
+  return {Sophus::SO3d::exp(node.orientation), node.enu};
 }
 
 Sophus::SE3d CoordAdapter::Node2SE3(const std::shared_ptr<Node>& node) {

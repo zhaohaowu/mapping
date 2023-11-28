@@ -40,8 +40,8 @@ class FusionCenter {
   void OnDR(const HafNodeInfo& dr);
   void OnInitDR(const HafNodeInfo& initdr);
   void OnPoseEstimate(const HafNodeInfo& pe);
-  void SetEhpCounter(uint32_t counter);
-  uint32_t GetEhpCounter() const;
+  void SetEhpCounter(int32_t counter);
+  int32_t GetEhpCounter() const;
   void SetCoordInitTimestamp(double t);
   bool GetCurrentOutput(Localization* const location);
 
@@ -51,7 +51,7 @@ class FusionCenter {
   void ShrinkQueue(T* const deque, uint32_t maxsize);
   bool ExtractBasicInfo(const HafNodeInfo& msg, Node* const node);
   void SetRefpoint(const Eigen::Vector3d& blh);
-  const Eigen::Vector3d Refpoint();
+  Eigen::Vector3d Refpoint();
   void Node2Localization(const Context& ctx, Localization* const location);
   void RunFusion();
   bool PoseInit();
@@ -60,22 +60,22 @@ class FusionCenter {
   Node State2Node(const State& state);
   void InsertESKFFusionNode(const Node& node);
   void RunESKFFusion();
-  bool AllowInsMeas(int sys_status, int rtk_status);
+  bool AllowInsMeas(uint32_t sys_status, uint32_t rtk_status);
   bool InsertESKFMeasDR();  // 用于插入DR相对测量值
   bool PredictMMMeas();     // 当无MM测量时，用INS递推MM
   void PruneDeques();
-  bool AllowInit(int sys_status, int rtk_status);
+  bool AllowInit(uint32_t sys_status, uint32_t rtk_status);
   bool GetCurrentContext(Context* const ctx);
-  bool IsInterpolable(const std::shared_ptr<Node>& n1,
-                      const std::shared_ptr<Node>& n2,
-                      const std::string& src = "", double dis_tol = 5.0,
-                      double ang_tol = 0.3, double time_tol = 0.5);
-  bool Interpolate(double ticktime, const std::deque<std::shared_ptr<Node>>& d,
-                   Node* const node, const std::string& src = "",
-                   double dis_tol = 5.0, double ang_tol = 0.3,
-                   double time_tol = 0.5);
-  Sophus::SE3d Node2SE3(const Node& node);
-  Sophus::SE3d Node2SE3(const std::shared_ptr<Node>& node);
+  static bool IsInterpolable(const std::shared_ptr<Node>& n1,
+                             const std::shared_ptr<Node>& n2,
+                             double dis_tol = 5.0, double ang_tol = 0.3,
+                             double time_tol = 0.5);
+  static bool Interpolate(double ticktime,
+                          const std::deque<std::shared_ptr<Node>>& d,
+                          Node* const node, double dis_tol = 5.0,
+                          double ang_tol = 0.3, double time_tol = 0.5);
+  static Sophus::SE3d Node2SE3(const Node& node);
+  static Sophus::SE3d Node2SE3(const std::shared_ptr<Node>& node);
   void KalmanFiltering(Node* const node);
 
   template <typename T>
@@ -91,8 +91,8 @@ class FusionCenter {
 
  private:
   Params params_;
-  uint32_t seq_ = 0;
-  uint32_t ehp_counter_ = 0;
+  int32_t seq_ = 0;
+  int32_t ehp_counter_ = 0;
   double coord_init_timestamp_ = -1;
   HafNodeInfo init_raw_dr_;
   Node init_dr_node_;

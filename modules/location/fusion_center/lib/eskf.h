@@ -23,11 +23,11 @@ struct State {
   StateType type = StateType::UNINIT;
   NodeType meas_type = NodeType::NONE;
 
-  Eigen::Vector3d p = p.setZero();
-  Eigen::Vector3d v = v.setZero();
-  Eigen::Vector3d ori = ori.setZero();  // 旋转向量（非欧拉角）
-  Eigen::Vector3d b_g = b_g.setZero();
-  Eigen::Vector3d b_a = b_a.setZero();
+  Eigen::Vector3d p = Eigen::Vector3d::Zero();
+  Eigen::Vector3d v = Eigen::Vector3d::Zero();
+  Eigen::Vector3d ori = Eigen::Vector3d::Zero();  // 旋转向量（非欧拉角）
+  Eigen::Vector3d b_g = Eigen::Vector3d::Zero();
+  Eigen::Vector3d b_a = Eigen::Vector3d::Zero();
   Eigen::Quaterniond q;  // 四元数
   Sophus::SO3<double> R;
 
@@ -81,7 +81,7 @@ class ESKF {
   bool Init(const std::string &configfile);
   bool Predict(const Node &cur_pre_data);
   void Correct(const Node &cur_meas_data);
-  void StateInit(const std::shared_ptr<Node> node);
+  void StateInit(const std::shared_ptr<Node>& node);
   State GetState() { return X_; }
 
  private:
@@ -94,18 +94,18 @@ class ESKF {
   using Mat3T = Eigen::Matrix<double, 3, 3>;
   using Vec6d = Eigen::Matrix<double, 6, 1>;
   using SO3 = Sophus::SO3d;
-  Mat15T P_ = P_.setZero();
-  Mat15T Fx_ = Fx_.setZero();
-  Mat15T Q_ = Q_.setZero();  // Q = Fi*Qi*Fi
+  Mat15T P_;
+  Mat15T Fx_;
+  Mat15T Q_;  // Q = Fi*Qi*Fi
   /// K = P*H'*inv(H*P*H'+R)
-  Eigen::Matrix<double, 15, 6> K_ = K_.setZero();
-  Eigen::Matrix<double, 6, 15> H_ = H_.setZero();
-  Mat6T R_ins_ = R_ins_.setZero();
-  Mat6T R_ins2_ = R_ins2_.setZero();
-  Mat6T R_mm_ = R_mm_.setZero();
+  Eigen::Matrix<double, 15, 6> K_;
+  Eigen::Matrix<double, 6, 15> H_;
+  Mat6T R_ins_;
+  Mat6T R_ins2_;
+  Mat6T R_mm_;
   // Mat6T R_dr_ = R_dr_.setZero();
   /// X_dx = K*(y-h(X))
-  Eigen::Matrix<double, 15, 1> X_dx_ = X_dx_.setZero();
+  Eigen::Matrix<double, 15, 1> X_dx_;
   /// X = X + X_dx
   State X_;
   /// 噪声与零偏

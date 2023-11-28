@@ -15,7 +15,7 @@ namespace loc {
 namespace ca {
 
 struct Params {
-  double dr_deque_capacity = 100.0;
+  uint32_t dr_deque_capacity = 100.0;
 };
 
 struct Node {

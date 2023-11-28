@@ -164,16 +164,16 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   ShrinkQueue(&pe_deque_, params_.pe_deque_max_size);
 }
 
-void FusionCenter::SetEhpCounter(uint32_t counter) { ehp_counter_ = counter; }
+void FusionCenter::SetEhpCounter(int32_t counter) { ehp_counter_ = counter; }
 
-uint32_t FusionCenter::GetEhpCounter() const { return ehp_counter_; }
+int32_t FusionCenter::GetEhpCounter() const { return ehp_counter_; }
 
 void FusionCenter::SetCoordInitTimestamp(double t) {
   coord_init_timestamp_ = t;
 }
 
 bool FusionCenter::GetCurrentOutput(Localization* const location) {
-  if (!location) {
+  if (location == nullptr) {
     return false;
   }
 
@@ -188,7 +188,7 @@ bool FusionCenter::GetCurrentOutput(Localization* const location) {
 }
 
 bool FusionCenter::GetCurrentContext(Context* const ctx) {
-  if (!ctx || ins_deque_.empty() || dr_deque_.empty()) {
+  if (ctx == nullptr || ins_deque_.empty() || dr_deque_.empty()) {
     return false;
   }
 
@@ -248,10 +248,9 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
   params_.ins_init_status.clear();
   const auto& init_status_node = node["ins_init_status"];
   for (const auto& init_status : init_status_node) {
-    uint32_t sys_status = init_status["sys_status"].as<uint32_t>();
-    uint32_t gps_status = init_status["gps_status"].as<uint32_t>();
-    params_.ins_init_status.emplace_back(
-        std::make_pair(sys_status, gps_status));
+    const auto sys_status = init_status["sys_status"].as<uint32_t>();
+    const auto gps_status = init_status["gps_status"].as<uint32_t>();
+    params_.ins_init_status.emplace_back(sys_status, gps_status);
   }
   return true;
 }
@@ -267,7 +266,7 @@ void FusionCenter::ShrinkQueue(T* const deque, uint32_t maxsize) {
 }
 
 bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
-  if (!node) {
+  if (node == nullptr) {
     return false;
   }
 
@@ -406,7 +405,7 @@ void FusionCenter::SetRefpoint(const Eigen::Vector3d& blh) {
   refpoint_ = blh;
 }
 
-const Eigen::Vector3d FusionCenter::Refpoint() {
+Eigen::Vector3d FusionCenter::Refpoint() {
   std::unique_lock<std::mutex> lock(refpoint_mutex_);
   return refpoint_;
 }
@@ -423,7 +422,7 @@ double ConvertHeading(double heading) {
 
 void FusionCenter::Node2Localization(const Context& ctx,
                                      Localization* const location) {
-  if (!location) {
+  if (location == nullptr) {
     return;
   }
 
@@ -450,17 +449,24 @@ void FusionCenter::Node2Localization(const Context& ctx,
   location->set_rtk_status(global_node.rtk_status);
   location->set_location_state(global_node.location_state);
 
-  location->mutable_mounting_error()->set_x(ins.mounting_error().x());
-  location->mutable_mounting_error()->set_y(ins.mounting_error().y());
-  location->mutable_mounting_error()->set_z(ins.mounting_error().z());
+  location->mutable_mounting_error()->set_x(
+      static_cast<float>(ins.mounting_error().x()));
+  location->mutable_mounting_error()->set_y(
+      static_cast<float>(ins.mounting_error().y()));
+  location->mutable_mounting_error()->set_z(
+      static_cast<float>(ins.mounting_error().z()));
 
   auto* const pose = location->mutable_pose();
 
   const Sophus::SO3d& rot = Sophus::SO3d::exp(global_node.orientation);
-  pose->mutable_quaternion()->set_w(rot.unit_quaternion().w());
-  pose->mutable_quaternion()->set_x(rot.unit_quaternion().x());
-  pose->mutable_quaternion()->set_y(rot.unit_quaternion().y());
-  pose->mutable_quaternion()->set_z(rot.unit_quaternion().z());
+  pose->mutable_quaternion()->set_w(
+      static_cast<float>(rot.unit_quaternion().w()));
+  pose->mutable_quaternion()->set_x(
+      static_cast<float>(rot.unit_quaternion().x()));
+  pose->mutable_quaternion()->set_y(
+      static_cast<float>(rot.unit_quaternion().y()));
+  pose->mutable_quaternion()->set_z(
+      static_cast<float>(rot.unit_quaternion().z()));
 
   Eigen::Vector3d euler = Rot2Euler312(rot.matrix());
   euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
@@ -479,7 +485,7 @@ void FusionCenter::Node2Localization(const Context& ctx,
   if (heading < 0.0) {
     heading += 360.0;
   }
-  pose->set_heading(heading);
+  pose->set_heading(static_cast<float>(heading));
 
   Eigen::Vector3d vehicle_vel = rot.inverse() * global_node.velocity;
   pose->mutable_linear_velocity_vrf()->set_x(vehicle_vel.x());
@@ -565,8 +571,12 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose->mutable_euler_angles_local()->set_z(euler_local.z());
 
   Eigen::Matrix<float, 6, 1> diag;
-  diag << ins.sd_position().x(), ins.sd_position().y(), ins.sd_position().z(),
-      ins.sd_attitude().x(), ins.sd_attitude().y(), ins.sd_attitude().z();
+  diag << static_cast<float>(ins.sd_position().x()),
+          static_cast<float>(ins.sd_position().y()),
+          static_cast<float>(ins.sd_position().z()),
+          static_cast<float>(ins.sd_attitude().x()),
+          static_cast<float>(ins.sd_attitude().y()),
+          static_cast<float>(ins.sd_attitude().z());
   Eigen::Matrix<float, 6, 6, Eigen::RowMajor> sd = diag.asDiagonal();
   Eigen::Matrix<float, 6, 6, Eigen::RowMajor> cov = sd * sd;
 
@@ -578,9 +588,9 @@ void FusionCenter::Node2Localization(const Context& ctx,
 
 bool FusionCenter::IsInterpolable(const std::shared_ptr<Node>& n1,
                                   const std::shared_ptr<Node>& n2,
-                                  const std::string& src, double dis_tol,
-                                  double ang_tol, double time_tol) {
-  if (!n1 || !n2) {
+                                  double dis_tol, double ang_tol,
+                                  double time_tol) {
+  if (n1 == nullptr || n2 == nullptr) {
     return false;
   }
 
@@ -590,44 +600,19 @@ bool FusionCenter::IsInterpolable(const std::shared_ptr<Node>& n1,
                                .log()
                                .norm();
   const double time_delta = fabs(n2->ticktime - n1->ticktime);
-  if (dis_delta < dis_tol && ang_delta < ang_tol && time_delta < time_tol) {
-    return true;
-  }
-
-  HLOG_INFO << "src: " << src << ", not interpolatable";
-  if (dis_delta >= dis_tol) {
-    HLOG_INFO << "big distance: " << dis_delta;
-    HLOG_INFO << "n1->enu: " << n1->enu(0) << "," << n1->enu(1) << ","
-              << n1->enu(2);
-    HLOG_INFO << "n2->enu: " << n2->enu(0) << "," << n2->enu(2) << ","
-              << n2->enu(3);
-  }
-  if (ang_delta >= ang_tol) {
-    HLOG_INFO << "big angle: " << ang_delta;
-    HLOG_INFO << "n1->orientation: " << n1->orientation(0) << ","
-              << n1->orientation(1) << "," << n1->orientation(2);
-    HLOG_INFO << "n2->orientation: " << n2->orientation(0) << ","
-              << n2->orientation(1) << "," << n2->orientation(2);
-  }
-  if (time_delta >= time_tol) {
-    HLOG_INFO << "big time: " << time_delta;
-    HLOG_INFO << "n1->ticktime: " << n1->ticktime;
-    HLOG_INFO << "n2->ticktime: " << n2->ticktime;
-  }
-
-  return false;
+  return (dis_delta < dis_tol && ang_delta < ang_tol && time_delta < time_tol);
 }
 
 bool FusionCenter::Interpolate(double ticktime,
                                const std::deque<std::shared_ptr<Node>>& d,
-                               Node* const node, const std::string& src,
-                               double dis_tol, double ang_tol,
+                               Node* const node, double dis_tol, double ang_tol,
                                double time_tol) {
-  if (!node) {
+  if (node == nullptr) {
     return false;
   }
   int i = 0;
-  for (; i < d.size(); ++i) {
+  const int dlen = static_cast<int>(d.size());
+  for (; i < dlen; ++i) {
     if (fabs(d[i]->ticktime - ticktime) < 1e-3) {
       *node = *(d[i]);
       return true;
@@ -636,11 +621,11 @@ bool FusionCenter::Interpolate(double ticktime,
       break;
     }
   }
-  if (i == 0 || i == d.size()) {
+  if (i == 0 || i == dlen) {
     return false;
   }
 
-  if (!IsInterpolable(d[i - 1], d[i], src, dis_tol, ang_tol, time_tol)) {
+  if (!IsInterpolable(d[i - 1], d[i], dis_tol, ang_tol, time_tol)) {
     return false;
   }
 
@@ -680,21 +665,22 @@ bool FusionCenter::PoseInit() {
         return true;
       }
     }
-  } else {
-    fusion_deque_mutex_.lock();
-    double latest_fc_ticktime = fusion_deque_.back()->ticktime;
-    fusion_deque_mutex_.unlock();
-    fusion_deque_.clear();
+    return false;
+  }
 
-    std::unique_lock<std::mutex> lock(ins_deque_mutex_);
-    for (auto iter = ins_deque_.rbegin(); iter != ins_deque_.rend(); ++iter) {
-      if (AllowInit((*iter)->sys_status, (*iter)->rtk_status) &&
-          (*iter)->ticktime > latest_fc_ticktime) {
-        (*iter)->enu = hmu::Geo::BlhToEnu((*iter)->blh, (*iter)->refpoint);
-        InsertESKFFusionNode(**iter);
-        init_ins_ = true;
-        return true;
-      }
+  fusion_deque_mutex_.lock();
+  double latest_fc_ticktime = fusion_deque_.back()->ticktime;
+  fusion_deque_mutex_.unlock();
+  fusion_deque_.clear();
+
+  std::unique_lock<std::mutex> lock(ins_deque_mutex_);
+  for (auto iter = ins_deque_.rbegin(); iter != ins_deque_.rend(); ++iter) {
+    if (AllowInit((*iter)->sys_status, (*iter)->rtk_status) &&
+        (*iter)->ticktime > latest_fc_ticktime) {
+      (*iter)->enu = hmu::Geo::BlhToEnu((*iter)->blh, (*iter)->refpoint);
+      InsertESKFFusionNode(**iter);
+      init_ins_ = true;
+      return true;
     }
   }
 
@@ -938,7 +924,7 @@ Node FusionCenter::State2Node(const State& state) {
   return node;
 }
 
-bool FusionCenter::AllowInsMeas(int sys_status, int rtk_status) {
+bool FusionCenter::AllowInsMeas(uint32_t sys_status, uint32_t rtk_status) {
   if ((sys_status == 2 && (rtk_status == 4 || rtk_status == 5)) ||
       (sys_status == 3 && rtk_status == 3)) {
     return true;
@@ -946,7 +932,7 @@ bool FusionCenter::AllowInsMeas(int sys_status, int rtk_status) {
   return false;
 }
 
-bool FusionCenter::AllowInit(int sys_status, int rtk_status) {
+bool FusionCenter::AllowInit(uint32_t sys_status, uint32_t rtk_status) {
   for (const auto& status : params_.ins_init_status) {
     if (sys_status == status.first && rtk_status == status.second) {
       return true;
@@ -1085,7 +1071,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
   Node ni;
   {
     std::lock_guard<std::mutex> lock(ins_deque_mutex_);
-    if (!Interpolate(refer_node.ticktime, ins_deque_, &ni, "ctx_ins_ni")) {
+    if (!Interpolate(refer_node.ticktime, ins_deque_, &ni)) {
       HLOG_ERROR << "interpolate ins output failed";
       return false;
     }

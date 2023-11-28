@@ -43,14 +43,16 @@ class CoordAdapter {
 
  private:
   bool LoadParams(const std::string& configfile);
-  bool ConvertDrNode(const HafNodeInfo& msg, Node* const node);
-  bool IsInterpolable(const Node& n1, const Node& n2, double dis_tol = 5.0,
-                      double ang_tol = 0.3, double time_tol = 0.5);
-  bool Interpolate(double ticktime, const std::deque<std::shared_ptr<Node>>& d,
-                   Node* const node, double dis_tol = 5.0, double ang_tol = 0.3,
-                   double time_tol = 0.5);
-  Sophus::SE3d Node2SE3(const Node& node);
-  Sophus::SE3d Node2SE3(const std::shared_ptr<Node>& node);
+  static bool ConvertDrNode(const HafNodeInfo& msg, Node* const node);
+  static bool IsInterpolable(const Node& n1, const Node& n2,
+                             double dis_tol = 5.0, double ang_tol = 0.3,
+                             double time_tol = 0.5);
+  static bool Interpolate(double ticktime,
+                          const std::deque<std::shared_ptr<Node>>& d,
+                          Node* const node, double dis_tol = 5.0,
+                          double ang_tol = 0.3, double time_tol = 0.5);
+  static Sophus::SE3d Node2SE3(const Node& node);
+  static Sophus::SE3d Node2SE3(const std::shared_ptr<Node>& node);
 
  private:
   Params params_;

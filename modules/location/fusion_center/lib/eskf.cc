@@ -99,7 +99,7 @@ bool ESKF::Init(const std::string& configfile) {
   return true;
 }
 
-void ESKF::StateInit(const std::shared_ptr<Node> node) {
+void ESKF::StateInit(const std::shared_ptr<Node>& node) {
   X_.ticktime = node->ticktime;
   X_.type = StateType::INIT;
   X_.meas_type = NodeType::NONE;
@@ -166,13 +166,11 @@ void ESKF::Correct(const Node& cur_meas_data) {
   // 1.通过测量传感器来源选择H,R,MeasType
   X_.type = StateType::UPDATE;
   X_.meas_type = cur_meas_data.type;
-  Mat6T R = R.setZero();
+  Mat6T R;
+  R.setZero();
   switch (cur_meas_data.type) {
     case NodeType::INS:
       R = R_ins_;
-      break;
-    case NodeType::POSE_ESTIMATE:
-      R = R_mm_;
       break;
     default:
       R = R_mm_;
@@ -184,7 +182,8 @@ void ESKF::Correct(const Node& cur_meas_data) {
   H_.template block<3, 3>(3, 6) = Eigen::Matrix3d::Identity();  // q部分
 
   // 3.计算y_diff(观测-nominal)(INS需要更新速度、位姿，MM更新位姿即可)(c此处需要进行if判断)
-  Vec6d y_diff = y_diff.setZero();
+  Vec6d y_diff;
+  y_diff.setZero();
   SO3 meas_rot = SO3::exp(cur_meas_data.orientation);
   SO3 X_rot = SO3::exp(X_.ori);
   y_diff.template block<3, 1>(0, 0) = cur_meas_data.enu - X_.p;

@@ -176,17 +176,10 @@ void DataBoard::Adsfi2Proto(
                            imuinsDataPtr_->header.gnssStamp.nsec * 1e-9;
   imu_proto->mutable_header()->set_publish_stamp(tick);
   imu_proto->mutable_header()->set_gnss_stamp(gnssstamp);
+  imu_proto->mutable_header()->mutable_sensor_stamp()->set_imuins_stamp(gnssstamp);
+  imu_proto->mutable_header()->set_data_stamp(gnssstamp);
   imu_proto->mutable_header()->set_frame_id(imuinsDataPtr_->header.frameID);
   // imu
-  // std::cout << "time: " << std::setprecision(16) << tick
-  //           << " angx: " << imuinsDataPtr_->imu_info.angularVelocity.x << " y
-  //           "
-  //           << imuinsDataPtr_->imu_info.angularVelocity.y << " z "
-  //           << imuinsDataPtr_->imu_info.angularVelocity.z << " accx "
-  //           << imuinsDataPtr_->imu_info.linearAcceleration.x << " y "
-  //           << imuinsDataPtr_->imu_info.linearAcceleration.y << " z "
-  //           << imuinsDataPtr_->imu_info.linearAcceleration.z << std::endl;
-
   imu_proto->mutable_imu_info()->mutable_angular_velocity()->set_x(
       imuinsDataPtr_->imu_info.angularVelocity.x);
   imu_proto->mutable_imu_info()->mutable_angular_velocity()->set_y(
@@ -194,6 +187,7 @@ void DataBoard::Adsfi2Proto(
   imu_proto->mutable_imu_info()->mutable_angular_velocity()->set_z(
       imuinsDataPtr_->imu_info.angularVelocity.z);
 
+  // 单位: g
   imu_proto->mutable_imu_info()->mutable_linear_acceleration()->set_x(
       imuinsDataPtr_->imu_info.linearAcceleration.x);
   imu_proto->mutable_imu_info()->mutable_linear_acceleration()->set_y(
@@ -266,6 +260,8 @@ void DataBoard::Adsfi2Proto(
                            chassisDataPtr_->header.gnssStamp.nsec * 1e-9;
   chassis_proto->mutable_header()->set_publish_stamp(tick);
   chassis_proto->mutable_header()->set_gnss_stamp(gnssstamp);
+  chassis_proto->mutable_header()->set_data_stamp(gnssstamp);
+  chassis_proto->mutable_header()->mutable_sensor_stamp()->set_chassis_stamp(gnssstamp);
   // 档位
   auto gear_pos = chassisDataPtr_->vcu_info.VCU_ActGearPosition;
   switch (gear_pos) {

@@ -58,9 +58,6 @@ class OdometryBase {
     wheel_param_.kr_ = 0.04459;
     wheel_param_.kl_ = 0.04459;
     wheel_param_.b_ = 1.78;
-    // HLOG_DEBUG << "wheel param:" << wheel_param_.kr_ << "," <<
-    // wheel_param_.kl_
-    //            << "," << wheel_param_.b_;
   }
   virtual ~OdometryBase() {}
   virtual bool update() = 0;

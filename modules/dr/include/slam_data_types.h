@@ -35,9 +35,13 @@ struct WheelOdometry {
 };
 
 struct OdometryData {
+  double imu_stamp;
+  double chassis_stamp;
   OdometryData() = default;
 
   double timestamp;
+  int chassis_seq;
+  int imu_seq;
   // double pub_time;
   // hozon::perception::base::Pose odometry;
   WheelOdometry odometry;
@@ -59,6 +63,7 @@ struct WheelDataHozon {
   WheelDataHozon() = default;
   double timestamp;
   double recv_time;
+  int seq;
   // 脉冲数
   double front_left_wheel;
   double front_right_wheel;
@@ -83,6 +88,7 @@ struct WheelDataHozon {
 struct ImuDataHozon {
   double timestamp;
   double recv_time;
+  int seq;
   Eigen::Vector3d acc_measurement;  // g
   Eigen::Vector3d gyr_measurement;  // Angular velocity in degree/s.
 

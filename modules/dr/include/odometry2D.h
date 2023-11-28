@@ -15,6 +15,7 @@
 
 #include "depend/perception-base/base/utils/log.h"
 #include "modules/dr/include/odometry_base.h"
+#include "proto/soc/chassis.pb.h"
 
 namespace hozon {
 namespace mp {
@@ -89,19 +90,19 @@ class Odometry2D : public OdometryBase {
 
  private:
   int mode_;
-  Eigen::Vector3d pos_;
-  Eigen::Vector3d vel_;
-  Eigen::Vector3d acc_bias_;
-  Eigen::Quaterniond qat_;
-  Eigen::Vector3d gyro_bias_;
+  Eigen::Vector3d pos_;        // 位置
+  Eigen::Vector3d vel_;        // 速度
+  Eigen::Vector3d acc_bias_;   // 加速度偏置
+  Eigen::Quaterniond qat_;     // 四元素
+  Eigen::Vector3d gyro_bias_;  // 角速度偏置
 
-  Eigen::Vector3d gravity_;
-  bool is_car_standstill_;
-  unsigned int car_standstill_counter_;
-  Eigen::Vector3d car_standstill_omg_sum_;
+  Eigen::Vector3d gravity_;              // 重力加速度
+  bool is_car_standstill_;               // 车辆是否静止
+  unsigned int car_standstill_counter_;  // 车辆静止的数量
+  Eigen::Vector3d car_standstill_omg_sum_;  // 车辆静止过程中，角速度的和
 
-  Eigen::Vector3d w_by_gyro_;
-  Eigen::Vector3d acc_by_gyro_;
+  Eigen::Vector3d w_by_gyro_;    // 角速度
+  Eigen::Vector3d acc_by_gyro_;  // 加速度
   double w_by_wheel_;
   double acc_by_wheel_;
   std::deque<std::pair<double, double>> wheel_vel_buffer_;

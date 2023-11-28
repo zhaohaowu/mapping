@@ -43,7 +43,7 @@ class DeadReckoning : public OnboardLite {
         "receive_imu_chassis",
         std::bind(&DeadReckoning::data_receive, this, std::placeholders::_1));
 
-    // HLOG_INFO << "AlgInit successfully ";
+    HLOG_INFO << "DR: AlgInit successfully ";
     return 0;
   }
 
@@ -73,19 +73,14 @@ int32_t DeadReckoning::dr_process(Bundle* input) {
   Bundle bundle;
   bundle.Add("dr", workflow1);
   SendOutput(&bundle);
-  // HLOG_INFO << "==== init ==== ------------------detect send odom-2-3
-  // success.------------";
   return 0;
 }
 
 // recieve in-process data and interprocess data
 int32_t DeadReckoning::data_receive(Bundle* input) {
-  // HLOG_INFO << "==== init ==== ------------------=====.------------";
-
   BaseDataTypePtr ptr_rec_imu = input->GetOne("imu_ins");
   if (!ptr_rec_imu) {
-    // HLOG_INFO << "detect alg process fun2 call\n";
-    // HLOG_ERROR << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!imu null!!!!!!!!!!!!.";
+    HLOG_ERROR << "DR: receive imu data is null";
     return -1;
   }
 
@@ -97,8 +92,7 @@ int32_t DeadReckoning::data_receive(Bundle* input) {
   ////////////////////////////////////////////////////////////////////
   BaseDataTypePtr ptr_rec_chassis = input->GetOne("chassis");
   if (!ptr_rec_chassis) {
-    // HLOG_INFO << "detect alg process fun2 call\n";
-    // HLOG_ERROR << "!!!!!!!!!!!!!!!!!!!!Chassis null !!!!!!!!!!!!.";
+    HLOG_ERROR << "DR: receive chassis is null";
     return -1;
   }
 

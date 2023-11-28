@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <memory>
 #include <string>
+#include <iomanip>
 
 #include "base/utils/log.h"
 #include "modules/dr/include/odometry2D.h"
@@ -17,6 +18,7 @@
 #include "proto/dead_reckoning/dr.pb.h"
 #include "proto/soc/chassis.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
+#include "proto/common/header.pb.h"
 
 namespace hozon {
 namespace mp {

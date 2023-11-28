@@ -26,8 +26,11 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
                               const WheelDataHozon& cur) {
   // std::cout << "process wheel time:" << cur.timestamp << std::endl;
   // 静止状态不更新
-  if (cur.rear_left_dir == 2 || cur.rear_right_dir == 2) {
-      std::cout << "error wheel direction " << std::endl;
+  if (cur.rear_left_dir == hozon::soc::WheelSpeed_WheelSpeedType::
+                               WheelSpeed_WheelSpeedType_STANDSTILL ||
+      cur.rear_right_dir == hozon::soc::WheelSpeed_WheelSpeedType::
+                                WheelSpeed_WheelSpeedType_STANDSTILL) {
+    std::cout << "error wheel direction " << std::endl;
     return false;
   }
   // double begin_wl_1 = last.front_left_wheel;
@@ -71,8 +74,10 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   double delta_yaw = (right_diff - left_diff) / wheel_param_.b_;
   double delta_dist = (right_dist + left_dist) * 0.5;
   double delta_t = (cur.timestamp - last.timestamp);
-  // std::cout  << "wheel dist: " << delta_dist << " time: " << delta_t
-  //           << std::endl; // <<std::setprecision(16)
+
+  if (delta_t == 0) {
+    return false;
+  }
   v_by_wheel_ = delta_dist / delta_t;
   w_by_wheel_ = delta_yaw / delta_t;
 
@@ -88,7 +93,9 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
     total_w += i;
   }
   double avg_w = 0.0;
-  avg_w = total_w / static_cast<double>(wheel_w.size());
+  if (wheel_w.size() != 0) {
+    avg_w = total_w / wheel_w.size();
+  }
 
   Eigen::Quaterniond delta_qat;
   Eigen::AngleAxisd rollAngle(Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX()));
@@ -105,6 +112,9 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   qat_ = qat_.normalized();
 
   OdometryData cur_odom_data;
+
+  cur_odom_data.chassis_stamp = cur.timestamp;
+  cur_odom_data.imu_stamp = 0.0;
   cur_odom_data.timestamp = cur.timestamp;
   // cur_odom_data.odometry.position << pos_[0], pos_[1], pos_[2];
 
@@ -126,7 +136,10 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   for (auto i : wheel_vel) {
     total_vel += i;
   }
-  double avg_vel = total_vel / static_cast<double>(wheel_vel.size());
+  double avg_vel = 0.0;
+  if (wheel_vel.size() != 0) {
+    avg_vel = total_vel / wheel_vel.size();
+  }
 
   /////////////////////////////////////
   static std::deque<double> wheel_vel2 = {};
@@ -141,8 +154,9 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   for (auto i : wheel_vel2) {
     total_vel2 += i;
   }
-
-  avg_vel2 = total_vel2 / static_cast<double>(wheel_vel2.size());
+  if (wheel_vel2.size() != 0) {
+    avg_vel2 = total_vel2 / wheel_vel2.size();
+  }
 
   // Eigen::Vector3d eg_wheel = {v_by_wheel_, 0, 0};
   // cur_odom_data.loc_vel = filter_vel(eg_wheel);
@@ -158,6 +172,9 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
 
   cur_odom_data.loc_vel = {avg_vel, 0, 0};
   cur_odom_data.loc_omg = {0, 0, avg_w};
+  if (delta_t == 0) {
+    return false;
+  }
   double acc_x = (avg_vel2 - last_avg_vel) / delta_t;
 
   /////////////////////////////////////
@@ -188,7 +205,7 @@ bool WheelOdom::process_wheel(const WheelDataHozon& last,
   //           << cur.rear_right_speed << " ,avg2," << avg_vel2 << " ,acc,"
   //           << avg_acc << ",yaw," << delta_yaw << ",avg yaw," << avg_w;
 
-  AddOdomData(cur_odom_data/*, delta_dist*/);
+  AddOdomData(cur_odom_data /*, delta_dist*/);
 
   double yaw = 2 * atan2(qat_.z(), qat_.w());
   if (yaw > M_PI) {

@@ -30,8 +30,8 @@ double OdometryBase::filter_cnt(double cnt) {
   static double Qk = 0.01;  // 预测得误差
   static double Rk = 0.25;  // 观测得误差
 
-  static double xk = 0;     // 第一次预测值
-  static double pk = 1;     // 预测得方差
+  static double xk = 0;  // 第一次预测值
+  static double pk = 1;  // 预测得方差
 
   double xk_pre = xk;       // 假设匀速运动
   double pk_pre = pk + Qk;  //
@@ -48,7 +48,7 @@ Eigen::Vector3d OdometryBase::filter_vel(const Eigen::Vector3d& cur_vel) {
   static Eigen::Matrix3d Qk =
       Eigen::Matrix3d::Identity() * 0.001;  // 0.01,0.001,0.01,0.001
   static Eigen::Matrix3d Rk =
-      Eigen::Matrix3d::Identity() * 0.1;    // 0.1,0.05,0.5,0.1
+      Eigen::Matrix3d::Identity() * 0.1;  // 0.1,0.05,0.5,0.1
 
   static Eigen::Vector3d xk = {0, 0, 0};
   static Eigen::Matrix3d pk = Eigen::Matrix3d::Identity();
@@ -144,6 +144,7 @@ int OdometryBase::get_imu_data_size() {
   DRReadLockGuard lock(imu_rw_lock_);
   return static_cast<int>(imu_datas_.size());
 }
+
 int OdometryBase::get_wheel_data_size() {
   DRReadLockGuard lock(wheel_rw_lock_);
   return static_cast<int>(wheel_datas_.size());
@@ -211,8 +212,9 @@ bool OdometryBase::GetOdomByTimestamp(double time, WheelOdometry& odometry) {
     return x.timestamp < y.timestamp;
   };
 
-  auto iter_next = std::lower_bound(odom_datas_.begin(), odom_datas_.end(),
-                                    OdometryData({time, WheelOdometry()}), cmp);
+  auto iter_next =
+      std::lower_bound(odom_datas_.begin(), odom_datas_.end(),
+                       OdometryData({0, 0, time, 0, 0, WheelOdometry()}), cmp);
 
   if (iter_next == odom_datas_.end() || iter_next == odom_datas_.begin()) {
     return false;
@@ -311,12 +313,14 @@ bool OdometryBase::InterpolatePose(double time, OdometryData& odom_data) {
     odom_data.loc_omg = ref_omg;
     return true;
   }
+  
   // interpolate
   auto cmp = [](const OdometryData& x, const OdometryData& y) -> bool {
     return x.timestamp < y.timestamp;
   };
-  auto iter_next = std::lower_bound(odom_datas_.begin(), odom_datas_.end(),
-                                    OdometryData({time, WheelOdometry()}), cmp);
+  auto iter_next =
+      std::lower_bound(odom_datas_.begin(), odom_datas_.end(),
+                       OdometryData({0, 0, time, 0, 0, WheelOdometry()}), cmp);
 
   if (iter_next == odom_datas_.end() || iter_next == odom_datas_.begin()) {
     // std::cout << "maybe odom delay,not find" << std::endl;

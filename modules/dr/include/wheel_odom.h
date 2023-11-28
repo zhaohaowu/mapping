@@ -13,6 +13,7 @@
 
 #include "depend/perception-base/base/utils/log.h"
 #include "modules/dr/include/odometry_base.h"
+#include "proto/soc/chassis.pb.h"
 
 namespace hozon {
 namespace mp {

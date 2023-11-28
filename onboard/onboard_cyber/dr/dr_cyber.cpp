@@ -64,9 +64,6 @@ void DeadReckoningComponent::DeadReckoningPublish() {
         std::make_shared<hozon::dead_reckoning::DeadReckoning>();
     if (dr_->SetLocation(result) && result_talker_ != nullptr) {
       result_talker_->Write(result);
-    } else {
-      usleep(9 * 1e3);
-      continue;
     }
     usleep(9 * 1e3);
   }

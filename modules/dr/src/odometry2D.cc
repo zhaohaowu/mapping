@@ -44,7 +44,6 @@ bool Odometry2D::update() {
     double wheel_time_dt =
         oldest_wheels[1].timestamp - oldest_wheels[0].timestamp;
     double wheel_time = oldest_wheels[1].timestamp;
-    //  std::cout << "wheel time:" << wheel_time << std::endl;
 
     Eigen::Vector3d pos_pre = pos_;
     Eigen::Quaterniond qat_pre = qat_;
@@ -59,7 +58,7 @@ bool Odometry2D::update() {
         imu_acc_buffer_.push_back(itr->acc_measurement);
         car_standstill_omg_sum_ += itr->gyr_measurement;
         // 更新静态零偏
-        if (car_standstill_counter_ >= 50) {  // FLAGS_car_standstill_counter
+        if (car_standstill_counter_ >= 200) {  // FLAGS_car_standstill_counter
           EstimatedRollPitch();
           imu_acc_buffer_.clear();
           Eigen::Vector3d gyro_tmp =
@@ -81,9 +80,6 @@ bool Odometry2D::update() {
       // imu_cnt++;
       UpdateOrientationByIMU(*itr_pre, *itr);
 
-      // HLOG_INFO << "==== init ==== qat ===update !! " << qat_.x() << " "
-      //           << qat_.y() << "  " << qat_.z() << " " << qat_.w();
-
       // state prediction
       Eigen::Vector3d dx = Eigen::Vector3d::Zero();
       Eigen::Vector3d acc_measurement = {itr->acc_measurement[0],
@@ -101,8 +97,8 @@ bool Odometry2D::update() {
                          (wheel_vel_buffer_.back().first -
                           (wheel_vel_buffer_.end() - 2)->first);
         if (itr->acc_measurement(0) >= 0) {
-          acc_by_wheel_ =
-              std::abs(cur_acc);  // 0.6 * cur_acc + 0.4 * acc_by_wheel_;
+          // 0.6 * cur_acc + 0.4 * acc_by_wheel_;
+          acc_by_wheel_ = std::abs(cur_acc);
         } else {
           acc_by_wheel_ = -std::abs(cur_acc);
         }
@@ -174,6 +170,8 @@ bool Odometry2D::update() {
     Eigen::Vector3d pos_veh = pos_ - qat_veh * extrinsic_T_;
     // Eigen::Vector3d vel_veh = extrinsic_Q_.conjugate() * vel_;
 
+    cur_odom_data.chassis_stamp = wheel_time;
+    cur_odom_data.imu_stamp = imu_datas.back().timestamp;
     cur_odom_data.timestamp = wheel_time;
 
     // cur_odom_data.odometry.position << pos_[0], pos_[1], pos_[2];
@@ -191,6 +189,7 @@ bool Odometry2D::update() {
     cur_odom_data.loc_omg = w_by_gyro_;
     cur_odom_data.loc_acc = acc_by_gyro_;
     cur_odom_data.gear = oldest_wheels[1].gear;
+    cur_odom_data.chassis_seq = oldest_wheels[1].seq;
 
     // 把ins 数据加入(只加最新的)
     auto imu_itr = imu_datas.end() - 1;
@@ -198,13 +197,10 @@ bool Odometry2D::update() {
     cur_odom_data.longitude = imu_itr->longitude;
     cur_odom_data.attitude = imu_itr->attitude;
     cur_odom_data.gpsStatus = imu_itr->gpsStatus;
+    cur_odom_data.imu_seq = imu_itr->seq;
 
     AddOdomData(cur_odom_data /*, delta_dis*/);
     last_local_vel = local_vel;
-
-    // HLOG_INFO << "==== init ===="
-    //           << " local_vel; " << local_vel(0) << " acc:" <<
-    //           acc_by_gyro_(0);
   }
   return update_cnt > 0;
 }
@@ -296,12 +292,23 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
   }
 
   double left_dist = left_diff * wheel_param_.kl_;
-  if (cur.rear_left_dir == 1) {
+  /*
+    GEAR_NEUTRAL = 0;
+    GEAR_DRIVE = 1;
+    GEAR_REVERSE = 2;
+    GEAR_PARKING = 3;
+    GEAR_LOW = 4;
+    GEAR_INVALID = 5;
+    GEAR_NONE = 6;
+  */
+  if (cur.rear_left_dir == hozon::soc::WheelSpeed_WheelSpeedType::
+                               WheelSpeed_WheelSpeedType_BACKWARD) {
     left_dist *= -1.0;
     //    std::cout << "left back direction" << std::endl;
   }
   double right_dist = right_diff * wheel_param_.kr_;
-  if (cur.rear_right_dir == 1) {
+  if (cur.rear_right_dir == hozon::soc::WheelSpeed_WheelSpeedType::
+                                WheelSpeed_WheelSpeedType_BACKWARD) {
     right_dist *= -1.0;
     // std::cout << "right back direction" << std::endl;
   }

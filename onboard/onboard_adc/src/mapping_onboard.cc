@@ -31,6 +31,11 @@ int32_t MappingAdc::MappingAdc::AlgInit() {
   }
   lmap_ = std::make_unique<lm::LMapApp>(FLAGS_lm_config);
   dr_ = std::make_unique<dr::DRInterface>();
+  if (dr_ == nullptr) {
+    HLOG_ERROR << "make dr ptr failed.";
+    return -1;
+  }
+  
   loc_ = std::make_unique<loc::Localization>();
   if (!loc_->Init()) {
     return -1;
@@ -49,7 +54,6 @@ int32_t MappingAdc::MappingAdc::AlgInit() {
 }
 
 int32_t MappingAdc::ChassisImuCallBack(hz_Adsfi::NodeBundle* input) {
-  HLOG_ERROR << "----imu callback";
   std::shared_ptr<hz_Adsfi::AlgImuIns> imuinsDataPtr_ =
       std::static_pointer_cast<hz_Adsfi::AlgImuIns>(input->GetOne("imu"));
   if (imuinsDataPtr_ == nullptr) {

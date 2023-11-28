@@ -6,6 +6,7 @@
 #include "modules/dr/include/dr.h"
 
 #include <ctime>
+#include <thread>
 
 namespace hozon {
 namespace mp {
@@ -15,12 +16,8 @@ DRInterface::DRInterface() { dr_estimator_ = std::make_shared<Odometry2D>(); }
 
 bool DRInterface::SetLocation(
     std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr) {
-  /**********cmp pose************/
   dr_estimator_->update();
-  //   HLOG_INFO << "------------1---------";
 
-  /**********send pose************/
-  // TODO(ZXL) 只有Chassis 得时候, 这个变量不修改
   if (dr_estimator_->initialized_) {
     OdometryData latest_odom = dr_estimator_->get_latest_odom_data();
 
@@ -33,6 +30,9 @@ bool DRInterface::SetLocation(
     //   frame->loc_omg = latest_odom.loc_omg * 57.3;
     SetLocationData(std::move(locationDataPtr), latest_odom, eulerAngle);
     return true;
+  } else {
+    // HLOG_WARN << "DR: is not init";
+    return false;
   }
   return false;
 }
@@ -74,17 +74,7 @@ void DRInterface::SetInsData2Location(
       ->mutable_euler_angle()
       ->set_y(odom_data.attitude[1]);
 
-  //   locationDataPtr->pose.poseLOCAL.eulerAngle.x = ins_data_.attitude[0];
-  //   locationDataPtr->pose.poseLOCAL.eulerAngle.y = ins_data_.attitude[1];
-
   // 原始的线性加速度
-  // locationDataPtr->acceleration.linearVRF.linearRawVRF.x =
-  //     imu_data.linearAcceleration[0];
-  // locationDataPtr->acceleration.linearVRF.linearRawVRF.y =
-  //     imu_data.linearAcceleration[1];
-  // locationDataPtr->acceleration.linearVRF.linearRawVRF.z =
-  //     imu_data.linearAcceleration[2];
-
   //   locationDataPtr->mutable_acceleration()
   //       ->mutable_linear_vrf()
   //       ->mutable_linear_raw_vrf()
@@ -102,22 +92,16 @@ void DRInterface::SetInsData2Location(
   //   locationDataPtr->mutable_velocity()->mutable_twist_vrf()->mutable_angular_raw_vrf()->set_x(odom_data.augularVelocity[0]);
   //   locationDataPtr->mutable_velocity()->mutable_twist_vrf()->mutable_angular_raw_vrf()->set_y(odom_data.augularVelocity[1]);
   //   locationDataPtr->mutable_velocity()->mutable_twist_vrf()->mutable_angular_raw_vrf()->set_z(odom_data.augularVelocity[2]);
-
-  //   locationDataPtr->velocity.twistVRF.angularVRF.x =
-  //       ins_data_.augularVelocity[0];
-  //   locationDataPtr->velocity.twistVRF.angularVRF.y =
-  //       ins_data_.augularVelocity[1];
-  //   locationDataPtr->velocity.twistVRF.angularVRF.z =
-  //       ins_data_.augularVelocity[2];
 }
 
 void DRInterface::SetLocationData(
     std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
     OdometryData& latest_odom, Eigen::Vector3d& eulerAngle) {
   if (locationDataPtr == nullptr) {
-    // HLOG_ERROR << " send localization input frame is nullptr";
+    // HLOG_ERROR << "DR: send localization input frame is nullptr";
     return;
   }
+
   // 位置
   locationDataPtr->mutable_pose()
       ->mutable_pose_local()
@@ -132,7 +116,7 @@ void DRInterface::SetLocationData(
       ->mutable_position()
       ->set_z(0.0);
 
-  // 四元数角度
+  //   // 四元数角度
   locationDataPtr->mutable_pose()
       ->mutable_pose_local()
       ->mutable_quaternion()
@@ -157,12 +141,9 @@ void DRInterface::SetLocationData(
       ->mutable_euler_angle()
       ->set_z(eulerAngle[2]);
 
+  // heading
   locationDataPtr->mutable_pose()->mutable_pose_local()->set_heading(
       static_cast<float>(eulerAngle[2]));
-
-  //   HLOG_INFO << "==== init ===="
-  //             << " output---vel " << latest_odom.loc_vel[1] << " acc  "
-  //             << latest_odom.loc_acc[0] << " qx " << latest_odom.odometry.qx;
 
   // 速度
   locationDataPtr->mutable_velocity()
@@ -220,68 +201,42 @@ void DRInterface::SetLocationData(
       ->mutable_linear_raw_vrf()
       ->set_z(static_cast<float>(latest_odom.loc_acc[2] / 9.80645));
 
-  // locationDataPtr->mutable_acceleration()
-  //     ->mutable_linear_vrf()
-  //     ->mutable_angular_vrf()
-  //     ->set_x(0);
-  // locationDataPtr->mutable_acceleration()
-  //     ->mutable_linear_vrf()
-  //     ->mutable_angular_vrf()
-  //     ->set_y(0);
-  // locationDataPtr->mutable_acceleration()
-  //     ->mutable_linear_vrf()
-  //     ->mutable_angular_vrf()
-  //     ->set_z(0);
+  locationDataPtr->mutable_acceleration()
+      ->mutable_linear_vrf()
+      ->mutable_angular_vrf()
+      ->set_x(0);
+  locationDataPtr->mutable_acceleration()
+      ->mutable_linear_vrf()
+      ->mutable_angular_vrf()
+      ->set_y(0);
+  locationDataPtr->mutable_acceleration()
+      ->mutable_linear_vrf()
+      ->mutable_angular_vrf()
+      ->set_z(0);
 
+  // static int32_t count_ = 0;
+  locationDataPtr->mutable_header()->set_seq(latest_odom.chassis_seq);
+
+  // std::cout << std::setprecision(15) << "dr imu  " << " seq "<< latest_odom.chassis_seq<< "  "<<locationDataPtr->mutable_header()->seq()
+  //           << std::endl;
+  // ++count_;
   locationDataPtr->mutable_header()->set_gnss_stamp(latest_odom.timestamp);
+  locationDataPtr->mutable_header()->set_data_stamp(latest_odom.timestamp);
+
+
+  locationDataPtr->mutable_header()->mutable_sensor_stamp()->set_chassis_stamp(
+      latest_odom.chassis_stamp);
+  locationDataPtr->mutable_header()->mutable_sensor_stamp()->set_imuins_stamp(
+      latest_odom.imu_stamp);
 
   double sys_timestamp = GetCurrentNsecTime();
+  locationDataPtr->mutable_header()->set_publish_stamp(sys_timestamp * 1e-9);
 
   locationDataPtr->mutable_header()->set_frame_id("HZ_DR");
-  static int32_t count_ = 0;
-  locationDataPtr->mutable_header()->set_seq(count_);
-  count_++;
-  locationDataPtr->mutable_header()->set_publish_stamp(sys_timestamp);
-  //   locationDataPtr->set_location_state(21);
 
-  //   locationDataPtr->set_is_valid(true);
-  //   locationDataPtr->set_coord_type(
-  //       hozon::perception::datacollection::CoordType::SLAM_COORD);
-
-  //   std::cout
-  //       << "==== init ==== **************************************DR pose: x:
-  //       "
-  //       << locationDataPtr->pose().pose_local().position().x()
-  //       << " ,y: " << locationDataPtr->pose().pose_local().position().y()
-  //       << ",z:" << locationDataPtr->pose().pose_local().position().z()
-  //       << std::endl;
-  //   HLOG_INFO << "==== init ==== DR quat: x: "
-  //             << locationDataPtr->pose().pose_local().quaternion().x()
-  //             << " ,y: " <<
-  //             locationDataPtr->pose().pose_local().quaternion().y()
-  //             << ",z:" <<
-  //             locationDataPtr->pose().pose_local().quaternion().z()
-  //             << ",w:" <<
-  //             locationDataPtr->pose().pose_local().quaternion().w()
-  //             << " ";
-  //   HLOG_INFO << "==== init ====  DR vel: x: "
-  //             << locationDataPtr->velocity().twist_vrf().linear_vrf().x()
-  //             << ",y: "
-  //             << locationDataPtr->velocity().twist_vrf().linear_vrf().y()
-  //             << ",z:" <<
-  //             locationDataPtr->velocity().twist_vrf().linear_vrf().z()
-  //             << " ";
-
-  //   HLOG_INFO << "==== init ====  DR acc: x: "
-  //             <<
-  //             locationDataPtr->acceleration().linear_vrf().linear_raw_vrf().x()
-  //             << ",y: "
-  //             <<
-  //             locationDataPtr->acceleration().linear_vrf().linear_raw_vrf().y()
-  //             << ",z:"
-  //             <<
-  //             locationDataPtr->acceleration().linear_vrf().linear_raw_vrf().z()
-  //             << " ";
+  // std::cout << std::setprecision(15) << "dr imu datastamp*** ---111 : "
+  //           << locationDataPtr->mutable_header()->data_stamp() << " seq "<< latest_odom.chassis_seq<< "  "<<locationDataPtr->mutable_header()->seq()
+  //           << std::endl;
 }
 
 void DRInterface::AddImuData(
@@ -301,15 +256,17 @@ void DRInterface::AddChassisData(
 void DRInterface::ConvertImuData(
     const std::shared_ptr<const hozon::soc::ImuIns>& imu_proto,
     ImuDataHozon& imu_data) {
-  if (imu_proto == nullptr) {
-    HLOG_ERROR << "Parking_SLAM: no imu data !";
-    // fm_.ReportFault(LOC_IMU_DATA_ERROR);
+  if (!imu_proto) {
+    HLOG_ERROR << "DR: no imu data !";
     return;
   }
 
-  imu_data.recv_time = imu_proto->header().gnss_stamp();
-  imu_data.timestamp = imu_proto->header().publish_stamp();
-  //   imu_proto->header.timestamp.sec + imu_proto->header.timestamp.nsec / 1e9;
+  // imu_data.timestamp = imu_proto->header().data_stamp();
+  imu_data.timestamp = imu_proto->header().sensor_stamp().imuins_stamp();
+  // imu_data.seq = 
+  // std::cout << std::setprecision(15) << "Imu datastamp: " << imu_data.timestamp
+  //           << std::endl;
+  // HLOG_ERROR << "Imu datastamp: " << imu_data.timestamp;
 
   imu_data.gyr_measurement = Eigen::Vector3d(
       imu_proto->imu_info().angular_velocity().x() * M_PI / 180.0,
@@ -346,33 +303,25 @@ void DRInterface::ConvertImuData(
   imu_data.mounting_error << imu_proto->ins_info().mounting_error().x(),
       imu_proto->ins_info().mounting_error().y(),
       imu_proto->ins_info().mounting_error().z();
-
-  //   HLOG_INFO << "==imu data: " << imu_data.gpsStatus
-  //             << " ,latitude: " << imu_data.latitude
-  //             << ", longitude:" << imu_data.longitude << " ";
 }
 
 void DRInterface::ConvertChassisData(
     const std::shared_ptr<const hozon::soc::Chassis>& chassis_proto,
     WheelDataHozon& wheel_data) {
   if (!chassis_proto) {
-    // fm_.ReportFault(LOC_IMU_DATA_ERROR);
+    HLOG_ERROR << "DR: no chassis data !";
     return;
   }
-  double temp_timestamp = chassis_proto->header().gnss_stamp();
-  //   wheel_data.recv_time = temp_timestamp;
-
-  //   temp_timestamp = chassis_proto->header().publish_stamp();
-  wheel_data.timestamp = temp_timestamp;
+  // wheel_data.timestamp = chassis_proto->header().data_stamp();
+  wheel_data.timestamp = chassis_proto->header().sensor_stamp().chassis_stamp();
+  wheel_data.seq = chassis_proto->header().seq();
 
   // 左前轮脉冲计数
   wheel_data.front_left_wheel =
       chassis_proto->wheel_counter().wheel_counter_fl();
-  // chassis_proto->wheel_info.ESC_FL_WhlPulCnt;
   // 左前轮方向(0,1,2,3:静止,前进,后退,未知)
   wheel_data.front_left_dir =
       static_cast<int>(chassis_proto->wheel_speed().wheel_direction_fl());
-  // chassis_proto->wheel_info.ESC_FLWheelDirection;
 
   wheel_data.front_right_wheel =
       chassis_proto->wheel_counter().wheel_counter_fr();
@@ -387,7 +336,7 @@ void DRInterface::ConvertChassisData(
       chassis_proto->wheel_counter().wheel_counter_rr();
   wheel_data.rear_right_dir = chassis_proto->wheel_speed().wheel_direction_rr();
   // 后左轮速度(km/h)
-  if (wheel_data.rear_left_dir == 1) {
+  if (wheel_data.rear_left_dir == hozon::soc::WheelSpeed_WheelSpeedType::WheelSpeed_WheelSpeedType_BACKWARD) {
     wheel_data.rear_left_speed = -chassis_proto->wheel_speed().wheel_spd_rl();
     // -chassis_proto->wheel_info.ESC_RLWheelSpeed;
     wheel_data.rear_right_speed = -chassis_proto->wheel_speed().wheel_spd_rr();

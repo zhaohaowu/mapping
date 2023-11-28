@@ -135,7 +135,7 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
 }
 
 void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
-  if (!inspva.is_valid() || !config_.use_inspva) {
+  if (!config_.use_inspva) {
     return;
   }
   inspva_node_is_valid_ = true;
@@ -313,9 +313,9 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
     node_info->add_covariance(0.);
   }
   if (config_.use_fixed_quat) {
-    node_info->mutable_quaternion()->set_x(1.0);
-    node_info->mutable_quaternion()->set_y(1.0);
-    node_info->mutable_quaternion()->set_z(1.0);
+    node_info->mutable_quaternion()->set_x(0.0);
+    node_info->mutable_quaternion()->set_y(0.0);
+    node_info->mutable_quaternion()->set_z(0.0);
     node_info->mutable_quaternion()->set_w(1.0);
   } else {
     // 弧度 roll pitch yaw

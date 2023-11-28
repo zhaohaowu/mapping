@@ -14,12 +14,14 @@
 #include <string>
 
 #include "modules/location/fusion_center/lib/fusion_center.h"
+#include "modules/location/coord_adapter/lib/coord_adapter.h"
 
 namespace hozon {
 namespace perception {
 namespace common_onboard {
 
 using hozon::mp::loc::fc::FusionCenter;
+using hozon::mp::loc::ca::CoordAdapter;
 
 class FusionCenterLite : public OnboardLite {
  public:
@@ -34,9 +36,14 @@ class FusionCenterLite : public OnboardLite {
   void RegistMessageType() const;
   void RegistProcessFunc();
   int32_t OnInsFusion(Bundle* input);
+  int32_t OnDrFusion(Bundle* input);
+  int32_t OnLocalMap(Bundle* input);
+  int32_t OnPoseEstimation(Bundle* input);
 
  private:
   std::unique_ptr<FusionCenter> fusion_center_ = nullptr;
+  std::unique_ptr<CoordAdapter> coord_adapter_ = nullptr;
+  bool init_dr_ = false;
 };
 
 REGISTER_EXECUTOR_CLASS(FusionCenterLite, FusionCenterLite);

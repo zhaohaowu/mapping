@@ -30,7 +30,7 @@
 
 --v=2
 #map fusion
---map_service_mode=1
+--map_service_mode=0
 
 --channel_ins_node_info=/PluginNodeInfo
 

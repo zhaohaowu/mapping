@@ -53,11 +53,12 @@ void DrFusion::OnInsFusion(
   if (!ins_fusion_node.is_valid()) {
     return;
   }
-  std::unique_lock<std::mutex> lock(ins_fusion_mutex_);
-  if (ins_fusion_node.header().seq() <=
-      latest_ins_fusion_node_.header().seq()) {
-    return;
-  }
+  // std::unique_lock<std::mutex> lock(ins_fusion_mutex_);
+  // seq not used on orin
+  // if (ins_fusion_node.header().seq() <=
+  //     latest_ins_fusion_node_.header().seq()) {
+  //   return;
+  // }
   if (!ref_ins_fusion_node_init_) {
     Eigen::Vector3d blh(ins_fusion_node.pos_gcj02().x(),
                         ins_fusion_node.pos_gcj02().y(),
@@ -72,10 +73,11 @@ void DrFusion::OnInsFusion(
 void DrFusion::OnDr(const hozon::dead_reckoning::DeadReckoning& dr_node) {
   hozon::localization::HafNodeInfo haf_dr_node;
   DrNode2DrFusionNode(dr_node, &haf_dr_node);
-  std::unique_lock<std::mutex> lock(dr_mutex_);
-  if (haf_dr_node.header().seq() <= latest_dr_node_.header().seq()) {
-    return;
-  }
+  // seq not used on orin
+  // std::unique_lock<std::mutex> lock(dr_mutex_);
+  // if (haf_dr_node.header().seq() <= latest_dr_node_.header().seq()) {
+  //   return;
+  // }
   latest_dr_node_ = haf_dr_node;
 }
 
@@ -206,7 +208,7 @@ bool DrFusion::DrNode2DrFusionNode(
     return false;
   }
   node->mutable_header()->set_seq(origin_node.header().seq());
-  node->mutable_header()->set_publish_stamp(origin_node.header().gnss_stamp());
+  node->mutable_header()->set_publish_stamp(origin_node.header().publish_stamp());
   node->mutable_header()->set_gnss_stamp(origin_node.header().gnss_stamp());
   node->mutable_header()->set_frame_id("dr");
   node->set_valid_estimate(true);

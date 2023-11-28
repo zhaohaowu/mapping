@@ -9,6 +9,13 @@ input:
     capacity: 2
   - topic: /location/ins_fusion
     capacity: 2
+  - topic: /location/dr_fusion
+    capacity: 2
+  - topic: /location/pose_estimation
+    capacity: 2
+  - topic: local_map
+    capacity: 2
+
 
 output:
   - topic: localization
@@ -18,4 +25,19 @@ trigger:
     type: EVENT
     mainSources:
       - name: /location/ins_fusion
+        timeout: 100
+  - name: recv_pose_estimation
+    type: EVENT
+    mainSources:
+      - name: /location/pose_estimation
+        timeout: 100
+  - name: recv_dr_fusion
+    type: EVENT
+    mainSources:
+      - name: /location/dr_fusion
+        timeout: 100
+  - name: recv_local_map
+    type: EVENT
+    mainSources:
+      - name: local_map
         timeout: 100

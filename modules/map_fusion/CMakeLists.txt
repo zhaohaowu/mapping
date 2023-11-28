@@ -16,7 +16,11 @@ set(PREDICTION_SRCS
 
 if (${PLATFORM} STREQUAL "orin")
   message(STATUS "currently MapService is not supported under orin")
-  set(MAPSERVICE_SRCS)
+  set(MAPSERVICE_SRCS
+    src/map_service/map_proto_marker.cc
+    src/map_service/map_service.cc
+    src/map_service/global_hd_map.cc
+  )
   set(AMAP_LIBS)
 else ()
   set(MAPSERVICE_SRCS

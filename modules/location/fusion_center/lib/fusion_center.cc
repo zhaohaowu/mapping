@@ -64,9 +64,10 @@ void FusionCenter::OnImu(const ImuIns& imuins) {
   if (!params_.recv_imu) {
     return;
   }
-  if (imuins.header().seq() == prev_imuins_.header().seq()) {
-    return;
-  }
+  // seq not used on orin
+  // if (imuins.header().seq() == prev_imuins_.header().seq()) {
+  //   return;
+  // }
 
   std::unique_lock<std::mutex> lock(imuins_deque_mutex_);
   imuins_deque_.emplace_back(std::make_shared<ImuIns>(imuins));
@@ -79,10 +80,10 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
   if (!params_.recv_ins || !ins.valid_estimate()) {
     return;
   }
-
-  if (ins.header().seq() == prev_raw_ins_.header().seq()) {
-    return;
-  }
+  // seq not used on orin
+  // if (ins.header().seq() == prev_raw_ins_.header().seq()) {
+  //   return;
+  // }
   prev_raw_ins_ = ins;
   curr_raw_ins_ = ins;
 
@@ -112,9 +113,10 @@ void FusionCenter::OnDR(const HafNodeInfo& dr) {
   if (!ref_init_ || !params_.recv_dr || !dr.valid_estimate()) {
     return;
   }
-  if (dr.header().seq() == prev_raw_dr_.header().seq()) {
-    return;
-  }
+  // seq not used on orin
+  // if (dr.header().seq() == prev_raw_dr_.header().seq()) {
+  //   return;
+  // }
   prev_raw_dr_ = dr;
 
   Node node;
@@ -122,7 +124,6 @@ void FusionCenter::OnDR(const HafNodeInfo& dr) {
   if (!ExtractBasicInfo(dr, &node)) {
     return;
   }
-
   std::unique_lock<std::mutex> lock(dr_deque_mutex_);
   dr_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&dr_deque_, params_.dr_deque_max_size);
@@ -135,7 +136,6 @@ void FusionCenter::OnInitDR(const HafNodeInfo& initdr) {
   if (coord_init_timestamp_ > 0) {
     return;
   }
-
   init_raw_dr_ = initdr;
   if (!ExtractBasicInfo(initdr, &init_dr_node_)) {
     HLOG_ERROR << "fc extract init dr info error";
@@ -148,9 +148,10 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   if (!ref_init_ || !params_.recv_pe || !pe.valid_estimate()) {
     return;
   }
-  if (pe.header().seq() == prev_raw_pe_.header().seq()) {
-    return;
-  }
+  // seq not used on orin
+  // if (pe.header().seq() == prev_raw_pe_.header().seq()) {
+  //   return;
+  // }
   prev_raw_pe_ = pe;
 
   Node node;
@@ -176,7 +177,6 @@ bool FusionCenter::GetCurrentOutput(Localization* const location) {
   if (location == nullptr) {
     return false;
   }
-
   Context ctx;
   if (!GetCurrentContext(&ctx)) {
     HLOG_INFO << "get context failed";

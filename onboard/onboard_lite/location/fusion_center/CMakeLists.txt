@@ -17,6 +17,8 @@ target_link_libraries(${MAPPING_ONBOARD_LITE_FC}
   perception-onboard-common
   perception-lib
   location_fusion_center_core
+  location_coord_adapter_core
+  lmap_core
 )
 
 install(

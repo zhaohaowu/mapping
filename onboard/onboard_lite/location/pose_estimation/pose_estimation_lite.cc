@@ -6,7 +6,7 @@
  ******************************************************************************/
 
 #include "onboard/onboard_lite/location/pose_estimation/pose_estimation_lite.h"
-
+#include <perception-lib/lib/environment/environment.h>
 #include <base/utils/log.h>
 #include <gflags/gflags.h>
 
@@ -29,11 +29,17 @@ namespace common_onboard {
 
 constexpr char* const kInsFusionTopic = "/location/ins_fusion";
 // constexpr char* const kFcTopic = "localization";
-constexpr char* const kPerceptionTopic = "/perception/fsd/transportelement_1";
+constexpr char* const kPerceptionTopic = "percep_transport";
 constexpr char* const kPoseEstimationTopic = "/location/pose_estimation";
 int32_t PoseEstimationLite::AlgInit() {
   pose_estimation_ = std::make_unique<MapMatching>();
-  if (!pose_estimation_->Init(FLAGS_config_yaml, FLAGS_config_cam_yaml)) {
+    const std::string adflite_root_path =
+      hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", ".");
+  const std::string config_yaml =
+      adflite_root_path + "/" + FLAGS_config_yaml;
+  const std::string config_cam_yaml =
+      adflite_root_path + "/" + FLAGS_config_cam_yaml;
+  if (!pose_estimation_->Init(config_yaml, config_cam_yaml)) {
     return -1;
   }
 
@@ -120,8 +126,7 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
   if (!input) {
     return -1;
   }
-
-  BaseDataTypePtr p_perception = input->GetOne("kPerceptionTopic");
+  BaseDataTypePtr p_perception = input->GetOne(kPerceptionTopic);
   if (!p_perception) {
     return -1;
   }

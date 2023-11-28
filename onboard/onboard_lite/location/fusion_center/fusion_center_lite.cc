@@ -4,11 +4,11 @@
  *   author     ： lilanxing
  *   date       ： 2023.09
  ******************************************************************************/
-
-#include "onboard/onboard_lite/location/fusion_center/fusion_center_lite.h"
 #include <gflags/gflags.h>
 #include <base/utils/log.h>
 #include <perception-lib/lib/environment/environment.h>
+#include "onboard/onboard_lite/location/fusion_center/fusion_center_lite.h"
+#include "depend/proto/local_mapping/local_map.pb.h"
 
 namespace hozon {
 namespace perception {
@@ -16,6 +16,9 @@ namespace common_onboard {
 
 const char* const kImuTopic = "imu_ins";
 const char* const kInsFusionTopic = "/location/ins_fusion";
+const char* const kDrFusionTopic = "/location/dr_fusion";
+const char* const kPoseEstimationTopic = "/location/pose_estimation";
+const char* const kLocalMapTopic = "local_map";
 const char* const kFcTopic = "localization";
 const char* const kFcConfSuffix = "runtime_service/mapping/conf/mapping/"
                                   "location/fusion_center/fc_config.yaml";
@@ -23,6 +26,8 @@ const char* const kFcKfConfSuffix =
     "runtime_service/mapping/conf/mapping/location/fusion_center/kalman.yaml";
 const char* const kFcEskfConfSuffix =
     "runtime_service/mapping/conf/mapping/location/fusion_center/eskf.yaml";
+const char* const kCoordAdapterConf =
+    "runtime_service/mapping/conf/mapping/location/coord_adapter/config.yaml";
 
 int32_t FusionCenterLite::AlgInit() {
   const std::string adflite_root_path =
@@ -36,7 +41,12 @@ int32_t FusionCenterLite::AlgInit() {
   if (!fusion_center_->Init(fc_config, fc_kf_config, fc_eskf_config)) {
     return -1;
   }
-
+  const std::string coord_adapter_conf =
+      adflite_root_path + "/" + kCoordAdapterConf;
+  coord_adapter_ = std::make_unique<CoordAdapter>();
+  if (!coord_adapter_->Init(coord_adapter_conf)) {
+    return -1;
+  }
   RegistLog();
   RegistMessageType();
   RegistProcessFunc();
@@ -57,6 +67,8 @@ void FusionCenterLite::RegistLog() const {
 void FusionCenterLite::RegistMessageType() const {
   REGISTER_MESSAGE_TYPE(kImuTopic, hozon::soc::ImuIns);
   REGISTER_MESSAGE_TYPE(kInsFusionTopic, hozon::localization::HafNodeInfo);
+  REGISTER_MESSAGE_TYPE(kDrFusionTopic, hozon::localization::HafNodeInfo);
+  REGISTER_MESSAGE_TYPE(kPoseEstimationTopic, hozon::localization::HafNodeInfo);
   REGISTER_MESSAGE_TYPE(kFcTopic, hozon::localization::Localization);
 }
 
@@ -64,6 +76,15 @@ void FusionCenterLite::RegistProcessFunc() {
   RegistAlgProcessFunc(
       "recv_ins_fusion",
       std::bind(&FusionCenterLite::OnInsFusion, this, std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_dr_fusion",
+      std::bind(&FusionCenterLite::OnDrFusion, this, std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_local_map",
+      std::bind(&FusionCenterLite::OnLocalMap, this, std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_pose_estimation",
+      std::bind(&FusionCenterLite::OnPoseEstimation, this, std::placeholders::_1));
 }
 
 int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
@@ -96,7 +117,73 @@ int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
       std::make_shared<hozon::netaos::adf_lite::BaseData>();
   localization_pack->proto_msg = localization;
   SendOutput(kFcTopic, localization_pack);
+  return 0;
+}
 
+int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
+  if (!input) {
+    return -1;
+  }
+  BaseDataTypePtr p_dr_fusion = input->GetOne(kDrFusionTopic);
+  if (!p_dr_fusion) {
+    return -1;
+  }
+  const auto dr_fusion =
+      std::static_pointer_cast<hozon::localization::HafNodeInfo>(
+          p_dr_fusion->proto_msg);
+  if (!dr_fusion) {
+    return -1;
+  }
+  fusion_center_->OnDR(*dr_fusion);
+  coord_adapter_->OnDrFusion(*dr_fusion);
+
+  return 0;
+}
+
+int32_t FusionCenterLite::OnLocalMap(Bundle* input) {
+  if (!input) {
+    return -1;
+  }
+  if (init_dr_) {
+    return 0;
+  }
+  BaseDataTypePtr p_local_map = input->GetOne(kLocalMapTopic);
+  if (!p_local_map) {
+    return -1;
+  }
+  const auto local_map = std::static_pointer_cast<hozon::mapping::LocalMap>(
+      p_local_map->proto_msg);
+  if (!local_map) {
+    return -1;
+  }
+  coord_adapter_->OnLocalMap(*local_map);
+  if (!coord_adapter_->IsCoordInitSucc()) {
+    return -1;
+  }
+  const auto& init_dr = coord_adapter_->GetSysInitDrFusion();
+  fusion_center_->OnInitDR(init_dr);
+  init_dr_ = true;
+
+  return 0;
+}
+
+int32_t FusionCenterLite::OnPoseEstimation(Bundle* input) {
+  if (!input) {
+    return -1;
+  }
+  BaseDataTypePtr p_pose_estimation = input->GetOne(kPoseEstimationTopic);
+  if (!p_pose_estimation) {
+    return -1;
+  }
+
+  const auto pose_estimation =
+      std::static_pointer_cast<hozon::localization::HafNodeInfo>(
+          p_pose_estimation->proto_msg);
+  if (!pose_estimation) {
+    return -1;
+  }
+
+  fusion_center_->OnPoseEstimate(*pose_estimation);
   return 0;
 }
 

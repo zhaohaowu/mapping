@@ -64,13 +64,8 @@ struct Config {
   double gps_5_stdz_thr = 0.0;
 
   unsigned int ins84_deque_max_size = 10;
-  unsigned int monitor_ins_deque_max_size = 10;
+  unsigned int inspva_deque_max_size = 10;
   bool fix_deflection_repeat = false;
-  bool monitor_ins = false;
-  double monitor_ins_sleep_time = 5 * 1000;
-  double monitor_ins_loss_frame_min_time = 0.011;
-  double monitor_ins_loss_frame_max_time = 0.105;
-  double monitor_ins_useless_time = 1.0e6;
 };
 
 struct InsNode {

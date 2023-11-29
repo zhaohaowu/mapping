@@ -23,14 +23,9 @@ gps_5_stdy_thr: 0.20
 gps_5_stdz_thr: 0.30
 
 ins84_deque_max_size: 5
+inspva_deque_max_size: 5
 fix_deflection_repeat: true
-#检测ins是否丢帧
-monitor_ins_useless_time: 100000
-monitor_ins_deque_max_size: 5
-monitor_ins: true
-monitor_ins_sleep_time: 5000
-monitor_ins_loss_frame_min_time: 0.011
-monitor_ins_loss_frame_max_time: 0.105
+
 use_rviz_bridge: false
 use_deflection: true
 use_inspva: false

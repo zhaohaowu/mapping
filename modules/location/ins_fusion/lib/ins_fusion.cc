@@ -25,8 +25,6 @@ namespace hmu = hozon::mp::util;
 const char kNewestInsOdom[] = "/ins/fusion";
 
 InsFusion::~InsFusion() {
-  monitor_ins_proc_run_ = false;
-  monitor_ins_proc_.get();
 }
 
 InsInitStatus InsFusion::Init(const std::string& configfile) {
@@ -42,10 +40,6 @@ InsInitStatus InsFusion::Init(const std::string& configfile) {
       config_.smooth_window_size, config_.smooth_gcj02_enu_east_diff_thr,
       config_.smooth_gcj02_enu_north_diff_thr,
       config_.smooth_gcj02_enu_norm_diff_thr, config_.smooth_momentum);
-  if (config_.monitor_ins) {
-    monitor_ins_proc_ = std::async(&InsFusion::ProcessMonitorIns, this);
-    monitor_ins_proc_run_ = true;
-  }
   if (config_.use_rviz_bridge) {
     int ret = util::RvizAgent::Instance().Register<adsfi_proto::viz::Odometry>(
         kNewestInsOdom);
@@ -95,17 +89,8 @@ void InsFusion::LoadConfigParams(const std::string& configfile) {
       config_parser["ins84_deque_max_size"].as<uint32_t>();
   config_.fix_deflection_repeat =
       config_parser["fix_deflection_repeat"].as<bool>();
-  config_.monitor_ins = config_parser["monitor_ins"].as<bool>();
-  config_.monitor_ins_deque_max_size =
-      config_parser["monitor_ins_deque_max_size"].as<uint32_t>();
-  config_.monitor_ins_sleep_time =
-      config_parser["monitor_ins_sleep_time"].as<double>();
-  config_.monitor_ins_loss_frame_min_time =
-      config_parser["monitor_ins_loss_frame_min_time"].as<double>();
-  config_.monitor_ins_loss_frame_max_time =
-      config_parser["monitor_ins_loss_frame_max_time"].as<double>();
-  config_.monitor_ins_useless_time =
-      config_parser["monitor_ins_useless_time"].as<double>();
+  config_.inspva_deque_max_size =
+      config_parser["inspva_deque_max_size"].as<uint32_t>();
 }
 
 void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
@@ -128,7 +113,6 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
       ins84_deque_.pop_front();
     }
   }
-  ins_state_enum_ = InsStateEnum::NORMAL;
   if (!config_.use_inspva) {
     last_node_ = ins84_node;
   }
@@ -181,7 +165,7 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
       inspva_data.mutable_header()->set_gnss_stamp(curr_node_.ticktime);
     }
     inspva_deque_.emplace_back(inspva_data);
-    while (inspva_deque_.size() > config_.monitor_ins_deque_max_size) {
+    while (inspva_deque_.size() > config_.inspva_deque_max_size) {
       inspva_deque_.pop_front();
     }
     last_timestamp_ = std::chrono::steady_clock::now();
@@ -562,92 +546,6 @@ bool InsFusion::SmoothProc(InsNode* const node) {
   node->blh = hmu::Geo::EnuToBlh(node->enu, node->refpoint);
 
   return true;
-}
-
-void InsFusion::ProcessMonitorIns() {
-  pthread_setname_np(pthread_self(), "loc_monitor_ins");
-  while (monitor_ins_proc_run_) {
-    if (!config_.monitor_ins) {
-      usleep(config_.monitor_ins_useless_time);
-      continue;
-    }
-
-    auto end = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(
-                        end - last_timestamp_)
-                        .count();
-    // 微秒单位
-    auto cost_time = duration * 0.000001;
-    if (cost_time < config_.monitor_ins_loss_frame_min_time) {
-      ins_state_enum_ = InsStateEnum::NORMAL;
-      loss_ins_frame_id_ = 0;
-      usleep(config_.monitor_ins_sleep_time);
-      continue;
-    }
-
-    if (cost_time >= config_.monitor_ins_loss_frame_max_time) {
-      ins_state_enum_ = InsStateEnum::SERIOUSLY;
-      usleep(config_.monitor_ins_sleep_time);
-      continue;
-    }
-
-    auto j =
-        static_cast<int>(cost_time / config_.monitor_ins_loss_frame_max_time);
-    if (j <= 0 || j == loss_ins_frame_id_) {
-      usleep(config_.monitor_ins_sleep_time);
-      continue;
-    }
-
-    ++loss_ins_frame_id_;
-    ins_state_enum_ = InsStateEnum::MILD;
-    if (ins_state_enum_ != InsStateEnum::MILD) {
-      usleep(2 * config_.monitor_ins_sleep_time);
-      continue;
-    }
-
-    auto start = std::chrono::steady_clock::now();
-    std::unique_lock<std::mutex> lock(inspva_deque_mutex_);
-    if (inspva_deque_.empty()) {
-      continue;
-    }
-
-    auto inspva_data = inspva_deque_.back();
-    auto current_inspva_data_ticktime = inspva_data.header().publish_stamp();
-    auto inspva_data_ticktime = current_inspva_data_ticktime + cost_time / j;
-    inspva_data.mutable_header()->set_publish_stamp(inspva_data_ticktime);
-    // 存在风险
-    inspva_data.mutable_header()->set_gnss_stamp(inspva_data_ticktime);
-    Eigen::Vector3d velocity(inspva_data.linear_velocity().x(),
-                             inspva_data.linear_velocity().y(),
-                             inspva_data.linear_velocity().z());
-    auto distance = velocity * cost_time / j;
-    Eigen::Vector3d blh(inspva_data.mutable_pos_wgs()->x(),
-                        inspva_data.mutable_pos_wgs()->y(),
-                        inspva_data.mutable_pos_wgs()->z());
-    auto refpoint = GetRefpoint();
-    auto enu = hmu::Geo::BlhToEnu(blh, refpoint) + distance;
-    blh = hmu::Geo::EnuToBlh(enu, refpoint);
-    inspva_data.mutable_pos_wgs()->set_x(blh[0]);
-    inspva_data.mutable_pos_wgs()->set_y(blh[1]);
-    inspva_data.mutable_pos_wgs()->set_z(blh[2]);
-    inspva_data.mutable_header()->set_seq(inspva_data.mutable_header()->seq() +
-                                          1);
-
-    blh << inspva_data.pos_gcj02().x(), inspva_data.pos_gcj02().y(),
-        inspva_data.pos_gcj02().z();
-    auto enu2 = hmu::Geo::BlhToEnu(blh, refpoint) + distance;
-    blh = hmu::Geo::EnuToBlh(enu2, refpoint);
-    inspva_data.mutable_pos_gcj02()->set_x(blh[0]);
-    inspva_data.mutable_pos_gcj02()->set_y(blh[1]);
-    inspva_data.mutable_pos_gcj02()->set_z(blh[2]);
-    inspva_deque_.emplace_back(inspva_data);
-    end = std::chrono::steady_clock::now();
-    duration =
-        std::chrono::duration_cast<std::chrono::microseconds>(end - start)
-            .count();
-    cost_time = duration * 0.000001;
-    usleep(2 * config_.monitor_ins_sleep_time);
-  }
 }
 
 bool InsFusion::PublishTopic() {

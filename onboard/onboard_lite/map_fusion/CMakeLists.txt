@@ -1,20 +1,21 @@
 set(MAP_FUSION_LITE_SRCS
-  prior_provider_lite.cc
+  map_fusion_lite.cc
+  map_fusion_config_lite.cc
 )
 
-add_mapping_library(mf_lite
+add_mapping_library(onboard_lite_mf
   ${MAP_FUSION_LITE_SRCS}
 )
 
-target_link_libraries(mf_lite
+target_link_libraries(onboard_lite_mf
   mf
   perception-onboard-common
   ${DEPENDS_LIBS}
-  fastrtps
+  # fastrtps
   gflags
 )
 
 install(
-  TARGETS mf_lite
+  TARGETS onboard_lite_mf
   DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
 )

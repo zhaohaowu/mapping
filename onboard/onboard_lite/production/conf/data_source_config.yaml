@@ -42,6 +42,10 @@ dataSourcesOut:
     type: proto_skeleton
     cmTopic: /localization/fusionmap
     cmDomainId: 0
+  - topic: routing_response
+    type: proto_skeleton
+    cmTopic: /localization/routing
+    cmDomainId: 0
   - topic: dr
     type: proto_skeleton
     cmTopic: /localization/deadreckoning

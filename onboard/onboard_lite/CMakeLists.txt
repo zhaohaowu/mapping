@@ -8,7 +8,7 @@ else()
   set(NOS_PLATFORM ${LOCAL_TARGET_PLATFORM})
 endif()
 
-# add_subdirectory(map_fusion)
+add_subdirectory(map_fusion)
 add_subdirectory(dr)
 add_subdirectory(location)
 add_subdirectory(local_mapping)

@@ -1,0 +1,65 @@
+/******************************************************************************
+ *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： map_fusion_lite.h
+ *   author     ： xuliang
+ *   date       ： 2023.11
+ ******************************************************************************/
+#pragma once
+
+#include <adf-lite/include/base.h>
+#include <common_onboard/adapter/onboard_lite/onboard_lite.h>
+
+#include <memory>
+#include <mutex>
+
+#include "modules/map_fusion/include/map_fusion/map_fusion.h"
+
+namespace hozon {
+namespace perception {
+namespace common_onboard {
+
+using hozon::mp::mf::MapFusion;
+
+class MapFusionLite : public OnboardLite {
+ public:
+  MapFusionLite() = default;
+  ~MapFusionLite() = default;
+
+  int32_t AlgInit() override;
+  void AlgRelease() override;
+
+ private:
+  void RegistLog();
+  void RegistMessageType();
+  void RegistProcessFunc();
+
+  int32_t OnLocation(Bundle* input);
+  int32_t OnLocalMap(Bundle* input);
+  int32_t OnLocPlugin(Bundle* input);
+
+  int32_t MapFusionOutput(Bundle* output);
+
+ private:
+  std::shared_ptr<hozon::localization::Localization> GetLatestLoc();
+  std::shared_ptr<hozon::mapping::LocalMap> GetLatestLocalMap();
+  std::shared_ptr<hozon::localization::HafNodeInfo> GetLatestLocPlugin();
+  int SendFusionResult(
+      const std::shared_ptr<hozon::hdmap::Map>& map,
+      const std::shared_ptr<hozon::routing::RoutingResponse>& routing);
+
+ private:
+  std::unique_ptr<MapFusion> mf_ = nullptr;
+
+  std::mutex plugin_mtx_;
+  std::shared_ptr<hozon::localization::HafNodeInfo> curr_plugin_ = nullptr;
+  std::mutex loc_mtx_;
+  std::shared_ptr<hozon::localization::Localization> curr_loc_ = nullptr;
+  std::mutex local_map_mtx_;
+  std::shared_ptr<hozon::mapping::LocalMap> curr_local_map_ = nullptr;
+};
+
+REGISTER_EXECUTOR_CLASS(MapFusionLite, MapFusionLite);
+
+}  // namespace common_onboard
+}  // namespace perception
+}  // namespace hozon

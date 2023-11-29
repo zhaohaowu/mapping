@@ -22,7 +22,6 @@ namespace hozon {
 namespace mp {
 namespace loc {
 
-enum InsStateEnum { NORMAL, MILD, SERIOUSLY };
 
 class InsFusion {
  public:
@@ -35,7 +34,6 @@ class InsFusion {
   bool GetResult(hozon::localization::HafNodeInfo* const node_info);
   void SetRefpoint(const Eigen::Vector3d& blh);
   Eigen::Vector3d GetRefpoint() const;
-  void ProcessMonitorIns();
   bool InsFusionState();
 
  private:
@@ -84,12 +82,9 @@ class InsFusion {
   std::mutex ins84_deque_mutex_;
   std::deque<InsNode> ins84_deque_;
   std::chrono::steady_clock::time_point last_timestamp_;
-  InsStateEnum ins_state_enum_{InsStateEnum::NORMAL};
   unsigned int loss_ins_frame_id_ = 0;
   std::mutex inspva_deque_mutex_;
   std::deque<hozon::localization::HafNodeInfo> inspva_deque_;
-  std::future<void> monitor_ins_proc_;
-  std::atomic<bool> monitor_ins_proc_run_{false};
 };
 
 }  // namespace loc

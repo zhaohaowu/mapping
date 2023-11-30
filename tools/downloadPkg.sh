@@ -12,9 +12,9 @@ if [ ! -d ~/.jfrog ]; then
 fi
 
 # package alias in version.json
-pkgAlias=(ADF NOS third_party CUDA PCPBASE PCPCOMBOARD PCPLIB)
-pkgDependRelDir=(ap-release nos third_party third_party/x86/cuda perception-base/release perception-common-onboard/release perception-lib/release)
-pkgJfrogRelDir=(EP40_MDC_ADF/release ORIN/EP41/NOS/release EP40_MDC_TP/build nvidia/cuda EP40_MDC_PCP/BASE/release EP40_MDC_PCP/COMBOARD/release EP40_MDC_PCP/LIB/release)
+pkgAlias=(ADF NOS third_party CUDA)
+pkgDependRelDir=(ap-release nos third_party third_party/x86/cuda)
+pkgJfrogRelDir=(EP40_MDC_ADF/release ORIN/EP41/NOS/release EP40_MDC_TP/build nvidia/cuda)
 
 for i in $(seq 0 `expr ${#pkgAlias[@]} - 1`); do
     pkg=${pkgAlias[i]}
@@ -39,7 +39,7 @@ with open('version.json','r') as f: print(json.load(f)['${pkg}'])")
       versionfile=$depend/${dependRelDir}/nos_${nos_platform}/version.json
       if [ -f $versionfile ]; then
         verInfo=$(python3 -c "import sys, json;
-with open('$versionfile','r') as f: print(json.load(f)['${nos_key}']['releaseVersion'])")
+with open('$versionfile','r') as f: print(json.load(f)['ORIN']['EP41']['middleWare'])")
       fi
     else
       if [ -f $depend/${dependRelDir}/version.json ]; then

@@ -93,7 +93,7 @@ void LocalMappingOnboard::AlgRelease() {
 }
 
 int32_t LocalMappingOnboard::OnLaneLine(Bundle* input) {
-  HLOG_DEBUG << "receive laneline data...";
+  HLOG_ERROR << "receive laneline data...";
   BaseDataTypePtr laneline_msg = input->GetOne("percep_transport");
   if (!laneline_msg) {
     HLOG_ERROR << "nullptr track lane plugin";
@@ -109,12 +109,12 @@ int32_t LocalMappingOnboard::OnLaneLine(Bundle* input) {
       laneline_msg->proto_msg);
 
   lmap_->OnLaneLine(msg);
-  // HLOG_INFO << "processed laneline data";
+  HLOG_ERROR << "processed laneline data";
   return 0;
 }
 
 int32_t LocalMappingOnboard::OnDr(Bundle* input) {
-  HLOG_DEBUG << "receive dr data...";
+  HLOG_ERROR << "receive dr data...";
   BaseDataTypePtr dr_msg = input->GetOne("dr");
   if (!dr_msg) {
     HLOG_ERROR << "nullptr dr_msg plugin";
@@ -132,10 +132,11 @@ int32_t LocalMappingOnboard::OnDr(Bundle* input) {
       msg->pose().pose_local().quaternion().x() == 0 &&
       msg->pose().pose_local().quaternion().y() == 0 &&
       msg->pose().pose_local().quaternion().z() == 0) {
-    return 0;
+    // HLOG_ERROR << "processed dr false";
+    return false;
   }
   lmap_->OnDr(msg);
-  // HLOG_INFO << "processed dr data";
+  HLOG_ERROR << "processed dr data";
   return 0;
 }
 
@@ -227,7 +228,7 @@ int32_t LocalMappingOnboard::OnImage(Bundle* input) {
 // }
 
 int32_t LocalMappingOnboard::LocalMapPublish(Bundle* /*output*/) {
-  HLOG_DEBUG << "start publish localmap...";
+  HLOG_ERROR << "start publish localmap...";
   std::shared_ptr<hozon::mapping::LocalMap> result =
       std::make_shared<hozon::mapping::LocalMap>();
   if (lmap_->FetchLocalMap(result)) {

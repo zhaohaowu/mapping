@@ -121,7 +121,7 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
   }
   BaseDataTypePtr p_loc = input->GetOne("localization");
   if (!p_loc) {
-    HLOG_ERROR << "nullptr local map message";
+    HLOG_ERROR << "nullptr location message";
     return -1;
   }
   const auto loc_res =
@@ -179,7 +179,7 @@ int32_t MapFusionLite::OnLocPlugin(Bundle* input) {
           p_loc_plugin->proto_msg);
 
   if (!loc_plugin_res) {
-    HLOG_ERROR << "nullptr local map";
+    HLOG_ERROR << "nullptr location plugin";
     return -1;
   }
   {
@@ -230,6 +230,9 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     return -1;
   }
 
+  HLOG_INFO << "xxxxxxxxxxxxxxxx==========================:"
+            << latest_map->lane_size();
+
   ret = SendFusionResult(latest_map, latest_routing);
   if (ret < 0) {
     HLOG_INFO << "SendFusionResult failed";
@@ -278,6 +281,13 @@ int MapFusionLite::SendFusionResult(
     HLOG_ERROR << "input nullptr map or routing";
     return -1;
   }
+
+  // BaseDataTypePtr map_res =
+  //     std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  // map_res->proto_msg = map;
+  // Bundle bundle;
+  // bundle.Add("map_fusion", map_res);
+  // SendOutput(&bundle);
 
   BaseDataTypePtr map_res =
       std::make_shared<hozon::netaos::adf_lite::BaseData>();

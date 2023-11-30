@@ -157,7 +157,7 @@ def mdc_build(workspace, platform, build_directory, release_directory, **kwargs)
 
 def x86_build(workspace, platform, build_directory, release_directory, **kwargs):
     """x86 编译流程"""
-    sp.run('bash tools/downloadPkg.sh x86', shell=1)
+    # sp.run('bash tools/downloadPkg.sh x86', shell=1)
     set_env('PATH', '/usr/bin')
     set_env('CC', '/usr/bin/x86_64-linux-gnu-gcc')
     set_env('CXX', '/usr/bin/x86_64-linux-gnu-g++')

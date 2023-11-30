@@ -40,8 +40,8 @@ namespace mf {
 
 bool MapService::Init() {
 #ifndef ISORIN
-  amap_adapter_.Init();
-  amap_adapter_.SetUUID("LUZHRQASDHNVQCQNIH4CLM5OTA7VQ489");
+  // amap_adapter_.Init();
+  // amap_adapter_.SetUUID("LUZHRQASDHNVQCQNIH4CLM5OTA7VQ489");
 #endif
   routing_ = std::make_shared<hozon::routing::RoutingResponse>();
   auto* global_hd_map = hozon::mp::GlobalHdMap::Instance();

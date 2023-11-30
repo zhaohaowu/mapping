@@ -13,9 +13,9 @@ namespace hozon {
 namespace mp {
 namespace loc {
 
-void MapBoundaryLine::Set(const hozon::common::PointENU &position,
-                          const Eigen::Matrix3d &rotation,
-                          const double &distance, const V3 &ref_point) {
+void MapBoundaryLine::Set(const hozon::common::PointENU& position,
+                          const Eigen::Matrix3d& rotation,
+                          const double& distance, const V3& ref_point) {
   Eigen::Vector3d euler = hozon::mp::loc::RotToEuler312(rotation);
   euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
   double heading = 90.0 - euler.z();
@@ -32,21 +32,24 @@ void MapBoundaryLine::Set(const hozon::common::PointENU &position,
   }
   HLOG_INFO << "lane_ptr_vec.size = " << lane_ptr_vec.size();
   size_t l_count = 0, r_count = 0;
-  for (const auto &lane_ptr : lane_ptr_vec) {
+  for (const auto& lane_ptr : lane_ptr_vec) {
     auto lane = (*lane_ptr).lane();
     if (lane.has_left_boundary()) {
       auto left_lane_boundary = lane.left_boundary();
+      if (left_lane_boundary.id().empty()) {
+        continue;
+      }
       auto left_lane_boundary_id = left_lane_boundary.id(0).id();
       if (boundary_line_.find(left_lane_boundary_id) != boundary_line_.end()) {
         continue;
       }
-      auto &bl = boundary_line_[left_lane_boundary_id];
+      auto& bl = boundary_line_[left_lane_boundary_id];
       bl.id_boundary = left_lane_boundary_id;
       bl.line_type = 0;
       auto left_lane_boundary_curve = left_lane_boundary.curve();
-      for (const auto &curve_segment : left_lane_boundary_curve.segment()) {
+      for (const auto& curve_segment : left_lane_boundary_curve.segment()) {
         auto line_segment = curve_segment.line_segment();
-        for (const auto &p : line_segment.point()) {
+        for (const auto& p : line_segment.point()) {
           double x = p.x();
           double y = p.y();
           int zone = 51;
@@ -67,17 +70,20 @@ void MapBoundaryLine::Set(const hozon::common::PointENU &position,
     }
     if (lane.has_right_boundary()) {
       auto right_lane_boundary = lane.right_boundary();
+      if (right_lane_boundary.id().empty()) {
+        continue;
+      }
       auto right_lane_boundary_id = right_lane_boundary.id(0).id();
       if (boundary_line_.find(right_lane_boundary_id) != boundary_line_.end()) {
         continue;
       }
-      auto &br = boundary_line_[right_lane_boundary_id];
+      auto& br = boundary_line_[right_lane_boundary_id];
       br.id_boundary = right_lane_boundary_id;
       br.line_type = 0;
       auto right_lane_boundary_curve = right_lane_boundary.curve();
-      for (const auto &curve_segment : right_lane_boundary_curve.segment()) {
+      for (const auto& curve_segment : right_lane_boundary_curve.segment()) {
         auto line_segment = curve_segment.line_segment();
-        for (const auto &p : line_segment.point()) {
+        for (const auto& p : line_segment.point()) {
           double x = p.x();
           double y = p.y();
           int zone = 51;
@@ -103,7 +109,7 @@ void MapBoundaryLine::Set(const hozon::common::PointENU &position,
 }
 
 void MapBoundaryLine::Print(
-    const std::unordered_map<std::string, BoundaryLine> &boundarylines) {
+    const std::unordered_map<std::string, BoundaryLine>& boundarylines) {
   HLOG_ERROR << "boundarylines.size = " << boundarylines.size();
   for (auto line : boundarylines) {
     auto id = line.first;
@@ -113,12 +119,12 @@ void MapBoundaryLine::Print(
   }
 }
 
-void MapBoundaryLine::Crop(const SE3 &T_W_V, double front, double width) {
+void MapBoundaryLine::Crop(const SE3& T_W_V, double front, double width) {
   const SE3 T_V_W = T_W_V.inverse();
-  for (auto &line : boundary_line_) {
-    auto &one_line = line.second;
+  for (auto& line : boundary_line_) {
+    auto& one_line = line.second;
     std::vector<ControlPoint> control_points;
-    for (const auto &p : one_line.control_point) {
+    for (const auto& p : one_line.control_point) {
       V3 temp = p.point;
       temp.z() = 0;
       temp = T_V_W * temp;

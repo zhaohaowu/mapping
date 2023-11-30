@@ -29,6 +29,7 @@ include_directories(
     ${THIRDPARTY_ROOT_PATH}/perception-common-onboard/release/x86/include/perception-common-onboard
     ${THIRDPARTY_ROOT_PATH}/perception-base/release/${LOCAL_TARGET_PLATFORM}/include/perception-base
     ${THIRDPARTY_ROOT_PATH}/third_party/x86/fast-dds/include
+    ${THIRDPARTY_ROOT_PATH}/nos/orin/include/fast-dds
 )
 
 link_directories(

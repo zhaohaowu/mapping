@@ -1,16 +1,16 @@
 %YAML:1.0
 orin_viz: true
 #orin_viz_addr: tcp://10.6.73.235:9100
-orin_viz_addr: ///tmp/rviz_agent_mf
+orin_viz_addr: ipc:///tmp/rviz_agent_mf
 
 #map_dir: /opt/usr/hd_map
 map_dir: /data/map/changfeng_park
-use_ehp: true
+use_ehp: false
 use_ehp_odd_to_stop: false
 ehp_monitor: 1
 enable_ehp_routing: false
 using_record_ehp_data: false
 ehp_log_root_dir: /opt/usr/hd_map/ehp_log
-map_service_mode: 1
+map_service_mode: 0
 topo_rviz: true
 viz_odom_map_in_local: false

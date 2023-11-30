@@ -12,7 +12,7 @@
 #include <vector>
 
 // #include "data_types/common/types.h"
-#include "depend/perception-base/base/location/location_struct.h"
+#include "depend/perception-base/base/location/location.h"
 
 namespace hozon {
 namespace mp {
@@ -51,7 +51,7 @@ struct OdometryData {
   int gear = 100;
 
   // ins data
-  int gpsStatus = -1;             // 定位状态
+  int gpsStatus = -1;        // 定位状态
   double latitude;           // 纬度 Unit: deg
   double longitude;          // 经度 Unit: deg
   double altitude;           // 海拔高度 Unit: meter

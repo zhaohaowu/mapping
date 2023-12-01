@@ -18,12 +18,10 @@
 #include "common/util/macros.h"
 #include "common/util/message_util.h"
 #include "common/util/util.h"
-#include "map/hdmap/hdmap.h"
-#ifndef ISORIN
 #include "map/ehr/ehr_factory.h"
+#include "map/hdmap/hdmap.h"
 #include "map_fusion/map_service/ehp/amap_core.h"
 #include "modules/map_fusion/include/map_fusion/map_service/ehp/amap_core.h"
-#endif
 #include "proto/localization/localization.pb.h"
 #include "proto/map/adasisv3.pb.h"
 #include "proto/map/ehp.pb.h"
@@ -57,21 +55,17 @@ class MapService {
   }
 
  private:
-  #ifndef ISORIN
   bool EhpProc(const hozon::localization::HafNodeInfo& ins_msg,
                const hozon::planning::ADCTrajectory& adc_msg,
                const std::shared_ptr<hozon::routing::RoutingResponse>& routing);
-  #endif
   bool BinProc(const hozon::localization::HafNodeInfo& ins_msg,
                const std::shared_ptr<hozon::hdmap::Map>& map);
 
   std::shared_ptr<hozon::routing::RoutingResponse> routing_ = nullptr;
   hozon::common::math::Vec2d last_pose_;
   std::chrono::steady_clock::time_point last_send_time_;
-  #ifndef ISORIN
   std::unique_ptr<hozon::ehr::Ehr> ehr_ = nullptr;
   hozon::mp::mf::AmapAdapter amap_adapter_;
-  #endif
 };
 
 }  // namespace mf

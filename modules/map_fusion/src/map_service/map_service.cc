@@ -11,10 +11,8 @@
 #include <string>
 #include <vector>
 
-#ifndef ISORIN
 #include "amap/GHDMapDefines.h"
 #include "amap/GHDMapService.h"
-#endif
 #include "common/adapters/adapter_gflags.h"
 #include "common/configs/config_gflags.h"
 #include "common/file/file.h"
@@ -39,28 +37,21 @@ namespace mp {
 namespace mf {
 
 bool MapService::Init() {
-#ifndef ISORIN
-  // amap_adapter_.Init();
-  // amap_adapter_.SetUUID("LUZHRQASDHNVQCQNIH4CLM5OTA7VQ489");
-#endif
+  amap_adapter_.Init();
+  amap_adapter_.SetUUID("LUZHRQASDHNVQCQNIH4CLM5OTA7VQ489");
   routing_ = std::make_shared<hozon::routing::RoutingResponse>();
   auto* global_hd_map = hozon::mp::GlobalHdMap::Instance();
 
   if (FLAGS_map_service_mode == 0) {
     global_hd_map->GetHdMap()->LoadMapFromFile(FLAGS_map_dir + "/base_map.bin");
   } else if (FLAGS_map_service_mode == 1) {
-#ifndef ISORIN
     ehr_ = std::make_unique<hozon::ehr::AmapEhrImpl>();
-#else
     HLOG_ERROR << "Amap is not supported under orin";
     return false;
-#endif
   } else if (FLAGS_map_service_mode == 2) {
-// todo map api
-#ifdef ISORIN
+    // todo map api
     HLOG_ERROR << "Amap is not supported under orin";
     return false;
-#endif
   }
 
   return true;
@@ -92,15 +83,10 @@ void MapService::OnInsAdcNodeInfo(
     //    HLOG_ERROR << "hdmap set error";
     //  }
   } else if (FLAGS_map_service_mode == 1) {
-#ifndef ISORIN
     EhpProc(ins_msg, adc_msg, routing_);
-#else
-    HLOG_ERROR << "not supported under orin";
-#endif
   }
 }
 
-#ifndef ISORIN
 bool MapService::EhpProc(
     const hozon::localization::HafNodeInfo& ins_msg,
     const hozon::planning::ADCTrajectory& adc_msg,
@@ -149,7 +135,6 @@ bool MapService::EhpProc(
   GLOBAL_HD_MAP->UpdateMapFromProto(extended_map_protos, shrinked_map_protos);
   return true;
 }
-#endif
 
 // bool MapService::BinProc(const hozon::localization::HafNodeInfo& ins_msg,
 //                          const std::shared_ptr<hozon::hdmap::Map>& map) {

@@ -4,11 +4,12 @@
  *   author     ： lilanxing
  *   date       ： 2023.09
  ******************************************************************************/
-#include <gflags/gflags.h>
 #include <base/utils/log.h>
+#include <gflags/gflags.h>
 #include <perception-lib/lib/environment/environment.h>
-#include "onboard/onboard_lite/location/fusion_center/fusion_center_lite.h"
+
 #include "depend/proto/local_mapping/local_map.pb.h"
+#include "onboard/onboard_lite/location/fusion_center/fusion_center_lite.h"
 
 namespace hozon {
 namespace perception {
@@ -20,8 +21,9 @@ const char* const kDrFusionTopic = "/location/dr_fusion";
 const char* const kPoseEstimationTopic = "/location/pose_estimation";
 const char* const kLocalMapTopic = "local_map";
 const char* const kFcTopic = "localization";
-const char* const kFcConfSuffix = "runtime_service/mapping/conf/mapping/"
-                                  "location/fusion_center/fc_config.yaml";
+const char* const kFcConfSuffix =
+    "runtime_service/mapping/conf/mapping/"
+    "location/fusion_center/fc_config.yaml";
 const char* const kFcKfConfSuffix =
     "runtime_service/mapping/conf/mapping/location/fusion_center/kalman.yaml";
 const char* const kFcEskfConfSuffix =
@@ -65,11 +67,13 @@ void FusionCenterLite::RegistLog() const {
 }
 
 void FusionCenterLite::RegistMessageType() const {
-  REGISTER_MESSAGE_TYPE(kImuTopic, hozon::soc::ImuIns);
-  REGISTER_MESSAGE_TYPE(kInsFusionTopic, hozon::localization::HafNodeInfo);
-  REGISTER_MESSAGE_TYPE(kDrFusionTopic, hozon::localization::HafNodeInfo);
-  REGISTER_MESSAGE_TYPE(kPoseEstimationTopic, hozon::localization::HafNodeInfo);
-  REGISTER_MESSAGE_TYPE(kFcTopic, hozon::localization::Localization);
+  REGISTER_PROTO_MESSAGE_TYPE(kImuTopic, hozon::soc::ImuIns);
+  REGISTER_PROTO_MESSAGE_TYPE(kInsFusionTopic,
+                              hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE(kDrFusionTopic, hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE(kPoseEstimationTopic,
+                              hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE(kFcTopic, hozon::localization::Localization);
 }
 
 void FusionCenterLite::RegistProcessFunc() {
@@ -82,9 +86,9 @@ void FusionCenterLite::RegistProcessFunc() {
   RegistAlgProcessFunc(
       "recv_local_map",
       std::bind(&FusionCenterLite::OnLocalMap, this, std::placeholders::_1));
-  RegistAlgProcessFunc(
-      "recv_pose_estimation",
-      std::bind(&FusionCenterLite::OnPoseEstimation, this, std::placeholders::_1));
+  RegistAlgProcessFunc("recv_pose_estimation",
+                       std::bind(&FusionCenterLite::OnPoseEstimation, this,
+                                 std::placeholders::_1));
 }
 
 int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
@@ -92,7 +96,7 @@ int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
     return -1;
   }
 
-  BaseDataTypePtr p_ins_fusion = input->GetOne(kInsFusionTopic);
+  auto p_ins_fusion = input->GetOne(kInsFusionTopic);
   if (!p_ins_fusion) {
     return -1;
   }
@@ -113,7 +117,7 @@ int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
     return -1;
   }
 
-  BaseDataTypePtr localization_pack =
+  auto localization_pack =
       std::make_shared<hozon::netaos::adf_lite::BaseData>();
   localization_pack->proto_msg = localization;
   SendOutput(kFcTopic, localization_pack);
@@ -124,7 +128,7 @@ int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
   if (!input) {
     return -1;
   }
-  BaseDataTypePtr p_dr_fusion = input->GetOne(kDrFusionTopic);
+  auto p_dr_fusion = input->GetOne(kDrFusionTopic);
   if (!p_dr_fusion) {
     return -1;
   }
@@ -147,7 +151,7 @@ int32_t FusionCenterLite::OnLocalMap(Bundle* input) {
   if (init_dr_) {
     return 0;
   }
-  BaseDataTypePtr p_local_map = input->GetOne(kLocalMapTopic);
+  auto p_local_map = input->GetOne(kLocalMapTopic);
   if (!p_local_map) {
     return -1;
   }
@@ -171,7 +175,7 @@ int32_t FusionCenterLite::OnPoseEstimation(Bundle* input) {
   if (!input) {
     return -1;
   }
-  BaseDataTypePtr p_pose_estimation = input->GetOne(kPoseEstimationTopic);
+  auto p_pose_estimation = input->GetOne(kPoseEstimationTopic);
   if (!p_pose_estimation) {
     return -1;
   }

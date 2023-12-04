@@ -12,7 +12,8 @@
 #include <memory>
 #include <string>
 
-#include "common_onboard/adapter/onboard_lite/onboard_lite.h"
+#include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
+#include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 #include "modules/location/pose_estimation/lib/pose_estimation.h"
 
 namespace hozon {
@@ -20,8 +21,9 @@ namespace perception {
 namespace common_onboard {
 
 using hozon::mp::loc::MapMatching;
+using hozon::netaos::adf_lite::Bundle;
 
-class PoseEstimationLite : public OnboardLite {
+class PoseEstimationLite : public hozon::netaos::adf_lite::Executor {
  public:
   PoseEstimationLite() = default;
   ~PoseEstimationLite() = default;
@@ -44,7 +46,7 @@ class PoseEstimationLite : public OnboardLite {
   std::unique_ptr<MapMatching> pose_estimation_ = nullptr;
 };
 
-REGISTER_EXECUTOR_CLASS(PoseEstimationLite, PoseEstimationLite);
+REGISTER_ADF_CLASS(PoseEstimationLite, PoseEstimationLite);
 
 }  // namespace common_onboard
 }  // namespace perception

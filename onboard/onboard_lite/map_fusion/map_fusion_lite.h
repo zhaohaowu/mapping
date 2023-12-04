@@ -7,11 +7,12 @@
 #pragma once
 
 #include <adf-lite/include/base.h>
-#include <common_onboard/adapter/onboard_lite/onboard_lite.h>
 
 #include <memory>
 #include <mutex>
 
+#include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
+#include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 #include "modules/map_fusion/include/map_fusion/map_fusion.h"
 
 namespace hozon {
@@ -19,8 +20,9 @@ namespace perception {
 namespace common_onboard {
 
 using hozon::mp::mf::MapFusion;
+using hozon::netaos::adf_lite::Bundle;
 
-class MapFusionLite : public OnboardLite {
+class MapFusionLite : public hozon::netaos::adf_lite::Executor {
  public:
   MapFusionLite() = default;
   ~MapFusionLite() = default;
@@ -58,7 +60,7 @@ class MapFusionLite : public OnboardLite {
   std::shared_ptr<hozon::mapping::LocalMap> curr_local_map_ = nullptr;
 };
 
-REGISTER_EXECUTOR_CLASS(MapFusionLite, MapFusionLite);
+// REGISTER_ADF_CLASS(MapFusionLite, MapFusionLite);
 
 }  // namespace common_onboard
 }  // namespace perception

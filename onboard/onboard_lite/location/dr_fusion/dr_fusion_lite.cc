@@ -5,11 +5,11 @@
  *   date       ： 2023.09
  ******************************************************************************/
 #include "onboard/onboard_lite/location/dr_fusion/dr_fusion_lite.h"
-
 #include <gflags/gflags.h>
-
 #include <perception-lib/lib/environment/environment.h>
+
 #include "base/utils/log.h"
+#include "depend/proto/localization/node_info.pb.h"
 #include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
@@ -38,11 +38,11 @@ int32_t DrFusionLite::AlgInit() {
       "dr_fusion_executor", "dr_fusion_executor test",
       hozon::netaos::log::LogLevel::kInfo);
 
-  REGISTER_MESSAGE_TYPE("/location/ins_fusion",
-                        hozon::localization::HafNodeInfo);
-  REGISTER_MESSAGE_TYPE("dr", hozon::localization::HafNodeInfo);
-  REGISTER_MESSAGE_TYPE("/location/dr_fusion",
-                        hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE("/location/ins_fusion",
+                              hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE("/location/dr_fusion",
+                              hozon::localization::HafNodeInfo);
   HLOG_INFO << "RegistAlgProcessFunc";
   // 输出Ins数据
   RegistAlgProcessFunc("send_dr_proc", std::bind(&DrFusionLite::send_dr, this,
@@ -50,9 +50,9 @@ int32_t DrFusionLite::AlgInit() {
   // 接收数据线程
   RegistAlgProcessFunc("receive_dr", std::bind(&DrFusionLite::receive_dr, this,
                                                std::placeholders::_1));
-  RegistAlgProcessFunc(
-      "receive_ins_fusion",
-      std::bind(&DrFusionLite::receive_ins_fusion, this, std::placeholders::_1));
+  RegistAlgProcessFunc("receive_ins_fusion",
+                       std::bind(&DrFusionLite::receive_ins_fusion, this,
+                                 std::placeholders::_1));
 
   HLOG_INFO << "AlgInit successfully ";
   return 0;
@@ -60,8 +60,7 @@ int32_t DrFusionLite::AlgInit() {
 
 // send in-process data and interprocess data
 int32_t DrFusionLite::send_dr(Bundle* input) {
-  BaseDataTypePtr dr_workflow =
-      std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  auto dr_workflow = std::make_shared<hozon::netaos::adf_lite::BaseData>();
 
   std::shared_ptr<hozon::localization::HafNodeInfo> msg(
       new hozon::localization::HafNodeInfo);
@@ -75,7 +74,7 @@ int32_t DrFusionLite::send_dr(Bundle* input) {
 
 // recieve in-process data and interprocess data
 int32_t DrFusionLite::receive_dr(Bundle* input) {
-  BaseDataTypePtr ptr_rec_dr = input->GetOne("dr");
+  auto ptr_rec_dr = input->GetOne("dr");
   if (!ptr_rec_dr) {
     return -1;
   }
@@ -87,7 +86,7 @@ int32_t DrFusionLite::receive_dr(Bundle* input) {
 }
 
 int32_t DrFusionLite::receive_ins_fusion(Bundle* input) {
-  BaseDataTypePtr ptr_rec_inspva = input->GetOne("/location/ins_fusion");
+  auto ptr_rec_inspva = input->GetOne("/location/ins_fusion");
   if (!ptr_rec_inspva) {
     return -1;
   }

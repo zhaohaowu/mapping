@@ -8,22 +8,25 @@
 #pragma once
 
 #include <adf-lite/include/base.h>
-#include <common_onboard/adapter/onboard_lite/onboard_lite.h>
+// #include <common_onboard/adapter/onboard_lite/onboard_lite.h>
 
 #include <memory>
 #include <string>
 
-#include "modules/location/fusion_center/lib/fusion_center.h"
+#include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
+#include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 #include "modules/location/coord_adapter/lib/coord_adapter.h"
+#include "modules/location/fusion_center/lib/fusion_center.h"
 
 namespace hozon {
 namespace perception {
 namespace common_onboard {
 
-using hozon::mp::loc::fc::FusionCenter;
 using hozon::mp::loc::ca::CoordAdapter;
+using hozon::mp::loc::fc::FusionCenter;
+using hozon::netaos::adf_lite::Bundle;
 
-class FusionCenterLite : public OnboardLite {
+class FusionCenterLite : public hozon::netaos::adf_lite::Executor {
  public:
   FusionCenterLite() = default;
   ~FusionCenterLite() = default;
@@ -46,7 +49,7 @@ class FusionCenterLite : public OnboardLite {
   bool init_dr_ = false;
 };
 
-REGISTER_EXECUTOR_CLASS(FusionCenterLite, FusionCenterLite);
+// REGISTER_ADF_CLASS(FusionCenterLite, FusionCenterLite);
 
 }  // namespace common_onboard
 }  // namespace perception

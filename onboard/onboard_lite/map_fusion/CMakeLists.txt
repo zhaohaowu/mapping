@@ -9,7 +9,6 @@ add_mapping_library(onboard_lite_mf
 
 target_link_libraries(onboard_lite_mf
   mf
-  perception-onboard-common
   ${DEPENDS_LIBS}
   # fastrtps
   gflags

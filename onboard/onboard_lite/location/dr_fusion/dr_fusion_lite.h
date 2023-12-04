@@ -11,14 +11,16 @@
 #include <string>
 
 #include "adf-lite/include/base.h"
-#include "common_onboard/adapter/onboard_lite/onboard_lite.h"
+#include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
+#include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 #include "modules/location/dr_fusion/lib/dr_fusion.h"
 
 namespace hozon {
 namespace perception {
 namespace common_onboard {
 
-class DrFusionLite : public OnboardLite {
+using hozon::netaos::adf_lite::Bundle;
+class DrFusionLite : public hozon::netaos::adf_lite::Executor {
  public:
   DrFusionLite() = default;
   ~DrFusionLite() = default;
@@ -36,7 +38,7 @@ class DrFusionLite : public OnboardLite {
   std::unique_ptr<hozon::mp::loc::DrFusion> dr_fusion_ = nullptr;
 };
 
-REGISTER_EXECUTOR_CLASS(DrFusionLite, DrFusionLite);
+// REGISTER_ADF_CLASS(DrFusionLite, DrFusionLite);
 }  //  namespace common_onboard
 }  //  namespace perception
 }  //  namespace hozon

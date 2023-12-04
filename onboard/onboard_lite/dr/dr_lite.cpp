@@ -6,7 +6,8 @@
 
 #include "adf-lite/include/base.h"
 #include "base/utils/log.h"
-#include "common_onboard/adapter/onboard_lite/onboard_lite.h"
+#include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
+#include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 #include "gtest/gtest.h"
 #include "modules/dr/include/dr.h"
 #include "proto/dead_reckoning/dr.pb.h"
@@ -17,7 +18,9 @@ namespace hozon {
 namespace perception {
 namespace common_onboard {
 
-class DeadReckoning : public OnboardLite {
+using hozon::netaos::adf_lite::Bundle;
+
+class DeadReckoning : public hozon::netaos::adf_lite::Executor {
  public:
   DeadReckoning() = default;
   ~DeadReckoning() = default;
@@ -30,9 +33,9 @@ class DeadReckoning : public OnboardLite {
     hozon::netaos::adf::NodeLogger::GetInstance().CreateLogger(
         "dr_executor", "dr_executor test", hozon::netaos::log::LogLevel::kInfo);
 
-    REGISTER_MESSAGE_TYPE("imu_ins", hozon::soc::ImuIns);
-    REGISTER_MESSAGE_TYPE("chassis", hozon::soc::Chassis);
-    REGISTER_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
+    REGISTER_PROTO_MESSAGE_TYPE("imu_ins", hozon::soc::ImuIns);
+    REGISTER_PROTO_MESSAGE_TYPE("chassis", hozon::soc::Chassis);
+    REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
 
     // 输出DR数据
     RegistAlgProcessFunc("dr_proc", std::bind(&DeadReckoning::dr_process, this,
@@ -56,12 +59,11 @@ class DeadReckoning : public OnboardLite {
   hozon::mp::dr::DRInterface dr_interface;
 };
 
-REGISTER_EXECUTOR_CLASS(DeadReckoning, DeadReckoning);
+REGISTER_ADF_CLASS(DeadReckoning, DeadReckoning);
 
 // send in-process data and interprocess data
 int32_t DeadReckoning::dr_process(Bundle* input) {
-  BaseDataTypePtr workflow1 =
-      std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  auto workflow1 = std::make_shared<hozon::netaos::adf_lite::BaseData>();
 
   std::shared_ptr<hozon::dead_reckoning::DeadReckoning> msg(
       new hozon::dead_reckoning::DeadReckoning);
@@ -78,7 +80,7 @@ int32_t DeadReckoning::dr_process(Bundle* input) {
 
 // recieve in-process data and interprocess data
 int32_t DeadReckoning::data_receive(Bundle* input) {
-  BaseDataTypePtr ptr_rec_imu = input->GetOne("imu_ins");
+  auto ptr_rec_imu = input->GetOne("imu_ins");
   if (!ptr_rec_imu) {
     HLOG_ERROR << "DR: receive imu data is null";
     return -1;
@@ -90,7 +92,7 @@ int32_t DeadReckoning::data_receive(Bundle* input) {
   dr_interface.AddImuData(imu_proto);
 
   ////////////////////////////////////////////////////////////////////
-  BaseDataTypePtr ptr_rec_chassis = input->GetOne("chassis");
+  auto ptr_rec_chassis = input->GetOne("chassis");
   if (!ptr_rec_chassis) {
     HLOG_ERROR << "DR: receive chassis is null";
     return -1;

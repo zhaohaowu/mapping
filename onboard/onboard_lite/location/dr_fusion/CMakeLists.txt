@@ -10,7 +10,7 @@ add_mapping_library(${MAPPING_ONBOARD_LITE_DR_FUSION}
     ${LOCATION_DR_LITE_SRCS})
 
 target_link_libraries(${MAPPING_ONBOARD_LITE_DR_FUSION}
-    perception-onboard-common
+     
     gtest
     ${DEPENDS_LIBS}
     localization_dr_fusion_core

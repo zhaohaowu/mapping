@@ -119,33 +119,85 @@ bool LaneOp::MatchLeftRight(const LaneLine& query_lane_line,
     }
     num++;
   }
-  return num > 0;
+  return num > 5;
 }
 
 void LaneOp::MergePointsLeftRight(LaneLine* query_lane_line,
                                   LaneLine* other_lane_line) {
   std::vector<Eigen::Vector3d> new_points;
-  if (query_lane_line->points_[0].x() < other_lane_line->points_[0].x()) {
+  if (query_lane_line->points_[0].x() < other_lane_line->points_[0].x() &&
+      query_lane_line->points_.back().x() <
+          other_lane_line->points_.back().x()) {
+    // HLOG_ERROR << "1";
+    // HLOG_ERROR << "query_lane_line: ID startx endx"
+    //            << query_lane_line->track_id_ << " "
+    //            << query_lane_line->points_[0].x() << " "
+    //            << query_lane_line->points_.back().x();
+    // HLOG_ERROR << "other_lane_line: ID startx endx"
+    //            << other_lane_line->track_id_ << " "
+    //            << other_lane_line->points_[0].x() << " "
+    //            << other_lane_line->points_.back().x();
     for (auto point : query_lane_line->points_) {
       if (point.x() > other_lane_line->points_[0].x() - 0.9) {
         break;
       }
       new_points.emplace_back(point);
     }
-    for (const auto& point : other_lane_line->points_) {
-      new_points.emplace_back(point);
-    }
-  } else {
+    std::copy(other_lane_line->points_.begin(), other_lane_line->points_.end(),
+              std::back_inserter(new_points));
+  } else if (query_lane_line->points_[0].x() >
+                 other_lane_line->points_[0].x() &&
+             query_lane_line->points_.back().x() >
+                 other_lane_line->points_.back().x()) {
+    // HLOG_ERROR << "2";
+    // HLOG_ERROR << "query_lane_line: ID startx endx"
+    //            << query_lane_line->track_id_ << " "
+    //            << query_lane_line->points_[0].x() << " "
+    //            << query_lane_line->points_.back().x();
+    // HLOG_ERROR << "other_lane_line: ID startx endx"
+    //            << other_lane_line->track_id_ << " "
+    //            << other_lane_line->points_[0].x() << " "
+    //            << other_lane_line->points_.back().x();
     for (auto point : other_lane_line->points_) {
       if (point.x() > query_lane_line->points_[0].x() - 0.9) {
         break;
       }
       new_points.emplace_back(point);
     }
-    for (const auto& point : query_lane_line->points_) {
-      new_points.emplace_back(point);
-    }
+    std::copy(query_lane_line->points_.begin(), query_lane_line->points_.end(),
+              std::back_inserter(new_points));
+  } else if (query_lane_line->points_[0].x() <
+                 other_lane_line->points_[0].x() &&
+             query_lane_line->points_.back().x() >
+                 other_lane_line->points_.back().x()) {
+    // HLOG_ERROR << "3";
+    // HLOG_ERROR << "query_lane_line: ID startx endx"
+    //            << query_lane_line->track_id_ << " "
+    //            << query_lane_line->points_[0].x() << " "
+    //            << query_lane_line->points_.back().x();
+    // HLOG_ERROR << "other_lane_line: ID startx endx"
+    //            << other_lane_line->track_id_ << " "
+    //            << other_lane_line->points_[0].x() << " "
+    //            << other_lane_line->points_.back().x();
+    std::copy(query_lane_line->points_.begin(), query_lane_line->points_.end(),
+              std::back_inserter(new_points));
+  } else if (query_lane_line->points_[0].x() >
+                 other_lane_line->points_[0].x() &&
+             query_lane_line->points_.back().x() <
+                 other_lane_line->points_.back().x()) {
+    // HLOG_ERROR << "4";
+    // HLOG_ERROR << "query_lane_line: ID startx endx"
+    //            << query_lane_line->track_id_ << " "
+    //            << query_lane_line->points_[0].x() << " "
+    //            << query_lane_line->points_.back().x();
+    // HLOG_ERROR << "other_lane_line: ID startx endx"
+    //            << other_lane_line->track_id_ << " "
+    //            << other_lane_line->points_[0].x() << " "
+    //            << other_lane_line->points_.back().x();
+    std::copy(other_lane_line->points_.begin(), other_lane_line->points_.end(),
+              std::back_inserter(new_points));
   }
+
   if (query_lane_line->track_id_ < other_lane_line->track_id_) {
     other_lane_line->track_id_ = query_lane_line->track_id_;
     other_lane_line->lanepos_ = query_lane_line->lanepos_;

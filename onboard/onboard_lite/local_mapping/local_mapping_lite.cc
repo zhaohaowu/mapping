@@ -8,8 +8,8 @@
 // #include "perception-lib/lib/location_manager/location_manager.h"
 #include <adf-lite/include/base.h>
 #include <base/utils/log.h>
-#include <common_onboard/adapter/adapter.h>
-#include <common_onboard/adapter/onboard_lite/onboard_lite.h>
+// #include <common_onboard/adapter/adapter.h>
+// #include <common_onboard/adapter/onboard_lite/onboard_lite.h>
 #include <gflags/gflags.h>
 #include <proto/localization/node_info.pb.h>
 
@@ -33,10 +33,10 @@ int32_t LocalMappingOnboard::AlgInit() {
   hozon::netaos::adf::NodeLogger::GetInstance().CreateLogger(
       "lm_executor", "lm_executor test", hozon::netaos::log::LogLevel::kInfo);
 
-  REGISTER_MESSAGE_TYPE("percep_transport",
-                        hozon::perception::TransportElement);
-  REGISTER_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
-  REGISTER_MESSAGE_TYPE("lm_image", hozon::soc::Image);
+  REGISTER_PROTO_MESSAGE_TYPE("percep_transport",
+                              hozon::perception::TransportElement);
+  REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
+  REGISTER_PROTO_MESSAGE_TYPE("lm_image", hozon::soc::Image);
 
   std::string default_work_root = "/app/";
   std::string work_root = lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
@@ -95,7 +95,7 @@ void LocalMappingOnboard::AlgRelease() {
 
 int32_t LocalMappingOnboard::OnLaneLine(Bundle* input) {
   HLOG_ERROR << "receive laneline data...";
-  BaseDataTypePtr laneline_msg = input->GetOne("percep_transport");
+  auto laneline_msg = input->GetOne("percep_transport");
   if (!laneline_msg) {
     HLOG_ERROR << "nullptr track lane plugin";
     return -1;
@@ -116,7 +116,7 @@ int32_t LocalMappingOnboard::OnLaneLine(Bundle* input) {
 
 int32_t LocalMappingOnboard::OnDr(Bundle* input) {
   HLOG_ERROR << "receive dr data...";
-  BaseDataTypePtr dr_msg = input->GetOne("dr");
+  auto dr_msg = input->GetOne("dr");
   if (!dr_msg) {
     HLOG_ERROR << "nullptr dr_msg plugin";
     return -1;
@@ -142,7 +142,7 @@ int32_t LocalMappingOnboard::OnDr(Bundle* input) {
 }
 
 int32_t LocalMappingOnboard::OnIns(Bundle* input) {
-  BaseDataTypePtr ins_msg = input->GetOne("ins");
+  auto ins_msg = input->GetOne("ins");
   auto msg = std::static_pointer_cast<hozon::localization::HafNodeInfo>(
       ins_msg->proto_msg);
   if (!lmap_) {
@@ -205,7 +205,7 @@ std::shared_ptr<adsfi_proto::viz::CompressedImage> YUVNV12ImageToVizImage(
 }
 
 int32_t LocalMappingOnboard::OnImage(Bundle* input) {
-  BaseDataTypePtr image_msg = input->GetOne("lm_image");
+  auto image_msg = input->GetOne("lm_image");
   // HLOG_ERROR << "image_msg->proto_msg " << image_msg.get();
   if (image_msg.get() == nullptr) {
     return 0;
@@ -219,7 +219,7 @@ int32_t LocalMappingOnboard::OnImage(Bundle* input) {
 }
 
 // int32_t LocalMappingOnboard::OnRoadEdge(Bundle* input) {
-//   BaseDataTypePtr road_edge_msg = input->GetOne("percep_transport");
+//    auto road_edge_msg = input->GetOne("percep_transport");
 //   auto msg = std::static_pointer_cast<common_onboard::NetaTransportElement>(
 //       road_edge_msg->proto_msg);
 //   if (!lmap_) {
@@ -233,8 +233,7 @@ int32_t LocalMappingOnboard::LocalMapPublish(Bundle* /*output*/) {
   std::shared_ptr<hozon::mapping::LocalMap> result =
       std::make_shared<hozon::mapping::LocalMap>();
   if (lmap_->FetchLocalMap(result)) {
-    BaseDataTypePtr workflow1 =
-        std::make_shared<hozon::netaos::adf_lite::BaseData>();
+    auto workflow1 = std::make_shared<hozon::netaos::adf_lite::BaseData>();
 
     workflow1->proto_msg = result;
     Bundle bundle;
@@ -247,7 +246,7 @@ int32_t LocalMappingOnboard::LocalMapPublish(Bundle* /*output*/) {
   return 0;
 }
 
-REGISTER_EXECUTOR_CLASS(LocalMappingOnboard, LocalMappingOnboard);
+REGISTER_ADF_CLASS(LocalMappingOnboard, LocalMappingOnboard);
 
 }  // namespace common_onboard
 }  // namespace perception

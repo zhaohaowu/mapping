@@ -8,7 +8,8 @@
 
 #include <memory>
 
-#include "common_onboard/adapter/onboard_lite/onboard_lite.h"
+#include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
+#include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 #include "modules/local_mapping/local_mapping.h"
 
 namespace hozon {
@@ -16,8 +17,9 @@ namespace perception {
 namespace common_onboard {
 
 using hozon::mp::lm::LMapApp;
+using hozon::netaos::adf_lite::Bundle;
 
-class LocalMappingOnboard : public OnboardLite {
+class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
  public:
   LocalMappingOnboard() = default;
   ~LocalMappingOnboard() = default;
@@ -45,7 +47,7 @@ class LocalMappingOnboard : public OnboardLite {
   std::shared_ptr<LMapApp> lmap_;
 };
 
-REGISTER_EXECUTOR_CLASS(LocalMappingOnboard, LocalMappingOnboard);
+// REGISTER_ADF_CLASS(LocalMappingOnboard, LocalMappingOnboard);
 
 }  // namespace common_onboard
 }  // namespace perception

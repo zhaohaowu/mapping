@@ -12,9 +12,12 @@ if [ ! -d ~/.jfrog ]; then
 fi
 
 # package alias in version.json
-pkgAlias=(ADF NOS third_party CUDA)
-pkgDependRelDir=(ap-release nos third_party third_party/x86/cuda)
-pkgJfrogRelDir=(EP40_MDC_ADF/release ORIN/EP41/NOS/release EP40_MDC_TP/build nvidia/cuda)
+# pkgAlias=(ADF NOS third_party CUDA)
+pkgAlias=(ADF NOS third_party CUDA PCPBASE PCPCOMBOARD PCPLIB)
+# pkgDependRelDir=(ap-release nos third_party third_party/x86/cuda)
+pkgDependRelDir=(ap-release nos third_party third_party/x86/cuda perception-base/release perception-common-onboard/release perception-lib/release)
+# pkgJfrogRelDir=(EP40_MDC_ADF/release ORIN/EP41/NOS/release EP40_MDC_TP/build nvidia/cuda)
+pkgJfrogRelDir=(EP40_MDC_ADF/release ORIN/EP41/NOS/release EP40_MDC_TP/build nvidia/cuda EP40_MDC_PCP/BASE/release EP40_MDC_PCP/COMBOARD/release EP40_MDC_PCP/LIB/release)
 
 for i in $(seq 0 `expr ${#pkgAlias[@]} - 1`); do
     pkg=${pkgAlias[i]}

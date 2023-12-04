@@ -13,6 +13,7 @@
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 #include "onboard/onboard_lite/map_fusion/map_fusion_lite.h"
+#include "yaml-cpp/yaml.h"
 
 namespace hozon {
 namespace perception {
@@ -89,13 +90,15 @@ void MapFusionLite::RegistLog() {
 
 void MapFusionLite::RegistMessageType() {
   // 消息名称最终都需要改一下
-  REGISTER_MESSAGE_TYPE("localization", hozon::localization::Localization);
-  REGISTER_MESSAGE_TYPE("/location/ins_fusion",
-                        hozon::localization::HafNodeInfo);
-  REGISTER_MESSAGE_TYPE("local_map", hozon::mapping::LocalMap);
+  REGISTER_PROTO_MESSAGE_TYPE("localization",
+                              hozon::localization::Localization);
+  REGISTER_PROTO_MESSAGE_TYPE("/location/ins_fusion",
+                              hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE("local_map", hozon::mapping::LocalMap);
   // map fusion output message
-  REGISTER_MESSAGE_TYPE("map_fusion", hozon::hdmap::Map);
-  REGISTER_MESSAGE_TYPE("routing_response", hozon::routing::RoutingResponse);
+  REGISTER_PROTO_MESSAGE_TYPE("map_fusion", hozon::hdmap::Map);
+  REGISTER_PROTO_MESSAGE_TYPE("routing_response",
+                              hozon::routing::RoutingResponse);
 }
 
 void MapFusionLite::RegistProcessFunc() {
@@ -119,7 +122,7 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
   if (!input) {
     return -1;
   }
-  BaseDataTypePtr p_loc = input->GetOne("localization");
+  auto p_loc = input->GetOne("localization");
   if (!p_loc) {
     HLOG_ERROR << "nullptr location message";
     return -1;
@@ -144,7 +147,7 @@ int32_t MapFusionLite::OnLocalMap(Bundle* input) {
   if (!input) {
     return -1;
   }
-  BaseDataTypePtr p_local_map = input->GetOne("local_map");
+  auto p_local_map = input->GetOne("local_map");
   if (!p_local_map) {
     HLOG_ERROR << "nullptr local map message";
     return -1;
@@ -169,7 +172,7 @@ int32_t MapFusionLite::OnLocPlugin(Bundle* input) {
   if (!input) {
     return -1;
   }
-  BaseDataTypePtr p_loc_plugin = input->GetOne("/location/ins_fusion");
+  auto p_loc_plugin = input->GetOne("/location/ins_fusion");
   if (!p_loc_plugin) {
     HLOG_ERROR << "nullptr location plugin message";
     return -1;
@@ -282,21 +285,19 @@ int MapFusionLite::SendFusionResult(
     return -1;
   }
 
-  // BaseDataTypePtr map_res =
+  //  auto map_res =
   //     std::make_shared<hozon::netaos::adf_lite::BaseData>();
   // map_res->proto_msg = map;
   // Bundle bundle;
   // bundle.Add("map_fusion", map_res);
   // SendOutput(&bundle);
 
-  BaseDataTypePtr map_res =
-      std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  auto map_res = std::make_shared<hozon::netaos::adf_lite::BaseData>();
   map_res->proto_msg = map;
 
   SendOutput("map_fusion", map_res);
 
-  BaseDataTypePtr routing_res =
-      std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  auto routing_res = std::make_shared<hozon::netaos::adf_lite::BaseData>();
   routing_res->proto_msg = routing;
 
   SendOutput("routing_response", routing_res);

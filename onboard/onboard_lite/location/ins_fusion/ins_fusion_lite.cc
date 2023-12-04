@@ -5,11 +5,13 @@
  *   date       ： 2023.09
  ******************************************************************************/
 #include "onboard/onboard_lite/location/ins_fusion/ins_fusion_lite.h"
-
 #include <gflags/gflags.h>
-
 #include <perception-lib/lib/environment/environment.h>
+
 #include "base/utils/log.h"
+#include "depend/proto/localization/node_info.pb.h"
+#include "depend/proto/perception/transport_element.pb.h"
+#include "depend/proto/soc/sensor_imu_ins.pb.h"
 #include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
@@ -39,10 +41,10 @@ int32_t InsFusionLite::AlgInit() {
       "ins_fusion_executor", "ins_fusion_executor test",
       hozon::netaos::log::LogLevel::kInfo);
 
-  REGISTER_MESSAGE_TYPE("inspva", hozon::localization::HafNodeInfo);
-  REGISTER_MESSAGE_TYPE("imu_ins", hozon::soc::ImuIns);
-  REGISTER_MESSAGE_TYPE("/location/ins_fusion",
-                        hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE("inspva", hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE("imu_ins", hozon::soc::ImuIns);
+  REGISTER_PROTO_MESSAGE_TYPE("/location/ins_fusion",
+                              hozon::localization::HafNodeInfo);
   HLOG_INFO << "RegistAlgProcessFunc";
   // 输出Ins数据
   RegistAlgProcessFunc("send_ins_proc", std::bind(&InsFusionLite::send_ins,
@@ -60,8 +62,7 @@ int32_t InsFusionLite::AlgInit() {
 
 // send in-process data and interprocess data
 int32_t InsFusionLite::send_ins(Bundle* input) {
-  BaseDataTypePtr ins_workflow =
-      std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  auto ins_workflow = std::make_shared<hozon::netaos::adf_lite::BaseData>();
 
   std::shared_ptr<hozon::localization::HafNodeInfo> msg(
       new hozon::localization::HafNodeInfo);
@@ -76,7 +77,7 @@ int32_t InsFusionLite::send_ins(Bundle* input) {
 
 // recieve in-process data and interprocess data
 int32_t InsFusionLite::receive_ins(Bundle* input) {
-  BaseDataTypePtr ptr_rec_ins = input->GetOne("imu_ins");
+  auto ptr_rec_ins = input->GetOne("imu_ins");
   if (!ptr_rec_ins) {
     return -1;
   }
@@ -87,7 +88,7 @@ int32_t InsFusionLite::receive_ins(Bundle* input) {
 }
 
 int32_t InsFusionLite::receive_inspva(Bundle* input) {
-  BaseDataTypePtr ptr_rec_inspva = input->GetOne("inspva");
+  auto ptr_rec_inspva = input->GetOne("inspva");
   if (!ptr_rec_inspva) {
     return -1;
   }

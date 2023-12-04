@@ -38,28 +38,35 @@ dataSourcesOut:
     type: proto_skeleton
     cmTopic: /localization/location
     cmDomainId: 0
+    capacity: 5
   - topic: map_fusion
     type: proto_skeleton
     cmTopic: /localization/fusionmap
     cmDomainId: 0
+    capacity: 5
   - topic: routing_response
     type: proto_skeleton
     cmTopic: /localization/routing
     cmDomainId: 0
+    capacity: 5
   - topic: dr
     type: proto_skeleton
     cmTopic: /localization/deadreckoning
     cmDomainId: 0
+    capacity: 5
   - topic: local_map
     type: proto_skeleton
     cmTopic: /localization/local_map
     cmDomainId: 0
+    capacity: 5
 
   - topic: local_map_loc
     type: proto_skeleton
     cmTopic: /localization/local_map_loc
     cmDomainId: 0
+    capacity: 5
   - topic: /location/pose_estimation
     type: proto_skeleton
     cmTopic: /localization/pe
     cmDomainId: 0
+    capacity: 5

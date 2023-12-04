@@ -1,6 +1,6 @@
 
 set(DEPENDS_LIBS
   # xxxxx
-  # netaos::base
-  # netaos::adf-lite
+  netaos::base
+  netaos::adf-lite
 )

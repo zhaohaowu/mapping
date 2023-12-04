@@ -10,7 +10,7 @@ add_mapping_library(${MAPPING_ONBOARD_LITE_POSE_ESTIMATION}
     ${LOCATION_POSE_ESTIMATION_LITE_SRCS})
 
 target_link_libraries(${MAPPING_ONBOARD_LITE_POSE_ESTIMATION}
-    perception-onboard-common
+     
     gtest
     ${DEPENDS_LIBS}
     location_pose_estimation_core

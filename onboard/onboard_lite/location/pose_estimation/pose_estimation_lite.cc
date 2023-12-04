@@ -6,9 +6,11 @@
  ******************************************************************************/
 
 #include "onboard/onboard_lite/location/pose_estimation/pose_estimation_lite.h"
-#include <perception-lib/lib/environment/environment.h>
 #include <base/utils/log.h>
 #include <gflags/gflags.h>
+#include <perception-lib/lib/environment/environment.h>
+
+#include "depend/proto/localization/node_info.pb.h"
 
 DEFINE_string(config_yaml,
               "runtime_service/mapping/conf/mapping/location/"
@@ -23,6 +25,8 @@ DEFINE_string(viz_addr, "ipc:///tmp/rviz_agent_pose_estimation",
               "address used in RvizBridge. Leaving empty represents not using "
               "RvizAgent for visualization");
 
+using hozon::netaos::adf_lite::Bundle;
+
 namespace hozon {
 namespace perception {
 namespace common_onboard {
@@ -33,10 +37,9 @@ constexpr char* const kPerceptionTopic = "percep_transport";
 constexpr char* const kPoseEstimationTopic = "/location/pose_estimation";
 int32_t PoseEstimationLite::AlgInit() {
   pose_estimation_ = std::make_unique<MapMatching>();
-    const std::string adflite_root_path =
+  const std::string adflite_root_path =
       hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", ".");
-  const std::string config_yaml =
-      adflite_root_path + "/" + FLAGS_config_yaml;
+  const std::string config_yaml = adflite_root_path + "/" + FLAGS_config_yaml;
   const std::string config_cam_yaml =
       adflite_root_path + "/" + FLAGS_config_cam_yaml;
   if (!pose_estimation_->Init(config_yaml, config_cam_yaml)) {
@@ -71,11 +74,15 @@ void PoseEstimationLite::RegistLog() const {
 }
 
 void PoseEstimationLite::RegistMessageType() const {
-  REGISTER_MESSAGE_TYPE(kInsFusionTopic, hozon::localization::HafNodeInfo);
-  // REGISTER_MESSAGE_TYPE(kFcTopic, hozon::localization::Localization);
-  // REGISTER_MESSAGE_TYPE(kMapMessageTopic, adsfi_proto::internal::SubMap);
-  REGISTER_MESSAGE_TYPE(kPerceptionTopic, hozon::perception::TransportElement);
-  REGISTER_MESSAGE_TYPE(kPoseEstimationTopic, hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE(kInsFusionTopic,
+                              hozon::localization::HafNodeInfo);
+  // REGISTER_PROTO_MESSAGE_TYPE(kFcTopic, hozon::localization::Localization);
+  // REGISTER_PROTO_MESSAGE_TYPE(kMapMessageTopic,
+  // adsfi_proto::internal::SubMap);
+  REGISTER_PROTO_MESSAGE_TYPE(kPerceptionTopic,
+                              hozon::perception::TransportElement);
+  REGISTER_PROTO_MESSAGE_TYPE(kPoseEstimationTopic,
+                              hozon::localization::HafNodeInfo);
 }
 
 int32_t PoseEstimationLite::OnIns(Bundle* input) {
@@ -83,7 +90,7 @@ int32_t PoseEstimationLite::OnIns(Bundle* input) {
     return -1;
   }
 
-  BaseDataTypePtr p_ins_fusion = input->GetOne(kInsFusionTopic);
+  auto p_ins_fusion = input->GetOne(kInsFusionTopic);
   if (!p_ins_fusion) {
     return -1;
   }
@@ -105,7 +112,7 @@ int32_t PoseEstimationLite::OnIns(Bundle* input) {
 //     return -1;
 //   }
 
-//   BaseDataTypePtr p_map_message = input->GetOne("kMapMessageTopic");
+//    auto p_map_message = input->GetOne("kMapMessageTopic");
 //   if (!p_map_message) {
 //     return -1;
 //   }
@@ -126,7 +133,7 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
   if (!input) {
     return -1;
   }
-  BaseDataTypePtr p_perception = input->GetOne(kPerceptionTopic);
+  auto p_perception = input->GetOne(kPerceptionTopic);
   if (!p_perception) {
     return -1;
   }
@@ -153,8 +160,7 @@ int32_t PoseEstimationLite::OnPoseEstimation(Bundle* input) {
     return -1;
   }
 
-  BaseDataTypePtr pe_workflow =
-      std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  auto pe_workflow = std::make_shared<hozon::netaos::adf_lite::BaseData>();
   pe_workflow->proto_msg = pe_node_info;
   SendOutput(kPoseEstimationTopic, pe_workflow);
 

@@ -59,6 +59,7 @@ HafNodeInfo CoordAdapter::GetSysInitDrFusion() const {
   // replace publish time with init time
   dr.mutable_header()->set_publish_stamp(init_dr_node_.ticktime);
   dr.mutable_header()->set_gnss_stamp(init_dr_node_.ticktime);
+  dr.mutable_header()->set_data_stamp(init_dr_node_.ticktime);
   dr.set_is_valid(true);
 
   dr.mutable_pos_gcj02()->set_x(init_dr_node_.enu(0));

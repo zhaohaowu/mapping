@@ -17,7 +17,7 @@ output:
 trigger:
   - name: send_pose_estimation_result
     type: PERIOD
-    period: 10
+    period: 100
   - name: recv_ins_fusion
     type: EVENT
     mainSources:

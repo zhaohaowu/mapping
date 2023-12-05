@@ -143,6 +143,8 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
 
   // keep main structure of inspva for passthrough
   latest_inspva_data_ = inspva;
+  latest_inspva_data_.mutable_header()->set_data_stamp(
+      latest_inspva_data_.header().publish_stamp());
 
   if (config_.fix_deflection_repeat &&
       FixDeflectionRepeat(last_node_, &curr_node_)) {
@@ -209,6 +211,8 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
   node_info->mutable_header()->set_publish_stamp(
       origin_ins.header().publish_stamp());
   node_info->mutable_header()->set_gnss_stamp(origin_ins.header().gnss_stamp());
+  node_info->mutable_header()->set_data_stamp(
+      origin_ins.header().publish_stamp());  // temp 20231205
   node_info->mutable_header()->mutable_status()->set_error_code(
       origin_ins.header().status().error_code());
   node_info->mutable_header()->mutable_status()->set_msg(
@@ -396,7 +400,7 @@ bool InsFusion::Extract02InsNode(const hozon::localization::HafNodeInfo& inspva,
   }
 
   node->seq = inspva.header().seq();
-  node->ticktime = inspva.header().gnss_stamp();
+  node->ticktime = inspva.header().data_stamp();
 
   node->refpoint = GetRefpoint();
   node->blh << inspva.pos_gcj02().x(), inspva.pos_gcj02().y(),
@@ -424,7 +428,7 @@ bool InsFusion::Extract84InsNode(const hozon::soc::ImuIns& ins,
   }
 
   node->seq = ins.header().seq();
-  node->ticktime = ins.header().gnss_stamp();
+  node->ticktime = ins.header().data_stamp();
   node->refpoint = GetRefpoint();
   node->blh << ins.ins_info().latitude(), ins.ins_info().longitude(),
       ins.ins_info().altitude();

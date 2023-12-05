@@ -13,6 +13,7 @@
 #include <depend/proto/localization/node_info.pb.h>
 #include <depend/proto/map/map.pb.h>
 
+#include <tuple>
 #include <atomic>
 #include <cmath>
 #include <cstdint>
@@ -29,49 +30,18 @@
 #include "Eigen/Dense"
 #include "Eigen/Geometry"
 // #include "Eigen/src/Core/Matrix.h"
+
 #include "Eigen/src/Core/Matrix.h"
 #include "common/math/vec2d.h"
 #include "depend/common/math/line_segment2d.h"
 #include "map_fusion/map_prediction/viz_map.h"
+#include "map_fusion/map_service/map_table.h"
 #include "proto/map/map_lane.pb.h"
 #include "proto/map/map_road.pb.h"
 
 namespace hozon {
 namespace mp {
 namespace mf {
-
-// Section
-struct Boundary {
-  std::string section_id;
-  std::vector<std::string> lane_id;
-  std::vector<std::vector<Eigen::Vector3d>> left_boundary;
-  std::vector<std::vector<Eigen::Vector3d>> right_boundary;
-  std::vector<Eigen::Vector3d> road_boundary;
-};
-
-struct LocalLane {
-  enum LanePoseType { UNKNOWN = 0, FAR_LEFT, FAR_RIGHT, MIDDLE };
-
-  LanePoseType flag = UNKNOWN;
-
-  std::string lane_id;
-  std::string road_id;
-  std::string section_id;
-  std::vector<Eigen::Vector3d> left_line;
-  std::vector<Eigen::Vector3d> right_line;
-  std::vector<std::string> left_lane_ids;
-  std::vector<std::string> right_lane_ids;
-  std::vector<std::string> prev_lane_ids;
-  std::vector<std::string> next_lane_ids;
-  std::vector<double> lane_width;
-  Eigen::Vector3d last_normal;  // last two point normal
-};
-
-struct LocalRoad {
-  std::string road_id;
-  // <section_id, Boundary>
-  std::unordered_map<std::string, Boundary> section_ids;
-};
 
 struct FarLane {
   std::string lane_id;
@@ -88,128 +58,53 @@ class MapPrediction {
   int Init();
   void Stop();
   void OnHqMap(const std::shared_ptr<hozon::hdmap::Map>& hqmap);
-  //   void OnLocalMap(const std::shared_ptr<const apollo::hdmap::Map>&
-  //   localMap);
   //! 临时使用，用原始ins作为全局系定位，以后统一用OnLocalization
   void OnInsNodeInfo(
       const std::shared_ptr<hozon::localization::HafNodeInfo>& msg);
-  //   void OnLocalMap(const std::shared_ptr<LocalMap>& msg);
   void OnLocalization(
       const std::shared_ptr<hozon::localization::Localization>& msg);
-  void OnTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg);
+  void OnTopoMap(
+      const std::shared_ptr<hozon::hdmap::Map>& msg,
+      const std::tuple<std::unordered_map<std::string, LaneInfo>,
+                       std::unordered_map<std::string, RoadInfo>>& map_info);
   std::shared_ptr<hozon::hdmap::Map> GetPredictionMap();
 
   void Prediction();
 
  private:
+  void Clear();
   void OnLocationInGlobal(const Eigen::Vector3d& pos_gcj02, uint32_t utm_zone,
                           double utm_x, double utm_y);
   void LocalEnuCenter(const std::shared_ptr<hozon::hdmap::Map>& msg);
-  static void ObtainLaneAndRoad(
-      const hozon::common::PointENU& utm_pos,
-      const double& range,
-      std::vector<hozon::hdmap::LaneInfoConstPtr>* lanes_in_range,
-      std::vector<hozon::hdmap::RoadInfoConstPtr>* roads_in_range);
-  void CreatLaneTable(
-      const std::vector<hozon::hdmap::LaneInfoConstPtr>& lanes_in_range);
+  void CalculateTanTheta(const std::string& idd);
   void CreatRoadTable(
       const std::vector<hozon::hdmap::RoadInfoConstPtr>& roads_in_range);
+  void ConstructLaneLine(const std::vector<Eigen::Vector3d>& road_boundary,
+                         const std::vector<std::string>& sec_lane_id);
   void CreatIdVector(const std::shared_ptr<hozon::hdmap::Map>& local_msg_);
   void CreatendIdVector(const hozon::hdmap::Lane& it, std::string* lane_id,
-                        const LocalLane& local_lane);
-  void CreateFarTable(const hozon::hdmap::Lane& it,
-                      const LocalLane& local_lane);
-  static void CreateLaneline(const hozon::hdmap::Lane& it, FarLane* far_lane);
+                        const LaneInfo& local_lane);
   void CreatAddIdVector(const std::vector<std::string>& end_lane_ids_);
-  void PredictLeftRightLaneline(
-      const std::set<std::string>& topo_section_ids_,
-      const std::unordered_map<std::string, LocalLane>& lane_table_,
-      const std::unordered_map<std::string, LocalRoad>& road_table_,
-      const std::vector<std::string>& topo_lane_ids_);
-  void BuildLeft(const std::pair<const std::string, FarLane>& it,
-                 const LocalLane& local_lane);
-  void BuildRight(const std::pair<const std::string, FarLane>& it,
-                  const LocalLane& local_lane);
-  void AddLeftOrRightLine(
-      const std::vector<Eigen::Vector3d>& road_boundary,
-      const std::pair<std::string, std::vector<Eigen::Vector3d>>& curr_line,
-      const uint32_t& mis_num, const uint32_t& lane_num, const uint32_t& record,
-      const std::vector<std::string>& sec_lane_id);
-  void PredictAheadLaneLine(
-      const std::vector<std::string>& add_section_ids_,
-      const std::unordered_map<std::string, LocalLane>& lane_table_,
-      const std::unordered_map<std::string, LocalRoad>& road_table_);
-  void GetCurrLaneId(const std::string& sec, std::string* curr_lane_id);
-  void JudgeFlag(const std::vector<std::string>& sec_lane_id, bool* flag);
-  void FitAheadLaneLine(
-      const std::vector<std::vector<Eigen::Vector3d>>& boundary1,
-      const std::vector<std::vector<Eigen::Vector3d>>& boundary2,
-      std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-          predict_lanelines,
-      const uint32_t& lane_num);
-  void FitPredLaneLine(
-      const std::vector<Eigen::Vector3d>& road_boundary,
-      const std::vector<std::string>& sec_lane_id,
-      std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-          predict_lanelines);
-  void FitMiddlePoint(const std::vector<Eigen::Vector3d>& road_boundary,
-                      const std::vector<std::string>& sec_lane_id,
-                      std::vector<std::vector<Eigen::Vector3d>>* predict_line);
-  void LaneLastNormal(Eigen::Vector3d* AB_N, const std::string& last_id);
-  void FitLastPoint(const std::vector<Eigen::Vector3d>& road_boundary,
-                    const std::vector<std::string>& sec_lane_id,
-                    std::vector<std::vector<Eigen::Vector3d>>* predict_line);
   void FitLaneCenterline();
   static void InsertCenterPoint(hozon::hdmap::Lane* lane,
                                 const std::vector<Vec2d>& cent_points);
   static void StoreLaneline(const hozon::hdmap::Lane& lane,
                             std::vector<Vec2d>* left_point,
                             std::vector<Vec2d>* right_point);
-  void AddSideTopological(
-      const std::vector<std::vector<Eigen::Vector3d>>& predict_line,
-      const uint32_t& record, const std::string& curr_id);
-  void AddLeft(const std::vector<std::vector<Eigen::Vector3d>>& predict_line,
-               const std::string& curr_id);
-  static void AddCurrLeftLine(hozon::hdmap::Lane* lane, const std::string& id_,
-                              const std::vector<Eigen::Vector3d>& line);
-  void AddRight(const std::vector<std::vector<Eigen::Vector3d>>& predict_line,
-                const std::string& curr_id);
-  static void AddCurrRightLine(hozon::hdmap::Lane* lane, const std::string& id_,
-                               const std::vector<Eigen::Vector3d>& line);
-  void AddSideTopoLeft(const std::vector<Eigen::Vector3d>& line,
-                       std::string* id_);
-  void AddSideTopoRight(const std::vector<Eigen::Vector3d>& line,
-                        std::string* id_);
-  void AheadTopological(
-      const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-          predict_lanelines,
-      const std::vector<std::string>& section_lane_id);
-  void AddAheadLeftRightTopo(hozon::hdmap::Map* local_msg_);
   void CompleteLaneline(
       const std::vector<std::string>& end_lane_ids_,
       const std::set<std::string>& end_section_id,
-      const std::unordered_map<std::string, LocalRoad>& road_table);
+      const std::unordered_map<std::string, RoadInfo>& road_table);
   void GetCorresId(std::vector<std::string>* com_id, std::string* road_id,
                    const std::string& sec);
-  void ExpansionLaneLine(
-      const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-          complete_lines,
-      const std::vector<std::string>& com_id,
-      const std::vector<std::string>& sec_id);
-  static void ExpansionLeft(
-      hdmap::Lane* lane, const int& left_line_id,
-      const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-          complete_lines);
-  static void ExpansionRight(
-      hdmap::Lane* lane, const int& right_line_id,
-      const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-          complete_lines);
+  void ExpansionLaneLine(const std::vector<std::string>& com_id,
+                         const std::vector<std::string>& sec_id);
+  void ExpansionLeft(hdmap::Lane* lane);
+  void ExpansionRight(hdmap::Lane* lane);
   void JudgeDiection(uint32_t* com_fit, const std::string& end_id);
-  static void PointToLineDist(
-      const Eigen::Vector3d& end_point,
-      const std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>&
-          complete_lines,
-      const int& line_id, uint32_t* index, double* min_distance);
+  static void PointToLineDist(const Eigen::Vector3d& end_point, uint32_t* index,
+                              double* min_distance,
+                              const std::vector<Eigen::Vector3d>& line_points);
   void AddResTopo();
   static void CatmullRoom(const std::vector<Eigen::Vector3d>& compan_point,
                           std::vector<Eigen::Vector3d>* cat_points);
@@ -225,6 +120,9 @@ class MapPrediction {
                     const std::vector<Eigen::Vector3d>& left_pts,
                     const std::vector<Eigen::Vector3d>& right_pts,
                     adsfi_proto::viz::MarkerArray* ma, const std::string& ns);
+  void CheckLocalLane(std::set<std::string>* side_miss_ids);
+  void PredLeftRight(const std::set<std::string>& side_miss_ids);
+  void PredAheadLanes();
 
   std::mutex mtx_;
   std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>
@@ -258,10 +156,15 @@ class MapPrediction {
   const std::string kLocalFrameId_ = "local";
 
   VizMap viz_map_;
+  MapTable map_info_;
 
   std::unordered_map<std::string, FarLane> far_table_;
-  std::unordered_map<std::string, LocalLane> lane_table_;
-  std::unordered_map<std::string, LocalRoad> road_table_;
+  //   std::unordered_map<std::string, LocalLane> lane_table_;
+  //   std::unordered_map<std::string, LocalRoad> road_table_;
+  std::unordered_map<std::string, LaneInfo> lane_table_;
+  std::unordered_map<std::string, RoadInfo> road_table_;
+  std::unordered_map<std::string, std::vector<Eigen::Vector3d>>
+      left_virtual_line_;
   std::vector<std::string> topo_lane_ids_;
   std::set<std::string> topo_section_ids_;
   std::vector<std::string> end_lane_ids_;

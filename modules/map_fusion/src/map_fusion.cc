@@ -7,10 +7,14 @@
 
 #include "map_fusion/map_fusion.h"
 
+#include <tuple>
+
 #include "map_fusion/map_prediction/map_prediction.h"
 #include "map_fusion/map_service/map_service.h"
+#include "map_fusion/map_service/map_table.h"
 #include "map_fusion/topo_assignment/topo_assignment.h"
 #include "util/rate.h"
+#include "util/temp_log.h"
 #include "util/tic_toc.h"
 
 namespace hozon {
@@ -36,6 +40,11 @@ int MapFusion::Init(const std::string& conf) {
   ret = pred_->Init();
   if (ret < 0) {
     HLOG_ERROR << "Init MapPrediction failed";
+    return -1;
+  }
+  map_table_ = std::make_shared<MapTable>();
+  if (!map_table_->Init()) {
+    HLOG_ERROR << "Init MapTable failed";
     return -1;
   }
 
@@ -116,6 +125,8 @@ int MapFusion::ProcFusion(
     HLOG_ERROR << "nullptr map prediction";
     return -1;
   }
+  map_table_->OnLocalization(curr_loc);
+  auto map_info = map_table_->GetMapTable();
   util::TicToc global_tic;
   util::TicToc local_tic;
   topo_->OnLocalization(curr_loc);
@@ -134,7 +145,7 @@ int MapFusion::ProcFusion(
   local_tic.Tic();
 
   pred_->OnLocalization(curr_loc);
-  pred_->OnTopoMap(topo_map);
+  pred_->OnTopoMap(topo_map, map_info);
   pred_->Prediction();
 
   //! 注意：MapPrediction内部保证每次返回的都是全新的ptr，

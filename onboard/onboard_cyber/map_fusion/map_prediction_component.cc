@@ -81,22 +81,22 @@ void MapPredictionComponent::OnHqMap(
   prediction_->OnHqMap(msg);
 }
 
-void MapPredictionComponent::OnTopoMap(
-    const std::shared_ptr<hozon::hdmap::Map>& msg) {
-  if (!msg) {
-    HLOG_ERROR << "message topo map is null";
-    return;
-  }
-  if (!prediction_) {
-    HLOG_ERROR << "nullptr prediction";
-    return;
-  }
-  prediction_->OnTopoMap(msg);
+// void MapPredictionComponent::OnTopoMap(
+//     const std::shared_ptr<hozon::hdmap::Map>& msg) {
+//   if (!msg) {
+//     HLOG_ERROR << "message topo map is null";
+//     return;
+//   }
+//   if (!prediction_) {
+//     HLOG_ERROR << "nullptr prediction";
+//     return;
+//   }
+//   prediction_->OnTopoMap(msg);
 
-  // 发送pred地图
-  auto map = prediction_->GetPredictionMap();
-  pred_writer_->Write(map);
-}
+//   // 发送pred地图
+//   auto map = prediction_->GetPredictionMap();
+//   pred_writer_->Write(map);
+// }
 
 }  // namespace mf
 }  // namespace mp

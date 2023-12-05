@@ -20,6 +20,7 @@
 #include "modules/location/pose_estimation/lib/pose_estimate/pose_estimate_base.h"
 #include "modules/location/pose_estimation/lib/util/globals.h"
 #include "modules/location/pose_estimation/lib/util/graph.h"
+#include "modules/location/pose_estimation/lib/pose_estimate/FrechetDistance.h"
 
 namespace hozon {
 namespace mp {
@@ -96,6 +97,7 @@ class MatchLaneLine {
    * @return timestamp
    */
   void set_ins_ts(const double &ins_ts);
+
   using Ptr = std::shared_ptr<MatchLaneLine>;
 
  private:
@@ -262,6 +264,9 @@ class MatchLaneLine {
   bool is_good_match_;
   SE3 T_W_V_;
   SE3 T_V_W_;
+
+ private:
+  std::shared_ptr<FrechetDistance3D> frechet_distance3D_;
 };
 
 }  // namespace loc

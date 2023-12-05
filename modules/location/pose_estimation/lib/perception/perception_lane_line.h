@@ -13,6 +13,7 @@
 #include <iostream>
 #include <list>
 #include <memory>
+#include <vector>
 
 #include "modules/location/pose_estimation/lib/perception/perception_base.h"
 #include "modules/location/pose_estimation/lib/tracking/kalman.h"
@@ -87,6 +88,10 @@ class PerceptionLaneLine {
    * @return lane line id
    */
   int Id();
+
+  int lane_position_type();
+
+  std::vector<hozon::mp::loc::V3> points();
 
   PolyLine<LaneLine> curve_vehicle_coord_;
   using Ptr = std::shared_ptr<PerceptionLaneLine>;

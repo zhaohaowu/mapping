@@ -43,7 +43,7 @@ enum class LineSide { UNKNOWN_SIDE = 0, LEFT_SIDE = 1, RIGHT_SIDE = 2 };
 enum CommonState { NO = 0, YES = 1, UNKNOW = 2 };
 enum class PercepLineType {
   UNKOWN = 100000,
-  L_LINE = 0,
+  L_LINE = -1,
   R_LINE = 1,
   LL_LINE = -1,
   RR_LINE = 2,

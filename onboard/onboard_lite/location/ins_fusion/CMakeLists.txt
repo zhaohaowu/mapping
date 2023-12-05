@@ -10,7 +10,6 @@ add_mapping_library(${MAPPING_ONBOARD_LITE_INS_FUSION}
     ${LOCATION_INS_LITE_SRCS})
 
 target_link_libraries(${MAPPING_ONBOARD_LITE_INS_FUSION}
-     
     gtest
     ${DEPENDS_LIBS}
     localization_ins_fusion_core

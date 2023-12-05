@@ -4,13 +4,11 @@
  *   author     ： ouyanghailin
  *   date       ： 2023.09
  ******************************************************************************/
-
-#include "onboard/onboard_lite/location/pose_estimation/pose_estimation_lite.h"
+#include <perception-lib/lib/environment/environment.h>
 #include <base/utils/log.h>
 #include <gflags/gflags.h>
-#include <perception-lib/lib/environment/environment.h>
-
-#include "depend/proto/localization/node_info.pb.h"
+#include "onboard/onboard_lite/location/pose_estimation/pose_estimation_lite.h"
+#include "modules/util/include/util/rviz_agent/rviz_agent.h"
 
 DEFINE_string(config_yaml,
               "runtime_service/mapping/conf/mapping/location/"
@@ -37,13 +35,19 @@ constexpr char* const kPerceptionTopic = "percep_transport";
 constexpr char* const kPoseEstimationTopic = "/location/pose_estimation";
 int32_t PoseEstimationLite::AlgInit() {
   pose_estimation_ = std::make_unique<MapMatching>();
-  const std::string adflite_root_path =
+    const std::string adflite_root_path =
       hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", ".");
-  const std::string config_yaml = adflite_root_path + "/" + FLAGS_config_yaml;
+  const std::string config_yaml =
+      adflite_root_path + "/" + FLAGS_config_yaml;
   const std::string config_cam_yaml =
       adflite_root_path + "/" + FLAGS_config_cam_yaml;
   if (!pose_estimation_->Init(config_yaml, config_cam_yaml)) {
     return -1;
+  }
+  HLOG_INFO << "Start RvizAgent on " << "ipc:///tmp/rviz_agent_pose_estimation";
+  int ret = RVIZ_AGENT.Init("ipc:///tmp/rviz_agent_pose_estimation");
+  if (ret < 0) {
+    HLOG_ERROR << "RvizAgent start failed";
   }
 
   RegistLog();
@@ -63,7 +67,11 @@ int32_t PoseEstimationLite::AlgInit() {
   return 0;
 }
 
-void PoseEstimationLite::AlgRelease() {}
+void PoseEstimationLite::AlgRelease() {
+  if (RVIZ_AGENT.Ok()) {
+    RVIZ_AGENT.Term();
+  }
+}
 
 void PoseEstimationLite::RegistLog() const {
   hozon::netaos::log::InitLogging("loc_pe", "pose_estimation",

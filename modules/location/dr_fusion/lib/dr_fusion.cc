@@ -204,7 +204,19 @@ int DrFusion::DrFusionState() const {
 bool DrFusion::DrNode2DrFusionNode(
     const hozon::dead_reckoning::DeadReckoning& origin_node,
     hozon::localization::HafNodeInfo* const node) {
-  if (node == nullptr) {
+  if (!node) {
+    return false;
+  }
+  Eigen::Quaterniond q(origin_node.pose().pose_local().quaternion().w(),
+                       origin_node.pose().pose_local().quaternion().x(),
+                       origin_node.pose().pose_local().quaternion().y(),
+                       origin_node.pose().pose_local().quaternion().z());
+  if (q.norm() < 1e-10) {
+    HLOG_ERROR << "Dr HafNodeInfo quaternion(w,x,y,z) "
+               << origin_node.pose().pose_local().quaternion().w() << ","
+               << origin_node.pose().pose_local().quaternion().x() << ","
+               << origin_node.pose().pose_local().quaternion().y() << ","
+               << origin_node.pose().pose_local().quaternion().z() << " error";
     return false;
   }
   node->mutable_header()->set_seq(origin_node.header().seq());

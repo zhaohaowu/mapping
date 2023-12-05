@@ -60,7 +60,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   std::shared_ptr<hozon::mapping::LocalMap> curr_local_map_ = nullptr;
 };
 
-// REGISTER_ADF_CLASS(MapFusionLite, MapFusionLite);
+REGISTER_ADF_CLASS(MapFusionLite, MapFusionLite);
 
 }  // namespace common_onboard
 }  // namespace perception

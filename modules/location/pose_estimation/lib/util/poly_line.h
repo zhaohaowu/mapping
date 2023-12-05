@@ -8,9 +8,10 @@
 #pragma once
 
 #include <iostream>
+#include <vector>
 
 #include "proto/perception/transport_element.pb.h"
-
+#include "modules/location/pose_estimation/lib/hd_map/hd_map_base.h"
 namespace hozon {
 namespace mp {
 namespace loc {
@@ -29,6 +30,8 @@ class PolyLine {
   float c2_;
   float c3_;
   float confidence_;
+  int lane_position_type_;
+  std::vector<hozon::mp::loc::V3> points;
 };
 
 }  // namespace loc

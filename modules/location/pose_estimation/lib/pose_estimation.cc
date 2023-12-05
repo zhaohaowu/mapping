@@ -556,7 +556,7 @@ void MapMatching::procData() {
       },
       "match lane :");
 
-  matched_lane_pair_size_ = map_match_->GetLanePairSize();
+  matched_lane_pair_size_ = map_match_->GetMatchPairSize();
   if (matched_lane_pair_size_ < 2) {
     HLOG_WARN << "matched_lane_pair_size stamp:" << ins_timestamp_
               << " size:" << matched_lane_pair_size_;
@@ -599,56 +599,56 @@ void MapMatching::procData() {
     HLOG_ERROR << "solver is not ok stamp:" << ins_timestamp_;
     return;
   }
-  bool good_match_check = false;
-  V3 trans;
-  time_.evaluate(
-      [&, this] {
-        // // auto T_V_VSF = T02_W_V.inverse() * T02_W_VF;
-        auto T_V_VSF = T02_W_V_INPUT.inverse() * T02_W_VF;
-        double yaw_diff = T_V_VSF.log().tail<3>().z();
-        V3 rot(0, 0, yaw_diff);
-        trans = V3(0, T_V_VSF.translation().y(), 0);
-        // HLOG_INFO << "solver diff, stamp: " << ins_timestamp_
-        //            << " yaw|y|x: " << yaw_diff * 180 / M_PI << " " <<
-        //            trans.y()
-        //            << " " << T_V_VSF.translation().x();
-        if (!CheckLaneMatch(T_V_VSF)) {
-          bad_lane_match_count_++;
-          HLOG_ERROR << "lane_match failed stamp:" << ins_timestamp_;
-          return;
-        }
-        bad_lane_match_count_ = 0;
-        T_delta_last_ = T_V_VSF;
+  // bool good_match_check = false;
+  // V3 trans;
+  // time_.evaluate(
+  //     [&, this] {
+  //       // // auto T_V_VSF = T02_W_V.inverse() * T02_W_VF;
+  //       auto T_V_VSF = T02_W_V_INPUT.inverse() * T02_W_VF;
+  //       double yaw_diff = T_V_VSF.log().tail<3>().z();
+  //       V3 rot(0, 0, yaw_diff);
+  //       trans = V3(0, T_V_VSF.translation().y(), 0);
+  //       // HLOG_INFO << "solver diff, stamp: " << ins_timestamp_
+  //       //            << " yaw|y|x: " << yaw_diff * 180 / M_PI << " " <<
+  //       //            trans.y()
+  //       //            << " " << T_V_VSF.translation().x();
+  //       if (!CheckLaneMatch(T_V_VSF)) {
+  //         bad_lane_match_count_++;
+  //         HLOG_ERROR << "lane_match failed stamp:" << ins_timestamp_;
+  //         return;
+  //       }
+  //       bad_lane_match_count_ = 0;
+  //       T_delta_last_ = T_V_VSF;
 
-        T_V_VSF = Sophus::SE3d(Sophus::SO3d::exp(rot), trans);  // flat
-        _T_W_V_fine = T02_W_V_INPUT * T_V_VSF;
-        // HLOG_INFO << "--------pppp " << ins_timestamp_ << " "
-        //           << _T_W_V_fine.translation().x() << " "
-        //           << _T_W_V_fine.translation().y() << " "
-        //           << _T_W_V_fine.translation().z() << " "
-        //           << _T_W_V_fine.log().tail<3>().x() * 180 / M_PI << " "
-        //           << _T_W_V_fine.log().tail<3>().y() * 180 / M_PI << " "
-        //           << _T_W_V_fine.log().tail<3>().z() * 180 / M_PI << " "
-        //           << T02_W_V.translation().x() << " "
-        //           << T02_W_V.translation().y() << " "
-        //           << T02_W_V.translation().z() << " "
-        //           << T02_W_V.log().tail<3>().x() * 180 / M_PI << " "
-        //           << T02_W_V.log().tail<3>().y() * 180 / M_PI << " "
-        //           << T02_W_V.log().tail<3>().z() * 180 / M_PI << " ";
-        // good_match_check = map_match_->goodMatchCheck(_T_W_V_fine);  // flat
-        good_match_check = map_match_->GoodMatchCheck(T02_W_VF);
-      },
-      "publish:");
+  //       T_V_VSF = Sophus::SE3d(Sophus::SO3d::exp(rot), trans);  // flat
+  //       _T_W_V_fine = T02_W_V_INPUT * T_V_VSF;
+  //       // HLOG_INFO << "--------pppp " << ins_timestamp_ << " "
+  //       //           << _T_W_V_fine.translation().x() << " "
+  //       //           << _T_W_V_fine.translation().y() << " "
+  //       //           << _T_W_V_fine.translation().z() << " "
+  //       //           << _T_W_V_fine.log().tail<3>().x() * 180 / M_PI << " "
+  //       //           << _T_W_V_fine.log().tail<3>().y() * 180 / M_PI << " "
+  //       //           << _T_W_V_fine.log().tail<3>().z() * 180 / M_PI << " "
+  //       //           << T02_W_V.translation().x() << " "
+  //       //           << T02_W_V.translation().y() << " "
+  //       //           << T02_W_V.translation().z() << " "
+  //       //           << T02_W_V.log().tail<3>().x() * 180 / M_PI << " "
+  //       //           << T02_W_V.log().tail<3>().y() * 180 / M_PI << " "
+  //       //           << T02_W_V.log().tail<3>().z() * 180 / M_PI << " ";
+  //       // good_match_check = map_match_->goodMatchCheck(_T_W_V_fine);  //
+  //       flat good_match_check = map_match_->GoodMatchCheck(T02_W_VF);
+  //     },
+  //     "publish:");
 
-  // 优化结果二次校验
-  if (!good_match_check) {
-    HLOG_ERROR << "good match check failed stamp:" << ins_timestamp_;
-    t2 = std::chrono::steady_clock::now();
-    t = t2.time_since_epoch().count() / 1e9;
-    static MapMatchingFrameRateRecord mm_check_fail_fr;
-    mm_check_fail_fr.CalFrameRate(t, "mm good check fail frame rate");
-    return;
-  }
+  // // 优化结果二次校验
+  // if (!good_match_check) {
+  //   HLOG_ERROR << "good match check failed stamp:" << ins_timestamp_;
+  //   t2 = std::chrono::steady_clock::now();
+  //   t = t2.time_since_epoch().count() / 1e9;
+  //   static MapMatchingFrameRateRecord mm_check_fail_fr;
+  //   mm_check_fail_fr.CalFrameRate(t, "mm good check fail frame rate");
+  //   return;
+  // }
 
   uint64_t proc_sec = 0, proc_nsec = 0;
   {
@@ -1167,10 +1167,13 @@ MapMatching::generateNodeInfo(const Sophus::SE3d &T_W_V, uint64_t sec,
   node_info->mutable_pos_gcj02()->set_x(blh.x());
   node_info->mutable_pos_gcj02()->set_y(blh.y());
   node_info->mutable_pos_gcj02()->set_z(blh.z());
+  node_info->mutable_quaternion()->set_x(T_W_V.unit_quaternion().x());
+  node_info->mutable_quaternion()->set_y(T_W_V.unit_quaternion().y());
+  node_info->mutable_quaternion()->set_z(T_W_V.unit_quaternion().z());
+  node_info->mutable_quaternion()->set_w(T_W_V.unit_quaternion().w());
   if (!has_err) {
-    HLOG_INFO << "blh.x()," << blh.x() << ",blh.y(),"
-              << blh.y() << ",blh.z()" << blh.z() << ",proc_stamp_,"
-              << proc_stamp_;
+    HLOG_INFO << "blh.x()," << blh.x() << ",blh.y()," << blh.y() << ",blh.z()"
+              << blh.z() << ",proc_stamp_," << proc_stamp_;
     node_info->set_valid_estimate(true);
   } else {
     node_info->set_valid_estimate(false);

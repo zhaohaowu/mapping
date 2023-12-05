@@ -40,7 +40,7 @@ class InsFusionLite : public hozon::netaos::adf_lite::Executor {
   std::unique_ptr<hozon::mp::loc::InsFusion> ins_fusion_ = nullptr;
 };
 
-// REGISTER_ADF_CLASS(InsFusionLite, InsFusionLite);
+REGISTER_ADF_CLASS(InsFusionLite, InsFusionLite);
 }  //  namespace common_onboard
 }  //  namespace perception
 }  //  namespace hozon

@@ -116,11 +116,10 @@ Sophus::SE3d MapMatchSolver::solve2D(const Connect &connect,
   if (is_ok == nullptr) {
     return pose;
   }
-  double n_lane_line_match = connect.lane_line_match_pairs.size();
-  double n = n_lane_line_match;
-  if (n < 3) {
+  auto n_lane_line_match = connect.lane_line_match_pairs.size();
+  if (n_lane_line_match < 3) {
     *is_ok = false;
-    HLOG_ERROR << "n_lane_line n:" << n;
+    HLOG_ERROR << "n_lane_line n:" << n_lane_line_match;
     return pose;
   }
 

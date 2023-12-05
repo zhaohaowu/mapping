@@ -721,7 +721,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
     for (const auto& mm_node : pe_deque_) {
       if (mm_node->ticktime > cur_ticktime &&
           mm_node->ticktime > last_meas_time_) {
-        meas_deque_.push_back(mm_node);
+        meas_deque_.emplace_back(mm_node);
         meas_flag = true;
       }
     }
@@ -754,7 +754,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
         if (ins_node->ticktime > cur_ticktime &&
             ins_node->ticktime > last_meas_time_ &&
             AllowInsMeas(ins_node->sys_status, ins_node->rtk_status)) {
-          meas_deque_.push_back(ins_node);
+          meas_deque_.emplace_back(ins_node);
           meas_flag = true;
         }
       }
@@ -827,7 +827,7 @@ bool FusionCenter::PredictMMMeas() {
       node->enu = pose.translation();
       node->orientation = pose.so3().log();
       node->type = NodeType::POSE_ESTIMATE;
-      meas_deque_.push_back(node);
+      meas_deque_.emplace_back(node);
       now_ticktime = ins_node->ticktime;
     }
   }
@@ -972,7 +972,7 @@ bool FusionCenter::InsertESKFMeasDR() {
       const auto& pose = Node2SE3(*fc_refer) * T_delta;
       node->enu = pose.translation();
       node->orientation = pose.so3().log();
-      meas_deque_.push_back(node);
+      meas_deque_.emplace_back(node);
     }
   }
   ins_deque_mutex_.unlock();

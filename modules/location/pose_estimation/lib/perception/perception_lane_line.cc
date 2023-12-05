@@ -66,6 +66,16 @@ void PerceptionLaneLine::Print() {
             << curve_vehicle_coord_.confidence_;
 }
 
+int PerceptionLaneLine::lane_position_type() {
+  const auto &poly = curve_vehicle_coord_;
+  return poly.lane_position_type_;
+}
+
+std::vector<hozon::mp::loc::V3> PerceptionLaneLine::points() {
+  const auto &poly = curve_vehicle_coord_;
+  return poly.points;
+}
+
 PerceptionLaneLineList::PerceptionLaneLineList(
     const hozon::perception::TransportElement &transport_element) {
   this->type_ = PERCEPTYION_LANE_BOUNDARY_LINE;

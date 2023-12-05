@@ -20,7 +20,7 @@
 --log_dir=data/log
 
 #for ehp
---use_ehp
+--nouse_ehp
 --use_ehp_odd_to_stop=false
 --ehp_monitor=1
 --enable_ehp_routing=false
@@ -32,7 +32,7 @@
 #map fusion
 --map_service_mode=0
 
---channel_ins_node_info=/PluginNodeInfo
+--channel_ins_node_info=/localization/location_node
 
 --mf_viz=ipc:///tmp/rviz_agent_mf
 --topo_rviz=true

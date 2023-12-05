@@ -49,7 +49,7 @@ class FusionCenterLite : public hozon::netaos::adf_lite::Executor {
   bool init_dr_ = false;
 };
 
-// REGISTER_ADF_CLASS(FusionCenterLite, FusionCenterLite);
+REGISTER_ADF_CLASS(FusionCenterLite, FusionCenterLite);
 
 }  // namespace common_onboard
 }  // namespace perception

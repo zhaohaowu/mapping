@@ -35,6 +35,7 @@ class MapMatch {
   bool GoodMatchCheck(const SE3 &T);
   void SetInsTs(const double &ins_ts);
   int GetLanePairSize() { return lane_line_->get_match_line_size(); }
+  int GetMatchPairSize() { return connect_.lane_line_match_pairs.size();}
   //   void Match3D(const HDMap &hd_map, const Tracking &track, const SE3
   //   &T02_W_V);
 

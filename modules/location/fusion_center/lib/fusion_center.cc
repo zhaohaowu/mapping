@@ -281,7 +281,7 @@ bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
   }
 
   node->seq = msg.header().seq();
-  node->ticktime = msg.header().publish_stamp();
+  node->ticktime = msg.header().data_stamp();
   node->blh << msg.pos_gcj02().x(), msg.pos_gcj02().y(), msg.pos_gcj02().z();
   node->orientation = Sophus::SO3d(q).log();
   node->velocity << msg.linear_velocity().x(), msg.linear_velocity().y(),
@@ -379,7 +379,7 @@ void FusionCenter::PruneDeques() {
   imuins_deque_mutex_.lock();
   while (!imuins_deque_.empty()) {
     const auto& imu_phy_data = imuins_deque_.front();
-    double imu_tick = (*imu_phy_data).header().publish_stamp();
+    double imu_tick = (*imu_phy_data).header().data_stamp();
 
     if (imu_tick > ticktime) {
       break;
@@ -438,7 +438,7 @@ void FusionCenter::Node2Localization(const Context& ctx,
   auto* const header = location->mutable_header();
   header->set_seq(seq_++);
   header->set_frame_id("location");
-  header->set_publish_stamp(ticktime);
+  header->set_data_stamp(ticktime);
   header->set_gnss_stamp(ticktime);
 
   location->set_measurement_time(ticktime);

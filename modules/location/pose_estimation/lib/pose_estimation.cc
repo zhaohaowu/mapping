@@ -248,11 +248,11 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo &ins) {
     use_extrapolate_ = false;
   }
 
-  time_sec_ = static_cast<uint64_t>(ins.header().publish_stamp());
+  time_sec_ = static_cast<uint64_t>(ins.header().data_stamp());
   time_nsec_ =
-      static_cast<uint64_t>((ins.header().publish_stamp() - time_sec_) * 1e9);
+      static_cast<uint64_t>((ins.header().data_stamp() - time_sec_) * 1e9);
   static double ins_time = -1;
-  double ins_stamp = ins.header().publish_stamp();
+  double ins_stamp = ins.header().data_stamp();
   ins_timestamp_ = ins_stamp;
   if (ins_time > 0) {
     auto dt_ins = ins_stamp - ins_time;
@@ -491,7 +491,7 @@ void MapMatching::procData() {
 
   double stampe = 0;
   if (curr_roadmark_sensor.frame_id != 0) {
-    stampe = curr_roadmark_sensor.transport_element.header().publish_stamp();
+    stampe = curr_roadmark_sensor.transport_element.header().data_stamp();
   }
   // else if (curr_pole_sensor.frame_id != 0) {
   //   stampe = double(curr_pole_sensor.road_marking.timestamp()) / 1e3;
@@ -578,11 +578,12 @@ void MapMatching::procData() {
   auto solver_time =
       (t2_solver.time_since_epoch() - t1_solver.time_since_epoch()).count() /
       1e9;
-  HLOG_INFO << "test mm | solver_time = " << solver_time;
   if (curr_roadmark_sensor.frame_id != 0) {
     auto lane_lines =
         all_perception->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE);
     auto lane = std::static_pointer_cast<PerceptionLaneLineList>(lane_lines[0]);
+    HLOG_INFO << "mm_publish" << T_output_.translation().isZero() << ","
+              << hozon::mp::util::RvizAgent::Instance().Ok();
     if (!T_output_.translation().isZero() &&
         hozon::mp::util::RvizAgent::Instance().Ok()) {
       if (mm_params.rviz_show_pceplane_oriT) {
@@ -1161,7 +1162,7 @@ MapMatching::generateNodeInfo(const Sophus::SE3d &T_W_V, uint64_t sec,
   node_info->set_type(::hozon::localization::HafNodeInfo_NodeType::
                           HafNodeInfo_NodeType_MapMatcher);
   double node_stamp = nsec * 1e-9 + static_cast<double>(sec);
-  node_info->mutable_header()->set_publish_stamp(node_stamp);
+  node_info->mutable_header()->set_data_stamp(node_stamp);
   node_info->mutable_header()->set_frame_id("node_info_mm");
   node_info->set_is_valid(true);
   node_info->mutable_pos_gcj02()->set_x(blh.x());
@@ -1216,7 +1217,9 @@ void MapMatching::setPoints(const PerceptionLaneLineList &line_list,
 
 void MapMatching::pubPoints(const VP &points, const uint64_t &sec,
                             const uint64_t &nsec) {
+  HLOG_ERROR << "pubPointsing";
   if (hozon::mp::util::RvizAgent::Instance().Ok()) {
+    HLOG_ERROR << "pubPointsing_isok";
     adsfi_proto::viz::PointCloud lane_points;
     static uint32_t seq = 0;
     int curr_seq = seq++;

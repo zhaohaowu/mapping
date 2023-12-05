@@ -166,7 +166,11 @@ int32_t FusionCenterLite::OnLocalMap(Bundle* input) {
   }
   const auto& init_dr = coord_adapter_->GetSysInitDrFusion();
   fusion_center_->OnInitDR(init_dr);
-  init_dr_ = true;
+  if (coord_adapter_->IsCoordInitSucc()) {
+    init_dr_ = true;
+  } else {
+    HLOG_ERROR << "OnInitDR Failed";
+  }
 
   return 0;
 }

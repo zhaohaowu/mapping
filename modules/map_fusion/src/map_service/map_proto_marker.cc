@@ -26,8 +26,8 @@ adsfi_proto::viz::TransformStamped MapProtoMarker::CarTrackTF(
   static uint32_t seq = 0;
   uint32_t curr_seq = seq++;
   geo_tf.mutable_header()->set_seq(curr_seq);
-  auto sec = static_cast<uint32_t>(stamp.publish_stamp());
-  auto nsec = static_cast<uint32_t>((stamp.publish_stamp() - sec) * 1e9);
+  auto sec = static_cast<uint32_t>(stamp.data_stamp());
+  auto nsec = static_cast<uint32_t>((stamp.data_stamp() - sec) * 1e9);
   geo_tf.mutable_header()->mutable_timestamp()->set_sec(sec);
   geo_tf.mutable_header()->mutable_timestamp()->set_nsec(nsec);
   geo_tf.mutable_header()->set_frameid("map");
@@ -51,8 +51,8 @@ void MapProtoMarker::CarTrack(const Eigen::Vector3d& pose,
   uint32_t curr_seq = seq++;
   auto* location_pose = location_path_->add_poses();
   location_path_->mutable_header()->set_seq(curr_seq);
-  auto sec = static_cast<uint32_t>(stamp.publish_stamp());
-  auto nsec = static_cast<uint32_t>((stamp.publish_stamp() - sec) * 1e9);
+  auto sec = static_cast<uint32_t>(stamp.data_stamp());
+  auto nsec = static_cast<uint32_t>((stamp.data_stamp() - sec) * 1e9);
   location_path_->mutable_header()->mutable_timestamp()->set_sec(sec);
   location_path_->mutable_header()->mutable_timestamp()->set_nsec(nsec);
   location_path_->mutable_header()->set_frameid("map");

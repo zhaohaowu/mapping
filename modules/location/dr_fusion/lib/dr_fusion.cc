@@ -109,7 +109,8 @@ bool DrFusion::GetResult(hozon::localization::HafNodeInfo* const node) {
         latest_ins_fusion_node_.header().publish_stamp());
     node->mutable_header()->set_gnss_stamp(
         latest_ins_fusion_node_.header().gnss_stamp());
-
+    node->mutable_header()->set_data_stamp(
+        latest_ins_fusion_node_.header().data_stamp());
     Eigen::Vector3d blh(latest_ins_fusion_node_.pos_gcj02().x(),
                         latest_ins_fusion_node_.pos_gcj02().y(),
                         latest_ins_fusion_node_.pos_gcj02().z());
@@ -174,7 +175,7 @@ bool DrFusion::Extract02InsNode(
   }
 
   node->seq = origin_node.header().seq();
-  node->ticktime = origin_node.header().gnss_stamp();
+  node->ticktime = origin_node.header().data_stamp();
 
   node->refpoint = GetRefpoint();
   node->blh << origin_node.pos_gcj02().x(), origin_node.pos_gcj02().y(),
@@ -222,6 +223,7 @@ bool DrFusion::DrNode2DrFusionNode(
   node->mutable_header()->set_seq(origin_node.header().seq());
   node->mutable_header()->set_publish_stamp(origin_node.header().publish_stamp());
   node->mutable_header()->set_gnss_stamp(origin_node.header().gnss_stamp());
+  node->mutable_header()->set_data_stamp(origin_node.header().data_stamp());
   node->mutable_header()->set_frame_id("dr");
   node->set_valid_estimate(true);
 

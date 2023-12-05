@@ -18,7 +18,7 @@ DEFINE_string(config_cam_yaml,
               "runtime_service/mapping/conf/mapping/location/"
               "pose_estimation/pose_estimation_cam.yaml",
               "path to pose estimation camera config yaml");
-DEFINE_string(viz_addr, "ipc:///tmp/rviz_agent_pose_estimation",
+DEFINE_string(viz_pose_estimation_addr, "ipc:///tmp/rviz_agent_pose_estimation",
               "RvizAgent's working address, this should corresponds to the "
               "address used in RvizBridge. Leaving empty represents not using "
               "RvizAgent for visualization");
@@ -44,11 +44,6 @@ int32_t PoseEstimationLite::AlgInit() {
   if (!pose_estimation_->Init(config_yaml, config_cam_yaml)) {
     return -1;
   }
-  HLOG_INFO << "Start RvizAgent on " << "ipc:///tmp/rviz_agent_pose_estimation";
-  int ret = RVIZ_AGENT.Init("ipc:///tmp/rviz_agent_pose_estimation");
-  if (ret < 0) {
-    HLOG_ERROR << "RvizAgent start failed";
-  }
 
   RegistLog();
   RegistMessageType();
@@ -64,6 +59,10 @@ int32_t PoseEstimationLite::AlgInit() {
   RegistAlgProcessFunc("send_pose_estimation_result",
                        std::bind(&PoseEstimationLite::OnPoseEstimation, this,
                                  std::placeholders::_1));
+  int ret = mp::util::RvizAgent::Instance().Init(FLAGS_viz_pose_estimation_addr);
+  if (ret < 0) {
+    HLOG_WARN << "RvizAgent init failed:" << FLAGS_viz_pose_estimation_addr;
+  }
   return 0;
 }
 

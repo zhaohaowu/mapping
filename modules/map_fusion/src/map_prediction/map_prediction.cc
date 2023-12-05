@@ -68,6 +68,8 @@ DEFINE_string(viz_topic_odom_in_local, "/mf/pred/odom_local",
               "viz topic of odometry in local frame");
 DEFINE_string(viz_topic_map_in_local, "/mf/pred/map_local",
               "viz topic of map in local frame");
+DEFINE_bool(output_hd_map, false,
+            "Whether to output a map with a range of 300m");
 // NOLINTEND
 
 namespace hozon {
@@ -204,7 +206,8 @@ void MapPrediction::OnHqMap(const std::shared_ptr<hozon::hdmap::Map>& hqmap) {
 void MapPrediction::OnTopoMap(
     const std::shared_ptr<hozon::hdmap::Map>& msg,
     const std::tuple<std::unordered_map<std::string, LaneInfo>,
-                     std::unordered_map<std::string, RoadInfo>>& map_info) {
+                     std::unordered_map<std::string, RoadInfo>,
+                     std::shared_ptr<hozon::hdmap::Map>>& map_info) {
   // std::lock_guard<std::mutex> lock(mtx_);
   if (!msg) {
     HLOG_ERROR << "nullptr topo map";
@@ -224,7 +227,12 @@ void MapPrediction::OnTopoMap(
 
     local_msg_ = std::make_shared<hozon::hdmap::Map>();
     local_msg_->Clear();
-    local_msg_->CopyFrom(*msg);
+    if (!FLAGS_output_hd_map) {
+      local_msg_->CopyFrom(*msg);
+    } else {
+      auto hd_map = std::get<2>(map_info);
+      local_msg_->CopyFrom(*hd_map);
+    }
     utm_pos.set_x(location_utm_.x());
     utm_pos.set_y(location_utm_.y());
     utm_pos.set_z(0);
@@ -1311,32 +1319,32 @@ void MapPrediction::Prediction() {
   //    std::lock_guard<std::mutex> lock(mtx_);
   util::TicToc global_tic;
   util::TicToc local_tic;
+  if (!FLAGS_output_hd_map) {
+    CompleteLaneline(end_lane_ids_, end_section_ids_, road_table_);
+    HLOG_INFO << "pred Prediction CompleteLaneline cost " << local_tic.Toc();
+    local_tic.Tic();
 
-  CompleteLaneline(end_lane_ids_, end_section_ids_, road_table_);
-  HLOG_INFO << "pred Prediction CompleteLaneline cost " << local_tic.Toc();
-  local_tic.Tic();
-  std::set<std::string> side_miss_ids;
-  CheckLocalLane(&side_miss_ids);
-  HLOG_INFO << "pred Prediction CheckLocalLane cost " << local_tic.Toc();
-  local_tic.Tic();
-  PredLeftRight(side_miss_ids);
-  HLOG_INFO << "pred Prediction PredLeftRight cost " << local_tic.Toc();
-  local_tic.Tic();
-  PredAheadLanes();
-  HLOG_INFO << "pred Prediction PredAheadLanes cost " << local_tic.Toc();
+    std::set<std::string> side_miss_ids;
+    CheckLocalLane(&side_miss_ids);
+    HLOG_INFO << "pred Prediction CheckLocalLane cost " << local_tic.Toc();
+    local_tic.Tic();
 
-  local_tic.Tic();
-  FitLaneCenterline();
-  HLOG_INFO << "pred Prediction FitLaneCenterline cost " << local_tic.Toc();
+    PredLeftRight(side_miss_ids);
+    HLOG_INFO << "pred Prediction PredLeftRight cost " << local_tic.Toc();
+    local_tic.Tic();
+
+    PredAheadLanes();
+    HLOG_INFO << "pred Prediction PredAheadLanes cost " << local_tic.Toc();
+
+    local_tic.Tic();
+    FitLaneCenterline();
+    HLOG_INFO << "pred Prediction FitLaneCenterline cost " << local_tic.Toc();
+  }
 
   local_tic.Tic();
   viz_map_.VizLocalMapLaneLine(local_msg_);
   viz_map_.VizLaneID(local_msg_);
 
-  Eigen::Vector3d pose = location_;
-  // viz_map_.VizLocalMsg(local_msg_, pose);
-
-  // 对3公里预测之后的车道添加拓扑关系及其他元素，添加到local_msg_中
   AddResTopo();
   HLOG_INFO << "pred Prediction AddResTopo cost " << local_tic.Toc();
   local_tic.Tic();

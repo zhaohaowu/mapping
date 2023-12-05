@@ -52,13 +52,15 @@ void MapTable::OnLocalization(
 }
 
 std::tuple<std::unordered_map<std::string, LaneInfo>,
-           std::unordered_map<std::string, RoadInfo>>
+           std::unordered_map<std::string, RoadInfo>,
+           std::shared_ptr<hozon::hdmap::Map>>
 MapTable::GetMapTable() {
   // 返回哈希表
   std::tuple<std::unordered_map<std::string, LaneInfo>,
-             std::unordered_map<std::string, RoadInfo>>
+             std::unordered_map<std::string, RoadInfo>,
+             std::shared_ptr<hozon::hdmap::Map>>
       map_table_;
-  map_table_ = std::make_tuple(lane_table_, road_table_);
+  map_table_ = std::make_tuple(lane_table_, road_table_, hd_map_);
   return map_table_;
 }
 
@@ -82,7 +84,7 @@ void MapTable::BuildLaneTable() {
   std::vector<hozon::hdmap::LaneInfoConstPtr> lanes_in_range;
   std::vector<hozon::hdmap::RoadInfoConstPtr> roads_in_range;
   ObtainLaneAndRoad(utm_pos, range, &lanes_in_range, &roads_in_range);
-
+  hd_map_ = std::make_shared<hozon::hdmap::Map>();
   CreatLaneTable(lanes_in_range);
   CreatRoadTable(roads_in_range);
 
@@ -135,6 +137,12 @@ void MapTable::CreatLaneTable(
   // 创建lane
   // 创建lane_table_
   for (const auto& lane : lanes_in_range) {
+    auto* new_lane = hd_map_->add_lane();
+    new_lane->mutable_id()->CopyFrom(lane->lane().id());
+    new_lane->mutable_left_boundary()->CopyFrom(lane->lane().left_boundary());
+    new_lane->mutable_right_boundary()->CopyFrom(lane->lane().right_boundary());
+    new_lane->mutable_central_curve()->CopyFrom(lane->lane().central_curve());
+
     const auto& lane_id = lane->id().id();
     LaneInfo local_lane;
     local_lane.lane_id = lane_id;
@@ -149,21 +157,7 @@ void MapTable::CreatLaneTable(
 
     const auto& lane_length = lane->lane().left_boundary().length();
     local_lane.length = lane_length;
-
-    // 存lane左右边线
-    for (const auto& it : lane->lane().left_boundary().curve().segment()) {
-      for (const auto& itt : it.line_segment().point()) {
-        Eigen::Vector3d pt = UtmPtToLocalEnu(itt);
-        local_lane.left_line.emplace_back(pt);
-      }
-    }
-    for (const auto& it : lane->lane().right_boundary().curve().segment()) {
-      for (const auto& itt : it.line_segment().point()) {
-        Eigen::Vector3d pt = UtmPtToLocalEnu(itt);
-        local_lane.right_line.emplace_back(pt);
-      }
-    }
-
+    CreateLaneLine(&local_lane, new_lane);
     // 存储每条lane右边线最后两个点的单位向量
     const auto& right_size = local_lane.right_line.size();
     const auto& last_normal = (local_lane.right_line[right_size - 2] -
@@ -199,6 +193,42 @@ void MapTable::CreatLaneTable(
     // 存储站心
     local_lane.ref_point = local_enu_center_;
     lane_table_.insert_or_assign(lane_id, local_lane);
+  }
+}
+
+void MapTable::CreateLaneLine(LaneInfo* local_lane,
+                              hozon::hdmap::Lane* new_lane) {
+  // 存lane左右边线
+  for (auto& it :
+       *new_lane->mutable_left_boundary()->mutable_curve()->mutable_segment()) {
+    for (auto& itt : *it.mutable_line_segment()->mutable_point()) {
+      Eigen::Vector3d pt = UtmPtToLocalEnu(itt);
+      local_lane->left_line.emplace_back(pt);
+      itt.set_x(pt.x());
+      itt.set_y(pt.y());
+      itt.set_z(pt.z());
+    }
+  }
+  for (auto& it : *new_lane->mutable_right_boundary()
+                       ->mutable_curve()
+                       ->mutable_segment()) {
+    for (auto& itt : *it.mutable_line_segment()->mutable_point()) {
+      Eigen::Vector3d pt = UtmPtToLocalEnu(itt);
+      local_lane->right_line.emplace_back(pt);
+      itt.set_x(pt.x());
+      itt.set_y(pt.y());
+      itt.set_z(pt.z());
+    }
+  }
+  // 中心线
+  for (auto& it : *new_lane->mutable_central_curve()->mutable_segment()) {
+    for (auto& itt : *it.mutable_line_segment()->mutable_point()) {
+      Eigen::Vector3d pt = UtmPtToLocalEnu(itt);
+      local_lane->left_line.emplace_back(pt);
+      itt.set_x(pt.x());
+      itt.set_y(pt.y());
+      itt.set_z(pt.z());
+    }
   }
 }
 
@@ -766,6 +796,7 @@ void MapTable::Clear() {
   road_table_.clear();
   all_section_ids_.clear();
   left_virtual_line_.clear();
+  hd_map_ = nullptr;
 }
 
 }  // namespace mf

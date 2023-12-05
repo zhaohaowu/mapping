@@ -72,7 +72,8 @@ class MapTable {
   void OnLocalization(
       const std::shared_ptr<hozon::localization::Localization>& msg);
   std::tuple<std::unordered_map<std::string, LaneInfo>,
-             std::unordered_map<std::string, RoadInfo>>
+             std::unordered_map<std::string, RoadInfo>,
+             std::shared_ptr<hozon::hdmap::Map>>
   GetMapTable();
 
  private:
@@ -121,6 +122,7 @@ class MapTable {
                        bool* flag);
   void JudgePrevLength(double* l, const std::string& lane_id);
   bool JudgeNextIsVir(const std::string& lane_id);
+  void CreateLaneLine(LaneInfo* local_lane, hozon::hdmap::Lane* new_lane);
   Eigen::Vector3d UtmPtToLocalEnu(const hozon::common::PointENU& point_utm);
 
   std::unordered_map<std::string, LaneInfo> lane_table_;
@@ -128,6 +130,7 @@ class MapTable {
   std::vector<std::string> all_section_ids_;
   std::unordered_map<std::string, std::vector<Eigen::Vector3d>>
       left_virtual_line_;
+  std::shared_ptr<hozon::hdmap::Map> hd_map_ = nullptr;
 
   std::mutex mtx_;
   // gcj02

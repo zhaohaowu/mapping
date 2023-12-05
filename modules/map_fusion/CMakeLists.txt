@@ -11,7 +11,6 @@ set(TOPO_SRCS
 
 set(PREDICTION_SRCS
   src/map_prediction/map_prediction.cc
-  # src/map_prediction/lane_center_constructor.cc
   src/map_prediction/viz_map.cc
   )
 
@@ -29,6 +28,7 @@ else ()
     src/map_service/map_proto_marker.cc
     src/map_service/map_service.cc
     src/map_service/global_hd_map.cc
+    src/map_service/map_table.cc
     )
   set(AMAP_LIBS
     base_utils

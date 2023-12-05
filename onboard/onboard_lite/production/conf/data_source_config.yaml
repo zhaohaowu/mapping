@@ -35,37 +35,37 @@ dataSourcesIn:
 
 dataSourcesOut:
   - topic: localization
+    capacity: 5
     type: proto_skeleton
     cmTopic: /localization/location
     cmDomainId: 0
     capacity: 5
   - topic: map_fusion
+    capacity: 5
     type: proto_skeleton
     cmTopic: /localization/fusionmap
     cmDomainId: 0
-    capacity: 5
-  - topic: routing_response
-    type: proto_skeleton
-    cmTopic: /localization/routing
-    cmDomainId: 0
-    capacity: 5
   - topic: dr
+    capacity: 5
     type: proto_skeleton
     cmTopic: /localization/deadreckoning
     cmDomainId: 0
     capacity: 5
   - topic: local_map
+    capacity: 5
     type: proto_skeleton
     cmTopic: /localization/local_map
     cmDomainId: 0
     capacity: 5
 
   - topic: local_map_loc
+    capacity: 5
     type: proto_skeleton
     cmTopic: /localization/local_map_loc
     cmDomainId: 0
     capacity: 5
   - topic: /location/pose_estimation
+    capacity: 5
     type: proto_skeleton
     cmTopic: /localization/pe
     cmDomainId: 0

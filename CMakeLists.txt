@@ -67,8 +67,6 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
         include(${MDC_TOOLCHAIN})
         add_definitions(-DISMDC="is mdc")
         add_definitions(-DAP_RELEASE_IS_ADSFI_2_0)
-    elseif(${LOCAL_TARGET_PLATFORM} STREQUAL "orin")
-        add_definitions(-DISORIN=1)
     endif()
 
 

@@ -23,7 +23,7 @@ int32_t MapFusionLite::AlgInit() {
   std::string default_work_root = "/app/";
   std::string work_root = lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
   if (work_root == "") {
-    HLOG_ERROR << "ENV: ADFLITE_ROOT_PATH is not set.";
+    HLOG_INFO << "ENV: ADFLITE_ROOT_PATH is not set.";
     return false;
   }
   std::string config_file = work_root +
@@ -44,19 +44,20 @@ int32_t MapFusionLite::AlgInit() {
   FLAGS_map_service_mode = config["map_service_mode"].as<int32_t>();
   FLAGS_topo_rviz = config["topo_rviz"].as<bool>();
   FLAGS_viz_odom_map_in_local = config["viz_odom_map_in_local"].as<bool>();
+  FLAGS_x86_adf_lite = config["x86_adf_lite"].as<bool>();
 
   if (FLAGS_orin_viz) {
     HLOG_INFO << "Start RvizAgent on " << FLAGS_orin_viz_addr;
     int ret = RVIZ_AGENT.Init(FLAGS_orin_viz_addr);
     if (ret < 0) {
-      HLOG_ERROR << "RvizAgent start failed";
+      HLOG_INFO << "RvizAgent start failed";
     }
   }
 
   mf_ = std::make_unique<MapFusion>();
   int ret = mf_->Init("");
   if (ret < 0) {
-    HLOG_ERROR << "Init map fusion failed";
+    HLOG_INFO << "Init map fusion failed";
     return -1;
   }
 
@@ -81,24 +82,22 @@ void MapFusionLite::AlgRelease() {
 
 void MapFusionLite::RegistLog() {
   hozon::netaos::log::InitLogging("map_fusion_executor", "map_fusion",
-                                  hozon::netaos::log::LogLevel::kInfo,
-                                  HZ_LOG2CONSOLE, "./", 10, (20));
+                                  hozon::netaos::log::LogLevel::kError,
+                                  HZ_LOG2FILE, "./", 10, (20));
 
   hozon::netaos::adf::NodeLogger::GetInstance().CreateLogger(
-      "map_fusion_executor", "map_fusion", hozon::netaos::log::LogLevel::kInfo);
+      "map_fusion_executor", "map_fusion",
+      hozon::netaos::log::LogLevel::kError);
 }
 
 void MapFusionLite::RegistMessageType() {
-  // 消息名称最终都需要改一下
   REGISTER_PROTO_MESSAGE_TYPE("localization",
                               hozon::localization::Localization);
   REGISTER_PROTO_MESSAGE_TYPE("/location/ins_fusion",
                               hozon::localization::HafNodeInfo);
   REGISTER_PROTO_MESSAGE_TYPE("local_map", hozon::mapping::LocalMap);
   // map fusion output message
-  REGISTER_PROTO_MESSAGE_TYPE("map_fusion", hozon::hdmap::Map);
-  REGISTER_PROTO_MESSAGE_TYPE("routing_response",
-                              hozon::routing::RoutingResponse);
+  REGISTER_PROTO_MESSAGE_TYPE("map_fusion", hozon::navigation_hdmap::MapMsg);
 }
 
 void MapFusionLite::RegistProcessFunc() {
@@ -124,7 +123,7 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
   }
   auto p_loc = input->GetOne("localization");
   if (!p_loc) {
-    HLOG_ERROR << "nullptr location message";
+    HLOG_INFO << "nullptr location message";
     return -1;
   }
   const auto loc_res =
@@ -132,7 +131,7 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
           p_loc->proto_msg);
 
   if (!loc_res) {
-    HLOG_ERROR << "nullptr location";
+    HLOG_INFO << "nullptr location";
     return -1;
   }
   {
@@ -149,14 +148,14 @@ int32_t MapFusionLite::OnLocalMap(Bundle* input) {
   }
   auto p_local_map = input->GetOne("local_map");
   if (!p_local_map) {
-    HLOG_ERROR << "nullptr local map message";
+    HLOG_INFO << "nullptr local map message";
     return -1;
   }
   const auto local_map_res = std::static_pointer_cast<hozon::mapping::LocalMap>(
       p_local_map->proto_msg);
 
   if (!local_map_res) {
-    HLOG_ERROR << "nullptr local map";
+    HLOG_INFO << "nullptr local map";
     return -1;
   }
   {
@@ -174,7 +173,7 @@ int32_t MapFusionLite::OnLocPlugin(Bundle* input) {
   }
   auto p_loc_plugin = input->GetOne("/location/ins_fusion");
   if (!p_loc_plugin) {
-    HLOG_ERROR << "nullptr location plugin message";
+    HLOG_INFO << "nullptr location plugin message";
     return -1;
   }
   const auto loc_plugin_res =
@@ -182,7 +181,7 @@ int32_t MapFusionLite::OnLocPlugin(Bundle* input) {
           p_loc_plugin->proto_msg);
 
   if (!loc_plugin_res) {
-    HLOG_ERROR << "nullptr location plugin";
+    HLOG_INFO << "nullptr location plugin ";
     return -1;
   }
   {
@@ -233,9 +232,6 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     return -1;
   }
 
-  HLOG_INFO << "xxxxxxxxxxxxxxxx==========================:"
-            << latest_map->lane_size();
-
   ret = SendFusionResult(latest_map, latest_routing);
   if (ret < 0) {
     HLOG_INFO << "SendFusionResult failed";
@@ -285,22 +281,17 @@ int MapFusionLite::SendFusionResult(
     return -1;
   }
 
-  //  auto map_res =
-  //     std::make_shared<hozon::netaos::adf_lite::BaseData>();
-  // map_res->proto_msg = map;
-  // Bundle bundle;
-  // bundle.Add("map_fusion", map_res);
-  // SendOutput(&bundle);
+  std::shared_ptr<hozon::navigation_hdmap::MapMsg> map_fusion =
+      std::make_shared<hozon::navigation_hdmap::MapMsg>();
+
+  map_fusion->mutable_header()->CopyFrom(map->header().header());
+  map_fusion->mutable_hdmap()->CopyFrom(*map);
+  map_fusion->mutable_routing()->CopyFrom(*routing);
 
   auto map_res = std::make_shared<hozon::netaos::adf_lite::BaseData>();
-  map_res->proto_msg = map;
+  map_res->proto_msg = map_fusion;
 
   SendOutput("map_fusion", map_res);
-
-  auto routing_res = std::make_shared<hozon::netaos::adf_lite::BaseData>();
-  routing_res->proto_msg = routing;
-
-  SendOutput("routing_response", routing_res);
 
   return 0;
 }

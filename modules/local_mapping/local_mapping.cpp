@@ -92,14 +92,16 @@ void LMapApp::OnDr(
   std::shared_ptr<Location> latest_dr = std::make_shared<Location>();
   DataConvert::SetDr(*msg, latest_dr.get());
   static bool dr_flag = true;
-  static Sophus::SE3d init_T;
+  static Sophus::SE3d init_T_inverse;
   if (dr_flag) {
     dr_flag = false;
-    init_T = Sophus::SE3d(latest_dr->quaternion_, latest_dr->position_);
+    Sophus::SE3d init_T =
+        Sophus::SE3d(latest_dr->quaternion_, latest_dr->position_);
+    init_T_inverse = init_T.inverse();
   }
   Sophus::SE3d latest_T =
       Sophus::SE3d(latest_dr->quaternion_, latest_dr->position_);
-  Sophus::SE3d T_W_V_dr = init_T.inverse() * latest_T;
+  Sophus::SE3d T_W_V_dr = init_T_inverse * latest_T;
   Eigen::Vector3d trans_pose = T_W_V_dr.translation();
   Eigen::Quaterniond trans_quat = T_W_V_dr.so3().unit_quaternion();
   auto& local_data = LocalDataSingleton::GetInstance();

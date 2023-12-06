@@ -50,12 +50,8 @@ bool MapService::Init() {
     global_hd_map->GetHdMap()->LoadMapFromFile(FLAGS_map_dir + "/base_map.bin");
   } else if (FLAGS_map_service_mode == 1) {
     ehr_ = std::make_unique<hozon::ehr::AmapEhrImpl>();
-    HLOG_ERROR << "Amap is not supported under orin";
-    return false;
   } else if (FLAGS_map_service_mode == 2) {
     // todo map api
-    HLOG_ERROR << "Amap is not supported under orin";
-    return false;
   }
 
   return true;

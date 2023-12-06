@@ -23,8 +23,8 @@ int32_t MapFusionLite::AlgInit() {
   std::string default_work_root = "/app/";
   std::string work_root = lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
   if (work_root == "") {
-    HLOG_INFO << "ENV: ADFLITE_ROOT_PATH is not set.";
-    return false;
+    HLOG_ERROR << "ENV: ADFLITE_ROOT_PATH is not set.";
+    return -1;
   }
   std::string config_file = work_root +
                             "/runtime_service/mapping/conf/mapping/"
@@ -47,10 +47,10 @@ int32_t MapFusionLite::AlgInit() {
   FLAGS_x86_adf_lite = config["x86_adf_lite"].as<bool>();
 
   if (FLAGS_orin_viz) {
-    HLOG_INFO << "Start RvizAgent on " << FLAGS_orin_viz_addr;
+    HLOG_ERROR << "Start RvizAgent on " << FLAGS_orin_viz_addr;
     int ret = RVIZ_AGENT.Init(FLAGS_orin_viz_addr);
     if (ret < 0) {
-      HLOG_INFO << "RvizAgent start failed";
+      HLOG_ERROR << "RvizAgent start failed";
     }
   }
 
@@ -70,9 +70,9 @@ int32_t MapFusionLite::AlgInit() {
 
 void MapFusionLite::AlgRelease() {
   if (mf_) {
-    HLOG_INFO << "try stopping map fusion";
+    HLOG_ERROR << "try stopping map fusion";
     mf_->Stop();
-    HLOG_INFO << "done stopping map fusion";
+    HLOG_ERROR << "done stopping map fusion";
   }
 
   if (RVIZ_AGENT.Ok()) {
@@ -82,12 +82,11 @@ void MapFusionLite::AlgRelease() {
 
 void MapFusionLite::RegistLog() {
   hozon::netaos::log::InitLogging("map_fusion_executor", "map_fusion",
-                                  hozon::netaos::log::LogLevel::kError,
+                                  hozon::netaos::log::LogLevel::kInfo,
                                   HZ_LOG2FILE, "./", 10, (20));
 
   hozon::netaos::adf::NodeLogger::GetInstance().CreateLogger(
-      "map_fusion_executor", "map_fusion",
-      hozon::netaos::log::LogLevel::kError);
+      "map_fusion_executor", "map_fusion", hozon::netaos::log::LogLevel::kInfo);
 }
 
 void MapFusionLite::RegistMessageType() {
@@ -123,7 +122,7 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
   }
   auto p_loc = input->GetOne("localization");
   if (!p_loc) {
-    HLOG_INFO << "nullptr location message";
+    HLOG_ERROR << "nullptr location message";
     return -1;
   }
   const auto loc_res =
@@ -131,7 +130,7 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
           p_loc->proto_msg);
 
   if (!loc_res) {
-    HLOG_INFO << "nullptr location";
+    HLOG_ERROR << "nullptr location";
     return -1;
   }
   {
@@ -148,14 +147,14 @@ int32_t MapFusionLite::OnLocalMap(Bundle* input) {
   }
   auto p_local_map = input->GetOne("local_map");
   if (!p_local_map) {
-    HLOG_INFO << "nullptr local map message";
+    HLOG_ERROR << "nullptr local map message";
     return -1;
   }
   const auto local_map_res = std::static_pointer_cast<hozon::mapping::LocalMap>(
       p_local_map->proto_msg);
 
   if (!local_map_res) {
-    HLOG_INFO << "nullptr local map";
+    HLOG_ERROR << "nullptr local map";
     return -1;
   }
   {
@@ -181,7 +180,7 @@ int32_t MapFusionLite::OnLocPlugin(Bundle* input) {
           p_loc_plugin->proto_msg);
 
   if (!loc_plugin_res) {
-    HLOG_INFO << "nullptr location plugin ";
+    HLOG_ERROR << "nullptr location plugin ";
     return -1;
   }
   {
@@ -195,14 +194,14 @@ int32_t MapFusionLite::OnLocPlugin(Bundle* input) {
 
 int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   if (!mf_) {
-    HLOG_INFO << "nullptr map fusion";
+    HLOG_ERROR << "nullptr map fusion";
     return -1;
   }
 
   std::shared_ptr<hozon::localization::HafNodeInfo> latest_plugin =
       GetLatestLocPlugin();
   if (latest_plugin == nullptr) {
-    HLOG_INFO << "nullptr latest plugin node info";
+    HLOG_ERROR << "nullptr latest plugin node info";
     return -1;
   }
   std::shared_ptr<hozon::planning::ADCTrajectory> latest_planning = nullptr;
@@ -215,26 +214,26 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   std::shared_ptr<hozon::localization::Localization> latest_loc =
       GetLatestLoc();
   if (latest_loc == nullptr) {
-    HLOG_INFO << "nullptr latest loc";
+    HLOG_ERROR << "nullptr latest loc";
     return -1;
   }
   std::shared_ptr<hozon::mapping::LocalMap> latest_local_map =
       GetLatestLocalMap();
   if (latest_local_map == nullptr) {
-    HLOG_INFO << "nullptr latest local map";
+    HLOG_ERROR << "nullptr latest local map";
     return -1;
   }
 
   auto latest_map = std::make_shared<hozon::hdmap::Map>();
   int ret = mf_->ProcFusion(latest_loc, latest_local_map, latest_map.get());
   if (ret < 0) {
-    HLOG_INFO << "map fusion ProcFusion failed";
+    HLOG_ERROR << "map fusion ProcFusion failed";
     return -1;
   }
 
   ret = SendFusionResult(latest_map, latest_routing);
   if (ret < 0) {
-    HLOG_INFO << "SendFusionResult failed";
+    HLOG_ERROR << "SendFusionResult failed";
     return -1;
   }
 

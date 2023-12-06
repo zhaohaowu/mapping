@@ -49,6 +49,14 @@ int64_t SystemDeviceImp::getDiskFreeSize() {
   auto availableDisk = static_cast<int64_t>(diskInfo.f_bavail * blocksize);
   return availableDisk;
 #endif
+#ifdef ISORIN
+  struct statfs diskInfo {};
+  statfs("/hd_map", &diskInfo);
+  uint64_t blocksize = diskInfo.f_bsize;
+  // uint64_t totalsize = blocksize * diskInfo.f_blocks;
+  auto availableDisk = static_cast<int64_t>(diskInfo.f_bavail * blocksize);
+  return availableDisk;
+#endif
   return -1;
 }
 

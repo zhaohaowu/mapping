@@ -46,6 +46,10 @@ bool AmapAdapter::Init() {
 #ifdef ISMDC
   data_root_path = "/opt/usr/hd_map";
 #endif
+#ifdef ISORIN
+  data_root_path = "/hd_map";
+#endif
+
   // std::string log_path =
   //     data_root_path + "/fake_shape_order_new.loc";  // log路径
   // step 1: 获取 GHDMapService 单例
@@ -54,7 +58,7 @@ bool AmapAdapter::Init() {
   // step 2: 设置高精 sdk 的配置文件路径
   ::hdmap::service::HDMapConfig config;
   config.basicDataRootDir = data_root_path;
-#ifdef ISMDC
+#if (defined ISMDC) || (defined ISORIN)
   config.logRootDir = FLAGS_ehp_log_root_dir;  // NOLINT
 #endif
   // step 3: 设置 adasisV3 message impl 实例

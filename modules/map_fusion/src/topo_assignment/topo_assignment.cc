@@ -69,7 +69,7 @@ void TopoAssignment::OnLocalization(
     return;
   }
 
-  auto stamp = msg->header().publish_stamp();
+  auto stamp = msg->header().data_stamp();
 
   // 提取全局定位
   //! TBD：这里将utm转成了gcj02，但实际内部需要的也是utm，后面考虑
@@ -146,7 +146,7 @@ void TopoAssignment::OnLocalMap(
   VizHQMap();
 
   // 更新时间信息
-  cur_timestamp_ = msg->header().publish_stamp();
+  cur_timestamp_ = msg->header().data_stamp();
 
   local_map_->CopyFrom(*msg);
 

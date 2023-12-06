@@ -141,6 +141,7 @@ void LMapApp::OnIns(
 void LMapApp::OnLaneLine(
     const std::shared_ptr<const hozon::perception::TransportElement>& msg) {
   // auto start = std::chrono::high_resolution_clock::now();
+  static Sophus::SE3d last_T_W_V;
   std::shared_ptr<Perception> perception = std::make_shared<Perception>();
   if (use_point_tracking_) {
     DataConvert::SetLaneLinePoint(*msg, perception.get());
@@ -157,7 +158,6 @@ void LMapApp::OnLaneLine(
   }
   Sophus::SE3d T_W_V =
       Sophus::SE3d(lane_line_pose->quaternion, lane_line_pose->pose);
-  static Sophus::SE3d last_T_W_V;
   Sophus::SE3d T_C_L = T_W_V.inverse() * last_T_W_V;
   last_T_W_V = T_W_V;
   std::shared_ptr<LocalMap> local_map = std::make_shared<LocalMap>(local_map_);

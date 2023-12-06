@@ -14,21 +14,13 @@ namespace dr {
 
 DRInterface::DRInterface() { dr_estimator_ = std::make_shared<Odometry2D>(); }
 
-bool DRInterface::SetLocation(
+bool DRInterface::Process(
     std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr) {
   dr_estimator_->update();
 
   if (dr_estimator_->initialized_) {
     OdometryData latest_odom = dr_estimator_->get_latest_odom_data();
-
-    Eigen::Quaterniond qat(latest_odom.odometry.qw, latest_odom.odometry.qx,
-                           latest_odom.odometry.qy, latest_odom.odometry.qz);
-    Eigen::Vector3d eulerAngle = Qat2EulerAngle(qat) * 57.3;
-
-    // frame->eulerAngle = eulerAngle * 57.3;
-
-    //   frame->loc_omg = latest_odom.loc_omg * 57.3;
-    SetLocationData(std::move(locationDataPtr), latest_odom, eulerAngle);
+    SetLocationData(std::move(locationDataPtr), latest_odom);
     return true;
   } else {
     // HLOG_WARN << "DR: is not init";
@@ -60,43 +52,9 @@ Eigen::Vector3d DRInterface::Qat2EulerAngle(const Eigen::Quaterniond& q) {
   return eulerangle;
 }
 
-void DRInterface::SetInsData2Location(
-    const std::shared_ptr<hozon::dead_reckoning::DeadReckoning>&
-        locationDataPtr,
-    const OdometryData& odom_data) {
-  // 位置的欧拉角
-  locationDataPtr->mutable_pose()
-      ->mutable_pose_local()
-      ->mutable_euler_angle()
-      ->set_x(odom_data.attitude[0]);
-  locationDataPtr->mutable_pose()
-      ->mutable_pose_local()
-      ->mutable_euler_angle()
-      ->set_y(odom_data.attitude[1]);
-
-  // 原始的线性加速度
-  //   locationDataPtr->mutable_acceleration()
-  //       ->mutable_linear_vrf()
-  //       ->mutable_linear_raw_vrf()
-  //       ->set_x(ins_data_.linearAcceleration[0]);
-  //   locationDataPtr->mutable_acceleration()
-  //       ->mutable_linear_vrf()
-  //       ->mutable_linear_raw_vrf()
-  //       ->set_y(ins_data_.linearAcceleration[1]);
-  //   locationDataPtr->mutable_acceleration()
-  //       ->mutable_linear_vrf()
-  //       ->mutable_linear_raw_vrf()
-  //       ->set_z(ins_data_.linearAcceleration[2]);
-
-  // 角速度
-  //   locationDataPtr->mutable_velocity()->mutable_twist_vrf()->mutable_angular_raw_vrf()->set_x(odom_data.augularVelocity[0]);
-  //   locationDataPtr->mutable_velocity()->mutable_twist_vrf()->mutable_angular_raw_vrf()->set_y(odom_data.augularVelocity[1]);
-  //   locationDataPtr->mutable_velocity()->mutable_twist_vrf()->mutable_angular_raw_vrf()->set_z(odom_data.augularVelocity[2]);
-}
-
 void DRInterface::SetLocationData(
     std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
-    OdometryData& latest_odom, Eigen::Vector3d& eulerAngle) {
+    const OdometryData& latest_odom) {
   if (locationDataPtr == nullptr) {
     // HLOG_ERROR << "DR: send localization input frame is nullptr";
     return;
@@ -134,8 +92,18 @@ void DRInterface::SetLocationData(
       ->mutable_quaternion()
       ->set_z(static_cast<float>(latest_odom.odometry.qz));
 
-  SetInsData2Location(locationDataPtr, latest_odom);
-
+  // 欧拉角
+  locationDataPtr->mutable_pose()
+      ->mutable_pose_local()
+      ->mutable_euler_angle()
+      ->set_x(latest_odom.attitude[0]);
+  locationDataPtr->mutable_pose()
+      ->mutable_pose_local()
+      ->mutable_euler_angle()
+      ->set_y(latest_odom.attitude[1]);
+  Eigen::Quaterniond qat(latest_odom.odometry.qw, latest_odom.odometry.qx,
+                         latest_odom.odometry.qy, latest_odom.odometry.qz);
+  Eigen::Vector3d eulerAngle = Qat2EulerAngle(qat) * 57.3;
   locationDataPtr->mutable_pose()
       ->mutable_pose_local()
       ->mutable_euler_angle()
@@ -214,13 +182,7 @@ void DRInterface::SetLocationData(
       ->mutable_angular_vrf()
       ->set_z(0);
 
-  // static int32_t count_ = 0;
   locationDataPtr->mutable_header()->set_seq(latest_odom.chassis_seq);
-
-  // std::cout << std::setprecision(15) << "dr imu  " << " seq "<<
-  // latest_odom.chassis_seq<< "  "<<locationDataPtr->mutable_header()->seq()
-  //           << std::endl;
-  // ++count_;
   locationDataPtr->mutable_header()->set_gnss_stamp(latest_odom.timestamp);
   locationDataPtr->mutable_header()->set_data_stamp(latest_odom.timestamp);
 
@@ -234,10 +196,12 @@ void DRInterface::SetLocationData(
 
   locationDataPtr->mutable_header()->set_frame_id("HZ_DR");
 
-//   std::cout << std::setprecision(15)
-//             << "MDR: " << locationDataPtr->mutable_header()->data_stamp() << ","
-//             << latest_odom.chassis_seq << "," << latest_odom.odometry.x << ","
-//             << latest_odom.odometry.y << "," << eulerAngle[2] << std::endl;
+  //   std::cout << std::setprecision(15)
+  //             << "MDR: " << locationDataPtr->mutable_header()->data_stamp()
+  //             << ","
+  //             << latest_odom.chassis_seq << "," << latest_odom.odometry.x <<
+  //             ","
+  //             << latest_odom.odometry.y << "," << eulerAngle[2] << std::endl;
 }
 
 void DRInterface::AddImuData(
@@ -269,9 +233,9 @@ void DRInterface::ConvertImuData(
   // imu_data.timestamp
   //           << std::endl;
   // HLOG_ERROR << "Imu datastamp: " << imu_data.timestamp;
-//   if (imu_data.timestamp == 0) {
-//     imu_data.timestamp = imu_proto->header().publish_stamp();
-//   }
+  //   if (imu_data.timestamp == 0) {
+  //     imu_data.timestamp = imu_proto->header().publish_stamp();
+  //   }
 
   imu_data.gyr_measurement = Eigen::Vector3d(
       imu_proto->imu_info().angular_velocity().x() * M_PI / 180.0,
@@ -319,9 +283,9 @@ void DRInterface::ConvertChassisData(
   }
   // wheel_data.timestamp = chassis_proto->header().data_stamp();
   wheel_data.timestamp = chassis_proto->header().sensor_stamp().chassis_stamp();
-//   if (wheel_data.timestamp == 0) {
-//     wheel_data.timestamp = chassis_proto->header().publish_stamp();
-//   }
+  //   if (wheel_data.timestamp == 0) {
+  //     wheel_data.timestamp = chassis_proto->header().publish_stamp();
+  //   }
 
   wheel_data.seq = chassis_proto->header().seq();
 

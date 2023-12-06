@@ -58,7 +58,8 @@ void DataConvert::SetLaneLinePoint(
     lane_line_tmp.start_point_x_ = lane_line.points()[0].x();
     lane_line_tmp.end_point_x_ =
         lane_line.points()[lane_line.points().size() - 1].x();
-    if (lane_line_tmp.points_.empty()) {
+
+    if (lane_line_tmp.points_.empty() || lane_line_tmp.end_point_x_ > 150) {
       continue;
     }
     CommonUtil::FitLaneLine(lane_line_tmp.points_, &lane_line_tmp);

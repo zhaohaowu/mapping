@@ -13,11 +13,10 @@
 #include "modules/local_mapping/local_mapping.h"
 
 namespace hozon {
-namespace perception {
-namespace common_onboard {
+namespace mp {
+namespace lm {
 
-using hozon::mp::lm::LMapApp;
-using hozon::netaos::adf_lite::Bundle;
+using adf_lite_Bundle = hozon::netaos::adf_lite::Bundle;
 
 class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
  public:
@@ -27,28 +26,29 @@ class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
   int32_t AlgInit() override;
   void AlgRelease() override;
 
-  int32_t OnLaneLine(Bundle* input);
+  int32_t OnLaneLine(adf_lite_Bundle* input);
 
-  int32_t OnDr(Bundle* input);
+  int32_t OnDr(adf_lite_Bundle* input);
 
   // int32_t OnLocation(Bundle* input);
 
-  int32_t OnIns(Bundle* input);
+  int32_t OnIns(adf_lite_Bundle* input);
 
-  int32_t OnImage(Bundle* input);
+  int32_t OnImage(adf_lite_Bundle* input);
 
   // int32_t OnRoadEdge(Bundle* input);
 
-  int32_t LocalMapPublish(Bundle* output);
+  int32_t LocalMapPublish(adf_lite_Bundle* output);
 
-  int32_t LocalMapLocationPublish(Bundle* output);
+  int32_t LocalMapLocationPublish(adf_lite_Bundle* output);
 
  private:
-  std::shared_ptr<LMapApp> lmap_;
+  std::shared_ptr<LMapApp> lmap_ = nullptr;
+  std::shared_ptr<hozon::mapping::LocalMap> result = nullptr;
 };
 
 // REGISTER_ADF_CLASS(LocalMappingOnboard, LocalMappingOnboard);
 
-}  // namespace common_onboard
-}  // namespace perception
+}  // namespace lm
+}  // namespace mp
 }  // namespace hozon

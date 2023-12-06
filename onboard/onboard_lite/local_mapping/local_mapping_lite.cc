@@ -5,11 +5,8 @@
  *   date       ： 2023.09
  ******************************************************************************/
 #include "onboard/onboard_lite/local_mapping/local_mapping_lite.h"
-// #include "perception-lib/lib/location_manager/location_manager.h"
 #include <adf-lite/include/base.h>
 #include <base/utils/log.h>
-// #include <common_onboard/adapter/adapter.h>
-// #include <common_onboard/adapter/onboard_lite/onboard_lite.h>
 #include <gflags/gflags.h>
 #include <proto/localization/node_info.pb.h>
 
@@ -22,8 +19,8 @@
 #include "perception-lib/lib/environment/environment.h"
 
 namespace hozon {
-namespace perception {
-namespace common_onboard {
+namespace mp {
+namespace lm {
 
 int32_t LocalMappingOnboard::AlgInit() {
   hozon::netaos::log::InitLogging("lm_executor", "lm_executor test",
@@ -39,30 +36,28 @@ int32_t LocalMappingOnboard::AlgInit() {
   REGISTER_PROTO_MESSAGE_TYPE("lm_image", hozon::soc::Image);
 
   std::string default_work_root = "/app/";
-  std::string work_root = lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
+  std::string work_root =
+      hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
   if (work_root.empty()) {
     HLOG_ERROR << "ENV: ADFLITE_ROOT_PATH is not set.";
-    return 0;
+    return -1;
   }
   std::string config_file = work_root +
                             "/runtime_service/mapping/conf/mapping/"
                             "local_mapping/local_mapping_conf.yaml";
   std::string mapping_path = work_root + "/runtime_service/mapping/";
+
   YAML::Node config = YAML::LoadFile(config_file);
   if (config["use_rviz"].as<bool>()) {
     HLOG_INFO << "Start RvizAgent!!!";
-    int ret = hozon::mp::util::RvizAgent::Instance().Init(
-        config["rviz_addr"].as<std::string>());
+    int ret = RVIZ_AGENT.Init(config["rviz_addr"].as<std::string>());
     if (ret < 0) {
       HLOG_ERROR << "RvizAgent start failed";
     }
   }
 
-  if (RVIZ_AGENT.Ok()) {
-    RVIZ_AGENT.Register<adsfi_proto::viz::CompressedImage>("/localmap/image");
-  }
-
   lmap_ = std::make_shared<LMapApp>(mapping_path, config_file);
+  result = std::make_shared<hozon::mapping::LocalMap>();
   // NOLINTBEGIN
   RegistAlgProcessFunc(
       "recv_laneline",
@@ -70,12 +65,13 @@ int32_t LocalMappingOnboard::AlgInit() {
 
   RegistAlgProcessFunc("recv_dr", std::bind(&LocalMappingOnboard::OnDr, this,
                                             std::placeholders::_1));
-
-  RegistAlgProcessFunc("recv_ins", std::bind(&LocalMappingOnboard::OnIns, this,
-                                             std::placeholders::_1));
-
-  RegistAlgProcessFunc("recv_image", std::bind(&LocalMappingOnboard::OnImage,
+  if (RVIZ_AGENT.Ok()) {
+    RegistAlgProcessFunc("recv_ins", std::bind(&LocalMappingOnboard::OnIns,
                                                this, std::placeholders::_1));
+    RVIZ_AGENT.Register<adsfi_proto::viz::CompressedImage>("/localmap/image");
+    RegistAlgProcessFunc("recv_image", std::bind(&LocalMappingOnboard::OnImage,
+                                                 this, std::placeholders::_1));
+  }
 
   //  RegistAlgProcessFunc(
   //      "recv_roadedge",
@@ -89,11 +85,9 @@ int32_t LocalMappingOnboard::AlgInit() {
   return 0;
 }
 
-void LocalMappingOnboard::AlgRelease() {
-  hozon::mp::util::RvizAgent::Instance().Term();
-}
+void LocalMappingOnboard::AlgRelease() { RVIZ_AGENT.Term(); }
 
-int32_t LocalMappingOnboard::OnLaneLine(Bundle* input) {
+int32_t LocalMappingOnboard::OnLaneLine(adf_lite_Bundle* input) {
   HLOG_ERROR << "receive laneline data...";
   auto laneline_msg = input->GetOne("percep_transport");
   if (!laneline_msg) {
@@ -103,7 +97,7 @@ int32_t LocalMappingOnboard::OnLaneLine(Bundle* input) {
 
   if (!lmap_) {
     HLOG_ERROR << "LMapApp init failed!!!";
-    return 0;
+    return -1;
   }
 
   auto msg = std::static_pointer_cast<hozon::perception::TransportElement>(
@@ -114,43 +108,31 @@ int32_t LocalMappingOnboard::OnLaneLine(Bundle* input) {
   return 0;
 }
 
-int32_t LocalMappingOnboard::OnDr(Bundle* input) {
-  HLOG_ERROR << "receive dr data...";
+int32_t LocalMappingOnboard::OnDr(adf_lite_Bundle* input) {
   auto dr_msg = input->GetOne("dr");
-  if (!dr_msg) {
+  if (dr_msg == nullptr) {
     HLOG_ERROR << "nullptr dr_msg plugin";
     return -1;
-  }
-
-  if (!lmap_) {
-    return 0;
   }
 
   auto msg = std::static_pointer_cast<hozon::dead_reckoning::DeadReckoning>(
       dr_msg->proto_msg);
 
-  if (msg->pose().pose_local().quaternion().w() == 0 &&
-      msg->pose().pose_local().quaternion().x() == 0 &&
-      msg->pose().pose_local().quaternion().y() == 0 &&
-      msg->pose().pose_local().quaternion().z() == 0) {
-    // HLOG_ERROR << "processed dr false";
-    return false;
-  }
   lmap_->OnDr(msg);
   HLOG_ERROR << "processed dr data";
   return 0;
 }
 
-int32_t LocalMappingOnboard::OnIns(Bundle* input) {
+int32_t LocalMappingOnboard::OnIns(adf_lite_Bundle* input) {
   auto ins_msg = input->GetOne("ins");
   auto msg = std::static_pointer_cast<hozon::localization::HafNodeInfo>(
       ins_msg->proto_msg);
   if (!lmap_) {
-    return 0;
+    return -1;
   }
 
   lmap_->OnIns(msg);
-  return 1;
+  return 0;
 }
 
 std::shared_ptr<adsfi_proto::viz::CompressedImage> YUVNV12ImageToVizImage(
@@ -204,39 +186,38 @@ std::shared_ptr<adsfi_proto::viz::CompressedImage> YUVNV12ImageToVizImage(
   return viz_image;
 }
 
-int32_t LocalMappingOnboard::OnImage(Bundle* input) {
+int32_t LocalMappingOnboard::OnImage(adf_lite_Bundle* input) {
   auto image_msg = input->GetOne("lm_image");
   // HLOG_ERROR << "image_msg->proto_msg " << image_msg.get();
   if (image_msg.get() == nullptr) {
-    return 0;
+    return -1;
   }
   auto msg = std::static_pointer_cast<hozon::soc::Image>(image_msg->proto_msg);
   auto viz_image = YUVNV12ImageToVizImage(msg, 50, 0.25);
   if (RVIZ_AGENT.Ok()) {
     RVIZ_AGENT.Publish("/localmap/image", viz_image);
   }
-  return 1;
+  return 0;
 }
 
 // int32_t LocalMappingOnboard::OnRoadEdge(Bundle* input) {
 //    auto road_edge_msg = input->GetOne("percep_transport");
 //   auto msg = std::static_pointer_cast<common_onboard::NetaTransportElement>(
-//       road_edge_msg->proto_msg);
+//       road_edge_msg->protOko_msg);
 //   if (!lmap_) {
 //     return false;
 //   }
 //   lmap_->OnRoadEdge(msg);
 // }
 
-int32_t LocalMappingOnboard::LocalMapPublish(Bundle* /*output*/) {
+int32_t LocalMappingOnboard::LocalMapPublish(adf_lite_Bundle* /*output*/) {
   HLOG_ERROR << "start publish localmap...";
-  std::shared_ptr<hozon::mapping::LocalMap> result =
-      std::make_shared<hozon::mapping::LocalMap>();
+  result->Clear();
   if (lmap_->FetchLocalMap(result)) {
     auto workflow1 = std::make_shared<hozon::netaos::adf_lite::BaseData>();
 
     workflow1->proto_msg = result;
-    Bundle bundle;
+    adf_lite_Bundle bundle;
     bundle.Add("local_map", workflow1);
     SendOutput(&bundle);
     HLOG_DEBUG << "publish localmap suceessed...";
@@ -248,6 +229,6 @@ int32_t LocalMappingOnboard::LocalMapPublish(Bundle* /*output*/) {
 
 REGISTER_ADF_CLASS(LocalMappingOnboard, LocalMappingOnboard);
 
-}  // namespace common_onboard
-}  // namespace perception
+}  // namespace lm
+}  // namespace mp
 }  // namespace hozon

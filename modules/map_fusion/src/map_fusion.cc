@@ -132,7 +132,7 @@ int MapFusion::ProcFusion(
   topo_->OnLocalization(curr_loc);
   HLOG_INFO << "topo OnLocalization cost " << local_tic.Toc();
   local_tic.Tic();
-  topo_->OnLocalMap(curr_local_map);
+  topo_->OnLocalMap(curr_local_map, std::get<0>(map_info));
   HLOG_INFO << "topo OnLocalMap cost " << local_tic.Toc();
   local_tic.Tic();
   topo_->TopoAssign();

@@ -246,6 +246,7 @@ bool LMapApp::FetchLocalMap(
   local_map->set_init_timestamp(init_timestamp);
   local_map->mutable_header()->set_gnss_stamp(local_map_msg.timestamp);
   local_map->mutable_header()->set_publish_stamp(local_map_msg.timestamp);
+  local_map->mutable_header()->set_data_stamp(local_map_msg.timestamp);
   for (const auto& lane_line_msg : local_map_msg.lane_lines_) {
     hozon::mapping::LaneType lanetype =
         hozon::mapping::LaneType::LaneType_UNKNOWN;

@@ -19,6 +19,8 @@
 DEFINE_bool(topo_rviz, false, "topo assignment use rviz or not");
 DEFINE_double(topo_lane_line_dist, 1.0,
               "the distance threshold for laneline belonging to a lane");
+DEFINE_double(topo_lane_line_dist_point, 1.5,
+              "the distance threshold for laneline belonging to a lane point");
 DEFINE_double(topo_lane_line_point_dist, 10.0,
               "the distance threshold for laneline point belonging to a lane");
 // NOLINTEND
@@ -138,7 +140,9 @@ void TopoAssignment::OnLocalization(
 }
 
 void TopoAssignment::OnLocalMap(
-    const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
+    const std::shared_ptr<hozon::mapping::LocalMap>& msg,
+    const std::unordered_map<std::string, hozon::mp::mf::LaneInfo>&
+        all_lane_info) {
   if (msg->lane_lines().empty()) {
     return;
   }
@@ -146,7 +150,7 @@ void TopoAssignment::OnLocalMap(
   VizHQMap();
 
   // 更新时间信息
-  cur_timestamp_ = msg->header().publish_stamp();
+  cur_timestamp_ = msg->header().data_stamp();
 
   local_map_->CopyFrom(*msg);
 
@@ -184,14 +188,14 @@ void TopoAssignment::OnLocalMap(
   }
 
   all_lane_info_.clear();
-  const double range = 300;
-  std::vector<hozon::hdmap::LaneInfoConstPtr> lanes;
-  if (GLOBAL_HD_MAP->GetLanes(enupos, range, &lanes) != 0) {
-    HLOG_ERROR << "GLOBAL_HD_MAP->GetLanes failed";
-    return;
-  }
+  // const double range = 300;
+  // std::vector<hozon::hdmap::LaneInfoConstPtr> lanes;
+  // if (GLOBAL_HD_MAP->GetLanes(enupos, range, &lanes) != 0) {
+  //   HLOG_ERROR << "GLOBAL_HD_MAP->GetLanes failed";
+  //   return;
+  // }
 
-  AppendAllLaneInfo(lanes);
+  AppendAllLaneInfo(all_lane_info);
   AppendLocationLaneId(lane_ptr);
 
   // HLOG_ERROR << "id sizexxxxxxxxxxxxxxx:" << location_left_id_.size() << ", "
@@ -559,32 +563,42 @@ void TopoAssignment::TopoAssign() {
 }
 
 void TopoAssignment::AppendAllLaneInfo(
-    const std::vector<hozon::hdmap::LaneInfoConstPtr>& lanes) {
-  for (const auto& it : lanes) {
-    const auto& id = it->id().id();
+    const std::unordered_map<std::string, hozon::mp::mf::LaneInfo>&
+        all_lane_info) {
+  for (const auto& it : all_lane_info) {
     AllLaneInfo info;
-    info.id = id;
-    info.left_start_end = GetLaneLeftStartAndEndPoint(it->lane());
-    info.right_start_end = GetLaneRightStartAndEndPoint(it->lane());
-    for (const auto& itt : it->lane().left_neighbor_forward_lane_id()) {
-      info.left_lane_ids.emplace_back(itt.id());
+    info.id = it.first;
+    std::vector<Eigen::Vector2d> points_vec;
+    Eigen::Vector2d point;
+    if (it.second.pred_left_line.size() >= 2) {
+      point.x() = it.second.pred_left_line.front().x();
+      point.y() = it.second.pred_left_line.front().y();
+      points_vec.emplace_back(point);
+      point.x() = it.second.pred_left_line.back().x();
+      point.y() = it.second.pred_left_line.back().y();
+      points_vec.emplace_back(point);
+      info.left_start_end = points_vec;
     }
-    for (const auto& itt : it->lane().right_neighbor_forward_lane_id()) {
-      info.right_lane_ids.emplace_back(itt.id());
+    points_vec.clear();
+    if (it.second.pred_right_line.size() >= 2) {
+      point.x() = it.second.pred_right_line.front().x();
+      point.y() = it.second.pred_right_line.front().y();
+      points_vec.emplace_back(point);
+      point.x() = it.second.pred_right_line.back().x();
+      point.y() = it.second.pred_right_line.back().y();
+      points_vec.emplace_back(point);
+      info.right_start_end = points_vec;
     }
-    for (const auto& itt : it->lane().predecessor_id()) {
-      info.prev_lane_ids.emplace_back(itt.id());
+    info.left_lane_ids = it.second.left_lane_ids;
+    info.right_lane_ids = it.second.right_lane_ids;
+    info.prev_lane_ids = it.second.prev_lane_ids;
+    info.next_lane_ids = it.second.next_lane_ids;
+    info.extra_boundary = it.second.extra_boundary;
+    all_lane_info_.insert_or_assign(info.id, info);
+    if (!init_ref_point_) {
+      ref_point_ = it.second.ref_point;
+      init_ref_point_ = true;
     }
-    for (const auto& itt : it->lane().successor_id()) {
-      info.next_lane_ids.emplace_back(itt.id());
-    }
-    if (!it->lane().extra_left_boundary().curve().segment().empty()) {
-      info.extra_boundary = 1;
-    }
-    if (!it->lane().extra_right_boundary().curve().segment().empty()) {
-      info.extra_boundary = 2;
-    }
-    all_lane_info_.insert_or_assign(id, info);
   }
 }
 
@@ -754,7 +768,10 @@ void TopoAssignment::AppendLaneLineLeft(const std::string& lane_id,
     if (lane_line->left_lanes.empty()) {
       return;
     }
-    // LaneLineBelongToLane(&lane_line->left_lanes, true, p0, p1);
+
+    if (LaneLineBelongToLane(lane_line->left_lanes, true, p0, p1)) {
+      lane_line->left_lanes.clear();
+    }
   }
 }
 
@@ -779,7 +796,9 @@ void TopoAssignment::AppendLaneLineLeftOutside(
       return;
     }
 
-    // LaneLineBelongToLane(&lane_line->left_lanes, true, p0, p1);
+    if (LaneLineBelongToLane(lane_line->left_lanes, true, p0, p1)) {
+      lane_line->left_lanes.clear();
+    }
 
   } else {
     std::vector<std::string> tail_lane_id_p0 =
@@ -796,7 +815,10 @@ void TopoAssignment::AppendLaneLineLeftOutside(
     if (lane_line->left_lanes.empty()) {
       return;
     }
-    // LaneLineBelongToLane(&lane_line->left_lanes, true, p0, p1);
+
+    if (LaneLineBelongToLane(lane_line->left_lanes, true, p0, p1)) {
+      lane_line->left_lanes.clear();
+    }
   }
 }
 
@@ -846,7 +868,10 @@ void TopoAssignment::AppendLaneLineRight(const std::string& lane_id,
     if (lane_line->right_lanes.empty()) {
       return;
     }
-    // LaneLineBelongToLane(&lane_line->right_lanes, false, p0, p1);
+
+    if (LaneLineBelongToLane(lane_line->right_lanes, false, p0, p1)) {
+      lane_line->right_lanes.clear();
+    }
   }
 }
 
@@ -871,7 +896,9 @@ void TopoAssignment::AppendLaneLineRightOutside(
       return;
     }
 
-    // LaneLineBelongToLane(&lane_line->right_lanes, false, p0, p1);
+    if (LaneLineBelongToLane(lane_line->right_lanes, false, p0, p1)) {
+      lane_line->right_lanes.clear();
+    }
 
   } else {
     std::vector<std::string> tail_lane_id_p0 =
@@ -889,7 +916,9 @@ void TopoAssignment::AppendLaneLineRightOutside(
       return;
     }
 
-    // LaneLineBelongToLane(&lane_line->right_lanes, false, p0, p1);
+    if (LaneLineBelongToLane(lane_line->right_lanes, false, p0, p1)) {
+      lane_line->right_lanes.clear();
+    }
   }
 }
 
@@ -1879,6 +1908,29 @@ double TopoAssignment::PointDistanceToSegment(
   }
 
   return distance;
+}
+
+bool TopoAssignment::LaneLineBelongToLane(const std::vector<std::string>& lanes,
+                                          const bool left,
+                                          const Eigen::Vector2d& p0,
+                                          const Eigen::Vector2d& p1) {
+  std::vector<Eigen::Vector2d> hq_lane_points;
+  if (left) {
+    hq_lane_points = all_lane_info_[lanes.front()].left_start_end;
+  } else {
+    hq_lane_points = all_lane_info_[lanes.front()].right_start_end;
+  }
+  double dist_p0 = PointDistanceToSegment(hq_lane_points, p0);
+
+  if (left) {
+    hq_lane_points = all_lane_info_[lanes.back()].left_start_end;
+  } else {
+    hq_lane_points = all_lane_info_[lanes.back()].right_start_end;
+  }
+  double dist_p1 = PointDistanceToSegment(hq_lane_points, p1);
+
+  return dist_p0 >= FLAGS_topo_lane_line_dist_point &&
+         dist_p1 >= FLAGS_topo_lane_line_dist_point;
 }
 
 void TopoAssignment::LaneLineBelongToLane(std::vector<std::string>* lanes,

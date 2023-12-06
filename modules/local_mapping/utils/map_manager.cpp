@@ -45,7 +45,9 @@ void MapManager::CutLocalMap(LocalMap* local_map, const double& length_x,
         --j;
       }
     }
-    if (local_map->lane_lines_[i].points_.empty()) {
+    if (local_map->lane_lines_[i].points_.empty() ||
+        ((local_map->lane_lines_[i].edge_laneline_count_ < -5) &&
+         (!local_map->lane_lines_[i].ismature_))) {
       local_map->lane_lines_.erase(local_map->lane_lines_.begin() +
                                    static_cast<int>(i));
       --i;
@@ -98,6 +100,10 @@ void MapManager::AddNewLaneLine(LocalMap* local_map,
   lane_line.points_ = cur_lane_line.points_;
   lane_line.c2_ = cur_lane_line.c2_;
   lane_line.need_fit_ = true;
+  int tmp_lanepose = static_cast<int>(lane_line.lanepos_);
+  lane_line.edge_laneline_count_ = 0;
+  lane_line.ismature_ = (static_cast<int>(cur_lane_line.lanepos_) >= -2) &&
+                        (static_cast<int>(cur_lane_line.lanepos_) <= 2);
   local_map->lane_lines_.emplace_back(lane_line);
 }
 
@@ -134,6 +140,12 @@ void MapManager::MergeOldLaneLine(LocalMap* local_map,
       lane_line.lanepos_ = cur_lane_line.lanepos_;
       lane_line.lanetype_ = cur_lane_line.lanetype_;
       lane_line.c2_ = cur_lane_line.c2_;
+      if (!lane_line.ismature_) {
+        lane_line.edge_laneline_count_++;
+        // if (lane_line.edge_laneline_count_ >= 5) {
+        //   lane_line.ismature_ = true;
+        // }
+      }
       return;
     }
   }

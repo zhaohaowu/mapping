@@ -90,7 +90,8 @@ class CommonUtil {
 
   static void FitLocalMap(LocalMap* local_map) {
     for (auto& lane_line : local_map->lane_lines_) {
-      if (!lane_line.need_fit_) {
+      if (!lane_line.need_fit_ ||
+          (!lane_line.ismature_ && (lane_line.edge_laneline_count_ < 5))) {
         continue;
       }
       lane_line.fit_points_.clear();
@@ -416,7 +417,7 @@ class CommonUtil {
           std::to_string(local_map.lane_lines_[i].track_id_) + ", " +
           std::to_string(local_map.lane_lines_[i].lanepos_) + ", " +
           std::to_string(local_map.lane_lines_[i].lanetype_) + ", " +
-          std::to_string(i));
+          std::to_string(local_map.lane_lines_[i].edge_laneline_count_));
       txt_marker.mutable_scale()->set_x(1);
       txt_marker.mutable_scale()->set_y(1);
       txt_marker.mutable_scale()->set_z(1);

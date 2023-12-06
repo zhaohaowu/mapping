@@ -195,6 +195,9 @@ void LMapApp::OnLaneLine(
   laneOp_->MergeMapFrontBack(local_map.get());
   for (auto& lane_line : local_map->lane_lines_) {
     if (!lane_line.need_fit_) {
+      if (!lane_line.ismature_) {
+        lane_line.edge_laneline_count_--;
+      }
       lane_line.lanepos_ = LanePositionType::OTHER;
     }
   }

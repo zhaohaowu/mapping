@@ -123,6 +123,8 @@ class LaneLine {
   double c0_;
   double start_point_x_;
   double end_point_x_;
+  int edge_laneline_count_;
+  bool ismature_;
 };
 
 class CenterLine {

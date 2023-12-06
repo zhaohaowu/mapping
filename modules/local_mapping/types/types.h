@@ -174,6 +174,29 @@ class DrData {
   Eigen::Quaterniond quaternion;
   Eigen::Vector3d local_vel;
   Eigen::Vector3d local_omg;
+  Eigen::Vector3d local_acc;
+  int gear = 100;
+
+  DrData Interpolate(const double scale, const DrData& end,
+                     double timestamp) const {
+    DrData res;
+    res.timestamp = timestamp;
+    res.pose = this->pose + (end.pose - this->pose) * scale;
+    res.quaternion = this->quaternion.slerp(scale, end.quaternion);
+
+    if (scale >= 0.5) {
+      res.local_vel = end.local_vel;
+      res.local_omg = end.local_omg;
+      res.local_acc = end.local_acc;
+      res.gear = end.gear;
+    } else {
+      res.local_vel = this->local_vel;
+      res.local_omg = this->local_omg;
+      res.local_acc = this->local_acc;
+      res.gear = this->gear;
+    }
+    return res;
+  }
 };
 
 using DrDataPtr = std::shared_ptr<DrData>;

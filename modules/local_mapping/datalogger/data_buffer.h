@@ -59,6 +59,8 @@ class MessageBuffer {
   MessageType front();
   MessageType second();
   MessageType back();
+  void get_messages_around(const double timestamp, MessageType& before,
+                           MessageType& after);
 
  private:
   ::std::map<double, ListIterator> _msg_map;
@@ -448,6 +450,59 @@ bool IntepolableMessageBuffer<MessageType>::wait_message_buffer_ok(
   }
 
   return false;
+}
+
+template <class MessageType>
+void MessageBuffer<MessageType>::get_messages_around(
+    const double timestamp, MessageType& before,
+    MessageType& after) {  // NOLINT
+  _buffer_mutex.lock();
+  if (_msg_list.empty()) {
+    before = nullptr;
+    after = nullptr;
+    _buffer_mutex.unlock();
+    return;
+  }
+
+  auto found_iter = _msg_map.find(timestamp);
+  if (found_iter != _msg_map.end()) {
+    before = found_iter->second->second;
+    after = found_iter->second->second;
+    _buffer_mutex.unlock();
+    return;
+  }
+
+  auto iter = _msg_list.rbegin();
+  for (; iter != _msg_list.rend(); iter++) {
+    if (iter->first < timestamp) {
+      break;
+    }
+  }
+
+  if (iter == _msg_list.rbegin()) {
+    before = nullptr;
+    if (timestamp - _msg_list.back().second->timestamp > 0.2) {
+      after = nullptr;
+      _buffer_mutex.unlock();
+      return;
+    }
+    after = _msg_list.back().second;
+    _buffer_mutex.unlock();
+    return;
+  }
+
+  if (iter == _msg_list.rend()) {
+    before = nullptr;
+    after = nullptr;
+    _buffer_mutex.unlock();
+    return;
+  }
+
+  auto pre = iter;
+  auto nex = --iter;
+  before = pre->second;
+  after = nex->second;
+  _buffer_mutex.unlock();
 }
 
 }  // namespace lm

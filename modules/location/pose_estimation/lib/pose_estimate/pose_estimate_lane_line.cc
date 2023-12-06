@@ -319,6 +319,9 @@ void MatchLaneLine::LaneLineConnect() {
       if (std::fabs(static_cast<int>(line->lane_position_type())) > 2) {
         continue;
       }
+      if (!frechet_distance3D_) {
+        break;
+      }
       auto ratio = 0.0;
       std::string line_id("");
       std::vector<PointMatchPair> tmp_p_q;
@@ -333,7 +336,6 @@ void MatchLaneLine::LaneLineConnect() {
           line_id = line_idx;
           std::copy(tmp_p_q.begin(), tmp_p_q.end(), std::back_inserter(p_q));
         }
-        continue;
       }
       tmp_p_q.clear();
       HLOG_ERROR << "BEST_ID:" << line->track_id_ << "," << line_id

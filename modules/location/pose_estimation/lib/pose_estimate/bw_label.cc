@@ -1,14 +1,17 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
- *   file       ： Bwlabel.cc
+ *   file       ： bw_label.cc
  *   author     ： Nihongjie
  *   date       ： 2023.12
  ******************************************************************************/
+#include "bw_label.h"
+
 #include <fstream>
 #include <sstream>
 
-#include "Bwlabel.h"
-
+namespace hozon {
+namespace mp {
+namespace loc {
 BwLbel::BwLbel() {}
 
 BwLbel::~BwLbel() {}
@@ -254,3 +257,6 @@ void BwLbel::num_change(std::vector<std::vector<int>>& number_of_group,
     }
   }
 }
+}  // namespace loc
+}  // namespace mp
+}  // namespace hozon

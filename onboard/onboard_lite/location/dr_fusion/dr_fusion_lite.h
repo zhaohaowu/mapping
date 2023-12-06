@@ -25,7 +25,7 @@ class DrFusionLite : public hozon::netaos::adf_lite::Executor {
   DrFusionLite() = default;
   ~DrFusionLite() = default;
   int32_t AlgInit() override;
-  void AlgRelease() override {}
+  void AlgRelease() override;
 
  private:
   // recieve in-process data and interprocess data

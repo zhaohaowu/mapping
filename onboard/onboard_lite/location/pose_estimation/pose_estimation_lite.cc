@@ -9,6 +9,7 @@
 #include <gflags/gflags.h>
 #include "onboard/onboard_lite/location/pose_estimation/pose_estimation_lite.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
+#include "yaml-cpp/yaml.h"
 
 DEFINE_string(config_yaml,
               "runtime_service/mapping/conf/mapping/location/"
@@ -18,10 +19,10 @@ DEFINE_string(config_cam_yaml,
               "runtime_service/mapping/conf/mapping/location/"
               "pose_estimation/pose_estimation_cam.yaml",
               "path to pose estimation camera config yaml");
-DEFINE_string(viz_pose_estimation_addr, "ipc:///tmp/rviz_agent_pose_estimation",
-              "RvizAgent's working address, this should corresponds to the "
-              "address used in RvizBridge. Leaving empty represents not using "
-              "RvizAgent for visualization");
+DEFINE_string(pose_estimation_lite_config_yaml,
+              "runtime_service/mapping/conf/mapping/location/"
+              "pose_estimation/pose_estimation_lite_config.yaml",
+              "path to pose estimation camera config yaml");
 
 using hozon::netaos::adf_lite::Bundle;
 
@@ -41,6 +42,8 @@ int32_t PoseEstimationLite::AlgInit() {
       adflite_root_path + "/" + FLAGS_config_yaml;
   const std::string config_cam_yaml =
       adflite_root_path + "/" + FLAGS_config_cam_yaml;
+  const std::string pose_estimation_lite_config_yaml =
+      adflite_root_path + "/" + FLAGS_pose_estimation_lite_config_yaml;
   if (!pose_estimation_->Init(config_yaml, config_cam_yaml)) {
     return -1;
   }
@@ -59,16 +62,22 @@ int32_t PoseEstimationLite::AlgInit() {
   RegistAlgProcessFunc("send_pose_estimation_result",
                        std::bind(&PoseEstimationLite::OnPoseEstimation, this,
                                  std::placeholders::_1));
-  int ret = mp::util::RvizAgent::Instance().Init(FLAGS_viz_pose_estimation_addr);
-  if (ret < 0) {
-    HLOG_WARN << "RvizAgent init failed:" << FLAGS_viz_pose_estimation_addr;
+  YAML::Node config = YAML::LoadFile(pose_estimation_lite_config_yaml);
+  auto use_rviz_bridge = config["use_rviz_bridge"].as<bool>();
+  if (use_rviz_bridge) {
+    auto viz_addr = config["viz_addr"].as<std::string>();
+    int ret = mp::util::RvizAgent::Instance().Init(viz_addr);
+    if (ret < 0) {
+      HLOG_WARN << "RvizAgent init failed:" << viz_addr;
+    }
   }
+
   return 0;
 }
 
 void PoseEstimationLite::AlgRelease() {
-  if (RVIZ_AGENT.Ok()) {
-    RVIZ_AGENT.Term();
+  if (mp::util::RvizAgent::Instance().Ok()) {
+    mp::util::RvizAgent::Instance().Term();
   }
 }
 

@@ -1,23 +1,27 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
- *   file       ： FrechetDistance.cc
+ *   file       ： frechet_distance.cc
  *   author     ： Nihongjie
  *   date       ： 2023.12
  ******************************************************************************/
-#include "modules/location/pose_estimation/lib/pose_estimate/FrechetDistance.h"
+#include "modules/location/pose_estimation/lib/pose_estimate/frechet_distance.h"
 
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <limits>
 
+namespace hozon {
+namespace mp {
+namespace loc {
 FrechetDistance3D::FrechetDistance3D() {}
 
 FrechetDistance3D::~FrechetDistance3D() {}
 
-double FrechetDistance3D::frechetDistance(const hozon::mp::loc::LaneLinePerceptionPtr& fil_line,
-                                          const std::vector<hozon::mp::loc::V3>& P2,
-                                          std::vector<hozon::mp::loc::PointMatchPair>* const p_q) {
+double FrechetDistance3D::frechetDistance(
+    const hozon::mp::loc::LaneLinePerceptionPtr& fil_line,
+    const std::vector<hozon::mp::loc::V3>& P2,
+    std::vector<hozon::mp::loc::PointMatchPair>* const p_q) {
   if (std::min(fil_line->points().size(), P2.size()) <= 0) {
     return -1.0;
   }
@@ -64,7 +68,8 @@ double FrechetDistance3D::frechetDistance(const hozon::mp::loc::LaneLinePercepti
       weight *= 0.75;
     }
     hozon::mp::loc::PercepLineType cur_type =
-        static_cast<hozon::mp::loc::PercepLineType>(fil_line->lane_position_type());
+        static_cast<hozon::mp::loc::PercepLineType>(
+            fil_line->lane_position_type());
     p_q->emplace_back(p, tmp_q, cur_type, weight);
   }
 
@@ -76,17 +81,7 @@ double FrechetDistance3D::frechetDistance(const hozon::mp::loc::LaneLinePercepti
   for (double range = f_min; range < f_max; range += res) {
     int mode = 0;  // bwlabel = 0, astar = 1;
     compareMatrix(frechet_dis_matrix, &frechet_compare_matrix, range, mode);
-    // Astar astar;
-    // astar.InitAstar(frechet_compare_matrix);
-    // Point start(0, 0);
-    // Point end(frechet_compare_matrix.size() - 1,
-    //           frechet_compare_matrix[0].size() - 1);
-    // list<Point*> path = astar.GetPath(start, end, true);
-    // if (!path.empty()) {
-    //   result = range;
-    //   break;
-    // }
-    BwLbel bwlabel_process;
+    hozon::mp::loc::BwLbel bwlabel_process;
     std::vector<std::vector<int>> frechet_group_mat =
         bwlabel_process.bwlabel(frechet_compare_matrix);
     if (frechet_group_mat[0][0] != 0 &&
@@ -141,26 +136,29 @@ double FrechetDistance3D::getRatio(double result, double f_max, double f_min) {
   return probablity;
 }
 
-  double FrechetDistance3D::normcdf(double x) {
-    // constants
-    double a1 = 0.254829592;
-    double a2 = -0.284496736;
-    double a3 = 1.421413741;
-    double a4 = -1.453152027;
-    double a5 = 1.061405429;
-    double p = 0.3275911;
+double FrechetDistance3D::normcdf(double x) {
+  // constants
+  double a1 = 0.254829592;
+  double a2 = -0.284496736;
+  double a3 = 1.421413741;
+  double a4 = -1.453152027;
+  double a5 = 1.061405429;
+  double p = 0.3275911;
 
-    // Save the sign of x
-    int sign = 1;
-    if (x < 0) {
-      sign = -1;
-    }
-    x = fabs(x) / sqrt(2.0);
-
-    // A&S formula 7.1.26
-    double t = 1.0 / (1.0 + p * x);
-    double y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t *
-                         exp(-x * x);
-
-    return 0.5 * (1.0 + sign * y);
+  // Save the sign of x
+  int sign = 1;
+  if (x < 0) {
+    sign = -1;
   }
+  x = fabs(x) / sqrt(2.0);
+
+  // A&S formula 7.1.26
+  double t = 1.0 / (1.0 + p * x);
+  double y =
+      1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-x * x);
+
+  return 0.5 * (1.0 + sign * y);
+}
+}  // namespace loc
+}  // namespace mp
+}  // namespace hozon

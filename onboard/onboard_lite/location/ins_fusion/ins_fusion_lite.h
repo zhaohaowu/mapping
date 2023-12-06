@@ -27,7 +27,7 @@ class InsFusionLite : public hozon::netaos::adf_lite::Executor {
   InsFusionLite() = default;
   ~InsFusionLite() = default;
   int32_t AlgInit() override;
-  void AlgRelease() override {}
+  void AlgRelease() override;
 
  private:
   // recieve in-process data and interprocess data

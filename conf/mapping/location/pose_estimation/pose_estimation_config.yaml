@@ -81,3 +81,5 @@ rviz_show_pceplane_oriT: false
 debug_plot_info: false
 
 line_error_normal_thr: 0.05
+
+use_rviz_bridge: false

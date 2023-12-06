@@ -85,9 +85,7 @@ bool MapMatching::Init(const std::string &config_file,
   mm_params.use_ll_perceplane = config["use_ll_perceplane"].as<bool>();
   mm_params.line_error_normal_thr =
       config["line_error_normal_thr"].as<double>();
-  if (!hozon::mp::util::RvizAgent::Instance().Ok()) {
-    HLOG_WARN << "RvizAgent not started";
-  } else {
+  if (config["use_rviz_bridge"].as<bool>()) {
     int ret = hozon::mp::util::RvizAgent::Instance()
                   .Register<adsfi_proto::viz::TransformStamped>(kTopicMmTf);
     if (ret < 0) {
@@ -1184,42 +1182,28 @@ MapMatching::generateNodeInfo(const Sophus::SE3d &T_W_V, uint64_t sec,
   return node_info;
 }
 
-void MapMatching::setPoints(const PerceptionLaneLineList &line_list,
-                            const SE3 &T_W_V, VP *points) {
+void MapMatching::setPoints(const PerceptionLaneLineList& line_list,
+                            const SE3& T_W_V, VP* points) {
   if (points == nullptr) {
     return;
   }
   (*points).clear();
-  for (const auto &line : line_list.lane_line_list_) {
-    if (line->Id() != static_cast<size_t>(PercepLineType::L_LINE) &&
-        line->Id() != static_cast<size_t>(PercepLineType::R_LINE) &&
-        line->Id() != static_cast<size_t>(PercepLineType::LL_LINE) &&
-        line->Id() != static_cast<size_t>(PercepLineType::RR_LINE)) {
+  for (const auto& line : line_list.lane_line_list_) {
+    if (std::fabs(line->lane_position_type() > 2) || line->points().empty()) {
       continue;
     }
-    if (line->curve_vehicle_coord_.confidence_ <
-        mm_params.lane_confidence_thre) {
-      continue;
+    auto line_points = line->points();
+    auto point_size = std::min(500, static_cast<int>(line_points.size()));
+    for (auto i = 0; i < point_size; ++i) {
+      auto point = T_W_V * line_points[i];
+      (*points).emplace_back(point);
     }
-    auto &poly = line->curve_vehicle_coord_;
-    for (float x = poly.min_; x < poly.max_; x += 0.5) {
-      if (line->IsIn(x)) {
-        V3 point(x, 1 * line->Y(x), 0);
-        point = T_W_V * point;
-        (*points).emplace_back(point);
-      }
-    }
-  }
-  if ((*points).size() > 500) {
-    (*points).erase((*points).begin() + 500, (*points).end());
   }
 }
 
-void MapMatching::pubPoints(const VP &points, const uint64_t &sec,
-                            const uint64_t &nsec) {
-  HLOG_ERROR << "pubPointsing";
+void MapMatching::pubPoints(const VP& points, const uint64_t& sec,
+                            const uint64_t& nsec) {
   if (hozon::mp::util::RvizAgent::Instance().Ok()) {
-    HLOG_ERROR << "pubPointsing_isok";
     adsfi_proto::viz::PointCloud lane_points;
     static uint32_t seq = 0;
     int curr_seq = seq++;

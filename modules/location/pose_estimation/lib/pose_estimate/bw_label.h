@@ -1,6 +1,6 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
- *   file       ： Bwlabel.h
+ *   file       ： bw_label.h
  *   author     ： Nihongjie
  *   date       ： 2023.12
  ******************************************************************************/
@@ -9,6 +9,9 @@
 
 #include <vector>
 
+namespace hozon {
+namespace mp {
+namespace loc {
 class BwLbel {
  public:
   BwLbel();
@@ -34,3 +37,6 @@ class BwLbel {
   void num_change(std::vector<std::vector<int>>& number_of_group,
                   int origin_num, int target_num);
 };
+}  // namespace loc
+}  // namespace mp
+}  // namespace hozon

@@ -10,9 +10,11 @@
 
 #include "base/utils/log.h"
 #include "depend/proto/localization/node_info.pb.h"
+#include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "depend/proto/perception/transport_element.pb.h"
 #include "depend/proto/soc/sensor_imu_ins.pb.h"
 #include "modules/util/include/util/temp_log.h"
+#include "yaml-cpp/yaml.h"
 
 namespace hozon {
 namespace perception {
@@ -20,12 +22,16 @@ namespace common_onboard {
 
 const char* const kInsFusionConfSuffix =
     "runtime_service/mapping/conf/mapping/location/ins_fusion/ins_config.yaml";
+const char* const KInsFusionLiteConfig =
+    "runtime_service/mapping/conf/mapping/location/ins_fusion/ins_fusion_lite_config.yaml";
 
 int32_t InsFusionLite::AlgInit() {
   const std::string adflite_root_path =
       hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", ".");
   const std::string ins_fusion_config =
       adflite_root_path + "/" + kInsFusionConfSuffix;
+  const std::string ins_fusion_lite_config =
+      adflite_root_path + "/" + KInsFusionLiteConfig;
   ins_fusion_ = std::make_unique<hozon::mp::loc::InsFusion>();
   if (ins_fusion_->Init(ins_fusion_config) !=
       hozon::mp::loc::InsInitStatus::OK) {
@@ -57,7 +63,22 @@ int32_t InsFusionLite::AlgInit() {
       std::bind(&InsFusionLite::receive_inspva, this, std::placeholders::_1));
 
   HLOG_INFO << "AlgInit successfully ";
+  YAML::Node config = YAML::LoadFile(ins_fusion_lite_config);
+  auto use_rviz_bridge = config["use_rviz_bridge"].as<bool>();
+  if (use_rviz_bridge) {
+    auto viz_addr = config["viz_addr"].as<std::string>();
+    int ret = mp::util::RvizAgent::Instance().Init(viz_addr);
+    if (ret < 0) {
+      HLOG_WARN << "RvizAgent init failed:" << viz_addr;
+    }
+  }
   return 0;
+}
+
+void InsFusionLite::AlgRelease() {
+  if (mp::util::RvizAgent::Instance().Ok()) {
+    mp::util::RvizAgent::Instance().Term();
+  }
 }
 
 // send in-process data and interprocess data

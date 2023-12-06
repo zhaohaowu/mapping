@@ -135,9 +135,9 @@ class LMapApp {
   bool use_perception_match_;
   bool use_horizon_assoc_match_;
   bool use_rviz_;
-  bool dr_inited_ = false;
-  bool laneline_inited_ = false;
-  bool ins_inited_ = false;
+  std::atomic<bool> dr_inited_ = false;
+  std::atomic<bool> laneline_inited_ = false;
+  std::atomic<bool> ins_inited_ = false;
   std::thread rviz_thread_;
 };
 

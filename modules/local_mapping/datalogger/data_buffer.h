@@ -59,8 +59,9 @@ class MessageBuffer {
   MessageType front();
   MessageType second();
   MessageType back();
-  void get_messages_around(const double timestamp, MessageType& before,
-                           MessageType& after);
+  void get_messages_around(const double timestamp,
+                           MessageType& before,  // NOLINT
+                           MessageType& after);  // NOLINT
 
  private:
   ::std::map<double, ListIterator> _msg_map;
@@ -454,8 +455,8 @@ bool IntepolableMessageBuffer<MessageType>::wait_message_buffer_ok(
 
 template <class MessageType>
 void MessageBuffer<MessageType>::get_messages_around(
-    const double timestamp, MessageType& before,
-    MessageType& after) {  // NOLINT
+    const double timestamp, MessageType& before,  // NOLINT
+    MessageType& after) {                         // NOLINT
   _buffer_mutex.lock();
   if (_msg_list.empty()) {
     before = nullptr;

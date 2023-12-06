@@ -1,0 +1,5 @@
+%YAML:1.0
+
+use_rviz_bridge: false
+viz_addr: ipc:///tmp/rviz_agent_pose_estimation
+# viz_addr: tcp://10.6.74.153:9100

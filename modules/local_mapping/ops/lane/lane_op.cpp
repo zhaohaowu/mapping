@@ -222,14 +222,14 @@ void LaneOp::MergeMapLeftRight(LocalMap* local_map) {
   for (auto& query_lane_line : local_map->lane_lines_) {
     if (!query_lane_line.need_merge_ ||
         (!query_lane_line.ismature_ &&
-         (query_lane_line.edge_laneline_count_ < 5))) {
+         (query_lane_line.edge_laneline_count_ < 10))) {
       continue;
     }
     query_lane_line.need_merge_ = false;
     for (auto& other_lane_line : local_map->lane_lines_) {
       if (!other_lane_line.need_merge_ ||
           (!other_lane_line.ismature_ &&
-           (other_lane_line.edge_laneline_count_ < 5))) {
+           (other_lane_line.edge_laneline_count_ < 10))) {
         continue;
       }
       if (!MatchLeftRight(query_lane_line, other_lane_line)) {
@@ -352,14 +352,14 @@ void LaneOp::MergeMapFrontBack(LocalMap* local_map) {
     // if (query_lane.points_.back().x() < -50) continue;
     if (!query_lane_line.need_merge_ ||
         (!query_lane_line.ismature_ &&
-         (query_lane_line.edge_laneline_count_ < 5))) {
+         (query_lane_line.edge_laneline_count_ < 10))) {
       continue;
     }
     query_lane_line.need_merge_ = false;
     for (auto& other_lane_line : local_map->lane_lines_) {
       if (!other_lane_line.need_merge_ ||
           (!other_lane_line.ismature_ &&
-           (other_lane_line.edge_laneline_count_ < 5))) {
+           (other_lane_line.edge_laneline_count_ < 10))) {
         continue;
       }
       // HLOG_ERROR << "other_lane_line.c2_: " << other_lane_line.c2_;

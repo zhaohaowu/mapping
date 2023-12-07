@@ -85,7 +85,8 @@ bool MapMatching::Init(const std::string &config_file,
   mm_params.use_ll_perceplane = config["use_ll_perceplane"].as<bool>();
   mm_params.line_error_normal_thr =
       config["line_error_normal_thr"].as<double>();
-  if (config["use_rviz_bridge"].as<bool>()) {
+  mm_params.use_rviz_bridge = config["use_rviz_bridge"].as<bool>();
+  if (mm_params.use_rviz_bridge) {
     int ret = hozon::mp::util::RvizAgent::Instance()
                   .Register<adsfi_proto::viz::TransformStamped>(kTopicMmTf);
     if (ret < 0) {
@@ -188,6 +189,10 @@ MapMatching::~MapMatching() {
   interp_thread_run_ = false;
   if (interp_thread_.joinable()) {
     interp_thread_.join();
+  }
+  if (mm_params.use_rviz_bridge &&
+      hozon::mp::util::RvizAgent::Instance().Ok()) {
+    hozon::mp::util::RvizAgent::Instance().Term();
   }
 }
 
@@ -310,7 +315,9 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo &ins) {
   ins_input_ready_ = true;
   ins_input_cv_.notify_one();
   // pubVehicle(T02_W_V_, time_sec_, time_nsec_);
-  pubOdomPoints(kTopicInsOdom, enu, q_W_V, time_sec_, time_nsec_);
+  if (mm_params.use_rviz_bridge) {
+    pubOdomPoints(kTopicInsOdom, enu, q_W_V, time_sec_, time_nsec_);
+  }
 }
 
 void MapMatching::pubOdomPoints(const std::string &topic,
@@ -580,10 +587,9 @@ void MapMatching::procData() {
     auto lane_lines =
         all_perception->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE);
     auto lane = std::static_pointer_cast<PerceptionLaneLineList>(lane_lines[0]);
-    HLOG_INFO << "mm_publish" << T_output_.translation().isZero() << ","
-              << hozon::mp::util::RvizAgent::Instance().Ok();
     if (!T_output_.translation().isZero() &&
-        hozon::mp::util::RvizAgent::Instance().Ok()) {
+        hozon::mp::util::RvizAgent::Instance().Ok() &&
+        mm_params.use_rviz_bridge) {
       if (mm_params.rviz_show_pceplane_oriT) {
         setPoints(*lane, T02_W_V, &front_points_);
       } else {
@@ -761,7 +767,9 @@ MapMatching::getMmNodeInfo() {
         T_output_ = last_T_output * relative_T;
       }
     }
-    pubVehicle(T_output_, sec, nsec);
+    if (mm_params.use_rviz_bridge) {
+      pubVehicle(T_output_, sec, nsec);
+    }
     //// pubOdomPoints(kTopicMmOdom, T_output_.translation(),
     ////               T_output_.unit_quaternion(), sec, nsec);
     output_valid_ = false;
@@ -799,6 +807,10 @@ void MapMatching::setSubMap(const Eigen::Vector3d &vehicle_position,
   mhd_map_.set_ref_point(ref_point_);
   mhd_map_.SetMap(enupt, vehicle_rotation, mm_params.map_distance, ref_point_);
   is_chging_map_ref_ = false;
+  if (!mm_params.use_rviz_bridge ||
+      !hozon::mp::util::RvizAgent::Instance().Ok()) {
+    return;
+  }
 
   if (hozon::mp::util::RvizAgent::Instance().Ok()) {
     adsfi_proto::viz::MarkerArray markers;

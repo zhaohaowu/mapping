@@ -142,9 +142,9 @@ void MapManager::MergeOldLaneLine(LocalMap* local_map,
       lane_line.c2_ = cur_lane_line.c2_;
       if (!lane_line.ismature_) {
         lane_line.edge_laneline_count_++;
-        // if (lane_line.edge_laneline_count_ >= 5) {
-        //   lane_line.ismature_ = true;
-        // }
+        if (lane_line.edge_laneline_count_ >= 10) {
+          lane_line.ismature_ = true;
+        }
       }
       return;
     }

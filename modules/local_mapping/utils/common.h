@@ -90,8 +90,7 @@ class CommonUtil {
 
   static void FitLocalMap(LocalMap* local_map) {
     for (auto& lane_line : local_map->lane_lines_) {
-      if (!lane_line.need_fit_ ||
-          (!lane_line.ismature_ && (lane_line.edge_laneline_count_ < 10))) {
+      if (!lane_line.need_fit_ || !lane_line.ismature_) {
         continue;
       }
       lane_line.fit_points_.clear();

@@ -64,6 +64,7 @@ struct MapMatchLaneLineParams {
   int invalid_pecep_cnt_thr;
   // 124fault
   bool use_valid_map_lane_fault;
+  bool use_rviz_bridge = false;
 };
 
 extern MapMatchLaneLineParams mm_params;

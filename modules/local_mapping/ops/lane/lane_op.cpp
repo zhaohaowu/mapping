@@ -220,16 +220,12 @@ void LaneOp::MergeMapLeftRight(LocalMap* local_map) {
     lane_line.need_delete_ = false;
   }
   for (auto& query_lane_line : local_map->lane_lines_) {
-    if (!query_lane_line.need_merge_ ||
-        (!query_lane_line.ismature_ &&
-         (query_lane_line.edge_laneline_count_ < 10))) {
+    if (!query_lane_line.need_merge_ || !query_lane_line.ismature_) {
       continue;
     }
     query_lane_line.need_merge_ = false;
     for (auto& other_lane_line : local_map->lane_lines_) {
-      if (!other_lane_line.need_merge_ ||
-          (!other_lane_line.ismature_ &&
-           (other_lane_line.edge_laneline_count_ < 10))) {
+      if (!other_lane_line.need_merge_ || !other_lane_line.ismature_) {
         continue;
       }
       if (!MatchLeftRight(query_lane_line, other_lane_line)) {
@@ -350,16 +346,12 @@ void LaneOp::MergeMapFrontBack(LocalMap* local_map) {
   }
   for (auto& query_lane_line : local_map->lane_lines_) {
     // if (query_lane.points_.back().x() < -50) continue;
-    if (!query_lane_line.need_merge_ ||
-        (!query_lane_line.ismature_ &&
-         (query_lane_line.edge_laneline_count_ < 10))) {
+    if (!query_lane_line.need_merge_ || !query_lane_line.ismature_) {
       continue;
     }
     query_lane_line.need_merge_ = false;
     for (auto& other_lane_line : local_map->lane_lines_) {
-      if (!other_lane_line.need_merge_ ||
-          (!other_lane_line.ismature_ &&
-           (other_lane_line.edge_laneline_count_ < 10))) {
+      if (!other_lane_line.need_merge_ || !other_lane_line.ismature_) {
         continue;
       }
       // HLOG_ERROR << "other_lane_line.c2_: " << other_lane_line.c2_;

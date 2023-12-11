@@ -64,7 +64,6 @@ struct Config {
   double gps_5_stdz_thr = 0.0;
 
   unsigned int ins84_deque_max_size = 10;
-  unsigned int inspva_deque_max_size = 10;
   bool fix_deflection_repeat = false;
 };
 

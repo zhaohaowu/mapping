@@ -18,11 +18,12 @@ def bash_rtfbag_convert(rtfbag_path, nos_path):
         print("no {}".format(rtfbag_path))
         return
     print(rtfbag_path)
-    mcap_path = os.path.splitext(rtfbag_path)[0] + "_mcap"
-    rtfbag_to_mcap = "cd {} && source scripts/env_setup.sh && bag convert -i {} --input-file-type rtfbag --input-data-version 0228-0324 -o {} ".format(
-        nos_path, rtfbag_path, mcap_path)
+    root = os.path.split(rtfbag_path)[0]
+    output_root = os.path.splitext(rtfbag_path)[0]
+    rtfbag_to_mcap = "cd {} && source scripts/env_setup.sh &&  bag convert -i {} --input-file-type rtfbag --input-data-version 0228-0324 -o {} ".format(
+        nos_path, rtfbag_path, output_root)
     rtfbag_to_mcap = "\"bash -c '{}'\"".format(rtfbag_to_mcap)
-    res = "gnome-terminal --window -e " + rtfbag_to_mcap + " &"
+    res = "gnome-terminal --window -e " + rtfbag_to_mcap
     ret = subprocess.Popen(res,
                            shell=True,
                            stdout=subprocess.PIPE,
@@ -30,7 +31,7 @@ def bash_rtfbag_convert(rtfbag_path, nos_path):
                            encoding="utf-8")
     count = 0
     while True:
-        cmd = "ps aux|grep bag|grep " + mcap_path
+        cmd = "ps aux|grep bag|grep " + output_root
         p = subprocess.Popen(cmd,
                              shell=True,
                              stdout=subprocess.PIPE,
@@ -47,23 +48,23 @@ def bash_rtfbag_convert(rtfbag_path, nos_path):
         print("Deal with rtfbag to mcap, count {}".format(count))
         time.sleep(5)
 
-    cyber_path = os.path.splitext(rtfbag_path)[0] + "_cyber"
-    res = "gnome-terminal --window -e "
+    res2 = "gnome-terminal --window -e "
     count = 0
-    for p in os.listdir(mcap_path):
+    for p in os.listdir(root):
         if not p.endswith("mcap"):
             continue
-        mcap_file_path = os.path.join(mcap_path, p)
+        mcap_file_path = os.path.join(root, p)
         print("Deal with {}".format(mcap_file_path))
-        mcap_to_cyber = "cd {} && source scripts/env_setup.sh && bag convert -i {} --input-file-type mcap --input-data-version 0228-0324 -o {} --out-file-type cyber".format(
-            nos_path, mcap_file_path, cyber_path)
-        mcap_to_cyber = "\"bash -c '{}'\"".format(mcap_to_cyber)
+        mcap_to_cyber = "cd {} && source scripts/env_setup.sh && bag convert -i {} --input-file-type mcap --input-data-version 0228-0324 -o {} --out-file-type cyber ".format(
+            nos_path, mcap_file_path, output_root)
+        mcap_to_cyber = "\"bash -c '{}'\" ".format(mcap_to_cyber)
         if count == 0:
-            res += mcap_to_cyber
+            res2 += mcap_to_cyber
         else:
-            res += " --tab -e " + mcap_to_cyber
+            res2 += " --tab -e " + mcap_to_cyber
         count += 1
-    ret = os.popen(res)
+    if count >= 1:
+        ret = os.popen(res2)
     print("Finish converting")
 
 

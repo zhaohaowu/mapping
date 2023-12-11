@@ -23,7 +23,6 @@ gps_5_stdy_thr: 0.20
 gps_5_stdz_thr: 0.30
 
 ins84_deque_max_size: 5
-inspva_deque_max_size: 5
 fix_deflection_repeat: true
 
 use_rviz_bridge: false

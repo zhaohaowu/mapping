@@ -89,8 +89,6 @@ void InsFusion::LoadConfigParams(const std::string& configfile) {
       config_parser["ins84_deque_max_size"].as<uint32_t>();
   config_.fix_deflection_repeat =
       config_parser["fix_deflection_repeat"].as<bool>();
-  config_.inspva_deque_max_size =
-      config_parser["inspva_deque_max_size"].as<uint32_t>();
 }
 
 void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
@@ -107,7 +105,6 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
   {
     std::unique_lock<std::mutex> lock(ins84_deque_mutex_);
 
-    last_timestamp_ = std::chrono::steady_clock::now();
     ins84_deque_.emplace_back(ins84_node);
     while (ins84_deque_.size() > config_.ins84_deque_max_size) {
       ins84_deque_.pop_front();
@@ -151,27 +148,11 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
     HLOG_INFO << "fix deflection repeat succ. last.tick:" << last_node_.ticktime
               << ", curr.tick:" << curr_node_.ticktime;
   }
-  bool flag = false;
-  if (config_.smooth && SmoothProc(&curr_node_)) {
-    flag = true;
-  }
+
+  config_.smooth && SmoothProc(&curr_node_);
 
   latest_inspva_data_.mutable_pos_gcj02()->set_x(curr_node_.blh(0));
   latest_inspva_data_.mutable_pos_gcj02()->set_y(curr_node_.blh(1));
-  {
-    std::unique_lock<std::mutex> lock2(inspva_deque_mutex_);
-    auto inspva_data = latest_inspva_data_;
-    if (flag) {
-      inspva_data.mutable_header()->set_publish_stamp(curr_node_.ticktime);
-      // 存在风险
-      inspva_data.mutable_header()->set_gnss_stamp(curr_node_.ticktime);
-    }
-    inspva_deque_.emplace_back(inspva_data);
-    while (inspva_deque_.size() > config_.inspva_deque_max_size) {
-      inspva_deque_.pop_front();
-    }
-    last_timestamp_ = std::chrono::steady_clock::now();
-  }
 
   last_node_ = curr_node_;
 }

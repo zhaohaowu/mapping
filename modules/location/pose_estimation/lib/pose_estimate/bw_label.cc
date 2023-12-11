@@ -4,7 +4,7 @@
  *   author     ： Nihongjie
  *   date       ： 2023.12
  ******************************************************************************/
-#include "bw_label.h"
+#include "modules/location/pose_estimation/lib/pose_estimate/bw_label.h"
 
 #include <fstream>
 #include <sstream>
@@ -34,24 +34,27 @@ std::vector<std::vector<int>> BwLbel::number_of_group(
   if (frechet_compare_mat.empty()) {
     return std::vector<std::vector<int>>{{}};
   }
+  if (frechet_compare_mat.front().empty()) {
+    return std::vector<std::vector<int>>{{}};
+  }
   size_t length_row = frechet_compare_mat.size();
   size_t length_column = frechet_compare_mat[0].size();
   std::vector<int> temp_group_mat;
   std::vector<std::vector<int>> group_num_mat;
   int group_num = 0;
-  for (size_t index_row = 0; index_row < length_row; index_row++) {
+  for (size_t index_row = 0; index_row < length_row; ++index_row) {
     if (frechet_compare_mat[index_row][0] == 1) {
-      group_num++;
+      ++group_num;
       group_num_mat.emplace_back(std::vector{group_num});
       temp_group_mat.emplace_back(group_num);
     } else {
       temp_group_mat.emplace_back(0);
     }
     for (size_t index_column = 1; index_column < length_column;
-         index_column++) {
+         ++index_column) {
       if (frechet_compare_mat[index_row][index_column] == 1 &&
           frechet_compare_mat[index_row][index_column - 1] == 0) {
-        group_num++;
+        ++group_num;
         group_num_mat.emplace_back(std::vector{group_num});
         temp_group_mat.emplace_back(group_num);
       } else if (frechet_compare_mat[index_row][index_column] == 1 &&
@@ -247,10 +250,16 @@ void BwLbel::unique_vector(std::vector<int>& num_array) {
 
 void BwLbel::num_change(std::vector<std::vector<int>>& number_of_group,
                         int origin_num, int target_num) {
+  if (number_of_group.empty()) {
+    return;
+  }
+  if (number_of_group.front().empty()) {
+    return;
+  }
   size_t length_row = number_of_group.size();
   size_t length_column = number_of_group[0].size();
-  for (int index_row = 0; index_row < length_row; index_row++) {
-    for (int index_column = 0; index_column < length_column; index_column++) {
+  for (size_t index_row = 0; index_row < length_row; ++index_row) {
+    for (size_t index_column = 0; index_column < length_column; ++index_column) {
       if (number_of_group[index_row][index_column] == origin_num) {
         number_of_group[index_row][index_column] = target_num;
       }

@@ -18,10 +18,11 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
                           const double& distance, const V3& ref_point) {
   Eigen::Vector3d euler = hozon::mp::loc::RotToEuler312(rotation);
   euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
-  double heading = 90.0 - euler.z();
+  double heading = 90.0 - euler.z() / M_PI * 180;
   if (heading < 0.0) {
     heading += 360.0;
   }
+
   heading = hozon::mp::loc::CalHeading(heading);
   std::vector<hozon::hdmap::LaneInfoConstPtr> lane_ptr_vec;
   const int ret = GLOBAL_HD_MAP->GetLanesWithHeading(

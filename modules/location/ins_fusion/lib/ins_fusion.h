@@ -81,10 +81,6 @@ class InsFusion {
   // store origin ins from IMU/INS message
   std::mutex ins84_deque_mutex_;
   std::deque<InsNode> ins84_deque_;
-  std::chrono::steady_clock::time_point last_timestamp_;
-  unsigned int loss_ins_frame_id_ = 0;
-  std::mutex inspva_deque_mutex_;
-  std::deque<hozon::localization::HafNodeInfo> inspva_deque_;
 };
 
 }  // namespace loc

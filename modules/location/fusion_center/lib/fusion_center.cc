@@ -206,18 +206,18 @@ bool FusionCenter::GetCurrentContext(Context* const ctx) {
     ctx->dr_node = *(dr_deque_.back());
   }
 
-  if (!GetGlobalPose(ctx)) {
-    HLOG_ERROR << "get global pose failed";
-    return false;
-  }
-  ctx->global_node.location_state = GetGlobalLocationState();
-
   if (!GetLocalPose(ctx)) {
     HLOG_ERROR << "get loca pose failed";
     if (params_.require_local_pose) {
       return false;
     }
   }
+
+  if (!GetGlobalPose(ctx)) {
+    HLOG_ERROR << "get global pose failed";
+    return false;
+  }
+  ctx->global_node.location_state = GetGlobalLocationState();
 
   return true;
 }
@@ -481,7 +481,7 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose->mutable_rotation_vrf()->set_y(rot.log().y());
   pose->mutable_rotation_vrf()->set_z(rot.log().z());
 
-  double heading = 90.0 - euler.z();
+  double heading = 90.0 - euler.z() / M_PI * 180;
   if (heading < 0.0) {
     heading += 360.0;
   }

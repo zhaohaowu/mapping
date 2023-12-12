@@ -1,6 +1,6 @@
 %YAML:1.0
 map_file: conf/mapping/map_fusion/data/amap_base_map.bin
-use_rviz: true
+use_rviz: false
 rviz_addr: ipc:///tmp/rviz_agent_local_map
 # rviz_addr: tcp://10.6.74.153:9100
 use_point_tracking: true

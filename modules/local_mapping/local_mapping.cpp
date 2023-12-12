@@ -91,11 +91,11 @@ void LMapApp::OnLocalization(
   Eigen::Vector3d trans_pose = T_W_V_localization.translation();
   Eigen::Quaterniond trans_quat = T_W_V_localization.so3().unit_quaternion();
   auto& local_data = LocalDataSingleton::GetInstance();
-  // HLOG_ERROR << "Dr buffer size: " <<
-  // local_data.dr_buffer().buffer_size();
+  // HLOG_ERROR << "latest_localization buffer size: "
+  //            << local_data.dr_buffer().buffer_size();
 
-  // HLOG_ERROR << "Dr timestamp: " << std::setprecision(20)
-  //            << latest_dr->timestamp_;
+  // HLOG_ERROR << "latest_localization timestamp: " << std::setprecision(20)
+  //            << latest_localization->timestamp_;
   if (local_data.dr_buffer().is_empty() ||
       local_data.dr_buffer().back()->timestamp <
           latest_localization->timestamp_) {

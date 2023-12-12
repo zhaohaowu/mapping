@@ -107,6 +107,7 @@ int32_t LocalMappingOnboard::OnLaneLine(adf_lite_Bundle* input) {
 }
 
 int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
+  HLOG_ERROR << "receive localization data...";
   auto localization_msg = input->GetOne("localization");
   if (localization_msg == nullptr) {
     HLOG_ERROR << "nullptr localization plugin";

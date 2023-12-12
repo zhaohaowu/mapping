@@ -6,14 +6,13 @@
  ******************************************************************************/
 
 #include "modules/location/fusion_center/lib/fusion_center.h"
-
 #include <yaml-cpp/yaml.h>
 
 #include <boost/filesystem.hpp>
 
-#include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/location/common/data_verify.h"
 #include "modules/location/fusion_center/lib/eulerangle.h"
+#include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/temp_log.h"
 
@@ -215,9 +214,9 @@ bool FusionCenter::GetCurrentContext(Context* const ctx) {
 
   if (!GetGlobalPose(ctx)) {
     HLOG_ERROR << "get global pose failed";
-    return false;
+  } else {
+    ctx->global_node.location_state = GetGlobalLocationState();
   }
-  ctx->global_node.location_state = GetGlobalLocationState();
 
   return true;
 }
@@ -273,10 +272,9 @@ bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
   Eigen::Quaterniond q(msg.quaternion().w(), msg.quaternion().x(),
                        msg.quaternion().y(), msg.quaternion().z());
   if (q.norm() < 1e-10) {
-    HLOG_ERROR << "HafNodeInfo quaternion(w,x,y,z) "
-               << msg.quaternion().w() << "," << msg.quaternion().x() << ","
-               << msg.quaternion().y() << "," << msg.quaternion().z()
-               << " error";
+    HLOG_ERROR << "HafNodeInfo quaternion(w,x,y,z) " << msg.quaternion().w()
+               << "," << msg.quaternion().x() << "," << msg.quaternion().y()
+               << "," << msg.quaternion().z() << " error";
     return false;
   }
 
@@ -550,11 +548,6 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose->mutable_linear_velocity()->set_y(global_node.velocity(1));
   pose->mutable_linear_velocity()->set_z(global_node.velocity(2));
 
-  pose->mutable_local_pose()->set_x(local_node.enu(0));
-  pose->mutable_local_pose()->set_y(local_node.enu(1));
-  pose->mutable_local_pose()->set_z(local_node.enu(2));
-  pose->set_local_heading(local_node.heading);
-
   pose->mutable_angular_velocity_raw_vrf()->set_x(
       imu.imuvb_angular_velocity().x());
   pose->mutable_angular_velocity_raw_vrf()->set_y(
@@ -564,19 +557,35 @@ void FusionCenter::Node2Localization(const Context& ctx,
 
   const Sophus::SO3d& rot_local = Sophus::SO3d::exp(local_node.orientation);
   Eigen::Vector3d euler_local = Rot2Euler312(rot_local.matrix());
-  euler_local = euler_local -
+  euler_local =
+      euler_local -
       ((euler_local.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
+
   pose->mutable_euler_angles_local()->set_x(euler_local.x());
   pose->mutable_euler_angles_local()->set_y(euler_local.y());
   pose->mutable_euler_angles_local()->set_z(euler_local.z());
 
+  auto* const pose_local = location->mutable_pose_local();
+  pose_local->mutable_quaternion()->set_w(
+      static_cast<float>(local_node.quaternion.w()));
+  pose_local->mutable_quaternion()->set_x(
+      static_cast<float>(local_node.quaternion.x()));
+  pose_local->mutable_quaternion()->set_y(
+      static_cast<float>(local_node.quaternion.y()));
+  pose_local->mutable_quaternion()->set_z(
+      static_cast<float>(local_node.quaternion.z()));
+  pose_local->mutable_position()->set_x(local_node.enu(0));
+  pose_local->mutable_position()->set_y(local_node.enu(1));
+  pose_local->mutable_position()->set_z(local_node.enu(2));
+  pose_local->set_local_heading(local_node.heading);
+
   Eigen::Matrix<float, 6, 1> diag;
   diag << static_cast<float>(ins.sd_position().x()),
-          static_cast<float>(ins.sd_position().y()),
-          static_cast<float>(ins.sd_position().z()),
-          static_cast<float>(ins.sd_attitude().x()),
-          static_cast<float>(ins.sd_attitude().y()),
-          static_cast<float>(ins.sd_attitude().z());
+      static_cast<float>(ins.sd_position().y()),
+      static_cast<float>(ins.sd_position().z()),
+      static_cast<float>(ins.sd_attitude().x()),
+      static_cast<float>(ins.sd_attitude().y()),
+      static_cast<float>(ins.sd_attitude().z());
   Eigen::Matrix<float, 6, 6, Eigen::RowMajor> sd = diag.asDiagonal();
   Eigen::Matrix<float, 6, 6, Eigen::RowMajor> cov = sd * sd;
 
@@ -1127,11 +1136,11 @@ bool FusionCenter::GetLocalPose(Context* const ctx) {
   }
 
   ctx->local_node = ctx->dr_node;
-  const auto local_pose = Node2SE3(init_dr_node_).inverse() *
-                          Node2SE3(ctx->dr_node);
+  const auto local_pose =
+      Node2SE3(init_dr_node_).inverse() * Node2SE3(ctx->dr_node);
   ctx->local_node.enu = local_pose.translation();
   ctx->local_node.orientation = local_pose.so3().log();
-
+  ctx->local_node.quaternion = local_pose.so3().unit_quaternion();
   return true;
 }
 

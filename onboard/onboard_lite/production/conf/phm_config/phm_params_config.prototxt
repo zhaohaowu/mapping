@@ -1,0 +1,16 @@
+model_configs {
+    name: "MappingComponent"
+    version: "1.0.0"
+    string_params {
+        name: "hm_config_file"
+        value: "conf/lite/phm_config/phm_params/health_params.prototxt"
+    }
+    string_params {
+        name: "fm_config_file"
+        value: "conf/lite/phm_config/phm_params/fault_params.prototxt"
+    }
+    string_params {
+        name: "yaml_file"
+        value: "conf/lite/phm_config/phm_params/config.yaml"
+    }
+}

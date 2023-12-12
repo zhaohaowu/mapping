@@ -20,6 +20,7 @@ trigger:
     - name: recv_location
       type: EVENT
       mainSources:
+      
         - name: localization
           timeout: 100
     - name: recv_local_map

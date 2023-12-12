@@ -1,0 +1,126 @@
+%YAML: 1.0
+#该配置提供给用户对关注的故障列表进程注册，用于回调通知
+#支持原始故障/组合故障/自定义组合故障的注册
+#支持聚类的注册，聚类定义参考系统部定义的文档
+
+#app名称示例
+appName: hz_mapping
+
+#聚类故障
+cluster: []
+
+#故障
+fault:
+
+#组合
+combination:
+
+#monitor task[alive|deadline|logic]
+#alive: 
+#   用于周期处理任务的监控，例如,GNSS报文100Hz，则周期时间(periodMs)为1000ms, 期待接收次数(expectedIndication)为100
+#   最小边界值(minMargin)假如为10，则认为至少要接收90次报文，结果为之差：expectedIndication - minMargin
+#   最大边界值(maxMargin)假如为20，则认为最多可接收120次报文，结果为之和：expectedIndication + maxMargin
+#deadline：
+#   监控检查两个检查点之间的增量时间。例如，21发生后，22最早需要在deadlineMinMs之后完成上报或者最晚需要在deadlineMaxMs之内上报
+#   deadlineMinMs 最小截止时间
+#   deadlineMaxMs 最大截止时间 
+#logic：
+#   检查程序的执行过程是否安装指定的顺序发生。例如，发生顺序为13，14，15
+#所有checkPointId 为Phm开发人员分配
+
+phmMonitor:
+    - monitorType: alive
+      periodMs: 1000
+      expectedIndication: 100
+      minMargin: 2
+      maxMargin: 2
+      checkPointId: [1]
+      faultId: 4010
+      faultObj: 30
+
+    - monitorType: alive
+      periodMs: 1000
+      expectedIndication: 100
+      minMargin: 2
+      maxMargin: 2
+      checkPointId: [2]
+      faultId: 4010
+      faultObj: 31
+
+    - monitorType: alive
+      periodMs: 1000
+      expectedIndication: 100
+      minMargin: 2
+      maxMargin: 2
+      checkPointId: [3]
+      faultId: 4010
+      faultObj: 32
+
+    - monitorType: alive
+      periodMs: 1000
+      expectedIndication: 10
+      minMargin: 1
+      maxMargin: 1
+      checkPointId: [4]
+      faultId: 4010
+      faultObj: 33
+
+    - monitorType: alive
+      periodMs: 1000
+      expectedIndication: 10
+      minMargin: 1
+      maxMargin: 1
+      checkPointId: [5]
+      faultId: 4010
+      faultObj: 34
+
+    - monitorType: alive
+      periodMs: 1000
+      expectedIndication: 100
+      minMargin: 1
+      maxMargin: 1
+      checkPointId: [6]
+      faultId: 4010
+      faultObj: 35
+
+    - monitorType: alive
+      periodMs: 1000
+      expectedIndication: 100
+      minMargin: 1
+      maxMargin: 1
+      checkPointId: [7]
+      faultId: 4010
+      faultObj: 36
+
+    # 8 9 TBD
+
+    - monitorType: alive
+      periodMs: 1000
+      expectedIndication: 10
+      minMargin: 1
+      maxMargin: 1
+      checkPointId: [10]
+      faultId: 4010
+      faultObj: 39
+
+    - monitorType: alive
+      periodMs: 1000
+      expectedIndication: 10
+      minMargin: 1
+      maxMargin: 1
+      checkPointId: [11]
+      faultId: 4010
+      faultObj: 40
+    
+    - monitorType: alive
+      periodMs: 1000
+      expectedIndication: 10
+      minMargin: 1
+      maxMargin: 1
+      checkPointId: [12]
+      faultId: 4010
+      faultObj: 41
+
+
+
+    

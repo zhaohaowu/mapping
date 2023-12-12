@@ -116,20 +116,19 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     include_directories(${DEPEND})
     include_directories(depend/ap-release/include/adsfi/include)
     include_directories(depend/ap-release/include/generated/includes)
-
     include_directories(depend/perception-lib/release/${LOCAL_TARGET_PLATFORM}/include)
     link_directories(depend/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib)
 
     # These enable variables are defined in compile.py
-    if (MAPPING_ENABLE_COMPILE_BASE)
+    # if (MAPPING_ENABLE_COMPILE_BASE)
         add_subdirectory(depend/perception-base)
-    endif()
+    # endif()
     # if (MAPPING_ENABLE_COMPILE_COMBOARD)
     #     add_subdirectory(depend/perception-common-onboard)
     # endif()
-    if (MAPPING_ENABLE_COMPILE_LIB)
+    # if (MAPPING_ENABLE_COMPILE_LIB)
         add_subdirectory(depend/perception-lib)
-    endif()
+    # endif()
 
     set(FROM_TOP ON)
     # add_subdirectory(depend/proto)
@@ -173,7 +172,6 @@ if(IND)
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/zmq/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gtest/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/amap/lib/
-        ${DEPEND}/perception-common-onboard/release/${LOCAL_TARGET_PLATFORM}/lib/
         ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/
         ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib/
         DESTINATION ${EXTERNAL_LIB_PATH}

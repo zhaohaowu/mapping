@@ -1,0 +1,8 @@
+falut_data {
+  module_id : 3
+  fault_id : 1000
+  orientation : -1
+  report_faultid : 5010
+  report_objid : 1
+  fault_option : true
+}

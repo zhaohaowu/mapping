@@ -1,0 +1,5 @@
+%YAML:1.0
+
+library: "${ADFLITE_ROOT_PATH}/runtime_service/mapping/lib/libphm_component_lite.so"
+executorName: PhmComponentOnboard
+

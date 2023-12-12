@@ -105,9 +105,17 @@ void CoordAdapter::OnDrFusion(const HafNodeInfo& dr) {
     return;
   }
   curr_raw_dr_ = dr;
+  if (!sys_init_) {
+    SetCoordInitTimestamp(dr.header().data_stamp());
+  } else {
+    if (!dr_deque_.empty()) {
+      dr_deque_.clear();
+    }
+    return;
+  }
 
   if (!dr_deque_.empty() &&
-      fabs(dr_deque_.back()->ticktime - dr.header().gnss_stamp()) < 1e-3) {
+      fabs(dr_deque_.back()->ticktime - dr.header().data_stamp()) < 1e-3) {
     return;
   }
 

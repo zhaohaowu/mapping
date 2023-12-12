@@ -141,7 +141,7 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
   // keep main structure of inspva for passthrough
   latest_inspva_data_ = inspva;
   latest_inspva_data_.mutable_header()->set_data_stamp(
-      latest_inspva_data_.header().publish_stamp());
+      latest_inspva_data_.header().data_stamp());
 
   if (config_.fix_deflection_repeat &&
       FixDeflectionRepeat(last_node_, &curr_node_)) {
@@ -149,11 +149,9 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
               << ", curr.tick:" << curr_node_.ticktime;
   }
 
-  config_.smooth && SmoothProc(&curr_node_);
-
-  latest_inspva_data_.mutable_pos_gcj02()->set_x(curr_node_.blh(0));
-  latest_inspva_data_.mutable_pos_gcj02()->set_y(curr_node_.blh(1));
-
+  if (config_.smooth) {
+    SmoothProc(&curr_node_);
+  }
   last_node_ = curr_node_;
 }
 
@@ -161,7 +159,6 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
   if (config_.use_inspva && !ref_init_) {
     return false;
   }
-
   if (!node_info || (!ins_node_is_valid_ && inspva_node_is_valid_)) {
     return false;
   }
@@ -169,7 +166,6 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
   if (config_.use_rviz_bridge) {
     PublishTopic();
   }
-
   node_info->Clear();
   if (config_.use_inspva) {
     {
@@ -180,7 +176,6 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
     node_info->mutable_header()->set_frame_id("ins_fusion");
     return true;
   }
-
   hozon::soc::ImuIns origin_ins;
   {
     std::unique_lock<std::mutex> lock(origin_ins_mutex_);

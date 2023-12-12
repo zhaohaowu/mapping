@@ -21,16 +21,16 @@ using adf_lite_Bundle = hozon::netaos::adf_lite::Bundle;
 class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
  public:
   LocalMappingOnboard() = default;
-  ~LocalMappingOnboard() = default;
+  ~LocalMappingOnboard() override = default;
 
   int32_t AlgInit() override;
   void AlgRelease() override;
 
   int32_t OnLaneLine(adf_lite_Bundle* input);
 
-  int32_t OnDr(adf_lite_Bundle* input);
+  // int32_t OnDr(adf_lite_Bundle* input);
 
-  // int32_t OnLocation(Bundle* input);
+  int32_t Onlocalization(adf_lite_Bundle* input);
 
   int32_t OnIns(adf_lite_Bundle* input);
 

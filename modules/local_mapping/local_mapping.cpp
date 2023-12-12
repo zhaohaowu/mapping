@@ -81,15 +81,41 @@ void LMapApp::RvizFunc() {
   }
 }
 
-void LMapApp::OnLocation(
+void LMapApp::OnLocalization(
     const std::shared_ptr<const hozon::localization::Localization>& msg) {
-  std::shared_ptr<Location> latest_location = std::make_shared<Location>();
-  DataConvert::SetLocation(*msg, latest_location.get());
+  std::shared_ptr<Localization> latest_localization =
+      std::make_shared<Localization>();
+  DataConvert::SetLocalization(*msg, latest_localization.get());
+  Sophus::SE3d T_W_V_localization = Sophus::SE3d(
+      latest_localization->quaternion_, latest_localization->position_);
+  Eigen::Vector3d trans_pose = T_W_V_localization.translation();
+  Eigen::Quaterniond trans_quat = T_W_V_localization.so3().unit_quaternion();
+  auto& local_data = LocalDataSingleton::GetInstance();
+  // HLOG_ERROR << "Dr buffer size: " <<
+  // local_data.dr_buffer().buffer_size();
+
+  // HLOG_ERROR << "Dr timestamp: " << std::setprecision(20)
+  //            << latest_dr->timestamp_;
+  if (local_data.dr_buffer().is_empty() ||
+      local_data.dr_buffer().back()->timestamp <
+          latest_localization->timestamp_) {
+    DrDataPtr dr_data_ptr = std::make_shared<DrData>();
+    dr_data_ptr->timestamp = latest_localization->timestamp_;
+    dr_data_ptr->pose = trans_pose;
+    dr_data_ptr->quaternion = trans_quat;
+    dr_data_ptr->local_omg = latest_localization->angular_vrf_;
+    dr_data_ptr->local_vel = latest_localization->linear_vrf_;
+    local_data.dr_buffer().push_new_message(latest_localization->timestamp_,
+                                            dr_data_ptr);
+  } else {
+    // HLOG_ERROR << "Dr timestamp error";
+  }
+  localization_inited_ = true;
 }
 
 void LMapApp::OnDr(
     const std::shared_ptr<const hozon::dead_reckoning::DeadReckoning>& msg) {
-  std::shared_ptr<Location> latest_dr = std::make_shared<Location>();
+  std::shared_ptr<Localization> latest_dr = std::make_shared<Localization>();
   DataConvert::SetDr(*msg, latest_dr.get());
   static bool dr_flag = true;
   static Sophus::SE3d init_T_inverse;
@@ -204,6 +230,7 @@ void LMapApp::OnLaneLine(
   CommonUtil::FitLocalMap(local_map.get());
   mmgr_->CutLocalMap(local_map.get(), 150, 150);
   // add Lane
+  mmgr_->UpdateLanepos(local_map.get());
   mmgr_->UpdateLaneByPerception(local_map.get(), *perception);
   mmgr_->UpdateLaneByLocalmap(local_map.get());
   localmap_mutex_.lock();
@@ -233,8 +260,8 @@ void LMapApp::OnImage(
 
 bool LMapApp::FetchLocalMap(
     const std::shared_ptr<hozon::mapping::LocalMap>& local_map) {
-  if (!dr_inited_) {
-    HLOG_INFO << "==========dr_inited_ failed=======";
+  if (!localization_inited_) {
+    HLOG_INFO << "==========localization_inited_ failed=======";
     return false;
   }
   if (!laneline_inited_) {

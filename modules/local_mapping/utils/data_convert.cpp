@@ -9,29 +9,44 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
-void DataConvert::SetLocation(const hozon::localization::Localization& msg,
-                              Location* location) {}
+void DataConvert::SetLocalization(const hozon::localization::Localization& msg,
+                                  Localization* localization) {
+  localization->timestamp_ = msg.header().data_stamp();
+  localization->position_.x() = msg.pose_local().position().x();
+  localization->position_.y() = msg.pose_local().position().y();
+  localization->position_.z() = msg.pose_local().position().z();
+  localization->quaternion_.w() = msg.pose_local().quaternion().w();
+  localization->quaternion_.x() = msg.pose_local().quaternion().x();
+  localization->quaternion_.y() = msg.pose_local().quaternion().y();
+  localization->quaternion_.z() = msg.pose_local().quaternion().z();
+  localization->linear_vrf_.x() = msg.pose().linear_velocity().x();
+  localization->linear_vrf_.y() = msg.pose().linear_velocity().y();
+  localization->linear_vrf_.z() = msg.pose().linear_velocity().z();
+  localization->angular_vrf_.x() = msg.pose().angular_velocity().x();
+  localization->angular_vrf_.y() = msg.pose().angular_velocity().y();
+  localization->angular_vrf_.z() = msg.pose().angular_velocity().z();
+}
 
 void DataConvert::SetDr(const hozon::dead_reckoning::DeadReckoning& msg,
-                        Location* dr_location) {
-  dr_location->timestamp_ = msg.header().data_stamp();
-  dr_location->position_.x() = msg.pose().pose_local().position().x();
-  dr_location->position_.y() = msg.pose().pose_local().position().y();
-  dr_location->position_.z() = msg.pose().pose_local().position().z();
-  dr_location->quaternion_.x() = msg.pose().pose_local().quaternion().x();
-  dr_location->quaternion_.y() = msg.pose().pose_local().quaternion().y();
-  dr_location->quaternion_.z() = msg.pose().pose_local().quaternion().z();
-  dr_location->quaternion_.w() = msg.pose().pose_local().quaternion().w();
-  dr_location->euler_angle_.x() = msg.pose().pose_local().euler_angle().x();
-  dr_location->euler_angle_.y() = msg.pose().pose_local().euler_angle().y();
-  dr_location->euler_angle_.z() = msg.pose().pose_local().euler_angle().z();
-  dr_location->linear_vrf_.x() = msg.velocity().twist_vrf().linear_vrf().x();
-  dr_location->linear_vrf_.y() = msg.velocity().twist_vrf().linear_vrf().y();
-  dr_location->linear_vrf_.z() = msg.velocity().twist_vrf().linear_vrf().z();
-  dr_location->angular_vrf_.x() = msg.velocity().twist_vrf().angular_vrf().x();
-  dr_location->angular_vrf_.y() = msg.velocity().twist_vrf().angular_vrf().y();
-  dr_location->angular_vrf_.z() = msg.velocity().twist_vrf().angular_vrf().z();
-  dr_location->heading_ = msg.pose().pose_local().heading();
+                        Localization* dr) {
+  dr->timestamp_ = msg.header().data_stamp();
+  dr->position_.x() = msg.pose().pose_local().position().x();
+  dr->position_.y() = msg.pose().pose_local().position().y();
+  dr->position_.z() = msg.pose().pose_local().position().z();
+  dr->quaternion_.x() = msg.pose().pose_local().quaternion().x();
+  dr->quaternion_.y() = msg.pose().pose_local().quaternion().y();
+  dr->quaternion_.z() = msg.pose().pose_local().quaternion().z();
+  dr->quaternion_.w() = msg.pose().pose_local().quaternion().w();
+  dr->euler_angle_.x() = msg.pose().pose_local().euler_angle().x();
+  dr->euler_angle_.y() = msg.pose().pose_local().euler_angle().y();
+  dr->euler_angle_.z() = msg.pose().pose_local().euler_angle().z();
+  dr->linear_vrf_.x() = msg.velocity().twist_vrf().linear_vrf().x();
+  dr->linear_vrf_.y() = msg.velocity().twist_vrf().linear_vrf().y();
+  dr->linear_vrf_.z() = msg.velocity().twist_vrf().linear_vrf().z();
+  dr->angular_vrf_.x() = msg.velocity().twist_vrf().angular_vrf().x();
+  dr->angular_vrf_.y() = msg.velocity().twist_vrf().angular_vrf().y();
+  dr->angular_vrf_.z() = msg.velocity().twist_vrf().angular_vrf().z();
+  dr->heading_ = msg.pose().pose_local().heading();
 }
 
 void DataConvert::SetLaneLinePoint(

@@ -7,7 +7,7 @@ executorName: LocalMappingOnboard
 input:
     - topic: percep_transport
       capacity: 5
-    - topic: dr 
+    - topic: localization 
       capacity: 5
     - topic: lm_image 
       capacity: 5
@@ -22,10 +22,10 @@ trigger:
     mainSources:
       - name: percep_transport
         timeout: 1000
-  - name: recv_dr
+  - name: recv_localization
     type: EVENT
     mainSources:
-      - name: dr
+      - name: localization
         timeout: 1000
   - name: recv_image
     type: EVENT

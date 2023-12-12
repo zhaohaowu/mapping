@@ -79,7 +79,7 @@ enum TurnType {
   LEFT_U_TURN = 9               // 左转或u形转弯
 };
 
-class Location {
+class Localization {
  public:
   double timestamp_;
   Eigen::Vector3d position_;

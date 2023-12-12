@@ -299,22 +299,22 @@ void MapManager::UpdateLaneByLocalmap(LocalMap* local_map) {
   if (left_lanepos == 0 || right_lanepos == 0) {
     return;
   }
-  for (auto& lane_line : local_map->lane_lines_) {
-    if (lane_line.fit_points_.empty() ||
-        lane_line.lanepos_ != LanePositionType::OTHER) {
-      continue;
-    }
-    if (lane_line.fit_points_.back().y() > left_y) {
-      lane_line.lanepos_ = static_cast<LanePositionType>(left_lanepos - 1);
-      left_lanepos--;
-      left_y = lane_line.fit_points_.back().y();
-    }
-    if (lane_line.fit_points_.back().y() < right_y) {
-      lane_line.lanepos_ = static_cast<LanePositionType>(right_lanepos + 1);
-      right_lanepos++;
-      right_y = lane_line.fit_points_.back().y();
-    }
-  }
+  // for (auto& lane_line : local_map->lane_lines_) {
+  //   if (lane_line.fit_points_.empty() ||
+  //       lane_line.lanepos_ != LanePositionType::OTHER) {
+  //     continue;
+  //   }
+  //   if (lane_line.fit_points_.back().y() > left_y) {
+  //     lane_line.lanepos_ = static_cast<LanePositionType>(left_lanepos - 1);
+  //     left_lanepos--;
+  //     left_y = lane_line.fit_points_.back().y();
+  //   }
+  //   if (lane_line.fit_points_.back().y() < right_y) {
+  //     lane_line.lanepos_ = static_cast<LanePositionType>(right_lanepos + 1);
+  //     right_lanepos++;
+  //     right_y = lane_line.fit_points_.back().y();
+  //   }
+  // }
   // HLOG_ERROR << "left_lanepos " << left_lanepos << " right_lanepos "
   //            << right_lanepos;
   // HLOG_ERROR << "left_y " << left_y << " right_y " << right_y;
@@ -378,6 +378,45 @@ void MapManager::UpdateLaneByLocalmap(LocalMap* local_map) {
     return;
   }
   local_map->map_lanes_ = map_lanes;
+}
+
+void MapManager::UpdateLanepos(LocalMap* local_map) {
+  std::map<double, LaneLine> map_left;
+  std::map<double, LaneLine, std::greater<>> map_right;
+  std::vector<LaneLine> tmp_lane_lines;
+  for (auto& lane_line : local_map->lane_lines_) {
+    std::vector<Eigen::Vector3d> points;
+    for (const auto& point : lane_line.fit_points_) {
+      if (point.x() > -20 && point.x() < 20) {
+        points.emplace_back(point);
+      }
+    }
+    if (points.empty()) {
+      tmp_lane_lines.emplace_back(lane_line);
+      continue;
+    }
+    CommonUtil::FitLaneLine(points, &lane_line);
+    if (lane_line.c0_ > 0) {
+      map_left[lane_line.c0_] = lane_line;
+    } else if (lane_line.c0_ < 0) {
+      map_right[lane_line.c0_] = lane_line;
+    }
+  }
+  local_map->lane_lines_.clear();
+  local_map->lane_lines_ = tmp_lane_lines;
+  int left_index = -1;
+  for (auto& left : map_left) {
+    left.second.lanepos_ = static_cast<LanePositionType>(left_index);
+    local_map->lane_lines_.emplace_back(left.second);
+    left_index--;
+  }
+  int right_index = 1;
+  for (auto& right : map_right) {
+    right.second.lanepos_ = static_cast<LanePositionType>(right_index);
+    // if (right.second.lanepos_ == 1 || right.second.lanepos_ == 2)
+    local_map->lane_lines_.emplace_back(right.second);
+    right_index++;
+  }
 }
 
 }  // namespace lm

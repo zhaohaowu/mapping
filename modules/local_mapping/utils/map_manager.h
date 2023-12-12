@@ -48,6 +48,8 @@ class MapManager {
                                      std::vector<Lane>* lanes);
 
   static void UpdateLaneByLocalmap(LocalMap* local_map);
+
+  static void UpdateLanepos(LocalMap* local_map);
 };
 
 }  // namespace lm

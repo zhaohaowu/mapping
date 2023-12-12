@@ -83,9 +83,10 @@ void FusionCenterLite::RegistProcessFunc() {
   RegistAlgProcessFunc(
       "recv_dr_fusion",
       std::bind(&FusionCenterLite::OnDrFusion, this, std::placeholders::_1));
-  RegistAlgProcessFunc(
-      "recv_local_map",
-      std::bind(&FusionCenterLite::OnLocalMap, this, std::placeholders::_1));
+  // temp remove
+  // RegistAlgProcessFunc(
+  //     "recv_local_map",
+  //     std::bind(&FusionCenterLite::OnLocalMap, this, std::placeholders::_1));
   RegistAlgProcessFunc("recv_pose_estimation",
                        std::bind(&FusionCenterLite::OnPoseEstimation, this,
                                  std::placeholders::_1));
@@ -138,8 +139,11 @@ int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
   if (!dr_fusion) {
     return -1;
   }
+  if (!coord_adapter_->IsCoordInitSucc()) {
+    fusion_center_->OnInitDR(*dr_fusion);
+    coord_adapter_->OnDrFusion(*dr_fusion);
+  }
   fusion_center_->OnDR(*dr_fusion);
-  coord_adapter_->OnDrFusion(*dr_fusion);
 
   return 0;
 }

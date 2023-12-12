@@ -55,12 +55,12 @@ class LMapApp {
   LMapApp& operator=(LMapApp&& other) noexcept;
 
   /**
-   * @brief receive location message
+   * @brief receive localization message
    *
-   * @param msg : location message
+   * @param msg : localization message
    * @return
    */
-  static void OnLocation(
+  void OnLocalization(
       const std::shared_ptr<const hozon::localization::Localization>& msg);
 
   /**
@@ -135,6 +135,7 @@ class LMapApp {
   bool use_perception_match_;
   bool use_horizon_assoc_match_;
   bool use_rviz_;
+  std::atomic<bool> localization_inited_ = false;
   std::atomic<bool> dr_inited_ = false;
   std::atomic<bool> laneline_inited_ = false;
   std::atomic<bool> ins_inited_ = false;

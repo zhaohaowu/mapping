@@ -25,8 +25,8 @@ class DataConvert {
    * @param msg : location message
    * @return
    */
-  static void SetLocation(const hozon::localization::Localization& msg,
-                          Location* dr_location);
+  static void SetLocalization(const hozon::localization::Localization& msg,
+                              Localization* localization);
 
   /**
    * @brief convert dr message into internal class
@@ -35,7 +35,7 @@ class DataConvert {
    * @return
    */
   static void SetDr(const hozon::dead_reckoning::DeadReckoning& msg,
-                    Location* dr_location);
+                    Localization* dr);
 
   /**
    * @brief convert laneline message into internal class

@@ -63,8 +63,9 @@ int32_t LocalMappingOnboard::AlgInit() {
       "recv_laneline",
       std::bind(&LocalMappingOnboard::OnLaneLine, this, std::placeholders::_1));
 
-  RegistAlgProcessFunc("recv_dr", std::bind(&LocalMappingOnboard::OnDr, this,
-                                            std::placeholders::_1));
+  RegistAlgProcessFunc("recv_localization",
+                       std::bind(&LocalMappingOnboard::Onlocalization, this,
+                                 std::placeholders::_1));
   if (RVIZ_AGENT.Ok()) {
     RegistAlgProcessFunc("recv_ins", std::bind(&LocalMappingOnboard::OnIns,
                                                this, std::placeholders::_1));
@@ -94,32 +95,27 @@ int32_t LocalMappingOnboard::OnLaneLine(adf_lite_Bundle* input) {
     HLOG_ERROR << "nullptr track lane plugin";
     return -1;
   }
-
   if (!lmap_) {
     HLOG_ERROR << "LMapApp init failed!!!";
     return -1;
   }
-
   auto msg = std::static_pointer_cast<hozon::perception::TransportElement>(
       laneline_msg->proto_msg);
-
   lmap_->OnLaneLine(msg);
   HLOG_ERROR << "processed laneline data";
   return 0;
 }
 
-int32_t LocalMappingOnboard::OnDr(adf_lite_Bundle* input) {
-  auto dr_msg = input->GetOne("dr");
-  if (dr_msg == nullptr) {
-    HLOG_ERROR << "nullptr dr_msg plugin";
+int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
+  auto localization_msg = input->GetOne("localization");
+  if (localization_msg == nullptr) {
+    HLOG_ERROR << "nullptr localization plugin";
     return -1;
   }
-
-  auto msg = std::static_pointer_cast<hozon::dead_reckoning::DeadReckoning>(
-      dr_msg->proto_msg);
-
-  lmap_->OnDr(msg);
-  HLOG_ERROR << "processed dr data";
+  auto msg = std::static_pointer_cast<hozon::localization::Localization>(
+      localization_msg->proto_msg);
+  lmap_->OnLocalization(msg);
+  HLOG_ERROR << "processed localization data";
   return 0;
 }
 
@@ -130,7 +126,6 @@ int32_t LocalMappingOnboard::OnIns(adf_lite_Bundle* input) {
   if (!lmap_) {
     return -1;
   }
-
   lmap_->OnIns(msg);
   return 0;
 }

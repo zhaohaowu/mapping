@@ -6,7 +6,10 @@
 #include "onboard/onboard_lite/phm_comment_lite/comment_lite.h"
 #include <gflags/gflags.h>
 
+#include "adf-lite/include/base.h"
 #include "base/utils/log.h"
+#include "cfg/config_param.h"
+#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 #include "yaml-cpp/yaml.h"
 
 namespace hozon {
@@ -18,8 +21,39 @@ int32_t PhmComponentOnboard::AlgInit() {
   phm_component_ = std::make_unique<PhmComponent>();
   phm_component_->Init();
 
+  RegistAlgProcessFunc("send_running_mode",
+                       std::bind(&PhmComponentOnboard::send_running_mode, this,
+                                 std::placeholders::_1));
+
+  // phm
+  // Receive driving and parking status
+  // auto cfgMgr = hozon::netaos::cfg::ConfigParam::Instance();
+  HLOG_ERROR << "driving and parking  in";
+  hozon::netaos::cfg::ConfigParam::Instance()->MonitorParam<uint8_t>(
+      "system/running_mode",
+      [this](const std::string&, const std::string&, const uint8_t& runmode) {
+        runmode_ = runmode;
+        // HLOG_ERROR << "!!!!!!!!MonitorParam_runmode_ = " << runmode_;
+      });  // 平台回调，每次行泊切换都会调用func
+
   HLOG_INFO << "AlgInit successfully ";
 
+  return 0;
+}
+
+int32_t PhmComponentOnboard::send_running_mode(Bundle* input) {
+  auto base_msg = std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  if (base_msg) {
+    auto runmodeptr = std::make_shared<running_mode>();
+    if (runmodeptr) {
+      runmodeptr->set_mode(runmode_);
+    }
+    base_msg->proto_msg = runmodeptr;
+    hozon::netaos::adf_lite::Bundle bundle;
+    bundle.Add("running_mode", base_msg);
+    SendOutput(&bundle);
+    // HLOG_ERROR << "!!!!!!!!SendOutput_runmode_ = " << runmode_;
+  }
   return 0;
 }
 

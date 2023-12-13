@@ -30,6 +30,8 @@ class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
 
   // int32_t OnDr(adf_lite_Bundle* input);
 
+  int32_t OnRunningMode(adf_lite_Bundle* input);
+
   int32_t Onlocalization(adf_lite_Bundle* input);
 
   int32_t OnIns(adf_lite_Bundle* input);
@@ -42,9 +44,10 @@ class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
 
   int32_t LocalMapLocationPublish(adf_lite_Bundle* output);
 
- private:
   std::shared_ptr<LMapApp> lmap_ = nullptr;
   std::shared_ptr<hozon::mapping::LocalMap> result = nullptr;
+
+  enum RUNMODE { UNKNOWN = 0, DRIVER = 1, PARKING = 2 };
 };
 
 // REGISTER_ADF_CLASS(LocalMappingOnboard, LocalMappingOnboard);

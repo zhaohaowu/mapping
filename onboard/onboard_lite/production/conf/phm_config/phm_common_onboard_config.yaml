@@ -3,3 +3,10 @@
 library: "${ADFLITE_ROOT_PATH}/runtime_service/mapping/lib/libphm_component_lite.so"
 executorName: PhmComponentOnboard
 
+output:
+  - topic: running_mode
+
+trigger:
+    - name: send_running_mode
+      type: PERIOD
+      period: 100

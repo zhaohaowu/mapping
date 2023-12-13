@@ -1,0 +1,6 @@
+syntax = "proto2";
+package hozon.perception.common_onboard;
+
+message running_mode {
+   optional int32 mode = 1;
+}

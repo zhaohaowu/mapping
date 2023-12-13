@@ -20,6 +20,7 @@ include_directories(
     ${THIRDPARTY_ROOT_PATH}/nos/${LOCAL_TARGET_PLATFORM}/include/fast-dds/include
     ${THIRDPARTY_ROOT_PATH}/perception-base
     ${THIRDPARTY_ROOT_PATH}/perception-lib
+    ${CMAKE_CURRENT_SOURCE_DIR}/onboard/onboard_lite/
 )
 
 link_directories(

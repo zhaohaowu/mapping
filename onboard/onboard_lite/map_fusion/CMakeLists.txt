@@ -11,6 +11,8 @@ target_link_libraries(onboard_lite_mf
   mf
   ${DEPENDS_LIBS}
   # fastrtps
+  perception-base
+  perception-lib
   gflags
 )
 

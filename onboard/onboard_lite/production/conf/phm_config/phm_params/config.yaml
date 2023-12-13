@@ -31,71 +31,6 @@ combination:
 phmMonitor:
     - monitorType: alive
       periodMs: 1000
-      expectedIndication: 100
-      minMargin: 2
-      maxMargin: 2
-      checkPointId: [1]
-      faultId: 4010
-      faultObj: 30
-
-    - monitorType: alive
-      periodMs: 1000
-      expectedIndication: 100
-      minMargin: 2
-      maxMargin: 2
-      checkPointId: [2]
-      faultId: 4010
-      faultObj: 31
-
-    - monitorType: alive
-      periodMs: 1000
-      expectedIndication: 100
-      minMargin: 2
-      maxMargin: 2
-      checkPointId: [3]
-      faultId: 4010
-      faultObj: 32
-
-    - monitorType: alive
-      periodMs: 1000
-      expectedIndication: 10
-      minMargin: 1
-      maxMargin: 1
-      checkPointId: [4]
-      faultId: 4010
-      faultObj: 33
-
-    - monitorType: alive
-      periodMs: 1000
-      expectedIndication: 10
-      minMargin: 1
-      maxMargin: 1
-      checkPointId: [5]
-      faultId: 4010
-      faultObj: 34
-
-    - monitorType: alive
-      periodMs: 1000
-      expectedIndication: 100
-      minMargin: 1
-      maxMargin: 1
-      checkPointId: [6]
-      faultId: 4010
-      faultObj: 35
-
-    - monitorType: alive
-      periodMs: 1000
-      expectedIndication: 100
-      minMargin: 1
-      maxMargin: 1
-      checkPointId: [7]
-      faultId: 4010
-      faultObj: 36
-
-    # 8 9 TBD
-
-    - monitorType: alive
-      periodMs: 1000
       expectedIndication: 10
       minMargin: 1
       maxMargin: 1
@@ -104,22 +39,13 @@ phmMonitor:
       faultObj: 39
 
     - monitorType: alive
-      periodMs: 1000
+      periodMs: 100
       expectedIndication: 10
       minMargin: 1
       maxMargin: 1
       checkPointId: [11]
       faultId: 4010
       faultObj: 40
-    
-    - monitorType: alive
-      periodMs: 1000
-      expectedIndication: 10
-      minMargin: 1
-      maxMargin: 1
-      checkPointId: [12]
-      faultId: 4010
-      faultObj: 41
 
 
 

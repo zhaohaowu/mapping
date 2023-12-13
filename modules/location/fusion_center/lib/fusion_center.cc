@@ -548,6 +548,11 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose->mutable_linear_velocity()->set_y(global_node.velocity(1));
   pose->mutable_linear_velocity()->set_z(global_node.velocity(2));
 
+  pose->mutable_local_pose()->set_x(local_node.enu(0));
+  pose->mutable_local_pose()->set_y(local_node.enu(1));
+  pose->mutable_local_pose()->set_z(local_node.enu(2));
+  pose->set_local_heading(local_node.heading);
+
   pose->mutable_angular_velocity_raw_vrf()->set_x(
       imu.imuvb_angular_velocity().x());
   pose->mutable_angular_velocity_raw_vrf()->set_y(

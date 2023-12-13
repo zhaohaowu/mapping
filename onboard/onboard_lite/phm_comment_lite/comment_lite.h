@@ -36,7 +36,11 @@ class PhmComponentOnboard : public hozon::netaos::adf_lite::Executor {
   void AlgRelease() override;
 
  private:
+  int32_t send_running_mode(Bundle* input);
+
+ private:
   std::unique_ptr<PhmComponent> phm_component_;
+  uint8_t runmode_ = 0;
 };
 
 REGISTER_ADF_CLASS(PhmComponentOnboard, PhmComponentOnboard);

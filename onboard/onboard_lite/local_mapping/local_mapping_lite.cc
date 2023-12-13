@@ -16,6 +16,7 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 #include "perception-lib/lib/environment/environment.h"
 
 namespace hozon {
@@ -34,6 +35,8 @@ int32_t LocalMappingOnboard::AlgInit() {
                               hozon::perception::TransportElement);
   REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
   REGISTER_PROTO_MESSAGE_TYPE("lm_image", hozon::soc::Image);
+  REGISTER_PROTO_MESSAGE_TYPE("running_mode",
+                              hozon::perception::common_onboard::running_mode);
 
   std::string default_work_root = "/app/";
   std::string work_root =
@@ -66,6 +69,9 @@ int32_t LocalMappingOnboard::AlgInit() {
   RegistAlgProcessFunc("recv_localization",
                        std::bind(&LocalMappingOnboard::Onlocalization, this,
                                  std::placeholders::_1));
+  RegistAlgProcessFunc("recv_running_mode",
+                       std::bind(&LocalMappingOnboard::OnRunningMode, this,
+                                 std::placeholders::_1));
   if (RVIZ_AGENT.Ok()) {
     RegistAlgProcessFunc("recv_ins", std::bind(&LocalMappingOnboard::OnIns,
                                                this, std::placeholders::_1));
@@ -87,6 +93,33 @@ int32_t LocalMappingOnboard::AlgInit() {
 }
 
 void LocalMappingOnboard::AlgRelease() { RVIZ_AGENT.Term(); }
+
+int32_t LocalMappingOnboard::OnRunningMode(adf_lite_Bundle* input) {
+  auto rm_msg = input->GetOne("running_mode");
+  if (rm_msg == nullptr) {
+    HLOG_ERROR << "nullptr rm_msg plugin";
+    return -1;
+  }
+  auto msg =
+      std::static_pointer_cast<hozon::perception::common_onboard::running_mode>(
+          rm_msg->proto_msg);
+  int runmode = msg->mode();
+  // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
+  if (runmode == RUNMODE::PARKING) {
+    PauseTrigger("recv_laneline");
+    PauseTrigger("recv_localization");
+    PauseTrigger("recv_ins");
+    PauseTrigger("recv_image");
+    // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
+  } else if (runmode == RUNMODE::DRIVER || runmode == RUNMODE::UNKNOWN) {
+    ResumeTrigger("recv_laneline");
+    ResumeTrigger("recv_localization");
+    ResumeTrigger("recv_ins");
+    ResumeTrigger("recv_image");
+    // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
+  }
+  return 0;
+}
 
 int32_t LocalMappingOnboard::OnLaneLine(adf_lite_Bundle* input) {
   HLOG_ERROR << "receive laneline data...";

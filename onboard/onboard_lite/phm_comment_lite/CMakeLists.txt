@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(phm_component_lite)
 
-# file(GLOB_RECURSE PROTO_FILES "proto/*.proto")
-# PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HEADERS ${PROTO_FILES})
+file(GLOB_RECURSE PROTO_FILES "proto/*.proto")
+PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HEADERS ${PROTO_FILES})
 
 file(GLOB _SRCS "*.cc")
 message(status " ==================== ${_SRCS} ")

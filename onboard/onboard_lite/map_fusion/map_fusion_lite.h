@@ -7,6 +7,9 @@
 #pragma once
 
 #include <adf-lite/include/base.h>
+#include <depend/perception-base/base/fault/fault_info.h>
+#include <depend/perception-lib/lib/fault_manager/fault_manager.h>
+#include <depend/perception-lib/lib/health_manager/health_manager.h>
 
 #include <memory>
 #include <mutex>

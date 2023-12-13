@@ -12,6 +12,7 @@ set(LIBS
     ${DEPENDS_LIBS}
     perception-base
     perception-lib
+    neta_phm
     glog
 )
 

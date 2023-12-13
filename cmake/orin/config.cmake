@@ -28,4 +28,5 @@ link_directories(
     # ${THIRDPARTY_ROOT_PATH}/perception-common-onboard/release/${LOCAL_TARGET_PLATFORM}/lib
     # ${THIRDPARTY_ROOT_PATH}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib
     ${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/fast-dds/lib
+    ${THIRDPARTY_ROOT_PATH}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib
 )

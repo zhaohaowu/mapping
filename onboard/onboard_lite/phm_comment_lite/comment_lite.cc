@@ -15,17 +15,8 @@ namespace common_onboard {
 
 int32_t PhmComponentOnboard::AlgInit() {
   // phm
-  HLOG_INFO << "AlgInit ===================================== ";
   phm_component_ = std::make_unique<PhmComponent>();
   phm_component_->Init();
-  phm_component_->BindPauseTrigger(
-      std::bind((int32_t(PhmComponentOnboard::*)(const std::string& trigger)) &
-                    PhmComponentOnboard::PauseTrigger,
-                this, std::placeholders::_1));
-  phm_component_->BindResumeTrigger(
-      std::bind((int32_t(PhmComponentOnboard::*)(const std::string& trigger)) &
-                    PhmComponentOnboard::ResumeTrigger,
-                this, std::placeholders::_1));
 
   HLOG_INFO << "AlgInit successfully ";
 

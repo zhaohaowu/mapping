@@ -10,7 +10,7 @@
 
 #include <filesystem>
 
-#include "util/temp_log.h"
+#include "util/mapping_log.h"
 
 namespace hozon {
 namespace mp {

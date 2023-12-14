@@ -12,7 +12,7 @@
 
 #include "depend/common/utm_projection/coordinate_convertor.h"
 #include "map_fusion/map_service/global_hd_map.h"
-#include "util/temp_log.h"
+#include "util/mapping_log.h"
 #include "util/tic_toc.h"
 
 // NOLINTBEGIN

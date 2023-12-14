@@ -14,7 +14,7 @@
 // #include "common/status/status.h"
 // #include "cyber/common/macros.h"
 // #include "glog/logging.h"
-// #include "util/temp_log.h"
+// #include "util/mapping_log.h"
 
 // namespace hozon {
 // namespace mp {

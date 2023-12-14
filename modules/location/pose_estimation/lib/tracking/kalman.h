@@ -10,7 +10,7 @@
 #include <Eigen/Core>
 #include <iostream>
 
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {
@@ -19,13 +19,13 @@ namespace loc {
 class Kalman {
  public:
 #define DIMX 4
-  Kalman(const Eigen::Matrix<double, DIMX, 1> &x,
-         const Eigen::Matrix<double, DIMX, 1> &p) {
+  Kalman(const Eigen::Matrix<double, DIMX, 1>& x,
+         const Eigen::Matrix<double, DIMX, 1>& p) {
     init(x, p);
   }
   Kalman() {}
-  void init(const Eigen::Matrix<double, DIMX, 1> &x,
-            const Eigen::Matrix<double, DIMX, 1> &p) {
+  void init(const Eigen::Matrix<double, DIMX, 1>& x,
+            const Eigen::Matrix<double, DIMX, 1>& p) {
     p_.setZero();
     x_ = x;
     p_.diagonal() = p;
@@ -41,7 +41,7 @@ class Kalman {
     // step 2
     p_ = A * p_ * A.transpose() + Q;
   }
-  void update(const Eigen::Vector2d &z, double dt) {
+  void update(const Eigen::Vector2d& z, double dt) {
     Eigen::Matrix4d I;
     I.setIdentity();
     Eigen::Matrix<double, 2, 2> R;

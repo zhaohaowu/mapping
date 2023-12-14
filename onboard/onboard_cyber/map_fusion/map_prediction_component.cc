@@ -12,7 +12,7 @@
 
 #include "map_fusion/map_prediction/map_prediction.h"
 #include "proto/localization/node_info.pb.h"
-#include "util/temp_log.h"
+#include "util/mapping_log.h"
 
 DEFINE_string(channel_pred_map, "mf/pred_map",
               "channel of pred map from map prediction");

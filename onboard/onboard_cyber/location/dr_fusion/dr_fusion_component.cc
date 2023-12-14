@@ -7,7 +7,7 @@
 #include "onboard/onboard_cyber/location/dr_fusion/dr_fusion_component.h"
 
 #include "common/configs/config_gflags.h"
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 #include "util/rviz_agent/rviz_agent.h"
 
 DEFINE_string(dr_config, "conf/mapping/location/dr_fusion/dr_config.yaml",
@@ -52,10 +52,8 @@ bool DrFusionComponent::Init() {
       });
   dr_reader_ = node_->CreateReader<hozon::dead_reckoning::DeadReckoning>(
       FLAGS_dr_module_input_topic,
-      [this](const std::shared_ptr<
-          const hozon::dead_reckoning::DeadReckoning>& msg) {
-        OnDr(msg);
-      });
+      [this](const std::shared_ptr<const hozon::dead_reckoning::DeadReckoning>&
+                 msg) { OnDr(msg); });
   loc_dr_writer_ = node_->CreateWriter<hozon::localization::HafNodeInfo>(
       FLAGS_loc_dr_module_output_topic);
   return true;

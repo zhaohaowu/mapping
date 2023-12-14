@@ -10,10 +10,10 @@
 
 #include "base/utils/log.h"
 #include "depend/proto/localization/node_info.pb.h"
-#include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "depend/proto/perception/transport_element.pb.h"
 #include "depend/proto/soc/sensor_imu_ins.pb.h"
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
+#include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "yaml-cpp/yaml.h"
 
 namespace hozon {
@@ -23,7 +23,8 @@ namespace common_onboard {
 const char* const kInsFusionConfSuffix =
     "runtime_service/mapping/conf/mapping/location/ins_fusion/ins_config.yaml";
 const char* const KInsFusionLiteConfig =
-    "runtime_service/mapping/conf/mapping/location/ins_fusion/ins_fusion_lite_config.yaml";
+    "runtime_service/mapping/conf/mapping/location/ins_fusion/"
+    "ins_fusion_lite_config.yaml";
 
 int32_t InsFusionLite::AlgInit() {
   const std::string adflite_root_path =
@@ -37,15 +38,6 @@ int32_t InsFusionLite::AlgInit() {
       hozon::mp::loc::InsInitStatus::OK) {
     return -1;
   }
-  // register proto for ipc
-  hozon::netaos::log::InitLogging(
-      "ins_fusion_executor", "ins_fusion_executor test",
-      hozon::netaos::log::LogLevel::kInfo, hozon::netaos::log::HZ_LOG2CONSOLE,
-      "./", 10, (20));
-
-  hozon::netaos::adf::NodeLogger::GetInstance().CreateLogger(
-      "ins_fusion_executor", "ins_fusion_executor test",
-      hozon::netaos::log::LogLevel::kInfo);
 
   REGISTER_PROTO_MESSAGE_TYPE("inspva", hozon::localization::HafNodeInfo);
   REGISTER_PROTO_MESSAGE_TYPE("imu_ins", hozon::soc::ImuIns);

@@ -6,16 +6,15 @@
  ******************************************************************************/
 
 #include "util/nodelink/core/linker.h"
-
 #include <zmq/zmq.h>
 
+#include "util/mapping_log.h"
 #include "util/nodelink/core/node.h"
-#include "util/temp_log.h"
 
 namespace hozon {
 namespace mp {
 
-using namespace std::chrono_literals; // NOLINT
+using namespace std::chrono_literals;  // NOLINT
 
 // Should execute before Start()
 int Linker::LinkNode(const std::shared_ptr<Node>& node) {

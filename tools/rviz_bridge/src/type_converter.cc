@@ -7,22 +7,22 @@
 
 #include "type_converter.h"  // NOLINT
 
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {
 namespace util {
 
-void TypeConverter::Convert(const adsfi_proto::hz_Adsfi::AlgHeader &proto,
-                            std_msgs::Header *ros) {
+void TypeConverter::Convert(const adsfi_proto::hz_Adsfi::AlgHeader& proto,
+                            std_msgs::Header* ros) {
   ros->frame_id = proto.frameid();
   ros->seq = proto.seq();
   ros->stamp.sec = proto.timestamp().sec();
   ros->stamp.nsec = proto.timestamp().nsec();
 }
 
-void TypeConverter::Convert(const adsfi_proto::viz::CompressedImage &proto,
-                            sensor_msgs::CompressedImage *ros) {
+void TypeConverter::Convert(const adsfi_proto::viz::CompressedImage& proto,
+                            sensor_msgs::CompressedImage* ros) {
   Convert(proto.header(), &ros->header);
   ros->format = proto.format();
   for (char i : proto.data()) {
@@ -30,8 +30,8 @@ void TypeConverter::Convert(const adsfi_proto::viz::CompressedImage &proto,
   }
 }
 
-void TypeConverter::Convert(const adsfi_proto::viz::Odometry &proto,
-                            nav_msgs::Odometry *ros) {
+void TypeConverter::Convert(const adsfi_proto::viz::Odometry& proto,
+                            nav_msgs::Odometry* ros) {
   Convert(proto.header(), &ros->header);
   ros->child_frame_id = proto.child_frame_id();
   ros->pose.pose.position.x = proto.pose().pose().position().x();
@@ -59,8 +59,8 @@ void TypeConverter::Convert(const adsfi_proto::viz::Odometry &proto,
   }
 }
 
-void TypeConverter::Convert(const adsfi_proto::viz::Path &proto,
-                            nav_msgs::Path *ros) {
+void TypeConverter::Convert(const adsfi_proto::viz::Path& proto,
+                            nav_msgs::Path* ros) {
   Convert(proto.header(), &ros->header);
   for (int i = 0; i != proto.poses_size(); ++i) {
     geometry_msgs::PoseStamped pose;
@@ -76,8 +76,8 @@ void TypeConverter::Convert(const adsfi_proto::viz::Path &proto,
   }
 }
 
-void TypeConverter::Convert(const adsfi_proto::viz::TransformStamped &proto,
-                            geometry_msgs::TransformStamped *ros) {
+void TypeConverter::Convert(const adsfi_proto::viz::TransformStamped& proto,
+                            geometry_msgs::TransformStamped* ros) {
   Convert(proto.header(), &ros->header);
   ros->child_frame_id = proto.child_frame_id();
   ros->transform.translation.x = proto.transform().translation().x();
@@ -89,8 +89,8 @@ void TypeConverter::Convert(const adsfi_proto::viz::TransformStamped &proto,
   ros->transform.rotation.w = proto.transform().rotation().w();
 }
 
-void TypeConverter::Convert(const adsfi_proto::viz::Marker &proto,
-                            visualization_msgs::Marker *ros) {
+void TypeConverter::Convert(const adsfi_proto::viz::Marker& proto,
+                            visualization_msgs::Marker* ros) {
   Convert(proto.header(), &ros->header);
   ros->ns = proto.ns();
   ros->id = proto.id();
@@ -137,8 +137,8 @@ void TypeConverter::Convert(const adsfi_proto::viz::Marker &proto,
   ros->mesh_use_embedded_materials = proto.mesh_use_embedded_materials();
 }
 
-void TypeConverter::Convert(const adsfi_proto::viz::MarkerArray &proto,
-                            visualization_msgs::MarkerArray *ros) {
+void TypeConverter::Convert(const adsfi_proto::viz::MarkerArray& proto,
+                            visualization_msgs::MarkerArray* ros) {
   for (int i = 0; i != proto.markers_size(); ++i) {
     visualization_msgs::Marker rm;
     Convert(proto.markers(i), &rm);
@@ -146,8 +146,8 @@ void TypeConverter::Convert(const adsfi_proto::viz::MarkerArray &proto,
   }
 }
 
-void TypeConverter::Convert(const adsfi_proto::viz::TwistStamped &proto,
-                            geometry_msgs::TwistStamped *ros) {
+void TypeConverter::Convert(const adsfi_proto::viz::TwistStamped& proto,
+                            geometry_msgs::TwistStamped* ros) {
   Convert(proto.header(), &ros->header);
   ros->twist.linear.x = proto.twist().linear().x();
   ros->twist.linear.y = proto.twist().linear().y();
@@ -157,8 +157,8 @@ void TypeConverter::Convert(const adsfi_proto::viz::TwistStamped &proto,
   ros->twist.angular.z = proto.twist().angular().z();
 }
 
-void TypeConverter::Convert(const adsfi_proto::viz::PolygonStamped &proto,
-                            geometry_msgs::PolygonStamped *ros) {
+void TypeConverter::Convert(const adsfi_proto::viz::PolygonStamped& proto,
+                            geometry_msgs::PolygonStamped* ros) {
   Convert(proto.header(), &ros->header);
   for (int i = 0; i != proto.polygon().points_size(); ++i) {
     geometry_msgs::Point32 rpt;
@@ -169,11 +169,11 @@ void TypeConverter::Convert(const adsfi_proto::viz::PolygonStamped &proto,
   }
 }
 
-void TypeConverter::Convert(const adsfi_proto::viz::PointCloud &proto,
-                            sensor_msgs::PointCloud *ros) {
+void TypeConverter::Convert(const adsfi_proto::viz::PointCloud& proto,
+                            sensor_msgs::PointCloud* ros) {
   Convert(proto.header(), &ros->header);
 
-  for (const auto &p : proto.points()) {
+  for (const auto& p : proto.points()) {
     geometry_msgs::Point32 points;
     points.x = p.x();
     points.y = p.y();
@@ -181,23 +181,23 @@ void TypeConverter::Convert(const adsfi_proto::viz::PointCloud &proto,
     ros->points.push_back(points);
   }
 
-  for (const auto &cn : proto.channels()) {
+  for (const auto& cn : proto.channels()) {
     sensor_msgs::ChannelFloat32 channels;
     channels.name = cn.name();
-    for (const auto &values : cn.values()) {
+    for (const auto& values : cn.values()) {
       channels.values.push_back(values);
     }
     ros->channels.push_back(channels);
   }
 }
 
-void TypeConverter::Convert(const adsfi_proto::viz::PointCloud2 &proto,
-                            sensor_msgs::PointCloud2 *ros) {
+void TypeConverter::Convert(const adsfi_proto::viz::PointCloud2& proto,
+                            sensor_msgs::PointCloud2* ros) {
   Convert(proto.header(), &ros->header);
   ros->height = proto.height();
   ros->width = proto.width();
 
-  for (const auto &ppf : proto.fields()) {
+  for (const auto& ppf : proto.fields()) {
     sensor_msgs::PointField rpf;
     rpf.name = ppf.name();
     rpf.offset = ppf.offset();
@@ -215,11 +215,11 @@ void TypeConverter::Convert(const adsfi_proto::viz::PointCloud2 &proto,
   ros->is_dense = proto.is_dense();
 }
 
-void TypeConverter::Convert(const adsfi_proto::viz::PoseArray &proto,
-                            geometry_msgs::PoseArray *ros) {
+void TypeConverter::Convert(const adsfi_proto::viz::PoseArray& proto,
+                            geometry_msgs::PoseArray* ros) {
   Convert(proto.header(), &ros->header);
 
-  for (const auto &pose : proto.poses()) {
+  for (const auto& pose : proto.poses()) {
     geometry_msgs::Pose p;
     p.position.x = pose.position().x();
     p.position.y = pose.position().y();
@@ -232,8 +232,8 @@ void TypeConverter::Convert(const adsfi_proto::viz::PoseArray &proto,
   }
 }
 
-void TypeConverter::Convert(const adsfi_proto::viz::OccupancyGrid &proto,
-                            nav_msgs::OccupancyGrid *ros) {
+void TypeConverter::Convert(const adsfi_proto::viz::OccupancyGrid& proto,
+                            nav_msgs::OccupancyGrid* ros) {
   Convert(proto.header(), &ros->header);
 
   ros->info.map_load_time.sec = proto.info().map_load_time().sec();

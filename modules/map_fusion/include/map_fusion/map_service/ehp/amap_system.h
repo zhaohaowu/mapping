@@ -17,7 +17,7 @@
 #include "amap/GHDMapService.h"
 #include "common/time/clock.h"
 #include "proto/localization/localization.pb.h"
-#include "util/temp_log.h"
+#include "util/mapping_log.h"
 
 namespace hozon {
 namespace mp {

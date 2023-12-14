@@ -52,9 +52,9 @@
 #include "proto/map/map_id.pb.h"
 #include "proto/map/map_lane.pb.h"
 #include "proto/map/map_road.pb.h"
+#include "util/mapping_log.h"
 #include "util/rate.h"
 #include "util/rviz_agent/rviz_agent.h"
-#include "util/temp_log.h"
 #include "util/tic_toc.h"
 
 // NOLINTBEGIN
@@ -328,8 +328,7 @@ void MapPrediction::LocalEnuCenter(
 }
 
 void MapPrediction::ObtainLaneAndRoad(
-    const hozon::common::PointENU& utm_pos,
-    const double& range,
+    const hozon::common::PointENU& utm_pos, const double& range,
     std::vector<hozon::hdmap::LaneInfoConstPtr>* lanes_in_range,
     std::vector<hozon::hdmap::RoadInfoConstPtr>* roads_in_range) {
   if (!GLOBAL_HD_MAP) {

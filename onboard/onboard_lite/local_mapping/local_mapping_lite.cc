@@ -24,13 +24,6 @@ namespace mp {
 namespace lm {
 
 int32_t LocalMappingOnboard::AlgInit() {
-  hozon::netaos::log::InitLogging("lm_executor", "lm_executor test",
-                                  hozon::netaos::log::LogLevel::kInfo,
-                                  HZ_LOG2CONSOLE, "./", 10, (20));
-
-  hozon::netaos::adf::NodeLogger::GetInstance().CreateLogger(
-      "lm_executor", "lm_executor test", hozon::netaos::log::LogLevel::kInfo);
-
   REGISTER_PROTO_MESSAGE_TYPE("percep_transport",
                               hozon::perception::TransportElement);
   REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
@@ -122,7 +115,7 @@ int32_t LocalMappingOnboard::OnRunningMode(adf_lite_Bundle* input) {
 }
 
 int32_t LocalMappingOnboard::OnLaneLine(adf_lite_Bundle* input) {
-  HLOG_ERROR << "receive laneline data...";
+  HLOG_INFO << "receive laneline data...";
   auto laneline_msg = input->GetOne("percep_transport");
   if (!laneline_msg) {
     HLOG_ERROR << "nullptr track lane plugin";
@@ -135,12 +128,12 @@ int32_t LocalMappingOnboard::OnLaneLine(adf_lite_Bundle* input) {
   auto msg = std::static_pointer_cast<hozon::perception::TransportElement>(
       laneline_msg->proto_msg);
   lmap_->OnLaneLine(msg);
-  HLOG_ERROR << "processed laneline data";
+  HLOG_INFO << "processed laneline data";
   return 0;
 }
 
 int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
-  HLOG_ERROR << "receive localization data...";
+  HLOG_INFO << "receive localization data...";
   auto localization_msg = input->GetOne("localization");
   if (localization_msg == nullptr) {
     HLOG_ERROR << "nullptr localization plugin";
@@ -149,7 +142,7 @@ int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
   auto msg = std::static_pointer_cast<hozon::localization::Localization>(
       localization_msg->proto_msg);
   lmap_->OnLocalization(msg);
-  HLOG_ERROR << "processed localization data";
+  HLOG_INFO << "processed localization data";
   return 0;
 }
 
@@ -217,7 +210,7 @@ std::shared_ptr<adsfi_proto::viz::CompressedImage> YUVNV12ImageToVizImage(
 
 int32_t LocalMappingOnboard::OnImage(adf_lite_Bundle* input) {
   auto image_msg = input->GetOne("lm_image");
-  // HLOG_ERROR << "image_msg->proto_msg " << image_msg.get();
+  HLOG_INFO << "image_msg->proto_msg " << image_msg.get();
   if (image_msg.get() == nullptr) {
     return -1;
   }
@@ -240,7 +233,7 @@ int32_t LocalMappingOnboard::OnImage(adf_lite_Bundle* input) {
 // }
 
 int32_t LocalMappingOnboard::LocalMapPublish(adf_lite_Bundle* /*output*/) {
-  HLOG_ERROR << "start publish localmap...";
+  HLOG_INFO << "start publish localmap...";
   result->Clear();
   if (lmap_->FetchLocalMap(result)) {
     auto workflow1 = std::make_shared<hozon::netaos::adf_lite::BaseData>();
@@ -249,9 +242,9 @@ int32_t LocalMappingOnboard::LocalMapPublish(adf_lite_Bundle* /*output*/) {
     adf_lite_Bundle bundle;
     bundle.Add("local_map", workflow1);
     SendOutput(&bundle);
-    HLOG_DEBUG << "publish localmap suceessed...";
+    HLOG_INFO << "publish localmap suceessed...";
   }
-  HLOG_DEBUG << "processed publish localmap";
+  HLOG_INFO << "processed publish localmap";
   usleep(100 * 1e3);
   return 0;
 }

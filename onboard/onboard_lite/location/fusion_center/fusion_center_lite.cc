@@ -49,7 +49,6 @@ int32_t FusionCenterLite::AlgInit() {
   if (!coord_adapter_->Init(coord_adapter_conf)) {
     return -1;
   }
-  RegistLog();
   RegistMessageType();
   RegistProcessFunc();
 
@@ -57,14 +56,6 @@ int32_t FusionCenterLite::AlgInit() {
 }
 
 void FusionCenterLite::AlgRelease() {}
-
-void FusionCenterLite::RegistLog() const {
-  hozon::netaos::log::InitLogging("loc_fc", "fusion_center",
-                                  hozon::netaos::log::LogLevel::kInfo,
-                                  HZ_LOG2CONSOLE, "./", 10, (20));
-  hozon::netaos::adf::NodeLogger::GetInstance().CreateLogger(
-      "loc_fc", "fusion_center", hozon::netaos::log::LogLevel::kInfo);
-}
 
 void FusionCenterLite::RegistMessageType() const {
   REGISTER_PROTO_MESSAGE_TYPE(kImuTopic, hozon::soc::ImuIns);

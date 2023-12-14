@@ -10,12 +10,12 @@
 
 #include <fstream>
 
+#include "util/mapping_log.h"
 #include "util/nodelink/core/context.h"
 #include "util/nodelink/core/linker.h"
 #include "util/nodelink/core/node.h"
 #include "util/nodelink/deploy/factory.h"
 #include "util/nodelink/deploy/loader.h"
-#include "util/temp_log.h"
 
 namespace hozon {
 namespace mp {

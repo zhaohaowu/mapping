@@ -18,7 +18,7 @@
 #include "adsfi_proto/viz/visualization_msgs.pb.h"
 #include "common/utm_projection/coordinate_convertor.h"
 #include "map_fusion/map_service/map_proto_maker.h"
-#include "util/temp_log.h"
+#include "util/mapping_log.h"
 
 // NOLINTBEGIN
 DEFINE_string(viz_addr_mp, "ipc:///tmp/rviz_agent_mp",

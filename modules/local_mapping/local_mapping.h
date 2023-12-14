@@ -35,7 +35,7 @@
 #include "modules/local_mapping/utils/map_manager.h"
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -116,6 +116,13 @@ class LMapApp {
   bool FetchLocalMap(
       const std::shared_ptr<hozon::mapping::LocalMap>& local_map);
 
+  /**
+   * @brief fetch local_map at current timestamp
+   *
+   * @return `true` for fetching success, `false` for failed
+   */
+  bool FetchLocalMap(const std::shared_ptr<hozon::hdmap::Map>& local_map);
+
   void RvizFunc();
 
  private:
@@ -124,7 +131,8 @@ class LMapApp {
   std::shared_ptr<hozon::hdmap::HDMap> hdmap_ = nullptr;
   std::shared_ptr<hozon::hdmap::Map> hqmap_ = nullptr;
   std::shared_ptr<PriorProvider> provider_;
-  LocalMap local_map_;
+  std::shared_ptr<LocalMap> local_map_ptr_;
+  LocalMap local_map_output_;
   Perception perception_;
   Sophus::SE3d T_W_V_, T_G_V_;
   std::mutex localmap_mutex_;

@@ -10,8 +10,8 @@
 
 #include "base/utils/log.h"
 #include "depend/proto/localization/node_info.pb.h"
+#include "modules/util/include/util/mapping_log.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
-#include "modules/util/include/util/temp_log.h"
 #include "yaml-cpp/yaml.h"
 
 namespace hozon {
@@ -21,7 +21,8 @@ namespace common_onboard {
 const char* const kDrFusionConfSuffix =
     "runtime_service/mapping/conf/mapping/location/dr_fusion/dr_config.yaml";
 const char* const KDrFusionLiteConfig =
-    "runtime_service/mapping/conf/mapping/location/dr_fusion/dr_fusion_lite_config.yaml";
+    "runtime_service/mapping/conf/mapping/location/dr_fusion/"
+    "dr_fusion_lite_config.yaml";
 
 int32_t DrFusionLite::AlgInit() {
   const std::string adflite_root_path =
@@ -34,15 +35,6 @@ int32_t DrFusionLite::AlgInit() {
   if (dr_fusion_->Init(dr_fusion_config) != hozon::mp::loc::DrInitStatus::OK) {
     return -1;
   }
-  // register proto for ipc
-  hozon::netaos::log::InitLogging(
-      "dr_fusion_executor", "dr_fusion_executor test",
-      hozon::netaos::log::LogLevel::kInfo, hozon::netaos::log::HZ_LOG2CONSOLE,
-      "./", 10, (20));
-
-  hozon::netaos::adf::NodeLogger::GetInstance().CreateLogger(
-      "dr_fusion_executor", "dr_fusion_executor test",
-      hozon::netaos::log::LogLevel::kInfo);
 
   REGISTER_PROTO_MESSAGE_TYPE("/location/ins_fusion",
                               hozon::localization::HafNodeInfo);

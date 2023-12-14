@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {
@@ -40,7 +40,7 @@ class Timer {
   }
 
   template <class F>
-  void evaluate(F &&func, const std::string &func_name) {
+  void evaluate(F&& func, const std::string& func_name) {
     auto t1 = std::chrono::steady_clock::now();
     std::forward<F>(func)();
     auto t2 = std::chrono::steady_clock::now();
@@ -48,7 +48,7 @@ class Timer {
         std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1)
             .count() *
         1000.0;
-    auto &info = status_[func_name];
+    auto& info = status_[func_name];
     if (info.average_dt < 0) {
       info.average_dt = dt;
       info.times++;
@@ -60,7 +60,7 @@ class Timer {
   void print(void) {
     // HLOG_ERROR << "\t \t \t The system time consumption statistics are as
     // follows";
-    for (auto &p : status_) {
+    for (auto& p : status_) {
       HLOG_ERROR << ">> \t " << p.first << "\t \t"
                  << "average dt:" << p.second.average_dt << "\t(ms)";
     }

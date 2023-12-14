@@ -32,9 +32,9 @@
 #include <csignal>
 #include <filesystem>
 
+#include "modules/util/include/util/mapping_log.h"
 #include "modules/util/include/util/rviz_agent/msg_alias.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent_client.h"
-#include "modules/util/include/util/temp_log.h"
 #include "type_converter.h"  // NOLINT
 
 namespace sfs = std::filesystem;

@@ -17,7 +17,7 @@
 
 #include "modules/local_mapping/types/types.h"
 #include "modules/local_mapping/utils/common.h"
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d.hpp"
 namespace hozon {

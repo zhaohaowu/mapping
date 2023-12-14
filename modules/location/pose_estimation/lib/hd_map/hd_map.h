@@ -9,7 +9,6 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-
 #include <iostream>
 #include <map>
 #include <memory>
@@ -26,7 +25,7 @@
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_road_edge.h"
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_traffic_sign.h"
 #include "modules/util/include/util/geo.h"
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {

@@ -7,7 +7,7 @@ appLog:
   description: mapping
   file: ./
   mode: 6
-  level: 0
+  level: 4
 
 schedule:
   policy: RR

@@ -14,7 +14,7 @@
 #include "modules/location/fusion_center/lib/eulerangle.h"
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {
@@ -213,7 +213,7 @@ bool FusionCenter::GetCurrentContext(Context* const ctx) {
   }
 
   if (!GetGlobalPose(ctx)) {
-    HLOG_ERROR << "get global pose failed";
+    HLOG_WARN << "get global pose failed";
   } else {
     ctx->global_node.location_state = GetGlobalLocationState();
   }
@@ -272,9 +272,9 @@ bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
   Eigen::Quaterniond q(msg.quaternion().w(), msg.quaternion().x(),
                        msg.quaternion().y(), msg.quaternion().z());
   if (q.norm() < 1e-10) {
-    HLOG_ERROR << "HafNodeInfo quaternion(w,x,y,z) " << msg.quaternion().w()
-               << "," << msg.quaternion().x() << "," << msg.quaternion().y()
-               << "," << msg.quaternion().z() << " error";
+    HLOG_WARN << "HafNodeInfo quaternion(w,x,y,z) " << msg.quaternion().w()
+              << "," << msg.quaternion().x() << "," << msg.quaternion().y()
+              << "," << msg.quaternion().z() << " error";
     return false;
   }
 

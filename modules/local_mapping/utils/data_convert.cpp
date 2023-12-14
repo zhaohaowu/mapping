@@ -54,8 +54,7 @@ void DataConvert::SetLaneLinePoint(
   lane_lines->timestamp_ = msg.header().data_stamp();
   for (const auto& lane_line : msg.lane()) {
     if (lane_line.points().empty() ||
-        lane_line.lanepos() == hozon::perception::OTHER ||
-        lane_line.lanetype() == hozon::perception::RoadEdge) {
+        lane_line.lanepos() == hozon::perception::OTHER) {
       continue;
     }
     LaneLine lane_line_tmp;
@@ -96,7 +95,6 @@ void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
   lane_lines->timestamp_ = msg.header().data_stamp();
   for (const auto& lane_line : msg.lane()) {
     if (lane_line.lanepos() == hozon::perception::OTHER ||
-        lane_line.lanetype() == hozon::perception::RoadEdge ||
         lane_line.lane_param().cubic_curve_set().empty()) {
       continue;
     }
@@ -220,9 +218,6 @@ void DataConvert::ConvertProtoLaneType(
       break;
     case hozon::perception::LaneType::LaneChangeVirtualLine:
       *lanetype = LaneType::LaneChangeVirtualLine;
-      break;
-    case hozon::perception::LaneType::RoadEdge:
-      *lanetype = LaneType::RoadEdge;
       break;
     case hozon::perception::LaneType::Other:
       *lanetype = LaneType::Other;

@@ -11,9 +11,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "lib/config_manager/config_manager.h"
-#include "phm/phm_client.h"
+#include "phm/include/phm_client.h"
 #include "base/state_machine/state_machine_info.h"
+#include "lib/config_manager/config_manager.h"
 #if 0
 #include "sm/include/state_client.h"
 #endif
@@ -50,7 +50,7 @@ class PhmComponent {
   void ServiceAvailableCallback(const bool bResult);
   void FaultReceiveCallback(const ReceiveFault_t& fault);
   void GetFilePath(std::string& path);  // NOLINT
-  void NotifySmInfo(const hozon::perception::base::RunningMode & state);
+  void NotifySmInfo(const hozon::perception::base::RunningMode& state);
   void PauseTrigger();
   void ResumeTrigger();
   std::string Name() const {

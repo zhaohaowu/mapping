@@ -29,8 +29,8 @@ dataSourcesIn:
     cmTopic: /perception/fsd/transportelement_1
     cmDomainId: 0
   - topic: lm_image
-    type: proto_proxy
-    cmTopic: /soc/camera_0
+    type: idl_proxy
+    cmTopic: /soc/zerocopy/camera_0   
     cmDomainId: 0
 
 dataSourcesOut:

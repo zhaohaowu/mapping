@@ -16,7 +16,7 @@
 
 #include "modules/location/pose_estimation/lib/hd_map/hd_map.h"
 #include "modules/location/pose_estimation/lib/perception/perception.h"
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 
 #define DEBUG_POLE true
 #define DEBUG_TRAFFIC_SIGN true
@@ -71,7 +71,7 @@ enum MapLineType {
 };
 template <class T>
 struct PointV3Comp {
-  bool operator()(const T &p1, const T &p2) const { return p1.x() < p2.x(); }
+  bool operator()(const T& p1, const T& p2) const { return p1.x() < p2.x(); }
 };
 struct PointMatchPair {
   PointMatchPair() {
@@ -80,7 +80,7 @@ struct PointMatchPair {
     map_pw = Eigen::Matrix<double, 3, 1>::Identity();
     pecep_pv = Eigen::Matrix<double, 3, 1>::Identity();
   }
-  PointMatchPair(const V3 &map, const V3 &pecep, PercepLineType type,
+  PointMatchPair(const V3& map, const V3& pecep, PercepLineType type,
                  float weight)
       : map_pw(map), pecep_pv(pecep), type(type), weight(weight) {}
   V3 map_pw;
@@ -106,7 +106,7 @@ struct JacentMapLine {
     last_p = V3::Zero();
     idx = "";
   }
-  JacentMapLine(const V3 &nearest_p, const V3 &last_p, std::string idx)
+  JacentMapLine(const V3& nearest_p, const V3& last_p, std::string idx)
       : nearest_p(nearest_p), last_p(last_p), idx(idx) {}
   V3 nearest_p;
   V3 last_p;
@@ -117,7 +117,7 @@ struct AlternativeMapLine {
     ref_p = V3::Zero();
     idx = "";
   }
-  AlternativeMapLine(const V3 &ref_p, std::string idx)
+  AlternativeMapLine(const V3& ref_p, std::string idx)
       : ref_p(ref_p), idx(idx) {}
   V3 ref_p;
   std::string idx;
@@ -137,8 +137,8 @@ struct LineMatchPair {
     map_line_idxs.clear();
     pecep_line = nullptr;
   }
-  LineMatchPair(const std::vector<std::string> &map_line_idxs,
-                const LaneLinePerceptionPtr &pecep_line)
+  LineMatchPair(const std::vector<std::string>& map_line_idxs,
+                const LaneLinePerceptionPtr& pecep_line)
       : map_line_idxs(map_line_idxs), pecep_line(pecep_line) {}
   std::vector<std::string> map_line_idxs;
   LaneLinePerceptionPtr pecep_line;

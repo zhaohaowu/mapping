@@ -54,9 +54,9 @@
 #include "proto/map/map_id.pb.h"
 #include "proto/map/map_lane.pb.h"
 #include "proto/map/map_road.pb.h"
+#include "util/mapping_log.h"
 #include "util/rate.h"
 #include "util/rviz_agent/rviz_agent.h"
-#include "util/temp_log.h"
 #include "util/tic_toc.h"
 
 // NOLINTBEGIN

@@ -17,6 +17,7 @@ LMapApp::LMapApp(const std::string& mapping_path,
   use_horizon_assoc_match_ = config["use_horizon_assoc_match"].as<bool>();
   map_file_ = config["map_file"].as<std::string>();
   use_rviz_ = config["use_rviz"].as<bool>();
+  local_map_ptr_ = std::make_shared<LocalMap>();
   laneOp_ = std::make_shared<LaneOp>();
   mmgr_ = std::make_shared<MapManager>();
   // load city hdmap
@@ -41,7 +42,7 @@ void LMapApp::RvizFunc() {
     Sophus::SE3d T_G_V = T_G_V_;
     T_mutex_.unlock();
     localmap_mutex_.lock();
-    LocalMap local_map = local_map_;
+    LocalMap local_map = local_map_output_;
     localmap_mutex_.unlock();
     perception_mutex_.lock();
     Perception perception = perception_;
@@ -186,17 +187,16 @@ void LMapApp::OnLaneLine(
       Sophus::SE3d(lane_line_pose->quaternion, lane_line_pose->pose);
   Sophus::SE3d T_C_L = T_W_V.inverse() * last_T_W_V;
   last_T_W_V = T_W_V;
-  std::shared_ptr<LocalMap> local_map = std::make_shared<LocalMap>(local_map_);
-  mmgr_->UpdateLaneLine(local_map.get(), T_C_L);
-  local_map->timestamp = perception->timestamp_;
+  mmgr_->UpdateLaneLine(local_map_ptr_.get(), T_C_L);
+  local_map_ptr_->timestamp = perception->timestamp_;
   std::vector<LaneMatchInfo> lane_line_matches;
   if (use_perception_match_) {
-    laneOp_->Match(*perception, *local_map, &lane_line_matches);
+    laneOp_->Match(*perception, *local_map_ptr_, &lane_line_matches);
   } else {
-    laneOp_->Match(*perception, *local_map, &lane_line_matches,
+    laneOp_->Match(*perception, *local_map_ptr_, &lane_line_matches,
                    use_horizon_assoc_match_);
   }
-  for (auto& lane_line : local_map->lane_lines_) {
+  for (auto& lane_line : local_map_ptr_->lane_lines_) {
     lane_line.need_fit_ = false;
     for (const auto& match : lane_line_matches) {
       if (match.map_lane_line_ == nullptr) {
@@ -210,16 +210,16 @@ void LMapApp::OnLaneLine(
   }
   for (const auto& match : lane_line_matches) {
     if (match.update_type_ == ObjUpdateType::ADD_NEW) {
-      mmgr_->AddNewLaneLine(local_map.get(), *match.frame_lane_line_,
+      mmgr_->AddNewLaneLine(local_map_ptr_.get(), *match.frame_lane_line_,
                             use_perception_match_);
     } else if (match.update_type_ == ObjUpdateType::MERGE_OLD) {
-      mmgr_->MergeOldLaneLine(local_map.get(), *match.frame_lane_line_,
+      mmgr_->MergeOldLaneLine(local_map_ptr_.get(), *match.frame_lane_line_,
                               *match.map_lane_line_);
     }
   }
-  laneOp_->MergeMapLeftRight(local_map.get());
-  laneOp_->MergeMapFrontBack(local_map.get());
-  for (auto& lane_line : local_map->lane_lines_) {
+  laneOp_->MergeMapLeftRight(local_map_ptr_.get());
+  laneOp_->MergeMapFrontBack(local_map_ptr_.get());
+  for (auto& lane_line : local_map_ptr_->lane_lines_) {
     if (!lane_line.need_fit_) {
       if (!lane_line.ismature_) {
         lane_line.edge_laneline_count_--;
@@ -227,14 +227,14 @@ void LMapApp::OnLaneLine(
       lane_line.lanepos_ = LanePositionType::OTHER;
     }
   }
-  CommonUtil::FitLocalMap(local_map.get());
-  mmgr_->CutLocalMap(local_map.get(), 150, 150);
+  CommonUtil::FitLocalMap(local_map_ptr_.get());
+  mmgr_->CutLocalMap(local_map_ptr_.get(), 150, 150);
   // add Lane
-  mmgr_->UpdateLanepos(local_map.get());
-  mmgr_->UpdateLaneByPerception(local_map.get(), *perception);
-  mmgr_->UpdateLaneByLocalmap(local_map.get());
+  mmgr_->UpdateLanepos(local_map_ptr_.get());
+  mmgr_->UpdateLaneByPerception(local_map_ptr_.get(), *perception);
+  mmgr_->UpdateLaneByLocalmap(local_map_ptr_.get());
   localmap_mutex_.lock();
-  local_map_ = *local_map;
+  local_map_output_ = *local_map_ptr_;
   localmap_mutex_.unlock();
   perception_mutex_.lock();
   perception_ = *perception;
@@ -270,7 +270,7 @@ bool LMapApp::FetchLocalMap(
   }
 
   localmap_mutex_.lock();
-  auto local_map_msg = local_map_;
+  auto local_map_msg = local_map_output_;
   localmap_mutex_.unlock();
   static int seq = 0;
   local_map->mutable_header()->set_seq(seq++);
@@ -343,6 +343,79 @@ bool LMapApp::FetchLocalMap(
     }
     lane->set_left_lane_id(lane_msg.left_lane_id_);
     lane->set_right_lane_id(lane_msg.right_lane_id_);
+  }
+  return true;
+}
+
+bool LMapApp::FetchLocalMap(
+    const std::shared_ptr<hozon::hdmap::Map>& local_map) {
+  if (!localization_inited_) {
+    HLOG_INFO << "==========localization_inited_ failed=======";
+    return false;
+  }
+  if (!laneline_inited_) {
+    HLOG_INFO << "==========laneline_inited_ failed=======";
+    return false;
+  }
+
+  localmap_mutex_.lock();
+  auto local_map_msg = local_map_output_;
+  localmap_mutex_.unlock();
+  static int seq = 0;
+  local_map->mutable_header()->mutable_header()->set_seq(seq++);
+  local_map->mutable_header()->mutable_header()->set_data_stamp(
+      local_map_msg.timestamp);
+  for (const auto& lane_msg : local_map_msg.lanes_) {
+    hozon::mapping::LaneType left_lanetype =
+        hozon::mapping::LaneType::LaneType_UNKNOWN;
+    DataConvert::ConvertInnerLaneType(lane_msg.left_line_.lanetype_,
+                                      &left_lanetype);
+    hozon::mapping::LanePositionType left_lanepos =
+        hozon::mapping::LanePositionType::LanePositionType_OTHER;
+    DataConvert::ConvertInnerLanePos(lane_msg.left_line_.lanepos_,
+                                     &left_lanepos);
+    hozon::mapping::LaneType right_lanetype =
+        hozon::mapping::LaneType::LaneType_UNKNOWN;
+    DataConvert::ConvertInnerLaneType(lane_msg.right_line_.lanetype_,
+                                      &right_lanetype);
+    hozon::mapping::LanePositionType right_lanepos =
+        hozon::mapping::LanePositionType::LanePositionType_OTHER;
+    DataConvert::ConvertInnerLanePos(lane_msg.right_line_.lanepos_,
+                                     &right_lanepos);
+    auto* lane = local_map->add_lane();
+    lane->mutable_id()->set_id(std::to_string(lane_msg.lane_id_));
+    auto* left_id = lane->add_left_neighbor_forward_lane_id();
+    left_id->set_id(std::to_string(lane_msg.left_lane_id_));
+    auto* right_id = lane->add_right_neighbor_forward_lane_id();
+    right_id->set_id(std::to_string(lane_msg.right_lane_id_));
+    auto* segment = lane->mutable_central_curve()->add_segment();
+    auto* point = segment->mutable_line_segment()->add_point();
+    // lane->mutable_left_line()->set_track_id(lane_msg.left_line_.track_id_);
+    // lane->mutable_left_line()->set_lanetype(left_lanetype);
+    // lane->mutable_left_line()->set_lanepos(left_lanepos);
+    // for (auto point_msg : lane_msg.left_line_.points_) {
+    //   auto* point = lane->mutable_left_line()->add_points();
+    //   point->set_x(point_msg.x());
+    //   point->set_y(point_msg.y());
+    //   point->set_z(point_msg.z());
+    // }
+    // lane->mutable_right_line()->set_track_id(lane_msg.right_line_.track_id_);
+    // lane->mutable_right_line()->set_lanetype(right_lanetype);
+    // lane->mutable_right_line()->set_lanepos(right_lanepos);
+    // for (auto point_msg : lane_msg.right_line_.points_) {
+    //   auto* point = lane->mutable_right_line()->add_points();
+    //   point->set_x(point_msg.x());
+    //   point->set_y(point_msg.y());
+    //   point->set_z(point_msg.z());
+    // }
+    // for (auto point_msg : lane_msg.center_line_.points_) {
+    //   auto* point = lane->mutable_center_line()->add_points();
+    //   point->set_x(point_msg.x());
+    //   point->set_y(point_msg.y());
+    //   point->set_z(point_msg.z());
+    // }
+    // lane->set_left_lane_id(lane_msg.left_lane_id_);
+    // lane->set_right_lane_id(lane_msg.right_lane_id_);
   }
   return true;
 }

@@ -7,7 +7,7 @@
 
 #include "modules/location/pose_estimation/lib/hd_map/hd_map.h"
 
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {

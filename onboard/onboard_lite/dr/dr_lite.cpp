@@ -25,14 +25,6 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
   DeadReckoning() = default;
   ~DeadReckoning() = default;
   int32_t AlgInit() override {
-    // register proto for ipc
-    hozon::netaos::log::InitLogging("dr_executor", "dr_executor test",
-                                    hozon::netaos::log::LogLevel::kInfo,
-                                    HZ_LOG2CONSOLE, "./", 10, (20));
-
-    hozon::netaos::adf::NodeLogger::GetInstance().CreateLogger(
-        "dr_executor", "dr_executor test", hozon::netaos::log::LogLevel::kInfo);
-
     REGISTER_PROTO_MESSAGE_TYPE("imu_ins", hozon::soc::ImuIns);
     REGISTER_PROTO_MESSAGE_TYPE("chassis", hozon::soc::Chassis);
     REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);

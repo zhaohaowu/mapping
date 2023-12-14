@@ -4,7 +4,6 @@
  */
 
 #include "map_fusion/map_service/ehp/amap_diagnose.h"
-
 #include <memory.h>
 
 #include <cmath>
@@ -13,7 +12,7 @@
 
 #include "amap/GHDDiagnosisDefines.h"
 #include "common/configs/config_gflags.h"
-#include "util/temp_log.h"
+#include "util/mapping_log.h"
 
 namespace hozon {
 namespace mp {

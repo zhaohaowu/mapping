@@ -12,7 +12,7 @@
 
 #include "map_fusion/map_prediction/viz_map.h"
 #include "map_fusion/topo_assignment/topo_assignment.h"
-#include "util/temp_log.h"
+#include "util/mapping_log.h"
 
 DEFINE_string(channel_topo_map, "mf/topo_map",
               "channel of topo map from topo assignment");

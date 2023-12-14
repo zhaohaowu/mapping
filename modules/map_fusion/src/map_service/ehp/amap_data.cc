@@ -3,7 +3,6 @@
  * Description:  ehp
  */
 #include "map_fusion/map_service/ehp/amap_data.h"
-
 #include <memory.h>
 
 #include <cmath>
@@ -11,7 +10,7 @@
 #include <iostream>
 
 #include "common/configs/config_gflags.h"
-#include "util/temp_log.h"
+#include "util/mapping_log.h"
 
 namespace hozon {
 namespace mp {

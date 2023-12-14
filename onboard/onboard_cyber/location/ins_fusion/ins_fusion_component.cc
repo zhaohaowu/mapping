@@ -7,7 +7,7 @@
 #include "onboard/onboard_cyber/location/ins_fusion/ins_fusion_component.h"
 
 #include "common/configs/config_gflags.h"
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 #include "util/rviz_agent/rviz_agent.h"
 
 DEFINE_string(ins_config, "conf/mapping/location/ins_fusion/ins_config.yaml",

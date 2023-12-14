@@ -7,10 +7,8 @@
 
 #pragma once
 
-
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-
 #include <iostream>
 #include <map>
 #include <memory>
@@ -19,7 +17,8 @@
 
 #include <Sophus/se3.hpp>
 #include <Sophus/so3.hpp>
-#include "modules/util/include/util/temp_log.h"
+
+#include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {

@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
+# for switch in mapping_log.h
+add_definitions(-DNOT_USE_PCP_BASE_LOG)
+
 set(REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../..)
 get_filename_component(REPO_ROOT ${REPO_ROOT} ABSOLUTE)
 set(CMAKE_INSTALL_PREFIX ${REPO_ROOT}/release/ros)

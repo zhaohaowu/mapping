@@ -5,7 +5,6 @@
  *   date       ： 2023.09
  ******************************************************************************/
 #include "modules/location/ins_fusion/lib/ins_fusion.h"
-
 #include <unistd.h>
 #include <yaml-cpp/yaml.h>
 
@@ -13,7 +12,7 @@
 #include <boost/filesystem.hpp>
 
 #include "modules/util/include/util/geo.h"
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 #include "util/rviz_agent/rviz_agent.h"
 
 namespace hozon {
@@ -24,8 +23,7 @@ namespace hmu = hozon::mp::util;
 
 const char kNewestInsOdom[] = "/ins/fusion";
 
-InsFusion::~InsFusion() {
-}
+InsFusion::~InsFusion() {}
 
 InsInitStatus InsFusion::Init(const std::string& configfile) {
   boost::filesystem::path path(configfile);

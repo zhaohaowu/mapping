@@ -12,39 +12,33 @@ namespace lm {
 void MapManager::CutLocalMap(LocalMap* local_map, const double& length_x,
                              const double& length_y) {
   for (size_t i = 0; i < local_map->lane_lines_.size(); ++i) {
-    for (size_t j = 0; j < local_map->lane_lines_[i].points_.size(); ++j) {
-      if (local_map->lane_lines_[i].points_[j].x() < -length_x ||
-          local_map->lane_lines_[i].points_[j].x() > length_x ||
-          local_map->lane_lines_[i].points_[j].y() < -length_y ||
-          local_map->lane_lines_[i].points_[j].y() > length_y) {
-        local_map->lane_lines_[i].points_.erase(
-            local_map->lane_lines_[i].points_.begin() + static_cast<int>(j));
-        --j;
-      }
-    }
-    for (size_t j = 0; j < local_map->lane_lines_[i].fit_points_.size(); ++j) {
-      if (local_map->lane_lines_[i].fit_points_[j].x() < -length_x ||
-          local_map->lane_lines_[i].fit_points_[j].x() > length_x ||
-          local_map->lane_lines_[i].fit_points_[j].y() < -length_y ||
-          local_map->lane_lines_[i].fit_points_[j].y() > length_y) {
-        local_map->lane_lines_[i].fit_points_.erase(
-            local_map->lane_lines_[i].fit_points_.begin() +
-            static_cast<int>(j));
-        --j;
-      }
-    }
-    for (size_t j = 0; j < local_map->lane_lines_[i].control_points_.size();
-         ++j) {
-      if (local_map->lane_lines_[i].control_points_[j].x() < -length_x ||
-          local_map->lane_lines_[i].control_points_[j].x() > length_x ||
-          local_map->lane_lines_[i].control_points_[j].y() < -length_y ||
-          local_map->lane_lines_[i].control_points_[j].y() > length_y) {
-        local_map->lane_lines_[i].control_points_.erase(
-            local_map->lane_lines_[i].control_points_.begin() +
-            static_cast<int>(j));
-        --j;
-      }
-    }
+    local_map->lane_lines_[i].points_.erase(
+        std::remove_if(local_map->lane_lines_[i].points_.begin(),
+                       local_map->lane_lines_[i].points_.end(),
+                       [&](Eigen::Vector3d& point) {
+                         return (point.x() < -length_x ||
+                                 point.x() > length_x ||
+                                 point.y() < -length_y || point.y() > length_y);
+                       }),
+        local_map->lane_lines_[i].points_.end());
+    local_map->lane_lines_[i].fit_points_.erase(
+        std::remove_if(local_map->lane_lines_[i].fit_points_.begin(),
+                       local_map->lane_lines_[i].fit_points_.end(),
+                       [&](Eigen::Vector3d& point) {
+                         return (point.x() < -length_x ||
+                                 point.x() > length_x ||
+                                 point.y() < -length_y || point.y() > length_y);
+                       }),
+        local_map->lane_lines_[i].fit_points_.end());
+    local_map->lane_lines_[i].control_points_.erase(
+        std::remove_if(local_map->lane_lines_[i].control_points_.begin(),
+                       local_map->lane_lines_[i].control_points_.end(),
+                       [&](Eigen::Vector3d& point) {
+                         return (point.x() < -length_x ||
+                                 point.x() > length_x ||
+                                 point.y() < -length_y || point.y() > length_y);
+                       }),
+        local_map->lane_lines_[i].control_points_.end());
     if (local_map->lane_lines_[i].points_.empty() ||
         ((local_map->lane_lines_[i].edge_laneline_count_ < -5) &&
          (!local_map->lane_lines_[i].ismature_))) {

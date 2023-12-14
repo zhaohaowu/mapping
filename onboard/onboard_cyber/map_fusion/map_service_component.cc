@@ -26,7 +26,7 @@
 #include "proto/map/ehp.pb.h"
 #include "proto/map/map.pb.h"
 #include "proto/routing/routing.pb.h"
-#include "util/temp_log.h"
+#include "util/mapping_log.h"
 
 DEFINE_string(channel_prior, "mf/prior_map",
               "channel of prior map from prior provider");

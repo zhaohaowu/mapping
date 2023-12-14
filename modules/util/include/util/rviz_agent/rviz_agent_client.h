@@ -21,10 +21,10 @@
 #include "adsfi_proto/viz/sensor_msgs.pb.h"
 #include "adsfi_proto/viz/tf2_msgs.pb.h"
 #include "adsfi_proto/viz/visualization_msgs.pb.h"
+#include "modules/util/include/util/mapping_log.h"
 #include "modules/util/include/util/nodelink/core/context.h"
 #include "modules/util/include/util/nodelink/core/sub_worker.h"
 #include "modules/util/include/util/rviz_agent/msg_alias.h"
-#include "modules/util/include/util/temp_log.h"
 
 namespace hozon {
 namespace mp {

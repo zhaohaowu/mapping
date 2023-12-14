@@ -10,8 +10,8 @@
 
 #include <algorithm>
 
+#include "util/mapping_log.h"
 #include "util/nodelink/core/publisher.h"
-#include "util/temp_log.h"
 
 namespace hozon {
 namespace mp {

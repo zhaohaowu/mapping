@@ -35,7 +35,6 @@ class FusionCenterLite : public hozon::netaos::adf_lite::Executor {
   void AlgRelease() override;
 
  private:
-  void RegistLog() const;
   void RegistMessageType() const;
   void RegistProcessFunc();
   int32_t OnInsFusion(Bundle* input);

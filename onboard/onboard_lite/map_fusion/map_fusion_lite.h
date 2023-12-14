@@ -34,7 +34,6 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   void AlgRelease() override;
 
  private:
-  void RegistLog();
   void RegistMessageType();
   void RegistProcessFunc();
 

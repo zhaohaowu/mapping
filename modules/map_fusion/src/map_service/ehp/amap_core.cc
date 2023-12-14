@@ -16,7 +16,7 @@
 #include "common/configs/config_gflags.h"
 #include "common/utm_projection/coordinate_convertor.h"
 #include "map_fusion/map_service/ehp/amap_core.h"
-#include "util/temp_log.h"
+#include "util/mapping_log.h"
 
 namespace hozon {
 namespace mp {

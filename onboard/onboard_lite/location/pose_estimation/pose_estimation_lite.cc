@@ -4,11 +4,12 @@
  *   author     ： ouyanghailin
  *   date       ： 2023.09
  ******************************************************************************/
-#include <perception-lib/lib/environment/environment.h>
 #include <base/utils/log.h>
 #include <gflags/gflags.h>
-#include "onboard/onboard_lite/location/pose_estimation/pose_estimation_lite.h"
+#include <perception-lib/lib/environment/environment.h>
+
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
+#include "onboard/onboard_lite/location/pose_estimation/pose_estimation_lite.h"
 #include "yaml-cpp/yaml.h"
 
 DEFINE_string(config_yaml,
@@ -36,10 +37,9 @@ constexpr char* const kPerceptionTopic = "percep_transport";
 constexpr char* const kPoseEstimationTopic = "/location/pose_estimation";
 int32_t PoseEstimationLite::AlgInit() {
   pose_estimation_ = std::make_unique<MapMatching>();
-    const std::string adflite_root_path =
+  const std::string adflite_root_path =
       hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", ".");
-  const std::string config_yaml =
-      adflite_root_path + "/" + FLAGS_config_yaml;
+  const std::string config_yaml = adflite_root_path + "/" + FLAGS_config_yaml;
   const std::string config_cam_yaml =
       adflite_root_path + "/" + FLAGS_config_cam_yaml;
   const std::string pose_estimation_lite_config_yaml =
@@ -48,7 +48,6 @@ int32_t PoseEstimationLite::AlgInit() {
     return -1;
   }
 
-  RegistLog();
   RegistMessageType();
   RegistAlgProcessFunc(
       "recv_ins_fusion",
@@ -79,14 +78,6 @@ void PoseEstimationLite::AlgRelease() {
   if (mp::util::RvizAgent::Instance().Ok()) {
     mp::util::RvizAgent::Instance().Term();
   }
-}
-
-void PoseEstimationLite::RegistLog() const {
-  hozon::netaos::log::InitLogging("loc_pe", "pose_estimation",
-                                  hozon::netaos::log::LogLevel::kInfo,
-                                  HZ_LOG2CONSOLE, "./", 10, (20));
-  hozon::netaos::adf::NodeLogger::GetInstance().CreateLogger(
-      "loc_pe", "pose_estimation", hozon::netaos::log::LogLevel::kInfo);
 }
 
 void PoseEstimationLite::RegistMessageType() const {

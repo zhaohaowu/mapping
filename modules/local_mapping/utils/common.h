@@ -23,8 +23,8 @@
 #include "modules/local_mapping/utils/map_manager.h"
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
+#include "modules/util/include/util/mapping_log.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
-#include "modules/util/include/util/temp_log.h"
 namespace hozon {
 namespace mp {
 namespace lm {

@@ -20,7 +20,7 @@
 #include "modules/local_mapping/ops/association/horizon_assoc.h"
 #include "modules/local_mapping/types/types.h"
 #include "modules/local_mapping/utils/common.h"
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 namespace hozon {
 namespace mp {
 namespace lm {

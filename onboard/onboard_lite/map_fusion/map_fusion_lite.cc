@@ -61,7 +61,6 @@ int32_t MapFusionLite::AlgInit() {
     return -1;
   }
 
-  RegistLog();
   RegistMessageType();
   RegistProcessFunc();
 
@@ -78,15 +77,6 @@ void MapFusionLite::AlgRelease() {
   if (RVIZ_AGENT.Ok()) {
     RVIZ_AGENT.Term();
   }
-}
-
-void MapFusionLite::RegistLog() {
-  hozon::netaos::log::InitLogging("map_fusion_executor", "map_fusion",
-                                  hozon::netaos::log::LogLevel::kInfo,
-                                  HZ_LOG2FILE, "./", 10, (20));
-
-  hozon::netaos::adf::NodeLogger::GetInstance().CreateLogger(
-      "map_fusion_executor", "map_fusion", hozon::netaos::log::LogLevel::kInfo);
 }
 
 void MapFusionLite::RegistMessageType() {

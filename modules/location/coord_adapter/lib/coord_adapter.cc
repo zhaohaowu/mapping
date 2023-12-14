@@ -12,7 +12,7 @@
 
 #include "modules/location/common/data_verify.h"
 #include "modules/location/common/stl_op.h"
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {

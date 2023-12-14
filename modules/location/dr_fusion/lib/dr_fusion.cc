@@ -13,7 +13,7 @@
 #include <boost/filesystem.hpp>
 
 #include "modules/util/include/util/geo.h"
-#include "modules/util/include/util/temp_log.h"
+#include "modules/util/include/util/mapping_log.h"
 #include "util/rviz_agent/rviz_agent.h"
 
 namespace hozon {
@@ -221,7 +221,8 @@ bool DrFusion::DrNode2DrFusionNode(
     return false;
   }
   node->mutable_header()->set_seq(origin_node.header().seq());
-  node->mutable_header()->set_publish_stamp(origin_node.header().publish_stamp());
+  node->mutable_header()->set_publish_stamp(
+      origin_node.header().publish_stamp());
   node->mutable_header()->set_gnss_stamp(origin_node.header().gnss_stamp());
   node->mutable_header()->set_data_stamp(origin_node.header().data_stamp());
   node->mutable_header()->set_frame_id("dr");

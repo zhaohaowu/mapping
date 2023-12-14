@@ -22,6 +22,6 @@ PROCESS_EXE=${OUTPUT_ROOT}/runtime_service/mapping/bin/hz_mapping
 YAML_CONFIG_ROOT=${OUTPUT_ROOT}/runtime_service/mapping/conf/lite
 TOP_CONFIG_YAML_PATH=${YAML_CONFIG_ROOT}/top_config.yaml
 
-export HZ_SET_LOG_LEVEL=IGNORE.IGNORE:kTrace
+# export HZ_SET_LOG_LEVEL=IGNORE.IGNORE:kTrace
 
 ${PROCESS_EXE} ${TOP_CONFIG_YAML_PATH}

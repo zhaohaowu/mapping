@@ -25,7 +25,7 @@
 #include "proto/map/ehp.pb.h"
 #include "proto/map/map.pb.h"
 #include "proto/routing/routing.pb.h"
-#include "util/temp_log.h"
+#include "util/mapping_log.h"
 
 // NOLINTBEGIN
 DEFINE_double(radius, 500, "radius of the vehicle position");

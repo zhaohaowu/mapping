@@ -17,7 +17,7 @@
 #include "base/utils/log.h"
 #include "lib/config_manager/config_manager.h"
 #include "onboard/onboard_lite/phm_comment_lite/phm_commenet.h"
-#include "phm/phm_client.h"
+#include "phm/include/phm_client.h"
 
 namespace hozon {
 namespace perception {

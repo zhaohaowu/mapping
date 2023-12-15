@@ -15,4 +15,4 @@ DECLARE_bool(orin_viz);
 DECLARE_string(orin_viz_addr);
 DECLARE_bool(topo_rviz);
 DECLARE_bool(viz_odom_map_in_local);
-DECLARE_bool(x86_adf_lite);
+DECLARE_bool(output_hd_map);

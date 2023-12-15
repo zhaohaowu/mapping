@@ -53,6 +53,7 @@ bool Odometry2D::update() {
       // imu数据更新姿态
       auto itr_pre = std::prev(itr);
 
+      // if (itr_pre->gpsStatus != 4) {
       if (is_car_standstill_) {
         car_standstill_counter_ += 1.0;
         imu_acc_buffer_.push_back(itr->acc_measurement);
@@ -64,6 +65,7 @@ bool Odometry2D::update() {
           Eigen::Vector3d gyro_tmp =
               car_standstill_omg_sum_ / car_standstill_counter_;
           gyro_bias_ = gyro_bias_ * 0.8 + gyro_tmp * 0.2;
+
           constexpr double max_gyro_bias = 0.005;
           gyro_bias_[2] =
               std::min(std::max(gyro_bias_[2], -max_gyro_bias), max_gyro_bias);
@@ -74,6 +76,14 @@ bool Odometry2D::update() {
         car_standstill_counter_ = 0.0;
         car_standstill_omg_sum_.setZero();
         imu_acc_buffer_.clear();
+      }
+
+      // 使用 ins 零偏
+      if (itr_pre->gpsStatus == 4 || itr_pre->gpsStatus == 8) {
+        gyro_bias_[2] = itr_pre->gyo_bias[2] * M_PI / 180;
+        constexpr double max_gyro_bias = 0.005;
+        gyro_bias_[2] =
+            std::min(std::max(gyro_bias_[2], -max_gyro_bias), max_gyro_bias);
       }
 
       double dt = itr->timestamp - itr_pre->timestamp;

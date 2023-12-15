@@ -37,3 +37,4 @@
 --mf_viz=ipc:///tmp/rviz_agent_mf
 --topo_rviz=false
 --viz_odom_map_in_local=false
+--output_hd_map=true

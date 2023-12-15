@@ -87,7 +87,7 @@ void TopoAssignmentComponent::OnLocalMap(
     HLOG_ERROR << "nullptr tppo map assignment or topo map writer";
     return;
   }
-  topo_assign_->OnLocalMap(msg);
+  // topo_assign_->OnLocalMap(msg);
   topo_assign_->TopoAssign();
   // 发出拓扑地图
   auto map = topo_assign_->GetTopoMap();

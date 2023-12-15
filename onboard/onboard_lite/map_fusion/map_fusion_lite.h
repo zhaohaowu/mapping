@@ -47,9 +47,8 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   std::shared_ptr<hozon::localization::Localization> GetLatestLoc();
   std::shared_ptr<hozon::mapping::LocalMap> GetLatestLocalMap();
   std::shared_ptr<hozon::localization::HafNodeInfo> GetLatestLocPlugin();
-  int SendFusionResult(
-      const std::shared_ptr<hozon::hdmap::Map>& map,
-      const std::shared_ptr<hozon::routing::RoutingResponse>& routing);
+  int SendFusionResult(const std::shared_ptr<hozon::hdmap::Map>& map,
+                       hozon::routing::RoutingResponse* routing);
 
  private:
   std::unique_ptr<MapFusion> mf_ = nullptr;

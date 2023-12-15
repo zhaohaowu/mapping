@@ -7,11 +7,17 @@
 
 #include "map_fusion/map_fusion.h"
 
+#include <tuple>
+
 #include "map_fusion/map_prediction/map_prediction.h"
 #include "map_fusion/map_service/map_service.h"
+#include "map_fusion/map_service/map_table.h"
 #include "map_fusion/topo_assignment/topo_assignment.h"
 #include "util/rate.h"
+#include "util/temp_log.h"
 #include "util/tic_toc.h"
+
+DECLARE_bool(output_hd_map);
 
 namespace hozon {
 namespace mp {
@@ -38,6 +44,7 @@ int MapFusion::Init(const std::string& conf) {
     HLOG_ERROR << "Init MapPrediction failed";
     return -1;
   }
+  map_table_ = std::make_shared<MapTable>();
 
   return 0;
 }
@@ -118,28 +125,37 @@ int MapFusion::ProcFusion(
   }
   util::TicToc global_tic;
   util::TicToc local_tic;
-  topo_->OnLocalization(curr_loc);
-  HLOG_INFO << "topo OnLocalization cost " << local_tic.Toc();
-  local_tic.Tic();
-  topo_->OnLocalMap(curr_local_map);
-  HLOG_INFO << "topo OnLocalMap cost " << local_tic.Toc();
-  local_tic.Tic();
-  topo_->TopoAssign();
-  HLOG_INFO << "topo TopoAssign cost " << local_tic.Toc();
-  local_tic.Tic();
-  //! 注意：TopoAssignment内部保证每次返回的都是全新的ptr，
-  //! 不会存在两次调用得到的ptr指向同一片空间;
-  auto topo_map = topo_->GetTopoMap();
-  HLOG_INFO << "topo GetTopoMap cost " << local_tic.Toc();
-  local_tic.Tic();
+  std::shared_ptr<hozon::hdmap::Map> map;
+  if (!FLAGS_output_hd_map) {
+    map_table_->OnLocalization(curr_loc);
+    auto map_info = map_table_->GetMapTable();
+    topo_->OnLocalization(curr_loc);
+    HLOG_INFO << "topo OnLocalization cost " << local_tic.Toc();
+    local_tic.Tic();
+    topo_->OnLocalMap(curr_local_map, std::get<0>(map_info));
+    HLOG_INFO << "topo OnLocalMap cost " << local_tic.Toc();
+    local_tic.Tic();
+    topo_->TopoAssign();
+    HLOG_INFO << "topo TopoAssign cost " << local_tic.Toc();
+    local_tic.Tic();
+    //! 注意：TopoAssignment内部保证每次返回的都是全新的ptr，
+    //! 不会存在两次调用得到的ptr指向同一片空间;
+    auto topo_map = topo_->GetTopoMap();
+    HLOG_INFO << "topo GetTopoMap cost " << local_tic.Toc();
+    local_tic.Tic();
 
-  pred_->OnLocalization(curr_loc);
-  pred_->OnTopoMap(topo_map);
-  pred_->Prediction();
+    pred_->OnLocalization(curr_loc);
+    pred_->OnTopoMap(topo_map, map_info);
+    pred_->Prediction();
 
-  //! 注意：MapPrediction内部保证每次返回的都是全新的ptr，
-  //! 不会存在两次调用得到的ptr指向同一片空间;
-  auto map = pred_->GetPredictionMap();
+    //! 注意：MapPrediction内部保证每次返回的都是全新的ptr，
+    //! 不会存在两次调用得到的ptr指向同一片空间;
+    map = pred_->GetPredictionMap();
+  } else {
+    pred_->OnLocalization(curr_loc);
+    map = pred_->GetHdMap();
+  }
+
   if (!map) {
     HLOG_ERROR << "get nullptr prediction map";
     return -1;

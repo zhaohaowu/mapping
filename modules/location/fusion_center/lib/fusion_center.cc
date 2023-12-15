@@ -551,7 +551,16 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose->mutable_local_pose()->set_x(local_node.enu(0));
   pose->mutable_local_pose()->set_y(local_node.enu(1));
   pose->mutable_local_pose()->set_z(local_node.enu(2));
-  pose->set_local_heading(local_node.heading);
+  auto local_heading = local_node.heading - init_dr_node_.heading;
+  local_heading =
+      local_heading > 180.0F ? local_heading - 360.0F : local_heading;
+  while (local_heading < -180) {
+    local_heading += 360;
+  }
+  while (local_heading > 180) {
+    local_heading -= 360;
+  }
+  pose->set_local_heading(local_heading);
 
   pose->mutable_angular_velocity_raw_vrf()->set_x(
       imu.imuvb_angular_velocity().x());

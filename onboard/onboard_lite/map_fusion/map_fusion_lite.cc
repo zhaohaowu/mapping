@@ -44,7 +44,7 @@ int32_t MapFusionLite::AlgInit() {
   FLAGS_map_service_mode = config["map_service_mode"].as<int32_t>();
   FLAGS_topo_rviz = config["topo_rviz"].as<bool>();
   FLAGS_viz_odom_map_in_local = config["viz_odom_map_in_local"].as<bool>();
-  FLAGS_x86_adf_lite = config["x86_adf_lite"].as<bool>();
+  FLAGS_output_hd_map = config["output_hd_map"].as<bool>();
 
   if (FLAGS_orin_viz) {
     HLOG_ERROR << "Start RvizAgent on " << FLAGS_orin_viz_addr;
@@ -233,8 +233,8 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   hozon::routing::RoutingResponse routing;
   mf_->ProcService(latest_plugin, latest_planning, &routing);
 
-  std::shared_ptr<hozon::routing::RoutingResponse> latest_routing =
-      std::make_shared<hozon::routing::RoutingResponse>(routing);
+  // std::shared_ptr<hozon::routing::RoutingResponse> latest_routing =
+  //     std::make_shared<hozon::routing::RoutingResponse>(routing);
 
   std::shared_ptr<hozon::localization::Localization> latest_loc =
       GetLatestLoc();
@@ -256,7 +256,7 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     return -1;
   }
 
-  ret = SendFusionResult(latest_map, latest_routing);
+  ret = SendFusionResult(latest_map, &routing);
   if (ret < 0) {
     HLOG_ERROR << "SendFusionResult failed";
     return -1;
@@ -299,7 +299,7 @@ MapFusionLite::GetLatestLocPlugin() {
 
 int MapFusionLite::SendFusionResult(
     const std::shared_ptr<hozon::hdmap::Map>& map,
-    const std::shared_ptr<hozon::routing::RoutingResponse>& routing) {
+    hozon::routing::RoutingResponse* routing) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   if (map == nullptr || routing == nullptr) {
     phm_fault->Report(MAKE_FM_TUPLE(
@@ -318,8 +318,72 @@ int MapFusionLite::SendFusionResult(
   std::shared_ptr<hozon::navigation_hdmap::MapMsg> map_fusion =
       std::make_shared<hozon::navigation_hdmap::MapMsg>();
 
-  map_fusion->mutable_header()->CopyFrom(map->header().header());
+  map_fusion->mutable_header()->CopyFrom(routing->header());
+  map_fusion->mutable_header()->set_frame_id("map_msg");
   map_fusion->mutable_hdmap()->CopyFrom(*map);
+
+  map_fusion->mutable_hdmap()->mutable_header()->mutable_header()->CopyFrom(
+      routing->header());
+
+  map_fusion->mutable_hdmap()->mutable_header()->mutable_header()->set_frame_id(
+      "hd_map");
+
+  routing->mutable_routing_request()->mutable_waypoint()->Clear();
+  bool found = false;
+  for (auto road_it = routing->road().rbegin();
+       road_it != routing->road().rend(); ++road_it) {
+    if (road_it->passage_size() > 0) {
+      int count = road_it->passage_size() - 1;
+      for (const auto& lane : map->lane()) {
+        if (lane.id().id() == road_it->passage()[count].segment()[0].id()) {
+          auto* waypoints =
+              routing->mutable_routing_request()->mutable_waypoint();
+          auto* start_point = waypoints->Add();
+          start_point->set_id(lane.id().id());
+          start_point->set_s(0.0);
+          auto* start_pose = start_point->mutable_pose();
+          const auto& segments = lane.central_curve().segment();
+          auto segment_size = segments.size();
+          if (segment_size > 0 && segments[0].line_segment().point_size() > 0) {
+            start_pose->set_x(segments[0].line_segment().point()[0].x());
+            start_pose->set_y(segments[0].line_segment().point()[0].y());
+            start_pose->set_z(0.0);
+          }
+          start_point->set_type(hozon::routing::LaneWaypointType::NORMAL);
+
+          auto* end_point = waypoints->Add();
+          end_point->set_id(lane.id().id());
+          end_point->set_s(lane.length());
+          auto* end_pose = end_point->mutable_pose();
+          if (segment_size > 0 &&
+              segments[segment_size - 1].line_segment().point_size() > 0) {
+            end_pose->set_x(segments[segment_size - 1]
+                                .line_segment()
+                                .point()[segments[segment_size - 1]
+                                             .line_segment()
+                                             .point_size() -
+                                         1]
+                                .x());
+            end_pose->set_y(segments[segment_size - 1]
+                                .line_segment()
+                                .point()[segments[segment_size - 1]
+                                             .line_segment()
+                                             .point_size() -
+                                         1]
+                                .y());
+            end_pose->set_z(0.0);
+            end_point->set_type(hozon::routing::LaneWaypointType::NORMAL);
+            found = true;
+            break;
+          }
+        }
+      }
+      if (found) {
+        break;
+      }
+    }
+  }
+
   map_fusion->mutable_routing()->CopyFrom(*routing);
 
   auto map_res = std::make_shared<hozon::netaos::adf_lite::BaseData>();

@@ -25,6 +25,7 @@ namespace mf {
 class TopoAssignment;
 class MapPrediction;
 class MapService;
+class MapTable;
 
 class MapFusion {
  public:
@@ -46,6 +47,7 @@ class MapFusion {
   std::shared_ptr<MapService> map_service_ = nullptr;
   std::shared_ptr<TopoAssignment> topo_ = nullptr;
   std::shared_ptr<MapPrediction> pred_ = nullptr;
+  std::shared_ptr<MapTable> map_table_ = nullptr;
 };
 
 }  // namespace mf

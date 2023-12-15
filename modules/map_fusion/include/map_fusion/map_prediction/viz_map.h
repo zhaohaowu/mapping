@@ -24,6 +24,7 @@
 #include "map/hdmap/hdmap_common.h"
 
 // #include "Eigen/src/Core/Matrix.h"
+// #include "map_fusion/map_service/map_table.h"
 #include "util/geo.h"
 #include "util/rviz_agent/rviz_agent.h"
 
@@ -70,6 +71,8 @@ class VizMap {
       const std::pair<uint32_t, std::vector<Eigen::Vector3d>>& lane_line,
       adsfi_proto::viz::Marker* marker);
   void VizLaneID(const std::shared_ptr<hozon::hdmap::Map>& local_msg);
+//   void VizHDLaneID(
+//       const std::unordered_map<std::string, LaneInfo>& lanes_in_range);
   void VizCompanLane(
       const std::vector<std::vector<Eigen::Vector3d>>& compan_lines);
   static void ComLaneLineToMarker(const std::vector<Eigen::Vector3d>& lane_line,
@@ -84,6 +87,7 @@ class VizMap {
   const std::string viz_add_line_ = "/mp/side_line";
   const std::string viz_ahead_line_ = "/mp/ahead_line";
   const std::string viz_lane_id_ = "/mp/lane_id";
+  const std::string viz_hd_lane_id_ = "/mp/hd_lane_id";
   const std::string viz_com_lane_id_ = "/mp/com_lane_line_";
   const std::string viz_center_lane_ = "/mp/center_lane";
 

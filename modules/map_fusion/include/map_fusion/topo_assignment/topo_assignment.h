@@ -24,6 +24,7 @@
 #include <opencv2/features2d.hpp>
 
 #include "map_fusion/map_service/map_proto_maker.h"
+#include "map_fusion/map_service/map_table.h"
 #include "util/geo.h"
 #include "util/rviz_agent/rviz_agent.h"
 
@@ -69,7 +70,10 @@ class TopoAssignment {
   ~TopoAssignment() = default;
 
   int Init();
-  void OnLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& msg);
+  void OnLocalMap(
+      const std::shared_ptr<hozon::mapping::LocalMap>& msg,
+      const std::unordered_map<std::string, hozon::mp::mf::LaneInfo>&
+          all_lane_info);
   void OnLocalization(
       const std::shared_ptr<hozon::localization::Localization>& msg);
   void TopoAssign();
@@ -103,6 +107,7 @@ class TopoAssignment {
   Eigen::Quaterniond ins_q_w_v_;
 
   bool init_ = false;
+  bool init_ref_point_ = false;
   double cur_timestamp_ = 0.;
 
   const std::string kTopicTopoAsignTf = "/topo/tf";
@@ -116,7 +121,8 @@ class TopoAssignment {
   adsfi_proto::viz::Path location_path_;
 
   void AppendAllLaneInfo(
-      const std::vector<hozon::hdmap::LaneInfoConstPtr>& lanes);
+      const std::unordered_map<std::string, hozon::mp::mf::LaneInfo>&
+          all_lane_info);
   void AppendLocationLaneId(const hozon::hdmap::LaneInfoConstPtr& lane_ptr);
   void AppendLaneLineCaseLeft(hozon::mp::mf::LaneLine* lane_line,
                               const Eigen::Vector2d& p0,
@@ -219,6 +225,9 @@ class TopoAssignment {
       const hozon::hdmap::Lane& lane);
   static double PointDistanceToSegment(
       const std::vector<Eigen::Vector2d>& points, const Eigen::Vector2d& pt);
+  bool LaneLineBelongToLane(const std::vector<std::string>& lanes,
+                            const bool left, const Eigen::Vector2d& p0,
+                            const Eigen::Vector2d& p1);
   void LaneLineBelongToLane(std::vector<std::string>* lanes, const bool left,
                             const Eigen::Vector2d& p0,
                             const Eigen::Vector2d& p1);

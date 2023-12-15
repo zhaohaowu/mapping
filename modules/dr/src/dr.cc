@@ -195,6 +195,13 @@ void DRInterface::SetLocationData(
   locationDataPtr->mutable_header()->set_publish_stamp(sys_timestamp * 1e-9);
 
   locationDataPtr->mutable_header()->set_frame_id("HZ_DR");
+
+  //   std::cout << std::setprecision(15)
+  //             << "MDR: " << locationDataPtr->mutable_header()->data_stamp()
+  //             << ","
+  //             << latest_odom.chassis_seq << "," << latest_odom.odometry.x <<
+  //             ","
+  //             << latest_odom.odometry.y << "," << eulerAngle[2] << std::endl;
 }
 
 void DRInterface::AddImuData(
@@ -215,7 +222,7 @@ void DRInterface::ConvertImuData(
     const std::shared_ptr<const hozon::soc::ImuIns>& imu_proto,
     ImuDataHozon& imu_data) {
   if (!imu_proto) {
-    HLOG_ERROR << "DR: no imu data !";
+    // HLOG_ERROR << "DR: no imu data !";
     return;
   }
 
@@ -226,6 +233,9 @@ void DRInterface::ConvertImuData(
   // imu_data.timestamp
   //           << std::endl;
   // HLOG_ERROR << "Imu datastamp: " << imu_data.timestamp;
+  //   if (imu_data.timestamp == 0) {
+  //     imu_data.timestamp = imu_proto->header().publish_stamp();
+  //   }
 
   imu_data.gyr_measurement = Eigen::Vector3d(
       imu_proto->imu_info().angular_velocity().x() * M_PI / 180.0,
@@ -268,11 +278,15 @@ void DRInterface::ConvertChassisData(
     const std::shared_ptr<const hozon::soc::Chassis>& chassis_proto,
     WheelDataHozon& wheel_data) {
   if (!chassis_proto) {
-    HLOG_ERROR << "DR: no chassis data !";
+    // HLOG_ERROR << "DR: no chassis data !";
     return;
   }
   // wheel_data.timestamp = chassis_proto->header().data_stamp();
   wheel_data.timestamp = chassis_proto->header().sensor_stamp().chassis_stamp();
+  //   if (wheel_data.timestamp == 0) {
+  //     wheel_data.timestamp = chassis_proto->header().publish_stamp();
+  //   }
+
   wheel_data.seq = chassis_proto->header().seq();
 
   // 左前轮脉冲计数

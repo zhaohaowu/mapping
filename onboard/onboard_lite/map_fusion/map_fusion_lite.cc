@@ -108,20 +108,21 @@ void MapFusionLite::RegistProcessFunc() {
 
 int32_t MapFusionLite::OnLocation(Bundle* input) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
-  auto fault_info = std::make_shared<hozon::perception::base::FaultInfo>();
-  fault_info->module_id = hozon::perception::base::FmModuleId::MAPPING;
-  fault_info->fault_id =
-      hozon::perception::base::FaultType::MUL_FRAM_LOCATION_UNUSEFUL;
-  fault_info->fault_status = hozon::perception::base::FaultStatus::OCCUR;
-  fault_info->debounceCount = 1;
-  fault_info->debounceTime = 1000;
   if (!input) {
-    phm_fault->Report(fault_info);
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::MUL_FRAM_LOCATION_UNUSEFUL,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
     return -1;
   }
   auto p_loc = input->GetOne("localization");
   if (!p_loc) {
-    phm_fault->Report(fault_info);
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::MUL_FRAM_LOCATION_UNUSEFUL,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
     HLOG_ERROR << "nullptr location message";
     return -1;
   }
@@ -130,7 +131,11 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
           p_loc->proto_msg);
 
   if (!loc_res) {
-    phm_fault->Report(fault_info);
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::MUL_FRAM_LOCATION_UNUSEFUL,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
     HLOG_ERROR << "nullptr location";
     return -1;
   }
@@ -144,20 +149,23 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
 
 int32_t MapFusionLite::OnLocalMap(Bundle* input) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
-  auto fault_info = std::make_shared<hozon::perception::base::FaultInfo>();
-  fault_info->module_id = hozon::perception::base::FmModuleId::MAPPING;
-  fault_info->fault_id = hozon::perception::base::FaultType::
-      LOCALMAPPING_LOCATION_INPUT_DATA_ERROR;
-  fault_info->fault_status = hozon::perception::base::FaultStatus::OCCUR;
-  fault_info->debounceCount = 1;
-  fault_info->debounceTime = 1000;
   if (!input) {
-    phm_fault->Report(fault_info);
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            LOCALMAPPING_LOCATION_INPUT_DATA_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
     return -1;
   }
   auto p_local_map = input->GetOne("local_map");
   if (!p_local_map) {
-    phm_fault->Report(fault_info);
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            LOCALMAPPING_LOCATION_INPUT_DATA_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
     HLOG_ERROR << "nullptr local map message";
     return -1;
   }
@@ -165,7 +173,12 @@ int32_t MapFusionLite::OnLocalMap(Bundle* input) {
       p_local_map->proto_msg);
 
   if (!local_map_res) {
-    phm_fault->Report(fault_info);
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            LOCALMAPPING_LOCATION_INPUT_DATA_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
     HLOG_ERROR << "nullptr local map";
     return -1;
   }
@@ -288,24 +301,20 @@ int MapFusionLite::SendFusionResult(
     const std::shared_ptr<hozon::hdmap::Map>& map,
     const std::shared_ptr<hozon::routing::RoutingResponse>& routing) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
-  auto fault_info = std::make_shared<hozon::perception::base::FaultInfo>();
-  fault_info->module_id = hozon::perception::base::FmModuleId::MAPPING;
-  fault_info->fault_id = hozon::perception::base::FaultType::
-      LOCALMAPPING_MAPFUSION_CAN_NOT_OUPT_LOCAL_MAP;
-  fault_info->fault_status = hozon::perception::base::FaultStatus::OCCUR;
-  fault_info->debounceCount = 1;
-  fault_info->debounceTime = 1000;
   if (map == nullptr || routing == nullptr) {
-    phm_fault->Report(fault_info);
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            LOCALMAPPING_MAPFUSION_CAN_NOT_OUPT_LOCAL_MAP,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
     HLOG_ERROR << "input nullptr map or routing";
     return -1;
   }
   auto phm_health = hozon::perception::lib::HealthManager::Instance();
-  auto health_info = std::make_shared<hozon::perception::base::HealthInfo>();
-  health_info->health_Id =
-      hozon::perception::base::HealthId::CPID_FUSION_MAP_SEND_MAP_DATA_FPS;
-  health_info->module_id = hozon::perception::base::HmModuleId::MAPPING;
-  phm_health->HealthReport(health_info);
+  phm_health->HealthReport(MAKE_HM_TUPLE(
+      hozon::perception::base::HmModuleId::MAPPING,
+      hozon::perception::base::HealthId::CPID_FUSION_MAP_SEND_MAP_DATA_FPS));
   std::shared_ptr<hozon::navigation_hdmap::MapMsg> map_fusion =
       std::make_shared<hozon::navigation_hdmap::MapMsg>();
 

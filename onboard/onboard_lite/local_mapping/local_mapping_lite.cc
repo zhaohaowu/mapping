@@ -98,19 +98,21 @@ int32_t LocalMappingOnboard::OnRunningMode(adf_lite_Bundle* input) {
           rm_msg->proto_msg);
   int runmode = msg->mode();
   // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
-  if (runmode == RUNMODE::PARKING) {
+  if (runmode == static_cast<int>(RUNMODE::PARKING)) {
     PauseTrigger("recv_laneline");
     PauseTrigger("recv_localization");
     PauseTrigger("recv_ins");
     PauseTrigger("recv_image");
     // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
-  } else if (runmode == RUNMODE::DRIVER || runmode == RUNMODE::UNKNOWN) {
+  } else if (runmode == static_cast<int>(RUNMODE::DRIVER) ||
+             runmode == static_cast<int>(RUNMODE::UNKNOWN)) {
     ResumeTrigger("recv_laneline");
     ResumeTrigger("recv_localization");
     ResumeTrigger("recv_ins");
     ResumeTrigger("recv_image");
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
   }
+  runnmode_.store(runmode);
   return 0;
 }
 
@@ -234,6 +236,10 @@ int32_t LocalMappingOnboard::OnImage(adf_lite_Bundle* input) {
 
 int32_t LocalMappingOnboard::LocalMapPublish(adf_lite_Bundle* /*output*/) {
   HLOG_INFO << "start publish localmap...";
+  int32_t runmode = runnmode_.load();
+  if (runmode == 2) {
+    return 0;
+  }
   result->Clear();
   if (lmap_->FetchLocalMap(result)) {
     auto workflow1 = std::make_shared<hozon::netaos::adf_lite::BaseData>();

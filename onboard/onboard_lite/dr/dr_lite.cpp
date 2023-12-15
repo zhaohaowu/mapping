@@ -99,12 +99,6 @@ int32_t DeadReckoning::data_receive(Bundle* input) {
   std::shared_ptr<hozon::soc::Chassis> chassis_proto =
       std::static_pointer_cast<hozon::soc::Chassis>(ptr_rec_chassis->proto_msg);
 
-  // HLOG_INFO << "================= fr wheel: "
-  //           << double(chassis_proto->wheel_counter().wheel_counter_fl())
-  //           << " ,gear: " << int(chassis_proto->gear_location()) << ", fl
-  //           dir: "
-  //           << chassis_proto->wheel_speed().wheel_direction_fl();
-
   dr_interface.AddChassisData(chassis_proto);
   return 0;
 }

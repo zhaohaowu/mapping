@@ -179,7 +179,7 @@ void DataBoard::Adsfi2Proto(
   imu_proto->mutable_header()->set_gnss_stamp(gnssstamp);
   imu_proto->mutable_header()->mutable_sensor_stamp()->set_imuins_stamp(
       gnssstamp);
-  imu_proto->mutable_header()->set_data_stamp(gnssstamp);
+  imu_proto->mutable_header()->set_data_stamp(tick);
   imu_proto->mutable_header()->set_frame_id(imuinsDataPtr_->header.frameID);
   // imu
   imu_proto->mutable_imu_info()->mutable_angular_velocity()->set_x(
@@ -262,7 +262,7 @@ void DataBoard::Adsfi2Proto(
                            chassisDataPtr_->header.gnssStamp.nsec * 1e-9;
   chassis_proto->mutable_header()->set_publish_stamp(tick);
   chassis_proto->mutable_header()->set_gnss_stamp(gnssstamp);
-  chassis_proto->mutable_header()->set_data_stamp(gnssstamp);
+  chassis_proto->mutable_header()->set_data_stamp(tick);
   chassis_proto->mutable_header()->mutable_sensor_stamp()->set_chassis_stamp(
       gnssstamp);
   // 档位

@@ -258,8 +258,8 @@ bool DrFusion::DrNode2DrFusionNode(
   node->mutable_attitude()->set_z(
       origin_node.pose().pose_local().euler_angle().z());
   // dr是逆时针（0-360），fc是顺时针（-180~180)
-  // 局部坐标系是以y轴为0度，顺时针。
-  auto heading = 360 - origin_node.pose().pose_local().heading();
+  // 局部坐标系是以x轴为0度，逆时针。
+  auto heading = origin_node.pose().pose_local().heading();
   heading = heading > 180.0F ? heading - 360.0F : heading;
   while (heading < -180) {
     heading += 360;

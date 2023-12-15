@@ -13,7 +13,6 @@
 #include <depend/proto/localization/node_info.pb.h>
 #include <depend/proto/map/map.pb.h>
 
-#include <tuple>
 #include <atomic>
 #include <cmath>
 #include <cstdint>
@@ -22,6 +21,7 @@
 #include <set>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -66,8 +66,8 @@ class MapPrediction {
   void OnTopoMap(
       const std::shared_ptr<hozon::hdmap::Map>& msg,
       const std::tuple<std::unordered_map<std::string, LaneInfo>,
-                       std::unordered_map<std::string, RoadInfo>,
-                       std::shared_ptr<hozon::hdmap::Map>>& map_info);
+                       std::unordered_map<std::string, RoadInfo>>& map_info);
+  std::shared_ptr<hozon::hdmap::Map> GetHdMap();
   std::shared_ptr<hozon::hdmap::Map> GetPredictionMap();
 
   void Prediction();
@@ -112,7 +112,7 @@ class MapPrediction {
   void SmoothAlignment();
   Eigen::Vector3d UtmPtToLocalEnu(const hozon::common::PointENU& point_utm);
   void ConvertToLocal();
-  void LaneToLocal();
+  void LaneToLocal(const bool utm);
   void RoadToLocal(const int& zone);
   void DeelEdge(hozon::hdmap::BoundaryEdge* edge, const int& zone);
   void VizLocAndHqMap();
@@ -145,6 +145,7 @@ class MapPrediction {
   bool local_enu_center_flag_ = true;
   hozon::common::Pose init_pose_;
   Eigen::Isometry3d T_local_enu_to_local_;
+  Eigen::Isometry3d T_utm_to_local_;
   Eigen::Vector3d pos_local_;
   Eigen::Quaterniond quat_local_;
   double stamp_loc_ = 0.;

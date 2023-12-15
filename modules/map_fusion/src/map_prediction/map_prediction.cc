@@ -149,6 +149,13 @@ void MapPrediction::OnLocalization(
                 Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
                 Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY());
 
+  if (FLAGS_output_hd_map && local_enu_center_flag_) {
+    local_enu_center_ = pos_global;
+    local_enu_center_flag_ = false;
+    HLOG_WARN << "local_enu_center_ not init yet, not update T_utm_to_local_";
+    return;
+  }
+
   if (local_enu_center_flag_) {
     HLOG_WARN
         << "local_enu_center_ not init yet, not update T_local_enu_to_local_";
@@ -178,6 +185,14 @@ void MapPrediction::OnLocalization(
 
   T_local_enu_to_local_.setIdentity();
   T_local_enu_to_local_ = T_veh_to_local * T_veh_to_local_enu.inverse();
+
+  Eigen::Isometry3d T_veh_to_utm;
+  T_veh_to_local_enu.setIdentity();
+  T_veh_to_local_enu.rotate(quat_enu);
+  T_veh_to_local_enu.pretranslate(pos_global_utm);
+
+  T_utm_to_local_.setIdentity();
+  T_utm_to_local_ = T_veh_to_local * T_veh_to_local_enu.inverse();
 }
 
 void MapPrediction::OnLocationInGlobal(const Eigen::Vector3d& pos_gcj02,
@@ -206,8 +221,7 @@ void MapPrediction::OnHqMap(const std::shared_ptr<hozon::hdmap::Map>& hqmap) {
 void MapPrediction::OnTopoMap(
     const std::shared_ptr<hozon::hdmap::Map>& msg,
     const std::tuple<std::unordered_map<std::string, LaneInfo>,
-                     std::unordered_map<std::string, RoadInfo>,
-                     std::shared_ptr<hozon::hdmap::Map>>& map_info) {
+                     std::unordered_map<std::string, RoadInfo>>& map_info) {
   // std::lock_guard<std::mutex> lock(mtx_);
   if (!msg) {
     HLOG_ERROR << "nullptr topo map";
@@ -321,6 +335,58 @@ void MapPrediction::OnTopoMap(
     HLOG_INFO << "add_lane_ids_.size() " << add_lane_ids_.size();
     HLOG_INFO << "add_section_ids_.size() " << add_section_ids_.size();
   }
+}
+
+std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap() {
+  if (!GLOBAL_HD_MAP) {
+    HLOG_ERROR << "nullptr hq_map_server_";
+    return nullptr;
+  }
+  hq_map_ = std::make_shared<hozon::hdmap::Map>();
+  GLOBAL_HD_MAP->GetMap(hq_map_.get());
+
+  // hozon::common::PointENU utm_pos;
+  // utm_pos.set_x(location_utm_.x());
+  // utm_pos.set_y(location_utm_.y());
+  // utm_pos.set_z(0);
+
+  // auto ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_.get());
+
+  // if (ret != 0) {
+  //   HLOG_ERROR << "GetLocalMap failed";
+  //   return nullptr;
+  // }
+
+  if (!hq_map_) {
+    HLOG_ERROR << "nullptr hq_map_";
+    return nullptr;
+  }
+  if (local_enu_center_flag_) {
+    HLOG_ERROR << "init_pose_ not inited";
+    return nullptr;
+  }
+  LaneToLocal(true);
+  // viz_map_.VizLocalMapLaneLine(hq_map_);
+  // viz_map_.VizLaneID(hq_map_);
+
+  // for (const auto& lane : hq_map_->lane()) {
+  //   std::vector<Vec2d> cent_points;
+
+  //   cent_points.clear();
+  //   for (const auto& lane_seg : lane.central_curve().segment()) {
+  //     HLOG_ERROR << "================local map heading===================:"
+  //                << lane_seg.heading();
+  //     for (const auto& point : lane_seg.line_segment().point()) {
+  //       Vec2d cent_point;
+  //       cent_point.set_x(point.x());
+  //       cent_point.set_y(point.y());
+  //       cent_points.emplace_back(cent_point);
+  //     }
+  //   }
+
+  //   viz_map_.VizCenterLane(cent_points);
+  // }
+  return hq_map_;
 }
 
 void MapPrediction::Clear() {
@@ -1026,31 +1092,39 @@ void MapPrediction::ConvertToLocal() {
   }
 
   int zone = static_cast<int>(utm_zone_);
-  LaneToLocal();
+  LaneToLocal(false);
   RoadToLocal(zone);
 }
 
-void MapPrediction::LaneToLocal() {
+void MapPrediction::LaneToLocal(const bool utm) {
   // local_enu to local
   for (auto& hq_lane : *hq_map_->mutable_lane()) {
     for (auto& seg : *hq_lane.mutable_central_curve()->mutable_segment()) {
       for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
-        Eigen::Vector3d pt_local_enu(pt.x(), pt.y(), pt.z());
-        Eigen::Vector3d pt_local = T_local_enu_to_local_ * pt_local_enu;
+        Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
+        if (utm) {
+          pt_local = T_utm_to_local_ * pt_local;
+        } else {
+          pt_local = T_local_enu_to_local_ * pt_local;
+        }
         pt.set_x(pt_local.x());
         pt.set_y(pt_local.y());
-        pt.set_z(pt_local.z());
+        pt.set_z(0);
       }
     }
 
     for (auto& seg :
          *hq_lane.mutable_left_boundary()->mutable_curve()->mutable_segment()) {
       for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
-        Eigen::Vector3d pt_local_enu(pt.x(), pt.y(), pt.z());
-        Eigen::Vector3d pt_local = T_local_enu_to_local_ * pt_local_enu;
+        Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
+        if (utm) {
+          pt_local = T_utm_to_local_ * pt_local;
+        } else {
+          pt_local = T_local_enu_to_local_ * pt_local;
+        }
         pt.set_x(pt_local.x());
         pt.set_y(pt_local.y());
-        pt.set_z(pt_local.z());
+        pt.set_z(0);
       }
     }
 
@@ -1058,11 +1132,15 @@ void MapPrediction::LaneToLocal() {
                           ->mutable_curve()
                           ->mutable_segment()) {
       for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
-        Eigen::Vector3d pt_local_enu(pt.x(), pt.y(), pt.z());
-        Eigen::Vector3d pt_local = T_local_enu_to_local_ * pt_local_enu;
+        Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
+        if (utm) {
+          pt_local = T_utm_to_local_ * pt_local;
+        } else {
+          pt_local = T_local_enu_to_local_ * pt_local;
+        }
         pt.set_x(pt_local.x());
         pt.set_y(pt_local.y());
-        pt.set_z(pt_local.z());
+        pt.set_z(0);
       }
     }
   }
@@ -1104,7 +1182,7 @@ void MapPrediction::DeelEdge(hozon::hdmap::BoundaryEdge* edge,
       Eigen::Vector3d pt_local = T_local_enu_to_local_ * pt_local_enu;
       pt.set_x(pt_local.x());
       pt.set_y(pt_local.y());
-      pt.set_z(pt_local.z());
+      pt.set_z(0);
     }
   }
 }
@@ -1319,28 +1397,25 @@ void MapPrediction::Prediction() {
   //    std::lock_guard<std::mutex> lock(mtx_);
   util::TicToc global_tic;
   util::TicToc local_tic;
-  if (!FLAGS_output_hd_map) {
-    CompleteLaneline(end_lane_ids_, end_section_ids_, road_table_);
-    HLOG_INFO << "pred Prediction CompleteLaneline cost " << local_tic.Toc();
-    local_tic.Tic();
+  CompleteLaneline(end_lane_ids_, end_section_ids_, road_table_);
+  HLOG_INFO << "pred Prediction CompleteLaneline cost " << local_tic.Toc();
+  local_tic.Tic();
 
-    std::set<std::string> side_miss_ids;
-    CheckLocalLane(&side_miss_ids);
-    HLOG_INFO << "pred Prediction CheckLocalLane cost " << local_tic.Toc();
-    local_tic.Tic();
+  std::set<std::string> side_miss_ids;
+  CheckLocalLane(&side_miss_ids);
+  HLOG_INFO << "pred Prediction CheckLocalLane cost " << local_tic.Toc();
+  local_tic.Tic();
 
-    PredLeftRight(side_miss_ids);
-    HLOG_INFO << "pred Prediction PredLeftRight cost " << local_tic.Toc();
-    local_tic.Tic();
+  PredLeftRight(side_miss_ids);
+  HLOG_INFO << "pred Prediction PredLeftRight cost " << local_tic.Toc();
+  local_tic.Tic();
 
-    PredAheadLanes();
-    HLOG_INFO << "pred Prediction PredAheadLanes cost " << local_tic.Toc();
+  PredAheadLanes();
+  HLOG_INFO << "pred Prediction PredAheadLanes cost " << local_tic.Toc();
 
-    local_tic.Tic();
-    FitLaneCenterline();
-    HLOG_INFO << "pred Prediction FitLaneCenterline cost " << local_tic.Toc();
-  }
-
+  local_tic.Tic();
+  FitLaneCenterline();
+  HLOG_INFO << "pred Prediction FitLaneCenterline cost " << local_tic.Toc();
   local_tic.Tic();
   viz_map_.VizLocalMapLaneLine(local_msg_);
   viz_map_.VizLaneID(local_msg_);

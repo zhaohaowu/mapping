@@ -30,8 +30,6 @@
 // NOLINTBEGIN
 DEFINE_double(radius, 500, "radius of the vehicle position");
 DEFINE_double(transform_distance, 200, "distance to update the map");
-DEFINE_bool(x86_adf_lite, false,
-            "if platform is x86 and middleware is adf lite");
 // NOLINTEND
 
 namespace hozon {
@@ -39,10 +37,9 @@ namespace mp {
 namespace mf {
 
 bool MapService::Init() {
-  if (!FLAGS_x86_adf_lite) {
-    amap_adapter_.Init();
-    amap_adapter_.SetUUID("LUZHRQASDHNVQCQNIH4CLM5OTA7VQ489");
-  }
+  amap_adapter_.Init();
+  amap_adapter_.SetUUID("LUZHRQASDHNVQCQNIH4CLM5OTA7VQ489");
+
   routing_ = std::make_shared<hozon::routing::RoutingResponse>();
   auto* global_hd_map = hozon::mp::GlobalHdMap::Instance();
 

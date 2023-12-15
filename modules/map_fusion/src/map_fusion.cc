@@ -13,8 +13,8 @@
 #include "map_fusion/map_service/map_service.h"
 #include "map_fusion/map_service/map_table.h"
 #include "map_fusion/topo_assignment/topo_assignment.h"
+#include "util/mapping_log.h"
 #include "util/rate.h"
-#include "util/temp_log.h"
 #include "util/tic_toc.h"
 
 DECLARE_bool(output_hd_map);

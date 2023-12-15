@@ -591,7 +591,7 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose_local->mutable_position()->set_x(local_node.enu(0));
   pose_local->mutable_position()->set_y(local_node.enu(1));
   pose_local->mutable_position()->set_z(local_node.enu(2));
-  pose_local->set_local_heading(local_node.heading);
+  pose_local->set_local_heading(local_heading);
 
   Eigen::Matrix<float, 6, 1> diag;
   diag << static_cast<float>(ins.sd_position().x()),

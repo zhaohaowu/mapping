@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <memory>
 
 #include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
@@ -48,6 +49,9 @@ class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
   std::shared_ptr<hozon::mapping::LocalMap> result = nullptr;
 
   enum RUNMODE { UNKNOWN = 0, DRIVER = 1, PARKING = 2 };
+
+ private:
+  std::atomic<int32_t> runnmode_;
 };
 
 // REGISTER_ADF_CLASS(LocalMappingOnboard, LocalMappingOnboard);

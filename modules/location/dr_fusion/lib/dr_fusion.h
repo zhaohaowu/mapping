@@ -39,7 +39,7 @@ class DrFusion {
   bool PublishTopic();
   bool Extract02InsNode(const hozon::localization::HafNodeInfo& origin_node,
                         InsNode* const node);
-  static bool DrNode2DrFusionNode(
+  bool DrNode2DrFusionNode(
       const hozon::dead_reckoning::DeadReckoning& origin_node,
       hozon::localization::HafNodeInfo* const node);
   void SetRefpoint(const Eigen::Vector3d& blh);
@@ -58,6 +58,7 @@ class DrFusion {
 
   InsNode ref_ins_fusion_node_;
   Eigen::Vector3d refpoint_;
+  bool init_ = false;
 };
 
 }  // namespace loc

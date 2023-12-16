@@ -1,6 +1,6 @@
 %YAML:1.0
 
-processName: hz_mapping
+processName: mapping
 
 appLog:
   name: mapping

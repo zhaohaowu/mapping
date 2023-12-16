@@ -18,7 +18,7 @@ export LD_LIBRARY_PATH=${OUTPUT_ROOT}/runtime_service/mapping/lib:$LD_LIBRARY_PA
 
 export ADFLITE_ROOT_PATH=${OUTPUT_ROOT}
 
-PROCESS_EXE=${OUTPUT_ROOT}/runtime_service/mapping/bin/hz_mapping
+PROCESS_EXE=${OUTPUT_ROOT}/runtime_service/mapping/bin/mapping
 YAML_CONFIG_ROOT=${OUTPUT_ROOT}/runtime_service/mapping/conf/lite
 TOP_CONFIG_YAML_PATH=${YAML_CONFIG_ROOT}/top_config.yaml
 

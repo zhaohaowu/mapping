@@ -90,6 +90,9 @@ bool DrFusion::GetResult(hozon::localization::HafNodeInfo* const node) {
     HLOG_ERROR << "Get Dr Fusion result failed";
     return false;
   }
+  if (init_ == false) {
+    return false;
+  }
   if (use_rviz_bridge_) {
     PublishTopic();
   }
@@ -294,6 +297,9 @@ bool DrFusion::DrNode2DrFusionNode(
   node->mutable_linear_acceleration()->set_z(
       origin_node.acceleration().linear_vrf().linear_raw_vrf().z());
 
+  if (init_ == false) {
+    init_ = true;
+  }
   return true;
 }
 

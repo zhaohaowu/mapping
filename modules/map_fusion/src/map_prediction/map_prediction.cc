@@ -1416,6 +1416,7 @@ void MapPrediction::Prediction() {
   local_tic.Tic();
   FitLaneCenterline();
   HLOG_INFO << "pred Prediction FitLaneCenterline cost " << local_tic.Toc();
+
   local_tic.Tic();
   viz_map_.VizLocalMapLaneLine(local_msg_);
   viz_map_.VizLaneID(local_msg_);

@@ -36,8 +36,8 @@ trigger:
     mainSources:
       - name: /location/dr_fusion
         timeout: 100
-  - name: recv_local_map
-    type: EVENT
-    mainSources:
-      - name: local_map
-        timeout: 100
+  # - name: recv_local_map
+  #   type: EVENT
+  #   mainSources:
+  #     - name: local_map
+  #       timeout: 100

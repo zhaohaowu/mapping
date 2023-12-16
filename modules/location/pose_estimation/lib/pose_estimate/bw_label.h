@@ -20,21 +20,22 @@ class BwLbel {
       const std::vector<std::vector<int>>& frechet_compare_mat);
   std::vector<std::vector<int>> number_of_group(
       const std::vector<std::vector<int>>& frechet_compare_mat,
-      std::vector<std::vector<int>>& frechet_group_mat);
+      std::vector<std::vector<int>>& frechet_group_mat);  // NOLINT
   void group_mat_process(
-      std::vector<std::vector<int>>& number_of_group,
+      std::vector<std::vector<int>>& number_of_group,  // NOLINT
       const std::vector<std::vector<int>>& frechet_group_mat);
-  void group_row_process(const std::vector<int>& previous_row,
-                         const std::vector<int>& curr_row,
-                         std::vector<std::vector<int>>& number_of_group);
+  void group_row_process(
+      const std::vector<int>& previous_row, const std::vector<int>& curr_row,
+      std::vector<std::vector<int>>& number_of_group);  // NOLINT
   std::vector<int> findNeighbor(size_t index,
                                 const std::vector<int>& neighbor_row);
-  void group_num_change(std::vector<std::vector<int>>& number_of_group,
-                        std::vector<std::vector<int>>& frechet_group_mat);
-  void num_trace(std::vector<std::vector<int>>& number_of_group, int pre_num,
-                 int tar_num);
-  void unique_vector(std::vector<int>& num_array);
-  void num_change(std::vector<std::vector<int>>& number_of_group,
+  void group_num_change(
+      std::vector<std::vector<int>>& number_of_group,             // NOLINT
+      std::vector<std::vector<int>>& frechet_group_mat);          // NOLINT
+  void num_trace(std::vector<std::vector<int>>& number_of_group,  // NOLINT
+                 int pre_num, int tar_num);
+  void unique_vector(std::vector<int>& num_array);                 // NOLINT
+  void num_change(std::vector<std::vector<int>>& number_of_group,  // NOLINT
                   int origin_num, int target_num);
 };
 }  // namespace loc

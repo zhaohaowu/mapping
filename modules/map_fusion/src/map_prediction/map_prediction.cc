@@ -241,12 +241,7 @@ void MapPrediction::OnTopoMap(
 
     local_msg_ = std::make_shared<hozon::hdmap::Map>();
     local_msg_->Clear();
-    if (!FLAGS_output_hd_map) {
-      local_msg_->CopyFrom(*msg);
-    } else {
-      auto hd_map = std::get<2>(map_info);
-      local_msg_->CopyFrom(*hd_map);
-    }
+    local_msg_->CopyFrom(*msg);
     utm_pos.set_x(location_utm_.x());
     utm_pos.set_y(location_utm_.y());
     utm_pos.set_z(0);

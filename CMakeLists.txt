@@ -30,7 +30,7 @@ set(THIRDPARTY_ROOT ${DEPEND}/third_party)
 
 include(cmake/mapping.cmake)
 
-set(CMAKE_INSTALL_PREFIX_RS ${CMAKE_INSTALL_PREFIX}/runtime_service/mapping)
+set(CMAKE_INSTALL_PREFIX_RS ${CMAKE_INSTALL_PREFIX}/runtime_service/hz_mapping)
 set(EXTERNAL_LIB_PATH ${CMAKE_INSTALL_PREFIX}/lib)
 
 # MAPPING_SINGLE_MODULE_COMPILE is defined in compile.py

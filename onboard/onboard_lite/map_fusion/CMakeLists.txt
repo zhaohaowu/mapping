@@ -1,6 +1,7 @@
 set(MAP_FUSION_LITE_SRCS
   map_fusion_lite.cc
   map_fusion_config_lite.cc
+  tlr_fusion_lite.cc
 )
 
 add_mapping_library(onboard_lite_mf

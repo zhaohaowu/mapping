@@ -40,6 +40,7 @@ set(AMAP_LIBS
 
 set(MAP_FUSION_SRCS
   src/map_fusion.cc
+  src/tlr_fusion.cc
   ${TOPO_SRCS}
   ${PREDICTION_SRCS}
   ${MAPSERVICE_SRCS}

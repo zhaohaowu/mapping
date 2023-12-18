@@ -74,7 +74,7 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
 
     if(${LOCAL_TARGET_PLATFORM} STREQUAL "orin")
         include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/eigen/include/eigen3)
-    elseif(${LOCAL_TARGET_PLATFORM} STREQUAL "x86") 
+    elseif(${LOCAL_TARGET_PLATFORM} STREQUAL "x86")
         include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindEigen3.cmake)
     elseif(${LOCAL_TARGET_PLATFORM} STREQUAL "mdc")
         include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindEigen3.cmake)
@@ -107,7 +107,7 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/pcl/include/pcl-1.11)
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/cuda/targets/x86_64-linux/include)
 
-    message("cudaheader====" ${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/cuda/targets/x86_64-linux/include)    
+    message("cudaheader====" ${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/cuda/targets/x86_64-linux/include)
 
     link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/pcl/lib)
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/ceres/include)
@@ -116,8 +116,6 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     include_directories(${DEPEND})
     include_directories(depend/ap-release/include/adsfi/include)
     include_directories(depend/ap-release/include/generated/includes)
-    include_directories(depend/perception-lib/release/${LOCAL_TARGET_PLATFORM}/include)
-    link_directories(depend/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib)
 
     # These enable variables are defined in compile.py
     # if (MAPPING_ENABLE_COMPILE_BASE)
@@ -151,7 +149,7 @@ if(${LOCAL_TARGET_PLATFORM} STREQUAL "x86")
     add_subdirectory(test)
 endif()
 
-install(FILES version.json DESTINATION ${CMAKE_INSTALL_PREFIX} RENAME mal_version.json)
+install(FILES version.json DESTINATION ${CMAKE_INSTALL_PREFIX} RENAME version.json)
 
 install(
     DIRECTORY conf
@@ -160,7 +158,7 @@ install(
 
 # 打包third party环境
 if(IND)
-    install(DIRECTORY 
+    install(DIRECTORY
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/yaml-cpp/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/glog/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gflags/lib/

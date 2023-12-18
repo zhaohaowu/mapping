@@ -2,12 +2,14 @@
 [submodule "depend/perception-base"]
 	path = depend/perception-base
 	url = https://code.hozonauto.com:10443/perception/perception-base.git
+	branch = dev_orin_debug
 [submodule "depend/perception-common-onboard"]
 	path = depend/perception-common-onboard
 	url = https://code.hozonauto.com:10443/perception/perception-common-onboard.git
 [submodule "depend/perception-lib"]
 	path = depend/perception-lib
 	url = https://code.hozonauto.com:10443/perception/perception-lib.git
+	branch = dev_orin_debug
 [submodule "depend/map"]
 	path = depend/map
 	url = https://code.hozonauto.com:10443/algorithm/map.git

@@ -5,9 +5,9 @@ processName: mapping
 appLog:
   name: mapping
   description: mapping
-  file: ./
+  file: /opt/usr/log/soc_log
   mode: 6
-  level: 4
+  level: 3
 
 schedule:
   policy: RR

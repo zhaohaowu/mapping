@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 set -o pipefail
-clear
+
 # 解析workspace
 WORKSPACE=$(builtin cd $(dirname ${BASH_SOURCE[0]}); pwd)
 cd $WORKSPACE

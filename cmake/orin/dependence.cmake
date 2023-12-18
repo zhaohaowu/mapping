@@ -1,5 +1,5 @@
 
 set(DEPENDS_LIBS
   protobuf
-  neta_phm
+  # neta_phm
 )

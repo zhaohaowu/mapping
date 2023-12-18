@@ -1,11 +1,21 @@
 {
-    "ORIN": "20230630",
-    "ADF": "EP40_MDC_ADF_05.26.06_0430_1012_20231012",
-    "NOS": "EP41_ORIN_NOS_02.08.07_1121_1213_20231215",
-    "third_party": "v5.1.79_x86_2004_20231211",
-    "CUDA": "cuda_11.4.327_20231011",
-    "PCPBASE": "PCPBASE_v01.00.16_20231204",
-    "PCPCOMBOARD": "PCPCOMBOARD_v01.00.09_20230922",
-    "PCPLIB": "PCPLIB_v01.00.14_20231204",
-    "releaseVersion": "FSD_03.03.11_1101_1108_20231114"
+    "ORIN": {
+        "EP41": {
+            "SDK": "20231121",
+            "ORIN_X_SDK" : "orin-x_sdk_20231122",
+            "ADF": "EP40_ADC_ADF_05.29.19_0430_1206_20231206",
+            "NOS": "EP41_ORIN_NOS_02.08.07_1121_1213_20231215",
+            "third_party": "v5.1.79_x86_2004_20231211",
+            "CUDA": "cuda_11.4.327_20231011",
+            "release": {
+                    "compileCmd": "bash build.sh orin --release --clean",
+                    "outputPath": ["release", "mal_orin"]
+            },
+            "debug": {
+                    "compileCmd": "bash build.sh orin --clean",
+                    "outputPath": ["release", "mal_orin"]
+            },
+            "releaseVersion": "ORIN_EP41_MAL_04.01.00_1121_1213_20231218"
+        }
+    }
 }

@@ -14,8 +14,6 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     /usr/local/orin_sdk/usr/local/cuda-11.4/targets/aarch64-linux/include
     ${THIRDPARTY_ROOT_PATH}/nos/orin/include
-    # ${THIRDPARTY_ROOT_PATH}/perception-common-onboard/release/${LOCAL_TARGET_PLATFORM}/include/perception-common-onboard
-    # ${THIRDPARTY_ROOT_PATH}/perception-base/release/${LOCAL_TARGET_PLATFORM}/include/perception-base
     ${THIRDPARTY_ROOT_PATH}/nos/${LOCAL_TARGET_PLATFORM}/include/fast-dds
     ${THIRDPARTY_ROOT_PATH}/nos/${LOCAL_TARGET_PLATFORM}/include/fast-dds/include
     ${THIRDPARTY_ROOT_PATH}/perception-base
@@ -26,8 +24,5 @@ include_directories(
 link_directories(
     ${THIRDPARTY_ROOT_PATH}/nos/${LOCAL_TARGET_PLATFORM}/lib
     /usr/local/orin_sdk/usr/local/cuda-11.4/targets/aarch64-linux/lib
-    # ${THIRDPARTY_ROOT_PATH}/perception-common-onboard/release/${LOCAL_TARGET_PLATFORM}/lib
-    # ${THIRDPARTY_ROOT_PATH}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib
     ${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/fast-dds/lib
-    ${THIRDPARTY_ROOT_PATH}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib
 )

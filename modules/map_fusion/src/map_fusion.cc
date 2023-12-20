@@ -123,8 +123,6 @@ int MapFusion::ProcFusion(
     HLOG_ERROR << "nullptr map prediction";
     return -1;
   }
-  map_table_->OnLocalization(curr_loc);
-  auto map_info = map_table_->GetMapTable();
   util::TicToc global_tic;
   util::TicToc local_tic;
   std::shared_ptr<hozon::hdmap::Map> map;

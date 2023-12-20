@@ -9,16 +9,22 @@ input:
       capacity: 5
     - topic: chassis # interprocess cm
       capacity: 5
+    - topic: running_mode 
+      capacity: 5
 
 trigger:
-  - name: dr_proc # send workresult1,workresult2
-    type: PERIOD
-    period: 10
-
-  - name: receive_imu_chassis
+  - name: receive_running_mode
+    type: EVENT
+    mainSources:
+      - name: running_mode
+        timeout: 1000
+  - name: receive_chassis
+    type: EVENT
+    mainSources:
+      - name: chassis
+        timeout: 1000
+  - name: receive_imu
     type: EVENT
     mainSources:
       - name: imu_ins
-        timeout: 1000
-      - name: chassis
         timeout: 1000

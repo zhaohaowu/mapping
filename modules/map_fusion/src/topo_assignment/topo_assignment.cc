@@ -127,6 +127,19 @@ void TopoAssignment::OnLocalization(
 
   Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(vehicle_pose_, ref_point_);
 
+  // Eigen::Vector3d pos_local;
+  // pos_local << msg->pose().local_pose().x(), msg->pose().local_pose().y(),
+  //     msg->pose().local_pose().z();
+
+  // auto yaw_local = msg->pose().euler_angles_local().z();
+  // auto roll_local = msg->pose().euler_angles_local().x();
+  // auto pitch_local = msg->pose().euler_angles_local().y();
+
+  // Eigen::Quaterniond quat_local =
+  //     Eigen::AngleAxisd(yaw_local, Eigen::Vector3d::UnitZ()) *
+  //     Eigen::AngleAxisd(roll_local, Eigen::Vector3d::UnitX()) *
+  //     Eigen::AngleAxisd(pitch_local, Eigen::Vector3d::UnitY());
+
   // 可视化vehicle position
   if (FLAGS_topo_rviz) {
     VizLocation(enu, quat_global, stamp);

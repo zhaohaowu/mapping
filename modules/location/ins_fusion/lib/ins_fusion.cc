@@ -91,7 +91,9 @@ void InsFusion::LoadConfigParams(const std::string& configfile) {
 
 void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
   std::unique_lock<std::mutex> lock(origin_ins_mutex_);
-  if (origin_ins.header().seq() <= latest_origin_ins_.header().seq()) {
+  if (origin_ins.header().seq() <= latest_origin_ins_.header().seq() ||
+      origin_ins.header().sensor_stamp().imuins_stamp() <=
+          latest_origin_ins_.header().sensor_stamp().imuins_stamp()) {
     return;
   }
   ins_node_is_valid_ = true;
@@ -402,7 +404,7 @@ bool InsFusion::Extract84InsNode(const hozon::soc::ImuIns& ins,
   }
 
   node->seq = ins.header().seq();
-  node->ticktime = ins.header().data_stamp();
+  node->ticktime = ins.header().sensor_stamp().imuins_stamp();
   node->refpoint = GetRefpoint();
   node->blh << ins.ins_info().latitude(), ins.ins_info().longitude(),
       ins.ins_info().altitude();

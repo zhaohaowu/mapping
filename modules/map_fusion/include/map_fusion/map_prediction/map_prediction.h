@@ -145,7 +145,6 @@ class MapPrediction {
   bool local_enu_center_flag_ = true;
   hozon::common::Pose init_pose_;
   Eigen::Isometry3d T_local_enu_to_local_;
-  Eigen::Isometry3d T_utm_to_local_;
   Eigen::Vector3d pos_local_;
   Eigen::Quaterniond quat_local_;
   double stamp_loc_ = 0.;

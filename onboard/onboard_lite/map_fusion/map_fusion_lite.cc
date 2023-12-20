@@ -256,7 +256,7 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     return -1;
   }
 
-  ret = SendFusionResult(latest_map, &routing);
+  ret = SendFusionResult(latest_loc, latest_map, &routing);
   if (ret < 0) {
     HLOG_ERROR << "SendFusionResult failed";
     return -1;
@@ -298,6 +298,7 @@ MapFusionLite::GetLatestLocPlugin() {
 }
 
 int MapFusionLite::SendFusionResult(
+    const std::shared_ptr<hozon::localization::Localization>& location,
     const std::shared_ptr<hozon::hdmap::Map>& map,
     hozon::routing::RoutingResponse* routing) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
@@ -318,12 +319,12 @@ int MapFusionLite::SendFusionResult(
   std::shared_ptr<hozon::navigation_hdmap::MapMsg> map_fusion =
       std::make_shared<hozon::navigation_hdmap::MapMsg>();
 
-  map_fusion->mutable_header()->CopyFrom(routing->header());
+  map_fusion->mutable_header()->CopyFrom(location->header());
   map_fusion->mutable_header()->set_frame_id("map_msg");
   map_fusion->mutable_hdmap()->CopyFrom(*map);
 
   map_fusion->mutable_hdmap()->mutable_header()->mutable_header()->CopyFrom(
-      routing->header());
+      location->header());
 
   map_fusion->mutable_hdmap()->mutable_header()->mutable_header()->set_frame_id(
       "hd_map");

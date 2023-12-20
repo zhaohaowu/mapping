@@ -14,19 +14,9 @@ namespace dr {
 
 DRInterface::DRInterface() { dr_estimator_ = std::make_shared<Odometry2D>(); }
 
-bool DRInterface::Process(
-    std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr) {
+bool DRInterface::Process() {
   dr_estimator_->update();
-
-  if (dr_estimator_->initialized_) {
-    OdometryData latest_odom = dr_estimator_->get_latest_odom_data();
-    SetLocationData(std::move(locationDataPtr), latest_odom);
-    return true;
-  } else {
-    // HLOG_WARN << "DR: is not init";
-    return false;
-  }
-  return false;
+  return true;
 }
 
 Eigen::Vector3d DRInterface::Qat2EulerAngle(const Eigen::Quaterniond& q) {
@@ -52,9 +42,50 @@ Eigen::Vector3d DRInterface::Qat2EulerAngle(const Eigen::Quaterniond& q) {
   return eulerangle;
 }
 
+bool DRInterface::GetLatestPose(
+    double timestamp,
+    std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr) {
+  if (dr_estimator_->initialized_) {
+    OdometryData latest_odom = dr_estimator_->get_latest_odom_data();
+    double time_diff = timestamp - latest_odom.timestamp;
+    HLOG_ERROR << "ins_time - dr_time:" << time_diff;
+
+    // 预测
+    latest_odom.timestamp = timestamp;
+    Eigen::Vector3d latest_pose = {
+        latest_odom.odometry.x, latest_odom.odometry.y, latest_odom.odometry.z};
+    Eigen::Quaterniond latest_qua(
+        latest_odom.odometry.qw, latest_odom.odometry.qx,
+        latest_odom.odometry.qy, latest_odom.odometry.qz);
+
+    Eigen::Vector3d predict_pos =
+        latest_pose + latest_qua * (latest_odom.loc_vel * time_diff);
+    Eigen::Vector3d delta_ang = latest_odom.loc_omg * time_diff;
+    Eigen::Quaterniond predict_qat = latest_qua;
+    if (delta_ang.norm() > 1e-12) {
+      predict_qat = latest_qua * Eigen::Quaterniond(Eigen::AngleAxisd(
+                                     delta_ang.norm(), delta_ang.normalized()));
+    }
+    // 更新
+    latest_odom.odometry.x = predict_pos[0];
+    latest_odom.odometry.y = predict_pos[1];
+    latest_odom.odometry.z = predict_pos[2];
+    latest_odom.odometry.qx = predict_qat.x();
+    latest_odom.odometry.qy = predict_qat.y();
+    latest_odom.odometry.qz = predict_qat.z();
+    latest_odom.odometry.qw = predict_qat.w();
+    SetLocationData(std::move(locationDataPtr), latest_odom);
+    return true;
+  } else {
+    // HLOG_WARN << "DR: is not init";
+    return false;
+  }
+}
+
 void DRInterface::SetLocationData(
     std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
     const OdometryData& latest_odom) {
+  static int dr_seq_cnt = 0;
   if (locationDataPtr == nullptr) {
     // HLOG_ERROR << "DR: send localization input frame is nullptr";
     return;
@@ -182,7 +213,7 @@ void DRInterface::SetLocationData(
       ->mutable_angular_vrf()
       ->set_z(0);
 
-  locationDataPtr->mutable_header()->set_seq(latest_odom.chassis_seq);
+  locationDataPtr->mutable_header()->set_seq(dr_seq_cnt);
   locationDataPtr->mutable_header()->set_gnss_stamp(latest_odom.timestamp);
   locationDataPtr->mutable_header()->set_data_stamp(latest_odom.timestamp);
 
@@ -195,6 +226,7 @@ void DRInterface::SetLocationData(
   locationDataPtr->mutable_header()->set_publish_stamp(sys_timestamp * 1e-9);
 
   locationDataPtr->mutable_header()->set_frame_id("HZ_DR");
+  dr_seq_cnt++;
 
   //   std::cout << std::setprecision(15)
   //             << "MDR: " << locationDataPtr->mutable_header()->data_stamp()

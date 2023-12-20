@@ -18,6 +18,7 @@
 #include "proto/dead_reckoning/dr.pb.h"
 #include "proto/soc/chassis.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
+#include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {
@@ -33,8 +34,9 @@ class DRInterface {
   void AddChassisData(
       const std::shared_ptr<const hozon::soc::Chassis>& chassis_proto);
 
-  bool Process(
-      std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr);
+  bool Process();
+  bool GetLatestPose(double timestamp,
+    std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr);
 
  private:
   double GetCurrentNsecTime() {

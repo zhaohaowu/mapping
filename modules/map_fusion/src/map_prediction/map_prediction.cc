@@ -140,20 +140,18 @@ void MapPrediction::OnLocalization(
                      msg->pose().pos_utm_01().y());
 
   stamp_loc_ = msg->header().gnss_stamp();
-  pos_local_ << msg->pose().local_pose().x(), msg->pose().local_pose().y(),
-      msg->pose().local_pose().z();
-  auto yaw = msg->pose().euler_angles_local().z();
-  auto roll = msg->pose().euler_angles_local().x();
-  auto pitch = msg->pose().euler_angles_local().y();
+  pos_local_ << msg->pose_local().position().x(),
+      msg->pose_local().position().y(), msg->pose_local().position().z();
+  auto yaw = msg->pose_local().local_heading() * M_PI / 180.;
+  // auto roll = msg->pose().euler_angles_local().x();
+  // auto pitch = msg->pose().euler_angles_local().y();
   quat_local_ = Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
-                Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
-                Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY());
+                Eigen::AngleAxisd(0., Eigen::Vector3d::UnitX()) *
+                Eigen::AngleAxisd(0., Eigen::Vector3d::UnitY());
 
-  if (FLAGS_output_hd_map && local_enu_center_flag_) {
+  if (FLAGS_output_hd_map) {
     local_enu_center_ = pos_global;
     local_enu_center_flag_ = false;
-    HLOG_WARN << "local_enu_center_ not init yet, not update T_utm_to_local_";
-    return;
   }
 
   if (local_enu_center_flag_) {
@@ -171,12 +169,12 @@ void MapPrediction::OnLocalization(
       util::Geo::Gcj02ToEnu(pos_global, local_enu_center_);
 
   yaw = msg->pose().euler_angles().z();
-  roll = msg->pose().euler_angles().x();
-  pitch = msg->pose().euler_angles().y();
+  // roll = msg->pose().euler_angles().x();
+  // pitch = msg->pose().euler_angles().y();
   Eigen::Quaterniond quat_enu =
       Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()) *
-      Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
-      Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY());
+      Eigen::AngleAxisd(0., Eigen::Vector3d::UnitX()) *
+      Eigen::AngleAxisd(0., Eigen::Vector3d::UnitY());
 
   Eigen::Isometry3d T_veh_to_local_enu;
   T_veh_to_local_enu.setIdentity();
@@ -185,14 +183,6 @@ void MapPrediction::OnLocalization(
 
   T_local_enu_to_local_.setIdentity();
   T_local_enu_to_local_ = T_veh_to_local * T_veh_to_local_enu.inverse();
-
-  Eigen::Isometry3d T_veh_to_utm;
-  T_veh_to_local_enu.setIdentity();
-  T_veh_to_local_enu.rotate(quat_enu);
-  T_veh_to_local_enu.pretranslate(pos_global_utm);
-
-  T_utm_to_local_.setIdentity();
-  T_utm_to_local_ = T_veh_to_local * T_veh_to_local_enu.inverse();
 }
 
 void MapPrediction::OnLocationInGlobal(const Eigen::Vector3d& pos_gcj02,
@@ -338,19 +328,19 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap() {
     return nullptr;
   }
   hq_map_ = std::make_shared<hozon::hdmap::Map>();
-  GLOBAL_HD_MAP->GetMap(hq_map_.get());
+  // GLOBAL_HD_MAP->GetMap(hq_map_.get());
 
-  // hozon::common::PointENU utm_pos;
-  // utm_pos.set_x(location_utm_.x());
-  // utm_pos.set_y(location_utm_.y());
-  // utm_pos.set_z(0);
+  hozon::common::PointENU utm_pos;
+  utm_pos.set_x(location_utm_.x());
+  utm_pos.set_y(location_utm_.y());
+  utm_pos.set_z(0);
 
-  // auto ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_.get());
+  auto ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_.get());
 
-  // if (ret != 0) {
-  //   HLOG_ERROR << "GetLocalMap failed";
-  //   return nullptr;
-  // }
+  if (ret != 0) {
+    HLOG_ERROR << "GetLocalMap failed";
+    return nullptr;
+  }
 
   if (!hq_map_) {
     HLOG_ERROR << "nullptr hq_map_";
@@ -1098,10 +1088,9 @@ void MapPrediction::LaneToLocal(const bool utm) {
       for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
         Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
         if (utm) {
-          pt_local = T_utm_to_local_ * pt_local;
-        } else {
-          pt_local = T_local_enu_to_local_ * pt_local;
+          pt_local = UtmPtToLocalEnu(pt);
         }
+        pt_local = T_local_enu_to_local_ * pt_local;
         pt.set_x(pt_local.x());
         pt.set_y(pt_local.y());
         pt.set_z(0);
@@ -1113,10 +1102,9 @@ void MapPrediction::LaneToLocal(const bool utm) {
       for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
         Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
         if (utm) {
-          pt_local = T_utm_to_local_ * pt_local;
-        } else {
-          pt_local = T_local_enu_to_local_ * pt_local;
+          pt_local = UtmPtToLocalEnu(pt);
         }
+        pt_local = T_local_enu_to_local_ * pt_local;
         pt.set_x(pt_local.x());
         pt.set_y(pt_local.y());
         pt.set_z(0);
@@ -1129,10 +1117,9 @@ void MapPrediction::LaneToLocal(const bool utm) {
       for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
         Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
         if (utm) {
-          pt_local = T_utm_to_local_ * pt_local;
-        } else {
-          pt_local = T_local_enu_to_local_ * pt_local;
+          pt_local = UtmPtToLocalEnu(pt);
         }
+        pt_local = T_local_enu_to_local_ * pt_local;
         pt.set_x(pt_local.x());
         pt.set_y(pt_local.y());
         pt.set_z(0);

@@ -17,6 +17,7 @@
 #include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
 #include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 #include "modules/map_fusion/include/map_fusion/map_fusion.h"
+#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 
 namespace hozon {
 namespace perception {
@@ -32,6 +33,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
 
   int32_t AlgInit() override;
   void AlgRelease() override;
+  int32_t OnRunningMode(hozon::netaos::adf_lite::Bundle* input);
 
  private:
   void RegistMessageType();

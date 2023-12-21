@@ -13,6 +13,7 @@
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 #include "onboard/onboard_lite/map_fusion/map_fusion_lite.h"
+#include "perception-base/base/state_machine/state_machine_info.h"
 #include "yaml-cpp/yaml.h"
 
 namespace hozon {
@@ -87,6 +88,8 @@ void MapFusionLite::RegistMessageType() {
   REGISTER_PROTO_MESSAGE_TYPE("local_map", hozon::mapping::LocalMap);
   // map fusion output message
   REGISTER_PROTO_MESSAGE_TYPE("map_fusion", hozon::navigation_hdmap::MapMsg);
+  REGISTER_PROTO_MESSAGE_TYPE("running_mode",
+                              hozon::perception::common_onboard::running_mode);
 }
 
 void MapFusionLite::RegistProcessFunc() {
@@ -104,6 +107,9 @@ void MapFusionLite::RegistProcessFunc() {
   RegistAlgProcessFunc(
       "send_map_fusion",
       std::bind(&MapFusionLite::MapFusionOutput, this, std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_running_mode",
+      std::bind(&MapFusionLite::OnRunningMode, this, std::placeholders::_1));
 }
 
 int32_t MapFusionLite::OnLocation(Bundle* input) {
@@ -392,6 +398,41 @@ int MapFusionLite::SendFusionResult(
 
   SendOutput("map_fusion", map_res);
 
+  return 0;
+}
+
+int32_t MapFusionLite::OnRunningMode(hozon::netaos::adf_lite::Bundle* input) {
+  auto rm_msg = input->GetOne("running_mode");
+  if (rm_msg == nullptr) {
+    HLOG_ERROR << "nullptr rm_msg plugin";
+    return -1;
+  }
+  auto msg =
+      std::static_pointer_cast<hozon::perception::common_onboard::running_mode>(
+          rm_msg->proto_msg);
+  if (msg == nullptr) {
+    HLOG_ERROR << "nullptr rm_msg->proto_msg";
+    return -1;
+  }
+  int runmode = msg->mode();
+  // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
+  if (runmode ==
+      static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
+    PauseTrigger("recv_location");
+    PauseTrigger("recv_local_map");
+    PauseTrigger("recv_loc_plugin");
+    PauseTrigger("send_map_fusion");
+    // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
+  } else if (runmode == static_cast<int>(
+                            hozon::perception::base::RunningMode::DRIVING) ||
+             runmode ==
+                 static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
+    ResumeTrigger("recv_location");
+    ResumeTrigger("recv_local_map");
+    ResumeTrigger("recv_loc_plugin");
+    ResumeTrigger("send_map_fusion");
+    // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
+  }
   return 0;
 }
 

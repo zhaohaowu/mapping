@@ -11,6 +11,8 @@ input:
       capacity: 5
     - topic: local_map
       capacity: 5
+    - topic: running_mode 
+      capacity: 5
 
 output:
   - topic: map_fusion
@@ -36,3 +38,8 @@ trigger:
     - name: send_map_fusion
       type: PERIOD
       period: 100
+    - name: recv_running_mode
+      type: EVENT
+      mainSources:
+        - name: running_mode
+          timeout: 1000

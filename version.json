@@ -4,8 +4,8 @@
             "SDK": "20231121",
             "ORIN_X_SDK" : "orin-x_sdk_20231122",
             "ADF": "EP40_ADC_ADF_05.29.19_0430_1206_20231206",
-            "NOS": "EP41_ORIN_NOS_02.08.07_1121_1213_20231215",
-            "third_party": "v5.1.79_x86_2004_20231211",
+            "NOS": "EP41_ORIN_NOS_02.09.03_1121_1220_20231221",
+            "third_party": "v5.1.81_x86_2004_20231219",
             "CUDA": "cuda_11.4.327_20231011",
             "release": {
                     "compileCmd": "bash build.sh orin --release --clean",

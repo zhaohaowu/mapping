@@ -15,7 +15,7 @@
                     "compileCmd": "bash build.sh orin --clean",
                     "outputPath": ["release", "mal_orin"]
             },
-            "releaseVersion": "ORIN_EP41_MAL_04.02.06_1121_1220_20231222"
+            "releaseVersion": "ORIN_EP41_MAL_04.02.07_1121_1220_20231222"
         }
     }
 }

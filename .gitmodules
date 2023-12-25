@@ -22,3 +22,7 @@
 [submodule "depend/proto"]
 	path = depend/proto
 	url = https://code.hozonauto.com:10443/Global/proto.git
+[submodule "depend/mapping_plugin"]
+	path = depend/mapping_plugin
+	url = https://code.hozonauto.com:10443/algorithm/mapping_plugin.git
+	branch = master

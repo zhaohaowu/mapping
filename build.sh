@@ -16,3 +16,30 @@ if [ -d "${WORKSPACE}/release" ]; then
   rm -r "${WORKSPACE}/release"
 fi
 $PYTHON_BIN tools/compile.py $@ --workspace $WORKSPACE
+
+WITH_MAL_PLUGIN_FLAG=$(cat plugin_env.txt)
+if [ "${WITH_MAL_PLUGIN_FLAG}" = "true" ]; then
+  cd ${WORKSPACE}/depend/mapping_plugin
+  mapping_plugin_workspace=$(pwd)
+
+  # 过滤掉--plugin参数
+  filtered_params=""
+  for param in "$@"; do
+    if [ "$param" != "--plugin" ]; then
+      filtered_params="$filtered_params $param"
+    fi
+  done
+
+  bash build.sh $filtered_params
+  src_folder="$mapping_plugin_workspace/release/mal_plugin_orin/runtime_service/mapping_plugin/"
+  destination_folder="${WORKSPACE}/release/mal_orin/runtime_service/"
+  cp $src_folder $destination_folder -rf
+  rm $destination_folder/mapping_plugin/lib/ -rf
+  cp $src_folder/../../lib/* $destination_folder/../lib/ -rf
+  mv $destination_folder/mapping_plugin/scripts/run.sh $destination_folder/../scripts/
+else
+  echo "not build mal_plugin"
+
+rm ${destination_folder}/../../../plugin_env.txt
+fi
+

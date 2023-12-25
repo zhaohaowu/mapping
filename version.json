@@ -8,11 +8,11 @@
             "third_party": "v5.1.81_x86_2004_20231219",
             "CUDA": "cuda_11.4.327_20231011",
             "release": {
-                    "compileCmd": "bash build.sh orin --release --clean",
+                    "compileCmd": "bash build.sh orin --release --clean --plugin",
                     "outputPath": ["release", "mal_orin"]
             },
             "debug": {
-                    "compileCmd": "bash build.sh orin --clean",
+                    "compileCmd": "bash build.sh orin --clean --plugin",
                     "outputPath": ["release", "mal_orin"]
             },
             "releaseVersion": "ORIN_EP41_MAL_04.03.02_1121_1220_20231226"

@@ -33,6 +33,7 @@ def parse_args():
     p.add_argument('--tool', action='store_true', help='enable building Mapping_tools, should be used with --cyber')
     p.add_argument('--cyber', action='store_true', help='enable cyber')
     p.add_argument('--ind', action='store_true', help='copy third party libs')
+    p.add_argument('--plugin', action='store_true', help='build with mal_plugin')
     # 默认值类型
     p.add_argument('--workspace', default=None, help='root of code repository')
     p.add_argument('-j', default=max(cpu_count() - 2, 1), dest="jobs", type=int, help='make -j')
@@ -201,6 +202,13 @@ def orin_build(workspace, platform, build_directory, release_directory, **kwargs
     args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
     args['-DMIDDLEWARE'] = "LITE"
     args['-DIND'] = "ON" if kwargs['ind'] else "OFF"
+    if kwargs['plugin']:
+        os.environ['WITH_MAL_PLUGIN_FLAG'] = 'true'
+    else:
+        os.environ['WITH_MAL_PLUGIN_FLAG'] = 'false'
+    with open('plugin_env.txt', 'w') as file:
+            file.write(os.environ.get('WITH_MAL_PLUGIN_FLAG', ''))
+    execute_shell('echo ${WITH_MAL_PLUGIN_FLAG}')
     args['-DHDMAP'] = kwargs['hdmap']
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"

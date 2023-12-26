@@ -33,11 +33,20 @@ find_package(netaos CONFIG REQUIRED)
 
 include_directories(
     ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include
+    ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/cfg
+    ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/per
+    ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/https/include
+    ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/crypto/include
+    ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/crypto/include/common
+    ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/crypto/include/cryp
+    ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/crypto/include/keys
+    ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/crypto/include/utility
+    ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/crypto/include/x509
     # ${THIRDPARTY_ROOT_PATH}/perception-common-onboard/release/x86/include/perception-common-onboard
     # ${THIRDPARTY_ROOT_PATH}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/include/perception-lib
     # ${THIRDPARTY_ROOT_PATH}/perception-base/release/${LOCAL_TARGET_PLATFORM}/include/perception-base
     ${THIRDPARTY_ROOT_PATH}/third_party/x86/fast-dds/include
-    ${THIRDPARTY_ROOT_PATH}/nos/orin/include/fast-dds
+    ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/fast-dds
     ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/yaml-cpp/include
     ${THIRDPARTY_ROOT_PATH}/perception-base
     ${THIRDPARTY_ROOT_PATH}/perception-lib

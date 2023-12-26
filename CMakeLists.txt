@@ -112,6 +112,8 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/pcl/lib)
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/ceres/include)
     link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/ceres/lib)
+    include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/curl/include)
+    link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/curl/lib)
 
     include_directories(${DEPEND})
     include_directories(depend/ap-release/include/adsfi/include)

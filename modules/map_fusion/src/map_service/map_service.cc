@@ -13,11 +13,13 @@
 
 #include "amap/GHDMapDefines.h"
 #include "amap/GHDMapService.h"
+#include "base/utils/log.h"
 #include "common/adapters/adapter_gflags.h"
 #include "common/configs/config_gflags.h"
 #include "common/file/file.h"
 #include "common/math/vec2d.h"
 #include "common/time/clock.h"
+#include "https/include/tsp_comm.h"
 #include "map/hdmap/hdmap.h"
 #include "map/hdmap/hdmap_util.h"
 #include "map_fusion/map_service/global_hd_map.h"
@@ -38,7 +40,6 @@ namespace mf {
 
 bool MapService::Init() {
   amap_adapter_.Init();
-  amap_adapter_.SetUUID("LUZHRQASDHNVQCQNIH4CLM5OTA7VQ489");
 
   routing_ = std::make_shared<hozon::routing::RoutingResponse>();
   auto* global_hd_map = hozon::mp::GlobalHdMap::Instance();
@@ -46,12 +47,59 @@ bool MapService::Init() {
   if (FLAGS_map_service_mode == 0) {
     global_hd_map->GetHdMap()->LoadMapFromFile(FLAGS_map_dir + "/base_map.bin");
   } else if (FLAGS_map_service_mode == 1) {
+    amap_tsp_proc_ = std::async(&MapService::GetUidThread, this);
     ehr_ = std::make_unique<hozon::ehr::AmapEhrImpl>();
   } else if (FLAGS_map_service_mode == 2) {
     // todo map api
   }
 
   return true;
+}
+
+void MapService::GetUidThread() {
+  static constexpr double kGetUUIDIntervalMs = 1000;
+  std::ifstream ifs;
+  ifs.open("/hd_map/uid.txt", std::ios::in);
+  if (ifs.is_open()) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::getline(ifs, uuid_);
+    HLOG_INFO << "uid from uid.txt: " << uuid_;
+  }
+  ifs.close();
+  if (uuid_.empty()) {
+    auto& tsp_client = hozon::netaos::https::TspComm::GetInstance();
+    tsp_client.Init();
+    int counter = 0;
+    while (!is_amap_tsp_thread_stop_) {
+      const double start_time = hozon::common::Clock::NowInMicroseconds();
+      if (counter % 60 == 50) {
+        std::future<hozon::netaos::https::TspComm::TspResponse> uuid_result =
+            tsp_client.RequestHdUuid();
+        auto uid_result = uuid_result.get();
+        if (uid_result.result_code ==
+            hozon::netaos::https::HttpsResult_Success) {
+          HLOG_INFO << "uid: " << uid_result.response;
+          std::ofstream ofs("/hd_map/uid.txt");
+          std::lock_guard<std::mutex> lock(mutex_);
+          uuid_ = uid_result.response;
+          ofs << uuid_ << std::endl;
+          ofs.close();
+        } else {
+          HLOG_ERROR << "uid code: " << uid_result.result_code;
+          HLOG_ERROR << "uid: " << uid_result.response;
+        }
+      }
+      ++counter;
+      const double sleep_time =
+          kGetUUIDIntervalMs -
+          (hozon::common::Clock::NowInMicroseconds() - start_time);
+      if (sleep_time > 0) {
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(static_cast<int>(sleep_time)));
+      }
+    }
+    tsp_client.Deinit();
+  }
 }
 
 void MapService::OnInsAdcNodeInfo(
@@ -80,6 +128,13 @@ void MapService::OnInsAdcNodeInfo(
     //    HLOG_ERROR << "hdmap set error";
     //  }
   } else if (FLAGS_map_service_mode == 1) {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      if (!uuid_.empty() && !is_amap_tsp_thread_stop_) {
+        amap_adapter_.SetUUID(uuid_);
+        is_amap_tsp_thread_stop_ = true;
+      }
+    }
     EhpProc(ins_msg, adc_msg, routing_);
   }
 }
@@ -249,6 +304,11 @@ bool MapService::EhpProc(
 //   // }
 //   return true;
 // }
+
+MapService::~MapService() {
+  is_amap_tsp_thread_stop_ = true;
+  amap_tsp_proc_.get();
+}
 
 }  // namespace mf
 }  // namespace mp

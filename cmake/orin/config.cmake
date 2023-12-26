@@ -14,6 +14,15 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     /usr/local/orin_sdk/usr/local/cuda-11.4/targets/aarch64-linux/include
     ${THIRDPARTY_ROOT_PATH}/nos/orin/include
+    ${THIRDPARTY_ROOT_PATH}/nos/orin/include/cfg
+    ${THIRDPARTY_ROOT_PATH}/nos/orin/include/per
+    ${THIRDPARTY_ROOT_PATH}/nos/orin/include/https/include
+    ${THIRDPARTY_ROOT_PATH}/nos/orin/include/crypto/include
+    ${THIRDPARTY_ROOT_PATH}/nos/orin/include/crypto/include/common
+    ${THIRDPARTY_ROOT_PATH}/nos/orin/include/crypto/include/cryp
+    ${THIRDPARTY_ROOT_PATH}/nos/orin/include/crypto/include/keys
+    ${THIRDPARTY_ROOT_PATH}/nos/orin/include/crypto/include/utility
+    ${THIRDPARTY_ROOT_PATH}/nos/orin/include/crypto/include/x509
     ${THIRDPARTY_ROOT_PATH}/nos/${LOCAL_TARGET_PLATFORM}/include/fast-dds
     ${THIRDPARTY_ROOT_PATH}/nos/${LOCAL_TARGET_PLATFORM}/include/fast-dds/include
     ${THIRDPARTY_ROOT_PATH}/perception-base

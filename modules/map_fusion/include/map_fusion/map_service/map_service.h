@@ -44,7 +44,7 @@ class MapService {
 
  public:
   MapService() = default;
-  ~MapService() = default;
+  ~MapService();
   bool Init();
 
   void OnInsAdcNodeInfo(const hozon::localization::HafNodeInfo& ins_msg,
@@ -55,6 +55,7 @@ class MapService {
   }
 
  private:
+  void GetUidThread();
   bool EhpProc(const hozon::localization::HafNodeInfo& ins_msg,
                const hozon::planning::ADCTrajectory& adc_msg,
                const std::shared_ptr<hozon::routing::RoutingResponse>& routing);
@@ -63,9 +64,15 @@ class MapService {
 
   std::shared_ptr<hozon::routing::RoutingResponse> routing_ = nullptr;
   hozon::common::math::Vec2d last_pose_;
-  std::chrono::steady_clock::time_point last_send_time_;
+  std::chrono::steady_clock::time_point last_send_time_{};
   std::unique_ptr<hozon::ehr::Ehr> ehr_ = nullptr;
   hozon::mp::mf::AmapAdapter amap_adapter_;
+
+  std::future<void> amap_tsp_proc_{};
+  std::mutex mutex_{};
+
+  std::atomic<bool> is_amap_tsp_thread_stop_{false};
+  std::string uuid_{};
 };
 
 }  // namespace mf

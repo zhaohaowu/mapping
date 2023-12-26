@@ -56,6 +56,7 @@ target_link_libraries(mf
   opencv_flann
   opencv_core
   ${AMAP_LIBS}
+  neta_https
   )
 
 install(

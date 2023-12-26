@@ -36,7 +36,7 @@ def parse_args():
     p.add_argument('--plugin', action='store_true', help='build with mal_plugin')
     # 默认值类型
     p.add_argument('--workspace', default=None, help='root of code repository')
-    p.add_argument('-j', default=max(cpu_count() - 2, 1), dest="jobs", type=int, help='make -j')
+    p.add_argument('-j', default=6, dest="jobs", type=int, help='make -j')
     p.add_argument('--hdmap', default='/usr/local/hd_map', help='hd_map path')
 
     return p.parse_args()

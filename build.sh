@@ -34,12 +34,11 @@ if [ "${WITH_MAL_PLUGIN_FLAG}" = "true" ]; then
   src_folder="$mapping_plugin_workspace/release/mal_plugin_orin/runtime_service/mapping_plugin/"
   destination_folder="${WORKSPACE}/release/mal_orin/runtime_service/"
   cp $src_folder $destination_folder -rf
-  rm $destination_folder/mapping_plugin/lib/ -rf
-  cp $src_folder/../../lib/* $destination_folder/../lib/ -rf
-  mv $destination_folder/mapping_plugin/scripts/run.sh $destination_folder/../scripts/
-else
-  echo "not build mal_plugin"
-
-rm ${destination_folder}/../../../plugin_env.txt
+  rm $destination_folder/mapping_plugin/lib/* -rf
+  cp $src_folder/../../lib/libmapping_europa_common.so $destination_folder/mapping_plugin/lib/
+  cp $src_folder/../../lib/libmapping_europa_hdmap.so $destination_folder/mapping_plugin/lib/
+  cp $src_folder/../../scripts/run.sh $destination_folder/../scripts/
+  echo "=========***======== ${WORKSPACE}"
+  rm ${WORKSPACE}/plugin_env.txt -rf
 fi
 

@@ -14,9 +14,6 @@ input:
     - topic: running_mode 
       capacity: 5
 
-# output:
-#     - topic: /localization/local_map_loc
-#     - topic: /localization/local_map
 
 trigger:
   - name: recv_laneline
@@ -43,7 +40,3 @@ trigger:
   - name: send_lm # send workresult1,workresult2
     type: PERIOD
     period: 100
-
-  - name: send_lm_loc # send workresult1,workresult2
-    type: PERIOD
-    period: 2000

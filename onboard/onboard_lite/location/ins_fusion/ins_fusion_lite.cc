@@ -15,6 +15,7 @@
 #include "modules/util/include/util/mapping_log.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "yaml-cpp/yaml.h"
+#include "perception-base/base/state_machine/state_machine_info.h"
 
 namespace hozon {
 namespace perception {
@@ -43,6 +44,8 @@ int32_t InsFusionLite::AlgInit() {
   REGISTER_PROTO_MESSAGE_TYPE("imu_ins", hozon::soc::ImuIns);
   REGISTER_PROTO_MESSAGE_TYPE("/location/ins_fusion",
                               hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE("running_mode",
+                              hozon::perception::common_onboard::running_mode);
   HLOG_INFO << "RegistAlgProcessFunc";
   // 输出Ins数据
   RegistAlgProcessFunc("send_ins_proc", std::bind(&InsFusionLite::send_ins,
@@ -53,6 +56,9 @@ int32_t InsFusionLite::AlgInit() {
   RegistAlgProcessFunc(
       "receive_inspva",
       std::bind(&InsFusionLite::receive_inspva, this, std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_running_mode",
+      std::bind(&InsFusionLite::OnRunningMode, this, std::placeholders::_1));
 
   HLOG_INFO << "AlgInit successfully ";
   YAML::Node config = YAML::LoadFile(ins_fusion_lite_config);
@@ -112,6 +118,40 @@ int32_t InsFusionLite::receive_inspva(Bundle* input) {
   ins_fusion_->OnInspva(*inspva_proto.get());
   return 0;
 }
+
+int32_t InsFusionLite::OnRunningMode(Bundle* input) {
+  auto rm_msg = input->GetOne("running_mode");
+  if (rm_msg == nullptr) {
+    HLOG_ERROR << "nullptr rm_msg plugin";
+    return -1;
+  }
+  auto msg =
+      std::static_pointer_cast<hozon::perception::common_onboard::running_mode>(
+          rm_msg->proto_msg);
+  if (msg == nullptr) {
+    HLOG_ERROR << "nullptr rm_msg->proto_msg";
+    return -1;
+  }
+  int runmode = msg->mode();
+  // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
+  if (runmode ==
+      static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
+    PauseTrigger("send_ins_proc");
+    PauseTrigger("receive_inspva");
+    PauseTrigger("receive_ins");
+    // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
+  } else if (runmode == static_cast<int>(
+                            hozon::perception::base::RunningMode::DRIVING) ||
+             runmode ==
+                 static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
+    ResumeTrigger("send_ins_proc");
+    ResumeTrigger("receive_inspva");
+    ResumeTrigger("receive_ins");
+    // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & ALL";
+  }
+  return 0;
+}
+
 }  //  namespace common_onboard
 }  //  namespace perception
 }  //  namespace hozon

@@ -14,6 +14,7 @@
 #include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
 #include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 #include "modules/location/ins_fusion/lib/ins_fusion.h"
+#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 
 namespace hozon {
 namespace perception {
@@ -35,6 +36,7 @@ class InsFusionLite : public hozon::netaos::adf_lite::Executor {
   // send in-process data and interprocess data
   int32_t receive_ins(Bundle* input);
   int32_t receive_inspva(Bundle* input);
+  int32_t OnRunningMode(Bundle* input);
 
  private:
   std::unique_ptr<hozon::mp::loc::InsFusion> ins_fusion_ = nullptr;

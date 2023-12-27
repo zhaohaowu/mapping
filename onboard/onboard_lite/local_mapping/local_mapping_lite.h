@@ -47,11 +47,6 @@ class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
 
   std::shared_ptr<LMapApp> lmap_ = nullptr;
   std::shared_ptr<hozon::mapping::LocalMap> result = nullptr;
-
-  enum RUNMODE { UNKNOWN = 0, DRIVER = 1, PARKING = 2 };
-
- private:
-  std::atomic<int32_t> runnmode_;
 };
 
 // REGISTER_ADF_CLASS(LocalMappingOnboard, LocalMappingOnboard);

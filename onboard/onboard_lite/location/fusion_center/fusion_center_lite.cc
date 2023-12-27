@@ -10,6 +10,7 @@
 
 #include "depend/proto/local_mapping/local_map.pb.h"
 #include "onboard/onboard_lite/location/fusion_center/fusion_center_lite.h"
+#include "perception-base/base/state_machine/state_machine_info.h"
 
 namespace hozon {
 namespace perception {
@@ -21,6 +22,7 @@ const char* const kDrFusionTopic = "/location/dr_fusion";
 const char* const kPoseEstimationTopic = "/location/pose_estimation";
 const char* const kLocalMapTopic = "local_map";
 const char* const kFcTopic = "localization";
+const char* const kRunningModeTopic = "running_mode";
 const char* const kFcConfSuffix =
     "runtime_service/mapping/conf/mapping/"
     "location/fusion_center/fc_config.yaml";
@@ -65,6 +67,8 @@ void FusionCenterLite::RegistMessageType() const {
   REGISTER_PROTO_MESSAGE_TYPE(kPoseEstimationTopic,
                               hozon::localization::HafNodeInfo);
   REGISTER_PROTO_MESSAGE_TYPE(kFcTopic, hozon::localization::Localization);
+  REGISTER_PROTO_MESSAGE_TYPE(kRunningModeTopic,
+                              hozon::perception::common_onboard::running_mode);
 }
 
 void FusionCenterLite::RegistProcessFunc() {
@@ -81,6 +85,9 @@ void FusionCenterLite::RegistProcessFunc() {
   RegistAlgProcessFunc("recv_pose_estimation",
                        std::bind(&FusionCenterLite::OnPoseEstimation, this,
                                  std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_running_mode",
+      std::bind(&FusionCenterLite::OnRunningMode, this, std::placeholders::_1));
 }
 
 int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
@@ -187,6 +194,39 @@ int32_t FusionCenterLite::OnPoseEstimation(Bundle* input) {
   }
 
   fusion_center_->OnPoseEstimate(*pose_estimation);
+  return 0;
+}
+
+int32_t FusionCenterLite::OnRunningMode(Bundle* input) {
+  auto rm_msg = input->GetOne("running_mode");
+  if (rm_msg == nullptr) {
+    HLOG_ERROR << "nullptr rm_msg plugin";
+    return -1;
+  }
+  auto msg =
+      std::static_pointer_cast<hozon::perception::common_onboard::running_mode>(
+          rm_msg->proto_msg);
+  if (msg == nullptr) {
+    HLOG_ERROR << "nullptr rm_msg->proto_msg";
+    return -1;
+  }
+  int runmode = msg->mode();
+  // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
+  if (runmode ==
+      static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
+    PauseTrigger("recv_ins_fusion");
+    PauseTrigger("recv_pose_estimation");
+    PauseTrigger("recv_dr_fusion");
+    // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
+  } else if (runmode == static_cast<int>(
+                            hozon::perception::base::RunningMode::DRIVING) ||
+             runmode ==
+                 static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
+    ResumeTrigger("recv_ins_fusion");
+    ResumeTrigger("recv_pose_estimation");
+    ResumeTrigger("recv_dr_fusion");
+    // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & ALL";
+  }
   return 0;
 }
 

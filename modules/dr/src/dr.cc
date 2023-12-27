@@ -223,7 +223,7 @@ void DRInterface::SetLocationData(
       latest_odom.imu_stamp);
 
   double sys_timestamp = GetCurrentNsecTime();
-  locationDataPtr->mutable_header()->set_publish_stamp(sys_timestamp * 1e-9);
+  locationDataPtr->mutable_header()->set_publish_stamp(sys_timestamp);
 
   locationDataPtr->mutable_header()->set_frame_id("HZ_DR");
   dr_seq_cnt++;

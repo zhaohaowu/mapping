@@ -15,6 +15,8 @@ input:
     capacity: 2
   - topic: local_map
     capacity: 2
+  - topic: running_mode 
+    capacity: 2
 
 
 output:
@@ -36,6 +38,11 @@ trigger:
     mainSources:
       - name: /location/dr_fusion
         timeout: 100
+  - name: recv_running_mode
+    type: EVENT
+    mainSources:
+      - name: running_mode
+        timeout: 1000
   # - name: recv_local_map
   #   type: EVENT
   #   mainSources:

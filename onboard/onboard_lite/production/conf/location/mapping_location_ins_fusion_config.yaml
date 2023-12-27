@@ -9,6 +9,8 @@ input:
     capacity: 2
   - topic: inspva
     capacity: 2
+  - topic: running_mode 
+    capacity: 2
 
 output:
   - topic: /location/ins_fusion
@@ -27,3 +29,8 @@ trigger:
     mainSources:
       - name: imu_ins
         timeout: 100
+  - name: recv_running_mode
+    type: EVENT
+    mainSources:
+      - name: running_mode
+        timeout: 1000

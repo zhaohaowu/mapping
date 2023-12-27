@@ -15,6 +15,7 @@
 #include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
 #include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 #include "modules/location/pose_estimation/lib/pose_estimation.h"
+#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 
 namespace hozon {
 namespace perception {
@@ -40,6 +41,7 @@ class PoseEstimationLite : public hozon::netaos::adf_lite::Executor {
   int32_t OnPerception(Bundle* input);
   // void OnMarkPole(const std::shared_ptr<::perception::Roadmarking> &msg);
   int32_t OnPoseEstimation(Bundle* input);
+  int32_t OnRunningMode(Bundle* input);
 
  private:
   std::unique_ptr<MapMatching> pose_estimation_ = nullptr;

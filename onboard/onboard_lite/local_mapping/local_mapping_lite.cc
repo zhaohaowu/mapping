@@ -17,6 +17,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
+#include "perception-base/base/state_machine/state_machine_info.h"
 #include "perception-lib/lib/environment/environment.h"
 
 namespace hozon {
@@ -98,21 +99,25 @@ int32_t LocalMappingOnboard::OnRunningMode(adf_lite_Bundle* input) {
           rm_msg->proto_msg);
   int runmode = msg->mode();
   // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
-  if (runmode == static_cast<int>(RUNMODE::PARKING)) {
+  if (runmode ==
+      static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
     PauseTrigger("recv_laneline");
     PauseTrigger("recv_localization");
     PauseTrigger("recv_ins");
     PauseTrigger("recv_image");
+    PauseTrigger("send_lm");
     // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
-  } else if (runmode == static_cast<int>(RUNMODE::DRIVER) ||
-             runmode == static_cast<int>(RUNMODE::UNKNOWN)) {
+  } else if (runmode == static_cast<int>(
+                            hozon::perception::base::RunningMode::DRIVING) ||
+             runmode ==
+                 static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
     ResumeTrigger("recv_laneline");
     ResumeTrigger("recv_localization");
     ResumeTrigger("recv_ins");
     ResumeTrigger("recv_image");
+    ResumeTrigger("send_lm");
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
   }
-  runnmode_.store(runmode);
   return 0;
 }
 
@@ -236,10 +241,6 @@ int32_t LocalMappingOnboard::OnImage(adf_lite_Bundle* input) {
 
 int32_t LocalMappingOnboard::LocalMapPublish(adf_lite_Bundle* /*output*/) {
   HLOG_INFO << "start publish localmap...";
-  int32_t runmode = runnmode_.load();
-  if (runmode == 2) {
-    return 0;
-  }
   result->Clear();
   if (lmap_->FetchLocalMap(result)) {
     auto workflow1 = std::make_shared<hozon::netaos::adf_lite::BaseData>();

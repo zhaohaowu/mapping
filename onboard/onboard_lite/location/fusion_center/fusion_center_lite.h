@@ -17,6 +17,7 @@
 #include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 #include "modules/location/coord_adapter/lib/coord_adapter.h"
 #include "modules/location/fusion_center/lib/fusion_center.h"
+#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 
 namespace hozon {
 namespace perception {
@@ -41,6 +42,7 @@ class FusionCenterLite : public hozon::netaos::adf_lite::Executor {
   int32_t OnDrFusion(Bundle* input);
   int32_t OnLocalMap(Bundle* input);
   int32_t OnPoseEstimation(Bundle* input);
+  int32_t OnRunningMode(Bundle* input);
 
  private:
   std::unique_ptr<FusionCenter> fusion_center_ = nullptr;

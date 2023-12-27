@@ -11,6 +11,7 @@
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "onboard/onboard_lite/location/pose_estimation/pose_estimation_lite.h"
 #include "yaml-cpp/yaml.h"
+#include "perception-base/base/state_machine/state_machine_info.h"
 
 DEFINE_string(config_yaml,
               "runtime_service/mapping/conf/mapping/location/"
@@ -35,6 +36,7 @@ constexpr char* const kInsFusionTopic = "/location/ins_fusion";
 // constexpr char* const kFcTopic = "localization";
 constexpr char* const kPerceptionTopic = "percep_transport";
 constexpr char* const kPoseEstimationTopic = "/location/pose_estimation";
+constexpr char* const kRunningModeTopic = "running_mode";
 int32_t PoseEstimationLite::AlgInit() {
   pose_estimation_ = std::make_unique<MapMatching>();
   const std::string adflite_root_path =
@@ -61,6 +63,9 @@ int32_t PoseEstimationLite::AlgInit() {
   RegistAlgProcessFunc("send_pose_estimation_result",
                        std::bind(&PoseEstimationLite::OnPoseEstimation, this,
                                  std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_running_mode",
+      std::bind(&PoseEstimationLite::OnRunningMode, this, std::placeholders::_1));
   YAML::Node config = YAML::LoadFile(pose_estimation_lite_config_yaml);
   auto use_rviz_bridge = config["use_rviz_bridge"].as<bool>();
   if (use_rviz_bridge) {
@@ -90,6 +95,8 @@ void PoseEstimationLite::RegistMessageType() const {
                               hozon::perception::TransportElement);
   REGISTER_PROTO_MESSAGE_TYPE(kPoseEstimationTopic,
                               hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE(kRunningModeTopic,
+                              hozon::perception::common_onboard::running_mode);
 }
 
 int32_t PoseEstimationLite::OnIns(Bundle* input) {
@@ -171,6 +178,39 @@ int32_t PoseEstimationLite::OnPoseEstimation(Bundle* input) {
   pe_workflow->proto_msg = pe_node_info;
   SendOutput(kPoseEstimationTopic, pe_workflow);
 
+  return 0;
+}
+
+int32_t PoseEstimationLite::OnRunningMode(Bundle* input) {
+  auto rm_msg = input->GetOne("running_mode");
+  if (rm_msg == nullptr) {
+    HLOG_ERROR << "nullptr rm_msg plugin";
+    return -1;
+  }
+  auto msg =
+      std::static_pointer_cast<hozon::perception::common_onboard::running_mode>(
+          rm_msg->proto_msg);
+  if (msg == nullptr) {
+    HLOG_ERROR << "nullptr rm_msg->proto_msg";
+    return -1;
+  }
+  int runmode = msg->mode();
+  // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
+  if (runmode ==
+      static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
+    PauseTrigger("recv_ins_fusion");
+    PauseTrigger("recv_perception");
+    PauseTrigger("send_pose_estimation_result");
+    // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
+  } else if (runmode == static_cast<int>(
+                            hozon::perception::base::RunningMode::DRIVING) ||
+             runmode ==
+                 static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
+    ResumeTrigger("recv_ins_fusion");
+    ResumeTrigger("recv_perception");
+    ResumeTrigger("send_pose_estimation_result");
+    // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & ALL";
+  }
   return 0;
 }
 

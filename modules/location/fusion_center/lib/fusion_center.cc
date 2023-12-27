@@ -507,15 +507,22 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose->mutable_gcj02()->set_y(global_node.blh(1));
   pose->mutable_gcj02()->set_z(global_node.blh(2));
 
-  const double zone = pose->gcj02().y() / 6.0 + 31;
-  const uint32_t curr_zone = std::floor(zone);
-  uint32_t near_zone = 0;
-  if ((zone - curr_zone) > 0.5) {
-    near_zone = curr_zone + 1;
-  } else {
-    near_zone = curr_zone - 1;
-  }
+  // mashaoping map's default value is 51
+  // const double zone = pose->gcj02().y() / 6.0 + 31;
+  // const uint32_t curr_zone = std::floor(zone);
+  // uint32_t near_zone = 0;
+  // if ((zone - curr_zone) > 0.5) {
+  //   near_zone = curr_zone + 1;
+  // } else {
+  //   near_zone = curr_zone - 1;
+  // }
 
+  // pose->set_utm_zone_01(curr_zone);
+  // pose->set_utm_zone_02(near_zone);
+  // pose->set_using_utm_zone(curr_zone);
+
+  auto curr_zone = 51;
+  auto near_zone = 51;
   pose->set_utm_zone_01(curr_zone);
   pose->set_utm_zone_02(near_zone);
   pose->set_using_utm_zone(curr_zone);

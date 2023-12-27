@@ -38,6 +38,5 @@ if [ "${WITH_MAL_PLUGIN_FLAG}" = "true" ]; then
   cp $src_folder/../../lib/libmapping_europa_common.so $dest_folder/mapping_plugin/lib/
   cp $src_folder/../../lib/libmapping_europa_hdmap.so $dest_folder/mapping_plugin/lib/
   cp $src_folder/../../scripts/* $dest_folder/../scripts/
-  rm ${WORKSPACE}/plugin_env.txt -rf
 fi
-
+rm ${WORKSPACE}/plugin_env.txt -rf

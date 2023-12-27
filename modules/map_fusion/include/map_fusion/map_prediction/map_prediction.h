@@ -76,7 +76,6 @@ class MapPrediction {
   void Clear();
   void OnLocationInGlobal(const Eigen::Vector3d& pos_gcj02, uint32_t utm_zone,
                           double utm_x, double utm_y);
-  void LocalEnuCenter(const std::shared_ptr<hozon::hdmap::Map>& msg);
   void CalculateTanTheta(const std::string& idd);
   void CreatRoadTable(
       const std::vector<hozon::hdmap::RoadInfoConstPtr>& roads_in_range);

@@ -36,11 +36,8 @@ int32_t MapFusionLite::AlgInit() {
   FLAGS_orin_viz = config["orin_viz"].as<bool>();
   FLAGS_orin_viz_addr = config["orin_viz_addr"].as<std::string>();
   FLAGS_map_dir = work_root + config["map_dir"].as<std::string>();
-  FLAGS_use_ehp = config["use_ehp"].as<bool>();
-  FLAGS_use_ehp_odd_to_stop = config["use_ehp_odd_to_stop"].as<bool>();
   FLAGS_ehp_monitor = config["ehp_monitor"].as<int32_t>();
   FLAGS_enable_ehp_routing = config["enable_ehp_routing"].as<bool>();
-  FLAGS_using_record_ehp_data = config["using_record_ehp_data"].as<bool>();
   FLAGS_ehp_log_root_dir = config["ehp_log_root_dir"].as<std::string>();
   FLAGS_map_service_mode = config["map_service_mode"].as<int32_t>();
   FLAGS_topo_rviz = config["topo_rviz"].as<bool>();

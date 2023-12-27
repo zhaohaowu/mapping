@@ -106,7 +106,6 @@ class TopoAssignment {
   // orientation in local enu frame
   Eigen::Quaterniond ins_q_w_v_;
 
-  bool init_ = false;
   bool init_ref_point_ = false;
   double cur_timestamp_ = 0.;
 
@@ -234,9 +233,6 @@ class TopoAssignment {
   static bool LaneBelongToLaneLine(
       const std::vector<Eigen::Vector2d>& lane_points,
       const Eigen::Vector2d& p0, const Eigen::Vector2d& p1);
-
-  hozon::common::Pose init_pose_;
-  std::string init_pose_ser_;
 };
 
 }  // namespace mf

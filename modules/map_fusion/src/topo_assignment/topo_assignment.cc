@@ -107,22 +107,9 @@ void TopoAssignment::OnLocalization(
     vehicle_pose_ = pos_global;
   }
 
-  if (!init_) {
-    HLOG_INFO << "ref_point_ = pose";
-    ref_point_ = vehicle_pose_;
-
-    init_pose_.Clear();
-    init_pose_.mutable_gcj02()->set_x(utm_y);
-    init_pose_.mutable_gcj02()->set_y(utm_x);
-    init_pose_.mutable_gcj02()->set_z(0);
-    init_pose_.mutable_pos_utm_01()->CopyFrom(msg->pose().pos_utm_01());
-    init_pose_.set_utm_zone_01(msg->pose().utm_zone_01());
-    init_pose_.mutable_euler_angles()->CopyFrom(msg->pose().euler_angles());
-    init_pose_.mutable_local_pose()->CopyFrom(msg->pose().local_pose());
-    init_pose_.mutable_euler_angles_local()->CopyFrom(
-        msg->pose().euler_angles_local());
-    init_pose_ser_ = init_pose_.SerializeAsString();
-    init_ = true;
+  if (!init_ref_point_) {
+    HLOG_ERROR << "ref point not init yet";
+    return;
   }
 
   Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(vehicle_pose_, ref_point_);
@@ -563,7 +550,7 @@ void TopoAssignment::TopoAssign() {
   topo_map_->mutable_header()->mutable_header()->CopyFrom(local_map_->header());
 
   // 注意：用map.header.id来承载初始化的位姿，包含local enu站心
-  topo_map_->mutable_header()->set_id(init_pose_ser_);
+  // topo_map_->mutable_header()->set_id(init_pose_ser_);
 
   std::shared_ptr<hozon::hdmap::Map> topo_map_geo =
       std::make_shared<hozon::hdmap::Map>();

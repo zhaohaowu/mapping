@@ -227,7 +227,6 @@ void MapPrediction::OnTopoMap(
   // uint32_t utm_zone = 0;
   {
     std::lock_guard<std::mutex> lock(mtx_);
-    LocalEnuCenter(msg);
 
     local_msg_ = std::make_shared<hozon::hdmap::Map>();
     local_msg_->Clear();
@@ -277,6 +276,11 @@ void MapPrediction::OnTopoMap(
     Clear();
 
     lane_table_ = std::get<0>(map_info);
+    // 更新站心
+    if (local_enu_center_flag_) {
+      local_enu_center_ = lane_table_.begin()->second.ref_point;
+      local_enu_center_flag_ = false;
+    }
     road_table_ = std::get<1>(map_info);
     // all_section_ids_ = std::get<2>(map_info);
 
@@ -386,20 +390,6 @@ void MapPrediction::Clear() {
   add_section_ids_.clear();
   end_prev_ids_.clear();
   all_section_ids_.clear();
-}
-
-void MapPrediction::LocalEnuCenter(
-    const std::shared_ptr<hozon::hdmap::Map>& msg) {
-  if (local_enu_center_flag_ && !msg->header().id().empty()) {
-    bool parsed = init_pose_.ParseFromString(msg->header().id());
-    if (!parsed) {
-      HLOG_ERROR << "parse init pose failed";
-      return;
-    }
-    local_enu_center_ << init_pose_.gcj02().x(), init_pose_.gcj02().y(),
-        init_pose_.gcj02().z();
-    local_enu_center_flag_ = false;
-  }
 }
 
 void MapPrediction::CreatIdVector(

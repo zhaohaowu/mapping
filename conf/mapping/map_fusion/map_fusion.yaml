@@ -5,11 +5,11 @@ orin_viz_addr: tcp://10.6.74.153:9100
 
 map_dir: /hd_map
 #map_dir: /data/map/changfeng_park
-use_ehp: true
-use_ehp_odd_to_stop: false
+#use_ehp: true
+#use_ehp_odd_to_stop: false
 ehp_monitor: 1
 enable_ehp_routing: true
-using_record_ehp_data: false
+#using_record_ehp_data: false
 ehp_log_root_dir: /hd_map/ehp_log
 map_service_mode: 1
 topo_rviz: false

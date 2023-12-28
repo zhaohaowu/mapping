@@ -17,6 +17,15 @@ namespace perception {
 namespace common_onboard {
 
 int32_t PhmComponentOnboard::AlgInit() {
+  // init glfag
+  const char* var = std::getenv("ADFLITE_ROOT_PATH");
+  if (var == nullptr) {
+    std::cerr << "can not get ADFLITE_ROOT_PATH" << std::endl;
+    return -1;
+  }
+  std::string work_root = std::string(var);
+  std::string gflag_file = work_root + "/runtime_service/mapping/conf/lite/mapping_config.flags";
+  gflags::ReadFromFlagsFile(gflag_file, "", false);
   // phm
   phm_component_ = std::make_unique<PhmComponent>();
   phm_component_->Init();
@@ -24,7 +33,6 @@ int32_t PhmComponentOnboard::AlgInit() {
   RegistAlgProcessFunc("send_running_mode",
                        std::bind(&PhmComponentOnboard::send_running_mode, this,
                                  std::placeholders::_1));
-
   // phm
   // Receive driving and parking status
   // auto cfgMgr = hozon::netaos::cfg::ConfigParam::Instance();

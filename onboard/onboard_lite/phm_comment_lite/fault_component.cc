@@ -3,20 +3,18 @@
  *Author: Hozon
  *Date: 2023-11-29
  *****************************************************************************/
-
-#include "onboard/onboard_lite/phm_comment_lite/phm_commenet.h"
 #include "lib/fault_manager/fault_manager.h"
 #include "lib/io/file_util.h"
+#include "onboard/onboard_lite/phm_comment_lite/phm_commenet.h"
 
 namespace hozon {
 namespace perception {
 namespace common_onboard {
 using hozon::perception::lib::FaultManager;
-
 bool PhmComponent::InitFault() {
   std::string fm_config_file = "fm_config_file";
   GetFilePath(fm_config_file);
-  HLOG_INFO << "[DEBUG_PHM] -------------fm_config_file-----: " << fm_config_file;
+  HLOG_INFO << "[DEBUG_PHM] " << fm_config_file;
   // 初始化故障管理
   FaultManager::Instance()->Init(fm_config_file);
   // 注册故障上报接口
@@ -66,6 +64,10 @@ bool PhmComponent::FaultReport(const int32_t& faultid, const int32_t& objid,
                                const int32_t& status,
                                const int32_t& debounceCount,
                                const int32_t& debounceTime) {
+  HLOG_DEBUG << "[DEBUG_PHM] FLAGS_enable_phm_option " << FLAGS_enable_phm_option;
+  if (!FLAGS_enable_phm_option) {
+    return false;
+  }
   HLOG_DEBUG << "[DEBUG_PHM] faultid " << faultid << " objid " << objid
              << " status " << status;
   if (!phm_client_) {

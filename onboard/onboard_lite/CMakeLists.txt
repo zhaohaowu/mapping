@@ -8,6 +8,7 @@ else()
   set(NOS_PLATFORM ${LOCAL_TARGET_PLATFORM})
 endif()
 
+add_subdirectory(flags)
 add_subdirectory(phm_comment_lite)
 add_subdirectory(map_fusion)
 add_subdirectory(dr)

@@ -14,9 +14,7 @@
 #include "phm/include/phm_client.h"
 #include "base/state_machine/state_machine_info.h"
 #include "lib/config_manager/config_manager.h"
-#if 0
-#include "sm/include/state_client.h"
-#endif
+#include "onboard/onboard_lite/flags/mapping_flags.h"
 
 namespace hozon {
 namespace perception {
@@ -25,9 +23,6 @@ namespace common_onboard {
 using hozon::netaos::phm::PHMClient;
 using hozon::netaos::phm::ReceiveFault_t;
 using hozon::netaos::phm::SendFault_t;
-#if 0
-using hozon::netaos::sm::StateClient;
-#endif
 
 class PhmComponent {
  public:
@@ -54,17 +49,6 @@ class PhmComponent {
   void PauseTrigger();
   void ResumeTrigger();
   std::string Name() const {
-#if 0
-    std::string processname = StateClient_->GetProcessName();
-    processname_ = processname;
-    HLOG_INFO << "[DEBUG_PHM] processname: " << processname;
-    std::string model_config_name;
-    if ("perception_parking" == processname) {
-      model_config_name = "ParkingPhmComponent";
-    } else if ("perception" == processname) {
-      model_config_name = "PhmComponent";
-    }
-#endif
     return "MappingComponent";
   }
 
@@ -79,10 +63,6 @@ class PhmComponent {
   std::vector<std::string> trigger_;
   std::function<int32_t(const std::string& trigger)> PauseTrigger_;
   std::function<int32_t(const std::string& trigger)> ResumeTrigger_;
-  std::string processname_;
-#if 0
-  std::unique_ptr<StateClient> StateClient_;
-#endif
 };
 }  // namespace common_onboard
 }  // namespace perception

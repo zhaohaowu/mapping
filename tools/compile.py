@@ -175,6 +175,12 @@ def x86_build(workspace, platform, build_directory, release_directory, **kwargs)
     args['-DIND'] = "ON" if kwargs['ind'] else "OFF"
     args['-DMIDDLEWARE'] = "CYBER" if kwargs['cyber'] else "LITE"
     args['-DHDMAP'] = kwargs['hdmap']
+    if kwargs['plugin']:
+        os.environ['WITH_MAL_PLUGIN_FLAG'] = 'true'
+    else:
+        os.environ['WITH_MAL_PLUGIN_FLAG'] = 'false'
+    with open('plugin_env.txt', 'w') as file:
+            file.write(os.environ.get('WITH_MAL_PLUGIN_FLAG', ''))
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"

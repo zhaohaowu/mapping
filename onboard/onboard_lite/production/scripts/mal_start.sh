@@ -13,6 +13,7 @@ echo ${WORKSPACE}
 
 # third so
 export LD_LIBRARY_PATH=${OUTPUT_ROOT}/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../lib:$LD_LIBRARY_PATH
 # mapping so
 export LD_LIBRARY_PATH=${OUTPUT_ROOT}/runtime_service/mapping/lib:$LD_LIBRARY_PATH
 

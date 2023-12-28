@@ -17,6 +17,16 @@ if [ -d "${WORKSPACE}/release" ]; then
 fi
 $PYTHON_BIN tools/compile.py $@ --workspace $WORKSPACE
 
+if [ ! -d "${WORKSPACE}/release/lib/" ]; then
+  mkdir -p "${WORKSPACE}/release/lib/"
+fi
+
+lib_folder="${WORKSPACE}/release/mal_orin/lib/"
+mv $lib_folder/libeuropa_common.so ${WORKSPACE}/release/lib/
+mv $lib_folder/libeuropa_hdmap.so ${WORKSPACE}/release/lib/
+mv $lib_folder/libperception-base.so ${WORKSPACE}/release/lib/
+mv $lib_folder/libperception-lib.so ${WORKSPACE}/release/lib/
+
 WITH_MAL_PLUGIN_FLAG=$(cat plugin_env.txt)
 if [ "${WITH_MAL_PLUGIN_FLAG}" = "true" ]; then
   cd ${WORKSPACE}/depend/mapping_plugin
@@ -38,5 +48,5 @@ if [ "${WITH_MAL_PLUGIN_FLAG}" = "true" ]; then
   cp $src_folder/../../lib/libmapping_europa_common.so $dest_folder/mapping_plugin/lib/
   cp $src_folder/../../lib/libmapping_europa_hdmap.so $dest_folder/mapping_plugin/lib/
   cp $src_folder/../../scripts/* $dest_folder/../scripts/
+  rm ${WORKSPACE}/plugin_env.txt -rf
 fi
-rm ${WORKSPACE}/plugin_env.txt -rf

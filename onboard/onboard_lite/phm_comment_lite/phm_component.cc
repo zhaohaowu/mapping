@@ -15,9 +15,6 @@ namespace common_onboard {
 
 PhmComponent::PhmComponent() {
   phm_client_ = std::make_shared<PHMClient>();
-#if 0
-  StateClient_ = std::make_unique<StateClient>();
-#endif
 }
 
 PhmComponent::~PhmComponent() {

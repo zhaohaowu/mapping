@@ -29,14 +29,20 @@ LMapApp::LMapApp(const std::string& mapping_path,
     hdmap_->LoadMapFromProto(*map);
   }
   if (use_rviz_ && RVIZ_AGENT.Ok()) {
+    stop_rviz_thread_.store(false);
     rviz_thread_ = std::thread(&LMapApp::RvizFunc, this);
   }
 }
 
-LMapApp::~LMapApp() { rviz_thread_.join(); }
+LMapApp::~LMapApp() {
+  if (use_rviz_ && RVIZ_AGENT.Ok() && rviz_thread_.joinable()) {
+    stop_rviz_thread_.store(true);
+    rviz_thread_.join();
+  }
+}
 
 void LMapApp::RvizFunc() {
-  while (true) {
+  while (!stop_rviz_thread_.load()) {
     T_mutex_.lock();
     Sophus::SE3d T_W_V = T_W_V_;
     Sophus::SE3d T_G_V = T_G_V_;

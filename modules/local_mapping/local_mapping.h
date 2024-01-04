@@ -148,6 +148,7 @@ class LMapApp {
   std::atomic<bool> laneline_inited_ = false;
   std::atomic<bool> ins_inited_ = false;
   std::thread rviz_thread_;
+  std::atomic<bool> stop_rviz_thread_ = true;
 };
 
 }  // namespace lm

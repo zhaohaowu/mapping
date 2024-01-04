@@ -18,7 +18,11 @@ namespace mp {
 
 class GlobalHdMap {
  public:
-  std::shared_ptr<hdmap::HDMap> GetHdMap() const { return hd_map_; }
+  std::shared_ptr<hdmap::HDMap> GetHdMap() {
+    std::lock_guard<std::mutex> lock(mtx_);
+    return hd_map_;
+  }
+
   void ResetHdMap(const std::shared_ptr<hdmap::HDMap>& hd_map);
 
   static GlobalHdMap* Instance() {
@@ -29,6 +33,7 @@ class GlobalHdMap {
  private:
   int Init();
   std::shared_ptr<hdmap::HDMap> hd_map_ = nullptr;
+  std::mutex mtx_;
   GlobalHdMap() { Init(); }
   ~GlobalHdMap() = default;
   GlobalHdMap(const GlobalHdMap&) { Init(); }

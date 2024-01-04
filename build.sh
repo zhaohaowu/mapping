@@ -22,8 +22,6 @@ if [ ! -d "${WORKSPACE}/release/lib/" ]; then
 fi
 
 lib_folder="${WORKSPACE}/release/mal_orin/lib/"
-mv $lib_folder/libeuropa_common.so ${WORKSPACE}/release/lib/
-mv $lib_folder/libeuropa_hdmap.so ${WORKSPACE}/release/lib/
 mv $lib_folder/libperception-base.so ${WORKSPACE}/release/lib/
 mv $lib_folder/libperception-lib.so ${WORKSPACE}/release/lib/
 

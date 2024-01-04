@@ -11,11 +11,13 @@ namespace hozon {
 namespace mp {
 
 int GlobalHdMap::Init() {
+  std::lock_guard<std::mutex> lock(mtx_);
   hd_map_ = std::make_shared<hdmap::HDMap>();
   return 0;
 }
 
 void GlobalHdMap::ResetHdMap(const std::shared_ptr<hdmap::HDMap>& hd_map) {
+  std::lock_guard<std::mutex> lock(mtx_);
   hd_map_ = hd_map;
 }
 

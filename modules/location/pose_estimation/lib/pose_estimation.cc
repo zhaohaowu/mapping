@@ -19,8 +19,8 @@ namespace hozon {
 namespace mp {
 namespace loc {
 
-bool MapMatching::Init(const std::string &config_file,
-                       const std::string &cfg_cam_path) {
+bool MapMatching::Init(const std::string& config_file,
+                       const std::string& cfg_cam_path) {
   YAML::Node config = YAML::LoadFile(config_file);
 
   bool use_pole = config["use_pole"].as<bool>();
@@ -200,6 +200,10 @@ MapMatching::~MapMatching() {
 //     const std::shared_ptr<const location::HafLocation> &msg) {
 //   setLocation(*msg);
 // }
+void MapMatching::OnLocation(
+    const std::shared_ptr<const ::hozon::localization::Localization>& msg) {
+  setLocation(*msg);
+}
 
 // 获取地图的方式由接受proto消息切换为对map_service api的调用
 // void MapMatching::OnHdMap(
@@ -212,7 +216,7 @@ MapMatching::~MapMatching() {
 // }
 
 void MapMatching::OnPerception(
-    const std::shared_ptr<const ::hozon::perception::TransportElement> &msg) {
+    const std::shared_ptr<const ::hozon::perception::TransportElement>& msg) {
   setFrontRoadMark(*msg, true);
 }
 
@@ -228,11 +232,11 @@ void MapMatching::OnPerception(
 // }
 
 void MapMatching::OnIns(
-    const std::shared_ptr<const ::hozon::localization::HafNodeInfo> &msg) {
+    const std::shared_ptr<const ::hozon::localization::HafNodeInfo>& msg) {
   setIns(*msg);
 }
 
-void MapMatching::setIns(const ::hozon::localization::HafNodeInfo &ins) {
+void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
   ins_status_type_ = ins.gps_status();
   if (ins_status_type_ !=
           static_cast<int>(InsStatus::SINGLE_POINT_LOCATION_ORIEN) &&
@@ -320,9 +324,9 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo &ins) {
   }
 }
 
-void MapMatching::pubOdomPoints(const std::string &topic,
-                                const Eigen::Vector3d &trans,
-                                const Eigen::Quaterniond &q, uint64_t sec,
+void MapMatching::pubOdomPoints(const std::string& topic,
+                                const Eigen::Vector3d& trans,
+                                const Eigen::Quaterniond& q, uint64_t sec,
                                 uint64_t nsec) {
   if (!hozon::mp::util::RvizAgent::Instance().Ok()) {
     return;
@@ -346,6 +350,100 @@ void MapMatching::pubOdomPoints(const std::string &topic,
   }
   hozon::mp::util::RvizAgent::Instance().Publish(topic, odom);
   return;
+}
+//   }
+void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
+  if (is_chging_ins_ref_) {
+    HLOG_ERROR << "wait change ins_ref_ in set location " << ins_timestamp_;
+    return;
+  }
+  static bool init_flag = false;
+  if (info.location_state() == 0 || info.location_state() == 12 ||
+      info.location_state() >= 100) {
+    // return;
+    if (!init_flag) {
+      return;
+    }
+    HLOG_ERROR << "info.location_state() : " << info.location_state();
+  } else {
+    init_flag = true;
+  }
+  static double time = -1;
+  uint32_t fc_time_sec = info.header().publish_stamp();
+
+  double stamp = static_cast<double>(info.header().data_stamp());
+  if (time > 0) {
+    auto dt = stamp - time;
+    if (dt < 0 || dt > 1) {
+      // 0.时间出现超前
+      // 1.延时超过1s
+      HLOG_ERROR << "Time error:" << dt;
+      time = stamp;
+      return;
+    }
+  }
+  time = stamp;
+  Eigen::Vector3d pose(info.pose().gcj02().x(), info.pose().gcj02().y(),
+                       info.pose().gcj02().z());
+
+  Eigen::Vector3d pose_84(info.pose().wgs().x(), info.pose().wgs().y(),
+                          info.pose().wgs().z());
+
+  Eigen::Quaterniond q_W_V(
+      info.pose().quaternion().w(), info.pose().quaternion().x(),
+      info.pose().quaternion().y(), info.pose().quaternion().z());
+  q_W_V.normalize();
+  if (q_W_V.norm() < 1e-7) {
+    HLOG_ERROR << "setLocation q_W_V.norm() < 1e-7";
+    return;
+  }
+  if (!init_) {
+    return;
+  }
+  auto enu_84 = hozon::mp::util::Geo::BlhToEnu(pose_84, ref_point_);
+  Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, ref_point_);
+  fc_enu_pose_ = enu;
+  if (!GetHdCurrLaneType(enu)) {
+    HLOG_ERROR << "Cannot get current lane type";
+  }
+}
+
+bool MapMatching::GetHdCurrLaneType(const Eigen::Vector3d& utm) {
+  if (GLOBAL_HD_MAP->Empty()) {
+    HLOG_ERROR << "hqmap server load map failed";
+    return false;
+  }
+  double nearest_s = 0.0;
+  double nearest_l = 0.0;
+  hozon::hdmap::LaneInfoConstPtr lane_ptr = nullptr;
+  hozon::common::PointENU point;
+  point.set_x(utm(0));
+  point.set_y(utm(1));
+  point.set_z(utm(2));
+
+  int ret =
+      GLOBAL_HD_MAP->GetNearestLane(point, &lane_ptr, &nearest_s, &nearest_l);
+
+  if (ret != 0 || lane_ptr == nullptr) {
+    HLOG_ERROR << "get nearest lane failed";
+    return false;
+  }
+  auto curr_lane = GLOBAL_HD_MAP->GetLaneById(lane_ptr->id());
+  if (curr_lane->lane().map_lane_type().toll_lane()) {
+    is_toll_lane_ = true;
+  } else {
+    is_toll_lane_ = false;
+  }
+
+  is_ramp_road_ = lane_ptr->IsRampRoad();
+  is_main_road_ = lane_ptr->IsMainRoad();
+  // HLOG_ERROR << "normal lane type:" <<
+  // curr_lane->lane().map_lane_type().normal()<<"toll_lane lane type:" <<
+  // curr_lane->lane().map_lane_type().toll_lane()<<"is_toll_lane_:"<<is_toll_lane_<<
+  // "lane id:"
+  //            <<
+  //            lane_ptr->id().id()<<"is_ramp_road_:"<<is_ramp_road_<<"is_main_road_:"<<is_main_road_;
+  return true;
 }
 
 // void MapMatching::setLocation(const ::adsfi_proto::internal::HafNodeInfo
@@ -782,8 +880,8 @@ MapMatching::getMmNodeInfo() {
   }
 }
 
-void MapMatching::setSubMap(const Eigen::Vector3d &vehicle_position,
-                            const Eigen::Matrix3d &vehicle_rotation) {
+void MapMatching::setSubMap(const Eigen::Vector3d& vehicle_position,
+                            const Eigen::Matrix3d& vehicle_rotation) {
   if (!init_) {
     HLOG_ERROR << "setSubMap init failed";
     return;
@@ -820,7 +918,7 @@ void MapMatching::setSubMap(const Eigen::Vector3d &vehicle_position,
           auto p =
               std::static_pointer_cast<hozon::mp::loc::MapBoundaryLine>(elment);
           for (auto line : p->boundary_line_) {
-            auto &new_line = line.second;
+            auto& new_line = line.second;
             VP points;
             for (auto point : new_line.control_point) {
               points.emplace_back(point.point);
@@ -829,12 +927,12 @@ void MapMatching::setSubMap(const Eigen::Vector3d &vehicle_position,
               auto line_first_point = points[0];
               auto line_id_mark =
                   lineIdToMarker(line_first_point, new_line.id_boundary);
-              auto *line_marker = markers.add_markers();
+              auto* line_marker = markers.add_markers();
               line_marker->CopyFrom(line_id_mark);
 
               auto lane_mark =
                   laneToMarker(points, new_line.id_boundary, false, true, 1);
-              auto *marker = markers.add_markers();
+              auto* marker = markers.add_markers();
               marker->CopyFrom(lane_mark);
             }
           }
@@ -938,7 +1036,7 @@ void MapMatching::setSubMap(const Eigen::Vector3d &vehicle_position,
 }
 
 void MapMatching::setFrontRoadMark(
-    const ::hozon::perception::TransportElement &roadmark,
+    const ::hozon::perception::TransportElement& roadmark,
     bool is_roadmark = true) {
   sensorPush(roadmark, is_roadmark);
 }
@@ -948,12 +1046,12 @@ void MapMatching::setFrontRoadMark(
 // }
 
 void MapMatching::sensorPush(
-    const ::hozon::perception::TransportElement &transport_element,
+    const ::hozon::perception::TransportElement& transport_element,
     bool is_roadmark = true) {
   if (is_roadmark) {
     std::unique_lock<std::mutex> ul(road_mark_mutex_);
     if (!roadmark_sensor_.empty()) {
-      auto &back = roadmark_sensor_.back();
+      auto& back = roadmark_sensor_.back();
       auto back_id = back->frame_id;
       auto frame_id = transport_element.header().seq();
       if (frame_id != back_id) {
@@ -1040,7 +1138,7 @@ std::tuple<bool, SensorSync> MapMatching::sensorFront(void) {
   if (roadmark_sensor_.empty()) {
     return std::tuple<bool, SensorSync>(false, hozon::mp::loc::SensorSync());
   } else {
-    auto &ret = (*(roadmark_sensor_.front()));
+    auto& ret = (*(roadmark_sensor_.front()));
     if (!ret.ok()) {
       return std::tuple<bool, SensorSync>(false, hozon::mp::loc::SensorSync());
     }
@@ -1162,8 +1260,8 @@ void MapMatching::mmProcCallBack(void) {
 // }
 
 std::shared_ptr<::hozon::localization::HafNodeInfo>
-MapMatching::generateNodeInfo(const Sophus::SE3d &T_W_V, uint64_t sec,
-                              uint64_t nsec, const bool &has_err) {
+MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V, uint64_t sec,
+                              uint64_t nsec, const bool& has_err) {
   std::shared_ptr<::hozon::localization::HafNodeInfo> node_info =
       std::make_shared<::hozon::localization::HafNodeInfo>();
   auto blh = hozon::mp::util::Geo::EnuToGcj02(
@@ -1225,11 +1323,11 @@ void MapMatching::pubPoints(const VP& points, const uint64_t& sec,
     lane_points.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
     lane_points.mutable_header()->set_frameid("map");
 
-    auto *channels = lane_points.add_channels();
+    auto* channels = lane_points.add_channels();
     channels->set_name("rgb");
 
     for (auto p : points) {
-      auto *points_ = lane_points.add_points();
+      auto* points_ = lane_points.add_points();
       points_->set_x(p.x());
       points_->set_y(p.y());
       points_->set_z(p.z());
@@ -1240,8 +1338,8 @@ void MapMatching::pubPoints(const VP& points, const uint64_t& sec,
   }
 }
 
-void MapMatching::pubVehicle(const SE3 &T, const double &sec,
-                             const double &nsec) {
+void MapMatching::pubVehicle(const SE3& T, const double& sec,
+                             const double& nsec) {
   if (hozon::mp::util::RvizAgent::Instance().Ok()) {
     adsfi_proto::viz::Odometry mm_odom;
     static uint32_t seq = 0;
@@ -1293,7 +1391,7 @@ void MapMatching::pubVehicle(const SE3 &T, const double &sec,
   }
 
   if (hozon::mp::util::RvizAgent::Instance().Ok()) {
-    auto *pose = gnss_gcj02_path_.add_poses();
+    auto* pose = gnss_gcj02_path_.add_poses();
     static uint32_t seq = 0;
     int curr_seq = seq++;
 
@@ -1376,7 +1474,7 @@ void MapMatching::pubVehicle(const SE3 &T, const double &sec,
 // }
 
 adsfi_proto::viz::Marker MapMatching::laneToMarker(
-    const VP &points, std::string id, bool is_points, bool is_center,
+    const VP& points, std::string id, bool is_points, bool is_center,
     float point_size, bool is_boundary) {
   adsfi_proto::viz::Marker block;
   if (is_points)
@@ -1384,7 +1482,7 @@ adsfi_proto::viz::Marker MapMatching::laneToMarker(
   else
     block.set_type(adsfi_proto::viz::MarkerType::LINE_LIST);
   block.set_action(adsfi_proto::viz::MarkerAction::ADD);
-  const char *c_id = id.c_str();
+  const char* c_id = id.c_str();
   block.set_id(std::atoi(c_id));
   block.mutable_lifetime()->set_sec(0);
   block.mutable_lifetime()->set_nsec(0);
@@ -1424,13 +1522,12 @@ adsfi_proto::viz::Marker MapMatching::laneToMarker(
     block.mutable_color()->set_b(0);
   }
   block.mutable_color()->set_a(1.0f);
-  for (size_t i = 1; i < points.size();
-       i++) {
-    auto *enu = block.add_points();
+  for (size_t i = 1; i < points.size(); i++) {
+    auto* enu = block.add_points();
     enu->set_x(points[i - 1].x());
     enu->set_y(points[i - 1].y());
     enu->set_z(points[i - 1].z());
-    auto *enu_ = block.add_points();
+    auto* enu_ = block.add_points();
     enu_->set_x(points[i].x());
     enu_->set_y(points[i].y());
     enu_->set_z(points[i].z());
@@ -1444,7 +1541,7 @@ adsfi_proto::viz::Marker MapMatching::lineIdToMarker(const V3 point,
   marker.mutable_header()->set_frameid("map");
   marker.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
   marker.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
-  const char *c_id = id.c_str();
+  const char* c_id = id.c_str();
   marker.set_id(std::atoi(c_id));
   marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
   marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -1656,7 +1753,7 @@ adsfi_proto::viz::Marker MapMatching::lineIdToMarker(const V3 point,
 //   return block;
 // }
 
-bool MapMatching::CheckLaneMatch(const SE3 &T_delta_cur) {
+bool MapMatching::CheckLaneMatch(const SE3& T_delta_cur) {
   if (match_inited && (matched_lane_pair_size_ < 2) &&
       (bad_lane_match_count_ < mm_params.thre_continue_badmatch) &&
       (fabs(T_delta_cur.translation().y() - T_delta_last_.translation().y()) >

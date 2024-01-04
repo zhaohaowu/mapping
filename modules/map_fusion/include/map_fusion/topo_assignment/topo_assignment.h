@@ -19,6 +19,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d.hpp>

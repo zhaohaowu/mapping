@@ -73,12 +73,12 @@ bool PoseEstimationComponent::Init() {
   }
   node_info_topic_ = node[key].as<std::string>();
 
-  // key = "location_topic";
-  // if (!node[key]) {
-  //   HLOG_ERROR << key << " not found in config yaml";
-  //   return false;
-  // }
-  // location_topic_ = node[key].as<std::string>();
+  key = "location_topic";
+  if (!node[key]) {
+    HLOG_ERROR << key << " not found in config yaml";
+    return false;
+  }
+  location_topic_ = node[key].as<std::string>();
 
   ins_reader_ = node_->CreateReader<::hozon::localization::HafNodeInfo>(
       ins_topic_,
@@ -158,6 +158,13 @@ void PoseEstimationComponent::OnPerception(
     return;
   }
   mm_->OnPerception(msg);
+}
+void PoseEstimationComponent::OnLocation(
+    const std::shared_ptr<const ::hozon::localization::Localization> &msg) {
+  if (!mm_) {
+    return;
+  }
+  mm_->OnLocation(msg);
 }
 
 // void PoseEstimationComponent::OnMarkPole(

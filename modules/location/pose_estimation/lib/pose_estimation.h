@@ -150,7 +150,9 @@ class MapMatching {
                  const Eigen::Matrix3d &vehicle_rotation);
   void setFrontRoadMark(const ::hozon::perception::TransportElement &roadmark,
                         bool is_roadmark);
-  // void setLocation(const ::location::HafLocation &info);
+  void setLocation(const ::hozon::localization::Localization& info);
+  void OnLocation(const std::shared_ptr<const ::hozon::localization::Localization>& msg);
+
   // void setObject(const ::perception::ObjectList &object);
   void setIns(const ::hozon::localization::HafNodeInfo &ins);
   void interpolateOptimizeResult();
@@ -249,6 +251,8 @@ class MapMatching {
   adsfi_proto::viz::Marker roadmarkingToMarker(const std::vector<VP> &vpoints,
                                                int id);
   bool CheckLaneMatch(const SE3 &T_delta_cur);
+  bool GetHdCurrLaneType(const Eigen::Vector3d& utm);
+
 
  private:
   int ins_status_type_;
@@ -274,6 +278,7 @@ class MapMatching {
   uint32_t time_sec_ = 0;
   uint32_t time_nsec_ = 0;
   int64_t last_submap_seq_ = -1;
+  Eigen::Vector3d fc_enu_pose_;
 
   std::mutex ins_mutex_;
 
@@ -289,8 +294,11 @@ class MapMatching {
   SE3 T_delta_last_;
   int bad_lane_match_count_;
   bool match_inited;
-  bool is_chging_ins_ref_ = false, is_chging_map_ref_ = false;
-
+  bool is_chging_ins_ref_ = false;
+  bool is_chging_map_ref_ = false;
+  bool is_toll_lane_ = false;
+  bool is_ramp_road_ = false;
+  bool is_main_road_ = false;
   const std::string kTopicMmTf = "/mm/tf";
   const std::string kTopicMmInterTf = "/mm/tf_inter";
   const std::string kTopicMmCarPath = "/mm/car_path";

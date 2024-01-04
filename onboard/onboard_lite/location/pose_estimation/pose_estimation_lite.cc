@@ -33,7 +33,7 @@ namespace perception {
 namespace common_onboard {
 
 constexpr char* const kInsFusionTopic = "/location/ins_fusion";
-// constexpr char* const kFcTopic = "localization";
+constexpr char* const kFcTopic = "localization";
 constexpr char* const kPerceptionTopic = "percep_transport";
 constexpr char* const kPoseEstimationTopic = "/location/pose_estimation";
 constexpr char* const kRunningModeTopic = "running_mode";
@@ -57,6 +57,9 @@ int32_t PoseEstimationLite::AlgInit() {
   // RegistAlgProcessFunc(
   //     "recv_map_message",
   //     std::bind(&PoseEstimationLite::OnHdMap, this, std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_localization",
+      std::bind(&PoseEstimationLite::OnLocation, this, std::placeholders::_1));
   RegistAlgProcessFunc("recv_perception",
                        std::bind(&PoseEstimationLite::OnPerception, this,
                                  std::placeholders::_1));
@@ -88,7 +91,7 @@ void PoseEstimationLite::AlgRelease() {
 void PoseEstimationLite::RegistMessageType() const {
   REGISTER_PROTO_MESSAGE_TYPE(kInsFusionTopic,
                               hozon::localization::HafNodeInfo);
-  // REGISTER_PROTO_MESSAGE_TYPE(kFcTopic, hozon::localization::Localization);
+  REGISTER_PROTO_MESSAGE_TYPE(kFcTopic, hozon::localization::Localization);
   // REGISTER_PROTO_MESSAGE_TYPE(kMapMessageTopic,
   // adsfi_proto::internal::SubMap);
   REGISTER_PROTO_MESSAGE_TYPE(kPerceptionTopic,
@@ -120,6 +123,24 @@ int32_t PoseEstimationLite::OnIns(Bundle* input) {
 
   return 0;
 }
+int32_t PoseEstimationLite::OnLocation(Bundle* input) {
+  if (!input) {
+    return -1;
+  }
+  auto p_fc_fusion = input->GetOne(kFcTopic);
+  if (!p_fc_fusion) {
+    return -1;
+  }
+  const auto fc_fusion =
+      std::static_pointer_cast<hozon::localization::Localization>(
+          p_fc_fusion->proto_msg);
+  if (!fc_fusion) {
+    return -1;
+  }
+  pose_estimation_->OnLocation(fc_fusion);
+  return 0;
+}
+
 
 // int32_t PoseEstimationLite::OnHdMap(Bundle* input) {
 //   if (!input) {

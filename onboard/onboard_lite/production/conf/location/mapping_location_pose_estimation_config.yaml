@@ -11,6 +11,8 @@ input:
     capacity: 2
   - topic: running_mode 
     capacity: 2
+  - topic: localization
+    capacity: 2
  # - topic: [map topic]
  #   capacity: 
 output:
@@ -37,8 +39,15 @@ trigger:
     mainSources:
       - name: percep_transport
         timeout: 100
+
   - name: recv_running_mode
     type: EVENT
     mainSources:
       - name: running_mode
         timeout: 1000
+  - name: recv_localization
+    type: EVENT
+    mainSources:
+      - name: localization
+        timeout: 100
+

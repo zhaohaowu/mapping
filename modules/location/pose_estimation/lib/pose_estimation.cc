@@ -429,12 +429,16 @@ bool MapMatching::GetHdCurrLaneType(const Eigen::Vector3d& utm) {
     return false;
   }
   auto curr_lane = GLOBAL_HD_MAP->GetLaneById(lane_ptr->id());
-  if (curr_lane->lane().map_lane_type().toll_lane()) {
-    is_toll_lane_ = true;
+  if (curr_lane == nullptr) {
+    HLOG_ERROR << "curr_lane nullptr";
   } else {
-    is_toll_lane_ = false;
+      if (curr_lane->lane().map_lane_type().toll_lane()) {
+      is_toll_lane_ = true;
+    } else {
+      is_toll_lane_ = false;
+    }
   }
-
+  
   is_ramp_road_ = lane_ptr->IsRampRoad();
   is_main_road_ = lane_ptr->IsMainRoad();
   // HLOG_ERROR << "normal lane type:" <<

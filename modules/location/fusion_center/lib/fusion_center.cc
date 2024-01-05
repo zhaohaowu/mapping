@@ -542,8 +542,9 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose->mutable_pos_utm_02()->set_z(near_utm(2));
 
   // set laneid
-  const std::string laneid = GetHdCurrLaneId(curr_utm, ConvertHeading(heading));
-  location->set_laneid(laneid);
+  // temp close getting lane_id
+  // const std::string laneid = GetHdCurrLaneId(curr_utm, ConvertHeading(heading));
+  // location->set_laneid(laneid);
 
   pose->mutable_linear_acceleration_raw_vrf()->set_x(
       imu.imuvb_linear_acceleration().x());

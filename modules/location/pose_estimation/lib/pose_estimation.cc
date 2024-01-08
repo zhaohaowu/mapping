@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <chrono>
 
 #include "modules/location/pose_estimation/lib/perception/perception.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
@@ -438,7 +439,7 @@ bool MapMatching::GetHdCurrLaneType(const Eigen::Vector3d& utm) {
       is_toll_lane_ = false;
     }
   }
-  
+
   is_ramp_road_ = lane_ptr->IsRampRoad();
   is_main_road_ = lane_ptr->IsMainRoad();
   return true;
@@ -1269,6 +1270,10 @@ MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V, uint64_t sec,
                           HafNodeInfo_NodeType_MapMatcher);
   double node_stamp = nsec * 1e-9 + static_cast<double>(sec);
   node_info->mutable_header()->set_data_stamp(node_stamp);
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now());
+  node_info->mutable_header()->set_publish_stamp(tp.time_since_epoch().count() * 1.0e-9);
   node_info->mutable_header()->set_frame_id("node_info_mm");
   node_info->set_is_valid(true);
   node_info->mutable_pos_gcj02()->set_x(blh.x());

@@ -7,7 +7,7 @@
 
 #include "modules/location/fusion_center/lib/fusion_center.h"
 #include <yaml-cpp/yaml.h>
-
+#include <chrono>
 #include <boost/filesystem.hpp>
 
 #include "modules/location/common/data_verify.h"
@@ -15,6 +15,7 @@
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
+
 
 namespace hozon {
 namespace mp {
@@ -437,7 +438,10 @@ void FusionCenter::Node2Localization(const Context& ctx,
   header->set_seq(seq_++);
   header->set_frame_id("location");
   header->set_data_stamp(ticktime);
-  header->set_publish_stamp(ticktime);
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now());
+  header->set_publish_stamp(tp.time_since_epoch().count() * 1.0e-9);
   header->set_gnss_stamp(ticktime);
 
   location->set_measurement_time(ticktime);

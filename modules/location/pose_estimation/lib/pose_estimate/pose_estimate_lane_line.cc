@@ -330,7 +330,7 @@ void MatchLaneLine::LaneLineConnect() {
         const auto& line_idx = map_line.first;
         auto map_points = map_line.second;
         auto curr_ratio =
-            frechet_distance3D_->frechetDistance(line, map_points, &tmp_p_q);
+            frechet_distance3D_->frechetDistance(line, map_points, &tmp_p_q, T_V_W_);
         if (curr_ratio > 0.8 && curr_ratio > ratio) {
           ratio = curr_ratio;
           line_id = line_idx;
@@ -414,11 +414,7 @@ void MatchLaneLine::LaneLineConnect() {
       //            << jacent_map_line_idxs.size();
     }
   }
-  if (match_pairs_.empty()) {
-    lanelineconnect_ = false;
-  } else {
-    lanelineconnect_ = true;
-  }
+  lanelineconnect_ = match_pairs_.empty() ? false : true;
 }
 
 void MatchLaneLine::MatchPoint2Line(

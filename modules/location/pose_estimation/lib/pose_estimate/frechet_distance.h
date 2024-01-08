@@ -23,7 +23,7 @@ class FrechetDistance3D {
   double frechetDistance(
       const hozon::mp::loc::LaneLinePerceptionPtr& fil_line,
       const std::vector<hozon::mp::loc::V3>& P2,
-      std::vector<hozon::mp::loc::PointMatchPair>* const p_q);
+      std::vector<hozon::mp::loc::PointMatchPair>* const p_q, const SE3& T_V_W);
 
  private:
   void compareMatrix(const std::vector<std::vector<double>>& origin_matrix,

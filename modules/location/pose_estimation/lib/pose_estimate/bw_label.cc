@@ -43,6 +43,9 @@ std::vector<std::vector<int>> BwLbel::number_of_group(
   std::vector<std::vector<int>> group_num_mat;
   int group_num = 0;
   for (size_t index_row = 0; index_row < length_row; ++index_row) {
+    if (frechet_compare_mat[index_row].empty()) {
+      continue;
+    }
     if (frechet_compare_mat[index_row][0] == 1) {
       ++group_num;
       group_num_mat.emplace_back(std::vector{group_num});

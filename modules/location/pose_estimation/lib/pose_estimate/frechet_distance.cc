@@ -22,7 +22,7 @@ FrechetDistance3D::~FrechetDistance3D() {}
 double FrechetDistance3D::frechetDistance(
     const hozon::mp::loc::LaneLinePerceptionPtr& fil_line,
     const std::vector<hozon::mp::loc::V3>& P2,
-    std::vector<hozon::mp::loc::PointMatchPair>* const p_q) {
+    std::vector<hozon::mp::loc::PointMatchPair>* const p_q, const SE3& T_V_W) {
   if (std::min(fil_line->points().size(), P2.size()) <= 0) {
     return -1.0;
   }
@@ -44,7 +44,7 @@ double FrechetDistance3D::frechetDistance(
       if (filter_ids.find(line_id) != filter_ids.end()) {
         continue;
       }
-      distance = (p - q).norm();
+      distance = (p - T_V_W * q).norm();
       if (distance < f_min) {
         f_min = distance;
       }
@@ -55,9 +55,9 @@ double FrechetDistance3D::frechetDistance(
         tmp_q = q;
         p_q_distance = distance;
       }
-      ++line_id;
       filter_ids.emplace(line_id);
       frechet_dis_row.emplace_back(distance);
+      ++line_id;
     }
     frechet_dis_matrix.emplace_back(frechet_dis_row);
     frechet_dis_row.clear();
@@ -79,12 +79,24 @@ double FrechetDistance3D::frechetDistance(
 
   // get region number of beginning and end points
   std::vector<std::vector<int>> frechet_compare_matrix;
+  int mode = 0;  // bwlabel = 0, astar = 1;
   for (double range = f_min; range < f_max; range += res) {
-    int mode = 0;  // bwlabel = 0, astar = 1;
+    if (frechet_dis_matrix.empty()) {
+      continue;
+    }
+    if (frechet_dis_matrix.front().empty()) {
+      continue;
+    }
     compareMatrix(frechet_dis_matrix, &frechet_compare_matrix, range, mode);
     hozon::mp::loc::BwLbel bwlabel_process;
     std::vector<std::vector<int>> frechet_group_mat =
         bwlabel_process.bwlabel(frechet_compare_matrix);
+    if (frechet_group_mat.empty()) {
+      continue;
+    }
+    if (frechet_group_mat.front().empty()) {
+      continue;
+    }
     if (frechet_group_mat[0][0] != 0 &&
         frechet_group_mat[0][0] == (frechet_group_mat.back()).back()) {
       result = range;

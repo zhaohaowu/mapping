@@ -8,12 +8,14 @@
 #include <unistd.h>
 #include <yaml-cpp/yaml.h>
 
+#include <chrono>
 #include <Sophus/se3.hpp>
 #include <boost/filesystem.hpp>
 
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
 #include "util/rviz_agent/rviz_agent.h"
+
 
 namespace hozon {
 namespace mp {
@@ -184,8 +186,10 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
   node_info->set_type(hozon::localization::HafNodeInfo_NodeType_INS);
   node_info->mutable_header()->set_seq(origin_ins.header().seq());
   node_info->mutable_header()->set_frame_id("ins_fusion");
-  node_info->mutable_header()->set_publish_stamp(
-      origin_ins.header().publish_stamp());
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now());
+  node_info->mutable_header()->set_publish_stamp(tp.time_since_epoch().count() * 1.0e-9);
   node_info->mutable_header()->set_gnss_stamp(origin_ins.header().gnss_stamp());
   node_info->mutable_header()->set_data_stamp(
       origin_ins.header().publish_stamp());  // temp 20231205

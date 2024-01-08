@@ -8,13 +8,14 @@
 #include <yaml-cpp/yaml.h>
 
 #include <iomanip>
-
+#include <chrono>
 #include <Sophus/se3.hpp>
 #include <boost/filesystem.hpp>
 
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
 #include "util/rviz_agent/rviz_agent.h"
+
 
 namespace hozon {
 namespace mp {
@@ -108,8 +109,11 @@ bool DrFusion::GetResult(hozon::localization::HafNodeInfo* const node) {
 
     node->mutable_header()->set_seq(latest_ins_fusion_node_.header().seq());
     node->mutable_header()->set_frame_id("dr_fusion");
-    node->mutable_header()->set_publish_stamp(
-        latest_ins_fusion_node_.header().publish_stamp());
+    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+        tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+            std::chrono::system_clock::now());
+    node->mutable_header()->set_publish_stamp(tp.time_since_epoch().count() *
+                                              1.0e-9);
     node->mutable_header()->set_gnss_stamp(
         latest_ins_fusion_node_.header().gnss_stamp());
     node->mutable_header()->set_data_stamp(
@@ -224,8 +228,11 @@ bool DrFusion::DrNode2DrFusionNode(
     return false;
   }
   node->mutable_header()->set_seq(origin_node.header().seq());
-  node->mutable_header()->set_publish_stamp(
-      origin_node.header().publish_stamp());
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now());
+  node->mutable_header()->set_publish_stamp(tp.time_since_epoch().count() *
+                                            1.0e-9);
   node->mutable_header()->set_gnss_stamp(origin_node.header().gnss_stamp());
   node->mutable_header()->set_data_stamp(origin_node.header().data_stamp());
   node->mutable_header()->set_frame_id("dr");

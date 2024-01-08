@@ -403,9 +403,9 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
   auto enu_84 = hozon::mp::util::Geo::BlhToEnu(pose_84, ref_point_);
   Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, ref_point_);
   fc_enu_pose_ = enu;
-  if (!GetHdCurrLaneType(enu)) {
-    HLOG_ERROR << "Cannot get current lane type";
-  }
+  // if (!GetHdCurrLaneType(enu)) {
+  //   HLOG_ERROR << "Cannot get current lane type";
+  // }
 }
 
 bool MapMatching::GetHdCurrLaneType(const Eigen::Vector3d& utm) {
@@ -441,12 +441,6 @@ bool MapMatching::GetHdCurrLaneType(const Eigen::Vector3d& utm) {
   
   is_ramp_road_ = lane_ptr->IsRampRoad();
   is_main_road_ = lane_ptr->IsMainRoad();
-  // HLOG_ERROR << "normal lane type:" <<
-  // curr_lane->lane().map_lane_type().normal()<<"toll_lane lane type:" <<
-  // curr_lane->lane().map_lane_type().toll_lane()<<"is_toll_lane_:"<<is_toll_lane_<<
-  // "lane id:"
-  //            <<
-  //            lane_ptr->id().id()<<"is_ramp_road_:"<<is_ramp_road_<<"is_main_road_:"<<is_main_road_;
   return true;
 }
 

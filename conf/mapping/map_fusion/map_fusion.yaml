@@ -15,3 +15,4 @@ map_service_mode: 1
 topo_rviz: false
 viz_odom_map_in_local: false
 output_hd_map: true
+service_update_interval: 900

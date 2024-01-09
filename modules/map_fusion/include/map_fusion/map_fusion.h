@@ -41,6 +41,7 @@ class MapFusion {
   int ProcFusion(
       const std::shared_ptr<hozon::localization::Localization>& curr_loc,
       const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
+      bool need_update_global_hd,
       hozon::hdmap::Map* fusion_map);
 
  private:

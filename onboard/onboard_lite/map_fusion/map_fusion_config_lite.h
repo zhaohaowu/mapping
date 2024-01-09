@@ -16,3 +16,4 @@ DECLARE_string(orin_viz_addr);
 DECLARE_bool(topo_rviz);
 DECLARE_bool(viz_odom_map_in_local);
 DECLARE_bool(output_hd_map);
+DECLARE_double(service_update_interval);

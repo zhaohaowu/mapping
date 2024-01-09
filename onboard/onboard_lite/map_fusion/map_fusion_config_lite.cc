@@ -12,3 +12,4 @@
 DEFINE_bool(orin_viz, false, "if use rviz");
 DEFINE_string(orin_viz_addr, "tcp://10.6.73.235:9100",
               "RvizAgent's working address");
+DEFINE_double(service_update_interval, 900, "MapService update interval in ms");

@@ -326,7 +326,11 @@ void MapPrediction::OnTopoMap(
   }
 }
 
-std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap() {
+std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(bool need_update_global_hd) {
+  if (!need_update_global_hd) {
+    return hq_map_;
+  }
+  
   if (!GLOBAL_HD_MAP) {
     HLOG_ERROR << "nullptr hq_map_server_";
     return nullptr;

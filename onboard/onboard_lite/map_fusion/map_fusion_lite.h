@@ -55,6 +55,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
       hozon::routing::RoutingResponse* routing);
 
  private:
+  std::shared_ptr<hozon::routing::RoutingResponse> curr_routing_ = nullptr;
   std::unique_ptr<MapFusion> mf_ = nullptr;
 
   std::mutex plugin_mtx_;

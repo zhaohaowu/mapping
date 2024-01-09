@@ -159,8 +159,22 @@ bool MapService::EhpProc(
   bool reset_map(false);
 
   hozon::hdmap::Map extend_map;
-  std::string current_pathid;
+  std::string current_pathid = "0";
   std::string to_pathid;
+  auto x = ins_msg.pos_gcj02().y();
+  auto y = ins_msg.pos_gcj02().x();
+  hozon::common::coordinate_convertor::GCS2UTM(51, &x, &y);
+  hozon::common::PointENU utm_pos;
+  utm_pos.set_x(x);
+  utm_pos.set_y(y);
+  utm_pos.set_z(0.0);
+  hozon::hdmap::LaneInfoConstPtr nearst_lane = nullptr;
+  double s(0.0);
+  double l(0.0);
+  GLOBAL_HD_MAP->GetNearestLane(utm_pos, &nearst_lane, &s, &l);
+  if (nearst_lane != nullptr) {
+    current_pathid = nearst_lane->road_id().id();
+  }
 
   if (!ehp_data_list.empty()) {
     for (const auto& one_ehp_data : ehp_data_list) {
@@ -181,10 +195,16 @@ bool MapService::EhpProc(
   }
   std::list<hozon::hdmap::Map> extended_map_protos;
   std::list<hozon::hdmap::Map> shrinked_map_protos;
-  extended_map_protos.emplace_back(extend_map);
-  shrinked_map_protos.emplace_back(deleted_map);
+  if (extend_map.lane_size() > 0) {
+    extended_map_protos.emplace_back(extend_map);
+  }
+  if (deleted_map.road_size() > 0) {
+    shrinked_map_protos.emplace_back(deleted_map);
+  }
+  if (!extended_map_protos.empty() || !shrinked_map_protos.empty()) {
+    GLOBAL_HD_MAP->UpdateMapFromProto(extended_map_protos, shrinked_map_protos);
+  }
 
-  GLOBAL_HD_MAP->UpdateMapFromProto(extended_map_protos, shrinked_map_protos);
   return true;
 }
 

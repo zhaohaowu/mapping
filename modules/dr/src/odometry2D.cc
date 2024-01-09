@@ -327,7 +327,7 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
 
   // double wheel_speed = delta_dist / (cur.timestamp - last.timestamp);
   // 只求取了 X 方向得速度信息
-  double wheel_speed = (cur.rear_left_speed + cur.rear_right_speed) / 2.0 / 3.6;
+  double wheel_speed = (cur.rear_left_speed + cur.rear_right_speed) / 2.0;
   is_car_standstill_ = fabs(wheel_speed) < 1.0e-6;
   if (wheel_vel_buffer_.size() > 10) {
     wheel_vel_buffer_.pop_front();

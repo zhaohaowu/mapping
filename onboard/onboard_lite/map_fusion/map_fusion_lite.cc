@@ -7,6 +7,7 @@
 #include <base/utils/log.h>
 #include <gflags/gflags.h>
 #include <perception-lib/lib/environment/environment.h>
+#include <common/time/clock.h>
 
 #include <string>
 
@@ -43,6 +44,7 @@ int32_t MapFusionLite::AlgInit() {
   FLAGS_topo_rviz = config["topo_rviz"].as<bool>();
   FLAGS_viz_odom_map_in_local = config["viz_odom_map_in_local"].as<bool>();
   FLAGS_output_hd_map = config["output_hd_map"].as<bool>();
+  FLAGS_service_update_interval = config["service_update_interval"].as<double>();
 
   if (FLAGS_orin_viz) {
     HLOG_ERROR << "Start RvizAgent on " << FLAGS_orin_viz_addr;
@@ -52,6 +54,8 @@ int32_t MapFusionLite::AlgInit() {
     }
   }
 
+  curr_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
+  curr_routing_->Clear();
   mf_ = std::make_unique<MapFusion>();
   int ret = mf_->Init("");
   if (ret < 0) {
@@ -233,11 +237,14 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     return -1;
   }
   std::shared_ptr<hozon::planning::ADCTrajectory> latest_planning = nullptr;
-  hozon::routing::RoutingResponse routing;
-  mf_->ProcService(latest_plugin, latest_planning, &routing);
-
-  // std::shared_ptr<hozon::routing::RoutingResponse> latest_routing =
-  //     std::make_shared<hozon::routing::RoutingResponse>(routing);
+  static double last = -1;
+  auto now = hozon::common::Clock::NowInSeconds() * 1000;
+  bool global_hd_updated = false;
+  if (last < 0 || now - last > FLAGS_service_update_interval) {
+    mf_->ProcService(latest_plugin, latest_planning, curr_routing_.get());
+    global_hd_updated = true;
+    last = now;
+  }
 
   std::shared_ptr<hozon::localization::Localization> latest_loc =
       GetLatestLoc();
@@ -253,13 +260,13 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   }
 
   auto latest_map = std::make_shared<hozon::hdmap::Map>();
-  int ret = mf_->ProcFusion(latest_loc, latest_local_map, latest_map.get());
+  int ret = mf_->ProcFusion(latest_loc, latest_local_map, global_hd_updated, latest_map.get());
   if (ret < 0) {
     HLOG_ERROR << "map fusion ProcFusion failed";
     return -1;
   }
 
-  ret = SendFusionResult(latest_loc, latest_map, &routing);
+  ret = SendFusionResult(latest_loc, latest_map, curr_routing_.get());
   if (ret < 0) {
     HLOG_ERROR << "SendFusionResult failed";
     return -1;

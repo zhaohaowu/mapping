@@ -98,6 +98,7 @@ int MapFusion::ProcService(
 int MapFusion::ProcFusion(
     const std::shared_ptr<hozon::localization::Localization>& curr_loc,
     const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
+    bool need_update_global_hd,
     hozon::hdmap::Map* fusion_map) {
   if (fusion_map == nullptr) {
     HLOG_ERROR << "input nullptr fusion map";
@@ -153,7 +154,7 @@ int MapFusion::ProcFusion(
     map = pred_->GetPredictionMap();
   } else {
     pred_->OnLocalization(curr_loc);
-    map = pred_->GetHdMap();
+    map = pred_->GetHdMap(need_update_global_hd);
   }
 
   if (!map) {

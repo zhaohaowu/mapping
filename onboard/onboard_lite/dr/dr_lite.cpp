@@ -11,9 +11,11 @@
 #include "gtest/gtest.h"
 #include "modules/dr/include/dr.h"
 #include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
+#include "perception-lib/lib/environment/environment.h"
 #include "proto/dead_reckoning/dr.pb.h"
 #include "proto/soc/chassis.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
+#include "yaml-cpp/yaml.h"
 
 namespace hozon {
 namespace perception {
@@ -31,6 +33,18 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
     REGISTER_PROTO_MESSAGE_TYPE(
         "running_mode", hozon::perception::common_onboard::running_mode);
     REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
+
+    std::string default_work_root = "/app/";
+    std::string work_root =
+        hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
+    if (work_root.empty()) {
+      HLOG_ERROR << "ENV: ADFLITE_ROOT_PATH is not set.";
+      return -1;
+    }
+    std::string config_file = work_root +
+                              "/runtime_service/mapping/conf/mapping/"
+                              "dr/dr_config.yaml";
+    dr_interface_ = std::make_shared<hozon::mp::dr::DRInterface>(config_file);
 
     // 接收行泊切换信号
     RegistAlgProcessFunc(
@@ -55,7 +69,7 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
   void AlgRelease() override {}
 
  private:
-  hozon::mp::dr::DRInterface dr_interface;
+  std::shared_ptr<hozon::mp::dr::DRInterface> dr_interface_ = nullptr;
 };
 
 REGISTER_ADF_CLASS(DeadReckoning, DeadReckoning);
@@ -87,8 +101,8 @@ int32_t DeadReckoning::receive_chassis(Bundle* input) {
       HLOG_ERROR << "DR: receive chassis data stamp is delay";
     }
   }
-  dr_interface.AddChassisData(chassis_proto);
-  dr_interface.Process();
+  dr_interface_->AddChassisData(chassis_proto);
+  dr_interface_->Process();
   last_chassis_time = cur_chassis_time;
   return 0;
 }
@@ -112,13 +126,13 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
       HLOG_ERROR << "DR: receive imu data stamp is delay";
     }
   }
-  dr_interface.AddImuData(imu_proto);
+  dr_interface_->AddImuData(imu_proto);
   last_imu_time = cur_imu_time;
 
   // 发送dr数据
   std::shared_ptr<hozon::dead_reckoning::DeadReckoning> msg(
       new hozon::dead_reckoning::DeadReckoning);
-  if (dr_interface.GetLatestPose(cur_imu_time, msg)) {
+  if (dr_interface_->GetLatestPose(cur_imu_time, msg)) {
     auto dr_output_data = std::make_shared<hozon::netaos::adf_lite::BaseData>();
     dr_output_data->proto_msg = msg;
     Bundle bundle;

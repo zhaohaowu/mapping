@@ -14,11 +14,11 @@
 #include "modules/dr/include/odometry_base.h"
 #include "modules/dr/include/slam_data_types.h"
 #include "modules/dr/include/wheel_odom.h"
+#include "modules/util/include/util/mapping_log.h"
 #include "proto/common/header.pb.h"
 #include "proto/dead_reckoning/dr.pb.h"
 #include "proto/soc/chassis.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
-#include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {
@@ -26,7 +26,7 @@ namespace dr {
 
 class DRInterface {
  public:
-  DRInterface();
+  explicit DRInterface(const std::string& conf_path);
   ~DRInterface() {}
 
   void AddImuData(const std::shared_ptr<const hozon::soc::ImuIns>& imu_proto);
@@ -35,8 +35,9 @@ class DRInterface {
       const std::shared_ptr<const hozon::soc::Chassis>& chassis_proto);
 
   bool Process();
-  bool GetLatestPose(double timestamp,
-    std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr);
+  bool GetLatestPose(
+      double timestamp,
+      std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr);
 
  private:
   double GetCurrentNsecTime() {

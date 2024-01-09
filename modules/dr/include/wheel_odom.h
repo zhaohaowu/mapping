@@ -21,7 +21,11 @@ namespace dr {
 
 class WheelOdom : public OdometryBase {
  public:
-  WheelOdom() : pos_({0, 0, 0}), qat_(1, 0, 0, 0), vel_(0, 0, 0) {}
+  WheelOdom(const std::string& conf_path)
+      : OdometryBase(conf_path),
+        pos_({0, 0, 0}),
+        qat_(1, 0, 0, 0),
+        vel_(0, 0, 0) {}
 
   ~WheelOdom() {}
 

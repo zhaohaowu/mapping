@@ -12,7 +12,9 @@ namespace hozon {
 namespace mp {
 namespace dr {
 
-DRInterface::DRInterface() { dr_estimator_ = std::make_shared<Odometry2D>(); }
+DRInterface::DRInterface(const std::string& conf_path) {
+  dr_estimator_ = std::make_shared<Odometry2D>(conf_path);
+}
 
 bool DRInterface::Process() {
   dr_estimator_->update();

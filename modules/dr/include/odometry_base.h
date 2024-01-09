@@ -16,10 +16,10 @@
 #include <string>
 #include <vector>
 
-#include "depend/perception-base/base/utils/log.h"
 #include "depend/common/time/lock/atomic_rw_lock.h"
+#include "depend/perception-base/base/utils/log.h"
 #include "modules/dr/include/slam_data_types.h"
-
+#include "yaml-cpp/yaml.h"
 namespace hozon {
 namespace mp {
 namespace dr {
@@ -48,16 +48,25 @@ class OdometryBase {
     double z_noise_;           //
   };
 
-  OdometryBase()
+  explicit OdometryBase(const std::string& conf_path)
       : initialized_(false),
         wheel_param_({1.0 / 22.26, 1.0 / 22.26, 1.705, 0.02, 1e-2, 1e-4}) {
-    // wheel_param_.kl_ = M_PI * 0.623479 / 4096;
-    // wheel_param_.kr_ = M_PI * 0.622806 / 4096;
-    // wheel_param_.b_  = 1.52439;  // 丰田
-    // wheel_param_.b_ = 1.78;      // 哪吒S
-    wheel_param_.kr_ = 0.04459;
-    wheel_param_.kl_ = 0.04459;
-    wheel_param_.b_ = 1.78;
+    YAML::Node config = YAML::LoadFile(conf_path);
+
+    if (!config) {
+      HLOG_ERROR << "Open config File:" << conf_path << " failed.";
+      wheel_param_.kr_ = 0.04459;
+      wheel_param_.kl_ = 0.04459;
+      wheel_param_.b_ = 1.78;
+    } else {
+      HLOG_INFO << "read param from conf file";
+      wheel_param_.kr_ = config["wheel_param_kl"].as<double>();
+      wheel_param_.kl_ = config["wheel_param_kr"].as<double>();
+      wheel_param_.b_ = config["wheel_param_b"].as<double>();
+    }
+    HLOG_INFO << "wheel_param_.kr_:" << wheel_param_.kr_;
+    HLOG_INFO << "wheel_param_.kl_:" << wheel_param_.kl_;
+    HLOG_INFO << "wheel_param_.b_:" << wheel_param_.b_;
   }
   virtual ~OdometryBase() {}
   virtual bool update() = 0;
@@ -84,12 +93,12 @@ class OdometryBase {
   bool InterpolatePose(double time, OdometryData& odom_data);     // NOLINT
 
   OdometryData get_latest_odom_data();
-  void AddOdomData(const OdometryData& new_odom/*, double delta_dis*/);
+  void AddOdomData(const OdometryData& new_odom /*, double delta_dis*/);
 
   static void Qat2EulerAngle(const Eigen::Quaterniond& q,
-                      double& roll,   // NOLINT
-                      double& pitch,  // NOLINT
-                      double& yaw);   // NOLINT
+                             double& roll,   // NOLINT
+                             double& pitch,  // NOLINT
+                             double& yaw);   // NOLINT
 
   bool Is_Initialized() { return initialized_; }
   void Reset() {}

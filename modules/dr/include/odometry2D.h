@@ -23,9 +23,11 @@ namespace dr {
 
 class Odometry2D : public OdometryBase {
  public:
-  Odometry2D(Eigen::Vector3d extrinsic_a = {0, 0, 0},
+  Odometry2D(const std::string& conf_path,
+             Eigen::Vector3d extrinsic_a = {0, 0, 0},
              Eigen::Vector3d extrinsic_t = {1.810, 0, 0.380})
-      : pos_({0, 0, 0}),
+      : OdometryBase(conf_path),
+        pos_({0, 0, 0}),
         vel_(0, 0, 0),
         acc_bias_(0, 0, 0),
         qat_(1, 0, 0, 0),

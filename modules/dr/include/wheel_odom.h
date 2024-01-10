@@ -8,6 +8,7 @@
 #include <deque>
 // #include <iostream>
 #include <memory>
+#include <string>
 // #include <iomanip>
 // #include <limits>
 
@@ -21,7 +22,7 @@ namespace dr {
 
 class WheelOdom : public OdometryBase {
  public:
-  WheelOdom(const std::string& conf_path)
+  explicit WheelOdom(const std::string& conf_path)
       : OdometryBase(conf_path),
         pos_({0, 0, 0}),
         qat_(1, 0, 0, 0),

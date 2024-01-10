@@ -9,6 +9,7 @@
 #include <memory>
 #include <numeric>
 #include <queue>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>

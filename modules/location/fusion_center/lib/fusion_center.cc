@@ -766,7 +766,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
   // 1.2 MM不工作时
   if (!meas_flag) {
     latest_ins_mutex_.lock();
-    double ins_ticktime = latest_ins_data_.header().publish_stamp();
+    double ins_ticktime = latest_ins_data_.header().data_stamp();
     latest_ins_mutex_.unlock();
     double time_diff = ins_ticktime - cur_ticktime;
 

@@ -98,11 +98,11 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
           latest_origin_ins_.header().sensor_stamp().imuins_stamp()) {
     return;
   }
-  ins_node_is_valid_ = true;
   InsNode ins84_node;
   if (!Extract84InsNode(origin_ins, &ins84_node)) {
     return;
   }
+  ins_node_is_valid_ = true;
   latest_origin_ins_ = origin_ins;
   {
     std::unique_lock<std::mutex> lock(ins84_deque_mutex_);
@@ -121,7 +121,6 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
   if (!config_.use_inspva) {
     return;
   }
-  inspva_node_is_valid_ = true;
   std::unique_lock<std::mutex> lock(inspva_mutex_);
   if (inspva.header().seq() <= latest_inspva_data_.header().seq()) {
     return;
@@ -139,7 +138,7 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
   if (!Extract02InsNode(inspva, &curr_node_)) {
     return;
   }
-
+  inspva_node_is_valid_ = true;
   // keep main structure of inspva for passthrough
   latest_inspva_data_ = inspva;
   latest_inspva_data_.mutable_header()->set_data_stamp(
@@ -158,13 +157,13 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
 }
 
 bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
-  if (config_.use_inspva && !ref_init_) {
+  if (config_.use_inspva) {
+    if (!inspva_node_is_valid_ || !node_info) {
+      return false;
+    }
+  } else if (!node_info || !ins_node_is_valid_) {
     return false;
   }
-  if (!node_info || (!ins_node_is_valid_ && inspva_node_is_valid_)) {
-    return false;
-  }
-
   if (config_.use_rviz_bridge) {
     PublishTopic();
   }
@@ -403,7 +402,7 @@ bool InsFusion::Extract84InsNode(const hozon::soc::ImuIns& ins,
   Eigen::Vector3d q(ins.ins_info().attitude().x(),
                     ins.ins_info().attitude().y(),
                     ins.ins_info().attitude().z());
-  if (!node || !ins_node_is_valid_ || q.norm() < 1e-10) {
+  if (!node || q.norm() < 1e-10) {
     return false;
   }
 

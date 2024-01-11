@@ -11,7 +11,6 @@
 #include "Eigen/src/Core/Matrix.h"
 #include "adsfi_proto/viz/sensor_msgs.pb.h"
 #include "adsfi_proto/viz/visualization_msgs.pb.h"
-#include "common/utm_projection/coordinate_convertor.h"
 #include "map_fusion/map_service/global_hd_map.h"
 #include "util/mapping_log.h"
 
@@ -21,20 +20,10 @@ namespace mf {
 
 void MapTable::OnLocalization(
     const std::shared_ptr<hozon::localization::Localization>& msg) {
-  // utm转gcj02
-  double utm_x = msg->pose().pos_utm_01().x();
-  double utm_y = msg->pose().pos_utm_01().y();
-  uint32_t zone_t = msg->pose().utm_zone_01();
-  int zone = static_cast<int>(zone_t);
-  bool ret = hozon::common::coordinate_convertor::UTM2GCS(zone, &utm_x, &utm_y);
-  if (!ret) {
-    HLOG_ERROR << "UTM2GCS failed";
-    return;
-  }
-
   // gcj02
-  Eigen::Vector3d pos_global(utm_y, utm_x, 0);
-  OnLocationInGlobal(pos_global, zone, msg->pose().pos_utm_01().x(),
+  Eigen::Vector3d pos_global(msg->pose().gcj02().x(), msg->pose().gcj02().y(),
+                             0);
+  OnLocationInGlobal(msg->pose().pos_utm_01().x(),
                      msg->pose().pos_utm_01().y());
 
   if (!local_enu_center_flag_) {
@@ -60,13 +49,9 @@ MapTable::GetMapTable() {
   return map_table_;
 }
 
-void MapTable::OnLocationInGlobal(const Eigen::Vector3d& pos_gcj02,
-                                  uint32_t utm_zone_id, double utm_x,
-                                  double utm_y) {
-  location_ = pos_gcj02;
+void MapTable::OnLocationInGlobal(double utm_x, double utm_y) {
   location_utm_.x() = utm_x;
   location_utm_.y() = utm_y;
-  utm_zone_ = utm_zone_id;
 }
 
 void MapTable::BuildLaneTable() {
@@ -149,14 +134,14 @@ void MapTable::CreatLaneTable(
 
     // 存lane左右边线
     for (const auto& it : lane->lane().left_boundary().curve().segment()) {
-      for (const auto& itt : it.line_segment().point()) {
-        Eigen::Vector3d pt = UtmPtToLocalEnu(itt);
+      for (const auto& itt : it.line_segment().original_point()) {
+        Eigen::Vector3d pt = GcjPtToLocalEnu(itt);
         local_lane.left_line.emplace_back(pt);
       }
     }
     for (const auto& it : lane->lane().right_boundary().curve().segment()) {
-      for (const auto& itt : it.line_segment().point()) {
-        Eigen::Vector3d pt = UtmPtToLocalEnu(itt);
+      for (const auto& itt : it.line_segment().original_point()) {
+        Eigen::Vector3d pt = GcjPtToLocalEnu(itt);
         local_lane.right_line.emplace_back(pt);
       }
     }
@@ -213,15 +198,10 @@ void MapTable::CalculateVirtual(uint32_t* extra_boundary,
   }
 }
 
-Eigen::Vector3d MapTable::UtmPtToLocalEnu(
-    const hozon::common::PointENU& point_utm) {
-  double x = point_utm.x();
-  double y = point_utm.y();
-  hozon::common::coordinate_convertor::UTM2GCS(static_cast<int>(utm_zone_), &x,
-                                               &y);
-  Eigen::Vector3d point_gcj(y, x, 0);
-  Eigen::Vector3d point_enu =
-      util::Geo::Gcj02ToEnu(point_gcj, local_enu_center_);
+Eigen::Vector3d MapTable::GcjPtToLocalEnu(
+    const hozon::common::PointENU& point_gcj) {
+  Eigen::Vector3d pt_gcj(point_gcj.y(), point_gcj.x(), 0);
+  Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(pt_gcj, local_enu_center_);
   return point_enu;
 }
 

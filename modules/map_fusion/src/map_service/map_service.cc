@@ -161,12 +161,12 @@ bool MapService::EhpProc(
   hozon::hdmap::Map extend_map;
   std::string current_pathid = "0";
   std::string to_pathid;
-  auto x = ins_msg.pos_gcj02().y();
-  auto y = ins_msg.pos_gcj02().x();
-  hozon::common::coordinate_convertor::GCS2UTM(51, &x, &y);
+  auto x = ins_msg.pos_gcj02().x();
+  auto y = ins_msg.pos_gcj02().y();
+  hozon::common::coordinate_convertor::GCS2UTM(51, &y, &x);
   hozon::common::PointENU utm_pos;
-  utm_pos.set_x(x);
-  utm_pos.set_y(y);
+  utm_pos.set_x(y);
+  utm_pos.set_y(x);
   utm_pos.set_z(0.0);
   hozon::hdmap::LaneInfoConstPtr nearst_lane = nullptr;
   double s(0.0);

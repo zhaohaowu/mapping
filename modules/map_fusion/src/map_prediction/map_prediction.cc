@@ -113,30 +113,16 @@ void MapPrediction::OnInsNodeInfo(
   double x = msg->pos_gcj02().x();
   double y = msg->pos_gcj02().y();
   hozon::common::coordinate_convertor::GCS2UTM(zone, &y, &x);
-  OnLocationInGlobal(gcj02, zone, y, x);
+  OnLocationInGlobal(y, x);
 }
 
 void MapPrediction::OnLocalization(
     const std::shared_ptr<hozon::localization::Localization>& msg) {
   // 提取全局定位
-  Eigen::Vector3d pos_global_utm(msg->pose().pos_utm_01().x(),
-                                 msg->pose().pos_utm_01().y(),
-                                 msg->pose().pos_utm_01().z());
-
-  // utm转gcj02
-  double utm_x = msg->pose().pos_utm_01().x();
-  double utm_y = msg->pose().pos_utm_01().y();
-  uint32_t zone_t = msg->pose().utm_zone_01();
-  int zone = static_cast<int>(zone_t);
-  bool ret = hozon::common::coordinate_convertor::UTM2GCS(zone, &utm_x, &utm_y);
-  if (!ret) {
-    HLOG_ERROR << "UTM2GCS failed";
-    return;
-  }
-
   // gcj02
-  Eigen::Vector3d pos_global(utm_y, utm_x, 0);
-  OnLocationInGlobal(pos_global, zone, msg->pose().pos_utm_01().x(),
+  Eigen::Vector3d pos_global(msg->pose().gcj02().x(), msg->pose().gcj02().y(),
+                             msg->pose().gcj02().z());
+  OnLocationInGlobal(msg->pose().pos_utm_01().x(),
                      msg->pose().pos_utm_01().y());
 
   stamp_loc_ = msg->header().gnss_stamp();
@@ -185,14 +171,10 @@ void MapPrediction::OnLocalization(
   T_local_enu_to_local_ = T_veh_to_local * T_veh_to_local_enu.inverse();
 }
 
-void MapPrediction::OnLocationInGlobal(const Eigen::Vector3d& pos_gcj02,
-                                       uint32_t utm_zone_id, double utm_x,
-                                       double utm_y) {
+void MapPrediction::OnLocationInGlobal(double utm_x, double utm_y) {
   std::lock_guard<std::mutex> lock(mtx_);
-  location_ = pos_gcj02;
   location_utm_.x() = utm_x;
   location_utm_.y() = utm_y;
-  utm_zone_ = utm_zone_id;
 }
 
 void MapPrediction::OnHqMap(const std::shared_ptr<hozon::hdmap::Map>& hqmap) {
@@ -326,7 +308,8 @@ void MapPrediction::OnTopoMap(
   }
 }
 
-std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(bool need_update_global_hd) {
+std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
+    bool need_update_global_hd, hozon::routing::RoutingResponse* routing) {
   if (!need_update_global_hd) {
     return hq_map_;
   }
@@ -335,18 +318,116 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(bool need_update_glob
     HLOG_ERROR << "nullptr hq_map_server_";
     return nullptr;
   }
-  hq_map_ = std::make_shared<hozon::hdmap::Map>();
-  // GLOBAL_HD_MAP->GetMap(hq_map_.get());
 
   hozon::common::PointENU utm_pos;
   utm_pos.set_x(location_utm_.x());
   utm_pos.set_y(location_utm_.y());
   utm_pos.set_z(0);
 
-  auto ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_.get());
+  double nearest_s = 0.;
+  double nearest_l = 0.;
+  hozon::hdmap::LaneInfoConstPtr lane_ptr = nullptr;
 
-  if (ret != 0) {
-    HLOG_ERROR << "GetLocalMap failed";
+  int ret =
+      GLOBAL_HD_MAP->GetNearestLane(utm_pos, &lane_ptr, &nearest_s, &nearest_l);
+
+  if (ret != 0 || lane_ptr == nullptr) {
+    HLOG_ERROR << "get nearest lane failed";
+    hq_map_ = nullptr;
+    return hq_map_;
+  }
+
+  hq_map_ = std::make_shared<hozon::hdmap::Map>();
+
+  std::vector<std::vector<std::string>> routing_lanes;
+  for (const auto& road_it : routing->road()) {
+    std::vector<std::string> routing_lane;
+    for (const auto& passage_it : road_it.passage()) {
+      for (const auto& lane_it : passage_it.segment()) {
+        routing_lane.emplace_back(lane_it.id());
+      }
+    }
+    routing_lanes.emplace_back(routing_lane);
+  }
+
+  if (routing_lanes.empty()) {
+    HLOG_ERROR << "get rouitng message failed";
+    return nullptr;
+  }
+
+  int row = -1;
+  // 查找车辆所在lane的位置
+  for (int i = 0; i < routing_lanes.size(); ++i) {
+    for (int j = 0; j < routing_lanes[i].size(); ++j) {
+      if (routing_lanes[i][j] == lane_ptr->lane().id().id()) {
+        row = i;
+        break;
+      }
+    }
+    if (row != -1) {
+      break;
+    }
+  }
+
+  if (row == -1) {
+    HLOG_ERROR << "find vehicle lane failed";
+    return nullptr;
+  }
+
+  double lane_length_forward = 0.;
+  double lane_length_backward = 0.;
+
+  int row_max = -1;
+  int row_min = 0;
+
+  for (int i = row; i < routing_lanes.size(); ++i) {
+    hozon::hdmap::Id lane_id;
+    auto size = routing_lanes[i].size();
+    lane_id.set_id(routing_lanes[i][size - 1]);
+    auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+    if (lane_ptr != nullptr) {
+      lane_length_forward = lane_length_forward + lane_ptr->lane().length();
+    }
+    row_max = i;
+    if (lane_length_forward >= 300) {
+      break;
+    }
+  }
+
+  for (int i = row - 1; i >= 0; --i) {
+    hozon::hdmap::Id lane_id;
+    auto size = routing_lanes[i].size();
+    lane_id.set_id(routing_lanes[i][size - 1]);
+    auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+    if (lane_ptr != nullptr) {
+      lane_length_backward = lane_length_backward + lane_ptr->lane().length();
+    }
+    row_min = i;
+    if (lane_length_backward >= 100) {
+      break;
+    }
+  }
+
+  for (int i = row_min; i <= row_max; ++i) {
+    for (int j = 0; j < routing_lanes[i].size(); ++j) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(routing_lanes[i][j]);
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        hq_map_->add_lane()->CopyFrom(lane_ptr->lane());
+      }
+    }
+  }
+
+  // 获取roads
+  std::vector<hozon::hdmap::RoadInfoConstPtr> roads;
+  ret = GLOBAL_HD_MAP->GetRoads(utm_pos, 300, &roads);
+  if (ret == 0) {
+    for (const auto& road : roads) {
+      hq_map_->add_road()->CopyFrom(road->road());
+    }
+  } else {
+    HLOG_DEBUG << "get roads failed";
     return nullptr;
   }
 
@@ -358,7 +439,7 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(bool need_update_glob
     HLOG_ERROR << "init_pose_ not inited";
     return nullptr;
   }
-  LaneToLocal(true);
+  HDMapLaneToLocal();
   // viz_map_.VizLocalMapLaneLine(hq_map_);
   // viz_map_.VizLaneID(hq_map_);
 
@@ -367,8 +448,6 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(bool need_update_glob
 
   //   cent_points.clear();
   //   for (const auto& lane_seg : lane.central_curve().segment()) {
-  //     HLOG_ERROR << "================local map heading===================:"
-  //                << lane_seg.heading();
   //     for (const auto& point : lane_seg.line_segment().point()) {
   //       Vec2d cent_point;
   //       cent_point.set_x(point.x());
@@ -946,15 +1025,10 @@ void MapPrediction::CatmullRoom(
   }
 }
 
-Eigen::Vector3d MapPrediction::UtmPtToLocalEnu(
-    const hozon::common::PointENU& point_utm) {
-  double x = point_utm.x();
-  double y = point_utm.y();
-  hozon::common::coordinate_convertor::UTM2GCS(static_cast<int>(utm_zone_), &x,
-                                               &y);
-  Eigen::Vector3d point_gcj(y, x, 0);
-  Eigen::Vector3d point_enu =
-      util::Geo::Gcj02ToEnu(point_gcj, local_enu_center_);
+Eigen::Vector3d MapPrediction::GcjPtToLocalEnu(
+    const hozon::common::PointENU& point_gcj) {
+  Eigen::Vector3d pt_gcj(point_gcj.y(), point_gcj.x(), 0);
+  Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(pt_gcj, local_enu_center_);
   return point_enu;
 }
 
@@ -1070,20 +1144,16 @@ void MapPrediction::ConvertToLocal() {
     return;
   }
 
-  int zone = static_cast<int>(utm_zone_);
-  LaneToLocal(false);
-  RoadToLocal(zone);
+  FusionMapLaneToLocal();
+  RoadToLocal();
 }
 
-void MapPrediction::LaneToLocal(const bool utm) {
+void MapPrediction::FusionMapLaneToLocal() {
   // local_enu to local
   for (auto& hq_lane : *hq_map_->mutable_lane()) {
     for (auto& seg : *hq_lane.mutable_central_curve()->mutable_segment()) {
       for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
         Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
-        if (utm) {
-          pt_local = UtmPtToLocalEnu(pt);
-        }
         pt_local = T_local_enu_to_local_ * pt_local;
         pt.set_x(pt_local.x());
         pt.set_y(pt_local.y());
@@ -1095,9 +1165,6 @@ void MapPrediction::LaneToLocal(const bool utm) {
          *hq_lane.mutable_left_boundary()->mutable_curve()->mutable_segment()) {
       for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
         Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
-        if (utm) {
-          pt_local = UtmPtToLocalEnu(pt);
-        }
         pt_local = T_local_enu_to_local_ * pt_local;
         pt.set_x(pt_local.x());
         pt.set_y(pt_local.y());
@@ -1110,9 +1177,6 @@ void MapPrediction::LaneToLocal(const bool utm) {
                           ->mutable_segment()) {
       for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
         Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
-        if (utm) {
-          pt_local = UtmPtToLocalEnu(pt);
-        }
         pt_local = T_local_enu_to_local_ * pt_local;
         pt.set_x(pt_local.x());
         pt.set_y(pt_local.y());
@@ -1122,43 +1186,72 @@ void MapPrediction::LaneToLocal(const bool utm) {
   }
 }
 
-void MapPrediction::RoadToLocal(const int& zone) {
-  // road to local
-  for (auto& hq_road : *hq_map_->mutable_road()) {
-    for (auto& sec : *hq_road.mutable_section()) {
-      for (auto& edge :
-           *sec.mutable_boundary()->mutable_outer_polygon()->mutable_edge()) {
-        DeelEdge(&edge, zone);
+void MapPrediction::HDMapLaneToLocal() {
+  // gcj02 to local
+  for (auto& hq_lane : *hq_map_->mutable_lane()) {
+    for (auto& seg : *hq_lane.mutable_central_curve()->mutable_segment()) {
+      (*seg.mutable_line_segment()->mutable_point()).Clear();
+      for (auto& pt : *seg.mutable_line_segment()->mutable_original_point()) {
+        Eigen::Vector3d pt_local = GcjPtToLocalEnu(pt);
+        pt_local = T_local_enu_to_local_ * pt_local;
+        auto* point = (*seg.mutable_line_segment()).add_point();
+        point->set_x(pt_local.x());
+        point->set_y(pt_local.y());
+        point->set_z(0);
+      }
+    }
+
+    for (auto& seg :
+         *hq_lane.mutable_left_boundary()->mutable_curve()->mutable_segment()) {
+      (*seg.mutable_line_segment()->mutable_point()).Clear();
+      for (auto& pt : *seg.mutable_line_segment()->mutable_original_point()) {
+        Eigen::Vector3d pt_local = GcjPtToLocalEnu(pt);
+        pt_local = T_local_enu_to_local_ * pt_local;
+        auto* point = (*seg.mutable_line_segment()).add_point();
+        point->set_x(pt_local.x());
+        point->set_y(pt_local.y());
+        point->set_z(0);
+      }
+    }
+
+    for (auto& seg : *hq_lane.mutable_right_boundary()
+                          ->mutable_curve()
+                          ->mutable_segment()) {
+      (*seg.mutable_line_segment()->mutable_point()).Clear();
+      for (auto& pt : *seg.mutable_line_segment()->mutable_original_point()) {
+        Eigen::Vector3d pt_local = GcjPtToLocalEnu(pt);
+        pt_local = T_local_enu_to_local_ * pt_local;
+        auto* point = (*seg.mutable_line_segment()).add_point();
+        point->set_x(pt_local.x());
+        point->set_y(pt_local.y());
+        point->set_z(0);
       }
     }
   }
 }
 
-void MapPrediction::DeelEdge(hozon::hdmap::BoundaryEdge* edge,
-                             const int& zone) {
-  for (auto& seg : *edge->mutable_curve()->mutable_segment()) {
-    for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
-      Eigen::Vector3d pt_utm(pt.x(), pt.y(), pt.z());
-      double utm_x = pt.x();
-      double utm_y = pt.y();
-      bool ret =
-          hozon::common::coordinate_convertor::UTM2GCS(zone, &utm_x, &utm_y);
-      if (!ret) {
-        HLOG_ERROR << "UTM2GCS road point failed, set DBL_MAX value";
-        pt.set_x(DBL_MAX);
-        pt.set_y(DBL_MAX);
-        pt.set_z(DBL_MAX);
-        continue;
+void MapPrediction::RoadToLocal() {
+  // road to local
+  for (auto& hq_road : *hq_map_->mutable_road()) {
+    for (auto& sec : *hq_road.mutable_section()) {
+      for (auto& edge :
+           *sec.mutable_boundary()->mutable_outer_polygon()->mutable_edge()) {
+        DeelEdge(&edge);
       }
+    }
+  }
+}
 
-      Eigen::Vector3d pt_gcj(utm_y, utm_x, 0);
-      Eigen::Vector3d pt_local_enu =
-          util::Geo::Gcj02ToEnu(pt_gcj, local_enu_center_);
-
-      Eigen::Vector3d pt_local = T_local_enu_to_local_ * pt_local_enu;
-      pt.set_x(pt_local.x());
-      pt.set_y(pt_local.y());
-      pt.set_z(0);
+void MapPrediction::DeelEdge(hozon::hdmap::BoundaryEdge* edge) {
+  for (auto& seg : *edge->mutable_curve()->mutable_segment()) {
+    (*seg.mutable_line_segment()->mutable_point()).Clear();
+    for (auto& pt : *seg.mutable_line_segment()->mutable_original_point()) {
+      Eigen::Vector3d pt_local = GcjPtToLocalEnu(pt);
+      pt_local = T_local_enu_to_local_ * pt_local;
+      auto* point = (*seg.mutable_line_segment()).add_point();
+      point->set_x(pt_local.x());
+      point->set_y(pt_local.y());
+      point->set_z(0);
     }
   }
 }

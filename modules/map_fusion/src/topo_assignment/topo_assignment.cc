@@ -10,7 +10,6 @@
 
 #include <limits>
 
-#include "depend/common/utm_projection/coordinate_convertor.h"
 #include "map_fusion/map_service/global_hd_map.h"
 #include "util/mapping_log.h"
 #include "util/tic_toc.h"
@@ -74,24 +73,13 @@ void TopoAssignment::OnLocalization(
   auto stamp = msg->header().data_stamp();
 
   // 提取全局定位
-  //! TBD：这里将utm转成了gcj02，但实际内部需要的也是utm，后面考虑
   Eigen::Vector3d pos_global_utm(msg->pose().pos_utm_01().x(),
                                  msg->pose().pos_utm_01().y(),
                                  msg->pose().pos_utm_01().z());
 
-  double utm_x = msg->pose().pos_utm_01().x();
-  double utm_y = msg->pose().pos_utm_01().y();
-  utm_zone_ = static_cast<int>(msg->pose().utm_zone_01());
-
-  bool ret =
-      hozon::common::coordinate_convertor::UTM2GCS(utm_zone_, &utm_x, &utm_y);
-  if (!ret) {
-    HLOG_ERROR << "UTM2GCS failed";
-    return;
-  }
-
   // gcj02
-  Eigen::Vector3d pos_global(utm_y, utm_x, 0);
+  Eigen::Vector3d pos_global(msg->pose().gcj02().x(), msg->pose().gcj02().y(),
+                             msg->pose().gcj02().z());
 
   auto yaw = msg->pose().euler_angles().z();
   auto roll = msg->pose().euler_angles().x();
@@ -104,7 +92,7 @@ void TopoAssignment::OnLocalization(
   // 更新车辆ins位置
   {
     std::lock_guard<std::mutex> lock_vehicle_pose(vehicle_pose_mtx_);
-    vehicle_pose_ = pos_global;
+    vehicle_pose_ = pos_global_utm;
   }
 
   if (!init_ref_point_) {
@@ -112,7 +100,7 @@ void TopoAssignment::OnLocalization(
     return;
   }
 
-  Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(vehicle_pose_, ref_point_);
+  Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pos_global, ref_point_);
 
   // Eigen::Vector3d pos_local;
   // pos_local << msg->pose().local_pose().x(), msg->pose().local_pose().y(),
@@ -155,20 +143,14 @@ void TopoAssignment::OnLocalMap(
   local_map_->CopyFrom(*msg);
 
   // 通过ins位置拿到hq中最近的车道
-  double x = 0.;
-  double y = 0.;
+  hozon::common::PointENU enupos;
+
   {
     std::lock_guard<std::mutex> lock_vehicle_pose(vehicle_pose_mtx_);
-    x = vehicle_pose_.x();
-    y = vehicle_pose_.y();
+    enupos.set_x(vehicle_pose_.x());
+    enupos.set_y(vehicle_pose_.y());
+    enupos.set_z(0);
   }
-
-  hozon::common::coordinate_convertor::GCS2UTM(51, &y, &x);
-  // utm位置
-  hozon::common::PointENU enupos;
-  enupos.set_x(y);
-  enupos.set_y(x);
-  enupos.set_z(0);
 
   double nearest_s = 0.;
   double nearest_l = 0.;
@@ -1427,8 +1409,10 @@ void TopoAssignment::VizLocation(const Eigen::Vector3d& pose,
     uint32_t curr_seq = seq++;
     adsfi_proto::viz::TransformStamped geo_tf;
     geo_tf.mutable_header()->set_seq(curr_seq);
-    geo_tf.mutable_header()->mutable_timestamp()->set_sec(
-        static_cast<uint32_t>(stamp));
+    auto time_sec = static_cast<uint32_t>(stamp);
+    auto time_nsec = static_cast<uint32_t>((stamp - time_sec) * 1e9);
+    geo_tf.mutable_header()->mutable_timestamp()->set_sec(time_sec);
+    geo_tf.mutable_header()->mutable_timestamp()->set_nsec(time_nsec);
     geo_tf.mutable_header()->set_frameid("map");
     geo_tf.set_child_frame_id("vehicle");
     geo_tf.mutable_transform()->mutable_translation()->set_x(pose.x());
@@ -1492,9 +1476,9 @@ void TopoAssignment::VizHQMapRoad(const std::shared_ptr<hozon::hdmap::Map>& msg,
            hq_road_section.boundary().outer_polygon().edge()) {
         for (const auto& edge : hq_road_section_edge.curve().segment()) {
           std::vector<Eigen::Vector3d> boundary_points;
-          for (const auto& point : edge.line_segment().point()) {
-            // 这里点的坐标是在utm坐标系下，需要将其转到enu坐标系下
-            Eigen::Vector3d point_enu = UtmPtToLocalEnu(point);
+          for (const auto& point : edge.line_segment().original_point()) {
+            // 这里点的坐标是在gcj坐标系下，需要将其转到enu坐标系下
+            Eigen::Vector3d point_enu = GcjPtToLocalEnu(point);
             boundary_points.emplace_back(point_enu);
           }
           adsfi_proto::viz::Marker marker;
@@ -1513,9 +1497,9 @@ void TopoAssignment::VizHQMapLane(const std::shared_ptr<hozon::hdmap::Map>& msg,
   for (const auto& hq_lane : msg->lane()) {
     for (const auto& left_points : hq_lane.left_boundary().curve().segment()) {
       std::vector<Eigen::Vector3d> lane_points;
-      for (const auto& point : left_points.line_segment().point()) {
-        // 这里点的坐标是在utm坐标系下，需要将其转到enu坐标系下
-        Eigen::Vector3d point_enu = UtmPtToLocalEnu(point);
+      for (const auto& point : left_points.line_segment().original_point()) {
+        // 这里点的坐标是在gcj坐标系下，需要将其转到enu坐标系下
+        Eigen::Vector3d point_enu = GcjPtToLocalEnu(point);
         lane_points.emplace_back(point_enu);
       }
       adsfi_proto::viz::Marker marker;
@@ -1528,9 +1512,9 @@ void TopoAssignment::VizHQMapLane(const std::shared_ptr<hozon::hdmap::Map>& msg,
     for (const auto& right_points :
          hq_lane.right_boundary().curve().segment()) {
       std::vector<Eigen::Vector3d> lane_points;
-      for (const auto& point : right_points.line_segment().point()) {
-        // 这里点的坐标是在utm坐标系下，需要将其转到enu坐标系下
-        Eigen::Vector3d point_enu = UtmPtToLocalEnu(point);
+      for (const auto& point : right_points.line_segment().original_point()) {
+        // 这里点的坐标是在gcj坐标系下，需要将其转到enu坐标系下
+        Eigen::Vector3d point_enu = GcjPtToLocalEnu(point);
         lane_points.emplace_back(point_enu);
       }
       adsfi_proto::viz::Marker marker;
@@ -1540,9 +1524,11 @@ void TopoAssignment::VizHQMapLane(const std::shared_ptr<hozon::hdmap::Map>& msg,
       }
     }
     if (!hq_lane.central_curve().segment().empty()) {
-      auto point =
-          hq_lane.central_curve().segment()[0].line_segment().point()[0];
-      Eigen::Vector3d point_enu = UtmPtToLocalEnu(point);
+      auto point = hq_lane.central_curve()
+                       .segment()[0]
+                       .line_segment()
+                       .original_point()[0];
+      Eigen::Vector3d point_enu = GcjPtToLocalEnu(point);
       adsfi_proto::viz::Marker marker_id;
       auto id = hq_lane.id().id();
       LineIdToMarker(cur_timestamp_, point_enu, id, &marker_id);
@@ -1551,13 +1537,10 @@ void TopoAssignment::VizHQMapLane(const std::shared_ptr<hozon::hdmap::Map>& msg,
   }
 }
 
-Eigen::Vector3d TopoAssignment::UtmPtToLocalEnu(
-    const hozon::common::PointENU& point_utm) {
-  double x = point_utm.x();
-  double y = point_utm.y();
-  hozon::common::coordinate_convertor::UTM2GCS(utm_zone_, &x, &y);
-  Eigen::Vector3d point_gcj(y, x, 0);
-  Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(point_gcj, ref_point_);
+Eigen::Vector3d TopoAssignment::GcjPtToLocalEnu(
+    const hozon::common::PointENU& point_gcj) {
+  Eigen::Vector3d pt_gcj(point_gcj.y(), point_gcj.x(), 0);
+  Eigen::Vector3d point_enu = util::Geo::Gcj02ToEnu(pt_gcj, ref_point_);
   return point_enu;
 }
 
@@ -1793,22 +1776,23 @@ std::vector<Eigen::Vector2d> TopoAssignment::GetLaneLeftStartAndEndPoint(
                                  .segment()[segment_size - 1]
                                  .line_segment()
                                  .point_size();
-      auto point_start_utm =
-          lane.left_boundary().curve().segment(0).line_segment().point(0);
+      auto point_start_gcj =
+          lane.left_boundary().curve().segment(0).line_segment().original_point(
+              0);
 
       Eigen::Vector2d point_start;
-      Eigen::Vector3d point_enu = UtmPtToLocalEnu(point_start_utm);
+      Eigen::Vector3d point_enu = GcjPtToLocalEnu(point_start_gcj);
       point_start.x() = point_enu.x();
       point_start.y() = point_enu.y();
 
-      auto point_end_utm = lane.left_boundary()
+      auto point_end_gcj = lane.left_boundary()
                                .curve()
                                .segment(segment_size - 1)
                                .line_segment()
-                               .point(points_size_end - 1);
+                               .original_point(points_size_end - 1);
 
       Eigen::Vector2d point_end;
-      point_enu = UtmPtToLocalEnu(point_end_utm);
+      point_enu = GcjPtToLocalEnu(point_end_gcj);
       point_end.x() = point_enu.x();
       point_end.y() = point_enu.y();
 
@@ -1841,22 +1825,25 @@ std::vector<Eigen::Vector2d> TopoAssignment::GetLaneRightStartAndEndPoint(
                                  .segment()[segment_size - 1]
                                  .line_segment()
                                  .point_size();
-      auto point_start_utm =
-          lane.right_boundary().curve().segment(0).line_segment().point(0);
+      auto point_start_gcj = lane.right_boundary()
+                                 .curve()
+                                 .segment(0)
+                                 .line_segment()
+                                 .original_point(0);
 
       Eigen::Vector2d point_start;
-      Eigen::Vector3d point_enu = UtmPtToLocalEnu(point_start_utm);
+      Eigen::Vector3d point_enu = GcjPtToLocalEnu(point_start_gcj);
       point_start.x() = point_enu.x();
       point_start.y() = point_enu.y();
 
-      auto point_end_utm = lane.right_boundary()
+      auto point_end_gcj = lane.right_boundary()
                                .curve()
                                .segment(segment_size - 1)
                                .line_segment()
-                               .point(points_size_end - 1);
+                               .original_point(points_size_end - 1);
 
       Eigen::Vector2d point_end;
-      point_enu = UtmPtToLocalEnu(point_end_utm);
+      point_enu = GcjPtToLocalEnu(point_end_gcj);
       point_end.x() = point_enu.x();
       point_end.y() = point_enu.y();
 

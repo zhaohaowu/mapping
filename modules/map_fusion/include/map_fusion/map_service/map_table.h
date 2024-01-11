@@ -76,8 +76,7 @@ class MapTable {
 
  private:
   void Clear();
-  void OnLocationInGlobal(const Eigen::Vector3d& pos_gcj02, uint32_t utm_zone,
-                          double utm_x, double utm_y);
+  void OnLocationInGlobal(double utm_x, double utm_y);
   void BuildLaneTable();
   static void ObtainLaneAndRoad(
       const hozon::common::PointENU& utm_pos, const double& range,
@@ -120,7 +119,7 @@ class MapTable {
                        bool* flag);
   void JudgePrevLength(double* l, const std::string& lane_id);
   bool JudgeNextIsVir(const std::string& lane_id);
-  Eigen::Vector3d UtmPtToLocalEnu(const hozon::common::PointENU& point_utm);
+  Eigen::Vector3d GcjPtToLocalEnu(const hozon::common::PointENU& point_gcj);
 
   std::unordered_map<std::string, LaneInfo> lane_table_;
   std::unordered_map<std::string, RoadInfo> road_table_;
@@ -132,7 +131,6 @@ class MapTable {
   // gcj02
   Eigen::Vector3d location_;
   Eigen::Vector2d location_utm_;
-  uint32_t utm_zone_ = 0;
   hozon::common::Pose init_pose_;
   Eigen::Vector3d local_enu_center_;
   bool local_enu_center_flag_ = false;

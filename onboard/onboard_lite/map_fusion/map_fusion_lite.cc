@@ -5,9 +5,9 @@
  *   date       ： 2023.11
  ******************************************************************************/
 #include <base/utils/log.h>
+#include <common/time/clock.h>
 #include <gflags/gflags.h>
 #include <perception-lib/lib/environment/environment.h>
-#include <common/time/clock.h>
 
 #include <string>
 
@@ -44,7 +44,8 @@ int32_t MapFusionLite::AlgInit() {
   FLAGS_topo_rviz = config["topo_rviz"].as<bool>();
   FLAGS_viz_odom_map_in_local = config["viz_odom_map_in_local"].as<bool>();
   FLAGS_output_hd_map = config["output_hd_map"].as<bool>();
-  FLAGS_service_update_interval = config["service_update_interval"].as<double>();
+  FLAGS_service_update_interval =
+      config["service_update_interval"].as<double>();
 
   if (FLAGS_orin_viz) {
     HLOG_ERROR << "Start RvizAgent on " << FLAGS_orin_viz_addr;
@@ -229,7 +230,6 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     HLOG_ERROR << "nullptr map fusion";
     return -1;
   }
-
   std::shared_ptr<hozon::localization::HafNodeInfo> latest_plugin =
       GetLatestLocPlugin();
   if (latest_plugin == nullptr) {
@@ -260,10 +260,12 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   }
 
   auto latest_map = std::make_shared<hozon::hdmap::Map>();
-  int ret = mf_->ProcFusion(latest_loc, latest_local_map, global_hd_updated, latest_map.get());
+  latest_map->Clear();
+  int ret = mf_->ProcFusion(latest_loc, latest_local_map, global_hd_updated,
+                            latest_map.get(), curr_routing_.get());
   if (ret < 0) {
     HLOG_ERROR << "map fusion ProcFusion failed";
-    return -1;
+    latest_map->Clear();
   }
 
   ret = SendFusionResult(latest_loc, latest_map, curr_routing_.get());
@@ -331,6 +333,40 @@ int MapFusionLite::SendFusionResult(
 
   map_fusion->mutable_header()->CopyFrom(location->header());
   map_fusion->mutable_header()->set_frame_id("map_msg");
+
+  // // 裁剪地图
+  // std::unordered_set<std::string> routing_setction;
+  // for (const auto& road_it : routing->road()) {
+  //   routing_setction.emplace(road_it.id());
+  // }
+
+  // std::unordered_set<std::string> routing_lane;
+  // for (auto& road_it : *map->mutable_road()) {
+  //   for (auto road_section_it = (*road_it.mutable_section()).begin();
+  //        road_section_it != (*road_it.mutable_section()).end();) {
+  //     if (routing_setction.find((*road_section_it).id().id()) !=
+  //         routing_setction.end()) {
+  //       for (const auto& lane_it : (*road_section_it).lane_id()) {
+  //         routing_lane.emplace(lane_it.id());
+  //       }
+  //       ++road_section_it;
+  //     } else {
+  //       road_section_it =
+  //       (*road_it.mutable_section()).erase(road_section_it);
+  //     }
+  //   }
+  // }
+
+  // // 删除对应lane
+  // for (auto lane_it = (*map->mutable_lane()).begin();
+  //      lane_it != (*map->mutable_lane()).end();) {
+  //   if (routing_lane.find((*lane_it).id().id()) != routing_lane.end()) {
+  //     ++lane_it;
+  //   } else {
+  //     lane_it = (*map->mutable_lane()).erase(lane_it);
+  //   }
+  // }
+
   map_fusion->mutable_hdmap()->CopyFrom(*map);
 
   map_fusion->mutable_hdmap()->mutable_header()->mutable_header()->CopyFrom(

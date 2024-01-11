@@ -17,9 +17,9 @@
 #include <memory>
 #include <mutex>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
-#include <unordered_map>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d.hpp>
@@ -196,7 +196,7 @@ class TopoAssignment {
                     adsfi_proto::viz::MarkerArray* markers_road);
   void VizHQMapLane(const std::shared_ptr<hozon::hdmap::Map>& msg,
                     adsfi_proto::viz::MarkerArray* markers_lane);
-  Eigen::Vector3d UtmPtToLocalEnu(const hozon::common::PointENU& point_utm);
+  Eigen::Vector3d GcjPtToLocalEnu(const hozon::common::PointENU& point_gcj);
   void VizHQMap();
   void VizTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg);
   void VizTopoMapRoad(const std::shared_ptr<hozon::hdmap::Map>& msg,

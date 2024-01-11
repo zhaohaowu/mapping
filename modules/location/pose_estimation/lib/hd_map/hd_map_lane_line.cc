@@ -50,21 +50,14 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
       auto left_lane_boundary_curve = left_lane_boundary.curve();
       for (const auto& curve_segment : left_lane_boundary_curve.segment()) {
         auto line_segment = curve_segment.line_segment();
-        for (const auto& p : line_segment.point()) {
-          double x = p.x();
-          double y = p.y();
-          int zone = 51;
-          auto ret = hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
-          if (ret) {
-            Eigen::Vector3d p_gcj(y, x, 0);
-            Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-            ControlPoint cpoint;
-            cpoint.line_type = 0;
-            cpoint.point = p_enu;
-            bl.control_point.emplace_back(cpoint);
-          } else {
-            HLOG_ERROR << "utm2gcs failed";
-          }
+        for (const auto& p : line_segment.original_point()) {
+          // 地图是经纬度和ins相反
+          Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
+          Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
+          ControlPoint cpoint;
+          cpoint.line_type = 0;
+          cpoint.point = p_enu;
+          bl.control_point.emplace_back(cpoint);
         }
       }
       l_count++;
@@ -84,21 +77,14 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
       auto right_lane_boundary_curve = right_lane_boundary.curve();
       for (const auto& curve_segment : right_lane_boundary_curve.segment()) {
         auto line_segment = curve_segment.line_segment();
-        for (const auto& p : line_segment.point()) {
-          double x = p.x();
-          double y = p.y();
-          int zone = 51;
-          auto ret = hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
-          if (ret) {
-            Eigen::Vector3d p_gcj(y, x, 0);
-            Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-            ControlPoint cpoint;
-            cpoint.line_type = 0;
-            cpoint.point = p_enu;
-            br.control_point.emplace_back(cpoint);
-          } else {
-            HLOG_ERROR << "utm2gcs failed";
-          }
+        for (const auto& p : line_segment.original_point()) {
+          // 地图是经纬度和ins相反
+          Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
+          Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
+          ControlPoint cpoint;
+          cpoint.line_type = 0;
+          cpoint.point = p_enu;
+          br.control_point.emplace_back(cpoint);
         }
       }
       r_count++;

@@ -152,7 +152,7 @@ bool MapFusionComponent::Proc() {
     return false;
   }
   hozon::hdmap::Map fusion_map;
-  int ret = mf_->ProcFusion(latest_loc, latest_local_map, &fusion_map);
+  // int ret = mf_->ProcFusion(latest_loc, latest_local_map, &fusion_map);
   if (ret < 0) {
     HLOG_ERROR << "ProcFusion failed";
     return false;

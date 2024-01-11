@@ -67,15 +67,15 @@ class MapPrediction {
       const std::shared_ptr<hozon::hdmap::Map>& msg,
       const std::tuple<std::unordered_map<std::string, LaneInfo>,
                        std::unordered_map<std::string, RoadInfo>>& map_info);
-  std::shared_ptr<hozon::hdmap::Map> GetHdMap(bool need_update_global_hd);
+  std::shared_ptr<hozon::hdmap::Map> GetHdMap(
+      bool need_update_global_hd, hozon::routing::RoutingResponse* routing);
   std::shared_ptr<hozon::hdmap::Map> GetPredictionMap();
 
   void Prediction();
 
  private:
   void Clear();
-  void OnLocationInGlobal(const Eigen::Vector3d& pos_gcj02, uint32_t utm_zone,
-                          double utm_x, double utm_y);
+  void OnLocationInGlobal(double utm_x, double utm_y);
   void CalculateTanTheta(const std::string& idd);
   void CreatRoadTable(
       const std::vector<hozon::hdmap::RoadInfoConstPtr>& roads_in_range);
@@ -109,11 +109,12 @@ class MapPrediction {
   static void CatmullRoom(const std::vector<Eigen::Vector3d>& compan_point,
                           std::vector<Eigen::Vector3d>* cat_points);
   void SmoothAlignment();
-  Eigen::Vector3d UtmPtToLocalEnu(const hozon::common::PointENU& point_utm);
+  Eigen::Vector3d GcjPtToLocalEnu(const hozon::common::PointENU& point_gcj);
   void ConvertToLocal();
-  void LaneToLocal(const bool utm);
-  void RoadToLocal(const int& zone);
-  void DeelEdge(hozon::hdmap::BoundaryEdge* edge, const int& zone);
+  void HDMapLaneToLocal();
+  void FusionMapLaneToLocal();
+  void RoadToLocal();
+  void DeelEdge(hozon::hdmap::BoundaryEdge* edge);
   void VizLocAndHqMap();
   void DealHqLine(adsfi_proto::viz::MarkerArray* ma);
   void LineToMarker(const std::vector<Eigen::Vector3d>& center_pts,
@@ -135,7 +136,6 @@ class MapPrediction {
   Eigen::Vector3d location_;
   //   std::shared_ptr<LocalMap> local_msg;
   Eigen::Vector2d location_utm_;
-  uint32_t utm_zone_ = 0;
   std::shared_ptr<hozon::hdmap::Map> local_msg_ = nullptr;
   std::shared_ptr<hozon::hdmap::Map> hq_map_ = nullptr;
   uint32_t id = -1;

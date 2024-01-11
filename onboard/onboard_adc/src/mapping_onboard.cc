@@ -277,7 +277,8 @@ int32_t MappingAdc::MapFusionCycleCallback(hz_Adsfi::NodeBundle* input) {
   tic.Tic();
 
   auto latest_map = std::make_shared<hozon::hdmap::Map>();
-  int ret = mf_->ProcFusion(latest_loc, latest_local_map, latest_map.get());
+  int ret = mf_->ProcFusion(latest_loc, latest_local_map, latest_map.get(),
+                            latest_routing.get());
   if (ret < 0) {
     HLOG_ERROR << "map fusion ProcFusion failed";
     return -1;

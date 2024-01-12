@@ -65,6 +65,25 @@ struct MapMatchLaneLineParams {
   // 124fault
   bool use_valid_map_lane_fault;
   bool use_rviz_bridge = false;
+  // double line type point weight
+  float double_line_point_weight;
+  bool set_point_weight_switch;
+  bool recur_input_in_ins_rtk_smooth = false;
+  double recur_input_x_thr = 3.0;
+  // filter point pairs
+  double avg_diff_offset;
+  int window_size;
+  // check lane width
+  double lane_width_diff_thre;
+  bool lane_width_check_switch;
+  double lane_width_diff_thre_offset;
+  int max_pair_count_thre;
+  int min_pair_count_thre;
+  // adjust left or right pairs weight
+  bool adjust_weight_by_lane_width_check;
+  double min_lane_width_check_thre;
+  double max_lane_width_check_thre;
+
 };
 
 extern MapMatchLaneLineParams mm_params;

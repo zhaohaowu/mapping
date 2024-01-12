@@ -17,11 +17,8 @@ namespace loc {
 
 class MapMatchSolver {
  public:
-  //   static Sophus::SE3d solve(const Connect &connect, Sophus::SE3d pose,
-  //                             Sophus::SE3d pre_pose, const Sophus::SE3d
-  //                             &T_V_C, bool &is_ok);
   static Sophus::SE3d solve2D(const Connect &connect, const Sophus::SE3d &pose,
-                              const Sophus::SE3d &pre_pose, bool *is_ok);
+                              const Sophus::SE3d &pre_pose, bool *is_ok, const double &ins_timestamp);
   MapMatchSolver();
 };
 

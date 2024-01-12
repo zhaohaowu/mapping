@@ -71,7 +71,7 @@ thre_ref_point_change: 20000
 
 # temporary strategy: history reason,
 # TDDO: change to 'true' after test
-use_ll_perceplane: false
+use_ll_perceplane: true
 
 #rviz
 rviz_show_map_centerlane: false
@@ -82,4 +82,26 @@ debug_plot_info: false
 
 line_error_normal_thr: 0.05
 
-use_rviz_bridge: false
+use_rviz_bridge: true
+
+# double line type point weight
+set_point_weight_switch: true
+double_line_point_weight: 0.3
+recur_input_in_ins_rtk_smooth: true
+recur_input_x_thr: 3
+
+# lane width check
+lane_width_diff_thre: 0.35
+lane_width_diff_thre_offset: 0.07
+lane_width_check_switch: true
+max_pair_count_thre: 10
+min_pair_count_thre: 3
+
+# filter point pairs
+avg_diff_offset: 0.25
+window_size: 10
+
+# adjust left or right pairs weight
+adjust_weight_by_lane_width_check: true
+min_lane_width_check_thre: 0.20
+max_lane_width_check_thre: 0.35

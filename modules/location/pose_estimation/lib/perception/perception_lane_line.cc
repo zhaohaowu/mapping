@@ -29,16 +29,6 @@ bool PerceptionLaneLine::IsIn(const float x) {
     return false;
 }
 
-float PerceptionLaneLine::Y(const float x) {
-  const auto &poly = curve_vehicle_coord_;
-  return (poly.c0_ + poly.c1_ * x + poly.c2_ * x * x + poly.c3_ * x * x * x);
-}
-
-float PerceptionLaneLine::Theta(const float &x) {
-  const auto &poly = curve_vehicle_coord_;
-  return (poly.c1_ + 2.0 * poly.c2_ * x + 3 * poly.c3_ * x * x);
-}
-
 float PerceptionLaneLine::Min(void) {
   const auto &poly = curve_vehicle_coord_;
   return poly.min_;
@@ -52,18 +42,6 @@ float PerceptionLaneLine::Max(void) {
 float PerceptionLaneLine::Probality() {
   const auto &poly = curve_vehicle_coord_;
   return poly.confidence_;
-}
-
-void PerceptionLaneLine::Print() {
-  HLOG_INFO << " curve_vehicle_coord_.min_:" << curve_vehicle_coord_.min_;
-  HLOG_INFO << " curve_vehicle_coord_.max_:" << curve_vehicle_coord_.max_;
-  HLOG_INFO << " curve_vehicle_coord_.c0_:" << curve_vehicle_coord_.c0_;
-  HLOG_INFO << " curve_vehicle_coord_.c1_:" << curve_vehicle_coord_.c1_;
-  HLOG_INFO << " curve_vehicle_coord_.c2_:" << curve_vehicle_coord_.c2_;
-  HLOG_INFO << " curve_vehicle_coord_.c3_:" << curve_vehicle_coord_.c3_;
-  HLOG_INFO << " curve_vehicle_coord_.id_:" << curve_vehicle_coord_.id_;
-  HLOG_INFO << " curve_vehicle_coord_.confidence_:"
-            << curve_vehicle_coord_.confidence_;
 }
 
 int PerceptionLaneLine::lane_position_type() {
@@ -81,19 +59,12 @@ PerceptionLaneLineList::PerceptionLaneLineList(
   this->type_ = PERCEPTYION_LANE_BOUNDARY_LINE;
   for (auto line : transport_element.lane()) {
     auto new_line = std::make_shared<PerceptionLaneLine>(line);
-    // new_line->Print();
     lane_line_list_.emplace_back(new_line);
   }
   HLOG_INFO << "lane_line_list_.size() = " << lane_line_list_.size();
 }
 
 PerceptionLaneLineList::PerceptionLaneLineList() {}
-
-void PerceptionLaneLineList::Print(void) {
-  for (const auto line : lane_line_list_) {
-    line->Print();
-  }
-}
 
 }  // namespace loc
 }  // namespace mp

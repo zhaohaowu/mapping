@@ -22,7 +22,7 @@ PolyLine<T>::PolyLine(T t) {
   // c1_ = t.lane_param().cubic_curve_set(0).c1();
   // c2_ = t.lane_param().cubic_curve_set(0).c2();
   // c3_ = t.lane_param().cubic_curve_set(0).c3();
-  id_ = t.track_id();
+  // id_ = t.track_id();
   confidence_ = t.confidence();
   lane_position_type_ = static_cast<int>(t.lanepos());
   for (auto& p : t.points()) {

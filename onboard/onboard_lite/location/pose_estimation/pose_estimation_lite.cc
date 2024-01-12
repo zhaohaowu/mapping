@@ -52,14 +52,11 @@ int32_t PoseEstimationLite::AlgInit() {
 
   RegistMessageType();
   RegistAlgProcessFunc(
-      "recv_ins_fusion",
-      std::bind(&PoseEstimationLite::OnIns, this, std::placeholders::_1));
-  // RegistAlgProcessFunc(
-  //     "recv_map_message",
-  //     std::bind(&PoseEstimationLite::OnHdMap, this, std::placeholders::_1));
-  RegistAlgProcessFunc(
       "recv_localization",
       std::bind(&PoseEstimationLite::OnLocation, this, std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_ins_fusion",
+      std::bind(&PoseEstimationLite::OnIns, this, std::placeholders::_1));
   RegistAlgProcessFunc("recv_perception",
                        std::bind(&PoseEstimationLite::OnPerception, this,
                                  std::placeholders::_1));
@@ -92,8 +89,6 @@ void PoseEstimationLite::RegistMessageType() const {
   REGISTER_PROTO_MESSAGE_TYPE(kInsFusionTopic,
                               hozon::localization::HafNodeInfo);
   REGISTER_PROTO_MESSAGE_TYPE(kFcTopic, hozon::localization::Localization);
-  // REGISTER_PROTO_MESSAGE_TYPE(kMapMessageTopic,
-  // adsfi_proto::internal::SubMap);
   REGISTER_PROTO_MESSAGE_TYPE(kPerceptionTopic,
                               hozon::perception::TransportElement);
   REGISTER_PROTO_MESSAGE_TYPE(kPoseEstimationTopic,
@@ -140,29 +135,6 @@ int32_t PoseEstimationLite::OnLocation(Bundle* input) {
   pose_estimation_->OnLocation(fc_fusion);
   return 0;
 }
-
-
-// int32_t PoseEstimationLite::OnHdMap(Bundle* input) {
-//   if (!input) {
-//     return -1;
-//   }
-
-//    auto p_map_message = input->GetOne("kMapMessageTopic");
-//   if (!p_map_message) {
-//     return -1;
-//   }
-
-//   const auto map_message =
-//       std::static_pointer_cast<adsfi_proto::internal::SubMap>(
-//           p_map_message->proto_msg);
-//   if (!map_message) {
-//     return -1;
-//   }
-
-//   pose_estimation_->OnHdMap(map_message);
-
-//   return 0;
-// }
 
 int32_t PoseEstimationLite::OnPerception(Bundle* input) {
   if (!input) {
@@ -216,13 +188,11 @@ int32_t PoseEstimationLite::OnRunningMode(Bundle* input) {
     return -1;
   }
   int runmode = msg->mode();
-  // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
   if (runmode ==
       static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
     PauseTrigger("recv_ins_fusion");
     PauseTrigger("recv_perception");
     PauseTrigger("send_pose_estimation_result");
-    // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
   } else if (runmode == static_cast<int>(
                             hozon::perception::base::RunningMode::DRIVING) ||
              runmode ==
@@ -230,7 +200,6 @@ int32_t PoseEstimationLite::OnRunningMode(Bundle* input) {
     ResumeTrigger("recv_ins_fusion");
     ResumeTrigger("recv_perception");
     ResumeTrigger("send_pose_estimation_result");
-    // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & ALL";
   }
   return 0;
 }

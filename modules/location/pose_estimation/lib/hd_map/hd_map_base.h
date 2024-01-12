@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <interface/adsfi_proto/internal/slam_hd_submap.pb.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <iostream>
@@ -39,12 +40,26 @@ enum {
 struct ControlPoint {
   size_t line_type;
   V3 point;
+  ControlPoint(size_t line_type, V3 point)
+      : line_type(line_type), point(point) {}
 };
 
 class MapElement {
  public:
   using Ptr = std::shared_ptr<MapElement>;
   int type_;
+};
+
+// double type
+enum DoubleLineType {
+  DoubleSolidLine =
+      adsfi_proto::internal::SubMap_LineType_LineType_DoubleSolidLine,
+  DoubleDashedLine =
+      adsfi_proto::internal::SubMap_LineType_LineType_DoubleSolidLine,
+  LeftSolidRightDashed =
+      adsfi_proto::internal::SubMap_LineType_LineType_LeftSolidRightDashed,
+  RightSolidLeftDashed =
+      adsfi_proto::internal::SubMap_LineType_LineType_RightSolidLeftDashed
 };
 
 }  // namespace loc

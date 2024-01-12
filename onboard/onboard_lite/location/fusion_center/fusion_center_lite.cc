@@ -183,6 +183,7 @@ int32_t FusionCenterLite::OnPoseEstimation(Bundle* input) {
   }
   auto p_pose_estimation = input->GetOne(kPoseEstimationTopic);
   if (!p_pose_estimation) {
+    HLOG_ERROR << "FC !p_pose_estimation";
     return -1;
   }
 

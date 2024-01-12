@@ -50,4 +50,3 @@ trigger:
     mainSources:
       - name: localization
         timeout: 100
-

@@ -24,6 +24,7 @@
 #include <thread>
 #include <tuple>
 #include <vector>
+#include <algorithm>
 
 #include "depend/proto/localization/node_info.pb.h"
 #include "depend/proto/map/map.pb.h"
@@ -201,6 +202,7 @@ class MapMatching {
   SE3 T02_W_V_last_;
   SE3 T84_W_V_;
   SE3 T_fine_;
+  SE3 T_fc_;
   SE3 T_output_;
   SE3 T02_W_VF_last_;
 
@@ -313,6 +315,7 @@ class MapMatching {
   const std::string kTopicMmTimeStamp = "/mm/time_stamp";
   const std::string kTopicMmPerceptionPointsEdge = "/mm/perception_point_edge";
   const std::string kTopicMmMapPointsEdge = "/mm/map_point_edge";
+  const std::string kTopicLocstate = "/fc/locstate";
 };
 
 }  // namespace loc

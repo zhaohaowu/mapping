@@ -54,8 +54,15 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
           // 地图是经纬度和ins相反
           Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
           Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-          ControlPoint cpoint;
-          cpoint.line_type = 0;
+          ControlPoint cpoint(0, {0, 0, 0});
+          if (bl.line_type == DoubleLineType::DoubleSolidLine ||
+              bl.line_type == DoubleLineType::DoubleDashedLine ||
+              bl.line_type == DoubleLineType::LeftSolidRightDashed ||
+              bl.line_type == DoubleLineType::RightSolidLeftDashed) {
+            cpoint.line_type = 1;
+          } else {
+            cpoint.line_type = 0;
+          }
           cpoint.point = p_enu;
           bl.control_point.emplace_back(cpoint);
         }
@@ -81,8 +88,15 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
           // 地图是经纬度和ins相反
           Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
           Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-          ControlPoint cpoint;
-          cpoint.line_type = 0;
+          ControlPoint cpoint(0, {0, 0, 0});
+          if (br.line_type == DoubleLineType::DoubleSolidLine ||
+              br.line_type == DoubleLineType::DoubleDashedLine ||
+              br.line_type == DoubleLineType::LeftSolidRightDashed ||
+              br.line_type == DoubleLineType::RightSolidLeftDashed) {
+            cpoint.line_type = 1;
+          } else {
+            cpoint.line_type = 0;
+          }
           cpoint.point = p_enu;
           br.control_point.emplace_back(cpoint);
         }

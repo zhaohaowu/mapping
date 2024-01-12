@@ -7,11 +7,11 @@
 
 #include "modules/location/pose_estimation/lib/pose_estimation.h"
 
+#include <chrono>
 #include <list>
 #include <memory>
 #include <string>
 #include <tuple>
-#include <chrono>
 
 #include "modules/location/pose_estimation/lib/perception/perception.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
@@ -52,6 +52,10 @@ bool MapMatching::Init(const std::string& config_file,
       config["use_fc_offset_onelane_fault"].as<bool>();
   mm_params.offset_onelane_max_err =
       config["offset_onelane_max_err"].as<double>();
+  mm_params.double_line_point_weight =
+      config["double_line_point_weight"].as<float>();
+  mm_params.set_point_weight_switch =
+      config["set_point_weight_switch"].as<bool>();
   mm_params.offset_onelane_cnt = config["offset_onelane_cnt"].as<double>();
   mm_params.offset_maplane_min_dis =
       config["offset_maplane_min_dis"].as<double>();
@@ -75,6 +79,21 @@ bool MapMatching::Init(const std::string& config_file,
   mm_params.thre_delta_y_diff = config["thre_delta_y_diff"].as<double>();
   mm_params.perceplane_len_lowerbound =
       config["perceplane_len_lowerbound"].as<double>();
+  mm_params.lane_width_diff_thre_offset =
+      config["lane_width_diff_thre_offset"].as<double>();
+  mm_params.avg_diff_offset = config["avg_diff_offset"].as<double>();
+  mm_params.window_size = config["window_size"].as<int>();
+  mm_params.max_pair_count_thre = config["max_pair_count_thre"].as<int>();
+  mm_params.min_pair_count_thre = config["min_pair_count_thre"].as<int>();
+  mm_params.lane_width_diff_thre = config["lane_width_diff_thre"].as<double>();
+  mm_params.lane_width_check_switch =
+      config["lane_width_check_switch"].as<bool>();
+  mm_params.adjust_weight_by_lane_width_check =
+      config["adjust_weight_by_lane_width_check"].as<bool>();
+  mm_params.min_lane_width_check_thre =
+      config["min_lane_width_check_thre"].as<double>();
+  mm_params.max_lane_width_check_thre =
+      config["max_lane_width_check_thre"].as<double>();
   mm_params.debug_plot_info = config["debug_plot_info"].as<bool>();
   mm_params.rviz_show_map_centerlane =
       config["rviz_show_map_centerlane"].as<bool>();
@@ -99,52 +118,21 @@ bool MapMatching::Init(const std::string& config_file,
     if (ret < 0) {
       HLOG_WARN << "RvizAgent register " << kTopicMmCarPath << " failed";
     }
-    //     ret =
-    //     hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::Path>(
-    //         kTopicMmInterCarPath);
-    //     if (ret < 0) {
-    //       HLOG_WARN << "RvizAgent register " << kTopicMmInterCarPath << "
-    //       failed";
-    //     }
-
     ret = hozon::mp::util::RvizAgent::Instance()
               .Register<adsfi_proto::viz::PointCloud>(kTopicMmFrontPoints);
     if (ret < 0) {
       HLOG_WARN << "RvizAgent register " << kTopicMmFrontPoints << "failed";
     }
-    //     ret =
-    //     hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::Marker>(
-    //         kTopicMmMatchPoints);
-    //     if (ret < 0) {
-    //       HLOG_WARN << "RvizAgent register " << kTopicMmMatchPoints << "
-    //       failed";
-    //     }
-    //     ret =
-    //     hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
-    //         kTopicMmPerceptionPointsEdge);
-    //     if (ret < 0) {
-    //       HLOG_WARN << "RvizAgent register " << kTopicMmPerceptionPointsEdge
-    //       << " failed";
-    //     }
-    //     ret =
-    //     hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
-    //         kTopicMmMapPointsEdge);
-    //     if (ret < 0) {
-    //       HLOG_WARN << "RvizAgent register " << kTopicMmMapPointsEdge << "
-    //       failed";
-    //     }
     ret = hozon::mp::util::RvizAgent::Instance()
               .Register<adsfi_proto::viz::MarkerArray>(KTopicMmHdMap);
     if (ret < 0) {
       HLOG_WARN << "RvizAgent register " << KTopicMmHdMap << " failed";
     }
-    //     ret =
-    //     hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::Marker>(
-    //         kTopicMmTimeStamp);
-    //     if (ret < 0) {
-    //       HLOG_WARN << "RvizAgent register " << kTopicMmTimeStamp << "
-    //       failed";
-    //     }
+    ret = hozon::mp::util::RvizAgent::Instance()
+              .Register<adsfi_proto::viz::Marker>(kTopicMmTimeStamp);
+    if (ret < 0) {
+      HLOG_WARN << "RvizAgent register " << kTopicMmTimeStamp << "failed";
+    }
     ret = hozon::mp::util::RvizAgent::Instance()
               .Register<adsfi_proto::viz::Odometry>(kTopicInsOdom);
     if (ret < 0) {
@@ -155,22 +143,17 @@ bool MapMatching::Init(const std::string& config_file,
     if (ret < 0) {
       HLOG_WARN << "RvizAgent register " << kTopicMmOdom << " failed";
     }
-    //     ret =
-    //     hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::Odometry>(
-    //         kTopicFcOdom);
-    //     if (ret < 0) {
-    //       HLOG_WARN << "RvizAgent register " << kTopicFcOdom << " failed";
-    //     }
-    //     ret =
-    //     hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::Odometry>(
-    //         kTopicInputOdom);
-    //     if (ret < 0) {
-    //         HLOG_WARN << "RvizAgent register " << kTopicInputOdom << "
-    //         failed";
-    //     }
+    ret = hozon::mp::util::RvizAgent::Instance()
+              .Register<adsfi_proto::viz::Odometry>(kTopicFcOdom);
+    if (ret < 0) {
+      HLOG_WARN << "RvizAgent register " << kTopicFcOdom << " failed";
+    }
+    ret = hozon::mp::util::RvizAgent::Instance()
+              .Register<adsfi_proto::viz::Marker>(kTopicLocstate);
+    if (ret < 0) {
+      HLOG_WARN << "RvizAgent register " << kTopicLocstate << " failed";
+    }
   }
-  //   tracking.setUsePole(use_pole);
-  //   tracking.setUseTrafficSign(use_traffic_sign);
   optimize_success_ = false;
 
   proc_thread_run_ = true;
@@ -197,40 +180,15 @@ MapMatching::~MapMatching() {
   }
 }
 
-// void MapMatching::OnLocation(
-//     const std::shared_ptr<const location::HafLocation> &msg) {
-//   setLocation(*msg);
-// }
 void MapMatching::OnLocation(
     const std::shared_ptr<const ::hozon::localization::Localization>& msg) {
   setLocation(*msg);
 }
 
-// 获取地图的方式由接受proto消息切换为对map_service api的调用
-// void MapMatching::OnHdMap(
-//     const std::shared_ptr<adsfi_proto::internal::SubMap> &msg) {
-//   if (last_submap_seq_ == msg->header().seq()) {
-//     return;
-//   }
-//   setSubMap(*msg);
-//   last_submap_seq_ = msg->header().seq();
-// }
-
 void MapMatching::OnPerception(
     const std::shared_ptr<const ::hozon::perception::TransportElement>& msg) {
   setFrontRoadMark(*msg, true);
 }
-
-// void MapMatching::OnMarkPole(
-//     const std::shared_ptr<const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>
-//     &msg) {
-//   setFrontRoadMark(*msg, false);
-// }
-
-// void MapMatching::OnObjectList(
-//     const std::shared_ptr<const ::perception::ObjectList> &msg) {
-//   setObject(*msg);
-// }
 
 void MapMatching::OnIns(
     const std::shared_ptr<const ::hozon::localization::HafNodeInfo>& msg) {
@@ -255,7 +213,6 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
   } else {
     use_extrapolate_ = false;
   }
-
   time_sec_ = static_cast<uint64_t>(ins.header().data_stamp());
   time_nsec_ =
       static_cast<uint64_t>((ins.header().data_stamp() - time_sec_) * 1e9);
@@ -339,7 +296,7 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
   newest_ins_msg_ = InsMsg(T02_W_V_, ins_stamp);
   ins_input_ready_ = true;
   ins_input_cv_.notify_one();
-  // pubVehicle(T02_W_V_, time_sec_, time_nsec_);
+  pubVehicle(T02_W_V_, time_sec_, time_nsec_);
   if (mm_params.use_rviz_bridge) {
     pubOdomPoints(kTopicInsOdom, enu, q_W_V, time_sec_, time_nsec_);
   }
@@ -372,62 +329,6 @@ void MapMatching::pubOdomPoints(const std::string& topic,
   hozon::mp::util::RvizAgent::Instance().Publish(topic, odom);
   return;
 }
-//   }
-void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
-  if (is_chging_ins_ref_) {
-    HLOG_ERROR << "wait change ins_ref_ in set location " << ins_timestamp_;
-    return;
-  }
-  static bool init_flag = false;
-  if (info.location_state() == 0 || info.location_state() == 12 ||
-      info.location_state() >= 100) {
-    // return;
-    if (!init_flag) {
-      return;
-    }
-    HLOG_ERROR << "info.location_state() : " << info.location_state();
-  } else {
-    init_flag = true;
-  }
-  static double time = -1;
-  uint32_t fc_time_sec = info.header().publish_stamp();
-
-  double stamp = static_cast<double>(info.header().data_stamp());
-  if (time > 0) {
-    auto dt = stamp - time;
-    if (dt < 0 || dt > 1) {
-      // 0.时间出现超前
-      // 1.延时超过1s
-      HLOG_ERROR << "Time error:" << dt;
-      time = stamp;
-      return;
-    }
-  }
-  time = stamp;
-  Eigen::Vector3d pose(info.pose().gcj02().x(), info.pose().gcj02().y(),
-                       info.pose().gcj02().z());
-
-  Eigen::Vector3d pose_84(info.pose().wgs().x(), info.pose().wgs().y(),
-                          info.pose().wgs().z());
-
-  Eigen::Quaterniond q_W_V(
-      info.pose().quaternion().w(), info.pose().quaternion().x(),
-      info.pose().quaternion().y(), info.pose().quaternion().z());
-  q_W_V.normalize();
-  if (q_W_V.norm() < 1e-7) {
-    HLOG_ERROR << "setLocation q_W_V.norm() < 1e-7";
-    return;
-  }
-  if (!init_) {
-    return;
-  }
-  auto enu_84 = hozon::mp::util::Geo::BlhToEnu(pose_84, ref_point_);
-  Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, ref_point_);
-  fc_enu_pose_ = enu;
-  // if (!GetHdCurrLaneType(enu)) {
-  //   HLOG_ERROR << "Cannot get current lane type";
-  // }
-}
 
 bool MapMatching::GetHdCurrLaneType(const Eigen::Vector3d& utm) {
   if (GLOBAL_HD_MAP->Empty()) {
@@ -453,7 +354,7 @@ bool MapMatching::GetHdCurrLaneType(const Eigen::Vector3d& utm) {
   if (curr_lane == nullptr) {
     HLOG_ERROR << "curr_lane nullptr";
   } else {
-      if (curr_lane->lane().map_lane_type().toll_lane()) {
+    if (curr_lane->lane().map_lane_type().toll_lane()) {
       is_toll_lane_ = true;
     } else {
       is_toll_lane_ = false;
@@ -465,98 +366,100 @@ bool MapMatching::GetHdCurrLaneType(const Eigen::Vector3d& utm) {
   return true;
 }
 
-// void MapMatching::setLocation(const ::adsfi_proto::internal::HafNodeInfo
-// &info) {
-//   if (is_chging_ins_ref_) {
-//     HLOG_ERROR << "wait change ins_ref_ in set location "
-//         << ins_timestamp_;
-//     return;
-//   }
-//   static bool init_flag = false;
-//   if (info.location_state() == 0 || info.location_state() == 12 ||
-//       info.location_state() >= 100) {
-//     // return;
-//     if (!init_flag) {
-//       return;
-//     }
-//     HLOG_ERROR << "info.location_state() : " << info.location_state();
-//   } else {
-//     init_flag = true;
-//   }
+void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
+  if (is_chging_ins_ref_) {
+    HLOG_ERROR << "wait change ins_ref_ in set location " << ins_timestamp_;
+    return;
+  }
+  static bool init_flag = false;
+  if (info.location_state() == 0 || info.location_state() == 12 ||
+      info.location_state() >= 100) {
+    if (!init_flag) {
+      return;
+    }
+    HLOG_ERROR << "info.location_state() : " << info.location_state();
+  } else {
+    init_flag = true;
+  }
+  static double time = -1;
+  uint64_t fc_sec = uint64_t(info.header().publish_stamp());
+  uint64_t fc_nsec = uint64_t((info.header().publish_stamp() - fc_sec) * 1e9);
+  double stampe = static_cast<double>(info.header().publish_stamp());
+  if (time > 0) {
+    auto dt = stampe - time;
+    if (dt < 0 || dt > 1) {
+      // 0.时间出现超前
+      // 1.延时超过1s
+      HLOG_ERROR << "Time error:" << dt;
+      time = stampe;
+      return;
+    }
+  }
+  Eigen::Vector3d pose(info.pose().gcj02().x(), info.pose().gcj02().y(),
+                       info.pose().gcj02().z());
 
-//   static double time = -1;
+  Eigen::Vector3d pose_84(info.pose().wgs().x(), info.pose().wgs().y(),
+                          info.pose().wgs().z());
 
-//   uint32_t fc_time_sec = info.header().tick().sec();
-//   uint32_t fc_time_nsec = info.header().tick().nsec();
+  Eigen::Quaterniond q_W_V(
+      info.pose().quaternion().w(), info.pose().quaternion().x(),
+      info.pose().quaternion().y(), info.pose().quaternion().z());
+  q_W_V.normalize();
+  if (q_W_V.norm() < 1e-7) {
+    HLOG_ERROR << "setLocation q_W_V.norm() < 1e-7";
+    return;
+  }
 
-//   double stampe = double(info.header().tick().sec()) +
-//                   double(info.header().tick().nsec()) / 1e9;
-//   if (time > 0) {
-//     auto dt = stampe - time;
-//     if (dt < 0 || dt > 1) {
-//       // 0.时间出现超前
-//       // 1.延时超过1s
-//       HLOG_ERROR << "Time error:" << dt;
-//       time = stampe;
-//       return;
-//     }
-//   }
-//   time = stampe;
-//   Eigen::Vector3d pose(info.pose().pose_gcj02().position_wgs84().x(),
-//                        info.pose().pose_gcj02().position_wgs84().y(),
-//                        info.pose().pose_gcj02().position_wgs84().z());
+  if (!init_) {
+    return;
+  }
 
-//   Eigen::Vector3d pose_84(info.pose().pose_wgs().position_wgs84().x(),
-//                           info.pose().pose_wgs().position_wgs84().y(),
-//                           info.pose().pose_wgs().position_wgs84().z());
+  auto enu_84 = hozon::mp::util::Geo::BlhToEnu(pose_84, ref_point_);
+  Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, ref_point_);
 
-//   Eigen::Quaterniond q_W_V(info.pose().pose_gcj02().quaternion().w(),
-//                            info.pose().pose_gcj02().quaternion().x(),
-//                            info.pose().pose_gcj02().quaternion().y(),
-//                            info.pose().pose_gcj02().quaternion().z());
-//   q_W_V.normalize();
-//   if (q_W_V.norm() < 1e-7) {
-//     HLOG_ERROR << "setLocation q_W_V.norm() < 1e-7";
-//     return;
-//   }
+  auto fc_timestamp = stampe;
+  T_fc_ = SE3(q_W_V, enu);
+  pubOdomPoints(kTopicFcOdom, enu, q_W_V, fc_sec, fc_nsec);
+  auto fc_enu_ = enu;
+  auto fc_enu84_ = enu_84;
+  fc_enu_pose_ = enu;
+  if (hozon::mp::util::RvizAgent::Instance().Ok()) {
+    adsfi_proto::viz::Marker text_marker;
+    text_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    text_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    text_marker.set_id(0);
+    text_marker.mutable_lifetime()->set_sec(0);
+    text_marker.mutable_header()->mutable_timestamp()->set_sec(fc_sec);
+    text_marker.mutable_header()->mutable_timestamp()->set_nsec(fc_nsec);
+    text_marker.mutable_header()->set_frameid("map");
+    text_marker.mutable_pose()->mutable_position()->set_x(enu(0));
+    text_marker.mutable_pose()->mutable_position()->set_y(enu(1));
+    text_marker.mutable_pose()->mutable_position()->set_z(12);
 
-//   if (!init_) {
-//     return;
-//   }
+    text_marker.mutable_pose()->mutable_orientation()->set_x(0);
+    text_marker.mutable_pose()->mutable_orientation()->set_y(0);
+    text_marker.mutable_pose()->mutable_orientation()->set_z(0);
+    text_marker.mutable_pose()->mutable_orientation()->set_w(1);
 
-//   auto enu_84 = hozon::mp::util::Geo::BlhToEnu(pose_84, ref_point_);
-//   Eigen::Vector3d enu =
-//       hozon::mp::util::Geo::Gcj02ToENU(pose, ref_point_);
+    text_marker.mutable_color()->set_r(1);
+    text_marker.mutable_color()->set_g(1);
+    text_marker.mutable_color()->set_b(1);
+    text_marker.mutable_color()->set_a(1);
 
-// fc data
-//   fc_timestamp_ = time;
-//   T_fc_ = SE3(q_W_V, enu);
-//   fc_enu_ = enu;
-//   fc_enu84_ = enu_84;
-// HLOG_ERROR << "fc_timestamp_" << fc_timestamp_ << "fc_enu_x" << fc_enu_.x()
-//           << "fc_enu_y" << fc_enu_.y() << "fc_enu_z" << fc_enu_.z();
-// HLOG_ERROR << "fc_enu84_x" << fc_enu84_.x() << "fc_enu84_y" << fc_enu84_.y()
-//           << "fc_enu84_z" << fc_enu84_.z();
-// pubVehicle(T_fc_, fc_time_sec, fc_time_nsec);
-//   pubOdomPoints(kTopicFcOdom, enu, q_W_V, fc_time_sec, fc_time_nsec);
+    text_marker.set_text("loc-state:" + std::to_string(info.location_state()));
+    text_marker.mutable_scale()->set_x(0.1);
+    text_marker.mutable_scale()->set_y(0);
+    text_marker.mutable_scale()->set_z(0.8);
 
-//   hozon::mp::loc::Map<adsfi_proto::internal::SubMap> crop_map;
-//   {
-//     std::lock_guard<std::mutex> lg(map_mutex_);
-//     crop_map = mhd_map;
-//     if (is_chging_map_ref_) {
-//       HLOG_ERROR << "wait change map_ref_ in set location " <<
-//       SETPRECISION(15)
-//           << ins_timestamp_;
-//       return;
-//     }
-//   }
+    hozon::mp::util::RvizAgent::Instance().Publish(kTopicLocstate, text_marker);
+  }
+}
 
-//   if (use_fc_exceed_curb_fault_) {
-// CommonState common_state = IsInEdge(T_fc_, crop_map);
-// CheckFCExceedCurb(common_state);
-//   }
-// }
+static std::string Precusion(double num, int n) {
+  std::stringstream ss;
+  ss << std::setprecision(n) << num;
+  return ss.str();
+}
 
 void MapMatching::procData() {
   esti_ref_point_ = ref_point_;
@@ -591,41 +494,15 @@ void MapMatching::procData() {
 
   // 感知数据处理
   SensorSync curr_roadmark_sensor;
-  //   SensorSync curr_pole_sensor;
-  //   SensorSync curr_object_sensor;
   road_mark_mutex_.lock();
   if (!roadmark_sensor_.empty()) {
     curr_roadmark_sensor = *(roadmark_sensor_.back());
   }
   road_mark_mutex_.unlock();
-
-  // pole_mutex_.lock();
-  // if (!pole_sensor_.empty()) {
-  //   curr_pole_sensor = *pole_sensor_.back();
-  // }
-  // pole_mutex_.unlock();
-
-  // object_mutex_.lock();
-  // if (!object_sensor_.empty()) {
-  //   curr_object_sensor = *object_sensor_.back();
-  // }
-  // object_mutex_.unlock();
-
   double stampe = 0;
   if (curr_roadmark_sensor.frame_id != 0) {
     stampe = curr_roadmark_sensor.transport_element.header().data_stamp();
   }
-  // else if (curr_pole_sensor.frame_id != 0) {
-  //   stampe = double(curr_pole_sensor.road_marking.timestamp()) / 1e3;
-  // } else if (curr_object_sensor.frame_id != 0) {
-  //   stampe = double(curr_object_sensor.object.timestamp()) / 1e3;
-  // } else {
-  //   return;
-  // }
-  //  uint64_t percp_sec =
-  //  curr_roadmark_sensor.lanes.header().timestamp().sec();
-  // uint64_t percp_nsec =
-  // curr_roadmark_sensor.lanes.header().timestamp().nsec();
   std::shared_ptr<Perception> all_perception = std::make_shared<Perception>();
   time_.evaluate(
       [&, this] {
@@ -633,44 +510,11 @@ void MapMatching::procData() {
           all_perception->SetLaneLineList(
               curr_roadmark_sensor.transport_element);
         }
-
-        // if (curr_pole_sensor.frame_id != 0) {
-        //   perception->setPoleList(curr_pole_sensor.road_marking);
-        // }
-
-        // if (curr_object_sensor.frame_id != 0) {
-        //   perception->setTrafficSignList(curr_object_sensor.object);
-        // }
       },
       "pb convert:");
-  /*
-  if (curr_roadmark_sensor.frame_id != 0) {
-    auto lane_lines = perception->getElement(PERCEPTYION_LANE_BOUNDARY_LINE);
-    auto lane = std::static_pointer_cast<RoadMarkingPerceptionLanelineList>(
-        lane_lines[0]);
-    if (!T_output_.translation().isZero()) {
-      setPoints(*lane, T02_W_V, front_points_);
-      // setPoints(curr_roadmark_sensor.road_marking, T02_W_V, front_points_);
-      pubPoints(front_points_, percp_sec, percp_nsec);
-    }
-  }
-  */
-
-  // TODO(ouyanghailin) : tracking，当前未使用
-  //   std::shared_ptr<DPLOT> dplot = std::make_shared<DPLOT>();
-  //   time_.evaluate(
-  //       [&, this] {
-  //         tracking.run(perception, T84_W_V_, T02_W_V, project.get(), dplot);
-  //       },
-  //       "tracking:");
-
-  // 匹配
-  //   map_match_->setDplot(dplot, (*project));
-  //   map_match_->setTs(stampe);
-  //   pubTimeAndInsStatus(T02_W_V, stampe);
+  pubTimeAndInsStatus(T02_W_V, stampe);
   Sophus::SE3d T02_W_VF = T02_W_V, _T_W_V_fine = T02_W_V;
   hozon::mp::loc::Connect connect;
-
   time_.evaluate(
       [&, this] {
         map_match_->SetInsTs(ins_timestamp_);
@@ -684,94 +528,51 @@ void MapMatching::procData() {
               << " size:" << matched_lane_pair_size_;
   }
   connect = map_match_->Result();
-  // time_.evaluate([&, this] { map_match_->match3D(crop_map, tracking,
-  // T02_W_V);
-  // },
-  //               "match 3D object :");
   bool solve_is_ok = true;
   auto t1_solver = std::chrono::steady_clock::now();
   time_.evaluate(
       [&, this] {
         T02_W_VF = hozon::mp::loc::MapMatchSolver::solve2D(
-            connect, T02_W_V_INPUT, T02_W_V_pre, &solve_is_ok);
+            connect, T02_W_V_INPUT, T02_W_V_pre, &solve_is_ok, input_stamp);
       },
       "sovler:");
   auto t2_solver = std::chrono::steady_clock::now();
   auto solver_time =
       (t2_solver.time_since_epoch() - t1_solver.time_since_epoch()).count() /
       1e9;
-  if (curr_roadmark_sensor.frame_id != 0) {
-    auto lane_lines =
-        all_perception->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE);
-    auto lane = std::static_pointer_cast<PerceptionLaneLineList>(lane_lines[0]);
-    if (!T_output_.translation().isZero() &&
-        hozon::mp::util::RvizAgent::Instance().Ok() &&
-        mm_params.use_rviz_bridge) {
-      if (mm_params.rviz_show_pceplane_oriT) {
-        setPoints(*lane, T02_W_V, &front_points_);
-      } else {
-        setPoints(*lane, T02_W_VF, &front_points_);
-      }
-      // setPoints(curr_roadmark_sensor.lanes, T02_W_V, front_points_);
-      pubPoints(front_points_, time_sec_, time_nsec_);
-    }
-  }
 
   if (!solve_is_ok) {
     HLOG_ERROR << "solver is not ok stamp:" << ins_timestamp_;
+    std::lock_guard<std::mutex> lg(mm_output_lck_);
+    output_valid_ = false;
     return;
   }
-  // bool good_match_check = false;
-  // V3 trans;
-  // time_.evaluate(
-  //     [&, this] {
-  //       // // auto T_V_VSF = T02_W_V.inverse() * T02_W_VF;
-  //       auto T_V_VSF = T02_W_V_INPUT.inverse() * T02_W_VF;
-  //       double yaw_diff = T_V_VSF.log().tail<3>().z();
-  //       V3 rot(0, 0, yaw_diff);
-  //       trans = V3(0, T_V_VSF.translation().y(), 0);
-  //       // HLOG_INFO << "solver diff, stamp: " << ins_timestamp_
-  //       //            << " yaw|y|x: " << yaw_diff * 180 / M_PI << " " <<
-  //       //            trans.y()
-  //       //            << " " << T_V_VSF.translation().x();
-  //       if (!CheckLaneMatch(T_V_VSF)) {
-  //         bad_lane_match_count_++;
-  //         HLOG_ERROR << "lane_match failed stamp:" << ins_timestamp_;
-  //         return;
-  //       }
-  //       bad_lane_match_count_ = 0;
-  //       T_delta_last_ = T_V_VSF;
+  {
+    auto T_V_VSF = T02_W_V_INPUT.inverse() * T02_W_VF;
+    double yaw_diff = T_V_VSF.log().tail<3>().z();
+    V3 rot(0, 0, yaw_diff);
+    V3 trans = V3(0, T_V_VSF.translation().y(), 0);
+    if (!CheckLaneMatch(T_V_VSF)) {
+      bad_lane_match_count_++;
+      return;
+    }
+    bad_lane_match_count_ = 0;
+    T_delta_last_ = T_V_VSF;
+    T_V_VSF = Sophus::SE3d(Sophus::SO3d::exp(rot), trans);
+    _T_W_V_fine = T02_W_V_INPUT * T_V_VSF;
+  }
 
-  //       T_V_VSF = Sophus::SE3d(Sophus::SO3d::exp(rot), trans);  // flat
-  //       _T_W_V_fine = T02_W_V_INPUT * T_V_VSF;
-  //       // HLOG_INFO << "--------pppp " << ins_timestamp_ << " "
-  //       //           << _T_W_V_fine.translation().x() << " "
-  //       //           << _T_W_V_fine.translation().y() << " "
-  //       //           << _T_W_V_fine.translation().z() << " "
-  //       //           << _T_W_V_fine.log().tail<3>().x() * 180 / M_PI << " "
-  //       //           << _T_W_V_fine.log().tail<3>().y() * 180 / M_PI << " "
-  //       //           << _T_W_V_fine.log().tail<3>().z() * 180 / M_PI << " "
-  //       //           << T02_W_V.translation().x() << " "
-  //       //           << T02_W_V.translation().y() << " "
-  //       //           << T02_W_V.translation().z() << " "
-  //       //           << T02_W_V.log().tail<3>().x() * 180 / M_PI << " "
-  //       //           << T02_W_V.log().tail<3>().y() * 180 / M_PI << " "
-  //       //           << T02_W_V.log().tail<3>().z() * 180 / M_PI << " ";
-  //       // good_match_check = map_match_->goodMatchCheck(_T_W_V_fine);  //
-  //       flat good_match_check = map_match_->GoodMatchCheck(T02_W_VF);
-  //     },
-  //     "publish:");
-
-  // // 优化结果二次校验
-  // if (!good_match_check) {
-  //   HLOG_ERROR << "good match check failed stamp:" << ins_timestamp_;
-  //   t2 = std::chrono::steady_clock::now();
-  //   t = t2.time_since_epoch().count() / 1e9;
-  //   static MapMatchingFrameRateRecord mm_check_fail_fr;
-  //   mm_check_fail_fr.CalFrameRate(t, "mm good check fail frame rate");
-  //   return;
-  // }
-
+  bool lane_width_check = false;
+  if (mm_params.lane_width_check_switch) {
+    lane_width_check = map_match_->CheckLaneWidth(T02_W_VF);
+    HLOG_INFO << "lane_width_check = " << lane_width_check;
+  }
+  if (lane_width_check) {
+    HLOG_ERROR << "lane width check failed!";
+    std::lock_guard<std::mutex> lg(mm_output_lck_);
+    output_valid_ = false;
+    return;
+  }
   uint64_t proc_sec = 0, proc_nsec = 0;
   {
     if (use_inter_) {
@@ -785,22 +586,29 @@ void MapMatching::procData() {
     optimize_success_ = true;
     proc_stamp_ = input_stamp;
     mm_nearest_ins_msg_ = newest_ins_msg_;
-    HLOG_INFO << "optimize_success_ ********";
+    if (curr_roadmark_sensor.frame_id != 0) {
+      auto lane_lines =
+          all_perception->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE);
+      auto lane =
+          std::static_pointer_cast<PerceptionLaneLineList>(lane_lines[0]);
+      if (hozon::mp::util::RvizAgent::Instance().Ok() &&
+          mm_params.use_rviz_bridge) {
+        if (optimize_success_ && !_T_W_V_fine.translation().isZero()) {
+          HLOG_INFO << "optimize_finish_, " << Precusion(proc_stamp_, 16);
+          setPoints(*lane, T_output_, &front_points_);
+          pubOdomPoints(kTopicMmOdom, T_output_.translation(),
+                        T_output_.unit_quaternion(), sec, nsec);
+        } else {
+          setPoints(*lane, T02_W_V_INPUT, &front_points_);
+        }
+        pubPoints(front_points_, time_sec_, time_nsec_);
+      }
+    }
   }
 
   T02_W_V_last_ = T02_W_V;
   T02_W_VF_last_ = T02_W_VF;
   proc_stamp_last_ = input_stamp;
-
-  // proc_sec = uint64_t(proc_stamp_);
-  // proc_nsec =
-  //     (static_cast<double>(proc_stamp_) - static_cast<double>(proc_sec)) *
-  //     1e9;
-  time_.evaluate(
-      [&, this] {
-        // pubVehicle(_T_W_V_fine, proc_sec, proc_nsec);
-      },
-      "pub match point:");
   time_.print();
 
   // 帧率打印
@@ -814,52 +622,6 @@ void MapMatching::procData() {
 
   is_chging_ins_ref_ = false;
 }
-
-// bool MapMatching::smoothResult(Sophus::SE3d &pose) {
-//   static std::list<MmOptMsg> window;
-//   static const int weight[5] = {1, 2, 4, 8, 16};
-//   static const int win_max_size = 5;
-//   int total_weight = 0;
-//   for (auto w : weight) {
-//     total_weight += w;
-//   }
-//   if (window.size() < win_max_size) {
-//     window.emplace_back(pose, proc_stamp_);
-//     return false;
-//   } else {
-//     window.pop_front();
-//     if (fabs(proc_stamp_ - window.back().stamp) > 0.1) {
-//       window.clear();
-//       window.emplace_back(pose, proc_stamp_);
-//       return false;
-//     }
-//     window.emplace_back(pose, proc_stamp_);
-//     Eigen::Vector3d t_weight = Eigen::Vector3d::Zero();
-//     Eigen::Vector3d so3 = pose.log().tail<3>();
-//     Eigen::Vector3d r_weight(so3[0], so3[1], 0);
-//     int idx = 0;
-//     double r_neg_total = 0.f, r_pos_total = 0.f, weight_yaw = 0.f;
-//     for (auto iter = window.begin(); iter != window.end(); iter++, idx++) {
-//       const auto &p = (*iter).pose;
-//       so3 = p.log().tail<3>();
-//       weight_yaw = fabs(so3[2]) * weight[idx];
-//       r_weight[2] += weight_yaw;
-//       if (so3[2] < 0) {
-//         r_neg_total += weight_yaw;
-//       } else {
-//         r_pos_total += weight_yaw;
-//       }
-//       t_weight += (p.translation() * weight[idx]);
-//     }
-//     r_weight[2] /= total_weight;
-//     r_weight[2] = r_neg_total < r_pos_total ? r_weight[2] : -r_weight[2];
-//     r_weight[2] = normalizeAngle(r_weight[2]);
-//     t_weight /= total_weight;
-//     t_weight.x() = pose.translation().x();
-//     pose = SE3(Sophus::SO3d::exp(r_weight), t_weight);
-//   }
-//   return true;
-// }
 
 std::shared_ptr<::hozon::localization::HafNodeInfo>
 MapMatching::getMmNodeInfo() {
@@ -884,17 +646,13 @@ MapMatching::getMmNodeInfo() {
         T_output_ = last_T_output * relative_T;
       }
     }
-    if (mm_params.use_rviz_bridge) {
-      pubVehicle(T_output_, sec, nsec);
-    }
-    //// pubOdomPoints(kTopicMmOdom, T_output_.translation(),
-    ////               T_output_.unit_quaternion(), sec, nsec);
     output_valid_ = false;
     last_T_output = T_output_;
     last_proc_stamp = proc_stamp_;
     if (!match_inited) {
       match_inited = true;
     }
+    HLOG_ERROR << "111111";
     return generateNodeInfo(T_output_, sec, nsec, false);
   }
 }
@@ -957,97 +715,6 @@ void MapMatching::setSubMap(const Eigen::Vector3d& vehicle_position,
           }
           break;
         }
-
-          //         case hozon::mp::loc::HD_MAP_POLE: {
-          //           auto p =
-          //               std::static_pointer_cast<hozon::mp::loc::MapPole>(
-          //                   elment);
-          //           VP poles;
-          //           int id = -1;
-          //           for (auto pole : p->_poles) {
-          //             poles.emplace_back(pole.second.position);
-          //           }
-          //           if (!poles.empty()) {
-          //             auto pole_mark = poleToMarker(poles, id);
-          //             auto *marker = markers.add_markers();
-          //             marker->CopyFrom(pole_mark);
-          //           }
-          //           break;
-          //         }
-
-          //         case hozon::mp::loc::HD_MAP_TRAFFIC_SIGN: {
-          //           auto p = std::static_pointer_cast<
-          //               hozon::mp::loc::MapTrafficSign>(elment);
-          //           std::vector<VP> vtrafficsigns;
-          //           int id = 0;
-          //           for (auto traffic_sign : p->_traffic_sign) {
-          //             vtrafficsigns.emplace_back(traffic_sign.second.bounding_box);
-          //           }
-          //           if (!vtrafficsigns.empty()) {
-          //             auto traffic_sign_mark =
-          //             trafficsignToMarker(vtrafficsigns, id); auto *marker =
-          //             markers.add_markers();
-          //             marker->CopyFrom(traffic_sign_mark);
-          //           }
-          //           break;
-          //         }
-
-          //         case hozon::mp::loc::HD_MAP_ROAD_EDGE: {
-          //           auto p = std::static_pointer_cast<
-          //               hozon::mp::loc::MapRoadEdge>(elment);
-          //           for (auto line : p->_edge_line) {
-          //             auto &new_line = line.second;
-          //             VP points;
-          //             for (auto point : new_line._control_point) {
-          //               points.emplace_back(point._point);
-          //             }
-          //             if (!points.empty()) {
-          //               auto line_first_point = points[0];
-          //               auto line_id_mark = lineIdToMarker(line_first_point,
-          //               new_line._id_edge); auto *line_marker =
-          //               markers.add_markers();
-          //               line_marker->CopyFrom(line_id_mark);
-
-          //               auto lane_mark =
-          //                   laneToMarker(points, new_line._id_edge, false,
-          //                   false, 2);
-          //               auto *marker = markers.add_markers();
-          //               marker->CopyFrom(lane_mark);
-          //             }
-          //           }
-          //           break;
-          //         }
-
-          //         case hozon::mp::loc::HD_MAP_LANE_CENTER_LINE: {
-          //           if (!mm_params.rviz_show_map_centerlane) {
-          //             break;
-          //           }
-          //           auto p = std::static_pointer_cast<
-          //               hozon::mp::loc::MapCentorLine>(elment);
-          //           for (auto line : p->_centor_line) {
-          //             auto &new_line = line.second;
-          //             VP points;
-          //             for (auto point : new_line._control_point) {
-          //               points.emplace_back(point._point);
-          //             }
-          //             if (!points.empty()) {
-          //               auto line_first_point = points[0];
-          //               auto line_id_mark = lineIdToMarker(line_first_point,
-          //               new_line._id_center); auto *line_marker =
-          //               markers.add_markers();
-          //               line_marker->CopyFrom(line_id_mark);
-
-          //               auto lane_mark = laneToMarker(points,
-          //               new_line._id_center, false, false, 1, true); auto
-          //               *marker = markers.add_markers();
-          //               marker->CopyFrom(lane_mark);
-          //             }
-          //           }
-          //           break;
-          //         }
-
-          //         default:
-          //           break;
       }
     }
     hozon::mp::util::RvizAgent::Instance().Publish(KTopicMmHdMap, markers);
@@ -1059,10 +726,6 @@ void MapMatching::setFrontRoadMark(
     bool is_roadmark = true) {
   sensorPush(roadmark, is_roadmark);
 }
-
-// void MapMatching::setObject(const ::perception::ObjectList &object) {
-//   sensorPush(object);
-// }
 
 void MapMatching::sensorPush(
     const ::hozon::perception::TransportElement& transport_element,
@@ -1093,65 +756,7 @@ void MapMatching::sensorPush(
       roadmark_sensor_.push_back(new_sensor);
     }
   }
-  //   else {
-  //     std::unique_lock<std::mutex> ul(pole_mutex_);
-  //     if (!pole_sensor_.empty()) {
-  //       auto &back = pole_sensor_.back();
-  //       auto back_id = back->frame_id;
-  //       auto frame_id = road_marking.frame_id();
-  //       if (frame_id != back_id) {
-  //         back->setFinsh();
-  //         std::shared_ptr<SensorSync> new_sensor =
-  //         std::make_shared<SensorSync>(); new_sensor->frame_id = frame_id;
-  //         new_sensor->road_marking.CopyFrom(road_marking);
-  //         pole_sensor_.push_back(new_sensor);
-  //       } else {
-  //         back->road_marking.CopyFrom(road_marking);
-  //         if (back->ok()) {
-  //           HLOG_ERROR << "sensor sync error at road marking push";
-  //         }
-  //       }
-  //     } else {  // 第一点
-  //       auto frame_id = road_marking.frame_id();
-  //       std::shared_ptr<SensorSync> new_sensor =
-  //       std::make_shared<SensorSync>(); new_sensor->frame_id = frame_id;
-  //       new_sensor->road_marking.CopyFrom(road_marking);
-  //       pole_sensor_.push_back(new_sensor);
-  //     }
-  //   }
 }
-
-// void MapMatching::sensorPush(const perception::ObjectList &object) {
-//   std::unique_lock<std::mutex> ul(object_mutex_);
-//   if (!object_sensor_.empty()) {
-//     auto &back = object_sensor_.back();
-//     auto back_id = back->frame_id;
-//     auto frame_id = object.frame_id();
-//     if (frame_id != back_id) {
-//       //
-//       back->setFinsh();
-//       //
-//       std::shared_ptr<SensorSync> new_sensor =
-//       std::make_shared<SensorSync>(); new_sensor->frame_id = frame_id;
-//       // new_sensor->object = object;
-//       new_sensor->object.CopyFrom(object);
-//       //
-//       object_sensor_.push_back(new_sensor);
-//     } else {
-//       back->object.CopyFrom(object);
-//       if (back->ok()) {
-//         HLOG_ERROR << "sensor sync error at object push";
-//       }
-//     }
-//   } else {
-//     auto frame_id = object.frame_id();
-//     std::shared_ptr<SensorSync> new_sensor = std::make_shared<SensorSync>();
-//     new_sensor->frame_id = frame_id;
-//     new_sensor->object.CopyFrom(object);
-//     object_sensor_.push_back(new_sensor);
-//   }
-// }
-
 std::tuple<bool, SensorSync> MapMatching::sensorFront(void) {
   std::unique_lock<std::mutex> ul(road_mark_mutex_);
   if (roadmark_sensor_.empty()) {
@@ -1179,76 +784,8 @@ void MapMatching::eraseFront(bool is_erase_buf = true) {
     if (!roadmark_sensor_.empty()) {
       roadmark_sensor_.erase(roadmark_sensor_.begin());
     }
-
-    // std::unique_lock<std::mutex> ul2(pole_mutex_);
-    // if (!pole_sensor_.empty()) {
-    //   pole_sensor_.erase(pole_sensor_.begin());
-    // }
-
-    // std::unique_lock<std::mutex> ul3(object_mutex_);
-    // if (!object_sensor_.empty()) {
-    //   object_sensor_.erase(object_sensor_.begin());
-    // }
   }
 }
-
-// void MapMatching::interpolateOptimizeResult() {
-//   using NodeInfo = ::adsfi_proto::internal::HafNodeInfo;
-//   static const double interp_max_ts_interval = 10;
-//   if (!optimize_success_) {
-//     return;
-//   }
-//   InsMsg output_ins, mm_nearest_ins;
-//   double proc_stamp = 0.f;
-//   SE3 T_fine;
-
-//   mm_output_lck_.lock();
-//   output_valid_ = false;
-//   mm_output_lck_.unlock();
-
-//   mm_proc_lck_.lock();
-//   proc_stamp = proc_stamp_;
-//   mm_nearest_ins = mm_nearest_ins_msg_;
-//   T_fine = T_fine_;
-//   mm_proc_lck_.unlock();
-
-//   ins_msg_lck_.lock();
-//   output_ins = newest_ins_msg_;
-//   ins_msg_lck_.unlock();
-
-//   if (output_ins.stamp < mm_nearest_ins.stamp) {
-//     HLOG_ERROR << "output_ins.stamp <= mm_nearest_ins.stamp";
-//     return;
-//   }
-
-//   if (fabs(mm_nearest_ins.stamp - output_ins.stamp) > interp_max_ts_interval)
-//   {
-//     HLOG_ERROR << "fabs(mm_nearest_ins.stamp - output_ins.stamp) > "
-//                << interp_max_ts_interval << " s";
-//     return;
-//   }
-
-//   Sophus::SE3d rel_T = mm_nearest_ins.pose.inverse() * output_ins.pose;
-//   Eigen::Matrix3d new_rot = T_fine.rotationMatrix() * rel_T.rotationMatrix();
-//   if (!Sophus::isOrthogonal(new_rot) || new_rot.determinant() <= 0) {
-//     HLOG_ERROR
-//         << "!Sophus::isOrthogonal(new_rot) || new_rot.determinant() <= 0";
-//     return;
-//   }
-//   V3 rel_rot(0, 0, rel_T.log().tail<3>().z());
-//   V3 rel_trans = V3(rel_T.translation().x(), rel_T.translation().y(), 0);
-//   rel_T = Sophus::SE3d(Sophus::SO3d::exp(rel_rot), rel_trans);
-//   // HLOG_ERROR << "interpolateOptimizeResult rel_trans.transpose() : "
-//   //           << rel_trans.transpose();
-//   // HLOG_ERROR << "fabs(mm_nearest_ins.stamp - output_ins.stamp) : "
-//   //           << fabs(mm_nearest_ins.stamp - output_ins.stamp);
-//   {
-//     std::lock_guard<std::mutex> lg(mm_output_lck_);
-//     T_output_ = T_fine * rel_T;
-//     output_stamp_ = output_ins.stamp;
-//     output_valid_ = true;
-//   }
-// }
 
 void MapMatching::mmProcCallBack(void) {
   pthread_setname_np(pthread_self(), "loc_mm_proc");
@@ -1268,16 +805,6 @@ void MapMatching::mmProcCallBack(void) {
   }
 }
 
-// void MapMatching::mmInterpCallBack(void) {
-//   pthread_setname_np(pthread_self(), "loc_mm_it");
-//   while (interp_thread_run_) {
-//     if (use_inter_) {
-//       interpolateOptimizeResult();
-//     }
-//     usleep(10 * 1e3);
-//   }
-// }
-
 std::shared_ptr<::hozon::localization::HafNodeInfo>
 MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V, uint64_t sec,
                               uint64_t nsec, const bool& has_err) {
@@ -1293,7 +820,8 @@ MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V, uint64_t sec,
   std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
       tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
           std::chrono::system_clock::now());
-  node_info->mutable_header()->set_publish_stamp(tp.time_since_epoch().count() * 1.0e-9);
+  node_info->mutable_header()->set_publish_stamp(tp.time_since_epoch().count() *
+                                                 1.0e-9);
   node_info->mutable_header()->set_frame_id("node_info_mm");
   node_info->set_is_valid(true);
   node_info->mutable_pos_gcj02()->set_x(blh.x());
@@ -1389,8 +917,6 @@ void MapMatching::pubVehicle(const SE3& T, const double& sec,
     for (int i = 0; i < 36; ++i) {
       mm_odom.mutable_pose()->add_covariance(0.);
     }
-    hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmOdom, mm_odom);
-
     geo_tf_.mutable_header()->set_seq(curr_seq);
     geo_tf_.mutable_header()->mutable_timestamp()->set_sec(sec);
     geo_tf_.mutable_header()->mutable_timestamp()->set_nsec(nsec);
@@ -1444,57 +970,57 @@ void MapMatching::pubVehicle(const SE3& T, const double& sec,
   }
 }
 
-// void MapMatching::pubTimeAndInsStatus(const SE3 &T, double stamp) {
-//   if (hozon::mp::util::RvizAgent::Instance().Ok()) {
-//     while (se3_buffer_.size() >= 10) {
-//       se3_buffer_.pop_front();
-//     }
-//     se3_buffer_.emplace_back(T);
+void MapMatching::pubTimeAndInsStatus(const SE3& T, double stamp) {
+  if (hozon::mp::util::RvizAgent::Instance().Ok()) {
+    while (se3_buffer_.size() >= 10) {
+      se3_buffer_.pop_front();
+    }
+    se3_buffer_.emplace_back(T);
 
-//     double trans_x = 0.;
-//     double trans_y = 0.;
-//     if (se3_buffer_.size() == 10) {
-//       for (auto it = se3_buffer_.rbegin(); it != se3_buffer_.rbegin() + 10;
-//            it++) {
-//         trans_x += it->translation().x();
-//         trans_y += it->translation().y();
-//       }
-//       trans_x /= 10;
-//       trans_y /= 10;
-//     }
+    double trans_x = 0.;
+    double trans_y = 0.;
+    if (se3_buffer_.size() == 10) {
+      for (auto it = se3_buffer_.rbegin(); it != se3_buffer_.rbegin() + 10;
+           it++) {
+        trans_x += it->translation().x();
+        trans_y += it->translation().y();
+      }
+      trans_x /= 10;
+      trans_y /= 10;
+    }
 
-//     adsfi_proto::viz::Marker text_marker;
-//     text_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
-//     text_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
-//     text_marker.set_id(0);
-//     text_marker.mutable_lifetime()->set_sec(0);
-//     text_marker.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
-//     text_marker.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
-//     text_marker.mutable_header()->set_frameid("map");
-//     text_marker.mutable_pose()->mutable_position()->set_x(trans_x);
-//     text_marker.mutable_pose()->mutable_position()->set_y(trans_y);
-//     text_marker.mutable_pose()->mutable_position()->set_z(12);
+    adsfi_proto::viz::Marker text_marker;
+    text_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    text_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    text_marker.set_id(0);
+    text_marker.mutable_lifetime()->set_sec(0);
+    text_marker.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
+    text_marker.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
+    text_marker.mutable_header()->set_frameid("map");
+    text_marker.mutable_pose()->mutable_position()->set_x(trans_x);
+    text_marker.mutable_pose()->mutable_position()->set_y(trans_y);
+    text_marker.mutable_pose()->mutable_position()->set_z(12);
 
-//     text_marker.mutable_pose()->mutable_orientation()->set_x(0);
-//     text_marker.mutable_pose()->mutable_orientation()->set_y(0);
-//     text_marker.mutable_pose()->mutable_orientation()->set_z(0);
-//     text_marker.mutable_pose()->mutable_orientation()->set_w(1);
+    text_marker.mutable_pose()->mutable_orientation()->set_x(0);
+    text_marker.mutable_pose()->mutable_orientation()->set_y(0);
+    text_marker.mutable_pose()->mutable_orientation()->set_z(0);
+    text_marker.mutable_pose()->mutable_orientation()->set_w(1);
 
-//     text_marker.mutable_color()->set_r(1);
-//     text_marker.mutable_color()->set_g(1);
-//     text_marker.mutable_color()->set_b(1);
-//     text_marker.mutable_color()->set_a(1);
+    text_marker.mutable_color()->set_r(1);
+    text_marker.mutable_color()->set_g(1);
+    text_marker.mutable_color()->set_b(1);
+    text_marker.mutable_color()->set_a(1);
 
-//     text_marker.set_text("ins-state:" + std::to_string(ins_status_type_)
-//         + " time:" + std::to_string(stamp));
-//     text_marker.mutable_scale()->set_x(0.1);
-//     text_marker.mutable_scale()->set_y(0);
-//     text_marker.mutable_scale()->set_z(0.8);
+    text_marker.set_text("ins-state:" + std::to_string(ins_status_type_) +
+                         " time:" + std::to_string(stamp));
+    text_marker.mutable_scale()->set_x(0.1);
+    text_marker.mutable_scale()->set_y(0);
+    text_marker.mutable_scale()->set_z(0.8);
 
-//     hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmTimeStamp,
-//     text_marker);
-//   }
-// }
+    hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmTimeStamp,
+                                                   text_marker);
+  }
+}
 
 adsfi_proto::viz::Marker MapMatching::laneToMarker(
     const VP& points, std::string id, bool is_points, bool is_center,
@@ -1588,194 +1114,6 @@ adsfi_proto::viz::Marker MapMatching::lineIdToMarker(const V3 point,
   return marker;
 }
 
-// adsfi_proto::viz::Marker MapMatching::poleToMarker(const VP &points, int id)
-// {
-//   adsfi_proto::viz::Marker block;
-//   block.set_type(adsfi_proto::viz::MarkerType::LINE_LIST);
-//   block.set_action(adsfi_proto::viz::MarkerAction::ADD);
-//   block.set_id(id);
-//   block.mutable_lifetime()->set_sec(0);
-//   block.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
-//   block.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
-//   block.mutable_header()->set_frameid("map");
-//   block.set_ns("pole");
-//   // set position
-//   block.mutable_pose()->mutable_position()->set_x(0);
-//   block.mutable_pose()->mutable_position()->set_y(0);
-//   block.mutable_pose()->mutable_position()->set_z(0);
-//   // set pose/orientation
-//   //  dae 坐标系xyz 代表车右前上
-//   block.mutable_pose()->mutable_orientation()->set_x(0.0);
-//   block.mutable_pose()->mutable_orientation()->set_y(0.0);
-//   block.mutable_pose()->mutable_orientation()->set_z(0.0);
-//   block.mutable_pose()->mutable_orientation()->set_w(1.0);
-//   // set scale
-//   float size = 0.25;
-
-//   block.mutable_scale()->set_x(size);
-//   block.mutable_scale()->set_y(size);
-//   block.mutable_scale()->set_z(size);
-
-//   block.mutable_color()->set_r(1);
-//   block.mutable_color()->set_g(0);
-//   block.mutable_color()->set_b(1);
-//   block.mutable_color()->set_a(1.0f);
-
-//   for (int i = 0; i < points.size(); i++) {
-//     auto *enu = block.add_points();
-//     enu->set_x(points[i].x());
-//     enu->set_y(points[i].y());
-//     enu->set_z(points[i].z());
-//     auto *enu_ = block.add_points();
-//     enu_->set_x(points[i].x());
-//     enu_->set_y(points[i].y());
-//     enu_->set_z(points[i].z() + 10);
-//   }
-//   return block;
-// }
-
-// adsfi_proto::viz::Marker MapMatching::trafficsignToMarker(
-//     const std::vector<VP> &vpoints, int id) {
-//   adsfi_proto::viz::Marker block;
-//   block.set_type(adsfi_proto::viz::MarkerType::LINE_LIST);
-//   block.set_action(adsfi_proto::viz::MarkerAction::ADD);
-//   block.set_id(id);
-//   block.mutable_lifetime()->set_sec(0);
-//   block.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
-//   block.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
-//   block.mutable_header()->set_frameid("map");
-//   block.set_ns("trafficsign");
-//   // set position
-//   block.mutable_pose()->mutable_position()->set_x(0);
-//   block.mutable_pose()->mutable_position()->set_y(0);
-//   block.mutable_pose()->mutable_position()->set_z(0);
-//   // set pose/orientation
-//   //  dae 坐标系xyz 代表车右前上
-//   block.mutable_pose()->mutable_orientation()->set_x(0.0);
-//   block.mutable_pose()->mutable_orientation()->set_y(0.0);
-//   block.mutable_pose()->mutable_orientation()->set_z(0.0);
-//   block.mutable_pose()->mutable_orientation()->set_w(1.0);
-//   // set scale
-//   float size = 0.05;
-
-//   block.mutable_scale()->set_x(size);
-//   block.mutable_scale()->set_y(size);
-//   block.mutable_scale()->set_z(size);
-
-//   block.mutable_color()->set_r(1);
-//   block.mutable_color()->set_g(0);
-//   block.mutable_color()->set_b(0);
-//   block.mutable_color()->set_a(1.0f);
-
-//   for (auto points : vpoints) {
-//     V3 a = points[0];
-//     V3 b = points[1];
-//     V3 c = points[2];
-//     V3 d = c + a - b;
-
-//     float l = (a - b).norm() * 0.25;
-//     float l2 = (b - c).norm() * 0.25;
-//     if (l2 > l) {
-//       l = l2;
-//       V3 e = b;
-//       b = d;
-//       d = e;
-//       points[0] = a;
-//       points[1] = b;
-//       points[2] = c;
-//     }
-//     points.emplace_back(d);
-//     for (int i = 0; i < points.size(); i++) {
-//       points[i].z() += 10;
-//       points[i].z() += (i < points.size() / 2) ? l : -l;
-//     }
-
-//     for (int i = 1; i < points.size(); i++) {
-//       auto *enu = block.add_points();
-//       enu->set_x(points[i - 1].x());
-//       enu->set_y(points[i - 1].y());
-//       enu->set_z(points[i - 1].z());
-//       auto *enu_ = block.add_points();
-//       enu_->set_x(points[i].x());
-//       enu_->set_y(points[i].y());
-//       enu_->set_z(points[i].z());
-//     }
-//     auto *enu = block.add_points();
-//     enu->set_x(points[points.size() - 1].x());
-//     enu->set_y(points[points.size() - 1].y());
-//     enu->set_z(points[points.size() - 1].z());
-//     auto *enu_ = block.add_points();
-//     enu_->set_x(points[0].x());
-//     enu_->set_y(points[0].y());
-//     enu_->set_z(points[0].z());
-//   }
-
-//   return block;
-// }
-
-// adsfi_proto::viz::Marker MapMatching::roadmarkingToMarker(
-//     const std::vector<VP> &vpoints, int id) {
-//   adsfi_proto::viz::Marker block;
-//   block.set_type(adsfi_proto::viz::MarkerType::LINE_LIST);
-//   block.set_action(adsfi_proto::viz::MarkerAction::ADD);
-//   block.set_id(id);
-//   block.mutable_lifetime()->set_sec(0);
-//   block.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
-//   block.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
-//   block.mutable_header()->set_frameid("map");
-//   block.set_ns("roadmarking");
-//   // set position
-//   block.mutable_pose()->mutable_position()->set_x(0);
-//   block.mutable_pose()->mutable_position()->set_y(0);
-//   block.mutable_pose()->mutable_position()->set_z(0);
-//   // set pose/orientation
-//   //  dae 坐标系xyz 代表车右前上
-//   block.mutable_pose()->mutable_orientation()->set_x(0.0);
-//   block.mutable_pose()->mutable_orientation()->set_y(0.0);
-//   block.mutable_pose()->mutable_orientation()->set_z(0.0);
-//   block.mutable_pose()->mutable_orientation()->set_w(1.0);
-//   // set scale
-//   float size = 0.05;
-
-//   block.mutable_scale()->set_x(size);
-//   block.mutable_scale()->set_y(size);
-//   block.mutable_scale()->set_z(size);
-
-//   block.mutable_color()->set_r(0.5);
-//   block.mutable_color()->set_g(0.5);
-//   block.mutable_color()->set_b(1);
-//   block.mutable_color()->set_a(1.0f);
-
-//   for (auto points : vpoints) {
-//     V3 a = points[0];
-//     V3 b = points[1];
-//     V3 c = points[2];
-//     V3 d = c + a - b;
-
-//     points.emplace_back(d);
-//     for (int i = 1; i < points.size(); i++) {
-//       auto *enu = block.add_points();
-//       enu->set_x(points[i - 1].x());
-//       enu->set_y(points[i - 1].y());
-//       enu->set_z(points[i - 1].z());
-//       auto *enu_ = block.add_points();
-//       enu_->set_x(points[i].x());
-//       enu_->set_y(points[i].y());
-//       enu_->set_z(points[i].z());
-//     }
-//     auto *enu = block.add_points();
-//     enu->set_x(points[points.size() - 1].x());
-//     enu->set_y(points[points.size() - 1].y());
-//     enu->set_z(points[points.size() - 1].z());
-//     auto *enu_ = block.add_points();
-//     enu_->set_x(points[0].x());
-//     enu_->set_y(points[0].y());
-//     enu_->set_z(points[0].z());
-//   }
-
-//   return block;
-// }
-
 bool MapMatching::CheckLaneMatch(const SE3& T_delta_cur) {
   if (match_inited && (matched_lane_pair_size_ < 2) &&
       (bad_lane_match_count_ < mm_params.thre_continue_badmatch) &&
@@ -1789,7 +1127,6 @@ bool MapMatching::CheckLaneMatch(const SE3& T_delta_cur) {
   }
   return true;
 }
-
 }  // namespace loc
 }  // namespace mp
 }  // namespace hozon

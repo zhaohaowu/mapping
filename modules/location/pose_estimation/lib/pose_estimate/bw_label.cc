@@ -38,7 +38,6 @@ std::vector<std::vector<int>> BwLbel::number_of_group(
     return std::vector<std::vector<int>>{{}};
   }
   size_t length_row = frechet_compare_mat.size();
-  size_t length_column = frechet_compare_mat[0].size();
   std::vector<int> temp_group_mat;
   std::vector<std::vector<int>> group_num_mat;
   int group_num = 0;
@@ -46,12 +45,16 @@ std::vector<std::vector<int>> BwLbel::number_of_group(
     if (frechet_compare_mat[index_row].empty()) {
       continue;
     }
-    if (frechet_compare_mat[index_row][0] == 1) {
+    if (frechet_compare_mat[index_row].front() == 1) {
       ++group_num;
       group_num_mat.emplace_back(std::vector{group_num});
       temp_group_mat.emplace_back(group_num);
     } else {
       temp_group_mat.emplace_back(0);
+    }
+    size_t length_column = frechet_compare_mat[index_row].size();
+    if (length_column < 1) {
+      continue;
     }
     for (size_t index_column = 1; index_column < length_column;
          ++index_column) {
@@ -262,7 +265,8 @@ void BwLbel::num_change(std::vector<std::vector<int>>& number_of_group,
   size_t length_row = number_of_group.size();
   size_t length_column = number_of_group[0].size();
   for (size_t index_row = 0; index_row < length_row; ++index_row) {
-    for (size_t index_column = 0; index_column < length_column; ++index_column) {
+    for (size_t index_column = 0; index_column < length_column;
+         ++index_column) {
       if (number_of_group[index_row][index_column] == origin_num) {
         number_of_group[index_row][index_column] = target_num;
       }

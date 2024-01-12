@@ -37,12 +37,10 @@ class PoseEstimationLite : public hozon::netaos::adf_lite::Executor {
   void RegistProcessFunc();
 
   int32_t OnIns(Bundle* input);
-  //  void OnLocation(const std::shared_ptr<location::HafLocation> &msg);
+  int32_t OnLocation(Bundle* input);
   int32_t OnPerception(Bundle* input);
-  // void OnMarkPole(const std::shared_ptr<::perception::Roadmarking> &msg);
   int32_t OnPoseEstimation(Bundle* input);
   int32_t OnRunningMode(Bundle* input);
-  int32_t OnLocation(Bundle* input);
  private:
   std::unique_ptr<MapMatching> pose_estimation_ = nullptr;
 };

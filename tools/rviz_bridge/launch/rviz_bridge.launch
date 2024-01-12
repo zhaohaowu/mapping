@@ -8,7 +8,7 @@
         ipc:///tmp/rviz_agent_mf,
         ipc:///tmp/rviz_agent_local_map
     ]"/> -->
-
+ 
 <!-- rviz_bridge在本机，业务在远端（上海MDC台架） -->
     <arg name="viz_addrs" default="[tcp://10.6.74.153:9100]"/>
 

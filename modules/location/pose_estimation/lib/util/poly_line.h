@@ -25,11 +25,7 @@ class PolyLine {
   int id_;
   float min_;
   float max_;
-  float c0_;
-  float c1_;
-  float c2_;
-  float c3_;
-  float confidence_;
+  double confidence_;
   int lane_position_type_;
   std::vector<hozon::mp::loc::V3> points;
 };

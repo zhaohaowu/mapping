@@ -277,8 +277,20 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
   Eigen::Vector3d pose(ins.pos_gcj02().x(), ins.pos_gcj02().y(),
                        ins.pos_gcj02().z());
   ins_altitude_ = pose.z();
+  const auto& mq = ins.quaternion();
+  if (std::isnan(mq.w()) || std::isnan(mq.x()) || std::isnan(mq.y()) || std::isnan(mq.z())) {
+    HLOG_WARN << "Inspva_quaternion is null";
+    return;
+  }
+
   Eigen::Quaterniond q_W_V(ins.quaternion().w(), ins.quaternion().x(),
                            ins.quaternion().y(), ins.quaternion().z());
+  if (q_W_V.norm() < 1e-10) {
+    HLOG_WARN << "Inspva_fusion_HafNodeInfo quaternion(w,x,y,z) "
+              << q_W_V.w() << "," << q_W_V.x() << ","
+              << q_W_V.y() << "," << q_W_V.z();
+    return;
+  }
   q_W_V.normalize();
 
   {
@@ -292,6 +304,14 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
     HLOG_ERROR << "setIns q_W_V.norm() < 1e-7 ";
     return;
   }
+
+  if (std::fabs(q_W_V.norm() - 1) > 1e-3) {
+    HLOG_WARN << "HafNodeInfo quaternion(w,x,y,z) " << ins.quaternion().w()
+              << "," << ins.quaternion().x() << "," << ins.quaternion().y()
+              << "," << ins.quaternion().z() << ",norm:" << q_W_V.norm();
+    return;
+  }
+
   if (!init_) {
     HLOG_INFO << "ref_point_ = pose";
     ref_point_ = pose;

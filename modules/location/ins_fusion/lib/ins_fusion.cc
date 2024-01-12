@@ -372,9 +372,25 @@ bool InsFusion::Extract02InsNode(const hozon::localization::HafNodeInfo& inspva,
     return false;
   }
 
+  const auto& mq = inspva.quaternion();
+  if (std::isnan(mq.w()) || std::isnan(mq.x()) || std::isnan(mq.y()) || std::isnan(mq.z())) {
+    HLOG_WARN << "Inspva_quaternion is nan";
+    return false;
+  }
+
   Eigen::Quaterniond q(inspva.quaternion().w(), inspva.quaternion().x(),
                        inspva.quaternion().y(), inspva.quaternion().z());
   if (q.norm() < 1e-10) {
+    HLOG_WARN << "Inspva_fusion_HafNodeInfo quaternion(w,x,y,z) "
+              << q.w() << "," << q.x() << ","
+              << q.y() << "," << q.z();
+    return false;
+  }
+
+  if (std::fabs(q.norm()-1) > 1e-3) {
+    HLOG_WARN << "Inspva_fusion_HafNodeInfo quaternion(w,x,y,z) "
+              << q.w() << "," << q.x() << ","
+              << q.y() << "," << q.z();
     return false;
   }
 

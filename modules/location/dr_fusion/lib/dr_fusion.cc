@@ -75,10 +75,14 @@ void DrFusion::OnDr(const hozon::dead_reckoning::DeadReckoning& dr_node) {
   hozon::localization::HafNodeInfo haf_dr_node;
   DrNode2DrFusionNode(dr_node, &haf_dr_node);
   // seq not used on orin
-  // std::unique_lock<std::mutex> lock(dr_mutex_);
-  // if (haf_dr_node.header().seq() <= latest_dr_node_.header().seq()) {
-  //   return;
-  // }
+  std::unique_lock<std::mutex> lock(dr_mutex_);
+  if (haf_dr_node.header().seq() <= latest_dr_node_.header().seq() ||
+      haf_dr_node.header().data_stamp() <=
+          latest_dr_node_.header().data_stamp()) {
+    HLOG_WARN << "latest_dr_node \n" << latest_dr_node_.DebugString();
+    HLOG_WARN << "haf_dr_node \n" << haf_dr_node.DebugString();
+    return;
+  }
   latest_dr_node_ = haf_dr_node;
 }
 
@@ -215,18 +219,35 @@ bool DrFusion::DrNode2DrFusionNode(
   if (!node) {
     return false;
   }
+
+  const auto& mq = origin_node.pose().pose_local().quaternion();
+  if (std::isnan(mq.w()) || std::isnan(mq.x()) || std::isnan(mq.y()) || std::isnan(mq.z())) {
+    HLOG_WARN << "Dr_quaternion is nan";
+    return false;
+  }
+
   Eigen::Quaterniond q(origin_node.pose().pose_local().quaternion().w(),
                        origin_node.pose().pose_local().quaternion().x(),
                        origin_node.pose().pose_local().quaternion().y(),
                        origin_node.pose().pose_local().quaternion().z());
   if (q.norm() < 1e-10) {
-    HLOG_ERROR << "Dr HafNodeInfo quaternion(w,x,y,z) "
+    HLOG_ERROR << "Dr_HafNodeInfo quaternion(w,x,y,z) "
                << origin_node.pose().pose_local().quaternion().w() << ","
                << origin_node.pose().pose_local().quaternion().x() << ","
                << origin_node.pose().pose_local().quaternion().y() << ","
-               << origin_node.pose().pose_local().quaternion().z() << " error";
+               << origin_node.pose().pose_local().quaternion().z();
     return false;
   }
+  if (std::fabs(q.norm() - 1) > 1e-3) {
+    HLOG_ERROR << "Dr_HafNodeInfo quaternion(w,x,y,z) "
+               << origin_node.pose().pose_local().quaternion().w() << ","
+               << origin_node.pose().pose_local().quaternion().x() << ","
+               << origin_node.pose().pose_local().quaternion().y() << ","
+               << origin_node.pose().pose_local().quaternion().z()
+               << ",norm:" << q.norm();
+    return false;
+  }
+
   node->mutable_header()->set_seq(origin_node.header().seq());
   std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
       tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(

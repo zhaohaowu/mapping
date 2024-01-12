@@ -114,9 +114,9 @@ void FusionCenter::OnDR(const HafNodeInfo& dr) {
     return;
   }
   // seq not used on orin
-  // if (dr.header().seq() == prev_raw_dr_.header().seq()) {
-  //   return;
-  // }
+  if (dr.header().seq() <= prev_raw_dr_.header().seq()) {
+    return;
+  }
   prev_raw_dr_ = dr;
 
   Node node;
@@ -270,12 +270,26 @@ bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
     return false;
   }
 
+  const auto& mq = msg.quaternion();
+  if (std::isnan(mq.w()) || std::isnan(mq.x()) || std::isnan(mq.y()) || std::isnan(mq.z())) {
+    HLOG_WARN << "quaternion is nan";
+    return false;
+  }
+
   Eigen::Quaterniond q(msg.quaternion().w(), msg.quaternion().x(),
                        msg.quaternion().y(), msg.quaternion().z());
+
   if (q.norm() < 1e-10) {
     HLOG_WARN << "HafNodeInfo quaternion(w,x,y,z) " << msg.quaternion().w()
               << "," << msg.quaternion().x() << "," << msg.quaternion().y()
-              << "," << msg.quaternion().z() << " error";
+              << "," << msg.quaternion().z();
+    return false;
+  }
+
+  if (std::fabs(q.norm() - 1) > 1e-3) {
+    HLOG_WARN << "HafNodeInfo quaternion(w,x,y,z) " << msg.quaternion().w()
+              << "," << msg.quaternion().x() << "," << msg.quaternion().y()
+              << "," << msg.quaternion().z() << ",norm:" << q.norm();
     return false;
   }
 

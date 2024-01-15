@@ -61,7 +61,6 @@ dataSourcesOut:
     cmTopic: /localization/local_map
     cmDomainId: 0
     capacity: 5
-
   - topic: /location/pose_estimation
     capacity: 5
     type: proto_skeleton

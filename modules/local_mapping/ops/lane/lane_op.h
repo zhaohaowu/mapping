@@ -5,19 +5,17 @@
  *****************************************************************************/
 #pragma once
 
-#include <algorithm>
 #include <iostream>
 #include <list>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include <Sophus/se3.hpp>
 
 #include "modules/local_mapping/datalogger/load_data_singleton.h"
-#include "modules/local_mapping/ops/association/association.h"
-#include "modules/local_mapping/ops/association/horizon_assoc.h"
 #include "modules/local_mapping/types/types.h"
 #include "modules/local_mapping/utils/common.h"
 #include "modules/util/include/util/mapping_log.h"
@@ -27,29 +25,26 @@ namespace lm {
 
 class LaneOp {
  public:
-  static void Match(const Perception& cur_lane_lines, const LocalMap& local_map,
-                    std::vector<LaneMatchInfo>* match_info);
+  static void MatchLaneLine(const std::vector<LaneLine>& per_lane_lines,
+                            const std::vector<LaneLine>& map_lane_lines,
+                            std::vector<LaneLineMatchInfo>* lane_line_matches);
+  static void MatchEdgeLine(const std::vector<LaneLine>& per_edge_lines,
+                            const std::vector<LaneLine>& map_edge_lines,
+                            std::vector<EdgeLineMatchInfo>* edge_line_matches);
+  static void MatchStopLine(const std::vector<StopLine>& per_stop_lines,
+                            const std::vector<StopLine>& map_stop_lines,
+                            std::vector<StopLineMatchInfo>* stop_line_matches);
+  static void MatchArrow(const std::vector<Arrow>& per_arrows,
+                         const std::vector<Arrow>& map_arrows,
+                         std::vector<ArrowMatchInfo>* arrow_matches);
+  static void MatchZebraCrossing(
+      const std::vector<ZebraCrossing>& per_zebra_crossings,
+      const std::vector<ZebraCrossing>& map_zebra_crossings,
+      std::vector<ZebraCrossingMatchInfo>* zebra_crossing_matches);
 
-  void Match(const Perception& cur_lane_lines, const LocalMap& local_map,
-             std::vector<LaneMatchInfo>* match_info,
-             bool use_horizon_assoc_match);
-  static bool MatchLeftRight(const LaneLine& query_lane_line,
-                             const LaneLine& other_lane_line);
-  static void MergePointsLeftRight(LaneLine* query_lane_line,
-                                   LaneLine* other_lane_line);
-  static bool MatchFrontBack(const LaneLine& query_lane_line,
-                             const LaneLine& other_lane_line);
-  static bool MergePointsFrontBack(LaneLine* query_lane_line,
-                                   LaneLine* other_lane_line);
-  static void MergeMapLeftRight(LocalMap* local_map);
-  static void MergeMapFrontBack(LocalMap* local_map);
-
-  static ConstDrDataPtr GetDrPoseForTime(const double& timestamp);
+  static ConstDrDataPtr GetDrPoseForTime(double timestamp);
 
  private:
-  LaneAssocOptions lane_assoc_options_;
-  LaneAssocPtr lane_assoc_ = nullptr;
-  HorizonLaneAssocPtr horizon_lane_assoc_ = nullptr;
 };
 
 }  // namespace lm

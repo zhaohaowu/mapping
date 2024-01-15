@@ -37,6 +37,6 @@ trigger:
       - name: running_mode
         timeout: 1000
   
-  - name: send_lm # send workresult1,workresult2
+  - name: send_local_map # send workresult1,workresult2
     type: PERIOD
     period: 100

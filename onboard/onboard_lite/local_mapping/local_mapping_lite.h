@@ -6,11 +6,12 @@
 
 #pragma once
 
-#include <atomic>
 #include <memory>
 
 #include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
 #include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
+#include "depend/perception-base/base/state_machine/state_machine_info.h"
+#include "depend/perception-lib/lib/fault_manager/fault_manager.h"
 #include "modules/local_mapping/local_mapping.h"
 
 namespace hozon {
@@ -27,9 +28,7 @@ class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
   int32_t AlgInit() override;
   void AlgRelease() override;
 
-  int32_t OnLaneLine(adf_lite_Bundle* input);
-
-  // int32_t OnDr(adf_lite_Bundle* input);
+  int32_t OnPerception(adf_lite_Bundle* input);
 
   int32_t OnRunningMode(adf_lite_Bundle* input);
 
@@ -39,11 +38,7 @@ class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
 
   int32_t OnImage(adf_lite_Bundle* input);
 
-  // int32_t OnRoadEdge(Bundle* input);
-
   int32_t LocalMapPublish(adf_lite_Bundle* output);
-
-  int32_t LocalMapLocationPublish(adf_lite_Bundle* output);
 
   std::shared_ptr<LMapApp> lmap_ = nullptr;
   std::shared_ptr<hozon::mapping::LocalMap> result = nullptr;

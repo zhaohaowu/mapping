@@ -83,7 +83,6 @@ struct MapMatchLaneLineParams {
   bool adjust_weight_by_lane_width_check;
   double min_lane_width_check_thre;
   double max_lane_width_check_thre;
-
 };
 
 extern MapMatchLaneLineParams mm_params;

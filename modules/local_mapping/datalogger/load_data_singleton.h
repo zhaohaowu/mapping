@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "modules/local_mapping/datalogger/data_buffer.h"
-#include "modules/local_mapping/ops/association/association.h"
 #include "modules/local_mapping/types/types.h"
 
 namespace hozon {

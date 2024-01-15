@@ -16,6 +16,8 @@ target_link_libraries(onboard_lite_localmapping
   opencv_core
   opencv_imgproc
   opencv_imgcodecs
+  perception-base
+  perception-lib
 
 )
 

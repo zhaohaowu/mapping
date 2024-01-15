@@ -126,3 +126,67 @@ falut_data {
   report_objid : 2
   fault_option : true
 }
+falut_data {
+  module_id : 3
+  fault_id : 1116
+  orientation : -1
+  report_faultid : 5220
+  report_objid : 1
+  fault_option : true
+}
+falut_data {
+  module_id : 3
+  fault_id : 1117
+  orientation : -1
+  report_faultid : 5220
+  report_objid : 2
+  fault_option : true
+}
+falut_data {
+  module_id : 3
+  fault_id : 1118
+  orientation : -1
+  report_faultid : 5220
+  report_objid : 3
+  fault_option : false
+}
+falut_data {
+  module_id : 3
+  fault_id : 1119
+  orientation : -1
+  report_faultid : 5220
+  report_objid : 4
+  fault_option : true
+}
+falut_data {
+  module_id : 3
+  fault_id : 1120
+  orientation : -1
+  report_faultid : 5220
+  report_objid : 5
+  fault_option : true
+}
+falut_data {
+  module_id : 3
+  fault_id : 1125
+  orientation : -1
+  report_faultid : 5230
+  report_objid : 3
+  fault_option : false
+}
+falut_data {
+  module_id : 3
+  fault_id : 1126
+  orientation : -1
+  report_faultid : 5230
+  report_objid : 4
+  fault_option : false
+}
+falut_data {
+  module_id : 3
+  fault_id : 1127
+  orientation : -1
+  report_faultid : 5230
+  report_objid : 5
+  fault_option : false
+}

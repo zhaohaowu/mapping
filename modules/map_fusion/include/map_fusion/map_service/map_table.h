@@ -16,6 +16,7 @@
 #include <string>
 #include <tuple>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "map/hdmap/hdmap.h"
@@ -31,8 +32,8 @@ namespace mf {
 struct Section {
   std::string section_id;
   std::vector<std::string> lane_id;
-  std::vector<std::vector<Eigen::Vector3d>> left_boundary;
-  std::vector<std::vector<Eigen::Vector3d>> right_boundary;
+  // std::vector<Eigen::Vector3d> left_boundary;
+  // std::vector<Eigen::Vector3d> right_boundary;
   std::vector<Eigen::Vector3d> road_boundary;
 };
 
@@ -42,6 +43,8 @@ struct LaneInfo {
   std::string section_id;
   std::vector<Eigen::Vector3d> left_line;
   std::vector<Eigen::Vector3d> right_line;
+  // hozon::hdmap::LaneBoundaryType_Type left_line_type;
+  // hozon::hdmap::LaneBoundaryType_Type right_line_type;
   std::vector<Eigen::Vector3d> pred_left_line;   // predict left line
   std::vector<Eigen::Vector3d> pred_right_line;  // predict right line
   std::vector<std::string> left_lane_ids;
@@ -51,6 +54,7 @@ struct LaneInfo {
   std::vector<double> lane_width;
   Eigen::Vector3d last_normal;  // last two point normal
   uint32_t extra_boundary = 0;  // 1-->left,2-->right
+  std::pair<Eigen::Vector3d, Eigen::Vector3d> se_point;
   double tan_theta = 0.;
   double length;  // lane_length
   Eigen::Vector3d ref_point;
@@ -88,11 +92,9 @@ class MapTable {
                                const hdmap::Lane& lane);
   void CreatRoadTable(
       const std::vector<hozon::hdmap::RoadInfoConstPtr>& roads_in_range);
+  // void StoreLeftAndRightBoundary(const hozon::hdmap::RoadSection& it, Section* section);
   void CalculateTanTheta(const std::string& idd);
-  void ObtainPrevLength(double* l1, double* l2, uint32_t* prev_num,
-                        const std::string& idd);
-  void ObtainNextLength(double* l1, double* l2, uint32_t* next_num,
-                        const std::string& idd);
+  void ObtainEquation(const std::string& idd, const int& next_size);
   void ConstructLaneLine(const std::vector<Eigen::Vector3d>& road_boundary,
                          const std::vector<std::string>& sec_lane_id);
   void FitPredLaneLine(
@@ -115,10 +117,22 @@ class MapTable {
                        std::string* virtual_id, const double& s,
                        const Eigen::Vector3d& A, const Eigen::Vector3d& AB_C,
                        const int& index,
-                       std::vector<std::vector<Eigen::Vector3d>>* predict_line,
-                       bool* flag);
-  void JudgePrevLength(double* l, const std::string& lane_id);
-  bool JudgeNextIsVir(const std::string& lane_id);
+                       std::vector<std::vector<Eigen::Vector3d>>* predict_line);
+  void ComputeStartWidth(const std::vector<std::string>& sec_lane_ids,
+                         const std::string& idd, double* width,
+                         const int& next_size);
+  void ComputeEndWidth(const std::vector<std::string>& lane_idds,
+                       const std::string& lane_idd_nxt, double* width_last,
+                       const std::vector<std::string>& lane_idd_nxts);
+  void FindLastExtraLane(std::string* lane_idd,
+                         std::vector<std::string>* lane_idd_nexts);
+  static void ComputeVirtualPoint(const Eigen::Vector3d& A,
+                                  const Eigen::Vector3d& B,
+                                  const Eigen::Vector3d& C,
+                                  const Eigen::Vector3d& D,
+                                  Eigen::Vector3d* virtual_point);
+  static std::vector<Eigen::Vector3d> SmoothedPoint(
+      const std::vector<Eigen::Vector3d>& pred_line);
   Eigen::Vector3d GcjPtToLocalEnu(const hozon::common::PointENU& point_gcj);
 
   std::unordered_map<std::string, LaneInfo> lane_table_;
@@ -126,6 +140,7 @@ class MapTable {
   std::vector<std::string> all_section_ids_;
   std::unordered_map<std::string, std::vector<Eigen::Vector3d>>
       left_virtual_line_;
+  std::vector<std::string> had_equ_;
 
   std::mutex mtx_;
   // gcj02

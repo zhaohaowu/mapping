@@ -5,13 +5,15 @@
  *****************************************************************************/
 #pragma once
 
+#include <algorithm>
+#include <map>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "modules/local_mapping/types/types.h"
 #include "modules/local_mapping/utils/common.h"
 #include "modules/util/include/util/mapping_log.h"
-
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -19,97 +21,59 @@ class DataConvert {
  public:
   DataConvert() = default;
 
-  /**
-   * @brief convert location message into internal class
-   *
-   * @param msg : location message
-   * @return
-   */
   static void SetLocalization(const hozon::localization::Localization& msg,
                               Localization* localization);
 
-  /**
-   * @brief convert dr message into internal class
-   *
-   * @param msg : dr message
-   * @return
-   */
-  static void SetDr(const hozon::dead_reckoning::DeadReckoning& msg,
-                    Localization* dr);
+  static void SetPerception(const hozon::perception::TransportElement& msg,
+                            Perception* perception);
 
-  /**
-   * @brief convert laneline message into internal class
-   *
-   * @param msg : laneline message
-   * @return
-   */
-  static void SetLaneLinePoint(const hozon::perception::TransportElement& msg,
-                               Perception* lane_lines);
-
-  /**
-   * @brief convert laneline message into internal class
-   *
-   * @param msg : laneline message
-   * @return
-   */
   static void SetLaneLine(const hozon::perception::TransportElement& msg,
-                          Perception* lane_lines);
+                          std::vector<LaneLine>* lane_lines);
 
-  /**
-   * @brief convert laneline message into internal class
-   *
-   * @param msg : laneline message
-   * @return
-   */
   static void SetEdgeLine(const hozon::perception::TransportElement& msg,
-                          Perception* lane_edges);
+                          std::vector<LaneLine>* edge_lines);
 
-  /**
-   * @brief convert road edge message into internal class
-   *
-   * @param msg : road edge message
-   * @return
-   */
-  static void SetRoadEdge(const hozon::perception::TransportElement& msg);
+  static void SetStopLine(const hozon::perception::TransportElement& msg,
+                          std::vector<StopLine>* stop_lines);
 
-  /**
-   * @brief convert LanePositionType from proto to inner type
-   *
-   * @param raw_lane_pose_type : proto type
-   * @param lane_pose_type : inner type
-   * @return
-   */
+  static void SetArrow(const hozon::perception::TransportElement& msg,
+                       std::vector<Arrow>* arrows);
+
+  static void SetZebraCrossing(const hozon::perception::TransportElement& msg,
+                               std::vector<ZebraCrossing>* zebra_crossing);
+
   static void ConvertProtoLanePos(
       const hozon::perception::LanePositionType& raw_lanepos,
       LanePositionType* lanepos);
 
-  /**
-   * @brief convert LanePositionType from proto to inner type
-   *
-   * @param raw_lane_pose_type : proto type
-   * @param lane_pose_type : inner type
-   * @return
-   */
   static void ConvertProtoLaneType(
       const hozon::perception::LaneType& raw_lanetype, LaneType* lanetype);
 
-  /**
-   * @brief convert LanePositionType from inerr to proto type
-   *
-   * @param lane_pose_type : inner type
-   * @return proto type
-   */
+  static void ConvertProtoEdgeType(
+      const hozon::perception::RoadEdge::RoadEdgeType& raw_edgetype,
+      EdgeType* edgetype);
+
+  static void ConvertProtoArrowType(
+      const hozon::perception::ArrowType& raw_arrowtype, ArrowType* arrowtype);
+
+  static void ConvertProtoColor(const hozon::perception::Color& raw_color,
+                                Color* color);
+
   static void ConvertInnerLanePos(const LanePositionType& inner_lanepos,
                                   hozon::mapping::LanePositionType* lanepos);
 
-  /**
-   * @brief convert LanePositionType from inerr to proto type
-   *
-   * @param lane_pose_type : inner type
-   * @return proto type
-   */
   static void ConvertInnerLaneType(const LaneType& inner_lanetype,
                                    hozon::mapping::LaneType* lanetype);
+
+  //   static void ConvertInnerColor(const Color& inner_color,
+  //                                 hozon::mapping::Color* color);
+
+  static void ConvertInnerMapLaneType(
+      const Color& color, const bool& is_left, const LaneType& inner_lanetype,
+      hozon::hdmap::LaneBoundaryType::Type* lanetype);
+
+  static void ConvertInnerArrowType(const ArrowType& inner_arrowtype,
+                                    hozon::hdmap::ArrowData::Type* arrowtype);
 };
 
 }  // namespace lm

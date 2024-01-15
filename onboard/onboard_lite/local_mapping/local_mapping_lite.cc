@@ -56,9 +56,9 @@ int32_t LocalMappingOnboard::AlgInit() {
   lmap_ = std::make_shared<LMapApp>(mapping_path, config_file);
   result = std::make_shared<hozon::mapping::LocalMap>();
   // NOLINTBEGIN
-  RegistAlgProcessFunc(
-      "recv_laneline",
-      std::bind(&LocalMappingOnboard::OnLaneLine, this, std::placeholders::_1));
+  RegistAlgProcessFunc("recv_laneline",
+                       std::bind(&LocalMappingOnboard::OnPerception, this,
+                                 std::placeholders::_1));
 
   RegistAlgProcessFunc("recv_localization",
                        std::bind(&LocalMappingOnboard::Onlocalization, this,
@@ -74,19 +74,19 @@ int32_t LocalMappingOnboard::AlgInit() {
                                                  this, std::placeholders::_1));
   }
 
-  //  RegistAlgProcessFunc(
-  //      "recv_roadedge",
-  //      std::bind(&LocalMappingOnboard::OnRoadEdge, this,
-  //      std::placeholders::_1));
-
-  RegistAlgProcessFunc("send_lm",
+  RegistAlgProcessFunc("send_local_map",
                        std::bind(&LocalMappingOnboard::LocalMapPublish, this,
                                  std::placeholders::_1));
   // NOLINTEND
   return 0;
 }
 
-void LocalMappingOnboard::AlgRelease() { RVIZ_AGENT.Term(); }
+void LocalMappingOnboard::AlgRelease() {
+  RVIZ_AGENT.Term();
+  if (hozon::perception::lib::FaultManager::Instance() != nullptr) {
+    hozon::perception::lib::FaultManager::Instance()->Reset();
+  }
+}
 
 int32_t LocalMappingOnboard::OnRunningMode(adf_lite_Bundle* input) {
   auto rm_msg = input->GetOne("running_mode");
@@ -103,9 +103,11 @@ int32_t LocalMappingOnboard::OnRunningMode(adf_lite_Bundle* input) {
       static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
     PauseTrigger("recv_laneline");
     PauseTrigger("recv_localization");
-    PauseTrigger("recv_ins");
-    PauseTrigger("recv_image");
-    PauseTrigger("send_lm");
+    if (RVIZ_AGENT.Ok()) {
+      PauseTrigger("recv_ins");
+      PauseTrigger("recv_image");
+    }
+    PauseTrigger("send_local_map");
     // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
   } else if (runmode == static_cast<int>(
                             hozon::perception::base::RunningMode::DRIVING) ||
@@ -113,41 +115,134 @@ int32_t LocalMappingOnboard::OnRunningMode(adf_lite_Bundle* input) {
                  static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
     ResumeTrigger("recv_laneline");
     ResumeTrigger("recv_localization");
-    ResumeTrigger("recv_ins");
-    ResumeTrigger("recv_image");
-    ResumeTrigger("send_lm");
+    if (RVIZ_AGENT.Ok()) {
+      ResumeTrigger("recv_ins");
+      ResumeTrigger("recv_image");
+    }
+    ResumeTrigger("send_local_map");
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
   }
   return 0;
 }
 
-int32_t LocalMappingOnboard::OnLaneLine(adf_lite_Bundle* input) {
+int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
+  auto* phm_fault = hozon::perception::lib::FaultManager::Instance();
+  static double last_percep_time = -1.0;
   HLOG_INFO << "receive laneline data...";
-  auto laneline_msg = input->GetOne("percep_transport");
-  if (!laneline_msg) {
+  auto percep_msg = input->GetOne("percep_transport");
+  if (percep_msg == nullptr) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            LOCALMAPPING_MUL_FRAM_PERCEPTION_INPUT_DATA_LOSS,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
     HLOG_ERROR << "nullptr track lane plugin";
     return -1;
   }
+  phm_fault->Report(
+      MAKE_FM_TUPLE(hozon::perception::base::FmModuleId::MAPPING,
+                    hozon::perception::base::FaultType::
+                        LOCALMAPPING_MUL_FRAM_PERCEPTION_INPUT_DATA_LOSS,
+                    hozon::perception::base::FaultStatus::RESET,
+                    hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+
   if (!lmap_) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::LOCALMAPPING_CANNOT_INIT,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
     HLOG_ERROR << "LMapApp init failed!!!";
     return -1;
   }
+  phm_fault->Report(MAKE_FM_TUPLE(
+      hozon::perception::base::FmModuleId::MAPPING,
+      hozon::perception::base::FaultType::LOCALMAPPING_CANNOT_INIT,
+      hozon::perception::base::FaultStatus::RESET,
+      hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+
   auto msg = std::static_pointer_cast<hozon::perception::TransportElement>(
-      laneline_msg->proto_msg);
-  lmap_->OnLaneLine(msg);
+      percep_msg->proto_msg);
+
+  double cur_percep_time = msg->header().data_stamp();
+  if (last_percep_time > 0) {
+    if (last_percep_time - cur_percep_time < 0) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              LOCALMAPPING_MUL_FRAM_PERCEPTION_INPUT_TIME_ERROR,
+          hozon::perception::base::FaultStatus::OCCUR,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
+      HLOG_ERROR << "receieve laneline time error";
+      // std::cout << "last_percep_time: " << std::setprecision(20)
+      //           << last_percep_time;
+      // std::cout << "cur_percep_time: " << std::setprecision(20)
+      //           << cur_percep_time;
+    } else {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              LOCALMAPPING_MUL_FRAM_PERCEPTION_INPUT_TIME_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+    }
+  }
+  last_percep_time = cur_percep_time;
+
+  lmap_->OnPerception(msg);
   HLOG_INFO << "processed laneline data";
   return 0;
 }
 
 int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
+  auto* phm_fault = hozon::perception::lib::FaultManager::Instance();
+  static double last_localization_time = -1.0;
   HLOG_INFO << "receive localization data...";
   auto localization_msg = input->GetOne("localization");
   if (localization_msg == nullptr) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            LOCALMAPPING_MUL_FRAM_LOCALIZATION_INPUT_DATA_LOSS,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
     HLOG_ERROR << "nullptr localization plugin";
     return -1;
   }
+  phm_fault->Report(
+      MAKE_FM_TUPLE(hozon::perception::base::FmModuleId::MAPPING,
+                    hozon::perception::base::FaultType::
+                        LOCALMAPPING_MUL_FRAM_LOCALIZATION_INPUT_DATA_LOSS,
+                    hozon::perception::base::FaultStatus::RESET,
+                    hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+
   auto msg = std::static_pointer_cast<hozon::localization::Localization>(
       localization_msg->proto_msg);
+  double cur_localization_time = msg->header().data_stamp();
+  if (last_localization_time > 0) {
+    if (last_localization_time - cur_localization_time < 0) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              LOCALMAPPING_MUL_FRAM_LOCALIZATION_INPUT_TIME_ERROR,
+          hozon::perception::base::FaultStatus::OCCUR,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+      // std::cout << "last_localization_time: " << std::setprecision(20)
+      //           << last_localization_time;
+      // std::cout << "cur_localization_time: " << std::setprecision(20)
+      //           << cur_localization_time;
+      HLOG_ERROR << "receieve localization time error";
+    } else {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              LOCALMAPPING_MUL_FRAM_LOCALIZATION_INPUT_TIME_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+    }
+  }
+  last_localization_time = cur_localization_time;
   lmap_->OnLocalization(msg);
   HLOG_INFO << "processed localization data";
   return 0;
@@ -229,30 +324,53 @@ int32_t LocalMappingOnboard::OnImage(adf_lite_Bundle* input) {
   return 0;
 }
 
-// int32_t LocalMappingOnboard::OnRoadEdge(Bundle* input) {
-//    auto road_edge_msg = input->GetOne("percep_transport");
-//   auto msg = std::static_pointer_cast<common_onboard::NetaTransportElement>(
-//       road_edge_msg->protOko_msg);
-//   if (!lmap_) {
-//     return false;
-//   }
-//   lmap_->OnRoadEdge(msg);
-// }
-
 int32_t LocalMappingOnboard::LocalMapPublish(adf_lite_Bundle* /*output*/) {
   HLOG_INFO << "start publish localmap...";
+  auto* phm_fault = hozon::perception::lib::FaultManager::Instance();
+  static double last_localmap_publish_time = -1.0;
   result->Clear();
   if (lmap_->FetchLocalMap(result)) {
+    double cur_localmap_publish_time = result->header().data_stamp();
+    if (last_localmap_publish_time > 0) {
+      if (last_localmap_publish_time - cur_localmap_publish_time < 0) {
+        phm_fault->Report(MAKE_FM_TUPLE(
+            hozon::perception::base::FmModuleId::MAPPING,
+            hozon::perception::base::FaultType::
+                LOCALMAPPING_MUL_FRAM_OUTPUT_LOCAL_MAP_TIME_ERROR,
+            hozon::perception::base::FaultStatus::OCCUR,
+            hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
+        HLOG_ERROR << "publish localmap time error";
+      } else {
+        phm_fault->Report(MAKE_FM_TUPLE(
+            hozon::perception::base::FmModuleId::MAPPING,
+            hozon::perception::base::FaultType::
+                LOCALMAPPING_MUL_FRAM_OUTPUT_LOCAL_MAP_TIME_ERROR,
+            hozon::perception::base::FaultStatus::RESET,
+            hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      }
+    }
+    last_localmap_publish_time = cur_localmap_publish_time;
     auto workflow1 = std::make_shared<hozon::netaos::adf_lite::BaseData>();
-
     workflow1->proto_msg = result;
     adf_lite_Bundle bundle;
     bundle.Add("local_map", workflow1);
     SendOutput(&bundle);
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            LOCALMAPPING_CANNOT_OUTPUT_LOCAL_MAP,
+        hozon::perception::base::FaultStatus::RESET,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
     HLOG_INFO << "publish localmap suceessed...";
+  } else {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            LOCALMAPPING_CANNOT_OUTPUT_LOCAL_MAP,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
   }
   HLOG_INFO << "processed publish localmap";
-  usleep(100 * 1e3);
   return 0;
 }
 

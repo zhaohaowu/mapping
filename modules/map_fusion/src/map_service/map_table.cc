@@ -8,10 +8,16 @@
 #include "map_fusion/map_service/map_table.h"
 #include <gflags/gflags.h>
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
+
 #include "Eigen/src/Core/Matrix.h"
 #include "adsfi_proto/viz/sensor_msgs.pb.h"
 #include "adsfi_proto/viz/visualization_msgs.pb.h"
+#include "base/utils/log.h"
 #include "map_fusion/map_service/global_hd_map.h"
+#include "opencv2/ml.hpp"
 #include "util/mapping_log.h"
 
 namespace hozon {
@@ -67,6 +73,23 @@ void MapTable::BuildLaneTable() {
   ObtainLaneAndRoad(utm_pos, range, &lanes_in_range, &roads_in_range);
   CreatLaneTable(lanes_in_range);
   CreatRoadTable(roads_in_range);
+
+  for (const auto& it : lanes_in_range) {
+    if (lane_table_.find(it->lane().id().id()) == lane_table_.end()) {
+      continue;
+    }
+    if (lane_table_.at(it->lane().id().id()).extra_boundary == 2) {
+      auto right_lanes = lane_table_.at(it->lane().id().id()).right_lane_ids;
+      if (right_lanes.empty()) {
+        continue;
+      }
+      auto right_lane = right_lanes[0];
+      if (lane_table_.find(right_lane) == lane_table_.end()) {
+        continue;
+      }
+      lane_table_.at(right_lane).extra_boundary = 1;
+    }
+  }
 
   for (const auto& it : lanes_in_range) {
     // 计算变道引导线的tan theta
@@ -146,6 +169,14 @@ void MapTable::CreatLaneTable(
       }
     }
 
+    // 存储车道的类型（实线或者是虚线）
+    // auto left_line_type =
+    //     lane->lane().left_boundary().boundary_type(0).types(0);
+    // auto right_line_type =
+    //     lane->lane().right_boundary().boundary_type(0).types(0);
+    // local_lane.left_line_type = left_line_type;
+    // local_lane.right_line_type = right_line_type;
+
     // 存储每条lane右边线最后两个点的单位向量
     const auto& right_size = local_lane.right_line.size();
     const auto& last_normal = (local_lane.right_line[right_size - 2] -
@@ -223,6 +254,9 @@ void MapTable::CreatRoadTable(
         section.lane_id.emplace_back(itt.id());
       }
 
+      // 存储原始hd_map中的左右road边界
+      // StoreLeftAndRightBoundary(it, &section);
+
       // 将左二车道的左边界作为road_boundary
       const auto& left_second_left_id = section.lane_id.back();
       if (lane_table_.find(left_second_left_id) != lane_table_.end()) {
@@ -235,188 +269,212 @@ void MapTable::CreatRoadTable(
   }
 }
 
+#if 0
+void MapTable::StoreLeftAndRightBoundary(const hozon::hdmap::RoadSection& it,
+                                         Section* section) {
+  // 存储road edge
+  for (const auto& edge : it.boundary().outer_polygon().edge()) {
+    if (edge.type() == 2) {
+      for (const auto& seg : edge.curve().segment()) {
+        for (const auto& pt : seg.line_segment().point()) {
+          Eigen::Vector3d ptt = GcjPtToLocalEnu(pt);
+          section->left_boundary.emplace_back(ptt);
+        }
+      }
+    }
+
+    if (edge.type() == 3) {
+      for (const auto& seg : edge.curve().segment()) {
+        for (const auto& pt : seg.line_segment().point()) {
+          Eigen::Vector3d ptt = GcjPtToLocalEnu(pt);
+          section->right_boundary.emplace_back(ptt);
+        }
+      }
+    }
+  }
+}
+#endif
+
 void MapTable::CalculateTanTheta(const std::string& idd) {
-  /*
-        1、针对每个lane_id，判断其是否是变道虚线
-        2、如果是变道虚拟线，循环判断其前继车道是否是变道虚拟线，直到找不到
-        3、从第一个变道虚拟线的theta角,并填充到lane_table中
-        4、循环查找其后继车道，如果是变道引导线，同样塞到lane_table中
-        */
-  double tan_theta = 0;
   if (lane_table_.find(idd) == lane_table_.end()) {
     HLOG_ERROR << "idd have not in lane_table_";
     return;
   }
-  const auto& sec_id = lane_table_.at(idd).section_id;
-  // 这里还不能使用sec_id,因为road还没存储完整
-  const auto& road_id = lane_table_.at(idd).road_id;
-  if (road_table_.find(road_id) == road_table_.end()) {
+  /*
+      1.根据前继车道判断其是否是第一个车道引导线
+      2.如果是，求该车道的所有后继车道，直道后继车道跨车道或者不是引导线
+    */
+  auto prev_ids = lane_table_.at(idd).prev_lane_ids;
+  if (prev_ids.empty()) {
     return;
   }
-  const auto& section = road_table_.at(road_id).section_ids;
-  //   if (section.find(sec_id) == section.end()) {
-  //     return;
-  //   }
-  auto curr_left_id =
-      static_cast<uint32_t>(std::stoll(section.at(sec_id).lane_id.back()) % 10);
-
-  if (lane_table_.at(idd).extra_boundary == 1) {
-    // 该lane的左边线是变道引导线
-    // 该变道引导线的左邻id
-    const auto& lane_idd_left = std::to_string(std::stoll(idd) + 1);
-    if (lane_table_.find(lane_idd_left) == lane_table_.end()) {
-      return;
-    }
-    double l1 = lane_table_.at(idd).length;
-    double l2 = lane_table_.at(lane_idd_left).length;
-    // 判断前继
-    uint32_t prev_num = 0;
-    ObtainPrevLength(&l1, &l2, &prev_num, idd);
-    // 判断后继
-    uint32_t next_num = 0;
-    ObtainNextLength(&l1, &l2, &next_num, idd);
-
-    if (l1 == 0) {
-      return;
-    }
-    double cos_theta = l2 / l1;
-    double tan_theta = std::sqrt(1.0 - cos_theta * cos_theta) / cos_theta;
-    // tan_theta = 0.05;
-    if (cos_theta >= 1.0) {
-      tan_theta = 0.05;
-    }
-    if ((next_num < prev_num && prev_num == curr_left_id) ||
-        ((next_num - prev_num) > 2 && next_num > prev_num)) {
-      tan_theta = -tan_theta;
-    }
-    lane_table_.at(idd).tan_theta = tan_theta;
-
-    // ((next_num - prev_num) > 2 && next_num > prev_num)
-    // 将lane_idd的后继车道是变道引导线的车道也赋上tan_theta
-    // while (lane_table_.at(lane_idd).extra_boundary == 1) {
-    //   const auto& lane_idd_next = lane_table_.at(lane_idd).next_lane_ids;
-    //   if (lane_idd_next.empty()) {
-    //     break;
-    //   }
-    //   const auto& lane_idd_next_id = lane_idd_next[0];
-    //   if (lane_table_.find(lane_idd_next_id) == lane_table_.end()) {
-    //     break;
-    //   }
-    //   if (lane_table_.at(lane_idd_next_id).extra_boundary == 1) {
-    //     lane_table_.at(lane_idd_next_id).tan_theta = tan_theta;
-    //     lane_idd = lane_idd_next_id;
-    //   } else {
-    //     break;
-    //   }
-    // }
+  auto prev_id = prev_ids[0];
+  if (lane_table_.find(prev_id) == lane_table_.end()) {
+    return;
+  }
+  const auto& next_size = lane_table_.at(prev_id).next_lane_ids.size();
+  if (next_size != 2 && lane_table_.at(prev_id).extra_boundary != 0 &&
+      prev_ids.size() != 2) {
+    return;
+  }
+  // 左引导线
+  if (lane_table_.at(idd).extra_boundary == 1 &&
+      std::find(had_equ_.begin(), had_equ_.end(), idd) == had_equ_.end()) {
+    ObtainEquation(idd, static_cast<int>(next_size));
+  } else {
+    lane_table_.at(idd).se_point.first << 0.0, 0.0, 0.0;
+    lane_table_.at(idd).se_point.second << 0.0, 0.0, 0.0;
   }
 }
 
-void MapTable::ObtainPrevLength(double* l1, double* l2, uint32_t* prev_num,
-                                const std::string& idd) {
-  // prev
-  // 求出此时idd_prev[0]车道所在section的车道数
+void MapTable::ObtainEquation(const std::string& idd, const int& next_size) {
+  // idd是第一个车道引导线的，其是同一个车道内
+  // 求左边线第一个点的坐标（这里由车道宽度来进行求解)
+  had_equ_.emplace_back(idd);
   const auto& sec_id = lane_table_.at(idd).section_id;
-  // 这里还不能使用sec_id,因为road还没存储完整
   const auto& road_id = lane_table_.at(idd).road_id;
   if (road_table_.find(road_id) == road_table_.end()) {
     return;
   }
   const auto& section = road_table_.at(road_id).section_ids;
-  // if (section.find(sec_id) == section.end()) {
-  //   return;
-  // }
-  auto curr_left_id =
-      static_cast<uint32_t>(std::stoll(section.at(sec_id).lane_id.back()) % 10);
+  const auto& sec_lane_ids = section.at(sec_id).lane_id;
+  double width = 0.;
+
+  ComputeStartWidth(sec_lane_ids, idd, &width, next_size);
+  const auto& bound_id = sec_lane_ids.back();
+  if (lane_table_.find(bound_id) == lane_table_.end()) {
+    return;
+  }
+  const auto& A = lane_table_.at(bound_id).right_line.front();
+
+  Eigen::Vector3d AB_N;
+  const auto& last_id = sec_lane_ids.back();
+  LaneLastNormal(&AB_N, last_id);
+  Eigen::Vector3d AB_C(-AB_N.y(), AB_N.x(), 0);
+  // 计算起点坐标
+  Eigen::Vector3d start_point = A - AB_C * width;
+  if (idd == sec_lane_ids.back()) {
+    start_point = A + AB_C * width;
+  }
+
+  auto point = lane_table_.at(idd).left_line.front();
+  // 计算终点坐标
+  std::vector<std::string> lane_idd_nexts;
   auto lane_idd = idd;
-  while (lane_table_.at(lane_idd).extra_boundary == 1) {
-    auto idd_prev = lane_table_.at(lane_idd).prev_lane_ids;
-    if (idd_prev.empty()) {
-      break;
-    }
-    if (lane_table_.find(idd_prev[0]) == lane_table_.end()) {
-      break;
-    }
-    // 求出此时idd_prev[0]车道所在section的车道数
-    const auto& sec_id = lane_table_.at(idd_prev[0]).section_id;
-    // 这里还不能使用sec_id,因为road还没存储完整
-    const auto& road_id = lane_table_.at(idd_prev[0]).road_id;
-    if (road_table_.find(road_id) == road_table_.end()) {
-      break;
-    }
-    const auto& section = road_table_.at(road_id).section_ids;
-    // if (section.find(sec_id) == section.end()) {
-    //   break;
-    // }
-    auto prev_left_id = static_cast<uint32_t>(
-        std::stoll(section.at(sec_id).lane_id.back()) % 10);
-    // auto prev_left_id = static_cast<uint32_t>(
-    //     static_cast<unsigned
-    //     char>(section.at(sec_id).lane_id.back().back()));
-    auto extra_boundary = lane_table_.at(idd_prev[0]).extra_boundary;
-    if (extra_boundary == 1 && prev_left_id == curr_left_id) {
-      lane_idd = idd_prev[0];
-      const auto& lane_idd_left = std::to_string(std::stoll(lane_idd) + 1);
-      if (lane_table_.find(lane_idd_left) == lane_table_.end()) {
-        break;
-      }
-      *l1 += lane_table_.at(lane_idd).length;
-      *l2 += lane_table_.at(lane_idd_left).length;
-    } else {
-      *prev_num = prev_left_id;
-      break;
-    }
+  FindLastExtraLane(&lane_idd, &lane_idd_nexts);
+  const auto& lane_idd_nxts = lane_table_.at(lane_idd).next_lane_ids;
+  if (lane_idd_nxts.empty()) {
+    return;
+  }
+  const auto& lane_idd_nxt = lane_idd_nxts[0];
+  // lane_idd所对应车道的终点
+  if (lane_table_.find(lane_idd_nxt) == lane_table_.end()) {
+    return;
+  }
+  const auto& sec_idd = lane_table_.at(lane_idd_nxt).section_id;
+  const auto& road_idd = lane_table_.at(lane_idd_nxt).road_id;
+  if (road_table_.find(road_idd) == road_table_.end()) {
+    return;
+  }
+  const auto& section_idd = road_table_.at(road_idd).section_ids;
+  if (section_idd.find(sec_idd) == section_idd.end()) {
+    return;
+  }
+  const auto& lane_idds = section_idd.at(sec_idd).lane_id;
+
+  const auto& last_bound = lane_idds.back();
+  if (lane_table_.find(last_bound) == lane_table_.end()) {
+    return;
+  }
+
+  const auto& A_last = lane_table_.at(last_bound).right_line.front();
+
+  Eigen::Vector3d AB_N_last;
+  const auto& last_idd = lane_idds.back();
+  LaneLastNormal(&AB_N_last, last_idd);
+  Eigen::Vector3d AB_C_last(-AB_N_last.y(), AB_N_last.x(), 0);
+
+  double width_last = 0.;
+  ComputeEndWidth(lane_idds, lane_idd_nxt, &width_last, lane_idd_nxts);
+  if (lane_idds[lane_idds.size() - 2] == lane_idd_nxt &&
+      lane_idds.size() >= 2) {
+    width_last = 0;
+  }
+  if (lane_idds.size() == 1) {
+    width_last = lane_table_.at(lane_idds.back()).lane_width.front();
+  }
+  Eigen::Vector3d end_point;
+  if (lane_idd_nxt == lane_idds.back()) {
+    end_point = A_last + AB_C_last * width_last;
+  } else {
+    end_point = A_last - AB_C_last * width_last;
+  }
+
+  lane_table_.at(idd).se_point.first = start_point;
+  lane_table_.at(idd).se_point.second = end_point;
+  for (const auto& it : lane_idd_nexts) {
+    lane_table_.at(it).se_point.first = start_point;
+    lane_table_.at(it).se_point.second = end_point;
   }
 }
 
-void MapTable::ObtainNextLength(double* l1, double* l2, uint32_t* next_num,
-                                const std::string& idd) {
-  // next
-  // 求出此时idd_prev[0]车道所在section的车道数
-  const auto& sec_id = lane_table_.at(idd).section_id;
-  // 这里还不能使用sec_id,因为road还没存储完整
-  const auto& road_id = lane_table_.at(idd).road_id;
-  if (road_table_.find(road_id) == road_table_.end()) {
-    return;
-  }
-  const auto& section = road_table_.at(road_id).section_ids;
-  // if (section.find(sec_id) == section.end()) {
-  //   return;
-  // }
-  // auto curr_lane_num = section.at(sec_id).lane_id.size();
-  auto curr_left_id =
-      static_cast<uint32_t>(std::stoll(section.at(sec_id).lane_id.back()) % 10);
-  auto lane_iddd = idd;
-  while (lane_table_.at(lane_iddd).extra_boundary == 1) {
-    auto idd_next = lane_table_.at(lane_iddd).next_lane_ids;
-    if (idd_next.empty()) {
-      break;
-    }
-    if (lane_table_.find(idd_next[0]) == lane_table_.end()) {
-      break;
-    }
-    // 求出此时lane_iddd车道所在section的车道数
-    const auto& sec_id = lane_table_.at(idd_next[0]).section_id;
-    const auto& road_id = lane_table_.at(idd_next[0]).road_id;
-    if (road_table_.find(road_id) == road_table_.end()) {
-      break;
-    }
-    const auto& section = road_table_.at(road_id).section_ids;
-    // auto lane_num = section.at(sec_id).lane_id.size();
-    auto extra_boundary = lane_table_.at(idd_next[0]).extra_boundary;
-    auto next_left_id = static_cast<uint32_t>(
-        std::stoll(section.at(sec_id).lane_id.back()) % 10);
-    if (extra_boundary == 1 && next_left_id == curr_left_id) {
-      lane_iddd = idd_next[0];
-      const auto& lane_idd_left = std::to_string(std::stoll(lane_iddd) + 1);
-      if (lane_table_.find(lane_idd_left) == lane_table_.end()) {
-        break;
+void MapTable::ComputeStartWidth(const std::vector<std::string>& sec_lane_ids,
+                                 const std::string& idd, double* width,
+                                 const int& next_size) {
+  for (int i = static_cast<int>(sec_lane_ids.size()) - 2; i >= 0; i--) {
+    if (sec_lane_ids[i] == idd) {
+      if (next_size == 2 && sec_lane_ids.size() > 2) {
+        *width -= lane_table_.at(sec_lane_ids[i]).lane_width.front();
       }
-      *l1 += lane_table_.at(lane_iddd).length;
-      *l2 += lane_table_.at(lane_idd_left).length;
+      break;
+    }
+    if (lane_table_.find(sec_lane_ids[i]) == lane_table_.end()) {
+      break;
+    }
+    *width += lane_table_.at(sec_lane_ids[i]).lane_width.front();
+  }
+}
+
+void MapTable::ComputeEndWidth(const std::vector<std::string>& lane_idds,
+                               const std::string& lane_idd_nxt,
+                               double* width_last,
+                               const std::vector<std::string>& lane_idd_nxts) {
+  for (int i = static_cast<int>(lane_idds.size()) - 2; i >= 0; i--) {
+    if (lane_idds[i] == lane_idd_nxt) {
+      if (lane_table_.at(lane_idd_nxt).extra_boundary == 1) {
+        if (lane_idd_nxts.size() == 2) {
+          *width_last -= lane_table_.at(lane_idds[i]).lane_width.front();
+        }
+      }
+      break;
+    }
+    if (lane_table_.find(lane_idds[i]) == lane_table_.end()) {
+      break;
+    }
+    *width_last += lane_table_.at(lane_idds[i]).lane_width.front();
+  }
+}
+
+void MapTable::FindLastExtraLane(std::string* lane_idd,
+                                 std::vector<std::string>* lane_idd_nexts) {
+  while (lane_table_.at(*lane_idd).extra_boundary == 1) {
+    auto idd_nexts = lane_table_.at(*lane_idd).next_lane_ids;
+    if (idd_nexts.empty()) {
+      break;
+    }
+    auto idd_next = idd_nexts[0];
+    if (lane_table_.find(idd_next) == lane_table_.end()) {
+      break;
+    }
+    auto idd_next_prev = lane_table_.at(idd_next).prev_lane_ids;
+    auto extra_boundary = lane_table_.at(idd_next).extra_boundary;
+
+    if (extra_boundary == 1 && idd_nexts.size() != 2 &&
+        idd_next_prev.size() != 2) {
+      *lane_idd = idd_next;
+      had_equ_.emplace_back(*lane_idd);
+      lane_idd_nexts->emplace_back(*lane_idd);
     } else {
-      // *next_num = section.at(sec_id).lane_id.size();
-      *next_num = next_left_id;
       break;
     }
   }
@@ -438,7 +496,8 @@ void MapTable::ConstructLaneLine(
     if (lane_table_.find(sec_lane_id[i]) == lane_table_.end()) {
       break;
     }
-    if (left_virtual_line_.find(sec_lane_id[i]) != left_virtual_line_.end()) {
+    if (left_virtual_line_.find(sec_lane_id[i]) != left_virtual_line_.end() &&
+        lane_table_.at(sec_lane_id[i]).extra_boundary == 1) {
       lane_table_.at(sec_lane_id[i]).pred_left_line =
           left_virtual_line_.at(sec_lane_id[i]);
     } else {
@@ -447,6 +506,9 @@ void MapTable::ConstructLaneLine(
     }
     lane_table_.at(sec_lane_id[i]).pred_right_line =
         predict_lanelines[pred_line_size - i - 1];
+    if (predict_lanelines[pred_line_size - i - 1].empty()) {
+      lane_table_.at(sec_lane_id[i]).pred_left_line.clear();
+    }
   }
 }
 
@@ -471,9 +533,35 @@ void MapTable::FitPredLaneLine(
   FitLastPoint(road_boundary, sec_lane_id, &predict_line, &virtual_line,
                &virtual_id);
   left_virtual_line_.insert_or_assign(virtual_id, virtual_line);
+
+  if (!virtual_id.empty()) {
+    for (int i = static_cast<int>(predict_line.size()) - 1; i >= 0; i--) {
+      // 对opt_line进行平滑处理(滑动窗口法)
+      auto opt_line = SmoothedPoint(predict_line[i]);
+      predict_line[i].clear();
+      predict_line[i] = opt_line;
+    }
+  }
+
   if (!predict_line.empty()) {
     *predict_lanelines = predict_line;
   }
+}
+
+std::vector<Eigen::Vector3d> MapTable::SmoothedPoint(
+    const std::vector<Eigen::Vector3d>& pred_line) {
+  // 对车道线点进行平滑处理
+  if (pred_line.size() < 3) {
+    return pred_line;
+  }
+  std::vector<Eigen::Vector3d> smooth_line;
+  smooth_line.emplace_back(pred_line.front());
+  for (size_t i = 0; i <= pred_line.size() - 3; i++) {
+    auto new_point = (pred_line[i] + pred_line[i + 1] + pred_line[i + 2]) / 3.0;
+    smooth_line.emplace_back(new_point);
+  }
+  smooth_line.emplace_back(pred_line.back());
+  return smooth_line;
 }
 
 void MapTable::FitMiddlePoint(
@@ -520,7 +608,7 @@ void MapTable::FitMiddlePoint(
     predict_line->at(0).push_back(first_point);
     predict_line->at(1).push_back(A);
     FitVirtualPoint(sec_lane_id, virtual_line, virtual_id, s, A, AB_C, index,
-                    predict_line, &flag);
+                    predict_line);
   }
 }
 
@@ -548,8 +636,7 @@ void MapTable::FitVirtualPoint(
     const std::vector<std::string>& sec_lane_id,
     std::vector<Eigen::Vector3d>* virtual_line, std::string* virtual_id,
     const double& s, const Eigen::Vector3d& A, const Eigen::Vector3d& AB_C,
-    const int& index, std::vector<std::vector<Eigen::Vector3d>>* predict_line,
-    bool* flag) {
+    const int& index, std::vector<std::vector<Eigen::Vector3d>>* predict_line) {
   // right point
   double width = 0.;
   if (sec_lane_id.size() < 2) {
@@ -562,90 +649,48 @@ void MapTable::FitVirtualPoint(
     const auto& wid = lane_table_.at(sec_lane_id[j]).lane_width;
     // width += wid[index];
     if (lane_table_.at(sec_lane_id[j]).extra_boundary == 1) {
-      // 创建函数检测sec_lane_id[j]的前继是否也是变道引导线
-      double l = 0;
-      JudgePrevLength(&l, sec_lane_id[j]);
-      const auto& tan_theta = lane_table_.at(sec_lane_id[j]).tan_theta;
-      const auto& cos_theta = 1 / sqrt(1 + pow(tan_theta, 2));
-      const auto& sin_theta = tan_theta / sqrt(1 + pow(tan_theta, 2));
-      // index = static_cast<int>((s / cos_theta) / 0.5);
-      // 左虚拟车道线的点
-      double virtual_width = 0.;
-      if (tan_theta < 0) {
-        virtual_width = width + (s + l) * tan_theta;
+      // 如果是变道引导线，求两个法向量之间的交点
+      HLOG_ERROR << "---------------------------sec_lane_id.size(): " << sec_lane_id.size();
+      HLOG_ERROR << "---------------------------sec_lane_id.size() - j - 1: " << sec_lane_id.size() - j - 1;
+      HLOG_ERROR << "---------------------------predict_line: " << predict_line->size();
+      if (predict_line->at(sec_lane_id.size() - j - 1).empty()) {
+        continue;
+      }
+      Eigen::Vector3d B = predict_line->at(sec_lane_id.size() - j - 1).back();
+      const auto& C = lane_table_.at(sec_lane_id[j]).se_point.first;
+      const auto& D = lane_table_.at(sec_lane_id[j]).se_point.second;
+      if (C.isZero() || D.isZero()) {
+        HLOG_ERROR << "AB_D vector is zero!";
+        continue;
+      }
+
+      // 计算向量AB和向量CD
+      Eigen::Vector3d AB = B - A;
+      Eigen::Vector3d CD = D - C;
+
+      double t = ((C - A).cross(CD)).norm() / AB.cross(CD).norm();
+      Eigen::Vector3d virtual_point;
+      if (AB.cross(CD).norm() == 0) {
+        virtual_point = A;
       } else {
-        virtual_width = width + (s + l) * tan_theta -
-                        lane_table_.at(sec_lane_id[j + 1]).lane_width[index];
+        virtual_point = A + t * AB;
       }
-      Eigen::Vector3d virtual_point = A - AB_C * virtual_width;
-      if (*flag) {
-        virtual_line->emplace_back(virtual_point);
-        *virtual_id = sec_lane_id[j];
-        *flag = false;
+
+      double virtual_width = (A - virtual_point).norm();
+      virtual_line->emplace_back(virtual_point);
+      *virtual_id = sec_lane_id[j];
+      if (sec_lane_id.size() == 2 &&
+          lane_table_.at(sec_lane_id.back()).extra_boundary == 2) {
+        break;
+        width = wid[index] - virtual_width;
+      } else {
+        width = virtual_width + wid[index];
       }
-      width = virtual_width + wid[index];
     } else {
       width += wid[index];
     }
     Eigen::Vector3d point = A - AB_C * width;
     predict_line->at(sec_lane_id.size() - j).push_back(point);
-  }
-}
-
-void MapTable::JudgePrevLength(double* l, const std::string& lane_id) {
-  // 判断其前继车道是否是左变道引导线
-  // 求出此时lane_id车道所在section的车道数
-  const auto& sec_id = lane_table_.at(lane_id).section_id;
-  // 这里还不能使用sec_id,因为road还没存储完整
-  const auto& road_id = lane_table_.at(lane_id).road_id;
-  if (road_table_.find(road_id) == road_table_.end()) {
-    return;
-  }
-  const auto& section = road_table_.at(road_id).section_ids;
-  //   if (section.find(sec_id) == section.end()) {
-  //     return;
-  //   }
-  auto curr_left_id =
-      static_cast<uint32_t>(std::stoll(section.at(sec_id).lane_id.back()) % 10);
-
-  // auto lane_num = section.at(sec_id).lane_id.size();
-
-  auto lane_idd = lane_id;
-  while (lane_table_.at(lane_idd).extra_boundary == 1) {
-    const auto& lane_prev_idds = lane_table_.at(lane_idd).prev_lane_ids;
-    if (lane_prev_idds.empty()) {
-      break;
-    }
-    const auto& lane_prev_id = lane_prev_idds[0];
-    if (lane_table_.find(lane_prev_id) == lane_table_.end()) {
-      break;
-    }
-    const auto& sec_id = lane_table_.at(lane_prev_id).section_id;
-    const auto& road_id = lane_table_.at(lane_prev_id).road_id;
-    if (road_table_.find(road_id) == road_table_.end()) {
-      return;
-    }
-    const auto& section = road_table_.at(road_id).section_ids;
-    // if (section.find(sec_id) == section.end()) {
-    //   return;
-    // }
-    // auto pre_lane_num = section.at(sec_id).lane_id.size();
-    auto pre_left_id = static_cast<uint32_t>(
-        std::stoll(section.at(sec_id).lane_id.back()) % 10);
-    if (lane_table_.at(lane_prev_id).extra_boundary == 1) {
-      if (std::abs(static_cast<int>(pre_left_id - curr_left_id)) == 1) {
-        break;
-      }
-      const auto& left_prev = std::to_string(std::stoll(lane_prev_id) + 1);
-      if (lane_table_.find(left_prev) == lane_table_.end()) {
-        break;
-      }
-      const auto& length = lane_table_.at(left_prev).length;
-      *l += length;
-      lane_idd = lane_prev_id;
-    } else {
-      break;
-    }
   }
 }
 
@@ -685,30 +730,34 @@ void MapTable::FitLastPoint(
     }
     const auto& wid = lane_table_.at(sec_lane_id[j]).lane_width;
     if (lane_table_.at(sec_lane_id[j]).extra_boundary == 1) {
-      double l = 0;
-      JudgePrevLength(&l, sec_lane_id[j]);
-      double s = lane_table_.at(sec_lane_id[j]).length;
-      const auto& tan_theta = lane_table_.at(sec_lane_id[j]).tan_theta;
-      const auto& cos_theta = 1 / sqrt(1 + pow(tan_theta, 2));
-      const auto& sin_theta = tan_theta / sqrt(1 + pow(tan_theta, 2));
-      double virtual_width = 0.;
-      // 判断该引导线的后继是否是引导线
-      auto is_next_vir = JudgeNextIsVir(sec_lane_id[j]);
-      if (tan_theta < 0 && is_next_vir) {
-        virtual_width = width + (s + l) * tan_theta;
-      } else if (tan_theta < 0 && !is_next_vir) {
-        virtual_width =
-            width - lane_table_.at(sec_lane_id[j + 1]).lane_width.back();
-      } else if (tan_theta > 0 && is_next_vir) {
-        virtual_width = width + (s + l) * tan_theta -
-                        lane_table_.at(sec_lane_id[j + 1]).lane_width.back();
-      } else {
-        virtual_width = width;
+      if (predict_line->at(sec_lane_id.size() - j - 1).empty()) {
+        continue;
       }
-      Eigen::Vector3d virtual_point = A + AB_C * virtual_width;
+      Eigen::Vector3d B = predict_line->at(sec_lane_id.size() - j - 1).back();
+      const auto& C = lane_table_.at(sec_lane_id[j]).se_point.first;
+      const auto& D = lane_table_.at(sec_lane_id[j]).se_point.second;
+      if (C.isZero() || D.isZero()) {
+        HLOG_ERROR << "AB_D vector is zero!";
+        continue;
+      }
+
+      // 计算向量AB和向量CD
+      Eigen::Vector3d virtual_point;
+      ComputeVirtualPoint(A, B, C, D, &virtual_point);
+      Eigen::Vector3d prev_point =
+          predict_line->at(sec_lane_id.size() - j - 2).back();
+      double virtual_width = (A - virtual_point).norm();
+
       virtual_line->emplace_back(virtual_point);
       *virtual_id = sec_lane_id[j];
-      width = virtual_width + wid.back();
+      if (sec_lane_id.size() == 2 &&
+          lane_table_.at(sec_lane_id.back()).extra_boundary == 2) {
+        break;
+        width = wid.back() - virtual_width;
+      } else {
+        width = virtual_width + wid.back();
+      }
+      // width = virtual_width + wid.back();
     } else {
       width += wid.back();
     }
@@ -718,24 +767,20 @@ void MapTable::FitLastPoint(
   }
 }
 
-bool MapTable::JudgeNextIsVir(const std::string& lane_id) {
-  if (lane_table_.find(lane_id) == lane_table_.end()) {
-    return true;
+void MapTable::ComputeVirtualPoint(const Eigen::Vector3d& A,
+                                   const Eigen::Vector3d& B,
+                                   const Eigen::Vector3d& C,
+                                   const Eigen::Vector3d& D,
+                                   Eigen::Vector3d* virtual_point) {
+  Eigen::Vector3d AB = B - A;
+  Eigen::Vector3d CD = D - C;
+
+  double t = ((C - A).cross(CD)).norm() / AB.cross(CD).norm();
+  if (AB.cross(CD).norm() == 0) {
+    *virtual_point = A;
+  } else {
+    *virtual_point = A + t * AB;
   }
-  const auto& next_ids = lane_table_.at(lane_id).next_lane_ids;
-  if (next_ids.empty()) {
-    return true;
-  }
-  for (const auto& it : next_ids) {
-    if (lane_table_.find(it) == lane_table_.end()) {
-      continue;
-    }
-    if (lane_table_.at(it).extra_boundary != 1) {
-      return false;
-      break;
-    }
-  }
-  return true;
 }
 
 void MapTable::Clear() {
@@ -743,6 +788,7 @@ void MapTable::Clear() {
   road_table_.clear();
   all_section_ids_.clear();
   left_virtual_line_.clear();
+  had_equ_.clear();
 }
 
 }  // namespace mf

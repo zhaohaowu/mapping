@@ -35,6 +35,7 @@
 
 #include "Eigen/src/Core/Matrix.h"
 #include "boost/thread/exceptions.hpp"
+#include "common/configs/config_gflags.h"
 #include "common/math/line_segment2d.h"
 #include "common/math/vec2d.h"
 #include "common/time/clock.h"
@@ -62,7 +63,7 @@
 // NOLINTBEGIN
 // DEFINE_bool(pred_run, true, "pred thread run");
 // DEFINE_uint32(pred_thread_interval, 100, "pred thread interval ms");
-DEFINE_bool(viz_odom_map_in_local, false,
+DEFINE_bool(viz_odom_map_in_local, true,
             "whether publish viz msgs of odometry and map in local frame");
 DEFINE_string(viz_topic_odom_in_local, "/mf/pred/odom_local",
               "viz topic of odometry in local frame");
@@ -195,6 +196,7 @@ void MapPrediction::OnTopoMap(
     const std::tuple<std::unordered_map<std::string, LaneInfo>,
                      std::unordered_map<std::string, RoadInfo>>& map_info) {
   // std::lock_guard<std::mutex> lock(mtx_);
+  hq_map_ = std::make_shared<hozon::hdmap::Map>();
   if (!msg) {
     HLOG_ERROR << "nullptr topo map";
     return;
@@ -272,8 +274,51 @@ void MapPrediction::OnTopoMap(
     // 可视化hd lane id
     // viz_map_.VizHDLaneID(lanes_in_range, local_enu_center_, utm_zone_);
 
-    hq_map_ = std::make_shared<hozon::hdmap::Map>();
-    GLOBAL_HD_MAP->GetMapWithoutLaneGeometry(hq_map_.get());
+    if (FLAGS_map_service_mode == 0) {
+      auto ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_.get());
+      if (ret != 0) {
+        HLOG_ERROR << "GetLocalMap failed";
+        return;
+      }
+
+      hq_map_->mutable_crosswalk()->Clear();
+      hq_map_->mutable_stop_sign()->Clear();
+      hq_map_->mutable_signal()->Clear();
+      hq_map_->mutable_yield()->Clear();
+      hq_map_->mutable_overlap()->Clear();
+      hq_map_->mutable_clear_area()->Clear();
+      hq_map_->mutable_speed_bump()->Clear();
+      hq_map_->mutable_parking_space()->Clear();
+      hq_map_->mutable_pnc_junction()->Clear();
+      hq_map_->mutable_rsu()->Clear();
+      hq_map_->mutable_arraw()->Clear();
+      hq_map_->mutable_marker()->Clear();
+      hq_map_->mutable_prohibited_area()->Clear();
+      hq_map_->mutable_free_area()->Clear();
+      hq_map_->mutable_pillar()->Clear();
+      hq_map_->mutable_gate()->Clear();
+      hq_map_->mutable_parking()->Clear();
+      hq_map_->mutable_stop_line()->Clear();
+
+      for (auto& hq_lane : *hq_map_->mutable_lane()) {
+        for (auto& seg : *hq_lane.mutable_left_boundary()
+                              ->mutable_curve()
+                              ->mutable_segment()) {
+          seg.mutable_line_segment()->clear_point();
+        }
+        for (auto& seg : *hq_lane.mutable_right_boundary()
+                              ->mutable_curve()
+                              ->mutable_segment()) {
+          seg.mutable_line_segment()->clear_point();
+        }
+        for (auto& seg : *hq_lane.mutable_central_curve()->mutable_segment()) {
+          seg.mutable_line_segment()->clear_point();
+        }
+      }
+    } else if (FLAGS_map_service_mode == 1) {
+      GLOBAL_HD_MAP->GetMapWithoutLaneGeometry(hq_map_.get());
+    }
+
     hq_map_->mutable_header()->CopyFrom(msg->header());
     hq_map_->mutable_header()->mutable_id()->clear();
     HLOG_INFO << "pred OnTopoMap GetMapWithoutLaneGeometry cost "
@@ -576,6 +621,209 @@ void MapPrediction::CreatAddIdVector(
       }
       curr_lane_id = last;
     }
+  }
+}
+
+void MapPrediction::FusionLocalAndMap() {
+  // fusion local map lane and hdmap lane
+  FusionLanePoint();
+
+  // for (auto& hq_road : *local_msg_->mutable_road()) {
+  //   for (auto& sec : *hq_road.mutable_section()) {
+  //     if (sec.lane_id().empty()) {
+  //       continue;
+  //     }
+  //     auto lane_id = sec.lane_id(0);
+  //     if (lane_table_.find(lane_id.id()) == lane_table_.end()) {
+  //       continue;
+  //     }
+  //     auto section_id = lane_table_.at(lane_id.id()).section_id;
+  //     auto road_id = lane_table_.at(lane_id.id()).road_id;
+  //     if (road_table_.find(road_id) == road_table_.end()) {
+  //       continue;
+  //     }
+  //     auto sections = road_table_.at(road_id);
+  //     auto left_boundary = sections.section_ids.at(section_id).left_boundary;
+  //     auto right_boundary = sections.section_ids.at(section_id).right_boundary;
+
+  //     for (auto& edge :
+  //          *sec.mutable_boundary()->mutable_outer_polygon()->mutable_edge()) {
+  //       FusionRoadEdgePoint(&edge, left_boundary, right_boundary);
+  //     }
+  //   }
+  // }
+}
+
+void MapPrediction::FusionLanePoint() {
+  // fusion lane line point
+  for (auto& it : *local_msg_->mutable_lane()) {
+    if (lane_table_.find(it.id().id()) == lane_table_.end()) {
+      continue;
+    }
+    auto left_points = lane_table_.at(it.id().id()).left_line;
+    for (auto& left_seg :
+         *it.mutable_left_boundary()->mutable_curve()->mutable_segment()) {
+      for (auto& pt : *left_seg.mutable_line_segment()->mutable_point()) {
+        Eigen::Vector3d P(pt.x(), pt.y(), pt.z());
+        Eigen::Vector3d C;
+        bool flag = false;
+        ComputePerpendicularPoint(P, left_points, &C, &flag);
+        if (!flag) {
+          FusionStartOrEndLeftPoint(P, it.id().id(), &C, &flag);
+          if (!flag) {
+            continue;
+          }
+        }
+        // 对原始点和新点进行加权平均
+        auto new_point = (P + C) / 2.0;
+        pt.set_x(new_point.x());
+        pt.set_y(new_point.y());
+        pt.set_z(new_point.z());
+      }
+    }
+
+    auto right_points = lane_table_.at(it.id().id()).right_line;
+    for (auto& right_seg :
+         *it.mutable_right_boundary()->mutable_curve()->mutable_segment()) {
+      for (auto& pt : *right_seg.mutable_line_segment()->mutable_point()) {
+        Eigen::Vector3d P(pt.x(), pt.y(), pt.z());
+        Eigen::Vector3d C;
+        bool flag = false;
+        ComputePerpendicularPoint(P, right_points, &C, &flag);
+        if (!flag) {
+          FusionStartOrEndRightPoint(P, it.id().id(), &C, &flag);
+          if (!flag) {
+            continue;
+          }
+        }
+        // 对原始点和新点进行加权平均
+        auto new_point = (P + C) / 2.0;
+        pt.set_x(new_point.x());
+        pt.set_y(new_point.y());
+        pt.set_z(new_point.z());
+      }
+    }
+  }
+}
+
+void MapPrediction::FusionStartOrEndLeftPoint(const Eigen::Vector3d& P,
+                                              const std::string& id,
+                                              Eigen::Vector3d* C, bool* flag) {
+  auto next_ids = lane_table_.at(id).next_lane_ids;
+  if (next_ids.empty()) {
+    return;
+  }
+  auto next_id = next_ids[0];
+  if (lane_table_.find(next_id) == lane_table_.end()) {
+    return;
+  }
+  auto next_left_points = lane_table_.at(next_id).left_line;
+  ComputePerpendicularPoint(P, next_left_points, C, flag);
+
+  auto prev_ids = lane_table_.at(id).prev_lane_ids;
+  if (prev_ids.empty()) {
+    return;
+  }
+  auto prev_id = prev_ids[0];
+  if (lane_table_.find(prev_id) == lane_table_.end()) {
+    return;
+  }
+  auto prev_left_points = lane_table_.at(prev_id).left_line;
+  ComputePerpendicularPoint(P, prev_left_points, C, flag);
+}
+
+void MapPrediction::FusionStartOrEndRightPoint(const Eigen::Vector3d& P,
+                                               const std::string& id,
+                                               Eigen::Vector3d* C, bool* flag) {
+  auto next_ids = lane_table_.at(id).next_lane_ids;
+  if (next_ids.empty()) {
+    return;
+  }
+  auto next_id = next_ids[0];
+  if (lane_table_.find(next_id) == lane_table_.end()) {
+    return;
+  }
+  auto next_right_points = lane_table_.at(next_id).right_line;
+  ComputePerpendicularPoint(P, next_right_points, C, flag);
+
+  auto prev_ids = lane_table_.at(id).prev_lane_ids;
+  if (prev_ids.empty()) {
+    return;
+  }
+  auto prev_id = prev_ids[0];
+  if (lane_table_.find(prev_id) == lane_table_.end()) {
+    return;
+  }
+  auto prev_right_points = lane_table_.at(prev_id).right_line;
+  ComputePerpendicularPoint(P, prev_right_points, C, flag);
+}
+
+#if 0
+void MapPrediction::FusionRoadEdgePoint(
+    hozon::hdmap::BoundaryEdge* edge,
+    const std::vector<Eigen::Vector3d>& left_boundary,
+    const std::vector<Eigen::Vector3d>& right_boundary) {
+  // fusion road edge point
+  if (edge->type() == 2) {
+    for (auto& seg : *edge->mutable_curve()->mutable_segment()) {
+      for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
+        Eigen::Vector3d P(pt.x(), pt.y(), pt.z());
+        Eigen::Vector3d C;
+        bool flag = false;
+        ComputePerpendicularPoint(P, left_boundary, &C, &flag);
+        if (!flag) {
+          continue;
+        }
+        // 对原始点和新点进行加权平均
+        auto new_point = (P + C) / 2.0;
+        pt.set_x(new_point.x());
+        pt.set_y(new_point.y());
+        pt.set_z(new_point.z());
+      }
+    }
+  }
+  if (edge->type() == 3) {
+    for (auto& seg : *edge->mutable_curve()->mutable_segment()) {
+      for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
+        Eigen::Vector3d P(pt.x(), pt.y(), pt.z());
+        Eigen::Vector3d C;
+        bool flag = false;
+        ComputePerpendicularPoint(P, right_boundary, &C, &flag);
+        if (!flag) {
+          continue;
+        }
+        // 对原始点和新点进行加权平均
+        auto new_point = (P + C) / 2.0;
+        pt.set_x(new_point.x());
+        pt.set_y(new_point.y());
+        pt.set_z(new_point.z());
+      }
+    }
+  }
+}
+#endif
+
+void MapPrediction::ComputePerpendicularPoint(
+    const Eigen::Vector3d& P, const std::vector<Eigen::Vector3d>& left_points,
+    Eigen::Vector3d* C, bool* flag) {
+  // 计算垂点
+  for (size_t i = 1; i < left_points.size(); i++) {
+    const auto& A = left_points[i - 1];
+    const auto& B = left_points[i];
+    const auto& AB = B - A;
+    const auto& AP = P - A;
+    double ABLengthSquared = AB.squaredNorm();
+    if (ABLengthSquared == 0) {
+      continue;
+    }
+    double t = AB.dot(AP) / ABLengthSquared;
+    if (t < 0 || t > 1) {
+      continue;
+    }
+    t = std::max(0.0, std::min(t, 1.0));
+    *C = A + t * AB;  // 点到线段的最近点
+    *flag = true;
+    break;
   }
 }
 
@@ -1054,14 +1302,6 @@ void MapPrediction::AddResTopo() {
         if (left_seg_size == 0) {
           continue;
         }
-        // auto left_point_size = local_lane.left_boundary()
-        //                            .curve()
-        //                            .segment(left_seg_size - 1)
-        //                            .line_segment()
-        //                            .point_size();
-        // if (left_point_size == 0) {
-        //   continue;
-        // }
         hq_lane.mutable_left_boundary()
             ->mutable_curve()
             ->mutable_segment(0)
@@ -1078,14 +1318,6 @@ void MapPrediction::AddResTopo() {
         if (right_seg_size == 0) {
           continue;
         }
-        // auto right_point_size = local_lane.right_boundary()
-        //                             .curve()
-        //                             .segment(right_seg_size - 1)
-        //                             .line_segment()
-        //                             .point_size();
-        // if (right_point_size == 0) {
-        //   continue;
-        // }
         hq_lane.mutable_right_boundary()
             ->mutable_curve()
             ->mutable_segment(0)
@@ -1101,13 +1333,6 @@ void MapPrediction::AddResTopo() {
         if (cen_seg_size == 0) {
           continue;
         }
-        // auto cen_point_size = local_lane.central_curve()
-        //                           .segment(cen_seg_size - 1)
-        //                           .line_segment()
-        //                           .point_size();
-        // if (cen_point_size == 0) {
-        //   continue;
-        // }
         hq_lane.mutable_central_curve()
             ->mutable_segment(0)
             ->mutable_line_segment()
@@ -1117,6 +1342,10 @@ void MapPrediction::AddResTopo() {
       }
     }
   }
+
+  AddArrawStopLine();
+  AddCrossWalk();
+
   HLOG_ERROR << "pred AddResTopo insert pts " << tic.Toc();
   tic.Tic();
 
@@ -1133,6 +1362,22 @@ void MapPrediction::AddResTopo() {
   HLOG_ERROR << "pred clear local_msg_ cost " << tic.Toc();
 }
 
+void MapPrediction::AddArrawStopLine() {
+  if (local_msg_->arraw_size() != 0) {
+    hq_map_->mutable_arraw()->CopyFrom(local_msg_->arraw());
+  }
+
+  if (local_msg_->stop_line_size() != 0) {
+    hq_map_->mutable_stop_line()->CopyFrom(local_msg_->stop_line());
+  }
+}
+
+void MapPrediction::AddCrossWalk() {
+  if (local_msg_->crosswalk_size() != 0) {
+    hq_map_->mutable_crosswalk()->CopyFrom(local_msg_->crosswalk());
+  }
+}
+
 void MapPrediction::ConvertToLocal() {
   if (!hq_map_) {
     HLOG_ERROR << "nullptr hq_map_";
@@ -1146,6 +1391,8 @@ void MapPrediction::ConvertToLocal() {
 
   FusionMapLaneToLocal();
   RoadToLocal();
+  ArrawStopLineToLocal();
+  CrossWalkToLocal();
 }
 
 void MapPrediction::FusionMapLaneToLocal() {
@@ -1230,6 +1477,49 @@ void MapPrediction::HDMapLaneToLocal() {
   }
 }
 
+void MapPrediction::ArrawStopLineToLocal() {
+  for (auto& hq_arraw : *hq_map_->mutable_arraw()) {
+    for (auto& pt : *hq_arraw.mutable_shape()->mutable_point()) {
+      Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
+      pt_local = T_local_enu_to_local_ * pt_local;
+      pt.set_x(pt_local.x());
+      pt.set_y(pt_local.y());
+      pt.set_z(0);
+    }
+
+    // 将center point从local enu转到local系
+    auto& pt_center = *hq_arraw.mutable_center_point();
+    Eigen::Vector3d pt_local_center(pt_center.x(), pt_center.y(), 0);
+    pt_local_center = T_local_enu_to_local_ * pt_local_center;
+    pt_center.set_x(pt_local_center.x());
+    pt_center.set_y(pt_local_center.y());
+
+    // 将heading从local_enu系转到local系
+    double enu_heading = hq_arraw.heading();
+    Eigen::Quaterniond quat_arrow_in_local_enu(
+        Eigen::AngleAxisd(enu_heading, Eigen::Vector3d::UnitZ()));
+
+    Eigen::Quaterniond quat_enu_to_local(T_local_enu_to_local_.rotation());
+
+    Eigen::Quaterniond quat_arrow_in_local =
+        quat_enu_to_local * quat_arrow_in_local_enu;
+    Eigen::Vector3d euler =
+        quat_arrow_in_local.toRotationMatrix().eulerAngles(2, 0, 1);
+    hq_arraw.clear_heading();
+    hq_arraw.set_heading(euler[0]);
+  }
+
+  for (auto& hq_line : *hq_map_->mutable_stop_line()) {
+    for (auto& pt : *hq_line.mutable_shape()->mutable_point()) {
+      Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
+      pt_local = T_local_enu_to_local_ * pt_local;
+      pt.set_x(pt_local.x());
+      pt.set_y(pt_local.y());
+      pt.set_z(0);
+    }
+  }
+}
+
 void MapPrediction::RoadToLocal() {
   // road to local
   for (auto& hq_road : *hq_map_->mutable_road()) {
@@ -1252,6 +1542,18 @@ void MapPrediction::DeelEdge(hozon::hdmap::BoundaryEdge* edge) {
       point->set_x(pt_local.x());
       point->set_y(pt_local.y());
       point->set_z(0);
+    }
+  }
+}
+
+void MapPrediction::CrossWalkToLocal() {
+  for (auto& hq_cross_walk : *hq_map_->mutable_crosswalk()) {
+    for (auto& pt : *hq_cross_walk.mutable_polygon()->mutable_point()) {
+      Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
+      pt_local = T_local_enu_to_local_ * pt_local;
+      pt.set_x(pt_local.x());
+      pt.set_y(pt_local.y());
+      pt.set_z(0);
     }
   }
 }
@@ -1401,6 +1703,7 @@ void MapPrediction::PredLeftRight(const std::set<std::string>& side_miss_ids) {
       pt->set_y(point.y());
       pt->set_z(point.z());
     }
+
     auto* right_seg =
         new_lane->mutable_right_boundary()->mutable_curve()->add_segment();
     for (const auto& point : right_points) {
@@ -1414,7 +1717,7 @@ void MapPrediction::PredLeftRight(const std::set<std::string>& side_miss_ids) {
 }
 
 void MapPrediction::PredAheadLanes() {
-  // 预测前方缺失
+  // 预测前方缺失车道线
   if (add_lane_ids_.empty()) {
     return;
   }
@@ -1449,6 +1752,7 @@ void MapPrediction::PredAheadLanes() {
         pt->set_y(point.y());
         pt->set_z(point.z());
       }
+
       auto* right_seg =
           new_lane->mutable_right_boundary()->mutable_curve()->add_segment();
       for (const auto& point : right_points) {
@@ -1462,10 +1766,211 @@ void MapPrediction::PredAheadLanes() {
   }
 }
 
+#if 0
+void MapPrediction::PredLocalRoads() {
+  // 预测当前local_msg_中缺失的road
+  for (auto& road : *local_msg_->mutable_road()) {
+    for (auto& sec : *road.mutable_section()) {
+      for (auto& edge :
+           *sec.mutable_boundary()->mutable_outer_polygon()->mutable_edge()) {
+        if (edge.type() == 2) {
+          // left boundary
+          AddLeftRoadBoundary(&edge, road.id().id(), sec.id().id());
+        }
+
+        if (edge.type() == 3) {
+          // right boundary
+          AddRightRoadBoundary(&edge, road.id().id(), sec.id().id());
+        }
+      }
+    }
+  }
+}
+#endif
+
+#if 0
+void MapPrediction::AddLeftRoadBoundary(hozon::hdmap::BoundaryEdge* edge,
+                                        const std::string& road_id,
+                                        const std::string& sec_id) {
+  // add left boundary
+  auto seg_size = edge->curve().segment().size();
+  if (seg_size != 0) {
+    return;
+  }
+  // seg_size == 0
+  if (road_table_.find(road_id) == road_table_.end()) {
+    return;
+  }
+  auto section = road_table_.at(road_id).section_ids;
+  auto left_boundary = section.at(sec_id).left_boundary;
+  auto new_seg = *edge->mutable_curve()->add_segment();
+  for (const auto& pt : left_boundary) {
+    auto ptt = *new_seg.mutable_line_segment()->add_point();
+    ptt.set_x(pt.x());
+    ptt.set_y(pt.y());
+    ptt.set_z(pt.z());
+  }
+}
+#endif
+
+#if 0
+void MapPrediction::AddRightRoadBoundary(hozon::hdmap::BoundaryEdge* edge,
+                                         const std::string& road_id,
+                                         const std::string& sec_id) {
+  // add right boundary
+  auto seg_size = edge->curve().segment().size();
+  if (seg_size != 0) {
+    return;
+  }
+  // seg_size == 0
+  if (road_table_.find(road_id) == road_table_.end()) {
+    return;
+  }
+  auto section = road_table_.at(road_id).section_ids;
+  auto right_boundary = section.at(sec_id).right_boundary;
+  auto new_seg = *edge->mutable_curve()->add_segment();
+  for (const auto& pt : right_boundary) {
+    auto ptt = *new_seg.mutable_line_segment()->add_point();
+    ptt.set_x(pt.x());
+    ptt.set_y(pt.y());
+    ptt.set_z(pt.z());
+  }
+}
+#endif
+
+#if 0
+void MapPrediction::PredAheadRoads() {
+  // 预测前方道路边界
+  if (add_lane_ids_.empty()) {
+    return;
+  }
+
+  for (const auto& it : add_lane_ids_) {
+    if (lane_table_.find(it) == lane_table_.end()) {
+      continue;
+    }
+    auto road_id = lane_table_.at(it).road_id;
+    auto section_id = lane_table_.at(it).section_id;
+    if (road_table_.find(road_id) == road_table_.end()) {
+      continue;
+    }
+    auto section = road_table_.at(road_id).section_ids;
+    if (std::find(topo_section_ids_.begin(), topo_section_ids_.end(),
+                  section_id) != topo_section_ids_.end()) {
+      continue;
+    }
+    auto left_boundary = section.at(section_id).left_boundary;
+    auto right_boundary = section.at(section_id).right_boundary;
+    // local_msg_中添加新的boundary元素
+    bool flag = false;
+    AddAheadEdgeWithSameId(left_boundary, right_boundary, road_id, section_id,
+                           section.at(section_id).lane_id, &flag);
+    if (flag) {
+      continue;
+    }
+    AddAheadEdgeWithNewId(left_boundary, right_boundary, road_id, section_id,
+                          section.at(section_id).lane_id);
+  }
+}
+#endif
+
+#if 0
+void MapPrediction::AddAheadEdgeWithSameId(
+    const std::vector<Eigen::Vector3d>& left_boundary,
+    const std::vector<Eigen::Vector3d>& right_boundary,
+    const std::string& road_id, const std::string& section_id,
+    const std::vector<std::string>& lane_ids, bool* flag) {
+  // has same road id
+  for (auto& road : *local_msg_->mutable_road()) {
+    if (road.id().id() != road_id) {
+      continue;
+    }
+    auto new_section = *road.add_section();
+    new_section.mutable_id()->set_id(section_id);
+    for (const auto& id : lane_ids) {
+      new_section.add_lane_id()->set_id(id);
+    }
+    auto new_edge_left =
+        *new_section.mutable_boundary()->mutable_outer_polygon()->add_edge();
+    hozon::hdmap::BoundaryEdge_Type valuel =
+        static_cast<hozon::hdmap::BoundaryEdge_Type>(2);
+    new_edge_left.set_type(valuel);
+    auto seg_l = *new_edge_left.mutable_curve()->add_segment();
+    for (const auto& it : left_boundary) {
+      auto pt = *seg_l.mutable_line_segment()->add_point();
+      pt.set_x(it.x());
+      pt.set_y(it.y());
+      pt.set_z(it.z());
+    }
+
+    auto new_edge_right =
+        *new_section.mutable_boundary()->mutable_outer_polygon()->add_edge();
+    hozon::hdmap::BoundaryEdge_Type valuer =
+        static_cast<hozon::hdmap::BoundaryEdge_Type>(3);
+    new_edge_left.set_type(valuer);
+    auto seg_r = *new_edge_right.mutable_curve()->add_segment();
+    for (const auto& it : right_boundary) {
+      auto pt = *seg_r.mutable_line_segment()->add_point();
+      pt.set_x(it.x());
+      pt.set_y(it.y());
+      pt.set_z(it.z());
+    }
+    *flag = true;
+    topo_section_ids_.insert(section_id);
+    break;
+  }
+}
+#endif
+
+#if 0
+void MapPrediction::AddAheadEdgeWithNewId(
+    const std::vector<Eigen::Vector3d>& left_boundary,
+    const std::vector<Eigen::Vector3d>& right_boundary,
+    const std::string& road_id, const std::string& section_id,
+    const std::vector<std::string>& lane_ids) {
+  auto new_road = *local_msg_->add_road();
+  new_road.mutable_id()->set_id(road_id);
+  auto new_section = *new_road.add_section();
+  new_section.mutable_id()->set_id(section_id);
+  for (const auto& id : lane_ids) {
+    new_section.add_lane_id()->set_id(id);
+  }
+  auto new_edge_left =
+      *new_section.mutable_boundary()->mutable_outer_polygon()->add_edge();
+  hozon::hdmap::BoundaryEdge_Type valuel =
+      static_cast<hozon::hdmap::BoundaryEdge_Type>(2);
+  new_edge_left.set_type(valuel);
+  auto seg_l = *new_edge_left.mutable_curve()->add_segment();
+  for (const auto& it : left_boundary) {
+    auto pt = *seg_l.mutable_line_segment()->add_point();
+    pt.set_x(it.x());
+    pt.set_y(it.y());
+    pt.set_z(it.z());
+  }
+
+  auto new_edge_right =
+      *new_section.mutable_boundary()->mutable_outer_polygon()->add_edge();
+  hozon::hdmap::BoundaryEdge_Type valuer =
+      static_cast<hozon::hdmap::BoundaryEdge_Type>(3);
+  new_edge_left.set_type(valuer);
+  auto seg_r = *new_edge_right.mutable_curve()->add_segment();
+  for (const auto& it : right_boundary) {
+    auto pt = *seg_r.mutable_line_segment()->add_point();
+    pt.set_x(it.x());
+    pt.set_y(it.y());
+    pt.set_z(it.z());
+  }
+  topo_section_ids_.insert(section_id);
+}
+#endif
+
 void MapPrediction::Prediction() {
   //    std::lock_guard<std::mutex> lock(mtx_);
   util::TicToc global_tic;
   util::TicToc local_tic;
+  // 对原始local_msg_中的车道线元素与地图中的车道线元素进行融合
+  FusionLocalAndMap();
+
   CompleteLaneline(end_lane_ids_, end_section_ids_, road_table_);
   HLOG_INFO << "pred Prediction CompleteLaneline cost " << local_tic.Toc();
   local_tic.Tic();
@@ -1481,6 +1986,12 @@ void MapPrediction::Prediction() {
 
   PredAheadLanes();
   HLOG_INFO << "pred Prediction PredAheadLanes cost " << local_tic.Toc();
+
+  // PredLocalRoads();
+  // HLOG_INFO << "pred Prediction PredLocalRoads cost " << local_tic.Toc();
+
+  // PredAheadRoads();
+  // HLOG_INFO << "pred Prediction PredAheadRoads cost " << local_tic.Toc();
 
   local_tic.Tic();
   FitLaneCenterline();

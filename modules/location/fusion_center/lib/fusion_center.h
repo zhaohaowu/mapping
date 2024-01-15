@@ -139,6 +139,7 @@ class FusionCenter {
   double last_meas_time_ = 0.0;
   bool prev_global_valid_ = false;
   Node prev_global_node_;
+  bool init_dr_ = true;
 
   std::deque<std::shared_ptr<Node>> pre_deque_;
   std::deque<std::shared_ptr<Node>> meas_deque_;

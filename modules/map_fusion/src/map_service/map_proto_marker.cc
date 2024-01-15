@@ -285,49 +285,45 @@ adsfi_proto::viz::MarkerArray MapProtoMarker::LaneID(
   for (const auto& lane : prior_map->lane()) {
     u_int64_t laneId = std::stoll(lane.id().id());
     u_int64_t remainder = laneId / 10000;
-    for (int i = 0; i < lane.left_boundary().curve().segment().size(); ++i) {
-      const auto& segment = lane.left_boundary().curve().segment(i);
-      for (int j = 0; j < segment.line_segment().point().size(); ++j) {
-        const auto& point = segment.line_segment().point(j);
-        Eigen::Vector3d point_enu;
-        if (utm) {
-          Eigen::Vector3d point_utm(point.x(), point.y(), point.z());
-          int zone = 51;
-          double x = point_utm.x();
-          double y = point_utm.y();
-          hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
-          Eigen::Vector3d point_gcj(y, x, 0);
-          point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
-        } else {
-          point_enu = Eigen::Vector3d(point.x(), point.y(), point.z());
-        }
-        auto text_marker = std::make_unique<adsfi_proto::viz::Marker>();
-        text_marker->mutable_header()->set_frameid("map");
-        text_marker->set_ns("ns_prior_map_lane" + std::to_string(remainder));
-        text_marker->set_id(static_cast<int32_t>(laneId % 10000));
-        text_marker->set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
-        text_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
-        text_marker->mutable_pose()->mutable_position()->set_x(point_enu.x());
-        text_marker->mutable_pose()->mutable_position()->set_y(point_enu.y());
-        text_marker->mutable_pose()->mutable_position()->set_z(point_enu.z() +
-                                                               1.0);
-        text_marker->mutable_pose()->mutable_orientation()->set_x(0.);
-        text_marker->mutable_pose()->mutable_orientation()->set_y(0.);
-        text_marker->mutable_pose()->mutable_orientation()->set_z(0.);
-        text_marker->mutable_pose()->mutable_orientation()->set_w(1.);
-        text_marker->set_text(lane.id().id());
-        text_marker->mutable_scale()->set_x(1.0);
-        text_marker->mutable_scale()->set_y(1.0);
-        text_marker->mutable_scale()->set_z(1.0);
-        text_marker->mutable_lifetime()->set_sec(0);
-        text_marker->mutable_lifetime()->set_nsec(0);
-        text_marker->mutable_color()->set_a(1.0);
-        text_marker->mutable_color()->set_r(1.0);
-        text_marker->mutable_color()->set_g(1.0);
-        text_marker->mutable_color()->set_b(1.0);
-        ID_markers.add_markers()->CopyFrom(*text_marker);
-      }
+    const auto& left_seg = lane.left_boundary().curve().segment();
+    if (left_seg.size() == 0) {
+      continue;
     }
+    const auto& point = left_seg[0].line_segment().point(0);
+    Eigen::Vector3d point_enu;
+    Eigen::Vector3d point_utm(point.x(), point.y(), point.z());
+    int zone = 51;
+    double x = point_utm.x();
+    double y = point_utm.y();
+    hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
+    Eigen::Vector3d point_gcj(y, x, 0);
+    point_enu = util::Geo::Gcj02ToEnu(point_gcj, enupos);
+
+    auto text_marker = std::make_unique<adsfi_proto::viz::Marker>();
+    text_marker->mutable_header()->set_frameid("map");
+    text_marker->set_ns("ns_prior_map_lane" + std::to_string(remainder));
+    text_marker->set_id(static_cast<int32_t>(laneId % 10000));
+    text_marker->set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    text_marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
+    text_marker->mutable_pose()->mutable_position()->set_x(point_enu.x());
+    text_marker->mutable_pose()->mutable_position()->set_y(point_enu.y());
+    text_marker->mutable_pose()->mutable_position()->set_z(point_enu.z() +
+                                                            1.0);
+    text_marker->mutable_pose()->mutable_orientation()->set_x(0.);
+    text_marker->mutable_pose()->mutable_orientation()->set_y(0.);
+    text_marker->mutable_pose()->mutable_orientation()->set_z(0.);
+    text_marker->mutable_pose()->mutable_orientation()->set_w(1.);
+    text_marker->set_text(lane.id().id());
+    text_marker->mutable_scale()->set_x(1.0);
+    text_marker->mutable_scale()->set_y(1.0);
+    text_marker->mutable_scale()->set_z(1.0);
+    text_marker->mutable_lifetime()->set_sec(0);
+    text_marker->mutable_lifetime()->set_nsec(0);
+    text_marker->mutable_color()->set_a(1.0);
+    text_marker->mutable_color()->set_r(1.0);
+    text_marker->mutable_color()->set_g(1.0);
+    text_marker->mutable_color()->set_b(1.0);
+    ID_markers.add_markers()->CopyFrom(*text_marker);
   }
   return ID_markers;
 }

@@ -110,13 +110,14 @@ class TopoAssignment {
   bool init_ref_point_ = false;
   double cur_timestamp_ = 0.;
 
-  const std::string kTopicTopoAsignTf = "/topo/tf";
-  const std::string kTopicTopoAsignLocation = "/topo/location";
-  const std::string KTopicTopoAsignLocalMap = "/topo/local_map";
-  const std::string KTopicTopoAsignHQMapRoad = "/topo/hq_map_road";
-  const std::string KTopicTopoAsignHQMapLane = "/topo/hq_map_lane";
-  const std::string KTopicTopoAsignTopoMapRoad = "/topo/topo_map_road";
-  const std::string KTopicTopoAsignTopoMapLane = "/topo/topo_map_lane";
+  const std::string kTopicTopoAssignTf = "/topo/tf";
+  const std::string kTopicTopoAssignLocation = "/topo/location";
+  const std::string KTopicTopoAssignLocalMap = "/topo/local_map";
+  const std::string KTopicTopoAssignHQMapRoad = "/topo/hq_map_road";
+  const std::string KTopicTopoAssignHQMapLane = "/topo/hq_map_lane";
+  const std::string KTopicTopoAssignTopoMapRoad = "/topo/topo_map_road";
+  const std::string KTopicTopoAssignTopoMapLane = "/topo/topo_map_lane";
+  const std::string KTopicTopoAssignTopoMapElements = "/topo/topo_map_elements";
 
   adsfi_proto::viz::Path location_path_;
 
@@ -171,6 +172,8 @@ class TopoAssignment {
       const std::map<std::string, Lane>& all_lanes,
       const std::shared_ptr<hozon::hdmap::Map>& topo_map_geo,
       const std::shared_ptr<hozon::hdmap::Map>& topo_map);
+  void AppendTopoMapElements(const std::shared_ptr<hozon::hdmap::Map>& topo_map,
+                             const Eigen::Isometry3d& T_U_V);
   void AppendTopoMapLeftLanes(
       const hozon::mp::mf::Lane& lane_it, hozon::hdmap::Lane* lane,
       const std::vector<Eigen::Vector2d>& hq_lane_left_points,
@@ -203,6 +206,9 @@ class TopoAssignment {
                       adsfi_proto::viz::MarkerArray* markers_road) const;
   void VizTopoMapLane(const std::shared_ptr<hozon::hdmap::Map>& msg,
                       adsfi_proto::viz::MarkerArray* markers_lane) const;
+  void VizTopoMapElements(
+      const std::shared_ptr<hozon::hdmap::Map>& msg,
+      adsfi_proto::viz::MarkerArray* markers_elements) const;
   static void PointsToMarker(const double stamp,
                              const std::vector<Eigen::Vector3d>& points,
                              adsfi_proto::viz::Marker* marker,
@@ -234,6 +240,7 @@ class TopoAssignment {
   static bool LaneBelongToLaneLine(
       const std::vector<Eigen::Vector2d>& lane_points,
       const Eigen::Vector2d& p0, const Eigen::Vector2d& p1);
+  static Eigen::Vector3d GetIntersection(const hozon::common::Polygon& points);
 };
 
 }  // namespace mf

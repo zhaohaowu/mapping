@@ -10,6 +10,7 @@
 
 #include <limits>
 
+#include "Eigen/src/Core/Matrix.h"
 #include "map_fusion/map_service/global_hd_map.h"
 #include "util/mapping_log.h"
 #include "util/tic_toc.h"
@@ -31,22 +32,23 @@ namespace mf {
 int TopoAssignment::Init() {
   if (RVIZ_AGENT.Ok() && FLAGS_topo_rviz) {
     int ret = RVIZ_AGENT.Register<adsfi_proto::viz::TransformStamped>(
-        kTopicTopoAsignTf);
+        kTopicTopoAssignTf);
     if (ret < 0) {
-      HLOG_WARN << "RvizAgent register " << kTopicTopoAsignTf << " failed";
+      HLOG_WARN << "RvizAgent register " << kTopicTopoAssignTf << " failed";
     }
 
-    ret = RVIZ_AGENT.Register<adsfi_proto::viz::Path>(kTopicTopoAsignLocation);
+    ret = RVIZ_AGENT.Register<adsfi_proto::viz::Path>(kTopicTopoAssignLocation);
     if (ret < 0) {
-      HLOG_WARN << "RvizAgent register " << kTopicTopoAsignLocation
+      HLOG_WARN << "RvizAgent register " << kTopicTopoAssignLocation
                 << " failed";
     }
 
-    std::vector<std::string> topic_vec = {KTopicTopoAsignLocalMap,
-                                          KTopicTopoAsignHQMapRoad,
-                                          KTopicTopoAsignHQMapLane,
-                                          KTopicTopoAsignTopoMapRoad,
-                                          KTopicTopoAsignTopoMapLane,
+    std::vector<std::string> topic_vec = {KTopicTopoAssignLocalMap,
+                                          KTopicTopoAssignHQMapRoad,
+                                          KTopicTopoAssignHQMapLane,
+                                          KTopicTopoAssignTopoMapRoad,
+                                          KTopicTopoAssignTopoMapLane,
+                                          KTopicTopoAssignTopoMapElements,
                                           "lane",
                                           "left",
                                           "right"};
@@ -135,7 +137,7 @@ void TopoAssignment::OnLocalMap(
     return;
   }
   // 可视化hq map
-  VizHQMap();
+  // VizHQMap();
 
   // 更新时间信息
   cur_timestamp_ = msg->header().data_stamp();
@@ -200,7 +202,7 @@ void TopoAssignment::TopoAssign() {
   }
 
   if (FLAGS_topo_rviz) {
-    VizLocalMap(local_map_, T_U_V);
+    // VizLocalMap(local_map_, T_U_V);
   }
 
   // 更新all_lanelines
@@ -539,6 +541,7 @@ void TopoAssignment::TopoAssign() {
 
   AppendTopoMapGeometry(&all_lanes, topo_map_geo);
   AppendTopoMapTopology(all_lanes.second, topo_map_geo, topo_map_);
+  AppendTopoMapElements(topo_map_, T_U_V);
   if (FLAGS_topo_rviz) {
     VizTopoMap(topo_map_);
   }
@@ -1143,6 +1146,87 @@ void TopoAssignment::AppendTopoMapTopology(
   }
 }
 
+void TopoAssignment::AppendTopoMapElements(
+    const std::shared_ptr<hozon::hdmap::Map>& topo_map,
+    const Eigen::Isometry3d& T_U_V) {
+  // stop lines
+  for (const auto& stop_line_it : local_map_->stop_lines()) {
+    auto* stop_lane = topo_map->add_stop_line();
+    stop_lane->set_id(std::to_string(stop_line_it.track_id()));
+
+    Eigen::Vector3d left_point;
+    left_point << stop_line_it.left_point().x(), stop_line_it.left_point().y(),
+        stop_line_it.left_point().z();
+    left_point = T_U_V * left_point;
+
+    Eigen::Vector3d right_point;
+    right_point << stop_line_it.right_point().x(),
+        stop_line_it.right_point().y(), stop_line_it.right_point().z();
+    right_point = T_U_V * right_point;
+
+    auto* point_left = stop_lane->mutable_shape()->add_point();
+    point_left->set_x(left_point.x());
+    point_left->set_y(left_point.y());
+    point_left->set_z(left_point.z());
+
+    auto* point_right = stop_lane->mutable_shape()->add_point();
+    point_right->set_x(right_point.x());
+    point_right->set_y(right_point.y());
+    point_right->set_z(right_point.z());
+  }
+  // cross_walks
+  for (const auto& cross_walk_it : local_map_->cross_walks()) {
+    if (cross_walk_it.points().point_size() != 4) {
+      continue;
+    }
+    auto* cross_walk = topo_map->add_crosswalk();
+    cross_walk->mutable_id()->set_id(std::to_string(cross_walk_it.track_id()));
+
+    for (const auto& point_it : cross_walk_it.points().point()) {
+      Eigen::Vector3d point(point_it.x(), point_it.y(), point_it.z());
+      point = T_U_V * point;
+      auto* cross_walk_point = cross_walk->mutable_polygon()->add_point();
+      cross_walk_point->set_x(point.x());
+      cross_walk_point->set_y(point.y());
+      cross_walk_point->set_z(point.z());
+    }
+  }
+  // arrows
+  for (const auto& arrow_it : local_map_->arrows()) {
+    if (arrow_it.points().point_size() != 4) {
+      continue;
+    }
+    auto* arrow = topo_map->add_arraw();
+    arrow->set_id(std::to_string(arrow_it.track_id()));
+    // arrow->set_type(arrow_it.arrow_type());
+
+    for (const auto& point_it : arrow_it.points().point()) {
+      Eigen::Vector3d point(point_it.x(), point_it.y(), point_it.z());
+      point = T_U_V * point;
+      auto* arrow_point = arrow->mutable_shape()->add_point();
+      arrow_point->set_x(point.x());
+      arrow_point->set_y(point.y());
+      arrow_point->set_z(point.z());
+    }
+
+    auto center_point = GetIntersection(arrow_it.points());
+    center_point = T_U_V * center_point;
+    arrow->mutable_center_point()->set_x(center_point.x());
+    arrow->mutable_center_point()->set_y(center_point.y());
+
+    Eigen::Quaterniond quat_arrow_in_veh(
+        Eigen::AngleAxisd(arrow_it.heading(), Eigen::Vector3d::UnitZ()));
+    Eigen::Quaterniond quat_veh_to_local_enu(T_U_V.rotation());
+    Eigen::Quaterniond quat_arrow_in_local_enu =
+        quat_veh_to_local_enu * quat_arrow_in_veh;
+
+    Eigen::Vector3d euler_arrow =
+        quat_arrow_in_local_enu.toRotationMatrix().eulerAngles(2, 0, 1);
+
+    arrow->set_heading(euler_arrow[0]);
+  }
+}
+
 void TopoAssignment::AppendTopoMapLeftLanes(
     const hozon::mp::mf::Lane& lane_it, hozon::hdmap::Lane* lane,
     const std::vector<Eigen::Vector2d>& hq_lane_left_points, const size_t size,
@@ -1398,7 +1482,7 @@ void TopoAssignment::VizLocalMap(
     }
   }
 
-  RVIZ_AGENT.Publish(KTopicTopoAsignLocalMap, markers);
+  RVIZ_AGENT.Publish(KTopicTopoAssignLocalMap, markers);
 }
 
 void TopoAssignment::VizLocation(const Eigen::Vector3d& pose,
@@ -1422,7 +1506,7 @@ void TopoAssignment::VizLocation(const Eigen::Vector3d& pose,
     geo_tf.mutable_transform()->mutable_rotation()->set_y(q_W_V.y());
     geo_tf.mutable_transform()->mutable_rotation()->set_z(q_W_V.z());
     geo_tf.mutable_transform()->mutable_rotation()->set_w(q_W_V.w());
-    RVIZ_AGENT.Publish(kTopicTopoAsignTf, geo_tf);
+    RVIZ_AGENT.Publish(kTopicTopoAssignTf, geo_tf);
 
     auto* location_pose = location_path_.add_poses();
 
@@ -1447,7 +1531,7 @@ void TopoAssignment::VizLocation(const Eigen::Vector3d& pose,
     if (location_path_.poses().size() > 200) {
       location_path_.mutable_poses()->DeleteSubrange(0, 1);
     }
-    RVIZ_AGENT.Publish(kTopicTopoAsignLocation, location_path_);
+    RVIZ_AGENT.Publish(kTopicTopoAssignLocation, location_path_);
   }
 }
 
@@ -1459,13 +1543,13 @@ void TopoAssignment::VizHQMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
 
   VizHQMapRoad(msg, &markers_road);
 
-  RVIZ_AGENT.Publish(KTopicTopoAsignHQMapRoad, markers_road);
+  RVIZ_AGENT.Publish(KTopicTopoAssignHQMapRoad, markers_road);
 
   adsfi_proto::viz::MarkerArray markers_lane;
 
   VizHQMapLane(msg, &markers_lane);
 
-  RVIZ_AGENT.Publish(KTopicTopoAsignHQMapLane, markers_lane);
+  RVIZ_AGENT.Publish(KTopicTopoAssignHQMapLane, markers_lane);
 }
 
 void TopoAssignment::VizHQMapRoad(const std::shared_ptr<hozon::hdmap::Map>& msg,
@@ -1569,13 +1653,19 @@ void TopoAssignment::VizTopoMap(const std::shared_ptr<hozon::hdmap::Map>& msg) {
 
   VizTopoMapRoad(msg, &markers_road);
 
-  RVIZ_AGENT.Publish(KTopicTopoAsignTopoMapRoad, markers_road);
+  RVIZ_AGENT.Publish(KTopicTopoAssignTopoMapRoad, markers_road);
 
   adsfi_proto::viz::MarkerArray markers_lane;
 
   VizTopoMapLane(msg, &markers_lane);
 
-  RVIZ_AGENT.Publish(KTopicTopoAsignTopoMapLane, markers_lane);
+  RVIZ_AGENT.Publish(KTopicTopoAssignTopoMapLane, markers_lane);
+
+  adsfi_proto::viz::MarkerArray markers_elements;
+
+  VizTopoMapElements(msg, &markers_elements);
+
+  RVIZ_AGENT.Publish(KTopicTopoAssignTopoMapElements, markers_elements);
 }
 
 void TopoAssignment::VizTopoMapRoad(
@@ -1651,6 +1741,148 @@ void TopoAssignment::VizTopoMapLane(
         markers_lane->add_markers()->CopyFrom(marker_id);
       }
     }
+  }
+}
+
+void TopoAssignment::VizTopoMapElements(
+    const std::shared_ptr<hozon::hdmap::Map>& msg,
+    adsfi_proto::viz::MarkerArray* markers_elements) const {
+  static int id_stop_line = 0;
+  for (const auto& stop_line : msg->stop_line()) {
+    adsfi_proto::viz::Marker marker;
+    marker.mutable_header()->set_frameid("map");
+    marker.mutable_header()->mutable_timestamp()->set_sec(
+        static_cast<uint32_t>(cur_timestamp_));
+    marker.mutable_header()->mutable_timestamp()->set_nsec(
+        static_cast<uint32_t>(cur_timestamp_));
+    marker.set_id(id_stop_line++);
+    marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+    marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    marker.mutable_pose()->mutable_position()->set_x(0);
+    marker.mutable_pose()->mutable_position()->set_y(0);
+    marker.mutable_pose()->mutable_position()->set_z(0);
+    marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    marker.mutable_scale()->set_x(0.2);
+    marker.mutable_scale()->set_y(0.2);
+    marker.mutable_scale()->set_z(0.2);
+    marker.mutable_lifetime()->set_sec(0);
+    marker.mutable_lifetime()->set_nsec(200000000);
+    adsfi_proto::viz::ColorRGBA color;
+    color.set_a(1.0);
+    color.set_r(1.0);
+    color.set_g(1.0);
+    color.set_b(1.0);
+    marker.mutable_color()->CopyFrom(color);
+    if (stop_line.shape().point_size() != 2) {
+      continue;
+    }
+    auto point = stop_line.shape().point(0);
+    auto* left_point = marker.add_points();
+    left_point->set_x(static_cast<float>(point.x()));
+    left_point->set_y(static_cast<float>(point.y()));
+    left_point->set_z(static_cast<float>(point.z()));
+    point = stop_line.shape().point(1);
+    auto* right_point = marker.add_points();
+    right_point->set_x(static_cast<float>(point.x()));
+    right_point->set_y(static_cast<float>(point.y()));
+    right_point->set_z(static_cast<float>(point.z()));
+    markers_elements->add_markers()->CopyFrom(marker);
+  }
+
+  static int id_arrow = 0;
+  for (const auto& arrow : msg->arraw()) {
+    adsfi_proto::viz::Marker point_marker;
+    point_marker.mutable_header()->set_frameid("map");
+    point_marker.mutable_header()->mutable_timestamp()->set_sec(
+        static_cast<uint32_t>(cur_timestamp_));
+    point_marker.mutable_header()->mutable_timestamp()->set_nsec(
+        static_cast<uint32_t>(cur_timestamp_));
+    point_marker.set_id(id_arrow);
+    point_marker.set_ns("points_arrow");
+    point_marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+    point_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    point_marker.mutable_pose()->mutable_position()->set_x(0);
+    point_marker.mutable_pose()->mutable_position()->set_y(0);
+    point_marker.mutable_pose()->mutable_position()->set_z(0);
+    point_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    point_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    point_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    point_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    point_marker.mutable_scale()->set_x(0.2);
+    point_marker.mutable_scale()->set_y(0.2);
+    point_marker.mutable_scale()->set_z(0.2);
+    point_marker.mutable_lifetime()->set_sec(0);
+    point_marker.mutable_lifetime()->set_nsec(200000000);
+    adsfi_proto::viz::ColorRGBA color;
+    color.set_a(1.0);
+    color.set_r(1.0);
+    color.set_g(1.0);
+    color.set_b(1.0);
+    point_marker.mutable_color()->CopyFrom(color);
+    if (arrow.shape().point_size() != 4) {
+      continue;
+    }
+    Eigen::Vector3d point_0(arrow.shape().point(0).x(),
+                            arrow.shape().point(0).y(), 0);
+    Eigen::Vector3d point_1(arrow.shape().point(1).x(),
+                            arrow.shape().point(1).y(), 0);
+    Eigen::Vector3d point_2(arrow.shape().point(2).x(),
+                            arrow.shape().point(2).y(), 0);
+    Eigen::Vector3d point_3(arrow.shape().point(3).x(),
+                            arrow.shape().point(3).y(), 0);
+    auto* point_msg = point_marker.add_points();
+    point_msg->set_x(point_0.x());
+    point_msg->set_y(point_0.y());
+    point_msg = point_marker.add_points();
+    point_msg->set_x(point_1.x());
+    point_msg->set_y(point_1.y());
+    point_msg = point_marker.add_points();
+    point_msg->set_x(point_2.x());
+    point_msg->set_y(point_2.y());
+    point_msg = point_marker.add_points();
+    point_msg->set_x(point_3.x());
+    point_msg->set_y(point_3.y());
+    point_msg = point_marker.add_points();
+    point_msg->set_x(point_0.x());
+    point_msg->set_y(point_0.y());
+    markers_elements->add_markers()->CopyFrom(point_marker);
+
+    adsfi_proto::viz::Marker heading_marker;
+    heading_marker.mutable_header()->set_frameid("map");
+    heading_marker.mutable_header()->mutable_timestamp()->set_sec(
+        static_cast<uint32_t>(cur_timestamp_));
+    heading_marker.mutable_header()->mutable_timestamp()->set_nsec(
+        static_cast<uint32_t>(cur_timestamp_));
+    heading_marker.set_id(id_arrow++);
+    heading_marker.set_ns("heading_arrow");
+    heading_marker.set_type(adsfi_proto::viz::MarkerType::ARROW);
+    heading_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    heading_marker.mutable_pose()->mutable_position()->set_x(
+        arrow.center_point().x());
+    heading_marker.mutable_pose()->mutable_position()->set_y(
+        arrow.center_point().y());
+    heading_marker.mutable_pose()->mutable_position()->set_z(0);
+    Eigen::Quaterniond quat_arrow(
+        Eigen::AngleAxisd(arrow.heading(), Eigen::Vector3d::UnitZ()));
+    heading_marker.mutable_pose()->mutable_orientation()->set_x(quat_arrow.x());
+    heading_marker.mutable_pose()->mutable_orientation()->set_y(quat_arrow.y());
+    heading_marker.mutable_pose()->mutable_orientation()->set_z(quat_arrow.z());
+    heading_marker.mutable_pose()->mutable_orientation()->set_w(quat_arrow.w());
+    heading_marker.mutable_scale()->set_x(2);
+    heading_marker.mutable_scale()->set_y(0.1);
+    heading_marker.mutable_scale()->set_z(0.1);
+    heading_marker.mutable_lifetime()->set_sec(0);
+    heading_marker.mutable_lifetime()->set_nsec(200000000);
+    adsfi_proto::viz::ColorRGBA color_heading;
+    color_heading.set_a(1.0);
+    color_heading.set_r(1.0);
+    color_heading.set_g(1.0);
+    color_heading.set_b(1.0);
+    heading_marker.mutable_color()->CopyFrom(color_heading);
+    markers_elements->add_markers()->CopyFrom(heading_marker);
   }
 }
 
@@ -1956,6 +2188,31 @@ bool TopoAssignment::LaneBelongToLaneLine(
 
   return dist_p0 >= FLAGS_topo_lane_line_dist ||
          dist_p1 >= FLAGS_topo_lane_line_dist;
+}
+
+Eigen::Vector3d TopoAssignment::GetIntersection(
+    const hozon::common::Polygon& points) {
+  Eigen::Vector3d point(0., 0., 0.);
+  if (points.point_size() != 4) {
+    return point;
+  }
+  double d1 = (points.point(2).x() - points.point(0).x()) *
+                  (points.point(1).y() - points.point(0).y()) -
+              (points.point(1).x() - points.point(0).x()) *
+                  (points.point(2).y() - points.point(0).y());
+  double d2 = (points.point(2).x() - points.point(0).x()) *
+                  (points.point(3).y() - points.point(0).y()) -
+              (points.point(3).x() - points.point(0).x()) *
+                  (points.point(2).y() - points.point(0).y());
+  if (fabs(d1 - d2) < 1e-6) {
+    return point;
+  }
+  double t = d1 / (d1 - d2);
+  point.x() =
+      points.point(1).x() + (points.point(3).x() - points.point(1).x()) * t;
+  point.y() =
+      points.point(1).y() + (points.point(3).y() - points.point(1).y()) * t;
+  return point;
 }
 
 }  // namespace mf

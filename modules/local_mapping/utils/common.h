@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -32,7 +33,7 @@ namespace lm {
 class CommonUtil {
  public:
   static void FitLaneLine(const std::vector<Eigen::Vector3d>& pts,
-                          LaneLine* lane_line) {
+                          std::vector<double>* c) {
     int n = static_cast<int>(pts.size());
     Eigen::Matrix<double, Eigen::Dynamic, 4> A(n, 4);
     Eigen::VectorXd x(n);
@@ -47,10 +48,16 @@ class CommonUtil {
       b[i] = yi;
     }
     x = (A.transpose() * A).inverse() * A.transpose() * b;
-    lane_line->c0_ = x[0];
-    lane_line->c1_ = x[1];
-    lane_line->c2_ = x[2];
-    lane_line->c3_ = x[3];
+    c->at(0) = x[0];
+    c->at(1) = x[1];
+    c->at(2) = x[2];
+    c->at(3) = x[3];
+  }
+
+  static double CalCubicCurveY(const LaneLine& laneline, const double& x) {
+    double y = laneline.c0_ + laneline.c1_ * x + laneline.c2_ * x * x +
+               laneline.c3_ * x * x * x;
+    return y;
   }
 
   static void EraseErrorPts(std::vector<Eigen::Vector3d>* pts) {
@@ -64,6 +71,32 @@ class CommonUtil {
       }
     }
   }
+
+  static bool IsConvex(const std::vector<Eigen::Vector3d>& points) {
+    if (points.size() != 4) {
+      return false;
+    }
+    auto IsOutsideTriangle =
+        [](const Eigen::Vector3d& P, const Eigen::Vector3d& A,
+           const Eigen::Vector3d& B, const Eigen::Vector3d& C) {
+          Eigen::Vector2d AP = {P.x() - A.x(), P.y() - A.y()};
+          Eigen::Vector2d BP = {P.x() - B.x(), P.y() - B.y()};
+          Eigen::Vector2d CP = {P.x() - C.x(), P.y() - C.y()};
+          Eigen::Vector2d AB = {B.x() - A.x(), B.y() - A.y()};
+          Eigen::Vector2d BC = {C.x() - B.x(), C.y() - B.y()};
+          Eigen::Vector2d CA = {A.x() - C.x(), A.y() - C.y()};
+          double S1 = AP.x() * AB.y() - AP.y() * AB.x();
+          double S2 = BP.x() * BC.y() - BP.y() * BC.x();
+          double S3 = CP.x() * CA.y() - CP.y() * CA.x();
+          return (S1 < 0 || S2 < 0 || S3 < 0) && (S1 > 0 || S2 > 0 || S3 > 0);
+        };
+    bool P0 = IsOutsideTriangle(points[0], points[1], points[2], points[3]);
+    bool P1 = IsOutsideTriangle(points[1], points[0], points[2], points[3]);
+    bool P2 = IsOutsideTriangle(points[2], points[0], points[1], points[3]);
+    bool P3 = IsOutsideTriangle(points[3], points[0], points[1], points[2]);
+    return P0 && P1 && P2 && P3;
+  }
+
   static void CatmullRom(const std::vector<Eigen::Vector3d>& pts,
                          LaneLine* lane_line) {
     auto func = [](double p0, double p1, double p2, double p3, double t) {
@@ -88,9 +121,9 @@ class CommonUtil {
     }
   }
 
-  static void FitLocalMap(LocalMap* local_map) {
-    for (auto& lane_line : local_map->lane_lines_) {
-      if (!lane_line.need_fit_ || !lane_line.ismature_) {
+  static void FitLaneLines(std::vector<LaneLine>* map_lane_lines) {
+    for (auto& lane_line : *map_lane_lines) {
+      if (!lane_line.ismature_) {
         continue;
       }
       lane_line.fit_points_.clear();
@@ -114,7 +147,47 @@ class CommonUtil {
           back_pts.push_back(lane_line.points_[i]);
         }
       }
-      if (lane_line.c2_ < 0.001) {
+      if (fabs(lane_line.c2_) < 0.001) {
+        CommonUtil::EraseErrorPts(&pts);
+      }
+      if (pts.size() < 4) {
+        continue;
+      }
+      lane_line.control_points_ = pts;
+      CatmullRom(pts, &lane_line);
+      for (const auto& point : back_pts) {
+        lane_line.fit_points_.push_back(point);
+      }
+    }
+  }
+
+  static void FitEdgeLines(std::vector<LaneLine>* map_edge_lines) {
+    for (auto& lane_line : *map_edge_lines) {
+      if (!lane_line.ismature_) {
+        continue;
+      }
+      lane_line.fit_points_.clear();
+      lane_line.control_points_.clear();
+      int n = static_cast<int>(lane_line.points_.size());
+      if (n < 10) {
+        continue;
+      }
+      if (n < 21) {
+        lane_line.fit_points_ = lane_line.points_;
+        continue;
+      }
+      std::vector<Eigen::Vector3d> pts;
+      std::vector<Eigen::Vector3d> back_pts;
+      for (int i = 0; i < n; i++) {
+        if (i == 1 || i % 10 == 0 || i == n - 1) {
+          pts.push_back(lane_line.points_[i]);
+        }
+        if (((n - 1) % 10 == 0 && i >= ((n - 1) / 10 - 1) * 10) ||
+            ((n - 1) % 10 != 0 && i >= (n - 1) / 10 * 10)) {
+          back_pts.push_back(lane_line.points_[i]);
+        }
+      }
+      if (fabs(lane_line.c2_) < 0.001) {
         CommonUtil::EraseErrorPts(&pts);
       }
       if (pts.size() < 4) {
@@ -214,154 +287,461 @@ class CommonUtil {
     util::RvizAgent::Instance().Publish(topic, path_msg);
   }
 
-  static void PubPercepPoints(const Sophus::SE3d& T_W_V,
-                              const Perception& cur_lane_lines,
-                              const uint64_t& sec, const uint64_t& nsec,
-                              const std::string& topic) {
-    static bool percep_flag = true;
-    if (percep_flag) {
+  static void PubPerLaneLine(const Sophus::SE3d& T_W_V,
+                             const std::vector<LaneLine>& per_lane_lines,
+                             const uint64_t& sec, const uint64_t& nsec,
+                             const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
       util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
-      percep_flag = false;
+      register_flag = false;
     }
-    adsfi_proto::viz::PointCloud percep_points_msg;
-    percep_points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
-    percep_points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
-    percep_points_msg.mutable_header()->set_frameid("localmap");
-    auto* channels = percep_points_msg.add_channels();
+    adsfi_proto::viz::PointCloud points_msg;
+    points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = points_msg.add_channels();
     channels->set_name("rgb");
-    for (const auto& lane_line : cur_lane_lines.lane_lines_) {
-      for (auto point : lane_line.points_) {
-        point = T_W_V * point;
-        auto* percep_point = percep_points_msg.add_points();
-        percep_point->set_x(static_cast<float>(point.x()));
-        percep_point->set_y(static_cast<float>(point.y()));
-        percep_point->set_z(static_cast<float>(point.z()));
+    for (const auto& lane_line : per_lane_lines) {
+      for (const auto& point : lane_line.points_) {
+        auto point_world = T_W_V * point;
+        auto* point_msg = points_msg.add_points();
+        point_msg->set_x(static_cast<float>(point_world.x()));
+        point_msg->set_y(static_cast<float>(point_world.y()));
+        point_msg->set_z(static_cast<float>(point_world.z()));
       }
     }
-    util::RvizAgent::Instance().Publish(topic, percep_points_msg);
+    util::RvizAgent::Instance().Publish(topic, points_msg);
   }
 
-  static void PubPercepPointsMarker(const Sophus::SE3d& T_W_V,
-                                    const Perception& cur_lane_lines,
-                                    const uint64_t& sec, const uint64_t& nsec,
-                                    const std::string& topic) {
-    static bool percep_marker_flag = true;
-    if (percep_marker_flag) {
+  static void PubPerEdgeLine(const Sophus::SE3d& T_W_V,
+                             const std::vector<LaneLine>& per_edge_lines,
+                             const uint64_t& sec, const uint64_t& nsec,
+                             const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::PointCloud points_msg;
+    points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = points_msg.add_channels();
+    channels->set_name("rgb");
+    for (const auto& edge_line : per_edge_lines) {
+      for (const auto& point : edge_line.points_) {
+        auto point_world = T_W_V * point;
+        auto* point_msg = points_msg.add_points();
+        point_msg->set_x(static_cast<float>(point_world.x()));
+        point_msg->set_y(static_cast<float>(point_world.y()));
+        point_msg->set_z(static_cast<float>(point_world.z()));
+      }
+    }
+    util::RvizAgent::Instance().Publish(topic, points_msg);
+  }
+
+  static void PubPerStopLine(const Sophus::SE3d& T_W_V,
+                             const std::vector<StopLine>& stop_lines,
+                             const uint64_t& sec, const uint64_t& nsec,
+                             const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
       util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
           topic);
-      percep_marker_flag = false;
+      register_flag = false;
     }
     adsfi_proto::viz::MarkerArray markers;
     int id = 0;
-    for (size_t i = 0; i < cur_lane_lines.lane_lines_.size(); i++) {
-      if (cur_lane_lines.lane_lines_[i].points_.empty()) {
-        continue;
-      }
-      auto start_point = cur_lane_lines.lane_lines_[i].points_.front();
-      start_point = T_W_V * start_point;
-      adsfi_proto::viz::Marker lane_index;
-      lane_index.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
-      lane_index.set_action(adsfi_proto::viz::MarkerAction::ADD);
-      lane_index.set_id(id++);
-      lane_index.mutable_lifetime()->set_sec(0);
-      lane_index.mutable_lifetime()->set_nsec(200000000);
-      lane_index.mutable_header()->mutable_timestamp()->set_sec(sec);
-      lane_index.mutable_header()->mutable_timestamp()->set_nsec(nsec);
-      lane_index.mutable_header()->set_frameid("localmap");
-      lane_index.mutable_pose()->mutable_position()->set_x(start_point.x());
-      lane_index.mutable_pose()->mutable_position()->set_y(start_point.y());
-      lane_index.mutable_pose()->mutable_position()->set_z(2);
-      lane_index.mutable_pose()->mutable_orientation()->set_x(0);
-      lane_index.mutable_pose()->mutable_orientation()->set_y(0);
-      lane_index.mutable_pose()->mutable_orientation()->set_z(0);
-      lane_index.mutable_pose()->mutable_orientation()->set_w(1);
-      lane_index.mutable_color()->set_r(1);
-      lane_index.mutable_color()->set_g(0);
-      lane_index.mutable_color()->set_b(0);
-      lane_index.mutable_color()->set_a(1);
-      lane_index.set_text(std::to_string(i));
-      lane_index.mutable_scale()->set_x(1);
-      lane_index.mutable_scale()->set_y(1);
-      lane_index.mutable_scale()->set_z(1);
-      markers.add_markers()->CopyFrom(lane_index);
+    for (const auto& stop_line : stop_lines) {
+      adsfi_proto::viz::Marker marker;
+      marker.mutable_header()->set_frameid("localmap");
+      marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      marker.set_id(id++);
+      marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+      marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      marker.mutable_pose()->mutable_position()->set_x(0);
+      marker.mutable_pose()->mutable_position()->set_y(0);
+      marker.mutable_pose()->mutable_position()->set_z(0);
+      marker.mutable_pose()->mutable_orientation()->set_x(0.);
+      marker.mutable_pose()->mutable_orientation()->set_y(0.);
+      marker.mutable_pose()->mutable_orientation()->set_z(0.);
+      marker.mutable_pose()->mutable_orientation()->set_w(1.);
+      marker.mutable_scale()->set_x(0.2);
+      marker.mutable_scale()->set_y(0.2);
+      marker.mutable_scale()->set_z(0.2);
+      marker.mutable_lifetime()->set_sec(0);
+      marker.mutable_lifetime()->set_nsec(200000000);
+      adsfi_proto::viz::ColorRGBA color;
+      color.set_a(1.0);
+      color.set_r(1.0);
+      color.set_g(0.0);
+      color.set_b(0.0);
+      marker.mutable_color()->CopyFrom(color);
+      auto point = T_W_V * stop_line.left_point_;
+      auto* left_point = marker.add_points();
+      left_point->set_x(static_cast<float>(point.x()));
+      left_point->set_y(static_cast<float>(point.y()));
+      left_point->set_z(static_cast<float>(point.z()));
+      point = T_W_V * stop_line.right_point_;
+      auto* right_point = marker.add_points();
+      right_point->set_x(static_cast<float>(point.x()));
+      right_point->set_y(static_cast<float>(point.y()));
+      right_point->set_z(static_cast<float>(point.z()));
+      markers.add_markers()->CopyFrom(marker);
     }
     util::RvizAgent::Instance().Publish(topic, markers);
   }
 
-  static void PubMapPoints(const LocalMap& local_map, const uint64_t& sec,
-                           const uint64_t& nsec, const std::string& topic,
-                           const Sophus::SE3d& T_W_V) {
-    static bool map_flag = true;
-    if (map_flag) {
-      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
-      map_flag = false;
-    }
-    adsfi_proto::viz::PointCloud map_points_msg;
-    map_points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
-    map_points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
-    map_points_msg.mutable_header()->set_frameid("localmap");
-    auto* channels = map_points_msg.add_channels();
-    channels->set_name("rgb");
-    for (const auto& lane_line : local_map.lane_lines_) {
-      for (auto point : lane_line.fit_points_) {
-        point = T_W_V * point;
-        auto* map_point = map_points_msg.add_points();
-        map_point->set_x(static_cast<float>(point.x()));
-        map_point->set_y(static_cast<float>(point.y()));
-        map_point->set_z(static_cast<float>(point.z()));
-      }
-    }
-    util::RvizAgent::Instance().Publish(topic, map_points_msg);
-  }
-
-  static void PubMapControlPoints(const LocalMap& local_map,
-                                  const uint64_t& sec, const uint64_t& nsec,
-                                  const std::string& topic,
-                                  const Sophus::SE3d& T_W_V) {
-    static bool map_control_flag = true;
-    if (map_control_flag) {
-      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
-      map_control_flag = false;
-    }
-    adsfi_proto::viz::PointCloud map_points_msg;
-    map_points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
-    map_points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
-    map_points_msg.mutable_header()->set_frameid("localmap");
-    auto* channels = map_points_msg.add_channels();
-    channels->set_name("rgb");
-    for (const auto& lane_line : local_map.lane_lines_) {
-      for (auto point : lane_line.control_points_) {
-        point = T_W_V * point;
-        auto* map_point = map_points_msg.add_points();
-        map_point->set_x(static_cast<float>(point.x()));
-        map_point->set_y(static_cast<float>(point.y()));
-        map_point->set_z(static_cast<float>(point.z()));
-      }
-    }
-    util::RvizAgent::Instance().Publish(topic, map_points_msg);
-  }
-
-  static void PubMapPointsMarker(const LocalMap& local_map, const uint64_t& sec,
-                                 const uint64_t& nsec, const std::string& topic,
-                                 const Sophus::SE3d& T_W_V) {
-    static bool map_marker_flag = true;
-    if (map_marker_flag) {
+  static void PubPerArrow(const Sophus::SE3d& T_W_V,
+                          const std::vector<Arrow>& per_arrows,
+                          const uint64_t& sec, const uint64_t& nsec,
+                          const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
       util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
           topic);
-      map_marker_flag = false;
+      register_flag = false;
     }
     adsfi_proto::viz::MarkerArray markers;
     int id = 0;
-    for (size_t i = 0; i < local_map.lane_lines_.size(); i++) {
-      if (local_map.lane_lines_[i].fit_points_.empty()) {
+    for (const auto& arrow : per_arrows) {
+      adsfi_proto::viz::Marker marker;
+      marker.mutable_header()->set_frameid("localmap");
+      marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      marker.set_id(id++);
+      marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+      marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      marker.mutable_pose()->mutable_position()->set_x(0);
+      marker.mutable_pose()->mutable_position()->set_y(0);
+      marker.mutable_pose()->mutable_position()->set_z(0);
+      marker.mutable_pose()->mutable_orientation()->set_x(0.);
+      marker.mutable_pose()->mutable_orientation()->set_y(0.);
+      marker.mutable_pose()->mutable_orientation()->set_z(0.);
+      marker.mutable_pose()->mutable_orientation()->set_w(1.);
+      marker.mutable_scale()->set_x(0.2);
+      marker.mutable_scale()->set_y(0.2);
+      marker.mutable_scale()->set_z(0.2);
+      marker.mutable_lifetime()->set_sec(0);
+      marker.mutable_lifetime()->set_nsec(200000000);
+      adsfi_proto::viz::ColorRGBA color;
+      color.set_a(1.0);
+      color.set_r(1.0);
+      color.set_g(0.0);
+      color.set_b(0.0);
+      marker.mutable_color()->CopyFrom(color);
+      Eigen::Vector3d point_0(arrow.min_x, arrow.min_y, 0);
+      point_0 = T_W_V * point_0;
+      Eigen::Vector3d point_1(arrow.max_x, arrow.min_y, 0);
+      point_1 = T_W_V * point_1;
+      Eigen::Vector3d point_2(arrow.max_x, arrow.max_y, 0);
+      point_2 = T_W_V * point_2;
+      Eigen::Vector3d point_3(arrow.min_x, arrow.max_y, 0);
+      point_3 = T_W_V * point_3;
+      auto* point_msg = marker.add_points();
+      point_msg->set_x(point_0.x());
+      point_msg->set_y(point_0.y());
+      point_msg = marker.add_points();
+      point_msg->set_x(point_1.x());
+      point_msg->set_y(point_1.y());
+      point_msg = marker.add_points();
+      point_msg->set_x(point_2.x());
+      point_msg->set_y(point_2.y());
+      point_msg = marker.add_points();
+      point_msg->set_x(point_3.x());
+      point_msg->set_y(point_3.y());
+      point_msg = marker.add_points();
+      point_msg->set_x(point_0.x());
+      point_msg->set_y(point_0.y());
+      markers.add_markers()->CopyFrom(marker);
+      adsfi_proto::viz::Marker txt_marker;
+      txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+      txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      txt_marker.set_id(id++);
+      txt_marker.mutable_lifetime()->set_sec(0);
+      txt_marker.mutable_lifetime()->set_nsec(200000000);
+      txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      txt_marker.mutable_header()->set_frameid("localmap");
+      txt_marker.mutable_pose()->mutable_position()->set_x(
+          (point_0.x() + point_2.x()) / 2);
+      txt_marker.mutable_pose()->mutable_position()->set_y(
+          (point_0.y() + point_2.y()) / 2);
+      txt_marker.mutable_pose()->mutable_orientation()->set_x(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_y(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_z(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_w(1);
+      txt_marker.mutable_color()->set_a(1);
+      txt_marker.mutable_color()->set_r(1);
+      txt_marker.mutable_color()->set_g(0);
+      txt_marker.mutable_color()->set_b(0);
+      std::map<ArrowType, std::string> ArrowTypeToString{
+          {ArrowType::ARROWTYPE_UNKNOWN, "ARROWTYPE_UNKNOWN"},
+          {ArrowType::STRAIGHT_FORWARD, "STRAIGHT_FORWARD"},
+          {ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT,
+           "STRAIGHT_FORWARD_OR_TURN_LEFT"},
+          {ArrowType::STRAIGHT_FORWARD_OR_TURN_RIGHT,
+           "STRAIGHT_FORWARD_OR_TURN_RIGHT"},
+          {ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT,
+           "STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT"},
+          {ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND,
+           "STRAIGHT_FORWARD_OR_TURN_AROUND"},
+          {ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT,
+           "STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT"},
+          {ArrowType::TURN_LEFT, "TURN_LEFT"},
+          {ArrowType::TURN_LEFT_OR_MERGE_LEFT, "TURN_LEFT_OR_MERGE_LEFT"},
+          {ArrowType::TURN_LEFT_OR_TURN_AROUND, "TURN_LEFT_OR_TURN_AROUND"},
+          {ArrowType::TURN_LEFT_OR_TURN_RIGHT, "TURN_LEFT_OR_TURN_RIGHT"},
+          {ArrowType::TURN_RIGHT, "TURN_RIGHT"},
+          {ArrowType::TURN_RIGHT_OR_MERGE_RIGHT, "TURN_RIGHT_OR_MERGE_RIGHT"},
+          {ArrowType::TURN_RIGHT_OR_TURN_AROUND, "TURN_RIGHT_OR_TURN_AROUND"},
+          {ArrowType::TURN_AROUND, "TURN_AROUND"},
+          {ArrowType::FORBID_TURN_LEFT, "FORBID_TURN_LEFT"},
+          {ArrowType::FORBID_TURN_RIGHT, "FORBID_TURN_RIGHT"},
+          {ArrowType::FORBID_TURN_AROUND, "FORBID_TURN_AROUND"},
+          {ArrowType::FRONT_NEAR_CROSSWALK, "FRONT_NEAR_CROSSWALK"},
+      };
+      txt_marker.set_text(ArrowTypeToString[arrow.type_]);
+      txt_marker.mutable_scale()->set_x(1);
+      txt_marker.mutable_scale()->set_y(1);
+      txt_marker.mutable_scale()->set_z(0.5);
+      markers.add_markers()->CopyFrom(txt_marker);
+    }
+
+    util::RvizAgent::Instance().Publish(topic, markers);
+  }
+
+  static void PubPerZebraCrossing(
+      const Sophus::SE3d& T_W_V,
+      const std::vector<ZebraCrossing>& per_zebra_crossings,
+      const uint64_t& sec, const uint64_t& nsec, const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
+          topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::MarkerArray markers;
+    int id = 0;
+    for (const auto& zebra_crossing : per_zebra_crossings) {
+      adsfi_proto::viz::Marker marker;
+      marker.mutable_header()->set_frameid("localmap");
+      marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      marker.set_id(id++);
+      marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+      marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      marker.mutable_pose()->mutable_position()->set_x(0);
+      marker.mutable_pose()->mutable_position()->set_y(0);
+      marker.mutable_pose()->mutable_position()->set_z(0);
+      marker.mutable_pose()->mutable_orientation()->set_x(0.);
+      marker.mutable_pose()->mutable_orientation()->set_y(0.);
+      marker.mutable_pose()->mutable_orientation()->set_z(0.);
+      marker.mutable_pose()->mutable_orientation()->set_w(1.);
+      marker.mutable_scale()->set_x(0.2);
+      marker.mutable_scale()->set_y(0.2);
+      marker.mutable_scale()->set_z(0.2);
+      marker.mutable_lifetime()->set_sec(0);
+      marker.mutable_lifetime()->set_nsec(200000000);
+      adsfi_proto::viz::ColorRGBA color;
+      color.set_a(1.0);
+      color.set_r(1.0);
+      color.set_g(0.0);
+      color.set_b(0.0);
+      marker.mutable_color()->CopyFrom(color);
+      Eigen::Vector3d point_0(zebra_crossing.min_x, zebra_crossing.min_y, 0);
+      point_0 = T_W_V * point_0;
+      Eigen::Vector3d point_1(zebra_crossing.max_x, zebra_crossing.min_y, 0);
+      point_1 = T_W_V * point_1;
+      Eigen::Vector3d point_2(zebra_crossing.max_x, zebra_crossing.max_y, 0);
+      point_2 = T_W_V * point_2;
+      Eigen::Vector3d point_3(zebra_crossing.min_x, zebra_crossing.max_y, 0);
+      point_3 = T_W_V * point_3;
+      auto* point_msg = marker.add_points();
+      point_msg->set_x(point_0.x());
+      point_msg->set_y(point_0.y());
+      point_msg = marker.add_points();
+      point_msg->set_x(point_1.x());
+      point_msg->set_y(point_1.y());
+      point_msg = marker.add_points();
+      point_msg->set_x(point_2.x());
+      point_msg->set_y(point_2.y());
+      point_msg = marker.add_points();
+      point_msg->set_x(point_3.x());
+      point_msg->set_y(point_3.y());
+      point_msg = marker.add_points();
+      point_msg->set_x(point_0.x());
+      point_msg->set_y(point_0.y());
+      markers.add_markers()->CopyFrom(marker);
+      adsfi_proto::viz::Marker txt_marker;
+      txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+      txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      txt_marker.set_id(id++);
+      txt_marker.mutable_lifetime()->set_sec(0);
+      txt_marker.mutable_lifetime()->set_nsec(200000000);
+      txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      txt_marker.mutable_header()->set_frameid("localmap");
+      txt_marker.mutable_pose()->mutable_position()->set_x(
+          (point_0.x() + point_2.x()) / 2);
+      txt_marker.mutable_pose()->mutable_position()->set_y(
+          (point_0.y() + point_2.y()) / 2);
+      txt_marker.mutable_pose()->mutable_orientation()->set_x(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_y(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_z(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_w(1);
+      txt_marker.mutable_color()->set_a(1);
+      txt_marker.mutable_color()->set_r(1);
+      txt_marker.mutable_color()->set_g(0);
+      txt_marker.mutable_color()->set_b(0);
+      txt_marker.set_text("zebra_crossing");
+      txt_marker.mutable_scale()->set_x(1);
+      txt_marker.mutable_scale()->set_y(1);
+      txt_marker.mutable_scale()->set_z(0.5);
+      markers.add_markers()->CopyFrom(txt_marker);
+    }
+
+    util::RvizAgent::Instance().Publish(topic, markers);
+  }
+
+  static void PubMapLaneLine(const Sophus::SE3d& T_W_V,
+                             const std::vector<LaneLine>& map_lane_lines,
+                             const uint64_t& sec, const uint64_t& nsec,
+                             const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::PointCloud points_msg;
+    points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = points_msg.add_channels();
+    channels->set_name("rgb");
+    for (const auto& lane_line : map_lane_lines) {
+      if (!lane_line.ismature_) {
         continue;
       }
-      auto end_points = T_W_V * local_map.lane_lines_[i].fit_points_.back();
+      for (const auto& point : lane_line.fit_points_) {
+        auto point_world = T_W_V * point;
+        auto* point_msg = points_msg.add_points();
+        point_msg->set_x(static_cast<float>(point_world.x()));
+        point_msg->set_y(static_cast<float>(point_world.y()));
+        point_msg->set_z(static_cast<float>(point_world.z()));
+      }
+    }
+    util::RvizAgent::Instance().Publish(topic, points_msg);
+  }
+
+  static void PubMapEdgeLine(const Sophus::SE3d& T_W_V,
+                             const std::vector<LaneLine>& map_edge_lines,
+                             const uint64_t& sec, const uint64_t& nsec,
+                             const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::PointCloud points_msg;
+    points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = points_msg.add_channels();
+    channels->set_name("rgb");
+    for (const auto& edge_line : map_edge_lines) {
+      if (!edge_line.ismature_) {
+        continue;
+      }
+      for (const auto& point : edge_line.fit_points_) {
+        auto point_world = T_W_V * point;
+        auto* point_msg = points_msg.add_points();
+        point_msg->set_x(static_cast<float>(point_world.x()));
+        point_msg->set_y(static_cast<float>(point_world.y()));
+        point_msg->set_z(static_cast<float>(point_world.z()));
+      }
+    }
+    util::RvizAgent::Instance().Publish(topic, points_msg);
+  }
+
+  static void PubMapStopLine(const Sophus::SE3d& T_W_V,
+                             const std::vector<StopLine>& map_stop_lines,
+                             const uint64_t& sec, const uint64_t& nsec,
+                             const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
+          topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::MarkerArray markers;
+    int id = 0;
+    for (const auto& stop_line : map_stop_lines) {
+      if (!stop_line.ismature_) {
+        continue;
+      }
+      adsfi_proto::viz::Marker marker;
+      marker.mutable_header()->set_frameid("localmap");
+      marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      marker.set_id(id++);
+      marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+      marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      marker.mutable_pose()->mutable_position()->set_x(0);
+      marker.mutable_pose()->mutable_position()->set_y(0);
+      marker.mutable_pose()->mutable_position()->set_z(0);
+      marker.mutable_pose()->mutable_orientation()->set_x(0.);
+      marker.mutable_pose()->mutable_orientation()->set_y(0.);
+      marker.mutable_pose()->mutable_orientation()->set_z(0.);
+      marker.mutable_pose()->mutable_orientation()->set_w(1.);
+      marker.mutable_scale()->set_x(0.2);
+      marker.mutable_scale()->set_y(0.2);
+      marker.mutable_scale()->set_z(0.2);
+      marker.mutable_lifetime()->set_sec(0);
+      marker.mutable_lifetime()->set_nsec(200000000);
+      adsfi_proto::viz::ColorRGBA color;
+      color.set_a(1.0);
+      color.set_r(1.0);
+      color.set_g(1.0);
+      color.set_b(1.0);
+      marker.mutable_color()->CopyFrom(color);
+      auto point = T_W_V * stop_line.left_point_;
+      auto* left_point = marker.add_points();
+      left_point->set_x(static_cast<float>(point.x()));
+      left_point->set_y(static_cast<float>(point.y()));
+      left_point->set_z(static_cast<float>(point.z()));
+      point = T_W_V * stop_line.right_point_;
+      auto* right_point = marker.add_points();
+      right_point->set_x(static_cast<float>(point.x()));
+      right_point->set_y(static_cast<float>(point.y()));
+      right_point->set_z(static_cast<float>(point.z()));
+      markers.add_markers()->CopyFrom(marker);
+    }
+    util::RvizAgent::Instance().Publish(topic, markers);
+  }
+
+  static void PubMapArrow(const Sophus::SE3d& T_W_V,
+                          const std::vector<Arrow>& map_arrows,
+                          const uint64_t& sec, const uint64_t& nsec,
+                          const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
+          topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::MarkerArray markers;
+    int id = 0;
+    for (const auto& arrow : map_arrows) {
+      if (!arrow.ismature_ || !CommonUtil::IsConvex(arrow.points_.points_)) {
+        continue;
+      }
       adsfi_proto::viz::Marker point_marker;
       point_marker.mutable_header()->set_frameid("localmap");
       point_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
       point_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
-      // point_marker.set_ns("ns_local_map_lane");
       point_marker.set_id(id++);
       point_marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
       point_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -379,19 +759,34 @@ class CommonUtil {
       point_marker.mutable_lifetime()->set_nsec(200000000);
       adsfi_proto::viz::ColorRGBA color;
       color.set_a(1.0);
-      color.set_r(0.0);
+      color.set_r(1.0);
       color.set_g(1.0);
-      color.set_b(0.0);
+      color.set_b(1.0);
       point_marker.mutable_color()->CopyFrom(color);
-      for (auto point : local_map.lane_lines_[i].fit_points_) {
-        point = T_W_V * point;
-        auto* pt = point_marker.add_points();
-        pt->set_x(point.x());
-        pt->set_y(point.y());
-        pt->set_z(point.z());
-      }
+      Eigen::Vector3d point_0(arrow.min_x, arrow.min_y, 0);
+      point_0 = T_W_V * arrow.points_.points_[0];
+      Eigen::Vector3d point_1(arrow.max_x, arrow.min_y, 0);
+      point_1 = T_W_V * arrow.points_.points_[1];
+      Eigen::Vector3d point_2(arrow.max_x, arrow.max_y, 0);
+      point_2 = T_W_V * arrow.points_.points_[2];
+      Eigen::Vector3d point_3(arrow.min_x, arrow.max_y, 0);
+      point_3 = T_W_V * arrow.points_.points_[3];
+      auto* point_msg = point_marker.add_points();
+      point_msg->set_x(point_0.x());
+      point_msg->set_y(point_0.y());
+      point_msg = point_marker.add_points();
+      point_msg->set_x(point_1.x());
+      point_msg->set_y(point_1.y());
+      point_msg = point_marker.add_points();
+      point_msg->set_x(point_2.x());
+      point_msg->set_y(point_2.y());
+      point_msg = point_marker.add_points();
+      point_msg->set_x(point_3.x());
+      point_msg->set_y(point_3.y());
+      point_msg = point_marker.add_points();
+      point_msg->set_x(point_0.x());
+      point_msg->set_y(point_0.y());
       markers.add_markers()->CopyFrom(point_marker);
-
       adsfi_proto::viz::Marker txt_marker;
       txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
       txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -401,68 +796,120 @@ class CommonUtil {
       txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
       txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
       txt_marker.mutable_header()->set_frameid("localmap");
-      txt_marker.mutable_pose()->mutable_position()->set_x(end_points.x());
-      txt_marker.mutable_pose()->mutable_position()->set_y(end_points.y());
-      txt_marker.mutable_pose()->mutable_position()->set_z(2);
+      txt_marker.mutable_pose()->mutable_position()->set_x(
+          (point_0.x() + point_2.x()) / 2);
+      txt_marker.mutable_pose()->mutable_position()->set_y(
+          (point_0.y() + point_2.y()) / 2);
       txt_marker.mutable_pose()->mutable_orientation()->set_x(0);
       txt_marker.mutable_pose()->mutable_orientation()->set_y(0);
       txt_marker.mutable_pose()->mutable_orientation()->set_z(0);
       txt_marker.mutable_pose()->mutable_orientation()->set_w(1);
-      txt_marker.mutable_color()->set_r(0);
-      txt_marker.mutable_color()->set_g(1);
-      txt_marker.mutable_color()->set_b(0);
       txt_marker.mutable_color()->set_a(1);
-      txt_marker.set_text(
-          std::to_string(local_map.lane_lines_[i].track_id_) + ", " +
-          std::to_string(local_map.lane_lines_[i].lanepos_) + ", " +
-          std::to_string(local_map.lane_lines_[i].lanetype_) + ", " +
-          std::to_string(local_map.lane_lines_[i].edge_laneline_count_));
+      txt_marker.mutable_color()->set_r(1);
+      txt_marker.mutable_color()->set_g(1);
+      txt_marker.mutable_color()->set_b(1);
+      std::map<ArrowType, std::string> ArrowTypeToString{
+          {ArrowType::ARROWTYPE_UNKNOWN, "ARROWTYPE_UNKNOWN"},
+          {ArrowType::STRAIGHT_FORWARD, "STRAIGHT_FORWARD"},
+          {ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT,
+           "STRAIGHT_FORWARD_OR_TURN_LEFT"},
+          {ArrowType::STRAIGHT_FORWARD_OR_TURN_RIGHT,
+           "STRAIGHT_FORWARD_OR_TURN_RIGHT"},
+          {ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT,
+           "STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT"},
+          {ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND,
+           "STRAIGHT_FORWARD_OR_TURN_AROUND"},
+          {ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT,
+           "STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT"},
+          {ArrowType::TURN_LEFT, "TURN_LEFT"},
+          {ArrowType::TURN_LEFT_OR_MERGE_LEFT, "TURN_LEFT_OR_MERGE_LEFT"},
+          {ArrowType::TURN_LEFT_OR_TURN_AROUND, "TURN_LEFT_OR_TURN_AROUND"},
+          {ArrowType::TURN_LEFT_OR_TURN_RIGHT, "TURN_LEFT_OR_TURN_RIGHT"},
+          {ArrowType::TURN_RIGHT, "TURN_RIGHT"},
+          {ArrowType::TURN_RIGHT_OR_MERGE_RIGHT, "TURN_RIGHT_OR_MERGE_RIGHT"},
+          {ArrowType::TURN_RIGHT_OR_TURN_AROUND, "TURN_RIGHT_OR_TURN_AROUND"},
+          {ArrowType::TURN_AROUND, "TURN_AROUND"},
+          {ArrowType::FORBID_TURN_LEFT, "FORBID_TURN_LEFT"},
+          {ArrowType::FORBID_TURN_RIGHT, "FORBID_TURN_RIGHT"},
+          {ArrowType::FORBID_TURN_AROUND, "FORBID_TURN_AROUND"},
+          {ArrowType::FRONT_NEAR_CROSSWALK, "FRONT_NEAR_CROSSWALK"},
+      };
+      txt_marker.set_text(ArrowTypeToString[arrow.type_]);
       txt_marker.mutable_scale()->set_x(1);
       txt_marker.mutable_scale()->set_y(1);
-      txt_marker.mutable_scale()->set_z(1);
+      txt_marker.mutable_scale()->set_z(0.5);
       markers.add_markers()->CopyFrom(txt_marker);
     }
+
     util::RvizAgent::Instance().Publish(topic, markers);
   }
 
-  static void PubOriMapPoints(const LocalMap& local_map, const uint64_t& sec,
-                              const uint64_t& nsec, const std::string& topic,
-                              const Sophus::SE3d& T_W_V) {
-    static bool ori_map_flag = true;
-    if (ori_map_flag) {
-      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
-      ori_map_flag = false;
-    }
-    adsfi_proto::viz::PointCloud map_points_msg;
-    map_points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
-    map_points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
-    map_points_msg.mutable_header()->set_frameid("localmap");
-    auto* channels = map_points_msg.add_channels();
-    channels->set_name("rgb");
-    for (const auto& lane_line : local_map.lane_lines_) {
-      for (auto point : lane_line.points_) {
-        point = T_W_V * point;
-        auto* map_point = map_points_msg.add_points();
-        map_point->set_x(static_cast<float>(point.x()));
-        map_point->set_y(static_cast<float>(point.y()));
-        map_point->set_z(static_cast<float>(point.z()));
-      }
-    }
-    util::RvizAgent::Instance().Publish(topic, map_points_msg);
-  }
-
-  static void PubLane(const LocalMap& local_map, const uint64_t& sec,
-                      const uint64_t& nsec, const std::string& topic,
-                      const Sophus::SE3d& T_W_V) {
-    static bool map_lane_flag = true;
-    if (map_lane_flag) {
+  static void PubMapZebraCrossing(
+      const Sophus::SE3d& T_W_V,
+      const std::vector<ZebraCrossing>& map_zebra_crossings,
+      const uint64_t& sec, const uint64_t& nsec, const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
       util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
           topic);
-      map_lane_flag = false;
+      register_flag = false;
     }
     adsfi_proto::viz::MarkerArray markers;
     int id = 0;
-    for (auto lane : local_map.lanes_) {
+    for (const auto& zebra_crossing : map_zebra_crossings) {
+      if (!zebra_crossing.ismature_ ||
+          !CommonUtil::IsConvex(zebra_crossing.points_.points_)) {
+        continue;
+      }
+      adsfi_proto::viz::Marker marker;
+      marker.mutable_header()->set_frameid("localmap");
+      marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      marker.set_id(id++);
+      marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+      marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      marker.mutable_pose()->mutable_position()->set_x(0);
+      marker.mutable_pose()->mutable_position()->set_y(0);
+      marker.mutable_pose()->mutable_position()->set_z(0);
+      marker.mutable_pose()->mutable_orientation()->set_x(0.);
+      marker.mutable_pose()->mutable_orientation()->set_y(0.);
+      marker.mutable_pose()->mutable_orientation()->set_z(0.);
+      marker.mutable_pose()->mutable_orientation()->set_w(1.);
+      marker.mutable_scale()->set_x(0.2);
+      marker.mutable_scale()->set_y(0.2);
+      marker.mutable_scale()->set_z(0.2);
+      marker.mutable_lifetime()->set_sec(0);
+      marker.mutable_lifetime()->set_nsec(200000000);
+      adsfi_proto::viz::ColorRGBA color;
+      color.set_a(1.0);
+      color.set_r(1.0);
+      color.set_g(1.0);
+      color.set_b(1.0);
+      marker.mutable_color()->CopyFrom(color);
+      Eigen::Vector3d point_0(zebra_crossing.min_x, zebra_crossing.min_y, 0);
+      point_0 = T_W_V * zebra_crossing.points_.points_[0];
+      Eigen::Vector3d point_1(zebra_crossing.max_x, zebra_crossing.min_y, 0);
+      point_1 = T_W_V * zebra_crossing.points_.points_[1];
+      Eigen::Vector3d point_2(zebra_crossing.max_x, zebra_crossing.max_y, 0);
+      point_2 = T_W_V * zebra_crossing.points_.points_[2];
+      Eigen::Vector3d point_3(zebra_crossing.min_x, zebra_crossing.max_y, 0);
+      point_3 = T_W_V * zebra_crossing.points_.points_[3];
+      auto* point_msg = marker.add_points();
+      point_msg->set_x(point_0.x());
+      point_msg->set_y(point_0.y());
+      point_msg = marker.add_points();
+      point_msg->set_x(point_1.x());
+      point_msg->set_y(point_1.y());
+      point_msg = marker.add_points();
+      point_msg->set_x(point_2.x());
+      point_msg->set_y(point_2.y());
+      point_msg = marker.add_points();
+      point_msg->set_x(point_3.x());
+      point_msg->set_y(point_3.y());
+      point_msg = marker.add_points();
+      point_msg->set_x(point_0.x());
+      point_msg->set_y(point_0.y());
+      markers.add_markers()->CopyFrom(marker);
       adsfi_proto::viz::Marker txt_marker;
       txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
       txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -472,17 +919,89 @@ class CommonUtil {
       txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
       txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
       txt_marker.mutable_header()->set_frameid("localmap");
-      if (lane.left_line_.points_.empty()) {
+      txt_marker.mutable_pose()->mutable_position()->set_x(
+          (point_0.x() + point_2.x()) / 2);
+      txt_marker.mutable_pose()->mutable_position()->set_y(
+          (point_0.y() + point_2.y()) / 2);
+      txt_marker.mutable_pose()->mutable_orientation()->set_x(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_y(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_z(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_w(1);
+      txt_marker.mutable_color()->set_a(1);
+      txt_marker.mutable_color()->set_r(1);
+      txt_marker.mutable_color()->set_g(1);
+      txt_marker.mutable_color()->set_b(1);
+      txt_marker.set_text("zebra_crossing");
+      txt_marker.mutable_scale()->set_x(1);
+      txt_marker.mutable_scale()->set_y(1);
+      txt_marker.mutable_scale()->set_z(0.5);
+      markers.add_markers()->CopyFrom(txt_marker);
+    }
+
+    util::RvizAgent::Instance().Publish(topic, markers);
+  }
+
+  static void PubMapLaneLineControl(const Sophus::SE3d& T_W_V,
+                                    const LocalMap& local_map,
+                                    const uint64_t& sec, const uint64_t& nsec,
+                                    const std::string& topic) {
+    static bool map_control_flag = true;
+    if (map_control_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
+      map_control_flag = false;
+    }
+    adsfi_proto::viz::PointCloud points_msg;
+    points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = points_msg.add_channels();
+    channels->set_name("rgb");
+    for (const auto& lane_line : local_map.lane_lines_) {
+      if (!lane_line.ismature_) {
         continue;
       }
-      auto left_point = lane.left_line_.points_[0];
+      for (const auto& point : lane_line.control_points_) {
+        auto point_world = T_W_V * point;
+        auto* point_msg = points_msg.add_points();
+        point_msg->set_x(static_cast<float>(point_world.x()));
+        point_msg->set_y(static_cast<float>(point_world.y()));
+        point_msg->set_z(static_cast<float>(point_world.z()));
+      }
+    }
+    util::RvizAgent::Instance().Publish(topic, points_msg);
+  }
+
+  static void PubMapLaneLineMarker(const Sophus::SE3d& T_W_V,
+                                   const std::vector<LaneLine>& map_lane_lines,
+                                   const uint64_t& sec, const uint64_t& nsec,
+                                   const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
+          topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::MarkerArray markers;
+    int id = 0;
+    for (const auto& lane_line : map_lane_lines) {
+      if (!lane_line.ismature_) {
+        continue;
+      }
+      adsfi_proto::viz::Marker txt_marker;
+      txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+      txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      txt_marker.set_id(id++);
+      txt_marker.mutable_lifetime()->set_sec(0);
+      txt_marker.mutable_lifetime()->set_nsec(200000000);
+      txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      txt_marker.mutable_header()->set_frameid("localmap");
+      Eigen::Vector3d left_point = {8, lane_line.c0_, 0};
       left_point = T_W_V * left_point;
-      if (lane.right_line_.points_.empty()) {
-        continue;
-      }
-      auto right_point = lane.right_line_.points_[0];
+      Eigen::Vector3d right_point = {4, lane_line.c0_, 0};
       right_point = T_W_V * right_point;
-      txt_marker.mutable_pose()->mutable_position()->set_x(left_point.x());
+      txt_marker.mutable_pose()->mutable_position()->set_x(
+          (left_point.x() + right_point.x()) / 2);
       txt_marker.mutable_pose()->mutable_position()->set_y(
           (left_point.y() + right_point.y()) / 2);
       txt_marker.mutable_pose()->mutable_position()->set_z(2);
@@ -494,19 +1013,99 @@ class CommonUtil {
       txt_marker.mutable_color()->set_g(1);
       txt_marker.mutable_color()->set_b(0);
       txt_marker.mutable_color()->set_a(1);
-      txt_marker.set_text("lane" + std::to_string(lane.lane_id_));
+      txt_marker.set_text(std::to_string(lane_line.track_id_) + ", " +
+                          std::to_string(lane_line.lanepos_) + ", " +
+                          std::to_string(lane_line.lanetype_));
       txt_marker.mutable_scale()->set_x(1);
       txt_marker.mutable_scale()->set_y(1);
       txt_marker.mutable_scale()->set_z(1);
       markers.add_markers()->CopyFrom(txt_marker);
     }
-
     util::RvizAgent::Instance().Publish(topic, markers);
   }
 
-  static void PubMapLane(const LocalMap& local_map, const uint64_t& sec,
-                         const uint64_t& nsec, const std::string& topic,
-                         const Sophus::SE3d& T_W_V) {
+  static void PubImmatureMapLaneLine(
+      const Sophus::SE3d& T_W_V, const std::vector<LaneLine>& map_lane_lines,
+      const uint64_t& sec, const uint64_t& nsec, const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::PointCloud points_msg;
+    points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = points_msg.add_channels();
+    channels->set_name("rgb");
+    for (const auto& lane_line : map_lane_lines) {
+      if (lane_line.ismature_) {
+        continue;
+      }
+      for (const auto& point : lane_line.points_) {
+        auto point_world = T_W_V * point;
+        auto* point_msg = points_msg.add_points();
+        point_msg->set_x(static_cast<float>(point_world.x()));
+        point_msg->set_y(static_cast<float>(point_world.y()));
+        point_msg->set_z(static_cast<float>(point_world.z()));
+      }
+    }
+    util::RvizAgent::Instance().Publish(topic, points_msg);
+  }
+
+  static void PubImmatureMapLaneLineMarker(
+      const Sophus::SE3d& T_W_V, const std::vector<LaneLine>& map_lane_lines,
+      const uint64_t& sec, const uint64_t& nsec, const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
+          topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::MarkerArray markers;
+    int id = 0;
+    for (const auto& lane_line : map_lane_lines) {
+      if (lane_line.ismature_) {
+        continue;
+      }
+      adsfi_proto::viz::Marker txt_marker;
+      txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+      txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      txt_marker.set_id(id++);
+      txt_marker.mutable_lifetime()->set_sec(0);
+      txt_marker.mutable_lifetime()->set_nsec(200000000);
+      txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      txt_marker.mutable_header()->set_frameid("localmap");
+      Eigen::Vector3d left_point = {8, lane_line.c0_, 0};
+      left_point = T_W_V * left_point;
+      Eigen::Vector3d right_point = {4, lane_line.c0_, 0};
+      right_point = T_W_V * right_point;
+      txt_marker.mutable_pose()->mutable_position()->set_x(
+          (left_point.x() + right_point.x()) / 2);
+      txt_marker.mutable_pose()->mutable_position()->set_y(
+          (left_point.y() + right_point.y()) / 2);
+      txt_marker.mutable_pose()->mutable_position()->set_z(2);
+      txt_marker.mutable_pose()->mutable_orientation()->set_x(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_y(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_z(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_w(1);
+      txt_marker.mutable_color()->set_r(0.32);
+      txt_marker.mutable_color()->set_g(0.29);
+      txt_marker.mutable_color()->set_b(0.39);
+      txt_marker.mutable_color()->set_a(1);
+      txt_marker.set_text(std::to_string(lane_line.count_));
+      txt_marker.mutable_scale()->set_x(1);
+      txt_marker.mutable_scale()->set_y(1);
+      txt_marker.mutable_scale()->set_z(1);
+      markers.add_markers()->CopyFrom(txt_marker);
+    }
+    util::RvizAgent::Instance().Publish(topic, markers);
+  }
+
+  static void PubMapLane(const Sophus::SE3d& T_W_V, const LocalMap& local_map,
+                         const uint64_t& sec, const uint64_t& nsec,
+                         const std::string& topic) {
     static bool map_lane_flag = true;
     if (map_lane_flag) {
       util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
@@ -528,14 +1127,12 @@ class CommonUtil {
       if (lane.left_line_.points_.empty()) {
         continue;
       }
-      auto left_point = lane.left_line_.points_[0];
+      Eigen::Vector3d left_point = {2, lane.left_line_.c0_, 0};
       left_point = T_W_V * left_point;
-      if (lane.right_line_.points_.empty()) {
-        continue;
-      }
-      auto right_point = lane.right_line_.points_[0];
+      Eigen::Vector3d right_point = {2, lane.right_line_.c0_, 0};
       right_point = T_W_V * right_point;
-      txt_marker.mutable_pose()->mutable_position()->set_x(left_point.x());
+      txt_marker.mutable_pose()->mutable_position()->set_x(
+          (left_point.x() + right_point.x()) / 2);
       txt_marker.mutable_pose()->mutable_position()->set_y(
           (left_point.y() + right_point.y()) / 2);
       txt_marker.mutable_pose()->mutable_position()->set_z(2);
@@ -775,38 +1372,6 @@ class CommonUtil {
       }
     }
     util::RvizAgent::Instance().Publish(topic, markers);
-  }
-
-  static void PubImage(
-      const std::string& topic,
-      const std::shared_ptr<const hozon::soc::CompressedImage>& sensor_img) {
-    static bool img_marker_flag = true;
-    if (img_marker_flag) {
-      util::RvizAgent::Instance().Register<adsfi_proto::viz::CompressedImage>(
-          topic);
-      img_marker_flag = false;
-    }
-    if (sensor_img->format() != "jpeg" && sensor_img->format() != "jpg") {
-      HLOG_ERROR << "not support " << sensor_img->format() << ", only support "
-                 << "jpeg/jpg";
-      return;
-    }
-    adsfi_proto::viz::CompressedImage img;
-    img.mutable_header()->set_seq(sensor_img->header().seq());
-    img.mutable_header()->set_frameid(sensor_img->header().frame_id());
-    auto sec = static_cast<uint32_t>(sensor_img->header().publish_stamp());
-    auto nsec = static_cast<uint32_t>(
-        (sensor_img->header().publish_stamp() - sec) * 1e9);
-    img.mutable_header()->mutable_timestamp()->set_sec(sec);
-    img.mutable_header()->mutable_timestamp()->set_nsec(nsec);
-    img.set_format(sensor_img->format());
-    for (const auto& b : sensor_img->data()) {
-      img.mutable_data()->push_back(b);
-    }
-    if (img.data().empty()) {
-      return;
-    }
-    util::RvizAgent::Instance().Publish(topic, img);
   }
 
   static DrData Interpolate(const double& scale, const DrData& start,

@@ -9,416 +9,242 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
-void LaneOp::Match(const Perception& cur_lane_lines, const LocalMap& local_map,
-                   std::vector<LaneMatchInfo>* match_info) {
-  if (local_map.lane_lines_.empty()) {
-    for (const auto& cur_lane_line : cur_lane_lines.lane_lines_) {
-      LaneMatchInfo match;
-      match.frame_lane_line_ = std::make_shared<LaneLine>(cur_lane_line);
-      match.update_type_ = ObjUpdateType::ADD_NEW;
-      match_info->emplace_back(match);
-    }
-    return;
-  }
-
-  for (const auto& cur_lane_line : cur_lane_lines.lane_lines_) {
-    LaneMatchInfo match;
-    match.frame_lane_line_ = std::make_shared<LaneLine>(cur_lane_line);
-    bool match_success = false;
-    for (const auto& map_lane_line : local_map.lane_lines_) {
-      if (cur_lane_line.track_id_ == map_lane_line.track_id_) {
-        match.map_lane_line_ = std::make_shared<LaneLine>(map_lane_line);
-        match_success = true;
-      }
-    }
-    if (match_success) {
-      match.update_type_ = ObjUpdateType::MERGE_OLD;
-    } else {
-      match.update_type_ = ObjUpdateType::ADD_NEW;
-    }
-    match_info->emplace_back(match);
-  }
-}
-
-void LaneOp::Match(const Perception& cur_lane_lines, const LocalMap& local_map,
-                   std::vector<LaneMatchInfo>* match_info,
-                   bool use_horizon_assoc_match) {
-  if (local_map.lane_lines_.empty()) {
-    for (const auto& cur_lane_line : cur_lane_lines.lane_lines_) {
-      LaneMatchInfo match;
-      match.frame_lane_line_ = std::make_shared<LaneLine>(cur_lane_line);
-      match.update_type_ = ObjUpdateType::ADD_NEW;
-      match_info->emplace_back(match);
-    }
-    return;
-  }
-  std::unordered_map<int, int> map_det_lm;
-  if (use_horizon_assoc_match) {
-    horizon_lane_assoc_ = std::make_shared<HorizonLaneAssoc>();
-    map_det_lm = horizon_lane_assoc_->Process(cur_lane_lines.lane_lines_,
-                                              local_map.lane_lines_);
-  } else {
-    lane_assoc_ = std::make_shared<LaneAssoc>(lane_assoc_options_);
-    map_det_lm =
-        lane_assoc_->Process(cur_lane_lines.lane_lines_, local_map.lane_lines_);
-  }
-  for (int i = 0; i < static_cast<int>(cur_lane_lines.lane_lines_.size());
-       ++i) {
-    if (!use_horizon_assoc_match) {
-      lane_assoc_ = std::make_shared<LaneAssoc>(lane_assoc_options_);
-      if (lane_assoc_->NeedDelete(i)) {
+void LaneOp::MatchLaneLine(const std::vector<LaneLine>& per_lane_lines,
+                           const std::vector<LaneLine>& map_lane_lines,
+                           std::vector<LaneLineMatchInfo>* lane_line_matches) {
+  std::vector<LaneLine> map_lane_lines_tmp = map_lane_lines;
+  for (const auto& per_lane_line : per_lane_lines) {
+    ObjUpdateType type = ObjUpdateType::ADD_NEW;
+    LaneLineMatchInfo match;
+    HLOG_INFO << "per_lane_line.lanepos_ " << per_lane_line.lanepos_;
+    double min_ave_dis = 0.5;
+    int map_lane_index = 0;
+    for (int i = 0; i < static_cast<int>(map_lane_lines_tmp.size()); i++) {
+      if (map_lane_lines_tmp[i].has_matched_) {
         continue;
       }
+      double sum = 0.0;
+      int n = 0;
+      double linear_max_x =
+          per_lane_line.end_point_x_ * 0.7 + per_lane_line.start_point_x_ * 0.3;
+      double curve_max_x =
+          per_lane_line.end_point_x_ * 0.5 + per_lane_line.start_point_x_ * 0.5;
+      for (const auto& map_point : map_lane_lines_tmp[i].points_) {
+        if (per_lane_line.c2_ > 0.001
+                ? map_point.x() > curve_max_x
+                : map_point.x() > linear_max_x ||
+                      map_point.x() < per_lane_line.start_point_x_) {
+          continue;
+        }
+        double per_y = CommonUtil::CalCubicCurveY(per_lane_line, map_point.x());
+        sum += fabs(map_point.y() - per_y);
+        n++;
+      }
+      if (n == 0) {
+        continue;
+      }
+      double ave_dis = sum / n;
+      HLOG_INFO << "map_lane_lines_tmp[i].lanepos_ "
+                << map_lane_lines_tmp[i].lanepos_;
+      HLOG_INFO << "ave_dis " << ave_dis << " n " << n;
+      if (ave_dis < min_ave_dis && n >= 3) {
+        min_ave_dis = ave_dis;
+        map_lane_index = i;
+      }
     }
-    LaneMatchInfo match;
-    match.frame_lane_line_ =
-        std::make_shared<LaneLine>(cur_lane_lines.lane_lines_[i]);
-    if (map_det_lm.find(i) != map_det_lm.end()) {
-      match.map_lane_line_ =
-          std::make_shared<LaneLine>(local_map.lane_lines_[map_det_lm[i]]);
+    if (min_ave_dis < 0.5) {
+      match.per_lane_line_ = per_lane_line;
+      match.map_lane_line_ = map_lane_lines_tmp[map_lane_index];
       match.update_type_ = ObjUpdateType::MERGE_OLD;
-      // HLOG_ERROR << "merge det " << i << " with lm " << map_det_lm[i];
-    } else {
+      type = ObjUpdateType::MERGE_OLD;
+      map_lane_lines_tmp[map_lane_index].has_matched_ = true;
+    }
+    if (type == ObjUpdateType::ADD_NEW) {
+      match.per_lane_line_ = per_lane_line;
       match.update_type_ = ObjUpdateType::ADD_NEW;
     }
-    match_info->emplace_back(match);
+    lane_line_matches->emplace_back(match);
   }
 }
 
-bool LaneOp::MatchLeftRight(const LaneLine& query_lane_line,
-                            const LaneLine& other_lane_line) {
-  std::vector<cv::Point2f> cv_points;
-  for (const auto& point : other_lane_line.points_) {
-    cv::Point2f tmp_point = {static_cast<float>(point.x()),
-                             static_cast<float>(point.y())};
-    cv_points.emplace_back(tmp_point);
-  }
-  if (cv_points.empty()) {
-    return false;
-  }
-  cv::flann::KDTreeIndexParams index_params(1);
-  std::shared_ptr<cv::flann::Index> kdtree = std::make_shared<cv::flann::Index>(
-      cv::Mat(cv_points).reshape(1), index_params);
-  int num = 0;
-  for (auto query_point : query_lane_line.points_) {
-    if (query_point.x() > 50) {
-      continue;
-    }
-    std::vector<int> nearest_index(1);
-    std::vector<float> nearest_dist(1);
-    std::vector<float> query_points =
-        std::vector<float>{static_cast<float>(query_point.x()),
-                           static_cast<float>(query_point.y())};
-    if (query_points.empty()) {
-      continue;
-    }
-    kdtree->knnSearch(query_points, nearest_index, nearest_dist, 1,
-                      cv::flann::SearchParams(-1));
-    if (nearest_dist[0] > 1) {
-      continue;
-    }
-    num++;
-  }
-  return num > 5;
-}
-
-void LaneOp::MergePointsLeftRight(LaneLine* query_lane_line,
-                                  LaneLine* other_lane_line) {
-  std::vector<Eigen::Vector3d> new_points;
-  if (query_lane_line->points_[0].x() < other_lane_line->points_[0].x() &&
-      query_lane_line->points_.back().x() <
-          other_lane_line->points_.back().x()) {
-    // HLOG_ERROR << "1";
-    // HLOG_ERROR << "query_lane_line: ID startx endx"
-    //            << query_lane_line->track_id_ << " "
-    //            << query_lane_line->points_[0].x() << " "
-    //            << query_lane_line->points_.back().x();
-    // HLOG_ERROR << "other_lane_line: ID startx endx"
-    //            << other_lane_line->track_id_ << " "
-    //            << other_lane_line->points_[0].x() << " "
-    //            << other_lane_line->points_.back().x();
-    for (auto point : query_lane_line->points_) {
-      if (point.x() > other_lane_line->points_[0].x() - 0.9) {
+void LaneOp::MatchEdgeLine(const std::vector<LaneLine>& per_edge_lines,
+                           const std::vector<LaneLine>& map_edge_lines,
+                           std::vector<EdgeLineMatchInfo>* edge_line_matches) {
+  std::vector<LaneLine> map_edge_lines_tmp = map_edge_lines;
+  for (const auto& per_edge_line : per_edge_lines) {
+    ObjUpdateType type = ObjUpdateType::ADD_NEW;
+    EdgeLineMatchInfo match;
+    HLOG_INFO << "per_edge_line.lanepos_ " << per_edge_line.lanepos_;
+    for (auto& map_edge_line : map_edge_lines_tmp) {
+      if (map_edge_line.has_matched_) {
+        continue;
+      }
+      double sum = 0.0;
+      int n = 0;
+      for (const auto& map_point : map_edge_line.points_) {
+        if (map_point.x() > per_edge_line.end_point_x_ ||
+            map_point.x() < per_edge_line.start_point_x_) {
+          continue;
+        }
+        double per_y = per_edge_line.c0_ + per_edge_line.c1_ * map_point.x() +
+                       per_edge_line.c2_ * pow(map_point.x(), 2) +
+                       per_edge_line.c3_ * pow(map_point.x(), 3);
+        sum += fabs(map_point.y() - per_y);
+        n++;
+      }
+      double ave_dis = sum / n;
+      HLOG_INFO << "map_edge_line.lanepos_ " << map_edge_line.lanepos_;
+      HLOG_INFO << "ave_dis " << ave_dis << " n " << n;
+      if (ave_dis < 0.5 && n >= 3) {
+        match.per_edge_line_ = per_edge_line;
+        match.map_edge_line_ = map_edge_line;
+        match.update_type_ = ObjUpdateType::MERGE_OLD;
+        type = ObjUpdateType::MERGE_OLD;
+        map_edge_line.has_matched_ = true;
         break;
       }
-      new_points.emplace_back(point);
     }
-    std::copy(other_lane_line->points_.begin(), other_lane_line->points_.end(),
-              std::back_inserter(new_points));
-  } else if (query_lane_line->points_[0].x() >
-                 other_lane_line->points_[0].x() &&
-             query_lane_line->points_.back().x() >
-                 other_lane_line->points_.back().x()) {
-    // HLOG_ERROR << "2";
-    // HLOG_ERROR << "query_lane_line: ID startx endx"
-    //            << query_lane_line->track_id_ << " "
-    //            << query_lane_line->points_[0].x() << " "
-    //            << query_lane_line->points_.back().x();
-    // HLOG_ERROR << "other_lane_line: ID startx endx"
-    //            << other_lane_line->track_id_ << " "
-    //            << other_lane_line->points_[0].x() << " "
-    //            << other_lane_line->points_.back().x();
-    for (auto point : other_lane_line->points_) {
-      if (point.x() > query_lane_line->points_[0].x() - 0.9) {
+    if (type == ObjUpdateType::ADD_NEW) {
+      match.per_edge_line_ = per_edge_line;
+      match.update_type_ = ObjUpdateType::ADD_NEW;
+    }
+    edge_line_matches->emplace_back(match);
+  }
+}
+
+void LaneOp::MatchStopLine(const std::vector<StopLine>& per_stop_lines,
+                           const std::vector<StopLine>& map_stop_lines,
+                           std::vector<StopLineMatchInfo>* stop_line_matches) {
+  std::vector<StopLine> map_stop_lines_tmp = map_stop_lines;
+  for (const auto& per_stop_line : per_stop_lines) {
+    if (per_stop_line.left_point_.x() < -1) {
+      continue;
+    }
+    ObjUpdateType type = ObjUpdateType::ADD_NEW;
+    StopLineMatchInfo match;
+    for (auto& map_stop_line : map_stop_lines_tmp) {
+      if (map_stop_line.has_matched_) {
+        continue;
+      }
+      double per_mid_y =
+          (per_stop_line.left_point_.y() + per_stop_line.right_point_.y()) / 2;
+      double map_mid_y =
+          (map_stop_line.left_point_.y() + map_stop_line.right_point_.y()) / 2;
+      if (fabs(per_mid_y - map_mid_y) < 5) {
+        match.per_stop_line_ = per_stop_line;
+        match.map_stop_line_ = map_stop_line;
+        match.update_type_ = ObjUpdateType::MERGE_OLD;
+        type = ObjUpdateType::MERGE_OLD;
+        map_stop_line.has_matched_ = true;
         break;
       }
-      new_points.emplace_back(point);
     }
-    std::copy(query_lane_line->points_.begin(), query_lane_line->points_.end(),
-              std::back_inserter(new_points));
-  } else if (query_lane_line->points_[0].x() <
-                 other_lane_line->points_[0].x() &&
-             query_lane_line->points_.back().x() >
-                 other_lane_line->points_.back().x()) {
-    // HLOG_ERROR << "3";
-    // HLOG_ERROR << "query_lane_line: ID startx endx"
-    //            << query_lane_line->track_id_ << " "
-    //            << query_lane_line->points_[0].x() << " "
-    //            << query_lane_line->points_.back().x();
-    // HLOG_ERROR << "other_lane_line: ID startx endx"
-    //            << other_lane_line->track_id_ << " "
-    //            << other_lane_line->points_[0].x() << " "
-    //            << other_lane_line->points_.back().x();
-    std::copy(query_lane_line->points_.begin(), query_lane_line->points_.end(),
-              std::back_inserter(new_points));
-  } else if (query_lane_line->points_[0].x() >
-                 other_lane_line->points_[0].x() &&
-             query_lane_line->points_.back().x() <
-                 other_lane_line->points_.back().x()) {
-    // HLOG_ERROR << "4";
-    // HLOG_ERROR << "query_lane_line: ID startx endx"
-    //            << query_lane_line->track_id_ << " "
-    //            << query_lane_line->points_[0].x() << " "
-    //            << query_lane_line->points_.back().x();
-    // HLOG_ERROR << "other_lane_line: ID startx endx"
-    //            << other_lane_line->track_id_ << " "
-    //            << other_lane_line->points_[0].x() << " "
-    //            << other_lane_line->points_.back().x();
-    std::copy(other_lane_line->points_.begin(), other_lane_line->points_.end(),
-              std::back_inserter(new_points));
-  }
-
-  if (query_lane_line->track_id_ < other_lane_line->track_id_) {
-    other_lane_line->track_id_ = query_lane_line->track_id_;
-    other_lane_line->lanepos_ = query_lane_line->lanepos_;
-    other_lane_line->lanetype_ = query_lane_line->lanetype_;
-    other_lane_line->points_ = new_points;
-  } else {
-    other_lane_line->points_ = new_points;
-  }
-  if (other_lane_line->edge_laneline_count_ <
-      query_lane_line->edge_laneline_count_) {
-    other_lane_line->edge_laneline_count_ =
-        query_lane_line->edge_laneline_count_;
-  }
-  query_lane_line->need_delete_ = true;
-}
-
-void LaneOp::MergeMapLeftRight(LocalMap* local_map) {
-  for (auto& lane_line : local_map->lane_lines_) {
-    lane_line.need_merge_ = !lane_line.points_.empty();
-    lane_line.need_delete_ = false;
-  }
-  for (auto& query_lane_line : local_map->lane_lines_) {
-    if (!query_lane_line.need_merge_ || !query_lane_line.ismature_) {
-      continue;
+    if (type == ObjUpdateType::ADD_NEW) {
+      match.per_stop_line_ = per_stop_line;
+      match.update_type_ = ObjUpdateType::ADD_NEW;
     }
-    query_lane_line.need_merge_ = false;
-    for (auto& other_lane_line : local_map->lane_lines_) {
-      if (!other_lane_line.need_merge_ || !other_lane_line.ismature_) {
-        continue;
-      }
-      if (!MatchLeftRight(query_lane_line, other_lane_line)) {
-        continue;
-      }
-      MergePointsLeftRight(&query_lane_line, &other_lane_line);
-    }
-  }
-  for (int i = 0; i < static_cast<int>(local_map->lane_lines_.size()); i++) {
-    if (!local_map->lane_lines_[i].need_delete_) {
-      continue;
-    }
-    local_map->lane_lines_.erase(local_map->lane_lines_.begin() + i);
-    i--;
+    stop_line_matches->emplace_back(match);
   }
 }
 
-bool LaneOp::MatchFrontBack(const LaneLine& query_lane_line,
-                            const LaneLine& other_lane_line) {
-  int n = static_cast<int>(other_lane_line.points_.size());
-  if (n <= 1) {
-    return false;
-  }
-  Eigen::MatrixXd A(n, 2);
-  Eigen::VectorXd b(n);
-  for (int j = 0; j < n; j++) {
-    // 拟合直线
-    A(j, 0) = other_lane_line.points_[j].x();
-    A(j, 1) = 1.0;
-    b(j) = other_lane_line.points_[j].y();
-  }
-  Eigen::Vector2d x = (A.transpose() * A).inverse() * A.transpose() * b;
-
-  double sum_distance = 0;
-  int count = 0;
-  for (auto query_point : query_lane_line.points_) {
-    if (query_point.x() > 50) {
+void LaneOp::MatchArrow(const std::vector<Arrow>& per_arrows,
+                        const std::vector<Arrow>& map_arrows,
+                        std::vector<ArrowMatchInfo>* arrow_matches) {
+  std::vector<Arrow> map_arrows_tmp = map_arrows;
+  for (const auto& per_arrow : per_arrows) {
+    if (per_arrow.max_x < -1) {
       continue;
     }
-    sum_distance += std::abs(x[0] * query_point.x() - query_point.y() + x[1]) /
-                    std::sqrt(x[0] * x[0] + 1);
-    count++;
-  }
-  return count > 0 && sum_distance / count <= 1;
-}
-
-bool LaneOp::MergePointsFrontBack(LaneLine* query_lane_line,
-                                  LaneLine* other_lane_line) {
-  std::vector<Eigen::Vector3d> new_points;
-  if (other_lane_line->points_.front().x() >
-      query_lane_line->points_.back().x()) {
-    if (fabs(other_lane_line->points_.front().y() -
-             query_lane_line->points_.back().y()) > 1) {
-      return false;
-    }
-    for (const auto& point : query_lane_line->points_) {
-      new_points.emplace_back(point);
-    }
-    double x_n = other_lane_line->points_.front().x();
-    double y_n = other_lane_line->points_.front().y();
-    double x_0 = query_lane_line->points_.back().x();
-    double y_0 = query_lane_line->points_.back().y();
-    double x = x_0;
-    while (x < x_n) {
-      double y = (y_n - y_0) / (x_n - x_0) * (x - x_0) + y_0;
-      Eigen::Vector3d point = {x, y, 0.0};
-      new_points.emplace_back(point);
-      x++;
-    }
-    for (const auto& point : other_lane_line->points_) {
-      new_points.emplace_back(point);
-    }
-  } else {
-    if (fabs(query_lane_line->points_.front().y() -
-             other_lane_line->points_.back().y()) > 1) {
-      return false;
-    }
-    for (const auto& point : other_lane_line->points_) {
-      new_points.emplace_back(point);
-    }
-    double x_n = query_lane_line->points_.front().x();
-    double y_n = query_lane_line->points_.front().y();
-    double x_0 = other_lane_line->points_.back().x();
-    double y_0 = other_lane_line->points_.back().y();
-    double x = x_0;
-    while (x < x_n) {
-      double y = (y_n - y_0) / (x_n - x_0) * (x - x_0) + y_0;
-      Eigen::Vector3d point = {x, y, 0.0};
-      new_points.emplace_back(point);
-      x++;
-    }
-    for (const auto& point : query_lane_line->points_) {
-      new_points.emplace_back(point);
-    }
-  }
-  if (query_lane_line->track_id_ < other_lane_line->track_id_) {
-    other_lane_line->track_id_ = query_lane_line->track_id_;
-    other_lane_line->lanepos_ = query_lane_line->lanepos_;
-    other_lane_line->lanetype_ = query_lane_line->lanetype_;
-    other_lane_line->points_ = new_points;
-  } else {
-    other_lane_line->points_ = new_points;
-  }
-  if (other_lane_line->edge_laneline_count_ <
-      query_lane_line->edge_laneline_count_) {
-    other_lane_line->edge_laneline_count_ =
-        query_lane_line->edge_laneline_count_;
-  }
-  query_lane_line->need_delete_ = true;
-  return true;
-}
-
-void LaneOp::MergeMapFrontBack(LocalMap* local_map) {
-  // 前后车道线合并
-  for (auto& lane_line : local_map->lane_lines_) {
-    lane_line.need_merge_ = !lane_line.points_.empty();
-    lane_line.need_delete_ = false;
-  }
-  for (auto& query_lane_line : local_map->lane_lines_) {
-    // if (query_lane.points_.back().x() < -50) continue;
-    if (!query_lane_line.need_merge_ || !query_lane_line.ismature_) {
-      continue;
-    }
-    query_lane_line.need_merge_ = false;
-    for (auto& other_lane_line : local_map->lane_lines_) {
-      if (!other_lane_line.need_merge_ || !other_lane_line.ismature_) {
+    ObjUpdateType type = ObjUpdateType::ADD_NEW;
+    ArrowMatchInfo match;
+    for (auto& map_arrow : map_arrows_tmp) {
+      if (map_arrow.has_matched_) {
         continue;
       }
-      // HLOG_ERROR << "other_lane_line.c2_: " << other_lane_line.c2_;
-      if ((query_lane_line.points_.front().x() >
-           other_lane_line.points_.back().x() + 50) ||
-          (other_lane_line.points_.front().x() >
-           query_lane_line.points_.back().x() + 50) ||
-          ((query_lane_line.points_.front().x() <
-            other_lane_line.points_.back().x()) &&
-           (query_lane_line.points_.back().x() >
-            other_lane_line.points_.front().x())) ||
-          (other_lane_line.c2_ > 0.001) ||
-          query_lane_line.lanetype_ != other_lane_line.lanetype_) {
-        continue;
-      }
-      if (!MatchFrontBack(query_lane_line, other_lane_line)) {
-        continue;
-      }
-      if (!MergePointsFrontBack(&query_lane_line, &other_lane_line)) {
-        continue;
+      double map_mid_x = (map_arrow.min_x + map_arrow.max_x) / 2;
+      double map_mid_y = (map_arrow.min_y + map_arrow.max_y) / 2;
+      double per_mid_x = (per_arrow.min_x + per_arrow.max_x) / 2;
+      double per_mid_y = (per_arrow.min_y + per_arrow.max_y) / 2;
+      if (fabs(per_mid_x - map_mid_x) < 10 && fabs(per_mid_y - map_mid_y) < 2) {
+        match.per_arrow_ = per_arrow;
+        match.map_arrow_ = map_arrow;
+        match.update_type_ = ObjUpdateType::MERGE_OLD;
+        type = ObjUpdateType::MERGE_OLD;
+        map_arrow.has_matched_ = true;
+        break;
       }
     }
-  }
-  for (int i = 0; i < static_cast<int>(local_map->lane_lines_.size()); i++) {
-    if (!local_map->lane_lines_[i].need_delete_) {
-      continue;
+    if (type == ObjUpdateType::ADD_NEW) {
+      match.per_arrow_ = per_arrow;
+      match.update_type_ = ObjUpdateType::ADD_NEW;
     }
-    local_map->lane_lines_.erase(local_map->lane_lines_.begin() + i);
-    i--;
+    arrow_matches->emplace_back(match);
   }
 }
 
-ConstDrDataPtr LaneOp::GetDrPoseForTime(const double& timestamp) {
+void LaneOp::MatchZebraCrossing(
+    const std::vector<ZebraCrossing>& per_zebra_crossings,
+    const std::vector<ZebraCrossing>& map_zebra_crossings,
+    std::vector<ZebraCrossingMatchInfo>* zebra_crossing_matches) {
+  std::vector<ZebraCrossing> map_zebra_crossings_tmp = map_zebra_crossings;
+  for (const auto& per_zebra_crossing : per_zebra_crossings) {
+    if (per_zebra_crossing.max_x < -1) {
+      continue;
+    }
+    ObjUpdateType type = ObjUpdateType::ADD_NEW;
+    ZebraCrossingMatchInfo match;
+    for (auto& map_zebra_crossing : map_zebra_crossings_tmp) {
+      if (map_zebra_crossing.has_matched_) {
+        continue;
+      }
+      double map_mid_x =
+          (map_zebra_crossing.min_x + map_zebra_crossing.max_x) / 2;
+      double map_mid_y =
+          (map_zebra_crossing.min_y + map_zebra_crossing.max_y) / 2;
+      double per_mid_x =
+          (per_zebra_crossing.min_x + per_zebra_crossing.max_x) / 2;
+      double per_mid_y =
+          (per_zebra_crossing.min_y + per_zebra_crossing.max_y) / 2;
+      if (fabs(per_mid_x - map_mid_x) < 10) {
+        match.per_zebra_crossing_ = per_zebra_crossing;
+        match.map_zebra_crossing_ = map_zebra_crossing;
+        match.update_type_ = ObjUpdateType::MERGE_OLD;
+        type = ObjUpdateType::MERGE_OLD;
+        map_zebra_crossing.has_matched_ = true;
+        break;
+      }
+    }
+    if (type == ObjUpdateType::ADD_NEW) {
+      match.per_zebra_crossing_ = per_zebra_crossing;
+      match.update_type_ = ObjUpdateType::ADD_NEW;
+    }
+    zebra_crossing_matches->emplace_back(match);
+  }
+}
+
+ConstDrDataPtr LaneOp::GetDrPoseForTime(double timestamp) {
   auto& local_data = LocalDataSingleton::GetInstance();
 
-  ::std::list<::std::pair<double, ConstDrDataPtr>> dr_list;
-  local_data.dr_buffer().get_all_messages(&dr_list);
+  // HLOG_INFO << "find timestamp: " << ara::log::Setprecision(20) << timestamp;
 
-  if (dr_list.size() <= 1) {
-    HLOG_ERROR << "too few dr data, can't interpolate";
+  ConstDrDataPtr before = nullptr;
+  ConstDrDataPtr after = nullptr;
+  local_data.dr_buffer().get_messages_around(timestamp, before, after);
+
+  if (before == nullptr && after == nullptr) {
+    HLOG_ERROR << "GetDrPoseForTime is null: " << timestamp;
     return nullptr;
   }
 
-  auto iter = dr_list.rbegin();
-  for (; iter != dr_list.rend(); iter++) {
-    if (iter->first < timestamp) {
-      // HLOG_ERROR << "Dr time: " << std::setprecision(20) << iter->first;
-      break;
-    }
-  }
-
-  if (iter == dr_list.rbegin()) {
-    if (timestamp - dr_list.back().second->timestamp > 0.2) {
-      HLOG_ERROR << "Dr delay";
-      return nullptr;
-    }
-
+  if (before == nullptr) {
     DrDataPtr dr_ptr = std::make_shared<DrData>();
-    ConstDrDataPtr latest_data_ptr = dr_list.back().second;
 
-    double delta_t = timestamp - latest_data_ptr->timestamp;
+    double delta_t = timestamp - after->timestamp;
     dr_ptr->timestamp = timestamp;
     dr_ptr->pose =
-        latest_data_ptr->pose +
-        latest_data_ptr->quaternion * (latest_data_ptr->local_vel * delta_t);
-    dr_ptr->quaternion = latest_data_ptr->quaternion;
-    Eigen::Vector3d delta_ang = latest_data_ptr->local_omg * delta_t;
+        after->pose + after->quaternion * (after->local_vel * delta_t);
+    dr_ptr->quaternion = after->quaternion;
+    Eigen::Vector3d delta_ang = after->local_omg * delta_t;
     if (delta_ang.norm() > 1e-12) {
       dr_ptr->quaternion =
           dr_ptr->quaternion * Eigen::Quaterniond(Eigen::AngleAxisd(
@@ -426,22 +252,29 @@ ConstDrDataPtr LaneOp::GetDrPoseForTime(const double& timestamp) {
       dr_ptr->quaternion = dr_ptr->quaternion.normalized();
     }
 
-    dr_ptr->local_vel = latest_data_ptr->local_vel;
-    dr_ptr->local_omg = latest_data_ptr->local_omg;
+    dr_ptr->local_vel = after->local_vel;
+    dr_ptr->local_omg = after->local_omg;
+    dr_ptr->local_acc = after->local_acc;
+    dr_ptr->gear = after->gear;
 
     return dr_ptr;
   }
 
-  if (iter == dr_list.rend()) {
-    HLOG_ERROR << "Dr lost";
+  if (before->timestamp == timestamp && after->timestamp == timestamp) {
+    return before;
+  }
+
+  // before time == after time is not happend for this if
+  if (after->timestamp <= before->timestamp) {
+    HLOG_ERROR << "GetDrPoseForTime: after->timestamp <= before->timestamp: "
+               << after->timestamp << " < " << before->timestamp;
     return nullptr;
   }
 
-  auto pre = iter;
-  auto next = --iter;
-  double ratio = (timestamp - pre->first) / (next->first - pre->first);
-  auto dr_pose_state = std::make_shared<DrData>(CommonUtil::Interpolate(
-      ratio, *(pre->second), *(next->second), timestamp));
+  double ratio =
+      (timestamp - before->timestamp) / (after->timestamp - before->timestamp);
+  auto dr_pose_state =
+      std::make_shared<DrData>(before->Interpolate(ratio, *after, timestamp));
   return dr_pose_state;
 }
 

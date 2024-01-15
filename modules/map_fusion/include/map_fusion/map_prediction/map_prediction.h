@@ -91,6 +91,19 @@ class MapPrediction {
   static void StoreLaneline(const hozon::hdmap::Lane& lane,
                             std::vector<Vec2d>* left_point,
                             std::vector<Vec2d>* right_point);
+  void FusionLocalAndMap();
+  void FusionLanePoint();
+//   static void FusionRoadEdgePoint(
+//       hozon::hdmap::BoundaryEdge* edge,
+//       const std::vector<Eigen::Vector3d>& left_boundary,
+//       const std::vector<Eigen::Vector3d>& right_boundary);
+  static void ComputePerpendicularPoint(
+      const Eigen::Vector3d& P, const std::vector<Eigen::Vector3d>& left_points,
+      Eigen::Vector3d* C, bool* flag);
+  void FusionStartOrEndLeftPoint(const Eigen::Vector3d& P, const std::string& id,
+                             Eigen::Vector3d* C, bool* flag);
+  void FusionStartOrEndRightPoint(const Eigen::Vector3d& P, const std::string& id,
+                             Eigen::Vector3d* C, bool* flag);
   void CompleteLaneline(
       const std::vector<std::string>& end_lane_ids_,
       const std::set<std::string>& end_section_id,
@@ -113,6 +126,8 @@ class MapPrediction {
   void ConvertToLocal();
   void HDMapLaneToLocal();
   void FusionMapLaneToLocal();
+  void ArrawStopLineToLocal();
+  void CrossWalkToLocal();
   void RoadToLocal();
   void DeelEdge(hozon::hdmap::BoundaryEdge* edge);
   void VizLocAndHqMap();
@@ -124,6 +139,26 @@ class MapPrediction {
   void CheckLocalLane(std::set<std::string>* side_miss_ids);
   void PredLeftRight(const std::set<std::string>& side_miss_ids);
   void PredAheadLanes();
+//   void PredLocalRoads();
+//   void AddLeftRoadBoundary(hozon::hdmap::BoundaryEdge* edge,
+//                            const std::string& road_id,
+//                            const std::string& sec_id);
+//   void AddRightRoadBoundary(hozon::hdmap::BoundaryEdge* edge,
+//                             const std::string& road_id,
+//                             const std::string& sec_id);
+//   void PredAheadRoads();
+//   void AddAheadEdgeWithSameId(
+//       const std::vector<Eigen::Vector3d>& left_boundary,
+//       const std::vector<Eigen::Vector3d>& right_boundary,
+//       const std::string& road_id, const std::string& section_id,
+//       const std::vector<std::string>& lane_ids, bool* flag);
+//   void AddAheadEdgeWithNewId(const std::vector<Eigen::Vector3d>& left_boundary,
+//                              const std::vector<Eigen::Vector3d>& right_boundary,
+//                              const std::string& road_id,
+//                              const std::string& section_id,
+//                              const std::vector<std::string>& lane_ids);
+  void AddArrawStopLine();
+  void AddCrossWalk();
 
   std::mutex mtx_;
   std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>

@@ -142,6 +142,7 @@ void FusionCenter::OnInitDR(const HafNodeInfo& initdr) {
     return;
   }
   coord_init_timestamp_ = init_dr_node_.ticktime;
+  init_dr_ = true;
 }
 
 void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
@@ -178,6 +179,10 @@ bool FusionCenter::GetCurrentOutput(Localization* const location) {
     return false;
   }
   Context ctx;
+  if (!init_dr_) {
+    HLOG_ERROR << "OnInitDR failed";
+    return false;
+  }
   if (!GetCurrentContext(&ctx)) {
     HLOG_INFO << "get context failed";
     return false;
@@ -1173,6 +1178,10 @@ bool FusionCenter::GetLocalPose(Context* const ctx) {
   }
   if (coord_init_timestamp_ < 0) {
     HLOG_ERROR << "local coordinate does not init yet";
+    return false;
+  }
+  if (!init_dr_) {
+    HLOG_ERROR << "OnInitDR failed";
     return false;
   }
 

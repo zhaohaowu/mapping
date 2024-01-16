@@ -4,12 +4,12 @@ recv_imu: true
 recv_ins: true
 recv_dr: true
 recv_pe: true
-imu_deque_max_size: 1000
-ins_deque_max_size: 1000
-dr_deque_max_size: 1000
-pe_deque_max_size: 1000
+imu_deque_max_size: 600
+ins_deque_max_size: 600
+dr_deque_max_size: 600
+pe_deque_max_size: 600
 
-passthrough_ins: true
+passthrough_ins: false
 
 ins_init_status:    # INS初始化的正常状态
   - sys_status: 2
@@ -17,9 +17,9 @@ ins_init_status:    # INS初始化的正常状态
 
 search_state_cnt: 30  # 在该帧数内有mm测量，loc = 2
 # 使用INS对MM进行补帧
-use_ins_predict_mm: true
+use_ins_predict_mm: false
 no_mm_min_time: 0.3  # 超过min_time无mm测量，使用ins进行补帧
-no_mm_max_time: 3    # 超过max_time无mm测量，直接使用ins测量
+no_mm_max_time: 5    # 超过max_time无mm测量，直接使用ins测量
 # ESKF时加入DR测量
 use_dr_measurement: false
 # fc线程频率

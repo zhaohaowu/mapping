@@ -223,7 +223,6 @@ bool FusionCenter::GetCurrentContext(Context* const ctx) {
   } else {
     ctx->global_node.location_state = GetGlobalLocationState();
   }
-
   return true;
 }
 
@@ -249,7 +248,7 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
       node["run_fusion_interval_ms"].as<uint32_t>();
   params_.window_size = node["window_size"].as<uint32_t>();
   params_.require_local_pose = node["require_local_pose"].as<bool>();
-
+  params_.use_ins_predict_mm = node["use_ins_predict_mm"].as<bool>();
   params_.ins_init_status.clear();
   const auto& init_status_node = node["ins_init_status"];
   for (const auto& init_status : init_status_node) {
@@ -379,7 +378,7 @@ void FusionCenter::PruneDeques() {
   while (fusion_deque_.size() > params_.window_size) {
     fusion_deque_.pop_front();
   }
-  const double ticktime = fusion_deque_.front()->ticktime - 0.05;
+  const double ticktime = fusion_deque_.front()->ticktime -8.0;
   fusion_deque_mutex_.unlock();
 
   ins_deque_mutex_.lock();
@@ -655,8 +654,10 @@ bool FusionCenter::IsInterpolable(const std::shared_ptr<Node>& n1,
                                .log()
                                .norm();
   const double time_delta = fabs(n2->ticktime - n1->ticktime);
+
   return (dis_delta < dis_tol && ang_delta < ang_tol && time_delta < time_tol);
 }
+
 
 bool FusionCenter::Interpolate(double ticktime,
                                const std::deque<std::shared_ptr<Node>>& d,
@@ -667,6 +668,10 @@ bool FusionCenter::Interpolate(double ticktime,
   }
   int i = 0;
   const int dlen = static_cast<int>(d.size());
+
+  if (dlen == 0) {
+    return false;
+  }
   for (; i < dlen; ++i) {
     if (fabs(d[i]->ticktime - ticktime) < 1e-3) {
       *node = *(d[i]);
@@ -676,6 +681,7 @@ bool FusionCenter::Interpolate(double ticktime,
       break;
     }
   }
+
   if (i == 0 || i == dlen) {
     return false;
   }
@@ -792,6 +798,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
     // (1)INS补帧MM测量
     pe_deque_mutex_.lock();
     int mm_size = pe_deque_.size();
+    // HLOG_ERROR << "MM SIZE:" << mm_size;
     pe_deque_mutex_.unlock();
     if (params_.use_ins_predict_mm && mm_size > 0 &&
         time_diff > params_.no_mm_min_time &&
@@ -803,7 +810,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
       }
 
       // (2)INS测量加入
-    } else if (mm_size == 0 || time_diff >= params_.no_mm_max_time) {
+    } else if (time_diff >= params_.no_mm_max_time) {
       std::unique_lock<std::mutex> lock(ins_deque_mutex_);
       for (const auto& ins_node : ins_deque_) {
         if (ins_node->ticktime > cur_ticktime &&
@@ -1131,6 +1138,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
       return false;
     }
   }
+  // HLOG_ERROR << "interpolate ins success";
 
   ctx->global_node = ctx->ins_node;
   const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(ctx->ins_node);

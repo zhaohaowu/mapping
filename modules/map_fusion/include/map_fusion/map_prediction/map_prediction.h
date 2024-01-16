@@ -75,7 +75,7 @@ class MapPrediction {
 
  private:
   void Clear();
-  void OnLocationInGlobal(double utm_x, double utm_y);
+  void OnLocationInGlobal(int utm_zone, double utm_x, double utm_y);
   void CalculateTanTheta(const std::string& idd);
   void CreatRoadTable(
       const std::vector<hozon::hdmap::RoadInfoConstPtr>& roads_in_range);
@@ -122,9 +122,12 @@ class MapPrediction {
   static void CatmullRoom(const std::vector<Eigen::Vector3d>& compan_point,
                           std::vector<Eigen::Vector3d>* cat_points);
   void SmoothAlignment();
+  Eigen::Vector3d UtmPtToLocalEnu(const hozon::common::PointENU& point_utm);
   Eigen::Vector3d GcjPtToLocalEnu(const hozon::common::PointENU& point_gcj);
   void ConvertToLocal();
   void HDMapLaneToLocal();
+  void RoutingPointToLocal(hozon::routing::RoutingResponse* routing);
+  void AppendRoutingLane(const hozon::hdmap::LaneInfoConstPtr& lane_ptr);
   void FusionMapLaneToLocal();
   void ArrawStopLineToLocal();
   void CrossWalkToLocal();
@@ -171,6 +174,7 @@ class MapPrediction {
   Eigen::Vector3d location_;
   //   std::shared_ptr<LocalMap> local_msg;
   Eigen::Vector2d location_utm_;
+  int utm_zone_ = 0;
   std::shared_ptr<hozon::hdmap::Map> local_msg_ = nullptr;
   std::shared_ptr<hozon::hdmap::Map> hq_map_ = nullptr;
   uint32_t id = -1;

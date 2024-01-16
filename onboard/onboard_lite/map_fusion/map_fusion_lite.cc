@@ -374,8 +374,9 @@ int MapFusionLite::SendFusionResult(
 
   map_fusion->mutable_hdmap()->mutable_header()->mutable_header()->set_frame_id(
       "hd_map");
-
-  routing->mutable_routing_request()->mutable_waypoint()->Clear();
+  if (!FLAGS_output_hd_map) {
+    routing->mutable_routing_request()->mutable_waypoint()->Clear();
+  }
   bool found = false;
   for (auto road_it = routing->road().rbegin();
        road_it != routing->road().rend(); ++road_it) {

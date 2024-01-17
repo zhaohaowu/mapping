@@ -20,7 +20,7 @@ install(
   DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/conf/lite
 )
 
-install(DIRECTORY production/etc DESTINATION ${CMAKE_INSTALL_PREFIX_RS})
+# install(DIRECTORY production/etc DESTINATION ${CMAKE_INSTALL_PREFIX_RS})
 
 install(DIRECTORY production/scripts DESTINATION ${CMAKE_INSTALL_PREFIX})
 

@@ -378,7 +378,7 @@ void FusionCenter::PruneDeques() {
   while (fusion_deque_.size() > params_.window_size) {
     fusion_deque_.pop_front();
   }
-  const double ticktime = fusion_deque_.front()->ticktime -8.0;
+  const double ticktime = fusion_deque_.front()->ticktime -2.0;
   fusion_deque_mutex_.unlock();
 
   ins_deque_mutex_.lock();
@@ -731,8 +731,8 @@ bool FusionCenter::PoseInit() {
 
   fusion_deque_mutex_.lock();
   double latest_fc_ticktime = fusion_deque_.back()->ticktime;
-  fusion_deque_mutex_.unlock();
   fusion_deque_.clear();
+  fusion_deque_mutex_.unlock();
 
   std::unique_lock<std::mutex> lock(ins_deque_mutex_);
   for (auto iter = ins_deque_.rbegin(); iter != ins_deque_.rend(); ++iter) {
@@ -810,7 +810,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
       }
 
       // (2)INS测量加入
-    } else if (time_diff >= params_.no_mm_max_time) {
+    } else if (mm_size == 0 || time_diff >= params_.no_mm_max_time) {
       std::unique_lock<std::mutex> lock(ins_deque_mutex_);
       for (const auto& ins_node : ins_deque_) {
         if (ins_node->ticktime > cur_ticktime &&
@@ -905,6 +905,10 @@ bool FusionCenter::PredictMMMeas() {
 
 void FusionCenter::InsertESKFFusionNode(const Node& node) {
   auto new_node = std::make_shared<Node>();
+  if (new_node == nullptr) {
+    HLOG_ERROR << "new_node is nullptr";
+    return;
+  }
   *new_node = node;
   fusion_deque_mutex_.lock();
   fusion_deque_.emplace_back(new_node);
@@ -926,8 +930,13 @@ void FusionCenter::RunESKFFusion() {
   eskf_->StateInit(fusion_deque_.back());
   fusion_deque_mutex_.unlock();
   while (!pre_deque_.empty() && !meas_deque_.empty()) {
-    Node meas_node = *meas_deque_.front();
-    Node predict_node = *pre_deque_.front();
+    Node meas_node, predict_node;
+    if (meas_deque_.front() == nullptr || pre_deque_.front() == nullptr) {
+      HLOG_ERROR << "meas_deque_.front() and pre_deque_.front() is nullptr-";
+      return;
+    }
+    meas_node = *meas_deque_.front();
+    predict_node = *pre_deque_.front();
 
     if (predict_node.ticktime < meas_node.ticktime) {
       if (!eskf_->Predict(predict_node)) {

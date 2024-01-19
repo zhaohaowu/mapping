@@ -20,7 +20,9 @@ install(
   DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/conf/lite
 )
 
-# install(DIRECTORY production/etc DESTINATION ${CMAKE_INSTALL_PREFIX_RS})
+if(${LOCAL_TARGET_PLATFORM} MATCHES orin)
+  install(DIRECTORY ${DEPEND}/nos/nos_orin/runtime_service/mapping/etc DESTINATION ${CMAKE_INSTALL_PREFIX_RS})
+endif()
 
 install(DIRECTORY production/scripts DESTINATION ${CMAKE_INSTALL_PREFIX})
 

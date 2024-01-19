@@ -172,6 +172,8 @@ if(IND)
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/zmq/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gtest/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/amap/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/zipper/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/jsoncpp/lib/
         ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/
         ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib/
         DESTINATION ${EXTERNAL_LIB_PATH}

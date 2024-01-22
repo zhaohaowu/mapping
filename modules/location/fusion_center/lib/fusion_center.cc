@@ -193,7 +193,7 @@ bool FusionCenter::GetCurrentOutput(Localization* const location) {
 }
 
 bool FusionCenter::GetCurrentContext(Context* const ctx) {
-  if (ctx == nullptr || ins_deque_.empty() || dr_deque_.empty()) {
+  if (ctx == nullptr) {
     return false;
   }
 
@@ -204,10 +204,18 @@ bool FusionCenter::GetCurrentContext(Context* const ctx) {
   }
   {
     std::unique_lock<std::mutex> lock(ins_deque_mutex_);
+    if (ins_deque_.empty()) {
+      HLOG_ERROR << "ins_deque is empty";
+      return false;
+    }
     ctx->ins_node = *(ins_deque_.back());
   }
   {
     std::unique_lock<std::mutex> lock(dr_deque_mutex_);
+    if (dr_deque_.empty()) {
+      HLOG_ERROR << "dr_deque is empty";
+      return false;
+    }
     ctx->dr_node = *(dr_deque_.back());
   }
 
@@ -882,7 +890,7 @@ bool FusionCenter::PredictMMMeas() {
   ins_deque_mutex_.lock();
   for (const auto& ins_node : ins_deque_) {
     if (ins_node->ticktime - now_ticktime > 0.1) {
-      std::shared_ptr<Node> node = ins_node;
+      auto node = std::make_shared<Node>(*ins_node);
       const auto& T_delta =
           Node2SE3(*ins_refer).inverse() * Node2SE3(*ins_node);
       const auto& pose = Node2SE3(*mm_refer) * T_delta;
@@ -919,8 +927,7 @@ void FusionCenter::RunESKFFusion() {
   HLOG_INFO << "-------eskf前-------"
             << "pre_deque_.size():" << pre_deque_.size()
             << ", meas_deque_.size():" << meas_deque_.size()
-            << ", meas_type:" << meas_deque_.back()->type
-            << ", eskf_fusion_deque_.size():" << fusion_deque_.size();
+            << ", meas_type:" << meas_deque_.back()->type;
 
   // eskf开始
   // debug
@@ -928,6 +935,7 @@ void FusionCenter::RunESKFFusion() {
   //                                    std::ios::trunc);
   fusion_deque_mutex_.lock();
   eskf_->StateInit(fusion_deque_.back());
+  HLOG_INFO << "-------eskf前------- fusion_deque.size():" << fusion_deque_.size();
   fusion_deque_mutex_.unlock();
   while (!pre_deque_.empty() && !meas_deque_.empty()) {
     Node meas_node, predict_node;
@@ -971,8 +979,7 @@ void FusionCenter::RunESKFFusion() {
   HLOG_INFO << "-------eskf后-------"
             << "pre_deque_.size():" << pre_deque_.size()
             << ", meas_deque_.size():" << meas_deque_.size()
-            << ", meas_type:" << meas_deque_.back()->type
-            << ", eskf_fusion_deque_.size():" << fusion_deque_.size();
+            << ", meas_type:" << meas_deque_.back()->type;
 }
 
 Node FusionCenter::State2Node(const State& state) {
@@ -1112,7 +1119,7 @@ void FusionCenter::KalmanFiltering(Node* const node) {
 }
 
 bool FusionCenter::GetGlobalPose(Context* const ctx) {
-  if (!ctx || fusion_deque_.empty()) {
+  if (!ctx) {
     return false;
   }
 
@@ -1122,10 +1129,15 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
   }
 
   const auto refpoint = Refpoint();
-
-  fusion_deque_mutex_.lock();
-  const auto fusion_node = *(fusion_deque_.back());
-  fusion_deque_mutex_.unlock();
+  Node fusion_node;
+  {
+    std::unique_lock<std::mutex> lock(fusion_deque_mutex_);
+    if (fusion_deque_.empty()) {
+      HLOG_ERROR << "fusion deque is empty";
+      return false;
+    }
+    fusion_node = *(fusion_deque_.back());
+  }
 
   const double ins_fusion_diff = ctx->ins_node.ticktime - fusion_node.ticktime;
   if (ins_fusion_diff < 0) {

@@ -17,7 +17,7 @@ ins_init_status:    # INS初始化的正常状态
 
 search_state_cnt: 30  # 在该帧数内有mm测量，loc = 2
 # 使用INS对MM进行补帧
-use_ins_predict_mm: false
+use_ins_predict_mm: true
 no_mm_min_time: 0.3  # 超过min_time无mm测量，使用ins进行补帧
 no_mm_max_time: 3    # 超过max_time无mm测量，直接使用ins测量
 # ESKF时加入DR测量

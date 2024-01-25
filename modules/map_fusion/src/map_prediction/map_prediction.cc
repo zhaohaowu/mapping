@@ -1385,6 +1385,7 @@ void MapPrediction::AddResTopo() {
 
   AddArrawStopLine();
   AddCrossWalk();
+  AddRoadEdge();
 
   HLOG_ERROR << "pred AddResTopo insert pts " << tic.Toc();
   tic.Tic();
@@ -1415,6 +1416,29 @@ void MapPrediction::AddArrawStopLine() {
 void MapPrediction::AddCrossWalk() {
   if (local_msg_->crosswalk_size() != 0) {
     hq_map_->mutable_crosswalk()->CopyFrom(local_msg_->crosswalk());
+  }
+}
+
+void MapPrediction::AddRoadEdge() {
+  for (auto& hq_road : *hq_map_->mutable_road()) {
+    for (auto& sec : *hq_road.mutable_section()) {
+      for (auto& edge :
+           *sec.mutable_boundary()->mutable_outer_polygon()->mutable_edge()) {
+        for (auto& seg : *edge.mutable_curve()->mutable_segment()) {
+          (*seg.mutable_line_segment()->mutable_point()).Clear();
+          (*seg.mutable_line_segment()->mutable_original_point()).Clear();
+        }
+      }
+    }
+  }
+
+  if (!local_msg_->road().empty()) {
+    if (hq_map_->road().empty()) {
+      hq_map_->mutable_road()->CopyFrom(local_msg_->road());
+    } else {
+      auto* road = hq_map_->add_road();
+      road->CopyFrom(local_msg_->road(0));
+    }
   }
 }
 
@@ -1684,14 +1708,12 @@ void MapPrediction::RoadToLocal() {
 
 void MapPrediction::DeelEdge(hozon::hdmap::BoundaryEdge* edge) {
   for (auto& seg : *edge->mutable_curve()->mutable_segment()) {
-    (*seg.mutable_line_segment()->mutable_point()).Clear();
-    for (auto& pt : *seg.mutable_line_segment()->mutable_original_point()) {
-      Eigen::Vector3d pt_local = GcjPtToLocalEnu(pt);
+    for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
+      Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
       pt_local = T_local_enu_to_local_ * pt_local;
-      auto* point = (*seg.mutable_line_segment()).add_point();
-      point->set_x(pt_local.x());
-      point->set_y(pt_local.y());
-      point->set_z(0);
+      pt.set_x(pt_local.x());
+      pt.set_y(pt_local.y());
+      pt.set_z(0);
     }
   }
 }

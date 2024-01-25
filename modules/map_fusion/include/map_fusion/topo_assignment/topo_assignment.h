@@ -172,6 +172,8 @@ class TopoAssignment {
       const std::map<std::string, Lane>& all_lanes,
       const std::shared_ptr<hozon::hdmap::Map>& topo_map_geo,
       const std::shared_ptr<hozon::hdmap::Map>& topo_map);
+  void AppendTopoMapRoadEdge(const std::shared_ptr<hozon::hdmap::Map>& topo_map,
+                             const Eigen::Isometry3d& T_U_V);
   void AppendTopoMapElements(const std::shared_ptr<hozon::hdmap::Map>& topo_map,
                              const Eigen::Isometry3d& T_U_V);
   void AppendTopoMapLeftLanes(

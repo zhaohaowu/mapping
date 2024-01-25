@@ -541,6 +541,7 @@ void TopoAssignment::TopoAssign() {
 
   AppendTopoMapGeometry(&all_lanes, topo_map_geo);
   AppendTopoMapTopology(all_lanes.second, topo_map_geo, topo_map_);
+  AppendTopoMapRoadEdge(topo_map_, T_U_V);
   AppendTopoMapElements(topo_map_, T_U_V);
   if (FLAGS_topo_rviz) {
     VizTopoMap(topo_map_);
@@ -1142,6 +1143,31 @@ void TopoAssignment::AppendTopoMapTopology(
       if (all_lanes.find(next_lane_it) != all_lanes.end()) {
         lane->add_successor_id()->set_id(next_lane_it);
       }
+    }
+  }
+}
+
+void TopoAssignment::AppendTopoMapRoadEdge(
+    const std::shared_ptr<hozon::hdmap::Map>& topo_map,
+    const Eigen::Isometry3d& T_U_V) {
+  if (local_map_->edge_lines().empty()) {
+    return;
+  }
+  auto* local_road = topo_map->add_road();
+  local_road->set_type(hozon::hdmap::Road::UNKNOWN);
+  auto* local_road_sec = local_road->add_section();
+  auto* local_road_edge =
+      local_road_sec->mutable_boundary()->mutable_outer_polygon()->add_edge();
+  auto* local_road_seg = local_road_edge->mutable_curve()->add_segment();
+  for (const auto& road_edge : local_map_->edge_lines()) {
+    for (const auto& local_road_point : road_edge.points()) {
+      Eigen::Vector3d road_point(local_road_point.x(), local_road_point.y(),
+                                 local_road_point.z());
+      road_point = T_U_V * road_point;
+      auto* point = local_road_seg->mutable_line_segment()->add_point();
+      point->set_x(road_point.x());
+      point->set_y(road_point.y());
+      point->set_z(0);
     }
   }
 }

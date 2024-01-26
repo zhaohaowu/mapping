@@ -24,9 +24,9 @@ dataSourcesIn:
     type: proto_proxy
     cmTopic: /soc/chassis
     cmDomainId: 0
-  - topic: percep_transport
+  - topic: percep_detection
     type: proto_proxy
-    cmTopic: /perception/fsd/transportelement_1
+    cmTopic: /perception/fsd/onboard/detection
     cmDomainId: 0
   - topic: lm_image
     type: idl_proxy
@@ -36,6 +36,14 @@ dataSourcesIn:
     type: proto_proxy
     cmTopic: /perception/fsd/environment/tlr_msg
     cmDomainId: 0
+  # - topic: dr
+  #   type: proto_proxy
+  #   cmTopic: /localization/deadreckoning
+  #   cmDomainId: 0
+  # - topic: percep_transport
+  #   type: proto_proxy
+  #   cmTopic: /perception/fsd/transportelement_1
+  #   cmDomainId: 0
 
 dataSourcesOut:
   - topic: localization
@@ -53,6 +61,12 @@ dataSourcesOut:
     capacity: 5
     type: proto_skeleton
     cmTopic: /localization/deadreckoning
+    cmDomainId: 0
+    capacity: 5
+  - topic: percep_transport
+    capacity: 5
+    type: proto_skeleton
+    cmTopic: /perception/fsd/transportelement_1
     cmDomainId: 0
     capacity: 5
   - topic: local_map

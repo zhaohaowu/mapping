@@ -60,6 +60,34 @@ class CommonUtil {
     return y;
   }
 
+  static double CalMainLaneHeading(
+      const std::vector<Eigen::Vector3d>& left_points,
+      const std::vector<Eigen::Vector3d>& right_points) {
+    double left_theta = atan2(left_points[1].y() - left_points[0].y(),
+                              left_points[1].x() - left_points[0].x());
+    double right_theta = atan2(right_points[1].y() - right_points[0].y(),
+                               right_points[1].x() - right_points[0].x());
+    double min_yaw = 10.0 / 180 * 3.14;
+    if (abs(left_theta - right_theta) < min_yaw) {
+      return (left_theta + right_theta) / 2;
+    }
+    // HLOG_INFO << "left_theta " << left_theta;
+    // HLOG_INFO << "right_theta " << right_theta;
+    // HLOG_INFO << "l " << abs(left_theta) << "r " << abs(right_theta);
+    return abs(left_theta) < abs(right_theta) ? left_theta : right_theta;
+  }
+
+  static double CalTwoPointsDis(Eigen::Vector3d a, Eigen::Vector3d b) {
+    double result = sqrt(pow(a.x() - b.x(), 2) + pow(a.y() - b.y(), 2) +
+                         pow(a.z() - b.z(), 2));
+    return result;
+  }
+
+  static double CalTwoPointsHeading(Eigen::Vector3d a, Eigen::Vector3d b) {
+    double result = atan2(a.y() - b.y(), a.x() - b.x());
+    return result / 3.14 * 180;
+  }
+
   static void EraseErrorPts(std::vector<Eigen::Vector3d>* pts) {
     for (int i = 0; i < static_cast<int>(pts->size() - 2); i++) {
       if ((pts->at(i + 1).y() - pts->at(i).y() > 1 &&
@@ -123,17 +151,10 @@ class CommonUtil {
 
   static void FitLaneLines(std::vector<LaneLine>* map_lane_lines) {
     for (auto& lane_line : *map_lane_lines) {
-      if (!lane_line.ismature_) {
-        continue;
-      }
       lane_line.fit_points_.clear();
       lane_line.control_points_.clear();
       int n = static_cast<int>(lane_line.points_.size());
-      if (n < 10) {
-        continue;
-      }
       if (n < 21) {
-        lane_line.fit_points_ = lane_line.points_;
         continue;
       }
       std::vector<Eigen::Vector3d> pts;
@@ -155,10 +176,22 @@ class CommonUtil {
       }
       lane_line.control_points_ = pts;
       CatmullRom(pts, &lane_line);
+      std::vector<double> c(4);
+      CommonUtil::FitLaneLine(pts, &c);
+      lane_line.c0_ = c[0];
+      lane_line.c1_ = c[1];
+      lane_line.c2_ = c[2];
+      lane_line.c3_ = c[3];
       for (const auto& point : back_pts) {
         lane_line.fit_points_.push_back(point);
       }
     }
+    map_lane_lines->erase(
+        std::remove_if(map_lane_lines->begin(), map_lane_lines->end(),
+                       [&](const LaneLine& lane_line) {
+                         return lane_line.fit_points_.empty();
+                       }),
+        map_lane_lines->end());
   }
 
   static void FitEdgeLines(std::vector<LaneLine>* map_edge_lines) {
@@ -432,13 +465,13 @@ class CommonUtil {
       color.set_g(0.0);
       color.set_b(0.0);
       marker.mutable_color()->CopyFrom(color);
-      Eigen::Vector3d point_0(arrow.min_x, arrow.min_y, 0);
+      Eigen::Vector3d point_0 = arrow.points_.points_[0];
       point_0 = T_W_V * point_0;
-      Eigen::Vector3d point_1(arrow.max_x, arrow.min_y, 0);
+      Eigen::Vector3d point_1 = arrow.points_.points_[1];
       point_1 = T_W_V * point_1;
-      Eigen::Vector3d point_2(arrow.max_x, arrow.max_y, 0);
+      Eigen::Vector3d point_2 = arrow.points_.points_[2];
       point_2 = T_W_V * point_2;
-      Eigen::Vector3d point_3(arrow.min_x, arrow.max_y, 0);
+      Eigen::Vector3d point_3 = arrow.points_.points_[3];
       point_3 = T_W_V * point_3;
       auto* point_msg = marker.add_points();
       point_msg->set_x(point_0.x());
@@ -551,13 +584,13 @@ class CommonUtil {
       color.set_g(0.0);
       color.set_b(0.0);
       marker.mutable_color()->CopyFrom(color);
-      Eigen::Vector3d point_0(zebra_crossing.min_x, zebra_crossing.min_y, 0);
+      Eigen::Vector3d point_0 = zebra_crossing.points_.points_[0];
       point_0 = T_W_V * point_0;
-      Eigen::Vector3d point_1(zebra_crossing.max_x, zebra_crossing.min_y, 0);
+      Eigen::Vector3d point_1 = zebra_crossing.points_.points_[1];
       point_1 = T_W_V * point_1;
-      Eigen::Vector3d point_2(zebra_crossing.max_x, zebra_crossing.max_y, 0);
+      Eigen::Vector3d point_2 = zebra_crossing.points_.points_[2];
       point_2 = T_W_V * point_2;
-      Eigen::Vector3d point_3(zebra_crossing.min_x, zebra_crossing.max_y, 0);
+      Eigen::Vector3d point_3 = zebra_crossing.points_.points_[3];
       point_3 = T_W_V * point_3;
       auto* point_msg = marker.add_points();
       point_msg->set_x(point_0.x());
@@ -707,12 +740,24 @@ class CommonUtil {
       color.set_g(1.0);
       color.set_b(1.0);
       marker.mutable_color()->CopyFrom(color);
-      auto point = T_W_V * stop_line.left_point_;
+      Eigen::Vector3d left_point_ = {
+          stop_line.mid_point_.x() +
+              stop_line.length_ / 2.0 * cos(stop_line.heading_),
+          stop_line.mid_point_.y() +
+              stop_line.length_ / 2.0 * sin(stop_line.heading_),
+          0};
+      auto point = T_W_V * left_point_;
       auto* left_point = marker.add_points();
       left_point->set_x(static_cast<float>(point.x()));
       left_point->set_y(static_cast<float>(point.y()));
       left_point->set_z(static_cast<float>(point.z()));
-      point = T_W_V * stop_line.right_point_;
+      Eigen::Vector3d right_point_ = {
+          stop_line.mid_point_.x() -
+              stop_line.length_ / 2.0 * cos(stop_line.heading_),
+          stop_line.mid_point_.y() -
+              stop_line.length_ / 2.0 * sin(stop_line.heading_),
+          0};
+      point = T_W_V * right_point_;
       auto* right_point = marker.add_points();
       right_point->set_x(static_cast<float>(point.x()));
       right_point->set_y(static_cast<float>(point.y()));
@@ -735,7 +780,7 @@ class CommonUtil {
     adsfi_proto::viz::MarkerArray markers;
     int id = 0;
     for (const auto& arrow : map_arrows) {
-      if (!arrow.ismature_ || !CommonUtil::IsConvex(arrow.points_.points_)) {
+      if (!arrow.ismature_ || arrow.length_ == 0 || arrow.width_ == 0) {
         continue;
       }
       adsfi_proto::viz::Marker point_marker;
@@ -763,14 +808,18 @@ class CommonUtil {
       color.set_g(1.0);
       color.set_b(1.0);
       point_marker.mutable_color()->CopyFrom(color);
-      Eigen::Vector3d point_0(arrow.min_x, arrow.min_y, 0);
-      point_0 = T_W_V * arrow.points_.points_[0];
-      Eigen::Vector3d point_1(arrow.max_x, arrow.min_y, 0);
-      point_1 = T_W_V * arrow.points_.points_[1];
-      Eigen::Vector3d point_2(arrow.max_x, arrow.max_y, 0);
-      point_2 = T_W_V * arrow.points_.points_[2];
-      Eigen::Vector3d point_3(arrow.min_x, arrow.max_y, 0);
-      point_3 = T_W_V * arrow.points_.points_[3];
+      Eigen::Vector3d l = {arrow.length_ / 2 * cos(arrow.heading_),
+                           arrow.length_ / 2 * sin(arrow.heading_), 0};
+      Eigen::Vector3d w = {-arrow.width_ / 2 * sin(arrow.heading_),
+                           arrow.width_ / 2 * cos(arrow.heading_), 0};
+      Eigen::Vector3d point_0 = arrow.mid_point_ + l + w;
+      point_0 = T_W_V * point_0;
+      Eigen::Vector3d point_1 = arrow.mid_point_ - l + w;
+      point_1 = T_W_V * point_1;
+      Eigen::Vector3d point_2 = arrow.mid_point_ - l - w;
+      point_2 = T_W_V * point_2;
+      Eigen::Vector3d point_3 = arrow.mid_point_ + l - w;
+      point_3 = T_W_V * point_3;
       auto* point_msg = point_marker.add_points();
       point_msg->set_x(point_0.x());
       point_msg->set_y(point_0.y());
@@ -857,8 +906,8 @@ class CommonUtil {
     adsfi_proto::viz::MarkerArray markers;
     int id = 0;
     for (const auto& zebra_crossing : map_zebra_crossings) {
-      if (!zebra_crossing.ismature_ ||
-          !CommonUtil::IsConvex(zebra_crossing.points_.points_)) {
+      if (!zebra_crossing.ismature_ || zebra_crossing.length_ == 0 ||
+          zebra_crossing.width_ == 0) {
         continue;
       }
       adsfi_proto::viz::Marker marker;
@@ -886,14 +935,20 @@ class CommonUtil {
       color.set_g(1.0);
       color.set_b(1.0);
       marker.mutable_color()->CopyFrom(color);
-      Eigen::Vector3d point_0(zebra_crossing.min_x, zebra_crossing.min_y, 0);
-      point_0 = T_W_V * zebra_crossing.points_.points_[0];
-      Eigen::Vector3d point_1(zebra_crossing.max_x, zebra_crossing.min_y, 0);
-      point_1 = T_W_V * zebra_crossing.points_.points_[1];
-      Eigen::Vector3d point_2(zebra_crossing.max_x, zebra_crossing.max_y, 0);
-      point_2 = T_W_V * zebra_crossing.points_.points_[2];
-      Eigen::Vector3d point_3(zebra_crossing.min_x, zebra_crossing.max_y, 0);
-      point_3 = T_W_V * zebra_crossing.points_.points_[3];
+      Eigen::Vector3d l = {
+          -zebra_crossing.length_ / 2 * sin(zebra_crossing.heading_),
+          zebra_crossing.length_ / 2 * cos(zebra_crossing.heading_), 0};
+      Eigen::Vector3d w = {
+          zebra_crossing.width_ / 2 * cos(zebra_crossing.heading_),
+          zebra_crossing.width_ / 2 * sin(zebra_crossing.heading_), 0};
+      Eigen::Vector3d point_0 = zebra_crossing.mid_point_ + l + w;
+      point_0 = T_W_V * point_0;
+      Eigen::Vector3d point_1 = zebra_crossing.mid_point_ - l + w;
+      point_1 = T_W_V * point_1;
+      Eigen::Vector3d point_2 = zebra_crossing.mid_point_ - l - w;
+      point_2 = T_W_V * point_2;
+      Eigen::Vector3d point_3 = zebra_crossing.mid_point_ + l - w;
+      point_3 = T_W_V * point_3;
       auto* point_msg = marker.add_points();
       point_msg->set_x(point_0.x());
       point_msg->set_y(point_0.y());
@@ -984,7 +1039,7 @@ class CommonUtil {
     adsfi_proto::viz::MarkerArray markers;
     int id = 0;
     for (const auto& lane_line : map_lane_lines) {
-      if (!lane_line.ismature_) {
+      if (!lane_line.ismature_ || lane_line.fit_points_.empty()) {
         continue;
       }
       adsfi_proto::viz::Marker txt_marker;
@@ -996,14 +1051,11 @@ class CommonUtil {
       txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
       txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
       txt_marker.mutable_header()->set_frameid("localmap");
-      Eigen::Vector3d left_point = {8, lane_line.c0_, 0};
-      left_point = T_W_V * left_point;
-      Eigen::Vector3d right_point = {4, lane_line.c0_, 0};
-      right_point = T_W_V * right_point;
-      txt_marker.mutable_pose()->mutable_position()->set_x(
-          (left_point.x() + right_point.x()) / 2);
-      txt_marker.mutable_pose()->mutable_position()->set_y(
-          (left_point.y() + right_point.y()) / 2);
+      Eigen::Vector3d point = {lane_line.fit_points_.back().x(),
+                               lane_line.fit_points_.back().y(), 0};
+      point = T_W_V * point;
+      txt_marker.mutable_pose()->mutable_position()->set_x(point.x());
+      txt_marker.mutable_pose()->mutable_position()->set_y(point.y());
       txt_marker.mutable_pose()->mutable_position()->set_z(2);
       txt_marker.mutable_pose()->mutable_orientation()->set_x(0);
       txt_marker.mutable_pose()->mutable_orientation()->set_y(0);
@@ -1016,6 +1068,55 @@ class CommonUtil {
       txt_marker.set_text(std::to_string(lane_line.track_id_) + ", " +
                           std::to_string(lane_line.lanepos_) + ", " +
                           std::to_string(lane_line.lanetype_));
+      txt_marker.mutable_scale()->set_x(1);
+      txt_marker.mutable_scale()->set_y(1);
+      txt_marker.mutable_scale()->set_z(1);
+      markers.add_markers()->CopyFrom(txt_marker);
+    }
+    util::RvizAgent::Instance().Publish(topic, markers);
+  }
+  static void PubMapEdgeLineMarker(const Sophus::SE3d& T_W_V,
+                                   const std::vector<LaneLine>& map_edge_lines,
+                                   const uint64_t& sec, const uint64_t& nsec,
+                                   const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
+          topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::MarkerArray markers;
+    int id = 0;
+    for (const auto& edge_line : map_edge_lines) {
+      if (!edge_line.ismature_ || edge_line.fit_points_.empty()) {
+        continue;
+      }
+      adsfi_proto::viz::Marker txt_marker;
+      txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+      txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      txt_marker.set_id(id++);
+      txt_marker.mutable_lifetime()->set_sec(0);
+      txt_marker.mutable_lifetime()->set_nsec(200000000);
+      txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      txt_marker.mutable_header()->set_frameid("localmap");
+      Eigen::Vector3d point = {edge_line.fit_points_.back().x() - 10,
+                               edge_line.fit_points_.back().y(), 0};
+      point = T_W_V * point;
+      txt_marker.mutable_pose()->mutable_position()->set_x(point.x());
+      txt_marker.mutable_pose()->mutable_position()->set_y(point.y());
+      txt_marker.mutable_pose()->mutable_position()->set_z(2);
+      txt_marker.mutable_pose()->mutable_orientation()->set_x(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_y(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_z(0);
+      txt_marker.mutable_pose()->mutable_orientation()->set_w(1);
+      txt_marker.mutable_color()->set_r(1);
+      txt_marker.mutable_color()->set_g(1);
+      txt_marker.mutable_color()->set_b(1);
+      txt_marker.mutable_color()->set_a(1);
+      txt_marker.set_text(std::to_string(edge_line.track_id_) + ", " +
+                          std::to_string(edge_line.lanepos_) + ", " +
+                          std::to_string(edge_line.edgetype_));
       txt_marker.mutable_scale()->set_x(1);
       txt_marker.mutable_scale()->set_y(1);
       txt_marker.mutable_scale()->set_z(1);
@@ -1065,7 +1166,7 @@ class CommonUtil {
     adsfi_proto::viz::MarkerArray markers;
     int id = 0;
     for (const auto& lane_line : map_lane_lines) {
-      if (lane_line.ismature_) {
+      if (lane_line.ismature_ || lane_line.fit_points_.empty()) {
         continue;
       }
       adsfi_proto::viz::Marker txt_marker;
@@ -1077,22 +1178,19 @@ class CommonUtil {
       txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
       txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
       txt_marker.mutable_header()->set_frameid("localmap");
-      Eigen::Vector3d left_point = {8, lane_line.c0_, 0};
-      left_point = T_W_V * left_point;
-      Eigen::Vector3d right_point = {4, lane_line.c0_, 0};
-      right_point = T_W_V * right_point;
-      txt_marker.mutable_pose()->mutable_position()->set_x(
-          (left_point.x() + right_point.x()) / 2);
-      txt_marker.mutable_pose()->mutable_position()->set_y(
-          (left_point.y() + right_point.y()) / 2);
+      Eigen::Vector3d point = {lane_line.fit_points_.back().x(),
+                               lane_line.fit_points_.back().y(), 0};
+      point = T_W_V * point;
+      txt_marker.mutable_pose()->mutable_position()->set_x(point.x());
+      txt_marker.mutable_pose()->mutable_position()->set_y(point.y());
       txt_marker.mutable_pose()->mutable_position()->set_z(2);
       txt_marker.mutable_pose()->mutable_orientation()->set_x(0);
       txt_marker.mutable_pose()->mutable_orientation()->set_y(0);
       txt_marker.mutable_pose()->mutable_orientation()->set_z(0);
       txt_marker.mutable_pose()->mutable_orientation()->set_w(1);
-      txt_marker.mutable_color()->set_r(0.32);
-      txt_marker.mutable_color()->set_g(0.29);
-      txt_marker.mutable_color()->set_b(0.39);
+      txt_marker.mutable_color()->set_r(0.68);
+      txt_marker.mutable_color()->set_g(0.50);
+      txt_marker.mutable_color()->set_b(0.66);
       txt_marker.mutable_color()->set_a(1);
       txt_marker.set_text(std::to_string(lane_line.count_));
       txt_marker.mutable_scale()->set_x(1);

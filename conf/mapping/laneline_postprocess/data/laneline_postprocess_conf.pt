@@ -1,0 +1,129 @@
+lane_tracker_pipeline_param {
+  lane_track_filter_param {
+    lane_point_filter_param {
+        max_history_window: 3
+        max_history_points_num: 2000
+        curve_fitting_order: 3
+        max_far_distance: 200.0
+        middle_near_distance: 10
+    
+        min_near_distance: -10.0
+        far_sample_bin_width: 2.0
+        near_sample_bin_width: 1.0
+        min_point_num_each_bin: 1
+        update_point_max_num: 1
+        lane_curve_fitter_param {
+            curve_function:"SegmentCurveFitter"
+            avg_dist_thresh:0.5
+            max_dist_thresh:0.2
+            ransac_select_ratio:0.8
+            ransac_max_select_pt_num:100
+            ransac_epoch_num:3
+            do_normalization:false
+            do_extend_point:false
+            fix_param_xmin: -50.0
+            linear_select_ratio: 0.8
+            linear_xmin: 0.0
+            linear_xmax: 20.0
+            linear_len: 15
+            quadratic_len: 30   
+        }
+        max_delta_change_for_pose_angle: 5.0
+        max_delta_change_for_pose_position: 5.0
+        max_distance_between_cur_and_history: 0.5
+        min_distance_between_cur_and_history: 0.5
+    }
+    lane_line_quality_filter_param {
+      max_history_window: 5
+      alarm_quality_param {
+          low_quality_for_point_num: 5
+          low_quality_for_length: 10.0
+          low_quality_for_curvature_radius: 100.0  # 设置为100.0, 需要根据实际车上效果调整
+          low_quality_for_jump_distance: 2.0
+          quality_evaluate_interval_start: 0.0
+          quality_evaluate_interval_end: 40.0
+          low_quality_for_yaw_jump: 10.0
+          min_confidence_thresh: 0.45
+          
+      }
+    }
+    
+    lane_type_filter_param {
+      max_history_window: 10
+      type_keep_weight: 1
+      type_count_threshold: 3
+      
+    }
+
+    lane_color_filter_param {
+      max_history_window: 10
+      color_keep_weight: 1
+      color_count_threshold: 3
+    }
+  }
+
+  lane_target_param {
+    reserve_age: 5
+    tracked_init_life: 5
+  }
+
+  lane_match_param {
+      same_group_max_dist: 2.0
+      min_match_group_point_num: 3
+      min_init_track_point_num: 5
+
+      max_match_distance: 1.5
+      length_score_weight: 0.1
+      point_match_score_weight: 0.5
+      match_dis_for_no_in_range: 3.0
+  }
+
+  lane_gate_keeper_param {
+    output_lost_lanes: true
+    output_nms_distance: 1
+    output_nms_length_ratio: 0.6
+    output_blind_start: 50.0
+    output_lane_length: 10
+    output_lane_longitudinal_overlap_iou: 0.7
+  }
+
+  lane_pose_setter_param {
+    ref_min: 0
+    ref_length: 5
+    sample_point_num: 5
+  }
+
+  main_lane_quality_param {
+    low_quality_for_point_num: 5
+    low_quality_for_length: 10.0
+    low_quality_for_curvature_radius: 100.0  # 需要车上进行调整;
+    low_quality_for_jump_distance: 0.1
+    quality_evaluate_interval_start: 0.0
+    quality_evaluate_interval_end: 8.0
+    low_quality_for_yaw_jump: 0.8
+    min_confidence_thresh: 0.45
+  }
+}
+
+static_strategy_param {
+  debug_option: false # 控制输出debug信息
+  use_idle_strategy: true # 是否使用静止策略,默认false
+  radial_velocity_limit:1 # 1m/s, 速度小于该值, 认为车辆在路上停止
+  angular_velocity_limit:0.0017 # 角速度小于该值, 认为车辆在路上停止
+  dist_limit: 5.0 # 超出10m, 则需要退出静止策略进行更新
+  angle_limit: 0.017 # 超出1度, 则需要退出静止策略进行更新
+  u_turn_angle_velocity_limit:12 # 12度/s, 角速度大于该阈值认为车辆调头
+}
+
+
+lane_measurement_filter_param {
+  short_lane_length_thresh: 6.0
+  same_pos_distance_thresh : 0.5
+  hight_overlay_length_ratio_thresh: 0.7
+  low_overlay_length_ratio_thresh: 0.5
+  length_ratio_thresh: 0.3
+  far_distance_thresh: 50
+  interval_diff_ratio_thresh: 1.5 #真实间隔与平均间隔(或反过来)之间比值满足一个1.5倍
+  min_interval_thresh: 0.2 #最小两点间隔阈值
+  anomaly_inter_ratio_thresh: 0.3  #异常间隔数目占比
+}

@@ -10,6 +10,9 @@
 #include <memory>
 #include <vector>
 
+#include "Sophus/se3.hpp"
+// #include "boost/circular_buffer/base.hpp"
+#include "boost/circular_buffer.hpp"
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d.hpp"
 #include "proto/dead_reckoning/dr.pb.h"
@@ -138,24 +141,13 @@ class Localization {
 
 enum ObjUpdateType { MERGE_OLD = 0, ADD_NEW = 1 };
 
-class LaneCubicSpline {
- public:
-  double start_point_x_;
-  double end_point_x_;
-  double c0_;
-  double c1_;
-  double c2_;
-  double c3_;
-  std::vector<double> sample_x_;
-};
-
 class LaneLine {
  public:
   int track_id_ = 1000;
   double length_ = 1000.0;
   double heading_ = 1000.0;
   double confidence_ = 1000.0;
-  LanePositionType lanepos_;
+  LanePositionType lanepos_ = LanePositionType::OTHER;
   LaneType lanetype_;
   EdgeType edgetype_;
   Color color_;
@@ -165,11 +157,13 @@ class LaneLine {
   bool need_delete_ = false;
   bool has_matched_ = false;
   bool ismature_ = false;
+  bool is_after_stop_line_ = false;
   int count_;
-  double c3_;
-  double c2_;
-  double c1_;
-  double c0_;
+  double c3_ = 1000.0;
+  double c2_ = 1000.0;
+  double c1_ = 1000.0;
+  double c0_ = 1000.0;
+  double c0_for_lanepos_ = 1000.0;
   double start_point_x_;
   double end_point_x_;
 };
@@ -179,9 +173,13 @@ class StopLine {
   int track_id_ = 1000;
   Eigen::Vector3d left_point_;
   Eigen::Vector3d right_point_;
+  Eigen::Vector3d mid_point_;
+  double length_;
+  double heading_;
   double confidence_ = 1000.0;
   bool has_matched_ = false;
   bool ismature_ = false;
+  bool isstable_ = false;
   int count_ = 0;
 };
 
@@ -192,10 +190,9 @@ class Arrow {
   double heading_ = 1000.0;  // 路面箭头heading
   Polygon points_;
   double confidence_ = 1000.0;
-  double min_x = FLT_MAX;
-  double min_y = FLT_MAX;
-  double max_x = -FLT_MAX;
-  double max_y = -FLT_MAX;
+  double length_ = 1000.0;
+  double width_ = 1000.0;
+  Eigen::Vector3d mid_point_;
   bool has_matched_ = false;
   bool ismature_ = false;
   int count_ = 0;
@@ -207,10 +204,9 @@ class ZebraCrossing {
   double heading_ = 1000.0;  // 斑马线heading
   Polygon points_;
   double confidence_ = 1000.0;
-  double min_x = FLT_MAX;
-  double min_y = FLT_MAX;
-  double max_x = -FLT_MAX;
-  double max_y = -FLT_MAX;
+  double length_ = 1000.0;
+  double width_ = 1000.0;
+  Eigen::Vector3d mid_point_;
   bool has_matched_ = false;
   bool ismature_ = false;
   int count_ = 0;
@@ -247,6 +243,13 @@ class LocalMap {
   std::vector<Arrow> arrows_;
   std::vector<ZebraCrossing> zebra_crossings_;
   std::vector<Lane> map_lanes_;
+
+  std::vector<boost::circular_buffer<StopLine>>
+      history_per_stop_lines_;  // 保存10帧感知停止线
+  std::vector<boost::circular_buffer<StopLine>>
+      history_per_arrows_;  // 保存10帧感知箭头
+  std::vector<boost::circular_buffer<StopLine>>
+      history_per_zebra_crossings_;  // 保存10帧感知斑马线
 };
 
 class LaneLineMatchInfo {

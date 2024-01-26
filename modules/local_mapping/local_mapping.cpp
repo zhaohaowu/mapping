@@ -85,6 +85,8 @@ void LMapApp::RvizFunc() {
                                     nsec, "/localmap/map_zebra_crossing");
     CommonUtil::PubMapLaneLineMarker(T_W_V, local_map.lane_lines_, sec, nsec,
                                      "/localmap/map_lane_line/marker");
+    CommonUtil::PubMapEdgeLineMarker(T_W_V, local_map.edge_lines_, sec, nsec,
+                                     "/localmap/map_edge_line/marker");
     CommonUtil::PubImmatureMapLaneLine(T_W_V, local_map.lane_lines_, sec, nsec,
                                        "/localmap/immature_map_lane_line");
     CommonUtil::PubImmatureMapLaneLineMarker(
@@ -167,7 +169,7 @@ void LMapApp::OnPerception(
       Sophus::SE3d(perception_pose->quaternion, perception_pose->pose);
   Sophus::SE3d T_C_L = T_W_V.inverse() * last_T_W_V;
   last_T_W_V = T_W_V;
-  mmgr_->UpdatePerception(local_map_ptr_.get(), T_C_L);
+  mmgr_->UpdateLocalMap(local_map_ptr_.get(), T_C_L);
   local_map_ptr_->timestamp = perception->timestamp_;
   std::vector<LaneLineMatchInfo> lane_line_matches;
   std::vector<EdgeLineMatchInfo> edge_line_matches;
@@ -227,15 +229,15 @@ void LMapApp::OnPerception(
                                    match.map_zebra_crossing_);
     }
   }
-  for (auto& lane_line : local_map_ptr_->lane_lines_) {
-    MapManager::MergeMapLeftRight(local_map_ptr_.get(), &lane_line);
-    MapManager::MergeMapFrontBack(local_map_ptr_.get(), &lane_line);
-  }
+  // for (auto& lane_line : local_map_ptr_->lane_lines_) {
+  //   MapManager::MergeMapLeftRight(local_map_ptr_.get(), &lane_line);
+  //   MapManager::MergeMapFrontBack(local_map_ptr_.get(), &lane_line);
+  // }
   mmgr_->UpdateLanepos(local_map_ptr_.get());
-  // mmgr_->MapMerge(local_map_ptr_.get());
+  mmgr_->MapMerge(local_map_ptr_.get());
   CommonUtil::FitLaneLines(&local_map_ptr_->lane_lines_);
   CommonUtil::FitEdgeLines(&local_map_ptr_->edge_lines_);
-  mmgr_->CutLocalMap(local_map_ptr_.get(), 150, 150);
+  mmgr_->CutLocalMap(local_map_ptr_.get(), 80, 80);
   mmgr_->UpdateLaneByLocalmap(local_map_ptr_.get());
   localmap_mutex_.lock();
   local_map_output_ = *local_map_ptr_;
@@ -366,46 +368,96 @@ bool LMapApp::FetchLocalMap(
       continue;
     }
     auto* stop_line = local_map->add_stop_lines();
-    stop_line->mutable_left_point()->set_x(stop_line_msg.left_point_.x());
-    stop_line->mutable_left_point()->set_y(stop_line_msg.left_point_.y());
-    stop_line->mutable_left_point()->set_z(0);
-    stop_line->mutable_right_point()->set_x(stop_line_msg.right_point_.x());
-    stop_line->mutable_right_point()->set_y(stop_line_msg.right_point_.y());
-    stop_line->mutable_right_point()->set_z(0);
     stop_line->set_track_id(stop_line_msg.track_id_);
+    Eigen::Vector3d left_point_ = {
+        stop_line_msg.mid_point_.x() +
+            stop_line_msg.length_ / 2.0 * cos(stop_line_msg.heading_),
+        stop_line_msg.mid_point_.y() +
+            stop_line_msg.length_ / 2.0 * sin(stop_line_msg.heading_),
+        0};
+    Eigen::Vector3d right_point_ = {
+        stop_line_msg.mid_point_.x() -
+            stop_line_msg.length_ / 2.0 * cos(stop_line_msg.heading_),
+        stop_line_msg.mid_point_.y() -
+            stop_line_msg.length_ / 2.0 * sin(stop_line_msg.heading_),
+        0};
+    stop_line->mutable_left_point()->set_x(left_point_.x());
+    stop_line->mutable_left_point()->set_y(left_point_.y());
+    stop_line->mutable_left_point()->set_z(0);
+    stop_line->mutable_right_point()->set_x(right_point_.x());
+    stop_line->mutable_right_point()->set_y(right_point_.y());
+    stop_line->mutable_right_point()->set_z(0);
   }
   for (const auto& arrow_msg : local_map_msg.arrows_) {
-    if (!arrow_msg.ismature_ ||
-        !CommonUtil::IsConvex(arrow_msg.points_.points_)) {
+    if (!arrow_msg.ismature_ || arrow_msg.length_ == 0 ||
+        arrow_msg.width_ == 0) {
       continue;
     }
     auto* arrow = local_map->add_arrows();
     arrow->set_track_id(arrow_msg.track_id_);
-    arrow->set_heading(0);
-    for (const auto& point_msg : arrow_msg.points_.points_) {
-      auto* point = arrow->mutable_points()->add_point();
-      point->set_x(point_msg.x());
-      point->set_y(point_msg.y());
-      point->set_z(point_msg.z());
-    }
+    arrow->set_heading(arrow_msg.heading_);
+    Eigen::Vector3d l = {arrow_msg.length_ / 2 * cos(arrow_msg.heading_),
+                         arrow_msg.length_ / 2 * sin(arrow_msg.heading_), 0};
+    Eigen::Vector3d w = {-arrow_msg.width_ / 2 * sin(arrow_msg.heading_),
+                         arrow_msg.width_ / 2 * cos(arrow_msg.heading_), 0};
+    Eigen::Vector3d point_0 = arrow_msg.mid_point_ + l + w;
+    Eigen::Vector3d point_1 = arrow_msg.mid_point_ - l + w;
+    Eigen::Vector3d point_2 = arrow_msg.mid_point_ - l - w;
+    Eigen::Vector3d point_3 = arrow_msg.mid_point_ + l - w;
+    auto* point = arrow->mutable_points()->add_point();
+    point->set_x(point_0.x());
+    point->set_y(point_0.y());
+    point->set_z(point_0.z());
+    point = arrow->mutable_points()->add_point();
+    point->set_x(point_1.x());
+    point->set_y(point_1.y());
+    point->set_z(point_1.z());
+    point = arrow->mutable_points()->add_point();
+    point->set_x(point_2.x());
+    point->set_y(point_2.y());
+    point->set_z(point_2.z());
+    point = arrow->mutable_points()->add_point();
+    point->set_x(point_3.x());
+    point->set_y(point_3.y());
+    point->set_z(point_3.z());
     // hozon::hdmap::ArrowData::Type arrowtype =
     //     hozon::hdmap::ArrowData::Type::ArrowData_Type_UNKNOWN_TURN;
     // DataConvert::ConvertInnerArrowType(arrow_msg.type_, &arrowtype);
     // arrow->set_arrow_type(arrowtype);
   }
   for (const auto& zebra_crossing_msg : local_map_msg.zebra_crossings_) {
-    if (!zebra_crossing_msg.ismature_ ||
-        !CommonUtil::IsConvex(zebra_crossing_msg.points_.points_)) {
+    if (!zebra_crossing_msg.ismature_ || zebra_crossing_msg.length_ == 0 ||
+        zebra_crossing_msg.width_ == 0) {
       continue;
     }
     auto* zebra_crossing = local_map->add_cross_walks();
     zebra_crossing->set_track_id(zebra_crossing_msg.track_id_);
-    for (const auto& point_msg : zebra_crossing_msg.points_.points_) {
-      auto* point = zebra_crossing->mutable_points()->add_point();
-      point->set_x(point_msg.x());
-      point->set_y(point_msg.y());
-      point->set_z(point_msg.z());
-    }
+    Eigen::Vector3d l = {
+        zebra_crossing_msg.length_ / 2 * cos(zebra_crossing_msg.heading_),
+        zebra_crossing_msg.length_ / 2 * sin(zebra_crossing_msg.heading_), 0};
+    Eigen::Vector3d w = {
+        -zebra_crossing_msg.width_ / 2 * sin(zebra_crossing_msg.heading_),
+        zebra_crossing_msg.width_ / 2 * cos(zebra_crossing_msg.heading_), 0};
+    Eigen::Vector3d point_0 = zebra_crossing_msg.mid_point_ + l + w;
+    Eigen::Vector3d point_1 = zebra_crossing_msg.mid_point_ - l + w;
+    Eigen::Vector3d point_2 = zebra_crossing_msg.mid_point_ - l - w;
+    Eigen::Vector3d point_3 = zebra_crossing_msg.mid_point_ + l - w;
+    auto* point = zebra_crossing->mutable_points()->add_point();
+    point->set_x(point_0.x());
+    point->set_y(point_0.y());
+    point->set_z(point_0.z());
+    point = zebra_crossing->mutable_points()->add_point();
+    point->set_x(point_1.x());
+    point->set_y(point_1.y());
+    point->set_z(point_1.z());
+    point = zebra_crossing->mutable_points()->add_point();
+    point->set_x(point_2.x());
+    point->set_y(point_2.y());
+    point->set_z(point_2.z());
+    point = zebra_crossing->mutable_points()->add_point();
+    point->set_x(point_3.x());
+    point->set_y(point_3.y());
+    point->set_z(point_3.z());
   }
   return true;
 }

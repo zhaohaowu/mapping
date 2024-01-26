@@ -57,6 +57,9 @@ void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
       continue;
     }
     std::vector<double> c(4);
+    if (lane_line_tmp.points_.size() < 4) {
+      continue;
+    }
     CommonUtil::FitLaneLine(lane_line_tmp.points_, &c);
     lane_line_tmp.c0_ = c[0];
     lane_line_tmp.c1_ = c[1];
@@ -101,6 +104,9 @@ void DataConvert::SetEdgeLine(const hozon::perception::TransportElement& msg,
       continue;
     }
     std::vector<double> c(4);
+    if (edge_line_tmp.points_.size() < 4) {
+      continue;
+    }
     CommonUtil::FitLaneLine(edge_line_tmp.points_, &c);
     edge_line_tmp.c0_ = c[0];
     edge_line_tmp.c1_ = c[1];
@@ -125,20 +131,29 @@ void DataConvert::SetEdgeLine(const hozon::perception::TransportElement& msg,
 void DataConvert::SetStopLine(const hozon::perception::TransportElement& msg,
                               std::vector<StopLine>* stop_lines) {
   for (const auto& stop_line : msg.stopline()) {
-    if (stop_line.confidence() < 0.6 ||
-        stop_line.left_point().y() - stop_line.right_point().y() < 8 ||
+    if (stop_line.left_point().y() - stop_line.right_point().y() < 3 ||
         fabs(stop_line.left_point().x() - stop_line.right_point().x()) > 1) {
       continue;
     }
     StopLine stop_line_tmp;
     stop_line_tmp.confidence_ = stop_line.confidence();
     stop_line_tmp.track_id_ = stop_line.track_id();
-    stop_line_tmp.left_point_.x() = stop_line.left_point().x();
-    stop_line_tmp.left_point_.y() = stop_line.left_point().y();
-    stop_line_tmp.left_point_.z() = stop_line.left_point().z();
-    stop_line_tmp.right_point_.x() = stop_line.right_point().x();
-    stop_line_tmp.right_point_.y() = stop_line.right_point().y();
-    stop_line_tmp.right_point_.z() = stop_line.right_point().z();
+    stop_line_tmp.left_point_ =
+        Eigen::Vector3d{stop_line.left_point().x(), stop_line.left_point().y(),
+                        stop_line.left_point().z()};
+    stop_line_tmp.right_point_ = Eigen::Vector3d{stop_line.right_point().x(),
+                                                 stop_line.right_point().y(),
+                                                 stop_line.right_point().z()};
+    stop_line_tmp.mid_point_.x() =
+        (stop_line.left_point().x() + stop_line.right_point().x()) / 2;
+    stop_line_tmp.mid_point_.y() =
+        (stop_line.left_point().y() + stop_line.right_point().y()) / 2;
+    stop_line_tmp.mid_point_.z() =
+        (stop_line.left_point().z() + stop_line.right_point().z()) / 2;
+    stop_line_tmp.length_ = CommonUtil::CalTwoPointsDis(
+        stop_line_tmp.left_point_, stop_line_tmp.right_point_);
+    stop_line_tmp.heading_ = CommonUtil::CalTwoPointsHeading(
+        stop_line_tmp.left_point_, stop_line_tmp.right_point_);
     stop_lines->emplace_back(stop_line_tmp);
   }
 }
@@ -157,60 +172,46 @@ void DataConvert::SetArrow(const hozon::perception::TransportElement& msg,
     if (!CommonUtil::IsConvex(points)) {
       continue;
     }
-    std::map<double, std::pair<Eigen::Vector3d, Eigen::Vector3d>> map_distance;
-    for (int i = 0; i < static_cast<int>(points.size()); i++) {
-      for (int j = i + 1; j < static_cast<int>(points.size()); j++) {
-        double dx = points[i].x() - points[j].x();
-        double dy = points[i].y() - points[j].y();
-        double distance = std::sqrt(dx * dx + dy * dy);
-        map_distance[distance] = {points[i], points[j]};
-      }
-    }
-    points.clear();
-    for (const auto& element : map_distance) {
-      points.emplace_back(element.second.first);
-      points.emplace_back(element.second.second);
-      if (points.size() == 4) {
-        break;
-      }
-    }
-    if (points.size() < 4) {
-      break;
-    }
     sort(points.begin(), points.end(),
-         [](const Eigen::Vector3d& a, const Eigen::Vector3d& b) {
-           return a.x() > b.x();
+         [](const Eigen::Vector3d& p1, const Eigen::Vector3d& p2) {
+           return p1.x() > p2.x();
          });
-    if (points[0].y() == points[1].y() || points[2].y() == points[3].y()) {
-      break;
-    }
-    arrow_tmp.points_.points_.resize(4);
+    std::vector<Eigen::Vector3d> points_order(4);
     if (points[0].y() > points[1].y()) {
-      arrow_tmp.points_.points_[0] = points[0];
-      arrow_tmp.points_.points_[3] = points[1];
+      points_order[0] = points[0];
+      points_order[3] = points[1];
     } else {
-      arrow_tmp.points_.points_[0] = points[1];
-      arrow_tmp.points_.points_[3] = points[0];
+      points_order[0] = points[1];
+      points_order[3] = points[0];
     }
     if (points[2].y() > points[3].y()) {
-      arrow_tmp.points_.points_[1] = points[2];
-      arrow_tmp.points_.points_[2] = points[3];
+      points_order[1] = points[2];
+      points_order[2] = points[3];
     } else {
-      arrow_tmp.points_.points_[1] = points[3];
-      arrow_tmp.points_.points_[2] = points[2];
+      points_order[1] = points[3];
+      points_order[2] = points[2];
     }
-    auto point_up =
-        (arrow_tmp.points_.points_[0] + arrow_tmp.points_.points_[3]) / 2;
-    auto point_down =
-        (arrow_tmp.points_.points_[1] + arrow_tmp.points_.points_[2]) / 2;
-    arrow_tmp.heading_ = std::atan2(point_up.y() - point_down.y(),
-                                    point_up.x() - point_down.x());
-    for (const auto& point : arrow_tmp.points_.points_) {
-      arrow_tmp.min_x = std::min(point.x(), arrow_tmp.min_x);
-      arrow_tmp.min_y = std::min(point.y(), arrow_tmp.min_y);
-      arrow_tmp.max_x = std::max(point.x(), arrow_tmp.max_x);
-      arrow_tmp.max_y = std::max(point.y(), arrow_tmp.max_y);
+    arrow_tmp.points_.points_ = points_order;
+    auto dis = [](const Eigen::Vector3d& p1, const Eigen::Vector3d& p2) {
+      return std::sqrt(std::pow(p1.x() - p2.x(), 2) +
+                       std::pow(p1.y() - p2.y(), 2));
+    };
+    arrow_tmp.length_ = (dis(points_order[0], points_order[1]) +
+                         dis(points_order[2], points_order[3])) /
+                        2;
+    arrow_tmp.width_ = (dis(points_order[0], points_order[3]) +
+                        dis(points_order[1], points_order[2])) /
+                       2;
+    if (arrow_tmp.length_ < arrow_tmp.width_) {
+      continue;
     }
+    arrow_tmp.mid_point_ = (points_order[0] + points_order[1] +
+                            points_order[2] + points_order[3]) /
+                           4;
+    Eigen::Vector3d top_point = (points[0] + points[3]) / 2;
+    Eigen::Vector3d bottom_point = (points[1] + points[2]) / 2;
+    arrow_tmp.heading_ = atan2(top_point.y() - bottom_point.y(),
+                               top_point.x() - bottom_point.x());
     ConvertProtoArrowType(arrow.type(), &arrow_tmp.type_);
     arrows->emplace_back(arrow_tmp);
   }
@@ -225,17 +226,53 @@ void DataConvert::SetZebraCrossing(
     zebra_crossing_tmp.confidence_ = zebra_crossing.confidence();
     zebra_crossing_tmp.points_.is_closure =
         zebra_crossing.points().is_closure();
+    std::vector<Eigen::Vector3d> points;
     for (const auto& point : zebra_crossing.points().point()) {
-      zebra_crossing_tmp.points_.points_.emplace_back(point.x(), point.y(),
-                                                      point.z());
-      zebra_crossing_tmp.min_x = std::min(zebra_crossing_tmp.min_x, point.x());
-      zebra_crossing_tmp.min_y = std::min(zebra_crossing_tmp.min_y, point.y());
-      zebra_crossing_tmp.max_x = std::max(zebra_crossing_tmp.max_x, point.x());
-      zebra_crossing_tmp.max_y = std::max(zebra_crossing_tmp.max_y, point.y());
+      points.emplace_back(point.x(), point.y(), point.z());
     }
-    if (!CommonUtil::IsConvex(zebra_crossing_tmp.points_.points_)) {
+    if (!CommonUtil::IsConvex(points)) {
       continue;
     }
+    sort(points.begin(), points.end(),
+         [](const Eigen::Vector3d& p1, const Eigen::Vector3d& p2) {
+           return p1.y() > p2.y();
+         });
+    std::vector<Eigen::Vector3d> points_order(4);
+    if (points[0].x() > points[1].x()) {
+      points_order[0] = points[0];
+      points_order[1] = points[1];
+    } else {
+      points_order[0] = points[1];
+      points_order[1] = points[0];
+    }
+    if (points[2].x() > points[3].x()) {
+      points_order[2] = points[3];
+      points_order[3] = points[2];
+    } else {
+      points_order[2] = points[2];
+      points_order[3] = points[3];
+    }
+    zebra_crossing_tmp.points_.points_ = points_order;
+    auto dis = [](const Eigen::Vector3d& p1, const Eigen::Vector3d& p2) {
+      return std::sqrt(std::pow(p1.x() - p2.x(), 2) +
+                       std::pow(p1.y() - p2.y(), 2));
+    };
+    zebra_crossing_tmp.length_ = (dis(points_order[0], points_order[3]) +
+                                  dis(points_order[1], points_order[2])) /
+                                 2;
+    zebra_crossing_tmp.width_ = (dis(points_order[0], points_order[1]) +
+                                 dis(points_order[2], points_order[3])) /
+                                2;
+    if (zebra_crossing_tmp.length_ < zebra_crossing_tmp.width_) {
+      continue;
+    }
+    zebra_crossing_tmp.mid_point_ = (points_order[0] + points_order[1] +
+                                     points_order[2] + points_order[3]) /
+                                    4;
+    Eigen::Vector3d top_point = (points[0] + points[3]) / 2;
+    Eigen::Vector3d bottom_point = (points[1] + points[2]) / 2;
+    zebra_crossing_tmp.heading_ = atan2(top_point.y() - bottom_point.y(),
+                                        top_point.x() - bottom_point.x());
     zebra_crossings->emplace_back(zebra_crossing_tmp);
   }
 }
@@ -676,15 +713,15 @@ void DataConvert::ConvertInnerMapLaneType(
 //           hozon::hdmap::ArrowData::Type::ArrowData_Type_LEFT_FRONT_TURN;
 //       break;
 //     case ArrowType::TURN_LEFT_OR_TURN_AROUND:
-//       *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_LEFT_U_TURN;
-//       break;
+//       *arrowtype =
+//       hozon::hdmap::ArrowData::Type::ArrowData_Type_LEFT_U_TURN; break;
 //     case ArrowType::TURN_LEFT_OR_TURN_RIGHT:
 //       *arrowtype =
 //           hozon::hdmap::ArrowData::Type::ArrowData_Type_LEFT_RIGHT_TURN;
 //       break;
 //     case ArrowType::TURN_RIGHT:
-//       *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_RIGHT_TURN;
-//       break;
+//       *arrowtype =
+//       hozon::hdmap::ArrowData::Type::ArrowData_Type_RIGHT_TURN; break;
 //     case ArrowType::TURN_RIGHT_OR_MERGE_RIGHT:
 //       *arrowtype =
 //           hozon::hdmap::ArrowData::Type::ArrowData_Type_RIGHT_FRONT_TURN;

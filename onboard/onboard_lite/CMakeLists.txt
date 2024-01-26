@@ -13,6 +13,7 @@ add_subdirectory(phm_comment_lite)
 add_subdirectory(map_fusion)
 add_subdirectory(dr)
 add_subdirectory(location)
+add_subdirectory(laneline_postprocess) # add by wenhai.zhang
 add_subdirectory(local_mapping)
 
 install(

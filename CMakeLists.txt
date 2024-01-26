@@ -128,6 +128,8 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     # endif()
     # if (MAPPING_ENABLE_COMPILE_LIB)
         add_subdirectory(depend/perception-lib)
+        # add_subdirectory(depend/perception-common)
+        # add_subdirectory(depend/perception-common-onboard)
     # endif()
 
     set(FROM_TOP ON)

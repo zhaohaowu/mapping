@@ -29,7 +29,7 @@ class LocalDataSingleton {
   ~LocalDataSingleton() = default;
 
  private:
-  LocalDataSingleton() : dr_data_buffer_(1000) {}
+  LocalDataSingleton() : dr_data_buffer_(400) {}
 
   /** @brief sensor data buffer. */
   MessageBuffer<ConstDrDataPtr> dr_data_buffer_;

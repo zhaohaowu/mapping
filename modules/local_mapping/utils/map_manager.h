@@ -33,7 +33,7 @@ class MapManager {
   static void CutLocalMap(LocalMap* local_map, const double& length_x,
                           const double& length_y);
 
-  static void UpdatePerception(LocalMap* local_map, const Sophus::SE3d& T_C_L);
+  static void UpdateLocalMap(LocalMap* local_map, const Sophus::SE3d& T_C_L);
 
   static void AddNewLaneLine(LocalMap* local_map,
                              const LaneLine& per_lane_line);
@@ -82,6 +82,8 @@ class MapManager {
   static void PridictBackMapLanes(LocalMap* local_map);
 
   static void PridictCenterMapLanes(LocalMap* local_map);
+
+  static void UpdateHeading(LocalMap* local_map);
 
   static void UpdateLanepos(LocalMap* local_map);
 

@@ -33,6 +33,7 @@ find_package(netaos CONFIG REQUIRED)
 
 include_directories(
     ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include
+    ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/adf-lite/include
     ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/cfg
     ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/per
     ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/https/include

@@ -125,8 +125,6 @@ class FusionCenter {
 
   ImuIns prev_imuins_;
   ImuIns curr_imuins_;
-  HafNodeInfo prev_raw_ins_;
-  HafNodeInfo curr_raw_ins_;
   HafNodeInfo prev_raw_dr_;
   HafNodeInfo prev_raw_pe_;
 
@@ -138,6 +136,7 @@ class FusionCenter {
   bool can_output_ = false;
   double last_meas_time_ = 0.0;
   bool prev_global_valid_ = false;
+  std::mutex prev_global_node_mutex_;
   Node prev_global_node_;
   bool init_dr_ = true;
 

@@ -65,9 +65,9 @@ void FusionCenter::OnImu(const ImuIns& imuins) {
     return;
   }
   // seq not used on orin
-  // if (imuins.header().seq() == prev_imuins_.header().seq()) {
-  //   return;
-  // }
+  if (imuins.header().seq() == prev_imuins_.header().seq()) {
+    return;
+  }
 
   std::unique_lock<std::mutex> lock(imuins_deque_mutex_);
   imuins_deque_.emplace_back(std::make_shared<ImuIns>(imuins));
@@ -80,16 +80,14 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
   if (!params_.recv_ins || !ins.valid_estimate()) {
     return;
   }
-  // seq not used on orin
-  // if (ins.header().seq() == prev_raw_ins_.header().seq()) {
-  //   return;
-  // }
-  prev_raw_ins_ = ins;
-  curr_raw_ins_ = ins;
 
-  latest_ins_mutex_.lock();
-  latest_ins_data_ = ins;
-  latest_ins_mutex_.unlock();
+  {
+    std::unique_lock<std::mutex> lock(latest_ins_mutex_);
+    if (ins.header().seq() == latest_ins_data_.header().seq()) {
+      return;
+    }
+    latest_ins_data_ = ins;
+  }
 
   if (!ref_init_) {
     const Eigen::Vector3d refpoint(ins.pos_gcj02().x(), ins.pos_gcj02().y(),
@@ -723,7 +721,7 @@ bool FusionCenter::Interpolate(double ticktime,
 }
 
 bool FusionCenter::PoseInit() {
-  // 使用ins初始化(if--->第一次初始化，else--->后续异常初始化)
+  // 使用ins初始化(if--->第一次初始化
   if (fusion_deque_.empty()) {
     std::unique_lock<std::mutex> lock(ins_deque_mutex_);
     for (auto iter = ins_deque_.rbegin(); iter != ins_deque_.rend(); ++iter) {
@@ -737,22 +735,19 @@ bool FusionCenter::PoseInit() {
     return false;
   }
 
-  fusion_deque_mutex_.lock();
-  double latest_fc_ticktime = fusion_deque_.back()->ticktime;
-  fusion_deque_.clear();
-  fusion_deque_mutex_.unlock();
+  // 后续初始化（非第一次，通过fusion_deque_.empty()判断）
+  if (prev_global_valid_) {
+    fusion_deque_mutex_.lock();
+    fusion_deque_.clear();
+    fusion_deque_mutex_.unlock();
 
-  std::unique_lock<std::mutex> lock(ins_deque_mutex_);
-  for (auto iter = ins_deque_.rbegin(); iter != ins_deque_.rend(); ++iter) {
-    if (AllowInit((*iter)->sys_status, (*iter)->rtk_status) &&
-        (*iter)->ticktime > latest_fc_ticktime) {
-      (*iter)->enu = hmu::Geo::BlhToEnu((*iter)->blh, (*iter)->refpoint);
-      InsertESKFFusionNode(**iter);
-      init_ins_ = true;
-      return true;
-    }
+    prev_global_node_mutex_.lock();
+    InsertESKFFusionNode(prev_global_node_);
+    prev_global_node_mutex_.unlock();
+    HLOG_ERROR << "FusionDeque pos reinit when not first time";
+    init_ins_ = true;
+    return true;
   }
-
   return false;
 }
 
@@ -1095,7 +1090,9 @@ void FusionCenter::KalmanFiltering(Node* const node) {
 
   double delta_t = 0.0;
   if (prev_global_valid_) {
+    prev_global_node_mutex_.lock();
     delta_t = node->ticktime - prev_global_node_.ticktime;
+    prev_global_node_mutex_.unlock();
   }
 
   Eigen::MatrixXd F = Eigen::MatrixXd::Identity(4, 4);
@@ -1175,7 +1172,9 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
       hmu::Geo::EnuToBlh(ctx->global_node.enu, ctx->global_node.refpoint);
   ctx->global_node.rtk_status = ctx->ins_node.rtk_status;
 
+  prev_global_node_mutex_.lock();
   prev_global_node_ = ctx->global_node;
+  prev_global_node_mutex_.unlock();
   if (!prev_global_valid_) {
     prev_global_valid_ = true;
   }

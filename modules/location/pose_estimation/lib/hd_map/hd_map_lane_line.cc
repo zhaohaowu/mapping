@@ -22,7 +22,6 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
   if (heading < 0.0) {
     heading += 360.0;
   }
-
   heading = hozon::mp::loc::CalHeading(heading);
   std::vector<hozon::hdmap::LaneInfoConstPtr> lane_ptr_vec;
   const int ret = GLOBAL_HD_MAP->GetLanesWithHeading(
@@ -35,7 +34,41 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
   size_t l_count = 0, r_count = 0;
   for (const auto& lane_ptr : lane_ptr_vec) {
     auto lane = (*lane_ptr).lane();
-    if (lane.has_left_boundary()) {
+    if (lane.has_extra_left_boundary()) {
+      auto left_lane_boundary = lane.extra_left_boundary();
+      if (left_lane_boundary.id().empty()) {
+        continue;
+      }
+      auto left_lane_boundary_id = left_lane_boundary.id(0).id();
+      if (boundary_line_.find(left_lane_boundary_id) != boundary_line_.end()) {
+        continue;
+      }
+      auto& bl = boundary_line_[left_lane_boundary_id];
+      bl.id_boundary = left_lane_boundary_id;
+      bl.line_type = 0;
+      auto left_lane_boundary_curve = left_lane_boundary.curve();
+      for (const auto& curve_segment : left_lane_boundary_curve.segment()) {
+        auto line_segment = curve_segment.line_segment();
+        for (const auto& p : line_segment.original_point()) {
+          // 地图是经纬度和ins相反
+          Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
+          Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
+          ControlPoint cpoint(0, {0, 0, 0});
+          if (bl.line_type == DoubleLineType::DoubleSolidLine ||
+              bl.line_type == DoubleLineType::DoubleDashedLine ||
+              bl.line_type == DoubleLineType::LeftSolidRightDashed ||
+              bl.line_type == DoubleLineType::RightSolidLeftDashed) {
+            cpoint.line_type = 1;
+          } else {
+            cpoint.line_type = 0;
+          }
+          cpoint.point = p_enu;
+          bl.control_point.emplace_back(cpoint);
+        }
+      }
+      l_count++;
+    } else if (lane.has_left_boundary()) {
+      HLOG_ERROR << "left xu ni xian";
       auto left_lane_boundary = lane.left_boundary();
       if (left_lane_boundary.id().empty()) {
         continue;
@@ -69,7 +102,41 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
       }
       l_count++;
     }
-    if (lane.has_right_boundary()) {
+    if (lane.has_extra_right_boundary()) {
+      auto right_lane_boundary = lane.extra_right_boundary();
+      if (right_lane_boundary.id().empty()) {
+        continue;
+      }
+      auto right_lane_boundary_id = right_lane_boundary.id(0).id();
+      if (boundary_line_.find(right_lane_boundary_id) != boundary_line_.end()) {
+        continue;
+      }
+      auto& br = boundary_line_[right_lane_boundary_id];
+      br.id_boundary = right_lane_boundary_id;
+      br.line_type = 0;
+      auto right_lane_boundary_curve = right_lane_boundary.curve();
+      for (const auto& curve_segment : right_lane_boundary_curve.segment()) {
+        auto line_segment = curve_segment.line_segment();
+        for (const auto& p : line_segment.original_point()) {
+          // 地图是经纬度和ins相反
+          Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
+          Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
+          ControlPoint cpoint(0, {0, 0, 0});
+          if (br.line_type == DoubleLineType::DoubleSolidLine ||
+              br.line_type == DoubleLineType::DoubleDashedLine ||
+              br.line_type == DoubleLineType::LeftSolidRightDashed ||
+              br.line_type == DoubleLineType::RightSolidLeftDashed) {
+            cpoint.line_type = 1;
+          } else {
+            cpoint.line_type = 0;
+          }
+          cpoint.point = p_enu;
+          br.control_point.emplace_back(cpoint);
+        }
+      }
+      r_count++;
+    } else if (lane.has_right_boundary()) {
+      HLOG_ERROR << "right xu ni xian";
       auto right_lane_boundary = lane.right_boundary();
       if (right_lane_boundary.id().empty()) {
         continue;

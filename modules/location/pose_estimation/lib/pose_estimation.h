@@ -233,7 +233,7 @@ class MapMatching {
  private:
   void setPoints(const PerceptionLaneLineList &line_list, const SE3 &T_W_V,
                  VP *points);
-  void pubPoints(const VP &points, const uint64_t &sec, const uint64_t &nsec);
+  void pubPoints(const VP &points, const uint64_t &sec, const uint64_t &nsec, const std::string &krviz_topic);
   void pubOdomPoints(const std::string &topic, const Eigen::Vector3d &trans,
                      const Eigen::Quaterniond &q, uint64_t sec, uint64_t nsec);
   void pubVehicle(const SE3 &T, const double &sec, const double &nsec);
@@ -306,6 +306,7 @@ class MapMatching {
   const std::string kTopicMmCarPath = "/mm/car_path";
   const std::string kTopicMmInterCarPath = "/mm/car_path_inter";
   const std::string kTopicMmFrontPoints = "/mm/front_point";
+  const std::string kTopicMmMergedMapLaneLinePoints = "/mm/merged_map_lane_line_points";
   const std::string kTopicInsOdom = "/mm/ins_odom";
   const std::string kTopicMmOdom = "/mm/mm_odom";
   const std::string kTopicFcOdom = "/mm/fc_odom";

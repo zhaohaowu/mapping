@@ -41,8 +41,8 @@ class MatchLaneLine {
    * @param T_W_V : vehicle pose in enu
    * @return
    */
-  void Match(const HdMap &hd_map, const std::shared_ptr<Perception> &perception,
-             const SE3 &T_W_V);
+  void Match(const HdMap& hd_map, const std::shared_ptr<Perception>& perception,
+             const SE3& T_W_V);
 
   /**
    * @brief check the solve result
@@ -50,8 +50,8 @@ class MatchLaneLine {
    * @param T : vehicle pose in enu
    * @return
    */
-  bool CheckIsGoodMatch(const SE3 &T);
-  bool CompareLaneWidth(const SE3 &T);
+  bool CheckIsGoodMatch(const SE3& T);
+  bool CompareLaneWidth(const SE3& T);
   bool is_double_line_ = false;
 
   /**
@@ -61,8 +61,8 @@ class MatchLaneLine {
    * @param out : filter result
    * @return
    */
-  void FilterPercpLaneline(const std::list<LaneLinePerceptionPtr> &lanelines,
-                           std::list<LaneLinePerceptionPtr> *const out);
+  void FilterPercpLaneline(const std::list<LaneLinePerceptionPtr>& lanelines,
+                           std::list<LaneLinePerceptionPtr>* const out);
 
   /**
    * @brief get match pairs
@@ -101,7 +101,8 @@ class MatchLaneLine {
    *
    * @return timestamp
    */
-  void set_ins_ts(const double &ins_ts);
+  void set_ins_ts(const double& ins_ts);
+  VP SetRvizMergeMapLines();
 
   using Ptr = std::shared_ptr<MatchLaneLine>;
 
@@ -116,27 +117,34 @@ class MatchLaneLine {
    *
    * @return
    */
-  void MatchLine2Line(const std::string &map_line_idx,
-                      const LaneLinePerceptionPtr &pecep,
-                      const double &min_match_x, const double &max_match_x,
-                      const double &sample_interval, const bool &is_good_check);
+  void MatchLine2Line(const std::string& map_line_idx,
+                      const LaneLinePerceptionPtr& pecep,
+                      const double& min_match_x, const double& max_match_x,
+                      const double& sample_interval, const bool& is_good_check);
 
-  static bool SortPairByX(const PointMatchPair &pair1,
-                          const PointMatchPair &pair2) {
+  static bool SortPairByX(const PointMatchPair& pair1,
+                          const PointMatchPair& pair2) {
     return pair1.pecep_pv.x() < pair2.pecep_pv.x();
   }
-  void ComputeLaneWidth(const std::vector<PointMatchPair> &left_match_pairs,
-                        const std::vector<PointMatchPair> &right_match_pairs,
-                        const SE3 &T, double *percep_lane_width,
-                        double *map_lane_width);
-  void GetAverageDiffY(const std::vector<PointMatchPair> &match_pairs,
-                       const SE3 &T, double *avg_diff_y);
+
+  static bool SortControlPoints(const ControlPoint& cpt1,
+                                const ControlPoint& cpt2) {
+    return cpt1.point.x() < cpt2.point.x();
+  }
+
+  void ComputeLaneWidth(const std::vector<PointMatchPair>& left_match_pairs,
+                        const std::vector<PointMatchPair>& right_match_pairs,
+                        const SE3& T, double* percep_lane_width,
+                        double* map_lane_width);
+  void GetAverageDiffY(const std::vector<PointMatchPair>& match_pairs,
+                       const SE3& T, double* avg_diff_y);
   bool GetNeighboringMapLines(
-      const VP &target_perception_line_points,
-      const std::unordered_map<std::string, BoundaryLine> &boundary_lines,
-      std::vector<std::pair<V3, std::string>> *nearest_line_match_pairs,
-      std::vector<std::pair<V3, std::string>> *farest_line_match_pairs);
-  void FilterPointPair(std::vector<PointMatchPair> *match_pairs, const SE3 &T);
+      const VP& target_perception_line_points,
+      const std::unordered_map<std::string, std::vector<ControlPoint>>&
+          map_points_cache,
+      std::vector<std::pair<V3, std::string>>* nearest_line_match_pairs,
+      std::vector<std::pair<V3, std::string>>* farest_line_match_pairs);
+  void FilterPointPair(std::vector<PointMatchPair>* match_pairs, const SE3& T);
 
   /**
    * @brief line to line match
@@ -149,19 +157,20 @@ class MatchLaneLine {
    *
    * @return
    */
-  void MatchPoint2Line(const std::vector<std::string> &map_line_idxs,
-                       const LaneLinePerceptionPtr &pecep,
-                       const double &min_match_x, const double &max_match_x,
-                       const double &sample_interval,
-                       const bool &is_good_check);
+  void MatchPoint2Line(const std::vector<std::string>& map_line_idxs,
+                       const LaneLinePerceptionPtr& pecep,
+                       const double& min_match_x, const double& max_match_x,
+                       const double& sample_interval,
+                       const bool& is_good_check);
   /**
    * @brief select matched lane line
    *
    * @return
    */
   void LaneLineConnect(
-      std::list<std::list<LaneLinePerceptionPtr>> percep_lanelines,
-      std::unordered_map<std::string, BoundaryLine> boundary_lines);
+      const std::list<std::list<LaneLinePerceptionPtr>>& percep_lanelines,
+      const std::unordered_map<std::string, std::vector<ControlPoint>>&
+          boundary_lines);
 
   /**
    * @brief location safety strategy about checking the match is good by fc
@@ -169,21 +178,21 @@ class MatchLaneLine {
    *
    * @return
    */
-  void CheckIsGoodMatchFcByLine(const SE3 &T_fc);
+  void CheckIsGoodMatchFcByLine(const SE3& T_fc);
 
   /**
    * @brief get the matched pairs
    *
    * @return
    */
-  void ConnectPoint(const bool &is_good_check);
+  void ConnectPoint(const bool& is_good_check);
 
   /**
    * @brief judge whether the perception lane line is curve
    *
    * @return true : yes; false : no
    */
-  bool IsPercepLineCurve(const LaneLinePerceptionPtr &line);
+  bool IsPercepLineCurve(const LaneLinePerceptionPtr& line);
 
   /**
    * @brief non maximum suppression filters out similar lane lines
@@ -191,7 +200,7 @@ class MatchLaneLine {
    *
    * @return
    */
-  void NmsByLat(std::vector<std::pair<V3, std::string>> *map_lines);
+  void NmsByLat(std::vector<std::pair<V3, std::string>>* map_lines);
 
   /**
    * @brief filter points that meet the x threshold
@@ -202,8 +211,11 @@ class MatchLaneLine {
    *
    * @return true : get the fit pints; false : do not get the fit points
    */
-  bool GetFitPoints(const VP &control_poins, const double x, const SE3 &T_W_V,
-                    V3 *pt);
+  bool GetFitPoints(const VP& control_poins, const double x, const SE3& T_W_V,
+                    V3* pt);
+
+  bool GetFitMapPoints(const std::vector<ControlPoint>& control_poins,
+                       const double x, const SE3& T_W_V, V3* pt);
 
   /**
    * @brief merge the map lane line
@@ -211,7 +223,8 @@ class MatchLaneLine {
    *
    * @return
    */
-  void MergeMapLines(const std::shared_ptr<MapBoundaryLine> &boundary_lines);
+  void MergeMapLines(const std::shared_ptr<MapBoundaryLine>& boundary_lines,
+                     const SE3& T);
 
   /**
    * @brief filter map lane connected to specified perception lane
@@ -220,8 +233,8 @@ class MatchLaneLine {
    *
    * @return
    */
-  void FilterMapLane(std::vector<std::string> *mlane_ids,
-                     const LaneLinePerceptionPtr &plane);
+  void FilterMapLane(std::vector<std::string>* mlane_ids,
+                     const LaneLinePerceptionPtr& plane);
 
   /**
    * @brief group map lanes by project in X axis
@@ -230,8 +243,8 @@ class MatchLaneLine {
    *
    * @return
    */
-  void GroupByXProject(const std::vector<std::string> &mlane_ids,
-                       std::vector<std::list<std::string>> *groups);
+  void GroupByXProject(const std::vector<std::string>& mlane_ids,
+                       std::vector<std::list<std::string>>* groups);
 
   /**
    * @brief select best map lane, minimum Y distance between perception lane
@@ -242,9 +255,9 @@ class MatchLaneLine {
    * @return true : best map lane line meet the condition exists; false : do not
    * exist
    */
-  bool SelectBestMapLane(const std::list<std::string> &mlane_ids,
-                         const LaneLinePerceptionPtr &plane,
-                         std::string *best_mlane_id);
+  bool SelectBestMapLane(const std::list<std::string>& mlane_ids,
+                         const LaneLinePerceptionPtr& plane,
+                         std::string* best_mlane_id);
 
   /**
    * @brief find both side nearest perception line, max level LL or RR
@@ -254,8 +267,8 @@ class MatchLaneLine {
    *
    * @return
    */
-  void GetNearestPercepLinesId(const std::list<LaneLinePerceptionPtr> &lines,
-                               int *const left_id_ptr, int *const right_id_ptr);
+  void GetNearestPercepLinesId(const std::list<LaneLinePerceptionPtr>& lines,
+                               int* const left_id_ptr, int* const right_id_ptr);
 
   /**
    * @brief find the nearest and the farest distance in Y axis
@@ -266,9 +279,21 @@ class MatchLaneLine {
    *
    * @return
    */
-  void CalLinesMinDist(const LaneLinePerceptionPtr &percep, const SE3 &T_fc,
-                       double *const near, double *const far,
-                       const double &last_dis);
+  void CalLinesMinDist(const LaneLinePerceptionPtr& percep, const SE3& T_fc,
+                       double* const near, double* const far,
+                       const double& last_dis);
+  void Traversal(const std::map<V3, std::vector<std::pair<std::string, V3>>,
+                                PointV3Comp<V3>>& lines,
+                 V3 root_start_point,
+                 std::vector<std::vector<std::string>>* linked_lines_id,
+                 std::vector<std::string> line_ids, int loop);
+  void AdjustWeightByLaneWidth(const std::vector<PointMatchPair>& match_pairs,
+                               const SE3& T, size_t* left_pairs_count,
+                               size_t* right_pairs_count,
+                               bool* adjust_left_pairs_weight,
+                               bool* adjust_right_pairs_weight);
+
+ public:
   V3 anchor_pt0_{2.0, 0.0, 0.0};
   V3 anchor_pt1_{22.0, 0.0, 0.0};
   static constexpr double max_match_y_thres = 2;
@@ -282,21 +307,37 @@ class MatchLaneLine {
   std::shared_ptr<Perception> percep_;
   std::list<LineMatchPair> line_match_pairs_;
   std::list<std::list<LaneLinePerceptionPtr>> percep_lanelines_;
-  std::list<LaneLinePerceptionPtr> *fil_percep_laneline_;
+  std::list<LaneLinePerceptionPtr>* fil_percep_laneline_;
   bool lanelineconnect_ = true;
   bool is_good_match_;
   SE3 T_W_V_;
   SE3 T_V_W_;
+  typedef std::pair<std::string, V3>
+      LineSegment;  // LineSegment: {id, end_point}
 
-  void AdjustWeightByLaneWidth(const std::vector<PointMatchPair> &match_pairs,
-                               const SE3 &T, size_t *left_pairs_count,
-                               size_t *right_pairs_count,
-                               bool *adjust_left_pairs_weight,
-                               bool *adjust_right_pairs_weight);
+ private:
+  struct EigenMatrixHash {
+    std::size_t operator()(const Eigen::Matrix<double, 3, 1>& matrix) const {
+      std::size_t seed = 0;
+      for (size_t i = 0; i < matrix.size(); ++i) {
+        // 将每个元素的哈希值与当前种子值混合
+        seed ^= std::hash<double>()(matrix[i]) + 0x9e3779b9 + (seed << 6) +
+                (seed >> 2);
+      }
+      return seed;
+    }
+  };
 
  private:
   std::shared_ptr<hozon::mp::loc::FrechetDistance3D> frechet_distance3D_ =
       nullptr;
+  std::unordered_set<V3, EigenMatrixHash> visited_start_points_;
+  std::unordered_map<std::string, bool> visited_line_id_;
+  std::vector<std::vector<std::vector<std::string>>>
+      multi_linked_lines_;  // 内层vector是一组前后继链接的车道线
+  std::vector<std::string> linked_line_;
+  std::vector<std::string> copy_linked_line_;
+  std::unordered_map<std::string, std::vector<ControlPoint>> merged_map_lines_;
 };
 
 }  // namespace loc

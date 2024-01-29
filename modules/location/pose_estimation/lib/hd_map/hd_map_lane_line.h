@@ -19,7 +19,6 @@
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_base.h"
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
-
 namespace hozon {
 namespace mp {
 namespace loc {

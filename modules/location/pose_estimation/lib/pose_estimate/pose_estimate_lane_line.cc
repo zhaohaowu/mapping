@@ -12,12 +12,12 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <queue>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
 namespace hozon {
 namespace mp {
 namespace loc {
@@ -25,19 +25,23 @@ namespace loc {
 MatchLaneLine::MatchLaneLine() {
   match_pairs_.reserve(6 * 50);
   line_match_pairs_.clear();
+  visited_start_points_.clear();
+  // visited_line_id_.clear();
+  multi_linked_lines_.clear();
+  merged_map_lines_.clear();
   T_W_V_ = SE3();
   T_V_W_ = SE3();
   percep_ = nullptr;
   frechet_distance3D_ = std::make_shared<FrechetDistance3D>();
 }
 
-void MatchLaneLine::set_ins_ts(const double &ins_ts) {
+void MatchLaneLine::set_ins_ts(const double& ins_ts) {
   ins_timestamp_ = ins_ts;
 }
 
-void MatchLaneLine::Match(const HdMap &hd_map,
-                          const std::shared_ptr<Perception> &perception,
-                          const SE3 &T_W_V) {
+void MatchLaneLine::Match(const HdMap& hd_map,
+                          const std::shared_ptr<Perception>& perception,
+                          const SE3& T_W_V) {
   percep_ = perception;
   T_W_V_ = T_W_V;
   T_V_W_ = T_W_V.inverse();
@@ -59,7 +63,7 @@ void MatchLaneLine::Match(const HdMap &hd_map,
     return;
   }
 
-  for (const auto &p : percep_->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE)) {
+  for (const auto& p : percep_->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE)) {
     auto lane = std::static_pointer_cast<PerceptionLaneLineList>(p);
     std::list<LaneLinePerceptionPtr> fil_percep_laneline;
     FilterPercpLaneline(lane->lane_line_list_, &fil_percep_laneline);
@@ -68,18 +72,22 @@ void MatchLaneLine::Match(const HdMap &hd_map,
     }
   }
   if (percep_lanelines_.size() == 0) {
-    HLOG_INFO << "percep_lanelines_.size() == 0 stamp:" << ins_timestamp_;
+    HLOG_ERROR << "percep_lanelines_.size() == 0 stamp:" << ins_timestamp_;
     return;
   } else {
     invalid_pecep_cnt = 0;
   }
-  HLOG_INFO << "lane macth input valid size, map:"
-            << map_boundary_lines->boundary_line_.size()
-            << " percep:" << percep_lanelines_.size();
-  LaneLineConnect(percep_lanelines_, map_boundary_lines->boundary_line_);
-  HLOG_INFO << "before filter match_pairs_.size():" << match_pairs_.size();
+  HLOG_ERROR << "lane macth input valid size, map:"
+             << map_boundary_lines->boundary_line_.size()
+             << " percep:" << percep_lanelines_.size();
+  MergeMapLines(map_boundary_lines, T_W_V);
+  if (merged_map_lines_.empty()) {
+    return;
+  }
+  LaneLineConnect(percep_lanelines_, merged_map_lines_);
+  HLOG_ERROR << "before filter match_pairs_.size():" << match_pairs_.size();
   FilterPointPair(&match_pairs_, T_W_V_);
-  HLOG_INFO << "after match_pairs_.size():" << match_pairs_.size();
+  HLOG_ERROR << "after match_pairs_.size():" << match_pairs_.size();
   bool adjust_left_pairs_weight = false;
   bool adjust_right_pairs_weight = false;
   size_t left_pairs_count = 0;
@@ -90,8 +98,8 @@ void MatchLaneLine::Match(const HdMap &hd_map,
     AdjustWeightByLaneWidth(match_pairs_, T_W_V_, &left_pairs_count,
                             &right_pairs_count, &adjust_left_pairs_weight,
                             &adjust_right_pairs_weight);
-    HLOG_INFO << "left_pairs_count = " << left_pairs_count
-              << ", right_pairs_count = " << right_pairs_count;
+    // HLOG_ERROR << "left_pairs_count = " << left_pairs_count
+    //            << ", right_pairs_count = " << right_pairs_count;
     if (left_pairs_count == 0 || right_pairs_count == 0) {
       return;
     }
@@ -112,8 +120,8 @@ void MatchLaneLine::Match(const HdMap &hd_map,
 }
 
 void MatchLaneLine::GetAverageDiffY(
-    const std::vector<PointMatchPair> &match_pairs, const SE3 &T,
-    double *avg_diff_y) {
+    const std::vector<PointMatchPair>& match_pairs, const SE3& T,
+    double* avg_diff_y) {
   if (!avg_diff_y) {
     return;
   }
@@ -124,7 +132,7 @@ void MatchLaneLine::GetAverageDiffY(
   std::vector<PointMatchPair> cal_match_pairs(match_pairs_count);
   std::copy(match_pairs.begin(), match_pairs.end(), cal_match_pairs.begin());
   std::sort(cal_match_pairs.begin(), cal_match_pairs.end(),
-            [](const PointMatchPair &pair1, const PointMatchPair &pair2) {
+            [](const PointMatchPair& pair1, const PointMatchPair& pair2) {
               return pair1.pecep_pv.x() < pair2.pecep_pv.x();
             });
   const auto window_size = (cal_match_pairs.size() > mm_params.window_size)
@@ -142,32 +150,32 @@ void MatchLaneLine::GetAverageDiffY(
   return;
 }
 
-void MatchLaneLine::FilterPointPair(std::vector<PointMatchPair> *match_pairs,
-                                    const SE3 &T) {
+void MatchLaneLine::FilterPointPair(std::vector<PointMatchPair>* match_pairs,
+                                    const SE3& T) {
   if (match_pairs == nullptr) {
     return;
   }
   double avg_diff_y = 0.0;
   GetAverageDiffY(*match_pairs, T, &avg_diff_y);
-  HLOG_ERROR << "avg_diff_y = " << avg_diff_y;
+  HLOG_INFO << "avg_diff_y = " << avg_diff_y;
   avg_diff_y += mm_params.avg_diff_offset;
   match_pairs->erase(
       std::remove_if(match_pairs->begin(), match_pairs->end(),
-                     [&](const PointMatchPair &pair) {
-                       return fabs((T.inverse() * pair.map_pw).y() - pair.pecep_pv.y()) >
-                              avg_diff_y;
+                     [&](const PointMatchPair& pair) {
+                       return fabs((T.inverse() * pair.map_pw).y() -
+                                   pair.pecep_pv.y()) > avg_diff_y;
                      }),
       match_pairs->end());
 }
 
 void MatchLaneLine::FilterPercpLaneline(
-    const std::list<LaneLinePerceptionPtr> &lanelines,
-    std::list<LaneLinePerceptionPtr> *const out) {
+    const std::list<LaneLinePerceptionPtr>& lanelines,
+    std::list<LaneLinePerceptionPtr>* const out) {
   if (out == nullptr) {
     return;
   }
   int egolane_cnt = 0;
-  for (auto &line : lanelines) {
+  for (auto& line : lanelines) {
     HLOG_INFO << "percep-laneinfo "
               << line->curve_vehicle_coord_.lane_position_type_
               << " confid|min|max: " << line->curve_vehicle_coord_.confidence_
@@ -177,7 +185,7 @@ void MatchLaneLine::FilterPercpLaneline(
       egolane_cnt++;
     }
   }
-  for (auto &line : lanelines) {
+  for (auto& line : lanelines) {
     if (line->curve_vehicle_coord_.confidence_ <
         mm_params.lane_confidence_thre) {
       continue;
@@ -200,10 +208,11 @@ void MatchLaneLine::FilterPercpLaneline(
 }
 
 bool MatchLaneLine::GetNeighboringMapLines(
-    const VP &target_perception_line_points,
-    const std::unordered_map<std::string, BoundaryLine> &boundary_lines,
-    std::vector<std::pair<V3, std::string>> *nearest_line_match_pairs,
-    std::vector<std::pair<V3, std::string>> *farest_line_match_pairs) {
+    const VP& target_perception_line_points,
+    const std::unordered_map<std::string, std::vector<ControlPoint>>&
+        map_points_cache,
+    std::vector<std::pair<V3, std::string>>* nearest_line_match_pairs,
+    std::vector<std::pair<V3, std::string>>* farest_line_match_pairs) {
   if (nearest_line_match_pairs == nullptr ||
       farest_line_match_pairs == nullptr ||
       target_perception_line_points.empty()) {
@@ -223,7 +232,6 @@ bool MatchLaneLine::GetNeighboringMapLines(
     nearest_percp_pt_flag =
         GetFitPoints(target_perception_line_points, 2.0, identity,
                      &target_perception_line_nearest_point);
-    HLOG_INFO << "nearest_percp_pt_flag : " << nearest_percp_pt_flag;
   }
   if (target_perception_line_points.back().x() < 30.0) {
     target_perception_line_farest_point = target_perception_line_points.back();
@@ -231,38 +239,34 @@ bool MatchLaneLine::GetNeighboringMapLines(
     farest_percp_pt_flag =
         GetFitPoints(target_perception_line_points, 30.0, identity,
                      &target_perception_line_farest_point);
-    HLOG_INFO << "farest_percp_pt_flag : " << farest_percp_pt_flag;
   }
-  for (auto &map_line : boundary_lines) {
-    const auto map_line_id = map_line.first;
-    const auto map_control_points = map_line.second.control_point;
-    VP map_points;
-    for (auto map_control_point : map_control_points) {
-      map_points.push_back(map_control_point.point);
-    }
+  for (auto& map_lane : map_points_cache) {
+    auto map_line_id = map_lane.first;
+    auto map_points = map_lane.second;
     V3 map_line_nearest_point;
     V3 map_line_farest_point;
     nearest_map_pt_flag =
-        GetFitPoints(map_points, target_perception_line_nearest_point.x(),
-                     T_W_V_, &map_line_nearest_point);
+        GetFitMapPoints(map_points, target_perception_line_nearest_point.x(),
+                        T_W_V_, &map_line_nearest_point);
     fatest_map_pt_flag =
-        GetFitPoints(map_points, target_perception_line_farest_point.x(),
-                     T_W_V_, &map_line_farest_point);
+        GetFitMapPoints(map_points, target_perception_line_farest_point.x(),
+                        T_W_V_, &map_line_farest_point);
     double nearest_delta_y = 0.f, farest_delta_y = 0.f;
     if (nearest_map_pt_flag && (map_line_nearest_point).norm() > 1e-10) {
       nearest_delta_y = fabs(target_perception_line_nearest_point.y() -
                              (map_line_nearest_point).y());
       if (nearest_delta_y < 1.5f) {
-        nearest_line_match_pairs->push_back(std::pair<V3, std::string>(
-            target_perception_line_nearest_point, map_line_id));
+        HLOG_INFO << "find near lane";
+        nearest_line_match_pairs->emplace_back(
+            make_pair(target_perception_line_nearest_point, map_line_id));
       }
     }
     if (fatest_map_pt_flag && (map_line_farest_point).norm() > 1e-10) {
       farest_delta_y = fabs(target_perception_line_nearest_point.y() -
                             (map_line_farest_point).y());
       if (farest_delta_y < 1.5f) {
-        farest_line_match_pairs->push_back(std::pair<V3, std::string>(
-            target_perception_line_farest_point, map_line_id));
+        farest_line_match_pairs->emplace_back(
+            std::make_pair(target_perception_line_farest_point, map_line_id));
       }
     }
   }
@@ -276,29 +280,159 @@ bool MatchLaneLine::GetNeighboringMapLines(
   return false;
 }
 
+void MatchLaneLine::MergeMapLines(
+    const std::shared_ptr<MapBoundaryLine>& boundary_lines, const SE3& T) {
+  HLOG_ERROR << "before boundary lines size = "
+             << boundary_lines->boundary_line_.size();
+  auto T_V_W = T.inverse();
+  std::map<V3, std::vector<LineSegment>, PointV3Comp<V3>>
+      lines;  // map: {{start_point, LineSegment}}
+  HLOG_ERROR << "===== test map line ====";
+  for (const auto& line : boundary_lines->boundary_line_) {
+    if (line.second.line_type == MapLineType::LaneChangeVirtualLine) {
+      continue;
+    }
+    auto id = line.first;
+    const auto& control_points = line.second.control_point;
+    if (control_points.size() <= 1) {
+      continue;
+    }
+    id = line.first;
+    auto start_point = control_points.front().point;
+    auto start_point_v = T_V_W * start_point;
+    auto end_point = control_points.back().point;
+    auto end_point_v = T_V_W * end_point;
+    if (start_point.norm() == end_point.norm()) {
+      continue;
+    }
+    if (start_point_v.x() > 60.f) {
+      continue;
+    }
+    if (start_point_v.y() > 8.f || start_point_v.y() < -8.f) {
+      HLOG_ERROR << "delete!!!!";
+      continue;
+    }
+    if (end_point_v.x() < -40) {
+      continue;
+    }
+
+    HLOG_ERROR << "id: " << id << " start_point: " << start_point.x() << " "
+               << start_point.y() << " " << start_point.z()
+               << " start_point_v: " << start_point_v.x() << " "
+               << start_point_v.y() << " " << start_point_v.z()
+               << "end_point: " << end_point.x() << " " << end_point.y() << " "
+               << end_point.z() << " end_point_v: " << end_point_v.x() << " "
+               << end_point_v.y() << " " << end_point_v.z();
+
+    LineSegment line_segment{id, end_point_v};
+    if (lines.find(start_point) == lines.end()) {
+      std::vector<LineSegment> line_segment_vec{line_segment};
+      lines.emplace(std::make_pair(start_point_v, line_segment_vec));
+    } else {
+      std::vector<LineSegment>& segments = lines[start_point_v];
+      segments.emplace_back(line_segment);
+    }
+  }
+  for (auto& line : lines) {
+    auto root_segment_start_point = line.first;
+    HLOG_ERROR << "root_segment_start_point: " << root_segment_start_point.x()
+               << " " << root_segment_start_point.y() << " "
+               << root_segment_start_point.z();
+    std::vector<std::vector<std::string>> linked_lines_id;  // 一组车道线
+    std::vector<std::string> line_ids;
+    if (visited_start_points_.count(root_segment_start_point) > 0) {
+      HLOG_ERROR << "==============";
+      continue;
+    }
+    int loop = 0;
+    Traversal(lines, root_segment_start_point, &linked_lines_id, line_ids,
+              loop);
+    multi_linked_lines_.emplace_back(linked_lines_id);
+  }
+  HLOG_ERROR << "multi_linked_lines_ size = " << multi_linked_lines_.size();
+  if (multi_linked_lines_.empty()) {
+    return;
+  }
+  if (!merged_map_lines_.empty()) {
+    merged_map_lines_.clear();
+  }
+  for (auto& lines : multi_linked_lines_) {
+    for (auto& line_ids : lines) {
+      if (line_ids.empty()) {
+        continue;
+      }
+      auto first_line_id = line_ids.front();
+      std::vector<ControlPoint> control_points;
+      for (auto& line_id : line_ids) {
+        for (auto& control_point :
+             boundary_lines->boundary_line_[line_id].control_point) {
+          control_point.point = T_V_W * control_point.point;
+          control_points.emplace_back(control_point);
+        }
+      }
+      merged_map_lines_[first_line_id] = control_points;
+    }
+  }
+
+  HLOG_ERROR << "merged_map_lines size: " << merged_map_lines_.size();
+  multi_linked_lines_.clear();
+  return;
+}
+
+void MatchLaneLine::Traversal(
+    const std::map<V3, std::vector<std::pair<std::string, V3>>,
+                   PointV3Comp<V3>>& lines,
+    V3 root_start_point, std::vector<std::vector<std::string>>* linked_lines_id,
+    std::vector<std::string> line_ids, int loop) {
+  if (linked_lines_id == nullptr || lines.empty()) {
+    return;
+  }
+  ++loop;
+  V3 cur_start_point = root_start_point;
+  visited_start_points_.insert(cur_start_point);
+  auto cur_line_infos_iter = lines.find(cur_start_point);
+  if (cur_line_infos_iter == lines.end()) {
+    if (line_ids.empty()) {
+      HLOG_WARN << "traversal loop: " << loop << " 4";
+      return;
+    }
+    HLOG_WARN << "traversal loop: " << loop
+              << " 6, line_id_vector size: " << line_ids.size();
+    linked_lines_id->emplace_back(
+        line_ids);  // 一侧车道线可能会有两根链接后车道线
+    return;
+  }
+  auto successor_segments_info = cur_line_infos_iter->second;
+  int size = static_cast<int>(successor_segments_info.size());
+  if (size > 0) {
+    for (int i = 0; i < size; ++i) {
+      line_ids.emplace_back(successor_segments_info[i].first);
+      Traversal(lines, successor_segments_info[i].second, linked_lines_id,
+                line_ids, loop);
+    }
+  } else {
+    HLOG_ERROR << "traversal loop: " << loop << " no sucsess";
+  }
+}
+
 void MatchLaneLine::LaneLineConnect(
-    std::list<std::list<LaneLinePerceptionPtr>> percep_lanelines,
-    std::unordered_map<std::string, BoundaryLine> boundary_lines) {
-  if (boundary_lines.empty()) {
-    return;
-  }
-  if (percep_lanelines.empty()) {
-    HLOG_ERROR << "cant get percep lines!";
-    return;
-  }
+    const std::list<std::list<LaneLinePerceptionPtr>>& percep_lanelines,
+    const std::unordered_map<std::string, std::vector<ControlPoint>>&
+        boundary_lines) {
   HLOG_INFO << "percep_lanelines.size = " << percep_lanelines.size()
             << " boundary_lines.size = " << boundary_lines.size();
   static const double y_dist_thres = 1.f;
   double min_match_x = 2.f;
   double max_match_x = 30.f;
   auto lane_lines = percep_->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE);
-  for (auto &fil_line_list : percep_lanelines) {
+  for (auto& fil_line_list : percep_lanelines) {
     if (fil_line_list.size() == 0) {
-      HLOG_INFO << "fil_line_list.size() == 0";
+      HLOG_ERROR << "fil_line_list.size() == 0";
       return;
     }
     HLOG_INFO << "fil_line_list.size = " << fil_line_list.size();
-    for (auto &perception_line : fil_line_list) {
+
+    for (auto& perception_line : fil_line_list) {
       if (perception_line == nullptr) {
         continue;
       }
@@ -306,29 +440,29 @@ void MatchLaneLine::LaneLineConnect(
       if (perception_points.empty() || perception_points.size() < 2) {
         continue;
       }
-      std::sort(perception_points.begin(), perception_points.end(),
-                [](V3 point1, V3 point2) { return point1.x() < point2.x(); });
+      // std::sort(perception_points.begin(), perception_points.end(),
+      //  [](V3 point1, V3 point2) { return point1.x() < point2.x(); });
       double weight = 1.f;
       auto perception_first_point = perception_points[0];
       PercepLineType cur_type =
           static_cast<PercepLineType>(perception_line->lane_position_type());
       size_t map_line_type = 0;
-      std::vector<std::pair<V3, std::string>> nearest_line_match_pairs = {
-          {{0, 0, 0}, ""}};
-      std::vector<std::pair<V3, std::string>> farest_line_match_pairs = {
-          {{0, 0, 0}, ""}};
+      std::vector<std::pair<V3, std::string>> nearest_line_match_pairs;
+      std::vector<std::pair<V3, std::string>> farest_line_match_pairs;
+
       if (GetNeighboringMapLines(perception_points, boundary_lines,
                                  &nearest_line_match_pairs,
                                  &farest_line_match_pairs)) {
-        HLOG_INFO << "np_size = " << nearest_line_match_pairs.size()
-                  << ", fp_size = " << farest_line_match_pairs.size();
-        hozon::mp::loc::VP map_points{{0, 0, 0}};
-        hozon::mp::loc::VP sample_map_points{{0, 0, 0}};
-        for (auto &nearest_line_match_pair : nearest_line_match_pairs) {
-          auto map_line = boundary_lines[nearest_line_match_pair.second];
-          for (auto &control_point : map_line.control_point) {
-            map_points.emplace_back(control_point.point);
+        HLOG_ERROR << "np_size = " << nearest_line_match_pairs.size()
+                   << ", fp_size = " << farest_line_match_pairs.size();
+        std::vector<ControlPoint> map_points;
+        for (auto& nearest_line_match_pair : nearest_line_match_pairs) {
+          auto map_line_id = nearest_line_match_pair.second;
+          auto iter = boundary_lines.find(map_line_id);
+          if (iter == boundary_lines.end()) {
+            continue;
           }
+          map_points = iter->second;
         }
         if (map_points.empty()) {
           HLOG_ERROR << "map_points is empty";
@@ -340,7 +474,7 @@ void MatchLaneLine::LaneLineConnect(
               perception_points[i].x() > max_match_x) {
             continue;
           }
-          bool flag_fit = GetFitPoints(
+          bool flag_fit = GetFitMapPoints(
               map_points,
               std::max(2.0, static_cast<double>(perception_points[i].x())),
               T_W_V_, &pt);
@@ -354,7 +488,6 @@ void MatchLaneLine::LaneLineConnect(
             if (map_line_type) {
               weight *= mm_params.double_line_point_weight;
             }
-            sample_map_points.emplace_back(pt);
             match_pairs_.emplace_back(PointMatchPair(
                 T_W_V_ * pt, perception_points[i], cur_type, weight));
           }
@@ -362,43 +495,66 @@ void MatchLaneLine::LaneLineConnect(
       }
     }
   }
-  HLOG_INFO << "match_pairs_.size = " << match_pairs_.size();
+  HLOG_ERROR << "match_pairs_.size = " << match_pairs_.size();
 }
 
-bool MatchLaneLine::GetFitPoints(const VP &control_poins, const double x,
-                                 const SE3 &T_W_V, V3 *pt) {
+bool MatchLaneLine::GetFitPoints(const VP& points, const double x,
+                                 const SE3& T_W_V, V3* pt) {
   if (pt == nullptr) {
     return false;
   }
-  if (control_poins.size() < 2) {
+  if (points.size() < 2) {
     return false;
   }
-  SE3 T_V_W = T_W_V.inverse();
-  V3 left(0, 0, 0), right(0, 0, 0), last = T_V_W * control_poins[0];
-  for (int i = 1; i < control_poins.size(); i++) {
-    V3 cur = T_V_W * control_poins[i];
-    if (cur.x() >= x && last.x() < x) {
-      left = last;
-      right = cur;
-      break;
-    }
-    last = cur;
-  }
-  if (!(left.x() < x && right.x() >= x)) {
+  auto iter = std::lower_bound(
+      points.begin(), points.end(), V3({x, 0, 0}),
+      [](const V3& p0, const V3& p1) { return p0(0, 0) < p1(0, 0); });
+  if (iter == points.end() || iter == points.begin()) {
+    HLOG_INFO << "can not find point";
     return false;
   }
+  auto iter_pre = std::prev(iter);
   (*pt).x() = x;
-  double ratio = (x - left.x()) / (right.x() - left.x());
-  (*pt).y() = ratio * (right.y() - left.y()) + left.y();
-  (*pt).z() = ratio * (right.z() - left.z()) + left.z();
+  double ratio = (x - iter_pre->x()) / (iter->x() - iter_pre->x());
+  (*pt).y() = ratio * (iter->y() - iter_pre->y()) + iter_pre->y();
+  (*pt).z() = ratio * (iter->z() - iter_pre->z()) + iter_pre->z();
+  // HLOG_INFO << "find point:" << (*pt).x() << "," << (*pt).y();
   return true;
 }
 
-bool MatchLaneLine::CompareLaneWidth(const SE3 &T) {
+bool MatchLaneLine::GetFitMapPoints(const std::vector<ControlPoint>& points,
+                                    const double x, const SE3& T_W_V, V3* pt) {
+  if (pt == nullptr) {
+    return false;
+  }
+  if (points.size() < 2) {
+    return false;
+  }
+  auto iter =
+      std::lower_bound(points.begin(), points.end(), ControlPoint(0, {x, 0, 0}),
+                       [](const ControlPoint& p0, const ControlPoint& p1) {
+                         return p0.point(0, 0) < p1.point(0, 0);
+                       });
+  if (iter == points.end() || iter == points.begin()) {
+    HLOG_INFO << "can not find point";
+    return false;
+  }
+  auto iter_pre = std::prev(iter);
+  (*pt).x() = x;
+  double ratio =
+      (x - iter_pre->point.x()) / (iter->point.x() - iter_pre->point.x());
+  (*pt).y() =
+      ratio * (iter->point.y() - iter_pre->point.y()) + iter_pre->point.y();
+  (*pt).z() =
+      ratio * (iter->point.z() - iter_pre->point.z()) + iter_pre->point.z();
+  return true;
+}
+
+bool MatchLaneLine::CompareLaneWidth(const SE3& T) {
   std::vector<PointMatchPair> left_match_pairs;
   std::vector<PointMatchPair> right_match_pairs;
   double percep_lane_width = 0.f, map_lane_width = 0.f;
-  for (const auto &match_point_pair : match_pairs_) {
+  for (const auto& match_point_pair : match_pairs_) {
     const auto map_point = match_point_pair.map_pw;
     const auto percep_point = match_point_pair.pecep_pv;
     if ((T.inverse() * map_point).y() < 0 && percep_point.y() < 0) {
@@ -431,9 +587,9 @@ bool MatchLaneLine::CompareLaneWidth(const SE3 &T) {
 }
 
 void MatchLaneLine::AdjustWeightByLaneWidth(
-    const std::vector<PointMatchPair> &match_pairs, const SE3 &T,
-    size_t *left_pairs_count, size_t *right_pairs_count,
-    bool *adjust_left_pairs_weight, bool *adjust_right_pairs_weight) {
+    const std::vector<PointMatchPair>& match_pairs, const SE3& T,
+    size_t* left_pairs_count, size_t* right_pairs_count,
+    bool* adjust_left_pairs_weight, bool* adjust_right_pairs_weight) {
   if (adjust_left_pairs_weight == nullptr ||
       adjust_right_pairs_weight == nullptr || left_pairs_count == nullptr ||
       right_pairs_count == nullptr) {
@@ -442,7 +598,7 @@ void MatchLaneLine::AdjustWeightByLaneWidth(
   std::vector<PointMatchPair> left_match_pairs;
   std::vector<PointMatchPair> right_match_pairs;
   double percep_lane_width = 0.f, map_lane_width = 0.f, lane_width_diff = 0.f;
-  for (const auto &match_point_pair : match_pairs_) {
+  for (const auto& match_point_pair : match_pairs_) {
     const auto map_point = match_point_pair.map_pw;
     const auto percep_point = match_point_pair.pecep_pv;
     if ((T.inverse() * map_point).y() < 0 && percep_point.y() < 0) {
@@ -477,9 +633,9 @@ void MatchLaneLine::AdjustWeightByLaneWidth(
 }
 
 void MatchLaneLine::ComputeLaneWidth(
-    const std::vector<PointMatchPair> &left_match_pairs,
-    const std::vector<PointMatchPair> &right_match_pairs, const SE3 &T,
-    double *percep_lane_width, double *map_lane_width) {
+    const std::vector<PointMatchPair>& left_match_pairs,
+    const std::vector<PointMatchPair>& right_match_pairs, const SE3& T,
+    double* percep_lane_width, double* map_lane_width) {
   if (percep_lane_width == nullptr || map_lane_width == nullptr) {
     return;
   }
@@ -522,6 +678,18 @@ void MatchLaneLine::ComputeLaneWidth(
             << ", map_lane_width = " << *map_lane_width
             << ", count = " << count;
   return;
+}
+
+VP MatchLaneLine::SetRvizMergeMapLines() {
+  VP control_ponits;
+  for (auto& merged_map_line : merged_map_lines_) {
+    auto& control_ponits_vec = merged_map_line.second;
+    for (auto iter = control_ponits_vec.begin();
+         iter != control_ponits_vec.end(); ++iter) {
+      control_ponits.emplace_back(T_W_V_ * (*iter).point);
+    }
+  }
+  return control_ponits;
 }
 
 }  // namespace loc

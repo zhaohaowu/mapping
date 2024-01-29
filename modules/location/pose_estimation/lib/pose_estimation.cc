@@ -124,6 +124,13 @@ bool MapMatching::Init(const std::string& config_file,
       HLOG_WARN << "RvizAgent register " << kTopicMmFrontPoints << "failed";
     }
     ret = hozon::mp::util::RvizAgent::Instance()
+              .Register<adsfi_proto::viz::PointCloud>(
+                  kTopicMmMergedMapLaneLinePoints);
+    if (ret < 0) {
+      HLOG_WARN << "RvizAgent register " << kTopicMmMergedMapLaneLinePoints
+                << "failed";
+    }
+    ret = hozon::mp::util::RvizAgent::Instance()
               .Register<adsfi_proto::viz::MarkerArray>(KTopicMmHdMap);
     if (ret < 0) {
       HLOG_WARN << "RvizAgent register " << KTopicMmHdMap << " failed";
@@ -235,7 +242,8 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
                        ins.pos_gcj02().z());
   ins_altitude_ = pose.z();
   const auto& mq = ins.quaternion();
-  if (std::isnan(mq.w()) || std::isnan(mq.x()) || std::isnan(mq.y()) || std::isnan(mq.z())) {
+  if (std::isnan(mq.w()) || std::isnan(mq.x()) || std::isnan(mq.y()) ||
+      std::isnan(mq.z())) {
     HLOG_WARN << "Inspva_quaternion is null";
     return;
   }
@@ -243,9 +251,6 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
   Eigen::Quaterniond q_W_V(ins.quaternion().w(), ins.quaternion().x(),
                            ins.quaternion().y(), ins.quaternion().z());
   if (q_W_V.norm() < 1e-10) {
-    HLOG_WARN << "Inspva_fusion_HafNodeInfo quaternion(w,x,y,z) "
-              << q_W_V.w() << "," << q_W_V.x() << ","
-              << q_W_V.y() << "," << q_W_V.z();
     return;
   }
   q_W_V.normalize();
@@ -521,6 +526,11 @@ void MapMatching::procData() {
         map_match_->Match(mhd_map_, all_perception, T02_W_V_INPUT);
       },
       "match lane :");
+  if (hozon::mp::util::RvizAgent::Instance().Ok()) {
+    VP merged_map_lane_lines = map_match_->GetRvizMergeMapLines();
+    pubPoints(merged_map_lane_lines, time_sec_, time_nsec_,
+              kTopicMmMergedMapLaneLinePoints);
+  }
 
   matched_lane_pair_size_ = map_match_->GetMatchPairSize();
   if (matched_lane_pair_size_ < 2) {
@@ -601,7 +611,7 @@ void MapMatching::procData() {
         } else {
           setPoints(*lane, T02_W_V_INPUT, &front_points_);
         }
-        pubPoints(front_points_, time_sec_, time_nsec_);
+        pubPoints(front_points_, time_sec_, time_nsec_, kTopicMmFrontPoints);
       }
     }
   }
@@ -652,7 +662,6 @@ MapMatching::getMmNodeInfo() {
     if (!match_inited) {
       match_inited = true;
     }
-    HLOG_ERROR << "111111";
     return generateNodeInfo(T_output_, sec, nsec, false);
   }
 }
@@ -863,7 +872,8 @@ void MapMatching::setPoints(const PerceptionLaneLineList& line_list,
 }
 
 void MapMatching::pubPoints(const VP& points, const uint64_t& sec,
-                            const uint64_t& nsec) {
+                            const uint64_t& nsec,
+                            const std::string& krviz_topic) {
   if (hozon::mp::util::RvizAgent::Instance().Ok()) {
     adsfi_proto::viz::PointCloud lane_points;
     static uint32_t seq = 0;
@@ -884,8 +894,7 @@ void MapMatching::pubPoints(const VP& points, const uint64_t& sec,
       points_->set_z(p.z());
     }
 
-    hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmFrontPoints,
-                                                   lane_points);
+    hozon::mp::util::RvizAgent::Instance().Publish(krviz_topic, lane_points);
   }
 }
 

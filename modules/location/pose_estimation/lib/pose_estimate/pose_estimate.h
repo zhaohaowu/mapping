@@ -33,7 +33,8 @@ class MapMatch {
   bool CheckLaneWidth(const SE3 &T);
   void SetInsTs(const double &ins_ts);
   int GetLanePairSize() { return lane_line_->get_match_line_size(); }
-  int GetMatchPairSize() { return connect_.lane_line_match_pairs.size();}
+  int GetMatchPairSize() { return connect_.lane_line_match_pairs.size(); }
+  VP GetRvizMergeMapLines() { return lane_line_->SetRvizMergeMapLines(); }
 
  private:
   MatchLaneLine::Ptr lane_line_;

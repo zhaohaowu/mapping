@@ -12,6 +12,7 @@
 #include <memory>
 #include <queue>
 #include <string>
+#include <unordered_set>
 
 #include "base/utils/log.h"
 #include "common/math/vec2d.h"

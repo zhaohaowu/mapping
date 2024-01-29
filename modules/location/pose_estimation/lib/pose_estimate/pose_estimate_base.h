@@ -69,6 +69,7 @@ enum MapLineType {
   RoadVirtualLine = adsfi_proto::internal::SubMap::LineType::
       SubMap_LineType_LineType_RoadVirtualLine
 };
+
 template <class T>
 struct PointV3Comp {
   bool operator()(const T& p1, const T& p2) const { return p1.x() < p2.x(); }

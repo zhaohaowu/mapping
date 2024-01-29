@@ -11,53 +11,59 @@ namespace hozon {
 namespace mp {
 namespace common_onboard {
 
-static bool CvtArrowToPb(const base::ArrowPtr &arrow_msg, Arrow *pb_object);
+static bool CvtArrowToPb(const perception_base::ArrowPtr& arrow_msg,
+                         hozon::perception::Arrow* pb_object);
 
-static ArrowType CvtArrowType2Pb(base::ArrowType shape) {
+static hozon::perception::ArrowType CvtArrowType2Pb(
+    perception_base::ArrowType shape) {
   switch (shape) {
-    case base::ArrowType::STRAIGHT_FORWARD:
-      return ArrowType::STRAIGHT_FORWARD;
-    case base::ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT:
-      return ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT;
-    case base::ArrowType::STRAIGHT_FORWARD_OR_TURN_RIGHT:
-      return ArrowType::STRAIGHT_FORWARD_OR_TURN_RIGHT;
-    case base::ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT:
-      return ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT;
-    case base::ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND:
-      return ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND;
-    case base::ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT:
-      return ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT;
-    case base::ArrowType::TURN_LEFT:
-      return ArrowType::TURN_LEFT;
-    case base::ArrowType::TURN_LEFT_OR_MERGE_LEFT:
-      return ArrowType::TURN_LEFT_OR_MERGE_LEFT;
-    case base::ArrowType::TURN_LEFT_OR_TURN_AROUND:
-      return ArrowType::TURN_LEFT_OR_TURN_AROUND;
-    case base::ArrowType::TURN_LEFT_OR_TURN_RIGHT:
-      return ArrowType::TURN_LEFT_OR_TURN_RIGHT;
-    case base::ArrowType::TURN_RIGHT:
-      return ArrowType::TURN_RIGHT;
-    case base::ArrowType::TURN_RIGHT_OR_MERGE_RIGHT:
-      return ArrowType::TURN_RIGHT_OR_MERGE_RIGHT;
-    case base::ArrowType::TURN_RIGHT_OR_TURN_AROUND:
-      return ArrowType::TURN_RIGHT_OR_TURN_AROUND;
-    case base::ArrowType::TURN_AROUND:
-      return ArrowType::TURN_AROUND;
-    case base::ArrowType::FORBID_TURN_LEFT:
-      return ArrowType::FORBID_TURN_LEFT;
-    case base::ArrowType::FORBID_TURN_RIGHT:
-      return ArrowType::FORBID_TURN_RIGHT;
-    case base::ArrowType::FORBID_TURN_AROUND:
-      return ArrowType::FORBID_TURN_AROUND;
-    case base::ArrowType::FRONT_NEAR_CROSSWALK:
-      return ArrowType::FRONT_NEAR_CROSSWALK;
+    case perception_base::ArrowType::STRAIGHT_FORWARD:
+      return hozon::perception::ArrowType::STRAIGHT_FORWARD;
+    case perception_base::ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT:
+      return hozon::perception::ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT;
+    case perception_base::ArrowType::STRAIGHT_FORWARD_OR_TURN_RIGHT:
+      return hozon::perception::ArrowType::STRAIGHT_FORWARD_OR_TURN_RIGHT;
+    case perception_base::ArrowType::
+        STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT:
+      return hozon::perception::ArrowType::
+          STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT;
+    case perception_base::ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND:
+      return hozon::perception::ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND;
+    case perception_base::ArrowType::
+        STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT:
+      return hozon::perception::ArrowType::
+          STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT;
+    case perception_base::ArrowType::TURN_LEFT:
+      return hozon::perception::ArrowType::TURN_LEFT;
+    case perception_base::ArrowType::TURN_LEFT_OR_MERGE_LEFT:
+      return hozon::perception::ArrowType::TURN_LEFT_OR_MERGE_LEFT;
+    case perception_base::ArrowType::TURN_LEFT_OR_TURN_AROUND:
+      return hozon::perception::ArrowType::TURN_LEFT_OR_TURN_AROUND;
+    case perception_base::ArrowType::TURN_LEFT_OR_TURN_RIGHT:
+      return hozon::perception::ArrowType::TURN_LEFT_OR_TURN_RIGHT;
+    case perception_base::ArrowType::TURN_RIGHT:
+      return hozon::perception::ArrowType::TURN_RIGHT;
+    case perception_base::ArrowType::TURN_RIGHT_OR_MERGE_RIGHT:
+      return hozon::perception::ArrowType::TURN_RIGHT_OR_MERGE_RIGHT;
+    case perception_base::ArrowType::TURN_RIGHT_OR_TURN_AROUND:
+      return hozon::perception::ArrowType::TURN_RIGHT_OR_TURN_AROUND;
+    case perception_base::ArrowType::TURN_AROUND:
+      return hozon::perception::ArrowType::TURN_AROUND;
+    case perception_base::ArrowType::FORBID_TURN_LEFT:
+      return hozon::perception::ArrowType::FORBID_TURN_LEFT;
+    case perception_base::ArrowType::FORBID_TURN_RIGHT:
+      return hozon::perception::ArrowType::FORBID_TURN_RIGHT;
+    case perception_base::ArrowType::FORBID_TURN_AROUND:
+      return hozon::perception::ArrowType::FORBID_TURN_AROUND;
+    case perception_base::ArrowType::FRONT_NEAR_CROSSWALK:
+      return hozon::perception::ArrowType::FRONT_NEAR_CROSSWALK;
     default:
-      return ArrowType::ARROWTYPE_UNKNOWN;
+      return hozon::perception::ArrowType::ARROWTYPE_UNKNOWN;
   }
 }
 
 bool DataMapping::CvtMultiArrowsToPb(
-    const std::vector<base::ArrowPtr> &arrow_msgs,
+    const std::vector<perception_base::ArrowPtr>& arrow_msgs,
     NetaTransportElementPtr pb_objects) {
   if (arrow_msgs.size() == 0) {
     HLOG_DEBUG << "arrows msg size is 0";
@@ -79,19 +85,19 @@ bool DataMapping::CvtMultiArrowsToPb(
   return true;
 }
 
-bool DataMapping::CvtArrowToPb(const base::ArrowPtr &arrow_msg,
-                               Arrow *pb_arrow) {
+bool DataMapping::CvtArrowToPb(const perception_base::ArrowPtr& arrow_msg,
+                               hozon::perception::Arrow* pb_arrow) {
   if (nullptr == arrow_msg || nullptr == pb_arrow) {
     HLOG_ERROR << "arrow msg  or pb_arrow is nullptr.";
     return false;
   }
   pb_arrow->set_track_id(arrow_msg->id);
-  ArrowType send_type = CvtArrowType2Pb(arrow_msg->type);
+  hozon::perception::ArrowType send_type = CvtArrowType2Pb(arrow_msg->type);
   pb_arrow->set_type(send_type);
   pb_arrow->set_confidence(arrow_msg->confidence);
 
   if (arrow_msg->point_set_3d.size() != 0) {
-    for (auto &item_pt : arrow_msg->point_set_3d) {
+    for (auto& item_pt : arrow_msg->point_set_3d) {
       auto arrow_points = pb_arrow->mutable_points();
       auto pb_pt = arrow_points->add_point();
       pb_pt->set_x(item_pt.x);
@@ -99,7 +105,7 @@ bool DataMapping::CvtArrowToPb(const base::ArrowPtr &arrow_msg,
       pb_pt->set_z(item_pt.z);
     }
   } else if (arrow_msg->point_set_2d.size() != 0) {
-    for (auto &item_pt : arrow_msg->point_set_2d) {
+    for (auto& item_pt : arrow_msg->point_set_2d) {
       auto arrow_points = pb_arrow->mutable_points();
       auto pb_pt = arrow_points->add_point();
       pb_pt->set_x(item_pt.x);
@@ -113,15 +119,15 @@ bool DataMapping::CvtArrowToPb(const base::ArrowPtr &arrow_msg,
 }
 
 bool DataMapping::CvtArrowMeasurementToPb(
-    const std::vector<base::ArrowMeasurementPtr> &arrow_measure,
-    hozon::perception::TransportElement *transport_element) {
-  for (auto &item : arrow_measure) {
+    const std::vector<perception_base::ArrowMeasurementPtr>& arrow_measure,
+    hozon::perception::TransportElement* transport_element) {
+  for (auto& item : arrow_measure) {
     auto pb_arrow = transport_element->add_arrow();
     pb_arrow->set_track_id(item->id);
     pb_arrow->set_type(CvtArrowType2Pb(item->type));
     pb_arrow->set_confidence(item->confidence);
     if (item->point_set_3d.size() != 0) {
-      for (auto &item_pt : item->point_set_3d) {
+      for (auto& item_pt : item->point_set_3d) {
         auto arrow_points = pb_arrow->mutable_points();
         auto pb_pt = arrow_points->add_point();
         pb_pt->set_x(item_pt.x);
@@ -129,7 +135,7 @@ bool DataMapping::CvtArrowMeasurementToPb(
         pb_pt->set_z(item_pt.z);
       }
     } else if (item->point_set_2d.size() != 0) {
-      for (auto &item_pt : item->point_set_2d) {
+      for (auto& item_pt : item->point_set_2d) {
         auto arrow_points = pb_arrow->mutable_points();
         auto pb_pt = arrow_points->add_point();
         pb_pt->set_x(item_pt.x);
@@ -141,13 +147,14 @@ bool DataMapping::CvtArrowMeasurementToPb(
   return true;
 }
 
-bool DataMapping::CvtPb2ArrowMeasurement(const hozon::perception::Arrow &arrow,
-                                         base::ArrowMeasurementPtr arrowptr) {
+bool DataMapping::CvtPb2ArrowMeasurement(
+    const hozon::perception::Arrow& arrow,
+    perception_base::ArrowMeasurementPtr arrowptr) {
   arrowptr->id = arrow.track_id();
   arrowptr->confidence = arrow.confidence();
 
-  for (auto &item : arrow.points().point()) {
-    base::Point3DF llpt;
+  for (auto& item : arrow.points().point()) {
+    perception_base::Point3DF llpt;
     llpt.x = item.x();
     llpt.y = item.y();
     llpt.z = item.z();

@@ -24,6 +24,9 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+namespace perception_base = hozon::perception::base;
+namespace perception_lib = hozon::perception::lib;
+
 class RoadEdgePointFilterTrackerPipeline : public BaseTrackerPipeline {
  public:
   RoadEdgePointFilterTrackerPipeline() : BaseTrackerPipeline() {}
@@ -31,32 +34,36 @@ class RoadEdgePointFilterTrackerPipeline : public BaseTrackerPipeline {
 
   bool Init(const ProcessInitOption& options = ProcessInitOption()) override;
   bool Track(const ProcessOption& options,
-             base::RoadEdgesMeasurementConstPtr detect_measurements,
-             const base::RoadEdgesPtr& track_outputs);
+             perception_base::RoadEdgesMeasurementConstPtr detect_measurements,
+             const perception_base::RoadEdgesPtr& track_outputs);
 
   std::string Name() const override;
 
  private:
   void TransMeasurementVehicle2Local(
-      std::vector<base::RoadEdgeMeasurementPtr>* detect_measurements);
+      std::vector<perception_base::RoadEdgeMeasurementPtr>*
+          detect_measurements);
   void TransTrackerLocal2Vehicle(
-      std::vector<base::RoadEdgePtr>* tracked_outputs);
+      std::vector<perception_base::RoadEdgePtr>* tracked_outputs);
 
   void UpdateAssignedTracks(
-      std::vector<base::RoadEdgeMeasurementPtr>* detect_measurements,
+      std::vector<perception_base::RoadEdgeMeasurementPtr>* detect_measurements,
       const PointAssociationResult& association_result);
 
   void UpdateUnassignedTracks(
-      const std::vector<base::RoadEdgeMeasurementPtr>* detect_measurements,
+      const std::vector<perception_base::RoadEdgeMeasurementPtr>*
+          detect_measurements,
       const PointAssociationResult& association_result);
 
   void CreateNewTracks(
-      const std::vector<base::RoadEdgeMeasurementPtr>* detect_measurements,
+      const std::vector<perception_base::RoadEdgeMeasurementPtr>*
+          detect_measurements,
       const PointAssociationResult& association_result);
 
   void PostProcess();
 
-  void CollectOutputObjects(std::vector<base::RoadEdgePtr>* tracked_outputs);
+  void CollectOutputObjects(
+      std::vector<perception_base::RoadEdgePtr>* tracked_outputs);
 
   void RemoveLostTracks();
 

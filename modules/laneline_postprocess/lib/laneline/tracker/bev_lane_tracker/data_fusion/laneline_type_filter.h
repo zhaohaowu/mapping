@@ -7,9 +7,10 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
-#include <unordered_map>
+
 #include "boost/circular_buffer.hpp"
 #include "modules/laneline_postprocess/lib/laneline/curve_fitter/base_curve_fitter.h"
 #include "modules/laneline_postprocess/lib/laneline/proto/lane_postprocess.pb.h"
@@ -21,10 +22,10 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+namespace perception_base = hozon::perception::base;
 struct LaneTypeFilterInitOptions {
   LaneTypeFilterParam lane_type_filter_param;
 };
-
 
 class LaneTypeFilter : public BaseLaneFilter {
  public:
@@ -35,12 +36,12 @@ class LaneTypeFilter : public BaseLaneFilter {
   LaneTypeFilter& operator=(const LaneTypeFilter&) = delete;
 
   bool Init(const LaneTypeFilterInitOptions& init_options);
-  bool countTypeProbability(const base::LaneLineMeasurementPtr& measurement);
-  int countContinueTypeNum(const base::LaneLineMeasurementPtr& measurement);
-  base::LaneLineType getTrackType(
-      const base::LaneLineMeasurementPtr& measurement);
+  bool countTypeProbability(const LaneLineMeasurementPtr& measurement);
+  int countContinueTypeNum(const LaneLineMeasurementPtr& measurement);
+  perception_base::LaneLineType getTrackType(
+      const LaneLineMeasurementPtr& measurement);
   void UpdateWithMeasurement(const LaneFilterOptions& filter_options,
-                             const base::LaneLineMeasurementPtr& measurement);
+                             const LaneLineMeasurementPtr& measurement);
 
   void UpdateWithoutMeasurement(const LaneFilterOptions& filter_options);
 
@@ -50,16 +51,16 @@ class LaneTypeFilter : public BaseLaneFilter {
   void UpdateResult();
 
  private:
-  std::unordered_map<base::LaneLineType, double> type_probability_;
+  std::unordered_map<perception_base::LaneLineType, double> type_probability_;
   LaneTypeFilterParam lane_type_filter_param_;
-  base::LaneLineType max_count_type_;
-  boost::circular_buffer<base::LaneLineType> lastest_n_measures_type_;
-  base::LaneLineType final_track_type_;
+  perception_base::LaneLineType max_count_type_;
+  boost::circular_buffer<perception_base::LaneLineType>
+      lastest_n_measures_type_;
+  perception_base::LaneLineType final_track_type_;
   int max_history_window_ = 10;
   float type_keep_weight_ = 1.0;
   int type_count_threshold_ = 3;
 };
-
 
 class RoadEdgeTypeFilter : public BaseRoadEdgeFilter {
  public:
@@ -70,12 +71,12 @@ class RoadEdgeTypeFilter : public BaseRoadEdgeFilter {
   RoadEdgeTypeFilter& operator=(const RoadEdgeTypeFilter&) = delete;
 
   bool Init(const LaneTypeFilterInitOptions& init_options);
-  bool countTypeProbability(const base::RoadEdgeMeasurementPtr& measurement);
-  int countContinueTypeNum(const base::RoadEdgeMeasurementPtr& measurement);
-  base::RoadEdgeType getTrackType(
-      const base::RoadEdgeMeasurementPtr& measurement);
+  bool countTypeProbability(const RoadEdgeMeasurementPtr& measurement);
+  int countContinueTypeNum(const RoadEdgeMeasurementPtr& measurement);
+  perception_base::RoadEdgeType getTrackType(
+      const RoadEdgeMeasurementPtr& measurement);
   void UpdateWithMeasurement(const LaneFilterOptions& filter_options,
-                             const base::RoadEdgeMeasurementPtr& measurement);
+                             const RoadEdgeMeasurementPtr& measurement);
 
   void UpdateWithoutMeasurement(const LaneFilterOptions& filter_options);
 
@@ -85,11 +86,12 @@ class RoadEdgeTypeFilter : public BaseRoadEdgeFilter {
   void UpdateResult();
 
  private:
-  std::unordered_map<base::RoadEdgeType, double> type_probability_;
+  std::unordered_map<perception_base::RoadEdgeType, double> type_probability_;
   LaneTypeFilterParam lane_type_filter_param_;
-  base::RoadEdgeType max_count_type_;
-  boost::circular_buffer<base::RoadEdgeType> lastest_n_measures_type_;
-  base::RoadEdgeType final_track_type_;
+  perception_base::RoadEdgeType max_count_type_;
+  boost::circular_buffer<perception_base::RoadEdgeType>
+      lastest_n_measures_type_;
+  perception_base::RoadEdgeType final_track_type_;
   int max_history_window_ = 10;
   float type_keep_weight_ = 1.0;
   int type_count_threshold_ = 3;

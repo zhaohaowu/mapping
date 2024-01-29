@@ -6,7 +6,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-file(GLOB_RECURSE LM_SRCS "*.cpp" "*.cc")
+file(GLOB_RECURSE LM_SRCS "*.cc")
 
 #add_mapping_library 加前缀mapping_
 add_mapping_library(lmap_core SHARED ${LM_SRCS})

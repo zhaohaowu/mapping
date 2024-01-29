@@ -36,8 +36,8 @@ bool LaneColorFilter::Init(const LaneColorFilterInitOptions& init_options) {
 // 统计不同颜色出现的概率和最大概率类型
 // 返回不同颜色的统计概率值
 bool LaneColorFilter::countColorProbability(
-    const base::LaneLineMeasurementPtr& measurement) {
-  const base::LaneLineColor& detect_color = measurement->color;
+    const perception_base::LaneLineMeasurementPtr& measurement) {
+  const perception_base::LaneLineColor& detect_color = measurement->color;
   max_count_color_ = lane_target_ref_->GetConstTrackedLaneLine()->color;
   if (!(color_probability_.find(detect_color) == color_probability_.end())) {
     color_probability_[detect_color] += measurement->color_confidence;
@@ -55,9 +55,9 @@ bool LaneColorFilter::countColorProbability(
 }
 // 统计连续多帧的检测类型count数
 int LaneColorFilter::countContinueColorNum(
-    const base::LaneLineMeasurementPtr& measurement) {
+    const perception_base::LaneLineMeasurementPtr& measurement) {
   int count = 1, size_color = lastest_n_measures_color_.size();
-  const base::LaneLineColor& detect_color = measurement->color;
+  const perception_base::LaneLineColor& detect_color = measurement->color;
   // 判断连续多帧的检测结果
   if (detect_color != lane_target_ref_->GetConstTrackedLaneLine()->color) {
     for (int index = size_color - 1; index >= 1; index--) {
@@ -71,11 +71,11 @@ int LaneColorFilter::countContinueColorNum(
   return count;
 }
 
-base::LaneLineColor LaneColorFilter::getTrackColor(
-    const base::LaneLineMeasurementPtr& measurement) {
-  base::LaneLineColor track_color =
+perception_base::LaneLineColor LaneColorFilter::getTrackColor(
+    const perception_base::LaneLineMeasurementPtr& measurement) {
+  perception_base::LaneLineColor track_color =
       lane_target_ref_->GetConstTrackedLaneLine()->color;
-  const base::LaneLineColor& detect_color = measurement->color;
+  const perception_base::LaneLineColor& detect_color = measurement->color;
 
   int color_count_threshold = color_count_threshold_;
   // 1. 根据统计类型概率的最大值选取颜色
@@ -84,7 +84,7 @@ base::LaneLineColor LaneColorFilter::getTrackColor(
   // 2. 根据连续多帧检测出同一种颜色切换
   int count = countContinueColorNum(measurement);
   if (count >= color_count_threshold &&
-      detect_color != base::LaneLineColor::UNKNOWN) {
+      detect_color != perception_base::LaneLineColor::UNKNOWN) {
     color_probability_.clear();
     // 为了防止下一次检测秒切颜色,默认是1，可配置
     color_probability_[detect_color] = color_keep_weight_;
@@ -105,7 +105,7 @@ base::LaneLineColor LaneColorFilter::getTrackColor(
 
 void LaneColorFilter::UpdateWithMeasurement(
     const LaneFilterOptions& filter_options,
-    const base::LaneLineMeasurementPtr& measurement) {
+    const perception_base::LaneLineMeasurementPtr& measurement) {
   // PERF_FUNCTION();
   // PERF_BLOCK_START();
 

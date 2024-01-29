@@ -5,7 +5,6 @@
 *   date       ：2023.02.28
 ================================================================*/
 #include "modules/laneline_postprocess/app/roadedge_postprocess.h"
-
 #include <float.h>
 #include <sys/time.h>
 
@@ -32,8 +31,8 @@ namespace mp {
 namespace environment {
 
 bool RoadEdgePostProcess::Init(const ProcessInitOption& init_option) {
-  auto config_manager = lib::ConfigManager::Instance();
-  const lib::ModelConfig* model_config = nullptr;
+  auto config_manager = perception_lib::ConfigManager::Instance();
+  const perception_lib::ModelConfig* model_config = nullptr;
   if (!config_manager->GetModelConfig(Name(), &model_config)) {
     HLOG_ERROR << "Parse config failed! Name: " << Name();
     return false;
@@ -47,8 +46,9 @@ bool RoadEdgePostProcess::Init(const ProcessInitOption& init_option) {
     return false;
   }
 
-  config_file = lib::FileUtil::GetAbsolutePath(work_root, config_file);
-  if (!lib::GetProtoFromFile(config_file, &config_)) {
+  config_file =
+      perception_lib::FileUtil::GetAbsolutePath(work_root, config_file);
+  if (!perception_lib::GetProtoFromFile(config_file, &config_)) {
     HLOG_ERROR << "Roadedge Post Process Get Proto File Failed !";
     return false;
   }
@@ -65,14 +65,16 @@ bool RoadEdgePostProcess::Init(const ProcessInitOption& init_option) {
   return true;
 }
 
-bool RoadEdgePostProcess::Process(base::MeasurementFramePtr measurement_ptr,
-                                  base::FusionFramePtr fusion_ptr) {
+bool RoadEdgePostProcess::Process(
+    perception_base::MeasurementFramePtr measurement_ptr,
+    perception_base::FusionFramePtr fusion_ptr) {
   HLOG_DEBUG << "Start RoadEdgePostProcess Working...";
   if (!fusion_ptr->scene_) {
-    fusion_ptr->scene_ = std::make_shared<base::Scene>();
+    fusion_ptr->scene_ = std::make_shared<perception_base::Scene>();
   }
   if (!fusion_ptr->scene_->road_edges) {
-    fusion_ptr->scene_->road_edges = std::make_shared<base::RoadEdges>();
+    fusion_ptr->scene_->road_edges =
+        std::make_shared<perception_base::RoadEdges>();
   }
 
   InputDataSingleton* local_data = InputDataSingleton::Instance();
@@ -96,8 +98,8 @@ bool RoadEdgePostProcess::Process(base::MeasurementFramePtr measurement_ptr,
 
 bool RoadEdgePostProcess::Process(
     const ProcessOption& options,
-    base::RoadEdgesMeasurementConstPtr detect_measurements,
-    const base::RoadEdgesPtr track_outputs) {
+    perception_base::RoadEdgesMeasurementConstPtr detect_measurements,
+    const perception_base::RoadEdgesPtr track_outputs) {
   // PERF_FUNCTION();
   // PERF_BLOCK_START();
 

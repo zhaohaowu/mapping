@@ -189,8 +189,10 @@ int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
     }
   }
   last_percep_time = cur_percep_time;
+  std::shared_ptr<Perception> perception = std::make_shared<Perception>();
+  DataConvert::SetPerception(*msg, perception.get());
 
-  lmap_->OnPerception(msg);
+  lmap_->OnPerception(perception);
   HLOG_INFO << "processed laneline data";
   return 0;
 }
@@ -243,7 +245,12 @@ int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
     }
   }
   last_localization_time = cur_localization_time;
-  lmap_->OnLocalization(msg);
+
+  std::shared_ptr<Localization> latest_localization =
+      std::make_shared<Localization>();
+  DataConvert::SetLocalization(*msg, latest_localization.get());
+
+  lmap_->OnLocalization(latest_localization);
   HLOG_INFO << "processed localization data";
   return 0;
 }
@@ -255,7 +262,10 @@ int32_t LocalMappingOnboard::OnIns(adf_lite_Bundle* input) {
   if (!lmap_) {
     return -1;
   }
-  lmap_->OnIns(msg);
+
+  std::shared_ptr<InsData> latest_ins_data = std::make_shared<InsData>();
+  DataConvert::SetIns(*msg, latest_ins_data.get());
+  lmap_->OnIns(latest_ins_data);
   return 0;
 }
 

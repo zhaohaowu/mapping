@@ -4,7 +4,6 @@
 // @brief: associate history lane_track to current detected lane　object
 
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/pipeline/lane_point_tracker_pipeline.h"
-
 #include <math.h>
 
 #include <limits>
@@ -20,18 +19,10 @@
 namespace hozon {
 namespace mp {
 namespace environment {
-using base::LaneLine;
-using base::LaneLinePoint;
-using base::LaneLinePosition;
-using base::LaneLinePtr;
-using base::Location;
-using lib::FileUtil;
-using lib::LocationManager;
-using lib::ParseProtobufFromFile;
 
-bool LanePointFilterTrackerPipeline::Init(const ProcessInitOption &options) {
-  auto config_manager = lib::ConfigManager::Instance();
-  const lib::ModelConfig *model_config = nullptr;
+bool LanePointFilterTrackerPipeline::Init(const ProcessInitOption& options) {
+  auto config_manager = perception_lib::ConfigManager::Instance();
+  const perception_lib::ModelConfig* model_config = nullptr;
   if (!config_manager->GetModelConfig(Name(), &model_config)) {
     HLOG_ERROR << "Parse config failed! Name: " << Name();
     return false;
@@ -46,11 +37,12 @@ bool LanePointFilterTrackerPipeline::Init(const ProcessInitOption &options) {
   }
 
   LanePostProcessParam postprocess_param;
-  config_file = lib::FileUtil::GetAbsolutePath(work_root, config_file);
-  CHECK(ParseProtobufFromFile<LanePostProcessParam>(config_file,
-                                                    &lane_post_process_param_))
+  config_file =
+      perception_lib::FileUtil::GetAbsolutePath(work_root, config_file);
+  CHECK(perception_lib::ParseProtobufFromFile<LanePostProcessParam>(
+      config_file, &lane_post_process_param_))
       << "Read config failed: " << config_file;
-  const LaneTrackerPipelineParam &lane_tracker_pipeline_param =
+  const LaneTrackerPipelineParam& lane_tracker_pipeline_param =
       lane_post_process_param_.lane_tracker_pipeline_param();
   HLOG_DEBUG << "load lane_tracker_pipeline parameters from " << config_file
              << " \nParams: " << lane_tracker_pipeline_param.DebugString();
@@ -83,41 +75,41 @@ bool LanePointFilterTrackerPipeline::Init(const ProcessInitOption &options) {
 }
 
 void LanePointFilterTrackerPipeline::TransMeasurementVehicle2Local(
-    std::vector<base::LaneLineMeasurementPtr> *detect_measurements) {
-  for (auto &detect_measurement : *detect_measurements) {
-    auto &points = detect_measurement->point_set;
+    std::vector<perception_base::LaneLineMeasurementPtr>* detect_measurements) {
+  for (auto& detect_measurement : *detect_measurements) {
+    auto& points = detect_measurement->point_set;
     TransVehiclePoint2Local(&points);
   }
   return;
 }
 
 void LanePointFilterTrackerPipeline::TransTrackerLocal2Vehicle(
-    std::vector<base::LaneLinePtr> *tracked_outputs) {
-  for (auto &tracked_output : *tracked_outputs) {
+    std::vector<perception_base::LaneLinePtr>* tracked_outputs) {
+  for (auto& tracked_output : *tracked_outputs) {
     tracked_output->geo_confidence = 1.0;
-    auto &points = tracked_output->point_set;
+    auto& points = tracked_output->point_set;
     TransLocalPoint2Vehicle(&points);
   }
   return;
 }
 
 bool LanePointFilterTrackerPipeline::Track(
-    const ProcessOption &options,
-    base::LaneLinesMeasurementConstPtr detect_measurements_info,
-    const base::LaneLinesPtr &track_lanelines_info) {
+    const ProcessOption& options,
+    perception_base::LaneLinesMeasurementConstPtr detect_measurements_info,
+    const perception_base::LaneLinesPtr& track_lanelines_info) {
   // PERF_FUNCTION();
   // PERF_BLOCK_START();
 
-  const auto &track_lanelines = &track_lanelines_info->lanelines;
+  const auto& track_lanelines = &track_lanelines_info->lanelines;
   track_lanelines->clear();
 
   // 1. 维护最近两帧的pose信息
   HLOG_DEBUG << "start do UpdateDrPose...";
   UpdateDrPose();
   HLOG_DEBUG << "end do UpdateDrPose...";
-  std::vector<base::LaneLineMeasurementPtr> vec_measurements =
+  std::vector<perception_base::LaneLineMeasurementPtr> vec_measurements =
       detect_measurements_info->lanelines;
-  const auto &detect_measurements = &vec_measurements;
+  const auto& detect_measurements = &vec_measurements;
   // for (auto &cross_point : detect_measurements_info->crosspoints) {
   //   std::cout << "cross_point id:" << cross_point->id;
   //   std::cout << "cross_point type:" << int(cross_point->type);
@@ -142,18 +134,18 @@ bool LanePointFilterTrackerPipeline::Track(
                             lane_trackers_, &point_association_result);
   HLOG_DEBUG << "detection nums: " << detect_measurements->size()
              << "tracker nums: " << lane_trackers_.size();
-  for (auto &assign : point_association_result.assignments) {
+  for (auto& assign : point_association_result.assignments) {
     auto target_idx = std::get<0>(assign);
     auto detect_idx = std::get<1>(assign);
     HLOG_DEBUG << "assignments target_idx: " << target_idx
                << " detect_idx:" << detect_idx;
   }
 
-  for (auto &unassign_track : point_association_result.unassigned_tracks) {
+  for (auto& unassign_track : point_association_result.unassigned_tracks) {
     HLOG_DEBUG << "unassign_track idx : " << unassign_track;
   }
 
-  for (auto &unassign_object : point_association_result.unsigned_objects) {
+  for (auto& unassign_object : point_association_result.unsigned_objects) {
     HLOG_DEBUG << "unassign_object idx: " << unassign_object;
   }
 
@@ -199,7 +191,7 @@ bool LanePointFilterTrackerPipeline::Track(
 }
 
 void LanePointFilterTrackerPipeline::PostProcess(
-    std::vector<base::LaneLinePtr> *tracked_lanelines) {
+    std::vector<perception_base::LaneLinePtr>* tracked_lanelines) {
   // set lane pose atrribute
   SetPoseAttribute(tracked_lanelines);
 
@@ -207,9 +199,9 @@ void LanePointFilterTrackerPipeline::PostProcess(
 }
 
 void LanePointFilterTrackerPipeline::UpdateAssignedTracks(
-    std::vector<base::LaneLineMeasurementPtr> *detected_lanelines,
-    const PointAssociationResult &association_result) {
-  auto &assignments = association_result.assignments;
+    std::vector<perception_base::LaneLineMeasurementPtr>* detected_lanelines,
+    const PointAssociationResult& association_result) {
+  auto& assignments = association_result.assignments;
   size_t track_index = 0;
   size_t detect_index = 0;
 
@@ -228,9 +220,10 @@ void LanePointFilterTrackerPipeline::UpdateAssignedTracks(
 }
 
 void LanePointFilterTrackerPipeline::UpdateUnassignedTracks(
-    const std::vector<base::LaneLineMeasurementPtr> *detected_lanelines,
-    const PointAssociationResult &association_result) {
-  auto &unassigned_track_indexs = association_result.unassigned_tracks;
+    const std::vector<perception_base::LaneLineMeasurementPtr>*
+        detected_lanelines,
+    const PointAssociationResult& association_result) {
+  auto& unassigned_track_indexs = association_result.unassigned_tracks;
   size_t track_index = 0;
   SimpleLaneTrackerOptions tracker_option;
   tracker_option.novatel2world_pose = novatel2world_pose_;
@@ -246,9 +239,10 @@ void LanePointFilterTrackerPipeline::UpdateUnassignedTracks(
 }
 
 void LanePointFilterTrackerPipeline::CreateNewTracks(
-    const std::vector<base::LaneLineMeasurementPtr> *detected_lanelines,
-    const PointAssociationResult &association_result) {
-  auto &unsigned_objects = association_result.unsigned_objects;
+    const std::vector<perception_base::LaneLineMeasurementPtr>*
+        detected_lanelines,
+    const PointAssociationResult& association_result) {
+  auto& unsigned_objects = association_result.unsigned_objects;
   size_t detect_index = 0;
   for (size_t i = 0; i < unsigned_objects.size(); ++i) {
     detect_index = unsigned_objects[i];
@@ -270,7 +264,7 @@ void LanePointFilterTrackerPipeline::CreateNewTracks(
 void LanePointFilterTrackerPipeline::RemoveLostTracks() {
   size_t track_count = 0;
   for (size_t i = 0; i < lane_trackers_.size(); ++i) {
-    const auto &track_id = lane_trackers_[i]->GetConstLaneTarget()->Id();
+    const auto& track_id = lane_trackers_[i]->GetConstLaneTarget()->Id();
     if (lane_trackers_[i]->GetConstLaneTarget()->IsDie()) {
       HLOG_DEBUG << "LaneTarget " << track_id << " is lost!";
       if (lane_pos_map.count(track_id) != 0) {
@@ -292,8 +286,8 @@ void LanePointFilterTrackerPipeline::RemoveLostTracks() {
 }
 
 void LanePointFilterTrackerPipeline::SetPoseAttribute(
-    std::vector<base::LaneLinePtr> *tracked_lanelines) {
-  const auto &lane_tracker_pipeline_param =
+    std::vector<perception_base::LaneLinePtr>* tracked_lanelines) {
+  const auto& lane_tracker_pipeline_param =
       lane_post_process_param_.lane_tracker_pipeline_param();
   float ref_min =
       lane_tracker_pipeline_param.lane_pose_setter_param().ref_min();
@@ -315,11 +309,11 @@ void LanePointFilterTrackerPipeline::SetPoseAttribute(
     // 如果主车道线较短，即将消失，则针对远处车道线进行位置赋值,
     // 近端赋值为OTHER.
     SetLanePosition(ref_min, ref_length, sample_num, *tracked_lanelines,
-                    far_lanes_flag, lane_d_map, true);
+                    far_lanes_flag, &lane_d_map, true);
   } else {
     // 如果主车道线长度一般，则针对近处车道线进行位置赋值, 远端赋值为OTHER.
     SetLanePosition(ref_min, ref_length, sample_num, *tracked_lanelines,
-                    far_lanes_flag, lane_d_map, false);
+                    far_lanes_flag, &lane_d_map, false);
   }
   // 判断是否稳定，稳定时再判断当pos改变时是否要修改pos
   bool stable_flag = CheckStableFlag(tracked_lanelines, disappear_flag);
@@ -328,9 +322,9 @@ void LanePointFilterTrackerPipeline::SetPoseAttribute(
 }
 
 void LanePointFilterTrackerPipeline::revise_lanes_flag(
-    const std::vector<base::LaneLinePtr> *tracked_lanelines,
-    std::vector<bool> &far_lanes_flag) {
-  std::vector<base::LaneLinePtr> near_lanelines;
+    const std::vector<perception_base::LaneLinePtr>* tracked_lanelines,
+    std::vector<bool>& far_lanes_flag) {
+  std::vector<perception_base::LaneLinePtr> near_lanelines;
   float near_start = std::numeric_limits<float>::max(),
         near_end = std::numeric_limits<float>::max();
   for (int i = 0; i < far_lanes_flag.size(); ++i) {
@@ -344,7 +338,7 @@ void LanePointFilterTrackerPipeline::revise_lanes_flag(
   }
   for (int i = 0; i < far_lanes_flag.size(); ++i) {
     if (far_lanes_flag[i]) {
-      const auto &laneline = tracked_lanelines->at(i);
+      const auto& laneline = tracked_lanelines->at(i);
       float overlap_start =
           std::max(near_start, laneline->point_set.front().vehicle_point.x);
       float overlap_end =
@@ -358,7 +352,7 @@ void LanePointFilterTrackerPipeline::revise_lanes_flag(
 }
 
 bool LanePointFilterTrackerPipeline::CheckStableFlag(
-    const std::vector<base::LaneLinePtr> *tracked_lanelines,
+    const std::vector<perception_base::LaneLinePtr>* tracked_lanelines,
     bool disappear_flag) {
   // 判断是否稳定前行
   bool stable_flag = false;
@@ -367,7 +361,7 @@ bool LanePointFilterTrackerPipeline::CheckStableFlag(
     LaneLinePtr lane_target = (*tracked_lanelines)[i];
     auto iter_d = lane_d_map.find(lane_target->id);
     if (iter_d != lane_d_map.end()) {
-      auto &d_error = std::get<1>(iter_d->second);
+      auto& d_error = std::get<1>(iter_d->second);
       if (d_error < d_change_threshold_) {
         count_lane++;
       }
@@ -386,14 +380,14 @@ bool LanePointFilterTrackerPipeline::CheckEgoPose(LaneLinePosition pose) {
 }
 
 bool LanePointFilterTrackerPipeline::CheckStablePosFlag(
-    const std::vector<base::LaneLinePtr> *tracked_lanelines) {
+    const std::vector<perception_base::LaneLinePtr>* tracked_lanelines) {
   bool stable_pos_flag = false;
   for (int i = 0; i < tracked_lanelines->size(); ++i) {
     LaneLinePtr lane_target = (*tracked_lanelines)[i];
     HLOG_DEBUG << "Position filter output:" << int(lane_target->position);
     auto iter_pos = lane_pos_map.find(lane_target->id);
     if (iter_pos != lane_pos_map.end()) {
-      const auto &last_pos = iter_pos->second;
+      const auto& last_pos = iter_pos->second;
       if (last_pos == LaneLinePosition::OTHER &&
           CheckEgoPose(lane_target->position)) {
         // 过路口场景
@@ -419,8 +413,8 @@ bool LanePointFilterTrackerPipeline::CheckStablePosFlag(
 }
 // todo: 若外侧新建线会出现-2, -2的情况；
 void LanePointFilterTrackerPipeline::RevisePose(
-    const std::vector<base::LaneLinePtr> *tracked_lanelines, bool stable_flag,
-    bool stable_pos_flag) {
+    const std::vector<perception_base::LaneLinePtr>* tracked_lanelines,
+    bool stable_flag, bool stable_pos_flag) {
   for (int i = 0; i < tracked_lanelines->size(); ++i) {
     LaneLinePtr lane_target = (*tracked_lanelines)[i];
     auto iter_pos = lane_pos_map.find(lane_target->id);
@@ -443,10 +437,10 @@ void LanePointFilterTrackerPipeline::RevisePose(
 }
 
 bool LanePointFilterTrackerPipeline::IsMainRoadAboutDisappear(
-    const std::vector<base::LaneLinePtr> *tracked_lanelines,
-    const std::vector<bool> &far_line_index) {
+    const std::vector<perception_base::LaneLinePtr>* tracked_lanelines,
+    const std::vector<bool>& far_line_index) {
   // 获取近处的车道线
-  std::vector<base::LaneLinePtr> near_lanelines;
+  std::vector<perception_base::LaneLinePtr> near_lanelines;
   for (int i = 0; i < far_line_index.size(); ++i) {
     if (!far_line_index[i]) {
       auto laneline = tracked_lanelines->at(i);
@@ -454,7 +448,7 @@ bool LanePointFilterTrackerPipeline::IsMainRoadAboutDisappear(
     }
   }
 
-  const auto &lane_tracker_pipeline_param =
+  const auto& lane_tracker_pipeline_param =
       lane_post_process_param_.lane_tracker_pipeline_param();
   float ref_min =
       lane_tracker_pipeline_param.lane_pose_setter_param().ref_min();
@@ -466,7 +460,7 @@ bool LanePointFilterTrackerPipeline::IsMainRoadAboutDisappear(
   // 近处的车道线进行位置赋值，并找到主车道线
   SetLanePosition(ref_min, ref_length, sample_num, near_lanelines);
   float ego_left_loc, ego_right_loc = std::numeric_limits<float>::min();
-  for (auto &laneline : near_lanelines) {
+  for (auto& laneline : near_lanelines) {
     if (laneline->position == LaneLinePosition::EGO_LEFT) {
       ego_left_loc = laneline->point_set.back().vehicle_point.x;
     } else if (laneline->position == LaneLinePosition::EGO_RIGHT) {
@@ -491,7 +485,7 @@ bool LanePointFilterTrackerPipeline::IsMainRoadAboutDisappear(
 }
 
 std::vector<bool> LanePointFilterTrackerPipeline::CheckLanesDistance(
-    const std::vector<base::LaneLinePtr> *tracked_lanelines) {
+    const std::vector<perception_base::LaneLinePtr>* tracked_lanelines) {
   std::vector<bool> is_far_laneline(tracked_lanelines->size(), false);
   for (int i = 0; i < tracked_lanelines->size(); ++i) {
     auto vehicle_min =
@@ -518,7 +512,7 @@ void LanePointFilterTrackerPipeline::GetMainRoadLaneLine(
     if (point_lane_gate_keeper_->AbleToOutput(
             options, lane_trackers_[i]->GetConstLaneTarget(),
             GetAllLaneTarget())) {
-      auto &position = lane_target->GetConstTrackedLaneLine()->position;
+      auto& position = lane_target->GetConstTrackedLaneLine()->position;
       if (position == LaneLinePosition::EGO_LEFT) {
         left_laneline = lane_target->GetConstTrackedLaneLine();
       } else if (position == LaneLinePosition::EGO_RIGHT) {
@@ -648,7 +642,7 @@ void LanePointFilterTrackerPipeline::GetMainRoadLaneLine(
 // }
 
 void LanePointFilterTrackerPipeline::CollectOutputObjects(
-    std::vector<LaneLinePtr> *tracked_lanelines) {
+    std::vector<LaneLinePtr>* tracked_lanelines) {
   PointLaneGatekeeperOptions options;
   for (size_t i = 0; i < lane_trackers_.size(); ++i) {
     HLOG_DEBUG << "########CollectOutputObjects############";

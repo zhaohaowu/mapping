@@ -17,7 +17,9 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-using namespace hozon::perception;
+using hozon::perception::base::LaneLineCurve;
+using hozon::perception::base::Point2DF;
+using hozon::perception::base::Point3DF;
 
 struct BaseCurveFitterInitOptions : public BaseInitOptions {
   float max_dist_thresh{0.1f};
@@ -71,16 +73,16 @@ class BaseCurveFitter {
                         BaseCurveFitterInitOptions()) = 0;
 
   // @brief: Point lane curve fitter function
-  virtual bool CurveFitting(const std::vector<base::Point2DF>& point_set,
+  virtual bool CurveFitting(const std::vector<Point2DF>& point_set,
                             LaneLinePolynomialPtr polynomial) = 0;
-  virtual bool CurveFitting(const std::vector<base::Point3DF>& point_set,
+  virtual bool CurveFitting(const std::vector<Point3DF>& point_set,
                             LaneLinePolynomialPtr polynomial) = 0;
-  virtual bool CurveFitting(const std::vector<base::Point2DF>& point_set,
+  virtual bool CurveFitting(const std::vector<Point2DF>& point_set,
                             LaneLinePolynomialPtr polynomial,
-                            const base::LaneLineCurve& target_curve);
-  virtual bool CurveFitting(const std::vector<base::Point3DF>& point_set,
+                            const LaneLineCurve& target_curve);
+  virtual bool CurveFitting(const std::vector<Point3DF>& point_set,
                             LaneLinePolynomialPtr polynomial,
-                            const base::LaneLineCurve& target_curve);
+                            const LaneLineCurve& target_curve);
   virtual std::string Name() const = 0;
 
  protected:

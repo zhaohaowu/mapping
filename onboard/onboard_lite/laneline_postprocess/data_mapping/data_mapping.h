@@ -58,7 +58,8 @@ NAME_SHARED_PTR(NetaDeadReckoning)
 using NetaLoaction = hozon::localization::Localization;
 NAME_SHARED_PTR(NetaLoaction)
 
-using namespace hozon::perception;
+namespace perception_base = hozon::perception::base;
+
 /**
  * @brief The DataMapping class provides functions for converting data between
  * different formats.
@@ -86,21 +87,22 @@ class DataMapping {
    * @param pb_objects The frame message to be populated.
    * @return True if the conversion is successful, false otherwise.
    */
-  using LaneLinePtrVec = std::vector<base::LaneLinePtr>;
-  static bool CvtMultiLanesToPb(const LaneLinePtrVec &lanes_msg,
+  using LaneLinePtrVec = std::vector<perception_base::LaneLinePtr>;
+  static bool CvtMultiLanesToPb(const LaneLinePtrVec& lanes_msg,
                                 NetaTransportElementPtr pb_objects);
-  static bool CvtLaneToPb(const base::LaneLinePtr &lane_msg,
-                          LaneInfo *pb_object);
+  static bool CvtLaneToPb(const perception_base::LaneLinePtr& lane_msg,
+                          hozon::perception::LaneInfo* pb_object);
 
-  using RoadEdgePtrVec = std::vector<base::RoadEdgePtr>;
-  static bool CvtMultiRoadEdgesToPb(const RoadEdgePtrVec &roadedges_msg,
+  using RoadEdgePtrVec = std::vector<perception_base::RoadEdgePtr>;
+  static bool CvtMultiRoadEdgesToPb(const RoadEdgePtrVec& roadedges_msg,
                                     NetaTransportElementPtr pb_objects);
-  static bool CvtRoadEdgeToPb(const base::RoadEdgePtr &roadedge_msg,
-                              RoadEdge *pb_object);
+  static bool CvtRoadEdgeToPb(const perception_base::RoadEdgePtr& roadedge_msg,
+                              hozon::perception::RoadEdge* pb_object);
 
   static bool CvtPb2Measurement(
-      const std::shared_ptr<measurement::MeasurementPb> &measurepb,
-      std::shared_ptr<base::MeasurementFrame> measure_frame);
+      const std::shared_ptr<hozon::perception::measurement::MeasurementPb>&
+          measurepb,
+      std::shared_ptr<perception_base::MeasurementFrame> measure_frame);
 
   /**
    * @brief convert lane measurement to proto
@@ -111,8 +113,8 @@ class DataMapping {
    * @return false
    */
   static bool CvtLaneMeasurementToPb(
-      const base::LaneLinesMeasurementPtr &laneline_measures,
-      hozon::perception::TransportElement *transport_element);
+      const perception_base::LaneLinesMeasurementPtr& laneline_measures,
+      hozon::perception::TransportElement* transport_element);
   /**
    * @brief convert roadedge measurement to proto
    *
@@ -122,8 +124,9 @@ class DataMapping {
    * @return false
    */
   static bool CvtRoadEdgeMeasurementToPb(
-      const std::vector<base::RoadEdgeMeasurementPtr> &roadedge_measures,
-      hozon::perception::TransportElement *transport_element);
+      const std::vector<perception_base::RoadEdgeMeasurementPtr>&
+          roadedge_measures,
+      hozon::perception::TransportElement* transport_element);
 
   /**
    * @brief convert lane line pb to measurement
@@ -134,8 +137,8 @@ class DataMapping {
    * @return false
    */
   static bool CvtPb2LaneLineMeasurement(
-      const hozon::perception::LaneInfo &laneinfo,
-      base::LaneLineMeasurementPtr laneptr);
+      const hozon::perception::LaneInfo& laneinfo,
+      perception_base::LaneLineMeasurementPtr laneptr);
 
   /**
    * @brief convert roadedge pb to measurement
@@ -146,8 +149,8 @@ class DataMapping {
    * @return false
    */
   static bool CvtPb2RoadEdgeMeasurement(
-      const hozon::perception::RoadEdge &roadedge,
-      base::RoadEdgeMeasurementPtr roadedgeptr);
+      const hozon::perception::RoadEdge& roadedge,
+      perception_base::RoadEdgeMeasurementPtr roadedgeptr);
 
   /**
    * @brief convert zebracrossing pb to measurement
@@ -158,8 +161,8 @@ class DataMapping {
    * @return false
    */
   static bool CvtPb2ZebraCrossingMeasurement(
-      const hozon::perception::ZebraCrossing &zebracrossing,
-      base::ZebraCrossingMeasurementPtr zebracrossingptr);
+      const hozon::perception::ZebraCrossing& zebracrossing,
+      perception_base::ZebraCrossingMeasurementPtr zebracrossingptr);
   /**
    * @brief convert stopline pb to measurement
    *
@@ -169,8 +172,8 @@ class DataMapping {
    * @return false
    */
   static bool CvtPb2StopLineMeasurement(
-      const hozon::perception::StopLine &stopline,
-      base::StopLineMeasurementPtr stoplineptr);
+      const hozon::perception::StopLine& stopline,
+      perception_base::StopLineMeasurementPtr stoplineptr);
   /**
    * @brief convert arrow pb to measurement
    *
@@ -179,8 +182,9 @@ class DataMapping {
    * @return true
    * @return false
    */
-  static bool CvtPb2ArrowMeasurement(const hozon::perception::Arrow &arrow,
-                                     base::ArrowMeasurementPtr arrowptr);
+  static bool CvtPb2ArrowMeasurement(
+      const hozon::perception::Arrow& arrow,
+      perception_base::ArrowMeasurementPtr arrowptr);
 
   /**
    * @brief convert arrow measurement to proto
@@ -191,8 +195,8 @@ class DataMapping {
    * @return false
    */
   static bool CvtArrowMeasurementToPb(
-      const std::vector<base::ArrowMeasurementPtr> &arrow_measure,
-      hozon::perception::TransportElement *transport_element);
+      const std::vector<perception_base::ArrowMeasurementPtr>& arrow_measure,
+      hozon::perception::TransportElement* transport_element);
 
   /**
    * @brief convert zebracrossing measurement to proto
@@ -203,9 +207,9 @@ class DataMapping {
    * @return false
    */
   static bool CvtZebraCrossingMeasurementToPb(
-      const std::vector<base::ZebraCrossingMeasurementPtr>
-          &zebracrossing_measure,
-      hozon::perception::TransportElement *transport_element);
+      const std::vector<perception_base::ZebraCrossingMeasurementPtr>&
+          zebracrossing_measure,
+      hozon::perception::TransportElement* transport_element);
 
   /**
    * @brief convert waitzone measurement to proto
@@ -216,8 +220,9 @@ class DataMapping {
    * @return false
    */
   static bool CvtWaitZoneMeasurementToPb(
-      const std::vector<base::WaitZoneMeasurementPtr> &waitzone_measure,
-      hozon::perception::TransportElement *transport_element);
+      const std::vector<perception_base::WaitZoneMeasurementPtr>&
+          waitzone_measure,
+      hozon::perception::TransportElement* transport_element);
 
   /**
    * @brief convert noparking measurement to proto
@@ -228,8 +233,9 @@ class DataMapping {
    * @return false
    */
   static bool CvtNoParkingMeasurementToPb(
-      const std::vector<base::NoparkingMeasurementPtr> &noparking_measure,
-      hozon::perception::TransportElement *transport_element);
+      const std::vector<perception_base::NoparkingMeasurementPtr>&
+          noparking_measure,
+      hozon::perception::TransportElement* transport_element);
 
   /**
    * @brief convert slowdown measurement to proto
@@ -240,8 +246,9 @@ class DataMapping {
    * @return false
    */
   static bool CvtSlowDownMeasurementToPb(
-      const std::vector<base::SlowdownMeasurementPtr> &slowdown_measure,
-      hozon::perception::TransportElement *transport_element);
+      const std::vector<perception_base::SlowdownMeasurementPtr>&
+          slowdown_measure,
+      hozon::perception::TransportElement* transport_element);
 
   /**
    * @brief convert stopline measurement to proto
@@ -252,58 +259,62 @@ class DataMapping {
    * @return false
    */
   static bool CvtStopLineMeasurementToPb(
-      const std::vector<base::StopLineMeasurementPtr> &stopline_measure,
-      hozon::perception::TransportElement *transport_element);
+      const std::vector<perception_base::StopLineMeasurementPtr>&
+          stopline_measure,
+      hozon::perception::TransportElement* transport_element);
 
-  using ArrowPtrVec = std::vector<base::ArrowPtr>;
-  static bool CvtMultiArrowsToPb(const ArrowPtrVec &arrows_msg,
+  using ArrowPtrVec = std::vector<perception_base::ArrowPtr>;
+  static bool CvtMultiArrowsToPb(const ArrowPtrVec& arrows_msg,
                                  NetaTransportElementPtr pb_objects);
 
-  static bool CvtArrowToPb(const base::ArrowPtr &arrow_msg, Arrow *pb_arrow);
+  static bool CvtArrowToPb(const perception_base::ArrowPtr& arrow_msg,
+                           hozon::perception::Arrow* pb_arrow);
 
-  using ZebraCrossingPtrVec = std::vector<base::ZebraCrossingPtr>;
+  using ZebraCrossingPtrVec = std::vector<perception_base::ZebraCrossingPtr>;
   static bool CvtMultiZebraCrossingsToPb(
-      const ZebraCrossingPtrVec &zebracrossings_msg,
+      const ZebraCrossingPtrVec& zebracrossings_msg,
       NetaTransportElementPtr pb_objects);
 
   static bool CvtZebraCrossingToPb(
-      const base::ZebraCrossingPtr &zebracrossing_msg,
-      ZebraCrossing *pb_zebracrossing);
+      const perception_base::ZebraCrossingPtr& zebracrossing_msg,
+      hozon::perception::ZebraCrossing* pb_zebracrossing);
 
-  using WaitZonePtrVec = std::vector<base::WaitZonePtr>;
-  static bool CvtMultiWaitZonesToPb(const WaitZonePtrVec &waitzones_msg,
+  using WaitZonePtrVec = std::vector<perception_base::WaitZonePtr>;
+  static bool CvtMultiWaitZonesToPb(const WaitZonePtrVec& waitzones_msg,
                                     NetaTransportElementPtr pb_objects);
 
-  static bool CvtWaitZoneToPb(const base::WaitZonePtr &waitzone_msg,
-                              TurnWaitingZone *pb_waitzone);
+  static bool CvtWaitZoneToPb(const perception_base::WaitZonePtr& waitzone_msg,
+                              hozon::perception::TurnWaitingZone* pb_waitzone);
 
-  using NoParkingPtrVec = std::vector<base::NoParkingPtr>;
-  static bool CvtMultiNoParkingsToPb(const NoParkingPtrVec &noparkings_msg,
+  using NoParkingPtrVec = std::vector<perception_base::NoParkingPtr>;
+  static bool CvtMultiNoParkingsToPb(const NoParkingPtrVec& noparkings_msg,
                                      NetaTransportElementPtr pb_objects);
 
-  static bool CvtNoParkingToPb(const base::NoParkingPtr &noparking_msg,
-                               NoParkingZone *pb_waitzone);
+  static bool CvtNoParkingToPb(
+      const perception_base::NoParkingPtr& noparking_msg,
+      hozon::perception::NoParkingZone* pb_waitzone);
 
-  using SlowDownPtrVec = std::vector<base::SlowDownPtr>;
-  static bool CvtMultiSlowDownsToPb(const SlowDownPtrVec &slowdowns_msg,
+  using SlowDownPtrVec = std::vector<perception_base::SlowDownPtr>;
+  static bool CvtMultiSlowDownsToPb(const SlowDownPtrVec& slowdowns_msg,
                                     NetaTransportElementPtr pb_objects);
 
-  static bool CvtSlowDownToPb(const base::SlowDownPtr &slowdown_msg,
-                              SlowDown *pb_waitzone);
+  static bool CvtSlowDownToPb(const perception_base::SlowDownPtr& slowdown_msg,
+                              hozon::perception::SlowDown* pb_waitzone);
 
-  using StopLinePtrVec = std::vector<base::StopLinePtr>;
-  static bool CvtMultiStopLinesToPb(const StopLinePtrVec &stoplines_msg,
+  using StopLinePtrVec = std::vector<perception_base::StopLinePtr>;
+  static bool CvtMultiStopLinesToPb(const StopLinePtrVec& stoplines_msg,
                                     NetaTransportElementPtr pb_objects);
 
-  static bool CvtStopLineToPb(const base::StopLinePtr &stopline_msg,
-                              StopLine *pb_stopline);
+  static bool CvtStopLineToPb(const perception_base::StopLinePtr& stopline_msg,
+                              hozon::perception::StopLine* pb_stopline);
 
   static bool CvtPbLocation2Location(
-      const NetaLoactionPtr &pb_location,
-      std::shared_ptr<base::Location> location_ptr);
+      const NetaLoactionPtr& pb_location,
+      std::shared_ptr<perception_base::Location> location_ptr);
 
-  static bool CvtPbDR2Location(const NetaDeadReckoningPtr &pb_dr,
-                               std::shared_ptr<base::Location> location_ptr);
+  static bool CvtPbDR2Location(
+      const NetaDeadReckoningPtr& pb_dr,
+      std::shared_ptr<perception_base::Location> location_ptr);
 };
 
 }  //  namespace common_onboard

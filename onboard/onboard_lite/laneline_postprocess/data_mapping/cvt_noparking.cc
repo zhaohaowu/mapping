@@ -12,11 +12,11 @@ namespace hozon {
 namespace mp {
 namespace common_onboard {
 
-static bool CvtNoParkingToPb(const base::NoParkingPtr &noparking_msg,
-                             NoParkingZone *pb_object);
+static bool CvtNoParkingToPb(const perception_base::NoParkingPtr& noparking_msg,
+                             hozon::perception::NoParkingZone* pb_object);
 
 bool DataMapping::CvtMultiNoParkingsToPb(
-    const std::vector<base::NoParkingPtr> &noparking_msgs,
+    const std::vector<perception_base::NoParkingPtr>& noparking_msgs,
     NetaTransportElementPtr pb_objects) {
   if (noparking_msgs.size() == 0) {
     HLOG_DEBUG << "noparking_msg msg size is 0";
@@ -38,8 +38,9 @@ bool DataMapping::CvtMultiNoParkingsToPb(
   return true;
 }
 
-bool DataMapping::CvtNoParkingToPb(const base::NoParkingPtr &noparking_msg,
-                                   NoParkingZone *pb_noparking) {
+bool DataMapping::CvtNoParkingToPb(
+    const perception_base::NoParkingPtr& noparking_msg,
+    hozon::perception::NoParkingZone* pb_noparking) {
   if (nullptr == noparking_msg || nullptr == pb_noparking) {
     HLOG_ERROR << "noparking msg  or pb_noparking is nullptr.";
     return false;
@@ -48,7 +49,7 @@ bool DataMapping::CvtNoParkingToPb(const base::NoParkingPtr &noparking_msg,
   pb_noparking->set_confidence(noparking_msg->confidence);
 
   if (noparking_msg->point_set_3d.size() != 0) {
-    for (auto &item_pt : noparking_msg->point_set_3d) {
+    for (auto& item_pt : noparking_msg->point_set_3d) {
       auto arrow_points = pb_noparking->mutable_points();
       auto pb_pt = arrow_points->add_point();
       pb_pt->set_x(item_pt.x);
@@ -56,7 +57,7 @@ bool DataMapping::CvtNoParkingToPb(const base::NoParkingPtr &noparking_msg,
       pb_pt->set_z(item_pt.z);
     }
   } else if (noparking_msg->point_set_2d.size() != 0) {
-    for (auto &item_pt : noparking_msg->point_set_2d) {
+    for (auto& item_pt : noparking_msg->point_set_2d) {
       auto arrow_points = pb_noparking->mutable_points();
       auto pb_pt = arrow_points->add_point();
       pb_pt->set_x(item_pt.x);
@@ -70,15 +71,16 @@ bool DataMapping::CvtNoParkingToPb(const base::NoParkingPtr &noparking_msg,
 }
 
 bool DataMapping::CvtNoParkingMeasurementToPb(
-    const std::vector<base::NoparkingMeasurementPtr> &noparking_measure,
-    hozon::perception::TransportElement *transport_element) {
-  for (auto &item : noparking_measure) {
+    const std::vector<perception_base::NoparkingMeasurementPtr>&
+        noparking_measure,
+    hozon::perception::TransportElement* transport_element) {
+  for (auto& item : noparking_measure) {
     auto pb_noparking = transport_element->add_turn_waiting_zone();
     pb_noparking->set_track_id(item->id);
     // pb_noparking->set_type(CvtArrowType2Pb(item->type));
     pb_noparking->set_confidence(item->confidence);
     if (item->point_set_3d.size() != 0) {
-      for (auto &item_pt : item->point_set_3d) {
+      for (auto& item_pt : item->point_set_3d) {
         auto arrow_points = pb_noparking->mutable_points();
         auto pb_pt = arrow_points->add_point();
         pb_pt->set_x(item_pt.x);
@@ -86,7 +88,7 @@ bool DataMapping::CvtNoParkingMeasurementToPb(
         pb_pt->set_z(item_pt.z);
       }
     } else if (item->point_set_2d.size() != 0) {
-      for (auto &item_pt : item->point_set_2d) {
+      for (auto& item_pt : item->point_set_2d) {
         auto arrow_points = pb_noparking->mutable_points();
         auto pb_pt = arrow_points->add_point();
         pb_pt->set_x(item_pt.x);

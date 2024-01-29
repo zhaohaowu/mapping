@@ -6,11 +6,12 @@
 #pragma once
 #include <algorithm>
 #include <atomic>
-#include <boost/circular_buffer.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include <boost/circular_buffer.hpp>
 
 // #include
 // "modules/laneline_postprocess/lib/laneline/proto/roadedge_postprocess.pb.h"
@@ -23,26 +24,30 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+namespace perception_base = hozon::perception::base;
+
 class RoadEdgeTarget {
  public:
   RoadEdgeTarget();
   ~RoadEdgeTarget();
 
   bool Init(const LaneTargetInitOption& options,
-            const base::RoadEdgeMeasurementPtr& detected_lane_line);
+            const perception_base::RoadEdgeMeasurementPtr& detected_lane_line);
 
   void UpdateWithDetectedLaneLine(
-      const base::RoadEdgeMeasurementPtr& detected_lane_line);
+      const perception_base::RoadEdgeMeasurementPtr& detected_lane_line);
 
   void UpdateWithoutDetectedLaneLine();
 
   void Reset();
 
-  inline const base::RoadEdgePtr GetConstTrackedLaneLine() const {
+  inline const perception_base::RoadEdgePtr GetConstTrackedLaneLine() const {
     return tracked_laneline_;
   }
 
-  inline base::RoadEdgePtr& GetTrackedLaneLine() { return tracked_laneline_; }
+  inline perception_base::RoadEdgePtr& GetTrackedLaneLine() {
+    return tracked_laneline_;
+  }
 
   inline bool IsInit() const { return track_status_ == TrackStatus::INIT; }
 
@@ -79,8 +84,8 @@ class RoadEdgeTarget {
     }
   }
 
-  inline void UpdateTrackStatus(bool cur_lost,
-                                const base::RoadEdgePtr& tracked_lane_line_) {
+  inline void UpdateTrackStatus(
+      bool cur_lost, const perception_base::RoadEdgePtr& tracked_lane_line_) {
     int reserve_age = lane_target_param_.reserve_age();
     int init_life = lane_target_param_.tracked_init_life();
     if (cur_lost) {
@@ -114,7 +119,7 @@ class RoadEdgeTarget {
 
  private:
   // tracked_lane_object
-  base::RoadEdgePtr tracked_laneline_ = nullptr;
+  perception_base::RoadEdgePtr tracked_laneline_ = nullptr;
 
   int id_ = 0;
   int lost_age_ = 0;

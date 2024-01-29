@@ -19,6 +19,9 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+using hozon::perception::base::RoadEdgesMeasurementConstPtr;
+using hozon::perception::base::RoadEdgesPtr;
+
 class BaseRoadEdgeProcess {
  public:
   BaseRoadEdgeProcess() = default;
@@ -27,8 +30,8 @@ class BaseRoadEdgeProcess {
   virtual bool Init(const ProcessInitOption& init_option) = 0;
 
   virtual bool Process(const ProcessOption& options,
-                       base::RoadEdgesMeasurementConstPtr detect_measurements,
-                       const base::RoadEdgesPtr track_outputs) = 0;
+                       RoadEdgesMeasurementConstPtr detect_measurements,
+                       const RoadEdgesPtr track_outputs) = 0;
 
   virtual std::string Name() const = 0;
   virtual void Reset() = 0;

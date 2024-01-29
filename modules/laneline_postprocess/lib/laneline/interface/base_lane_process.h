@@ -19,6 +19,8 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+namespace perception_base = hozon::perception::base;
+
 class BaseLaneProcess {
  public:
   BaseLaneProcess() = default;
@@ -26,9 +28,10 @@ class BaseLaneProcess {
   /* config_file 已经是绝对路径，直接解析proto */
   virtual bool Init(const ProcessInitOption& init_option) = 0;
 
-  virtual bool Process(const ProcessOption& options,
-                       base::LaneLinesMeasurementConstPtr detect_measurements,
-                       const base::LaneLinesPtr track_outputs) = 0;
+  virtual bool Process(
+      const ProcessOption& options,
+      perception_base::LaneLinesMeasurementConstPtr detect_measurements,
+      const perception_base::LaneLinesPtr track_outputs) = 0;
 
   virtual std::string Name() const = 0;
   virtual void Reset() = 0;

@@ -10,8 +10,8 @@ namespace mp {
 namespace common_onboard {
 
 bool DataMapping::CvtPbDR2Location(
-    const NetaDeadReckoningPtr &pb_dr,
-    std::shared_ptr<base::Location> location_ptr) {
+    const NetaDeadReckoningPtr& pb_dr,
+    std::shared_ptr<perception_base::Location> location_ptr) {
   location_ptr->timestamp = pb_dr->header().data_stamp();
   location_ptr->pose = Eigen::Affine3d::Identity();
 
@@ -49,8 +49,8 @@ bool DataMapping::CvtPbDR2Location(
 }
 
 bool DataMapping::CvtPbLocation2Location(
-    const NetaLoactionPtr &pb_location,
-    std::shared_ptr<base::Location> location_ptr) {
+    const NetaLoactionPtr& pb_location,
+    std::shared_ptr<perception_base::Location> location_ptr) {
   location_ptr->timestamp = pb_location->header().publish_stamp();
   location_ptr->pose = Eigen::Affine3d::Identity();
 

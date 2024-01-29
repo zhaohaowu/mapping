@@ -26,6 +26,9 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+namespace perception_base = hozon::perception::base;
+namespace perception_lib = hozon::perception::lib;
+
 class RoadEdgePostProcess : public BaseRoadEdgeProcess {
  public:
   RoadEdgePostProcess() = default;
@@ -34,12 +37,14 @@ class RoadEdgePostProcess : public BaseRoadEdgeProcess {
   bool Init(const ProcessInitOption& init_option) override;
 
   // @brief: run lane post process
-  bool Process(const ProcessOption& options,
-               base::RoadEdgesMeasurementConstPtr detect_measurements,
-               const base::RoadEdgesPtr track_outputs) override;
+  bool Process(
+      const ProcessOption& options,
+      perception_base::RoadEdgesMeasurementConstPtr detect_measurements,
+      const perception_base::RoadEdgesPtr track_outputs) override;
 
-  virtual bool Process(const base::MeasurementFramePtr measurement_ptr,
-                       base::FusionFramePtr fusion_ptr);
+  virtual bool Process(
+      const perception_base::MeasurementFramePtr measurement_ptr,
+      perception_base::FusionFramePtr fusion_ptr);
 
   std::string Name() const override { return "RoadEdgePostProcess"; }
 
@@ -49,7 +54,7 @@ class RoadEdgePostProcess : public BaseRoadEdgeProcess {
   /* lane track */
   std::unique_ptr<RoadEdgePointFilterTrackerPipeline> roadedge_tracker_;
   LanePostProcessParam config_;
-  std::vector<base::RoadEdgePtr> last_track_roadedges_;
+  std::vector<perception_base::RoadEdgePtr> last_track_roadedges_;
 };
 
 PERCEPTION_ENVIRONMENT_REGISTER_BASE_ROADEDGE_PROCESS(RoadEdgePostProcess)

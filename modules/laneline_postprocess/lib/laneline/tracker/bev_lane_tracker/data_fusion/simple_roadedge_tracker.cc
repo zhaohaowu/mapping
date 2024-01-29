@@ -4,6 +4,7 @@
 // @brief: container for filter
 
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/data_fusion/simple_roadedge_tracker.h"
+
 #include "perception-base/base/utils/log.h"
 namespace hozon {
 namespace mp {
@@ -12,8 +13,9 @@ namespace environment {
 SimpleRoadEdgeTracker::SimpleRoadEdgeTracker() {}
 SimpleRoadEdgeTracker::~SimpleRoadEdgeTracker() {}
 
-bool SimpleRoadEdgeTracker::Init(const SimpleRoadEdgeTrackerInitOptions& init_options,
-                             RoadEdgeTargetPtr lane_target) {
+bool SimpleRoadEdgeTracker::Init(
+    const SimpleRoadEdgeTrackerInitOptions& init_options,
+    RoadEdgeTargetPtr lane_target) {
   if (lane_target == nullptr) {
     return false;
   }
@@ -39,16 +41,14 @@ bool SimpleRoadEdgeTracker::Init(const SimpleRoadEdgeTrackerInitOptions& init_op
 
 void SimpleRoadEdgeTracker::UpdateWithDetectedLaneLine(
     const SimpleRoadEdgeTrackerOptions& options,
-    const base::RoadEdgeMeasurementPtr& detected_laneline) {
+    const perception_base::RoadEdgeMeasurementPtr& detected_laneline) {
   // update lane_target
   lane_target_->UpdateWithDetectedLaneLine(detected_laneline);
   LaneFilterOptions lane_filter_options;
   // lane_filter_options.timestamp = detected_laneline->latest_tracked_time;
   lane_filter_options.novatel2world_pose = options.novatel2world_pose;
-  point_filter_->UpdateWithMeasurement(lane_filter_options,
-                                            detected_laneline);
-  type_filter_->UpdateWithMeasurement(lane_filter_options,
-                                             detected_laneline);
+  point_filter_->UpdateWithMeasurement(lane_filter_options, detected_laneline);
+  type_filter_->UpdateWithMeasurement(lane_filter_options, detected_laneline);
   return;
 }
 

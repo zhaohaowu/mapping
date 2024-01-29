@@ -11,6 +11,8 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #include "Eigen/Eigen"
@@ -22,36 +24,41 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-using namespace hozon::perception;
+using hozon::perception::base::LaneLine;
+using hozon::perception::base::LaneLineConstPtr;
+using hozon::perception::base::LaneLineCurve;
+using hozon::perception::base::LaneLineMeasurementConstPtr;
+using hozon::perception::base::LaneLinePoint;
+using hozon::perception::base::LaneLinePosition;
+using hozon::perception::base::LaneLinePtr;
+using hozon::perception::base::LaneLineSceneType;
+using hozon::perception::base::Point2DF;
+using hozon::perception::base::Point3DF;
 
-const std::map<int, base::LaneLinePosition> kIndex2LanePosMap = {
-    {-99, base::LaneLinePosition::OTHER},
-    {1, base::LaneLinePosition::EGO_RIGHT},
-    {2, base::LaneLinePosition::ADJACENT_RIGHT},
-    {3, base::LaneLinePosition::THIRD_RIGHT},
-    {4, base::LaneLinePosition::FOURTH_RIGHT},
-    {-1, base::LaneLinePosition::EGO_LEFT},
-    {-2, base::LaneLinePosition::ADJACENT_LEFT},
-    {-3, base::LaneLinePosition::THIRD_LEFT},
-    {-4, base::LaneLinePosition::FOURTH_LEFT}};
+const std::map<int, LaneLinePosition> kIndex2LanePosMap = {
+    {-99, LaneLinePosition::OTHER},        {1, LaneLinePosition::EGO_RIGHT},
+    {2, LaneLinePosition::ADJACENT_RIGHT}, {3, LaneLinePosition::THIRD_RIGHT},
+    {4, LaneLinePosition::FOURTH_RIGHT},   {-1, LaneLinePosition::EGO_LEFT},
+    {-2, LaneLinePosition::ADJACENT_LEFT}, {-3, LaneLinePosition::THIRD_LEFT},
+    {-4, LaneLinePosition::FOURTH_LEFT}};
 
 static const int max_poly_order = 3;
 
 template <typename T1, typename T2, typename T3>
-void LaneLinePolynomialEval(const std::vector<T1> &coeffs, const T2 input,
-                            T3 *result) {
+void LaneLinePolynomialEval(const std::vector<T1>& coeffs, const T2 input,
+                            T3* result) {
   *result = 0.f;
   // curve coefficient ordered from low to high
   T2 tmp_input = 1.0;
-  for (auto &coeff : coeffs) {
+  for (auto& coeff : coeffs) {
     *result += (coeff * tmp_input);
     tmp_input *= input;
   }
 }
 
 template <typename T1, typename T2, typename T3>
-void LaneLinePolynomialFirstOrderEval(const std::vector<T1> &coeffs,
-                                      const T2 input, T3 *result) {
+void LaneLinePolynomialFirstOrderEval(const std::vector<T1>& coeffs,
+                                      const T2 input, T3* result) {
   // first order differential
   *result = 0.0f;
   T2 value = 1.0;
@@ -62,39 +69,35 @@ void LaneLinePolynomialFirstOrderEval(const std::vector<T1> &coeffs,
 }
 
 bool TransformLaneLineCurveInNovatelPolyfit(
-    const base::LaneLineCurve &curve, const Eigen::Affine3d &transform_matrix,
-    base::LaneLineCurve *transform_line_curve);
+    const LaneLineCurve& curve, const Eigen::Affine3d& transform_matrix,
+    LaneLineCurve* transform_line_curve);
 
-bool TransformLaneLineCurveInNovatel(const base::LaneLineCurve &curve,
-                                     const Eigen::Affine3d &transform_matrix,
-                                     base::LaneLineCurve *transform_line_curve);
-
-bool TransformLaneLineCurveInNovatelPolyfit(
-    const hozon::perception::base::LaneLineCurve &curve,
-    const Eigen::Affine3d &transform_matrix,
-    hozon::perception::base::LaneLineCurve *transform_line_curve);
-
-bool TransformLaneLineCurveInNovatel(
-    const hozon::perception::base::LaneLineCurve &curve,
-    const Eigen::Affine3d &transform_matrix,
-    hozon::perception::base::LaneLineCurve *transform_line_curve);
+bool TransformLaneLineCurveInNovatel(const LaneLineCurve& curve,
+                                     const Eigen::Affine3d& transform_matrix,
+                                     LaneLineCurve* transform_line_curve);
 
 bool TransformLaneLineCurveInNovatelPolyfit(
-    const hozon::perception::base::LaneLineCurve &curve,
-    const Eigen::Affine3d &transform_matrix,
-    hozon::perception::base::LaneLineCurve *transform_line_curve);
+    const LaneLineCurve& curve, const Eigen::Affine3d& transform_matrix,
+    LaneLineCurve* transform_line_curve);
 
-bool TransformLaneLineCurveInNovatel(
-    const hozon::perception::base::LaneLineCurve &curve,
-    const Eigen::Affine3d &transform_matrix,
-    hozon::perception::base::LaneLineCurve *transform_line_curve);
+bool TransformLaneLineCurveInNovatel(const LaneLineCurve& curve,
+                                     const Eigen::Affine3d& transform_matrix,
+                                     LaneLineCurve* transform_line_curve);
+
+bool TransformLaneLineCurveInNovatelPolyfit(
+    const LaneLineCurve& curve, const Eigen::Affine3d& transform_matrix,
+    LaneLineCurve* transform_line_curve);
+
+bool TransformLaneLineCurveInNovatel(const LaneLineCurve& curve,
+                                     const Eigen::Affine3d& transform_matrix,
+                                     LaneLineCurve* transform_line_curve);
 
 // fit polynomial function with QR decomposition (using Eigen 3)
 template <typename Dtype>
-bool PolyFit(const std::vector<Eigen::Matrix<Dtype, 2, 1>> &pos_vec,
-             const int &order,
-             Eigen::Matrix<Dtype, max_poly_order + 1, 1> *coeff,
-             const bool &is_x_axis = true) {
+bool PolyFit(const std::vector<Eigen::Matrix<Dtype, 2, 1>>& pos_vec,
+             const int& order,
+             Eigen::Matrix<Dtype, max_poly_order + 1, 1>* coeff,
+             const bool& is_x_axis = true) {
   if (coeff == nullptr) {
     HLOG_ERROR << "The coefficient pointer is NULL.";
     return false;
@@ -139,81 +142,78 @@ bool PolyFit(const std::vector<Eigen::Matrix<Dtype, 2, 1>> &pos_vec,
 
 // bool IsCurb(const base::LaneLinePosition &line_position);
 
-bool IsForkOrConverge(const base::LaneLineSceneType &scene_type);
+bool IsForkOrConverge(const LaneLineSceneType& scene_type);
 
-bool IsForkOrConvergePair(const base::LaneLineSceneType &scene_type1,
-                          const base::LaneLineSceneType &scene_type2);
+bool IsForkOrConvergePair(const LaneLineSceneType& scene_type1,
+                          const LaneLineSceneType& scene_type2);
 
-bool IsForkPair(const base::LaneLineSceneType &scene_type1,
-                const base::LaneLineSceneType &scene_type2);
+bool IsForkPair(const LaneLineSceneType& scene_type1,
+                const LaneLineSceneType& scene_type2);
 
-bool IsConvergePair(const base::LaneLineSceneType &scene_type1,
-                    const base::LaneLineSceneType &scene_type2);
+bool IsConvergePair(const LaneLineSceneType& scene_type1,
+                    const LaneLineSceneType& scene_type2);
 
-std::string GetLaneLineCurveInfo(const base::LaneLineCurve &laneline_curve);
+std::string GetLaneLineCurveInfo(const LaneLineCurve& laneline_curve);
 
-std::string GetLaneLineInfo(const base::LaneLineConstPtr &lane_line);
-std::string GetLaneLineInfo(const base::LaneLine &lane_line);
+std::string GetLaneLineInfo(const LaneLineConstPtr& lane_line);
+std::string GetLaneLineInfo(const LaneLine& lane_line);
 
-void GetRefValueForLineCurve(const base::LaneLineCurve &curve, float *d,
+void GetRefValueForLineCurve(const LaneLineCurve& curve, float* d,
                              float ref_min = 10.0, float ref_length = 20.0,
                              int sample_num = 10);
 
 void SetLanePosition(
-    const float &ref_min, const float &ref_length, const int &sample_num,
-    const std::vector<base::LaneLinePtr> &lane_lines,
-    const std::vector<bool> &far_lanes_flag,
-    std::unordered_map<int, std::tuple<float, float>> &lane_d_map,
+    const float& ref_min, const float& ref_length, const int& sample_num,
+    const std::vector<LaneLinePtr>& lane_lines,
+    const std::vector<bool>& far_lanes_flag,
+    std::unordered_map<int, std::tuple<float, float>>* lane_d_map,
     bool use_far);
 
-void SetLanePosition(const float &ref_min, const float &ref_length,
-                     const int &sample_num,
-                     const std::vector<base::LaneLinePtr> &lane_lines);
+void SetLanePosition(const float& ref_min, const float& ref_length,
+                     const int& sample_num,
+                     const std::vector<LaneLinePtr>& lane_lines);
 
-void GetCurvartureRadius(const std::vector<float> &coeffs, float input,
-                         float *result);
+void GetCurvartureRadius(const std::vector<float>& coeffs, float input,
+                         float* result);
 
-void GetTrangentialAngle(const std::vector<float> &coeffs, float input,
-                         float *result);
+void GetTrangentialAngle(const std::vector<float>& coeffs, float input,
+                         float* result);
 
-bool CalLaneLineDistance(const base::LaneLineCurve &curve1,
-                         const base::LaneLineCurve &curve2, float *distance,
-                         float *var, float sample_interval = 0.5,
+bool CalLaneLineDistance(const LaneLineCurve& curve1,
+                         const LaneLineCurve& curve2, float* distance,
+                         float* var, float sample_interval = 0.5,
                          float care_start = -10, float care_end = 100,
                          bool hard_interval = false);
 
-bool CalLaneLineDistance(const base::LaneLineCurve &curve1,
-                         const base::LaneLineCurve &curve2, float *distance,
+bool CalLaneLineDistance(const LaneLineCurve& curve1,
+                         const LaneLineCurve& curve2, float* distance,
                          float sample_interval = 0.5, float care_start = -10,
                          float care_end = 100, bool hard_interval = false);
 
-bool GetSamplePoint(const base::LaneLineCurve &curve1,
-                    const base::LaneLineCurve &curve2,
-                    std::vector<float> *sample_values,
+bool GetSamplePoint(const LaneLineCurve& curve1, const LaneLineCurve& curve2,
+                    std::vector<float>* sample_values,
                     float sample_interval = 0.5, float care_start = -10,
                     float care_end = 100, bool hard_interval = false);
 
-bool GetMiddleLineCurve(const base::LaneLineCurve &curve1,
-                        const base::LaneLineCurve &curve2,
-                        base::LaneLineCurve *middle_curve);
+bool GetMiddleLineCurve(const LaneLineCurve& curve1,
+                        const LaneLineCurve& curve2,
+                        LaneLineCurve* middle_curve);
 
-float GetLength(const base::LaneLineCurve &curve);
+float GetLength(const LaneLineCurve& curve);
 
-float GetLength(const std::vector<base::LaneLinePoint> &point_sets);
+float GetLength(const std::vector<LaneLinePoint>& point_sets);
 
-float GetDistPointLane(const base::Point3DF &x, const base::Point3DF &x1,
-                       const base::Point3DF &x2);
+float GetDistPointLane(const Point3DF& x, const Point3DF& x1,
+                       const Point3DF& x2);
 
-float GetDistBetweenTwoLane(const std::vector<base::LaneLinePoint> &point_set1,
-                            const std::vector<base::LaneLinePoint> &point_set2);
+float GetDistBetweenTwoLane(const std::vector<LaneLinePoint>& point_set1,
+                            const std::vector<LaneLinePoint>& point_set2);
 
-float GetLengthRatioBetweenTwoLane(
-    const base::LaneLineMeasurementConstPtr &curve1,
-    const base::LaneLineMeasurementConstPtr &curve2);
+float GetLengthRatioBetweenTwoLane(const LaneLineMeasurementConstPtr& curve1,
+                                   const LaneLineMeasurementConstPtr& curve2);
 
-float GetOverLayRatioBetweenTwoLane(
-    const base::LaneLineMeasurementConstPtr &curve1,
-    const base::LaneLineMeasurementConstPtr &curve2);
+float GetOverLayRatioBetweenTwoLane(const LaneLineMeasurementConstPtr& curve1,
+                                    const LaneLineMeasurementConstPtr& curve2);
 
 }  // namespace environment
 }  // namespace mp

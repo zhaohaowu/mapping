@@ -25,6 +25,9 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+namespace perception_base = hozon::perception::base;
+namespace perception_lib = hozon::perception::lib;
+
 class LanePointFilterTrackerPipeline : public BaseTrackerPipeline {
  public:
   LanePointFilterTrackerPipeline() : BaseTrackerPipeline() {}
@@ -32,60 +35,69 @@ class LanePointFilterTrackerPipeline : public BaseTrackerPipeline {
 
   bool Init(const ProcessInitOption& options = ProcessInitOption()) override;
   bool Track(const ProcessOption& options,
-             base::LaneLinesMeasurementConstPtr detect_measurements,
-             const base::LaneLinesPtr& track_lanelines);
+             perception_base::LaneLinesMeasurementConstPtr detect_measurements,
+             const perception_base::LaneLinesPtr& track_lanelines);
 
   std::string Name() const override;
 
  private:
   void TransMeasurementVehicle2Local(
-      std::vector<base::LaneLineMeasurementPtr>* detect_measurements);
+      std::vector<perception_base::LaneLineMeasurementPtr>*
+          detect_measurements);
   void TransTrackerLocal2Vehicle(
-      std::vector<base::LaneLinePtr>* tracked_lanelines);
+      std::vector<perception_base::LaneLinePtr>* tracked_lanelines);
 
   void UpdateAssignedTracks(
-      std::vector<base::LaneLineMeasurementPtr>* detected_lanelines,
+      std::vector<perception_base::LaneLineMeasurementPtr>* detected_lanelines,
       const PointAssociationResult& association_result);
 
   void UpdateUnassignedTracks(
-      const std::vector<base::LaneLineMeasurementPtr>* detected_lanelines,
+      const std::vector<perception_base::LaneLineMeasurementPtr>*
+          detected_lanelines,
       const PointAssociationResult& association_result);
 
   void CreateNewTracks(
-      const std::vector<base::LaneLineMeasurementPtr>* detected_lanelines,
+      const std::vector<perception_base::LaneLineMeasurementPtr>*
+          detected_lanelines,
       const PointAssociationResult& association_result);
 
-  void PostProcess(std::vector<base::LaneLinePtr>* tracked_lanelines);
+  void PostProcess(
+      std::vector<perception_base::LaneLinePtr>* tracked_lanelines);
 
-  void CollectOutputObjects(std::vector<base::LaneLinePtr>* tracked_lanelines);
+  void CollectOutputObjects(
+      std::vector<perception_base::LaneLinePtr>* tracked_lanelines);
 
   void RemoveLostTracks();
 
-  void SetPoseAttribute(std::vector<base::LaneLinePtr>* tracked_lanelines);
+  void SetPoseAttribute(
+      std::vector<perception_base::LaneLinePtr>* tracked_lanelines);
 
-  void SetMainRoadQuality(std::vector<base::LaneLinePtr>* tracked_lanelines) {}
+  void SetMainRoadQuality(
+      std::vector<perception_base::LaneLinePtr>* tracked_lanelines) {}
 
-  void GetMainRoadLaneLine(base::LaneLinePtr left_laneline,
-                           base::LaneLinePtr right_laneline);
+  void GetMainRoadLaneLine(perception_base::LaneLinePtr left_laneline,
+                           perception_base::LaneLinePtr right_laneline);
 
   std::vector<bool> CheckLanesDistance(
-      const std::vector<base::LaneLinePtr>* tracked_lanelines);
+      const std::vector<perception_base::LaneLinePtr>* tracked_lanelines);
 
   bool IsMainRoadAboutDisappear(
-      const std::vector<base::LaneLinePtr>* tracked_lanelines,
+      const std::vector<perception_base::LaneLinePtr>* tracked_lanelines,
       const std::vector<bool>& near_lanelines);
   void revise_lanes_flag(
-      const std::vector<base::LaneLinePtr>* tracked_lanelines,
+      const std::vector<perception_base::LaneLinePtr>* tracked_lanelines,
       std::vector<bool>&
           far_lanes_flag);  // NOLINT revise far_lanes_flag in function
 
-  bool CheckStableFlag(const std::vector<base::LaneLinePtr>* tracked_lanelines,
-                       bool disappear_flag);
+  bool CheckStableFlag(
+      const std::vector<perception_base::LaneLinePtr>* tracked_lanelines,
+      bool disappear_flag);
   bool CheckStablePosFlag(
-      const std::vector<base::LaneLinePtr>* tracked_lanelines);
-  void RevisePose(const std::vector<base::LaneLinePtr>* tracked_lanelines,
-                  bool stable_flag, bool stable_pos_flag);
-  bool CheckEgoPose(base::LaneLinePosition pose);
+      const std::vector<perception_base::LaneLinePtr>* tracked_lanelines);
+  void RevisePose(
+      const std::vector<perception_base::LaneLinePtr>* tracked_lanelines,
+      bool stable_flag, bool stable_pos_flag);
+  bool CheckEgoPose(perception_base::LaneLinePosition pose);
   void print_debug_info();
 
   std::vector<LaneTargetConstPtr> GetAllLaneTarget();
@@ -103,8 +115,8 @@ class LanePointFilterTrackerPipeline : public BaseTrackerPipeline {
 
   bool is_last_main_road_left_exist_ = false;
   bool is_last_main_road_right_exist_ = false;
-  base::LaneLinePtr main_road_left_line_ = nullptr;
-  base::LaneLinePtr main_road_right_line_ = nullptr;
+  perception_base::LaneLinePtr main_road_left_line_ = nullptr;
+  perception_base::LaneLinePtr main_road_right_line_ = nullptr;
 
   float dist_separation_point_ = 5.0;
 
@@ -113,7 +125,7 @@ class LanePointFilterTrackerPipeline : public BaseTrackerPipeline {
   int pos_stable_count_ = 0;
   float d_change_threshold_ = 0.4;
   // <track_id, <lane_pose, count(lane_pose != current_pose)>>
-  std::unordered_map<int, base::LaneLinePosition> lane_pos_map;
+  std::unordered_map<int, perception_base::LaneLinePosition> lane_pos_map;
   // <track_id, <last_d, d_error>> 横向位置变化
   std::unordered_map<int, std::tuple<float, float>> lane_d_map;
 };

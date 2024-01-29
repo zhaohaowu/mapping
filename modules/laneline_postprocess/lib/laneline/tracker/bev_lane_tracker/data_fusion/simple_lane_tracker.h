@@ -15,6 +15,8 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+namespace perception_base = hozon::perception::base;
+
 struct SimpleLaneTrackerInitOptions {
   Eigen::Affine3d novatel2world_pose = Eigen::Affine3d::Identity();
   LaneTrackFilterParam lane_track_filter_param;
@@ -36,7 +38,7 @@ class SimpleLaneTracker {
 
   void UpdateWithDetectedLaneLine(
       const SimpleLaneTrackerOptions& options,
-      const base::LaneLineMeasurementPtr& detected_laneline);
+      const perception_base::LaneLineMeasurementPtr& detected_laneline);
 
   void UpdateWithoutDetectedLaneLine(const SimpleLaneTrackerOptions& options);
 

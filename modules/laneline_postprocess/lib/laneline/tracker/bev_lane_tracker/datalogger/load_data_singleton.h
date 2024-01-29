@@ -21,8 +21,9 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-using namespace hozon::perception;
-
+using hozon::perception::base::LaneLineMeasurementPtr;
+using hozon::perception::base::LocationConstPtr;
+using hozon::perception::base::RoadEdgeMeasurementPtr;
 class InputDataSingleton {
  public:
   bool Init();
@@ -32,9 +33,9 @@ class InputDataSingleton {
 
  public:
   /** @brief sensor data buffer. */
-  MessageBuffer<base::LocationConstPtr> dr_data_buffer_;
-  MessageBuffer<std::vector<base::LaneLineMeasurementPtr>> lanes_buffer_;
-  MessageBuffer<std::vector<base::RoadEdgeMeasurementPtr>> roadedges_buffer_;
+  MessageBuffer<LocationConstPtr> dr_data_buffer_;
+  MessageBuffer<std::vector<LaneLineMeasurementPtr>> lanes_buffer_;
+  MessageBuffer<std::vector<RoadEdgeMeasurementPtr>> roadedges_buffer_;
   int turn_count_ = 0;
   int turn_count_threshold_ = 4;
   bool turn_state_ = false;

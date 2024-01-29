@@ -5,7 +5,6 @@
 *   date       ：2023.02.28
 ================================================================*/
 #include "modules/laneline_postprocess/app/laneline_postprocess.h"
-
 #include <float.h>
 #include <sys/time.h>
 
@@ -37,10 +36,10 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-bool LanePostProcess::Init(const ProcessInitOption &init_option) {
+bool LanePostProcess::Init(const ProcessInitOption& init_option) {
   std::cout << "LanePostProcess Init==========" << std::endl;
-  auto config_manager = lib::ConfigManager::Instance();
-  const lib::ModelConfig *model_config = nullptr;
+  auto config_manager = perception_lib::ConfigManager::Instance();
+  const perception_lib::ModelConfig* model_config = nullptr;
   if (!config_manager->GetModelConfig(Name(), &model_config)) {
     HLOG_ERROR << "Parse config failed! Name: " << Name();
     return false;
@@ -54,8 +53,9 @@ bool LanePostProcess::Init(const ProcessInitOption &init_option) {
     return false;
   }
 
-  config_file = lib::FileUtil::GetAbsolutePath(work_root, config_file);
-  if (!lib::GetProtoFromFile(config_file, &config_)) {
+  config_file =
+      perception_lib::FileUtil::GetAbsolutePath(work_root, config_file);
+  if (!perception_lib::GetProtoFromFile(config_file, &config_)) {
     HLOG_ERROR << "Lane Post Process Get Proto File Failed !";
     return false;
   }
@@ -84,17 +84,19 @@ bool LanePostProcess::Init(const ProcessInitOption &init_option) {
   return true;
 }
 
-bool LanePostProcess::Process(base::MeasurementFramePtr measurement_ptr,
-                              base::FusionFramePtr fusion_ptr) {
+bool LanePostProcess::Process(
+    perception_base::MeasurementFramePtr measurement_ptr,
+    perception_base::FusionFramePtr fusion_ptr) {
   HLOG_DEBUG << "Start LanePostProcess Working...";
   if (!fusion_ptr->scene_) {
-    fusion_ptr->scene_ = std::make_shared<base::Scene>();
+    fusion_ptr->scene_ = std::make_shared<perception_base::Scene>();
   }
   if (!fusion_ptr->scene_->lane_lines) {
-    fusion_ptr->scene_->lane_lines = std::make_shared<base::LaneLines>();
+    fusion_ptr->scene_->lane_lines =
+        std::make_shared<perception_base::LaneLines>();
   }
 
-  InputDataSingleton *local_data = InputDataSingleton::Instance();
+  InputDataSingleton* local_data = InputDataSingleton::Instance();
   if (local_data->IsStaticState(config_.static_strategy_param()) &&
       !last_track_lanelines_.empty()) {
     TransTrackerLocal2Vehicle(&last_track_lanelines_);
@@ -117,21 +119,21 @@ bool LanePostProcess::Process(base::MeasurementFramePtr measurement_ptr,
 }
 
 void LanePostProcess::TransTrackerLocal2Vehicle(
-    std::vector<base::LaneLinePtr> *tracked_outputs) {
-  auto &dr_datas = InputDataSingleton::Instance()->dr_data_buffer_;
+    std::vector<perception_base::LaneLinePtr>* tracked_outputs) {
+  auto& dr_datas = InputDataSingleton::Instance()->dr_data_buffer_;
   auto novatel2world_pose_ = dr_datas.back()->pose;
-  for (auto &tracked_output : *tracked_outputs) {
-    auto &points = tracked_output->point_set;
+  for (auto& tracked_output : *tracked_outputs) {
+    auto& points = tracked_output->point_set;
     Eigen::Vector3d vehicle_pt(0.0, 0.0, 0.0);
     Eigen::Vector3d local_pt(0.0, 0.0, 0.0);
 
-    for (auto &lane_line_point : points) {
-      auto &local_point = lane_line_point.local_point;
+    for (auto& lane_line_point : points) {
+      auto& local_point = lane_line_point.local_point;
       local_pt[0] = local_point.x;
       local_pt[1] = local_point.y;
 
       vehicle_pt = novatel2world_pose_.inverse() * local_pt;
-      auto &vehicle_point = lane_line_point.vehicle_point;
+      auto& vehicle_point = lane_line_point.vehicle_point;
       vehicle_point.x = vehicle_pt[0];
       vehicle_point.y = vehicle_pt[1];
     }
@@ -139,9 +141,9 @@ void LanePostProcess::TransTrackerLocal2Vehicle(
 }
 
 bool LanePostProcess::Process(
-    const ProcessOption &options,
-    base::LaneLinesMeasurementConstPtr detect_measurements,
-    const base::LaneLinesPtr track_lanelines) {
+    const ProcessOption& options,
+    perception_base::LaneLinesMeasurementConstPtr detect_measurements,
+    const perception_base::LaneLinesPtr track_lanelines) {
   // PERF_FUNCTION();
   // PERF_BLOCK_START();
 
@@ -150,8 +152,8 @@ bool LanePostProcess::Process(
   environment::AnomalyFilterOptions lane_anomaly_filter_options;
   lane_anomaly_filter_options.timestamp = options.timestamp;
 
-  base::LaneLinesMeasurementPtr filtered_measurement =
-      std::make_shared<base::LaneLinesMeasurement>();
+  perception_base::LaneLinesMeasurementPtr filtered_measurement =
+      std::make_shared<perception_base::LaneLinesMeasurement>();
   if (!lane_measurements_filter_->Filter(lane_anomaly_filter_options,
                                          detect_measurements,
                                          filtered_measurement)) {

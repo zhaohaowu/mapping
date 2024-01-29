@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <functional>
 #include <iostream>
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -19,8 +20,10 @@
 
 #include <Sophus/se3.hpp>
 
+#include "modules/local_mapping/datalogger/load_data_singleton.h"
 #include "modules/local_mapping/types/types.h"
 #include "modules/local_mapping/utils/common.h"
+#include "modules/util/include/util/mapping_log.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 namespace hozon {
 namespace mp {
@@ -68,35 +71,28 @@ class MapManager {
                                     const ZebraCrossing& per_zebra_crossing,
                                     const ZebraCrossing& map_zebra_crossing);
 
-  static void UpdateLaneByPerception(LocalMap* local_map,
-                                     const Perception& cur_lane_lines);
-
-  static void UpdateLeftAndRightLine(int left_lanepos, int right_lanepos,
-                                     const std::vector<LaneLine>& lane_lines,
-                                     std::vector<Lane>* lanes);
-
-  static void UpdateLaneByLocalmap(LocalMap* local_map);
-
-  static void PridictFrontMapLanes(LocalMap* local_map);
-
-  static void PridictBackMapLanes(LocalMap* local_map);
-
-  static void PridictCenterMapLanes(LocalMap* local_map);
-
   static void UpdateHeading(LocalMap* local_map);
 
   static void UpdateLanepos(LocalMap* local_map);
 
-  static void ConvertToLocalFrame(const Sophus::SE3d& T_W_V,
-                                  LocalMap* local_map);
+  static void MergeLaneLine(LocalMap* local_map);
 
-  static void MergeMapLeftRight(LocalMap* local_map, LaneLine* cur_lane_line);
-  static void MergeMapFrontBack(LocalMap* local_map, LaneLine* cur_lane_line);
-  static void MergePointsLeftRight(LaneLine* cur_lane_line,
-                                   LaneLine* local_map_line);
-  static void MergePointsFrontBack(LaneLine* cur_lane_line,
-                                   LaneLine* local_map_line);
-  static void MapMerge(LocalMap* local_map);
+  static void MatchLaneLine(const std::vector<LaneLine>& per_lane_lines,
+                            const std::vector<LaneLine>& map_lane_lines,
+                            std::vector<LaneLineMatchInfo>* lane_line_matches);
+  static void MatchEdgeLine(const std::vector<LaneLine>& per_edge_lines,
+                            const std::vector<LaneLine>& map_edge_lines,
+                            std::vector<EdgeLineMatchInfo>* edge_line_matches);
+  static void MatchStopLine(const std::vector<StopLine>& per_stop_lines,
+                            const std::vector<StopLine>& map_stop_lines,
+                            std::vector<StopLineMatchInfo>* stop_line_matches);
+  static void MatchArrow(const std::vector<Arrow>& per_arrows,
+                         const std::vector<Arrow>& map_arrows,
+                         std::vector<ArrowMatchInfo>* arrow_matches);
+  static void MatchZebraCrossing(
+      const std::vector<ZebraCrossing>& per_zebra_crossings,
+      const std::vector<ZebraCrossing>& map_zebra_crossings,
+      std::vector<ZebraCrossingMatchInfo>* zebra_crossing_matches);
 };
 
 }  // namespace lm

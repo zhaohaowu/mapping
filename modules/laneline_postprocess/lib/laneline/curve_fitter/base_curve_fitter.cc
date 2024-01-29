@@ -37,15 +37,15 @@ void BaseCurveFitter::DoNormalization(
   }
 }
 
-bool BaseCurveFitter::CurveFitting(const std::vector<base::Point2DF>& point_set,
+bool BaseCurveFitter::CurveFitting(const std::vector<Point2DF>& point_set,
                                    LaneLinePolynomialPtr polynomial,
-                                   const base::LaneLineCurve& target_curve) {
+                                   const LaneLineCurve& target_curve) {
   return false;
 }
 
-bool BaseCurveFitter::CurveFitting(const std::vector<base::Point3DF>& point_set,
+bool BaseCurveFitter::CurveFitting(const std::vector<Point3DF>& point_set,
                                    LaneLinePolynomialPtr polynomial,
-                                   const base::LaneLineCurve& target_curve) {
+                                   const LaneLineCurve& target_curve) {
   return false;
 }
 

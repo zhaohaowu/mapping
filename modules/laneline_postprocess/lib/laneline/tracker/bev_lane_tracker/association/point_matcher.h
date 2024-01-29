@@ -26,6 +26,8 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+namespace perception_base = hozon::perception::base;
+
 // detect_index_point, track_index_point, distance
 typedef std::tuple<size_t, size_t, double> PointPair;
 typedef std::vector<PointPair> PointIndexPointsPair;
@@ -55,54 +57,60 @@ class PointMatcher {
 
   virtual ~PointMatcher();
 
-  bool Init(const PointMatcherInitOptions &options);
+  bool Init(const PointMatcherInitOptions& options);
 
-  bool Associate(
-      const PointMatcherOptions &options,
-      const std::vector<base::LaneLineMeasurementPtr> *detected_lanelines,
-      const std::vector<SimpleLaneTrackerPtr> &lane_trackers,
-      PointAssociationResult *association_result);
+  bool Associate(const PointMatcherOptions& options,
+                 const std::vector<perception_base::LaneLineMeasurementPtr>*
+                     detected_lanelines,
+                 const std::vector<SimpleLaneTrackerPtr>& lane_trackers,
+                 PointAssociationResult* association_result);
 
-  bool Associate(
-      const PointMatcherOptions &options,
-      const std::vector<base::RoadEdgeMeasurementPtr> *detected_road_edges,
-      const std::vector<SimpleRoadEdgeTrackerPtr> &lane_trackers,
-      PointAssociationResult *association_result);
+  bool Associate(const PointMatcherOptions& options,
+                 const std::vector<perception_base::RoadEdgeMeasurementPtr>*
+                     detected_road_edges,
+                 const std::vector<SimpleRoadEdgeTrackerPtr>& lane_trackers,
+                 PointAssociationResult* association_result);
 
  private:
   void SolveBipartiteGraphMatchWithGreedy(
-      const std::vector<base::LaneLineMeasurementPtr> *detected_lanelines,
-      const std::vector<PointMatchScoreTuple> &match_score_list,
-      PointAssociationResult *association_result);
+      const std::vector<perception_base::LaneLineMeasurementPtr>*
+          detected_lanelines,
+      const std::vector<PointMatchScoreTuple>& match_score_list,
+      PointAssociationResult* association_result);
 
   void SolveBipartiteGraphMatchWithGreedy(
-      const std::vector<base::RoadEdgeMeasurementPtr> *detected_road_edges,
-      const std::vector<PointMatchScoreTuple> &match_score_list,
-      PointAssociationResult *association_result);
+      const std::vector<perception_base::RoadEdgeMeasurementPtr>*
+          detected_road_edges,
+      const std::vector<PointMatchScoreTuple>& match_score_list,
+      PointAssociationResult* association_result);
 
-  void SetTrackKDTree(const std::vector<SimpleLaneTrackerPtr> &lane_trackers);
+  void SetTrackKDTree(const std::vector<SimpleLaneTrackerPtr>& lane_trackers);
   void SetTrackKDTree(
-      const std::vector<SimpleRoadEdgeTrackerPtr> &lane_trackers);
+      const std::vector<SimpleRoadEdgeTrackerPtr>& lane_trackers);
 
   void Clear();
   void AssociationKnn(
-      const PointMatcherOptions &options,
-      const std::vector<SimpleLaneTrackerPtr> &lane_trackers,
-      const std::vector<base::LaneLineMeasurementPtr> *detected_lanelines,
-      PointAssociationResult *association_result);
+      const PointMatcherOptions& options,
+      const std::vector<SimpleLaneTrackerPtr>& lane_trackers,
+      const std::vector<perception_base::LaneLineMeasurementPtr>*
+          detected_lanelines,
+      PointAssociationResult* association_result);
 
   void AssociationKnn(
-      const PointMatcherOptions &options,
-      const std::vector<SimpleRoadEdgeTrackerPtr> &lane_trackers,
-      const std::vector<base::RoadEdgeMeasurementPtr> *detected_road_edges,
-      PointAssociationResult *association_result);
+      const PointMatcherOptions& options,
+      const std::vector<SimpleRoadEdgeTrackerPtr>& lane_trackers,
+      const std::vector<perception_base::RoadEdgeMeasurementPtr>*
+          detected_road_edges,
+      PointAssociationResult* association_result);
 
-  double NormPoint(base::Point3DF point);
+  double NormPoint(perception_base::Point3DF point);
   void SetDetectionPointDist(
-      const std::vector<base::LaneLineMeasurementPtr> *detected_lanelines);
+      const std::vector<perception_base::LaneLineMeasurementPtr>*
+          detected_lanelines);
 
   void SetDetectionPointDist(
-      const std::vector<base::RoadEdgeMeasurementPtr> *detected_roadedges);
+      const std::vector<perception_base::RoadEdgeMeasurementPtr>*
+          detected_roadedges);
 
  private:
   std::vector<PointMatchScoreTuple> match_score_list_;
@@ -110,7 +118,7 @@ class PointMatcher {
   LaneMatchParam lane_match_param_;
   std::vector<bool> target_used_mask_;
   std::vector<bool> det_used_mask_;
-  std::vector<cv::flann::Index *> track_kdtrees_;
+  std::vector<cv::flann::Index*> track_kdtrees_;
   std::vector<double> track_lanes_y_err_;
   std::vector<std::vector<double>> det_knn_thd_;
   std::string debug_timestamp_;

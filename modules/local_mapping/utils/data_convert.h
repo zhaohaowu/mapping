@@ -11,9 +11,14 @@
 #include <utility>
 #include <vector>
 
+#include "depend/proto/local_mapping/local_map.pb.h"
+#include "depend/proto/localization/node_info.pb.h"
+#include "depend/proto/map/map.pb.h"
+#include "depend/proto/map/navigation.pb.h"
 #include "modules/local_mapping/types/types.h"
 #include "modules/local_mapping/utils/common.h"
 #include "modules/util/include/util/mapping_log.h"
+
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -26,6 +31,8 @@ class DataConvert {
 
   static void SetPerception(const hozon::perception::TransportElement& msg,
                             Perception* perception);
+
+  static void SetIns(const hozon::localization::HafNodeInfo& msg, InsData* ins);
 
   static void SetLaneLine(const hozon::perception::TransportElement& msg,
                           std::vector<LaneLine>* lane_lines);

@@ -26,7 +26,10 @@ namespace mp {
 namespace environment_onboard {
 
 using adf_lite_Bundle = hozon::netaos::adf_lite::Bundle;
-using namespace hozon::perception;
+namespace perception_base = hozon::perception::base;
+namespace perception_lib = hozon::perception::lib;
+
+// namespace perception_env = hozon::perception::;
 
 class EnvBevfusionOnboard : public hozon::netaos::adf_lite::Executor {
  public:
@@ -43,7 +46,7 @@ class EnvBevfusionOnboard : public hozon::netaos::adf_lite::Executor {
  private:
   std::unique_ptr<environment::LanePostProcess> lane_postprocessor_;
   std::unique_ptr<environment::RoadEdgePostProcess> roadedge_postprocessor_;
-  std::shared_ptr<base::Location> location_msg_;
+  std::shared_ptr<perception_base::Location> location_msg_;
 };
 
 REGISTER_ADF_CLASS(EnvBevfusionOnboard, EnvBevfusionOnboard);

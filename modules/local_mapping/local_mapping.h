@@ -28,7 +28,6 @@
 #include "depend/proto/map/navigation.pb.h"
 #include "depend/proto/soc/sensor_image.pb.h"
 #include "modules/local_mapping/datalogger/load_data_singleton.h"
-#include "modules/local_mapping/ops/lane/lane_op.h"
 #include "modules/local_mapping/types/types.h"
 #include "modules/local_mapping/utils/common.h"
 #include "modules/local_mapping/utils/data_convert.h"
@@ -57,21 +56,25 @@ class LMapApp {
   LMapApp& operator=(LMapApp&& other) noexcept;
 
   void OnLocalization(
-      const std::shared_ptr<const hozon::localization::Localization>& msg);
+      const std::shared_ptr<const Localization>& latest_localization);
 
-  void OnIns(
-      const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg);
+  void OnPerception(const std::shared_ptr<const Perception>& perception);
 
-  void OnPerception(
-      const std::shared_ptr<const hozon::perception::TransportElement>& msg);
+  void OnIns(const std::shared_ptr<const InsData>& msg);
 
   bool FetchLocalMap(
       const std::shared_ptr<hozon::mapping::LocalMap>& local_map);
 
   void RvizFunc();
 
+ protected:
+  void ProcLaneLine(const std::shared_ptr<const Perception>& perception);
+  void ProcRoadEdge(const std::shared_ptr<const Perception>& perception);
+  void ProcStopLine(const std::shared_ptr<const Perception>& perception);
+  void ProcZebraCrossing(const std::shared_ptr<const Perception>& perception);
+  void ProcArrow(const std::shared_ptr<const Perception>& perception);
+
  private:
-  std::shared_ptr<LaneOp> laneOp_;
   std::shared_ptr<MapManager> mmgr_;
   std::shared_ptr<hozon::hdmap::HDMap> hdmap_ = nullptr;
   std::shared_ptr<hozon::hdmap::Map> hqmap_ = nullptr;
@@ -89,6 +92,9 @@ class LMapApp {
   std::atomic<bool> ins_inited_ = false;
   std::thread rviz_thread_;
   std::atomic<bool> stop_rviz_thread_ = true;
+
+  Sophus::SE3d last_twv_;
+  Sophus::SE3d cur_twv_;
 };
 
 }  // namespace lm

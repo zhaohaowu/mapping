@@ -16,7 +16,7 @@
 namespace hozon {
 namespace mp {
 namespace environment {
-
+namespace perception_base = hozon::perception::base;
 struct CurveDistParams {
   float fix_param_xmin{0.f};
   float linear_select_ratio{0.f};
@@ -54,26 +54,27 @@ class SegmentCurveFitter : public BaseCurveFitter {
                 BaseCurveFitterInitOptions()) override;
 
   // @brief: Point lane curve fitter function
-  bool CurveFitting(const std::vector<base::Point2DF>& point_set,
+  bool CurveFitting(const std::vector<perception_base::Point2DF>& point_set,
                     LaneLinePolynomialPtr polynomial) override;
-  bool CurveFitting(const std::vector<base::Point3DF>& point_set,
+  bool CurveFitting(const std::vector<perception_base::Point3DF>& point_set,
                     LaneLinePolynomialPtr polynomial) override;
-  bool CurveFitting(const std::vector<base::Point2DF>& point_set,
+  bool CurveFitting(const std::vector<perception_base::Point2DF>& point_set,
                     LaneLinePolynomialPtr polynomial,
-                    const base::LaneLineCurve& target_curve);
-  bool CurveFitting(const std::vector<base::Point3DF>& point_set,
+                    const perception_base::LaneLineCurve& target_curve);
+  bool CurveFitting(const std::vector<perception_base::Point3DF>& point_set,
                     LaneLinePolynomialPtr polynomial,
-                    const base::LaneLineCurve& target_curve);
+                    const perception_base::LaneLineCurve& target_curve);
   std::string Name() const override;
 
  private:
   bool PolyFitProcess(Candidate* candidate);
   bool FixParamCurveFitting(Candidate* king_candidate,
-                            const base::LaneLineCurve& target_curve);
+                            const perception_base::LaneLineCurve& target_curve);
   bool FixParamCurveFitting(Candidate* king_candidate);
   bool MultiOrderCurveFitting(Candidate* king_candidate, bool fix_flag);
-  bool MultiOrderCurveFitting(Candidate* king_candidate, bool fix_flag,
-                              const base::LaneLineCurve& target_curve);
+  bool MultiOrderCurveFitting(
+      Candidate* king_candidate, bool fix_flag,
+      const perception_base::LaneLineCurve& target_curve);
   bool CandidateStatics(Candidate* candidate);
   bool SelectPointBin(Candidate* candidate, int count);
   double CalculateRatioError(const std::vector<float>& new_curve,
@@ -91,7 +92,7 @@ class SegmentCurveFitter : public BaseCurveFitter {
 
   CurveDistParams curve_dist_param;
 
-  std::vector<base::Point2DF> point_set_2d_;
+  std::vector<perception_base::Point2DF> point_set_2d_;
   std::vector<Eigen::Matrix<float, 2, 1> > pos_vec_;
   std::vector<int> linear_pos_vec_index_;
   std::vector<int> pos_vec_random_index_;

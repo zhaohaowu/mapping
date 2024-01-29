@@ -21,13 +21,13 @@ namespace mp {
 namespace environment {
 
 void AdaptorPointManager::AddObservePoints(
-    const std::vector<base::LaneLinePoint> &point_set) {
+    const std::vector<perception_base::LaneLinePoint>& point_set) {
   latest_measurement_lines_.push_back(point_set);
   // HLOG_INFO << "###### point_set:" << point_set.size();
 }
 
-void AdaptorPointManager::init(Eigen::Matrix<double, 40, 1> *XPtr,
-                               Eigen::Matrix<double, 40, 40> *PPtr) {
+void AdaptorPointManager::init(Eigen::Matrix<double, 40, 1>* XPtr,
+                               Eigen::Matrix<double, 40, 40>* PPtr) {
   X_ = *XPtr;
   P_ = *PPtr;
   pt_size_ = X_.size() / 2;
@@ -37,7 +37,7 @@ void AdaptorPointManager::init(Eigen::Matrix<double, 40, 1> *XPtr,
   fastest_track_pt_ = pose_.inverse() * fastest_track_pt;
   Eigen::Vector3d near_track_pt(X_[0], X_[1], 0.0);
   near_track_pt_ = pose_.inverse() * near_track_pt;
-  auto &measurement_points = (latest_measurement_lines_.back());
+  auto& measurement_points = (latest_measurement_lines_.back());
   near_measure_pt_ = measurement_points[0].vehicle_point;
   far_measure_pt_ = measurement_points.back().vehicle_point;
   // 选取阈值, 取检测点的平均点间隔
@@ -49,14 +49,14 @@ void AdaptorPointManager::init(Eigen::Matrix<double, 40, 1> *XPtr,
   return;
 }
 
-void AdaptorPointManager::CopyMatrix(Eigen::Matrix<double, 40, 1> *XPtr,
-                                     Eigen::Matrix<double, 40, 40> *PPtr) {
+void AdaptorPointManager::CopyMatrix(Eigen::Matrix<double, 40, 1>* XPtr,
+                                     Eigen::Matrix<double, 40, 40>* PPtr) {
   *XPtr = X_;
   *PPtr = P_;
 }
 
 void AdaptorPointManager::UpdatePointsNear(
-    const std::vector<base::LaneLinePoint> &measurement_points) {
+    const std::vector<perception_base::LaneLinePoint>& measurement_points) {
   // 跟踪最近点距离本车超过1m并且连续两帧检测小于跟踪
   // 检测点逐个替换跟踪点，直到检测点和跟踪点距离相近
   if (near_track_pt_.x() > 1.0 &&
@@ -77,7 +77,7 @@ void AdaptorPointManager::UpdatePointsNear(
          ++i, ++j) {
       Eigen::Vector3d track_pt(X_[i * 2], X_[i * 2 + 1], 0.0);
       track_pt = pose_.inverse() * track_pt;
-      const auto &measure_pt = measurement_points[j];
+      const auto& measure_pt = measurement_points[j];
       // 近处跟踪点远大于检测点, 找到检测和跟踪基本差不多距离的点索引i
       // 把跟踪的点进行替换
       if (measure_pt.vehicle_point.x < track_pt.x() - threshold_) {
@@ -97,7 +97,7 @@ void AdaptorPointManager::UpdatePointsNear(
 }
 
 void AdaptorPointManager::UpdatePointsFar(
-    const std::vector<base::LaneLinePoint> &measurement_points) {
+    const std::vector<perception_base::LaneLinePoint>& measurement_points) {
   int append_size = 0;
   std::vector<int> append_index;
   Eigen::VectorXd inter_points;
@@ -137,7 +137,7 @@ void AdaptorPointManager::UpdatePointsFar(
 }
 
 void AdaptorPointManager::DelPointsFar(
-    const std::vector<base::LaneLinePoint> &measurement_points) {
+    const std::vector<perception_base::LaneLinePoint>& measurement_points) {
   // 跟踪比检测远的情况
   int count_track_over_dect = 0;
   // 检测远端的平均距离
@@ -145,7 +145,7 @@ void AdaptorPointManager::DelPointsFar(
   for (int i = latest_measurement_lines_.size() - 1, j = 1; i >= 0; i--, j++) {
     // HLOG_INFO << "###### latest_measurement_lines_ size():"
     //           << (latest_measurement_lines_[i]);
-    const auto &dect_pt = (latest_measurement_lines_[i]).back().vehicle_point;
+    const auto& dect_pt = (latest_measurement_lines_[i]).back().vehicle_point;
     if (fastest_track_pt_.x() > dect_pt.x + threshold_ * j) {
       count_track_over_dect++;
       mean_far_dect_x += dect_pt.x;
@@ -203,7 +203,7 @@ void AdaptorPointManager::DelPointsFar(
       P_SWAP_ = P_SWAP_ * init_p_;
       X_SWAP_.setZero();
       for (int i = 0; i < pt_size_; ++i) {
-        const auto &measure_pt = measurement_points[i];
+        const auto& measure_pt = measurement_points[i];
         X_SWAP_[2 * i] = measure_pt.local_point.x;
         X_SWAP_[2 * i + 1] = measure_pt.local_point.y;
       }
@@ -214,11 +214,11 @@ void AdaptorPointManager::DelPointsFar(
   return;
 }
 
-void AdaptorPointManager::Process(Eigen::Matrix<double, 40, 1> *XPtr,
-                                  Eigen::Matrix<double, 40, 40> *PPtr) {
+void AdaptorPointManager::Process(Eigen::Matrix<double, 40, 1>* XPtr,
+                                  Eigen::Matrix<double, 40, 40>* PPtr) {
   // 计算公共变量和赋值操作
   init(XPtr, PPtr);
-  auto &measurement_points = (latest_measurement_lines_.back());
+  auto& measurement_points = (latest_measurement_lines_.back());
   // 1. 跟踪近处没有点, 替换跟踪点
   UpdatePointsNear(measurement_points);
   // 2. 检测点超过跟踪点，对跟踪点进行远处添加检测点

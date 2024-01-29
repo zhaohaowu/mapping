@@ -12,44 +12,57 @@ namespace hozon {
 namespace mp {
 namespace common_onboard {
 
-static bool CvtRoadEdgeToPb(const base::RoadEdgePtr &arrow_msg,
-                            RoadEdge *pb_object);
+static bool CvtRoadEdgeToPb(const perception_base::RoadEdgePtr& arrow_msg,
+                            hozon::perception::RoadEdge* pb_object);
 
-static RoadEdge::RoadEdgeType CvtRoadEdgeType2Pb(base::RoadEdgeType shape) {
+static hozon::perception::RoadEdge::RoadEdgeType CvtRoadEdgeType2Pb(
+    perception_base::RoadEdgeType shape) {
   switch (shape) {
-    case base::RoadEdgeType::ROAD_EDGE:
-      return RoadEdge::RoadEdgeType::RoadEdge_RoadEdgeType_ROAD_EDGE;
-    case base::RoadEdgeType::GROUND_EDGE:
-      return RoadEdge::RoadEdgeType::RoadEdge_RoadEdgeType_GROUND_EDGE;
-    case base::RoadEdgeType::CONE_EDGE:
-      return RoadEdge::RoadEdgeType::RoadEdge_RoadEdgeType_CONE_EDGE;
-    case base::RoadEdgeType::WATERHORSE_EDGE:
-      return RoadEdge::RoadEdgeType::RoadEdge_RoadEdgeType_WATERHORSE_EDGE;
-    case base::RoadEdgeType::FENCE_EDGE:
-      return RoadEdge::RoadEdgeType::RoadEdge_RoadEdgeType_FENCE_EDGE;
+    case perception_base::RoadEdgeType::ROAD_EDGE:
+      return hozon::perception::RoadEdge::RoadEdgeType::
+          RoadEdge_RoadEdgeType_ROAD_EDGE;
+    case perception_base::RoadEdgeType::GROUND_EDGE:
+      return hozon::perception::RoadEdge::RoadEdgeType::
+          RoadEdge_RoadEdgeType_GROUND_EDGE;
+    case perception_base::RoadEdgeType::CONE_EDGE:
+      return hozon::perception::RoadEdge::RoadEdgeType::
+          RoadEdge_RoadEdgeType_CONE_EDGE;
+    case perception_base::RoadEdgeType::WATERHORSE_EDGE:
+      return hozon::perception::RoadEdge::RoadEdgeType::
+          RoadEdge_RoadEdgeType_WATERHORSE_EDGE;
+    case perception_base::RoadEdgeType::FENCE_EDGE:
+      return hozon::perception::RoadEdge::RoadEdgeType::
+          RoadEdge_RoadEdgeType_FENCE_EDGE;
     default:
-      return RoadEdge::RoadEdgeType::RoadEdge_RoadEdgeType_UNKNOWN;
+      return hozon::perception::RoadEdge::RoadEdgeType::
+          RoadEdge_RoadEdgeType_UNKNOWN;
   }
 }
-static base::RoadEdgeType CvtPb2RoadEdgeType(RoadEdge::RoadEdgeType shape) {
+static perception_base::RoadEdgeType CvtPb2RoadEdgeType(
+    hozon::perception::RoadEdge::RoadEdgeType shape) {
   switch (shape) {
-    case RoadEdge::RoadEdgeType::RoadEdge_RoadEdgeType_ROAD_EDGE:
-      return base::RoadEdgeType::ROAD_EDGE;
-    case RoadEdge::RoadEdgeType::RoadEdge_RoadEdgeType_GROUND_EDGE:
-      return base::RoadEdgeType::GROUND_EDGE;
-    case RoadEdge::RoadEdgeType::RoadEdge_RoadEdgeType_CONE_EDGE:
-      return base::RoadEdgeType::CONE_EDGE;
-    case RoadEdge::RoadEdgeType::RoadEdge_RoadEdgeType_WATERHORSE_EDGE:
-      return base::RoadEdgeType::WATERHORSE_EDGE;
-    case RoadEdge::RoadEdgeType::RoadEdge_RoadEdgeType_FENCE_EDGE:
-      return base::RoadEdgeType::FENCE_EDGE;
+    case hozon::perception::RoadEdge::RoadEdgeType::
+        RoadEdge_RoadEdgeType_ROAD_EDGE:
+      return perception_base::RoadEdgeType::ROAD_EDGE;
+    case hozon::perception::RoadEdge::RoadEdgeType::
+        RoadEdge_RoadEdgeType_GROUND_EDGE:
+      return perception_base::RoadEdgeType::GROUND_EDGE;
+    case hozon::perception::RoadEdge::RoadEdgeType::
+        RoadEdge_RoadEdgeType_CONE_EDGE:
+      return perception_base::RoadEdgeType::CONE_EDGE;
+    case hozon::perception::RoadEdge::RoadEdgeType::
+        RoadEdge_RoadEdgeType_WATERHORSE_EDGE:
+      return perception_base::RoadEdgeType::WATERHORSE_EDGE;
+    case hozon::perception::RoadEdge::RoadEdgeType::
+        RoadEdge_RoadEdgeType_FENCE_EDGE:
+      return perception_base::RoadEdgeType::FENCE_EDGE;
     default:
-      return base::RoadEdgeType::UNKNOWN;
+      return perception_base::RoadEdgeType::UNKNOWN;
   }
 }
 
 bool DataMapping::CvtMultiRoadEdgesToPb(
-    const std::vector<base::RoadEdgePtr> &roadedge_msgs,
+    const std::vector<perception_base::RoadEdgePtr>& roadedge_msgs,
     NetaTransportElementPtr pb_objects) {
   if (roadedge_msgs.size() == 0) {
     HLOG_DEBUG << "roadedge msg size is 0";
@@ -71,19 +84,21 @@ bool DataMapping::CvtMultiRoadEdgesToPb(
   return true;
 }
 
-bool DataMapping::CvtRoadEdgeToPb(const base::RoadEdgePtr &roadedge_msg,
-                                  RoadEdge *pb_roadedge) {
+bool DataMapping::CvtRoadEdgeToPb(
+    const perception_base::RoadEdgePtr& roadedge_msg,
+    hozon::perception::RoadEdge* pb_roadedge) {
   if (nullptr == roadedge_msg || nullptr == pb_roadedge) {
     HLOG_ERROR << "arrow msg  or pb_arrow is nullptr.";
     return false;
   }
   pb_roadedge->set_id(roadedge_msg->id);
-  RoadEdge::RoadEdgeType send_type = CvtRoadEdgeType2Pb(roadedge_msg->type);
+  hozon::perception::RoadEdge::RoadEdgeType send_type =
+      CvtRoadEdgeType2Pb(roadedge_msg->type);
   pb_roadedge->set_type(send_type);
   pb_roadedge->set_confidence(roadedge_msg->confidence);
 
   if (roadedge_msg->point_set.size() != 0) {
-    for (auto &item_pt : roadedge_msg->point_set) {
+    for (auto& item_pt : roadedge_msg->point_set) {
       auto pb_pt = pb_roadedge->add_points();
       pb_pt->set_x(item_pt.vehicle_point.x);
       pb_pt->set_y(item_pt.vehicle_point.y);
@@ -106,15 +121,16 @@ bool DataMapping::CvtRoadEdgeToPb(const base::RoadEdgePtr &roadedge_msg,
 }
 
 bool DataMapping::CvtRoadEdgeMeasurementToPb(
-    const std::vector<base::RoadEdgeMeasurementPtr> &roadedge_measures,
-    hozon::perception::TransportElement *transport_element) {
-  for (auto &item : roadedge_measures) {
+    const std::vector<perception_base::RoadEdgeMeasurementPtr>&
+        roadedge_measures,
+    hozon::perception::TransportElement* transport_element) {
+  for (auto& item : roadedge_measures) {
     auto pb_roadedge = transport_element->add_road_edges();
     pb_roadedge->set_id(item->id);
     pb_roadedge->set_type(CvtRoadEdgeType2Pb(item->type));
     pb_roadedge->set_confidence(item->confidence);
     if (item->point_set.size() != 0) {
-      for (auto &item_pt : item->point_set) {
+      for (auto& item_pt : item->point_set) {
         auto arrow_points = pb_roadedge->mutable_points();
         auto pb_pt = pb_roadedge->add_points();
         pb_pt->set_x(item_pt.vehicle_point.x);
@@ -127,14 +143,14 @@ bool DataMapping::CvtRoadEdgeMeasurementToPb(
 }
 
 bool DataMapping::CvtPb2RoadEdgeMeasurement(
-    const hozon::perception::RoadEdge &roadedge,
-    base::RoadEdgeMeasurementPtr roadedgeptr) {
+    const hozon::perception::RoadEdge& roadedge,
+    perception_base::RoadEdgeMeasurementPtr roadedgeptr) {
   roadedgeptr->id = roadedge.id();
   roadedgeptr->type = CvtPb2RoadEdgeType(roadedge.type());
   roadedgeptr->confidence = roadedge.confidence();
 
-  for (auto &item : roadedge.points()) {
-    base::LaneLinePoint llpt;
+  for (auto& item : roadedge.points()) {
+    perception_base::LaneLinePoint llpt;
     llpt.vehicle_point.x = item.x();
     llpt.vehicle_point.y = item.y();
     llpt.vehicle_point.z = item.z();

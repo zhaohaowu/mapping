@@ -11,11 +11,11 @@ namespace hozon {
 namespace mp {
 namespace common_onboard {
 
-static bool CvtStopLineToPb(const base::StopLinePtr &stopline_msg,
-                            StopLine *pb_object);
+static bool CvtStopLineToPb(const perception_base::StopLinePtr& stopline_msg,
+                            hozon::perception::StopLine* pb_object);
 
 bool DataMapping::CvtMultiStopLinesToPb(
-    const std::vector<base::StopLinePtr> &stopline_msgs,
+    const std::vector<perception_base::StopLinePtr>& stopline_msgs,
     NetaTransportElementPtr pb_objects) {
   if (stopline_msgs.size() == 0) {
     HLOG_DEBUG << "stoplines msg size is 0";
@@ -37,8 +37,9 @@ bool DataMapping::CvtMultiStopLinesToPb(
   return true;
 }
 
-bool DataMapping::CvtStopLineToPb(const base::StopLinePtr &stopline_msg,
-                                  StopLine *pb_stopline) {
+bool DataMapping::CvtStopLineToPb(
+    const perception_base::StopLinePtr& stopline_msg,
+    hozon::perception::StopLine* pb_stopline) {
   if (nullptr == stopline_msg || nullptr == pb_stopline) {
     HLOG_ERROR << "stopline msg  or pb_arrow is nullptr.";
     return false;
@@ -65,9 +66,10 @@ bool DataMapping::CvtStopLineToPb(const base::StopLinePtr &stopline_msg,
 }
 
 bool DataMapping::CvtStopLineMeasurementToPb(
-    const std::vector<base::StopLineMeasurementPtr> &stopline_measure,
-    hozon::perception::TransportElement *transport_element) {
-  for (auto &item : stopline_measure) {
+    const std::vector<perception_base::StopLineMeasurementPtr>&
+        stopline_measure,
+    hozon::perception::TransportElement* transport_element) {
+  for (auto& item : stopline_measure) {
     auto pb_stopline = transport_element->add_stopline();
     pb_stopline->set_track_id(item->id);
     pb_stopline->set_confidence(item->confidence);
@@ -89,12 +91,12 @@ bool DataMapping::CvtStopLineMeasurementToPb(
   return true;
 }
 bool DataMapping::CvtPb2StopLineMeasurement(
-    const hozon::perception::StopLine &stopline,
-    base::StopLineMeasurementPtr stoplineptr) {
+    const hozon::perception::StopLine& stopline,
+    perception_base::StopLineMeasurementPtr stoplineptr) {
   stoplineptr->id = stopline.track_id();
   stoplineptr->confidence = stopline.confidence();
   stoplineptr->point_set_3d.resize(20);
-  base::Point3DF left_pt, right_pt;
+  perception_base::Point3DF left_pt, right_pt;
 
   stoplineptr->point_set_3d[0].x = stopline.left_point().x();
   stoplineptr->point_set_3d[0].y = stopline.left_point().y();

@@ -26,6 +26,8 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+namespace perception_base = hozon::perception::base;
+namespace perception_lib = hozon::perception::lib;
 class LanePostProcess : public BaseLaneProcess {
  public:
   LanePostProcess() = default;
@@ -34,12 +36,14 @@ class LanePostProcess : public BaseLaneProcess {
   bool Init(const ProcessInitOption& init_option) override;
 
   // @brief: run lane post process
-  bool Process(const ProcessOption& options,
-               base::LaneLinesMeasurementConstPtr detect_measurements,
-               const base::LaneLinesPtr track_outputs) override;
+  bool Process(
+      const ProcessOption& options,
+      perception_base::LaneLinesMeasurementConstPtr detect_measurements,
+      const perception_base::LaneLinesPtr track_outputs) override;
 
-  virtual bool Process(const base::MeasurementFramePtr measurement_ptr,
-                       base::FusionFramePtr fusion_ptr);
+  virtual bool Process(
+      const perception_base::MeasurementFramePtr measurement_ptr,
+      perception_base::FusionFramePtr fusion_ptr);
 
   std::string Name() const override { return "LanePostProcess"; }
 
@@ -47,13 +51,13 @@ class LanePostProcess : public BaseLaneProcess {
 
  private:
   void TransTrackerLocal2Vehicle(
-      std::vector<base::LaneLinePtr>* tracked_outputs);
+      std::vector<perception_base::LaneLinePtr>* tracked_outputs);
 
  private:
   /* lane track */
   std::unique_ptr<LanePointFilterTrackerPipeline> lane_tracker_;
   LanePostProcessParam config_;
-  std::vector<base::LaneLinePtr> last_track_lanelines_;
+  std::vector<perception_base::LaneLinePtr> last_track_lanelines_;
   std::unique_ptr<BaseLaneMeasurementFilter> lane_measurements_filter_;
 };
 

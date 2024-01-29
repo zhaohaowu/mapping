@@ -21,9 +21,6 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-using base::LaneLineConstPtr;
-using base::LaneLinePoint;
-
 bool LaneTypeFilter::Init(const LaneTypeFilterInitOptions& init_options) {
   lane_type_filter_param_ = init_options.lane_type_filter_param;
 
@@ -39,8 +36,8 @@ bool LaneTypeFilter::Init(const LaneTypeFilterInitOptions& init_options) {
 // 统计不同类型出现的概率和最大概率类型
 // 返回不同类型的统计概率值
 bool LaneTypeFilter::countTypeProbability(
-    const base::LaneLineMeasurementPtr& measurement) {
-  const base::LaneLineType& detect_type = measurement->type;
+    const perception_base::LaneLineMeasurementPtr& measurement) {
+  const perception_base::LaneLineType& detect_type = measurement->type;
   max_count_type_ = lane_target_ref_->GetConstTrackedLaneLine()->type;
   if (!(type_probability_.find(detect_type) == type_probability_.end())) {
     type_probability_[detect_type] += measurement->score;
@@ -58,9 +55,9 @@ bool LaneTypeFilter::countTypeProbability(
 }
 // 统计连续多帧的检测类型count数
 int LaneTypeFilter::countContinueTypeNum(
-    const base::LaneLineMeasurementPtr& measurement) {
+    const perception_base::LaneLineMeasurementPtr& measurement) {
   int count = 1, size_type = lastest_n_measures_type_.size();
-  const base::LaneLineType& detect_type = measurement->type;
+  const perception_base::LaneLineType& detect_type = measurement->type;
   // 判断连续多帧的检测结果
   if (detect_type != lane_target_ref_->GetConstTrackedLaneLine()->type) {
     for (int index = size_type - 1; index >= 1; index--) {
@@ -74,11 +71,11 @@ int LaneTypeFilter::countContinueTypeNum(
   return count;
 }
 
-base::LaneLineType LaneTypeFilter::getTrackType(
-    const base::LaneLineMeasurementPtr& measurement) {
-  base::LaneLineType track_type =
+perception_base::LaneLineType LaneTypeFilter::getTrackType(
+    const perception_base::LaneLineMeasurementPtr& measurement) {
+  perception_base::LaneLineType track_type =
       lane_target_ref_->GetConstTrackedLaneLine()->type;
-  const base::LaneLineType& detect_type = measurement->type;
+  const perception_base::LaneLineType& detect_type = measurement->type;
 
   int type_count_threshold = type_count_threshold_;
   // 1. 根据统计类型概率的最大值选取类型
@@ -87,7 +84,7 @@ base::LaneLineType LaneTypeFilter::getTrackType(
   // 2. 根据连续多帧检测出同一种类型切换
   int count = countContinueTypeNum(measurement);
   if (count >= type_count_threshold &&
-      detect_type != base::LaneLineType::Unknown) {
+      detect_type != perception_base::LaneLineType::Unknown) {
     type_probability_.clear();
     // 为了防止下一次检测秒切类型,默认是1，可配置
     type_probability_[detect_type] = type_keep_weight_;
@@ -108,7 +105,7 @@ base::LaneLineType LaneTypeFilter::getTrackType(
 
 void LaneTypeFilter::UpdateWithMeasurement(
     const LaneFilterOptions& filter_options,
-    const base::LaneLineMeasurementPtr& measurement) {
+    const perception_base::LaneLineMeasurementPtr& measurement) {
   // PERF_FUNCTION();
   // PERF_BLOCK_START();
 
@@ -149,8 +146,8 @@ bool RoadEdgeTypeFilter::Init(const LaneTypeFilterInitOptions& init_options) {
 // 统计不同类型出现的概率和最大概率类型
 // 返回不同类型的统计概率值
 bool RoadEdgeTypeFilter::countTypeProbability(
-    const base::RoadEdgeMeasurementPtr& measurement) {
-  const base::RoadEdgeType& detect_type = measurement->type;
+    const perception_base::RoadEdgeMeasurementPtr& measurement) {
+  const perception_base::RoadEdgeType& detect_type = measurement->type;
   max_count_type_ = lane_target_ref_->GetConstTrackedLaneLine()->type;
   if (!(type_probability_.find(detect_type) == type_probability_.end())) {
     type_probability_[detect_type] += measurement->confidence;
@@ -168,9 +165,9 @@ bool RoadEdgeTypeFilter::countTypeProbability(
 }
 // 统计连续多帧的检测类型count数
 int RoadEdgeTypeFilter::countContinueTypeNum(
-    const base::RoadEdgeMeasurementPtr& measurement) {
+    const perception_base::RoadEdgeMeasurementPtr& measurement) {
   int count = 1, size_type = lastest_n_measures_type_.size();
-  const base::RoadEdgeType& detect_type = measurement->type;
+  const perception_base::RoadEdgeType& detect_type = measurement->type;
   // 判断连续多帧的检测结果
   if (detect_type != lane_target_ref_->GetConstTrackedLaneLine()->type) {
     for (int index = size_type - 1; index >= 1; index--) {
@@ -184,11 +181,11 @@ int RoadEdgeTypeFilter::countContinueTypeNum(
   return count;
 }
 
-base::RoadEdgeType RoadEdgeTypeFilter::getTrackType(
-    const base::RoadEdgeMeasurementPtr& measurement) {
-  base::RoadEdgeType track_type =
+perception_base::RoadEdgeType RoadEdgeTypeFilter::getTrackType(
+    const perception_base::RoadEdgeMeasurementPtr& measurement) {
+  perception_base::RoadEdgeType track_type =
       lane_target_ref_->GetConstTrackedLaneLine()->type;
-  const base::RoadEdgeType& detect_type = measurement->type;
+  const perception_base::RoadEdgeType& detect_type = measurement->type;
 
   int type_count_threshold = type_count_threshold_;
   // 1. 根据统计类型概率的最大值选取类型
@@ -197,7 +194,7 @@ base::RoadEdgeType RoadEdgeTypeFilter::getTrackType(
   // 2. 根据连续多帧检测出同一种类型切换
   int count = countContinueTypeNum(measurement);
   if (count >= type_count_threshold &&
-      detect_type != base::RoadEdgeType::UNKNOWN) {
+      detect_type != perception_base::RoadEdgeType::UNKNOWN) {
     type_probability_.clear();
     // 为了防止下一次检测秒切类型,默认是1，可配置
     type_probability_[detect_type] = type_keep_weight_;
@@ -218,7 +215,7 @@ base::RoadEdgeType RoadEdgeTypeFilter::getTrackType(
 
 void RoadEdgeTypeFilter::UpdateWithMeasurement(
     const LaneFilterOptions& filter_options,
-    const base::RoadEdgeMeasurementPtr& measurement) {
+    const perception_base::RoadEdgeMeasurementPtr& measurement) {
   // PERF_FUNCTION();
   // PERF_BLOCK_START();
 

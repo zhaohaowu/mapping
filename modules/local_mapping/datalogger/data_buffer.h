@@ -410,8 +410,8 @@ bool IntepolableMessageBuffer<MessageType>::query_message(
         return false;
       }
       double scale = (timestamp - before_iter->first) / delta_time;
-      *msg = CommonUtil::Interpolate(scale, before_iter->second,
-                                     after_iter->second, timestamp);
+      *msg = hozon::mp::lm::CommonUtil::Interpolate(
+          scale, before_iter->second, after_iter->second, timestamp);
       break;
     }
   }

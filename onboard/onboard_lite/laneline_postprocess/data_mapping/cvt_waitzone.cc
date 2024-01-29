@@ -12,22 +12,23 @@ namespace hozon {
 namespace mp {
 namespace common_onboard {
 
-static bool CvtWaitZoneToPb(const base::WaitZonePtr &waitzone_msg,
-                            TurnWaitingZone *pb_object);
+static bool CvtWaitZoneToPb(const perception_base::WaitZonePtr& waitzone_msg,
+                            hozon::perception::TurnWaitingZone* pb_object);
 
-static WaitZoneType CvtWaitZoneType2Pb(base::ZoneType shape) {
+static hozon::perception::WaitZoneType CvtWaitZoneType2Pb(
+    perception_base::ZoneType shape) {
   switch (shape) {
-    case base::ZoneType::LEFTWAIT_ZONE:
-      return WaitZoneType::LEFTWAIT_ZONE;
-    case base::ZoneType::STRAIGHTWAIT_ZONE:
-      return WaitZoneType::STRAIGHTWAIT_ZONE;
+    case perception_base::ZoneType::LEFTWAIT_ZONE:
+      return hozon::perception::WaitZoneType::LEFTWAIT_ZONE;
+    case perception_base::ZoneType::STRAIGHTWAIT_ZONE:
+      return hozon::perception::WaitZoneType::STRAIGHTWAIT_ZONE;
     default:
-      return WaitZoneType::WAITZONETYPE_UNKNOWN;
+      return hozon::perception::WaitZoneType::WAITZONETYPE_UNKNOWN;
   }
 }
 
 bool DataMapping::CvtMultiWaitZonesToPb(
-    const std::vector<base::WaitZonePtr> &waitzone_msgs,
+    const std::vector<perception_base::WaitZonePtr>& waitzone_msgs,
     NetaTransportElementPtr pb_objects) {
   if (waitzone_msgs.size() == 0) {
     HLOG_DEBUG << "waitzone msg size is 0";
@@ -49,8 +50,9 @@ bool DataMapping::CvtMultiWaitZonesToPb(
   return true;
 }
 
-bool DataMapping::CvtWaitZoneToPb(const base::WaitZonePtr &waitzone_msg,
-                                  TurnWaitingZone *pb_waitzone) {
+bool DataMapping::CvtWaitZoneToPb(
+    const perception_base::WaitZonePtr& waitzone_msg,
+    hozon::perception::TurnWaitingZone* pb_waitzone) {
   if (nullptr == waitzone_msg || nullptr == pb_waitzone) {
     HLOG_ERROR << "waitzone msg  or pb_waitzone is nullptr.";
     return false;
@@ -59,7 +61,7 @@ bool DataMapping::CvtWaitZoneToPb(const base::WaitZonePtr &waitzone_msg,
   pb_waitzone->set_confidence(waitzone_msg->confidence);
   pb_waitzone->set_type(CvtWaitZoneType2Pb(waitzone_msg->type));
   if (waitzone_msg->point_set_3d.size() != 0) {
-    for (auto &item_pt : waitzone_msg->point_set_3d) {
+    for (auto& item_pt : waitzone_msg->point_set_3d) {
       auto arrow_points = pb_waitzone->mutable_points();
       auto pb_pt = arrow_points->add_point();
       pb_pt->set_x(item_pt.x);
@@ -67,7 +69,7 @@ bool DataMapping::CvtWaitZoneToPb(const base::WaitZonePtr &waitzone_msg,
       pb_pt->set_z(item_pt.z);
     }
   } else if (waitzone_msg->point_set_2d.size() != 0) {
-    for (auto &item_pt : waitzone_msg->point_set_2d) {
+    for (auto& item_pt : waitzone_msg->point_set_2d) {
       auto arrow_points = pb_waitzone->mutable_points();
       auto pb_pt = arrow_points->add_point();
       pb_pt->set_x(item_pt.x);
@@ -81,15 +83,16 @@ bool DataMapping::CvtWaitZoneToPb(const base::WaitZonePtr &waitzone_msg,
 }
 
 bool DataMapping::CvtWaitZoneMeasurementToPb(
-    const std::vector<base::WaitZoneMeasurementPtr> &waitzone_measure,
-    hozon::perception::TransportElement *transport_element) {
-  for (auto &item : waitzone_measure) {
+    const std::vector<perception_base::WaitZoneMeasurementPtr>&
+        waitzone_measure,
+    hozon::perception::TransportElement* transport_element) {
+  for (auto& item : waitzone_measure) {
     auto pb_waitzone = transport_element->add_turn_waiting_zone();
     pb_waitzone->set_track_id(item->id);
     pb_waitzone->set_type(CvtWaitZoneType2Pb(item->type));
     pb_waitzone->set_confidence(item->confidence);
     if (item->point_set_3d.size() != 0) {
-      for (auto &item_pt : item->point_set_3d) {
+      for (auto& item_pt : item->point_set_3d) {
         auto arrow_points = pb_waitzone->mutable_points();
         auto pb_pt = arrow_points->add_point();
         pb_pt->set_x(item_pt.x);
@@ -97,7 +100,7 @@ bool DataMapping::CvtWaitZoneMeasurementToPb(
         pb_pt->set_z(item_pt.z);
       }
     } else if (item->point_set_2d.size() != 0) {
-      for (auto &item_pt : item->point_set_2d) {
+      for (auto& item_pt : item->point_set_2d) {
         auto arrow_points = pb_waitzone->mutable_points();
         auto pb_pt = arrow_points->add_point();
         pb_pt->set_x(item_pt.x);

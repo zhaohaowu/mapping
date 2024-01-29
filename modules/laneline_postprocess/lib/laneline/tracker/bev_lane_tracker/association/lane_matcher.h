@@ -20,7 +20,7 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-using base::LaneLine;
+namespace perception_base = hozon::perception::base;
 
 typedef std::pair<size_t, std::vector<size_t>> LaneIndexPointsPair;
 // track_index, detect_lane_index, point_indexs_in_lane, match_score
@@ -48,15 +48,16 @@ class LaneMatcher {
 
   bool Init(const LaneMatcherInitOptions& options);
 
-  bool Associate(
-      const LaneMatcherOptions& options,
-      const std::vector<base::LaneLineMeasurementPtr>* detected_lanelines,
-      const std::vector<SimpleLaneTrackerPtr>& lane_trackers,
-      LaneAssociationResult* association_result);
+  bool Associate(const LaneMatcherOptions& options,
+                 const std::vector<perception_base::LaneLineMeasurementPtr>*
+                     detected_lanelines,
+                 const std::vector<SimpleLaneTrackerPtr>& lane_trackers,
+                 LaneAssociationResult* association_result);
 
  private:
   void SolveBipartiteGraphMatchWithGreedy(
-      const std::vector<base::LaneLineMeasurementPtr>* detected_lanelines,
+      const std::vector<perception_base::LaneLineMeasurementPtr>*
+          detected_lanelines,
       const std::vector<MatchScoreTuple>& match_score_list, size_t targets_size,
       size_t objects_size, LaneAssociationResult* association_result);
 

@@ -22,6 +22,8 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+namespace perception_base = hozon::perception::base;
+
 struct LaneColorFilterInitOptions {
   LaneColorFilterParam lane_color_filter_param;
 };
@@ -35,12 +37,15 @@ class LaneColorFilter : public BaseLaneFilter {
   LaneColorFilter& operator=(const LaneColorFilter&) = delete;
 
   bool Init(const LaneColorFilterInitOptions& init_options);
-  bool countColorProbability(const base::LaneLineMeasurementPtr& measurement);
-  int countContinueColorNum(const base::LaneLineMeasurementPtr& measurement);
-  base::LaneLineColor getTrackColor(
-      const base::LaneLineMeasurementPtr& measurement);
-  void UpdateWithMeasurement(const LaneFilterOptions& filter_options,
-                             const base::LaneLineMeasurementPtr& measurement);
+  bool countColorProbability(
+      const perception_base::LaneLineMeasurementPtr& measurement);
+  int countContinueColorNum(
+      const perception_base::LaneLineMeasurementPtr& measurement);
+  perception_base::LaneLineColor getTrackColor(
+      const perception_base::LaneLineMeasurementPtr& measurement);
+  void UpdateWithMeasurement(
+      const LaneFilterOptions& filter_options,
+      const perception_base::LaneLineMeasurementPtr& measurement);
 
   void UpdateWithoutMeasurement(const LaneFilterOptions& filter_options);
 
@@ -50,11 +55,12 @@ class LaneColorFilter : public BaseLaneFilter {
   void UpdateResult();
 
  private:
-  std::unordered_map<base::LaneLineColor, double> color_probability_;
+  std::unordered_map<perception_base::LaneLineColor, double> color_probability_;
   LaneColorFilterParam lane_color_filter_param_;
-  base::LaneLineColor max_count_color_;
-  boost::circular_buffer<base::LaneLineColor> lastest_n_measures_color_;
-  base::LaneLineColor final_track_color_;
+  perception_base::LaneLineColor max_count_color_;
+  boost::circular_buffer<perception_base::LaneLineColor>
+      lastest_n_measures_color_;
+  perception_base::LaneLineColor final_track_color_;
   int max_history_window_ = 10;
   float color_keep_weight_ = 1.0;
   int color_count_threshold_ = 3;

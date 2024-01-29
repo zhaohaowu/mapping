@@ -24,7 +24,7 @@ namespace environment_onboard {
 int32_t EnvBevfusionOnboard::AlgInit() {
   HLOG_INFO << "EnvBevfusionOnboard AlgInit Start...";
 
-  lib::LocationManager::Instance()->Init(100, 0.5);
+  perception_lib::LocationManager::Instance()->Init(100, 0.5);
 
   // HLOG_INFO << "common_onboard::FLAGS_env_laneline_using_recv_proto: "
   //           << common_onboard::FLAGS_env_laneline_using_recv_proto;
@@ -86,9 +86,9 @@ int32_t EnvBevfusionOnboard::ReceiveDr(adf_lite_Bundle* input) {
       std::static_pointer_cast<hozon::dead_reckoning::DeadReckoning>(
           dr_msg->proto_msg);
 
-  location_msg_ = std::make_shared<base::Location>();
+  location_msg_ = std::make_shared<perception_base::Location>();
   common_onboard::DataMapping::CvtPbDR2Location(pb_location, location_msg_);
-  lib::LocationManager::Instance()->Push(*location_msg_);
+  perception_lib::LocationManager::Instance()->Push(*location_msg_);
   return 0;
 }
 
@@ -102,18 +102,20 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
   // 状态机行泊信号
   // auto sm_msg = lib::StateManager::Instance()->get_state_machine_info();
   // static int32_t last_running_mode = -1;
-  // if (sm_msg.running_mode == base::RunningMode::PARKING) {
+  // if (sm_msg.running_mode == perception_base::RunningMode::PARKING) {
   //   if (last_running_mode !=
-  //   static_cast<int32_t>(base::RunningMode::PARKING)) {
+  //   static_cast<int32_t>(perception_base::RunningMode::PARKING)) {
   //     HLOG_INFO << "running mode is parking";
-  //     last_running_mode = static_cast<int32_t>(base::RunningMode::PARKING);
+  //     last_running_mode =
+  //     static_cast<int32_t>(perception_base::RunningMode::PARKING);
   //   }
   //   return 0;
-  // } else if (sm_msg.running_mode == base::RunningMode::DRIVING) {
+  // } else if (sm_msg.running_mode == perception_base::RunningMode::DRIVING) {
   //   if (last_running_mode !=
-  //   static_cast<int32_t>(base::RunningMode::DRIVING)) {
+  //   static_cast<int32_t>(perception_base::RunningMode::DRIVING)) {
   //     HLOG_INFO << "running mode is driving";
-  //     last_running_mode = static_cast<int32_t>(base::RunningMode::DRIVING);
+  //     last_running_mode =
+  //     static_cast<int32_t>(perception_base::RunningMode::DRIVING);
   //   }
   // }
 
@@ -130,7 +132,8 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
   std::shared_ptr<common_onboard::MeasurementMessage> data_msg;
 
   data_msg = std::make_shared<common_onboard::MeasurementMessage>();
-  data_msg->measurement_frame = std::make_shared<base::MeasurementFrame>();
+  data_msg->measurement_frame =
+      std::make_shared<perception_base::MeasurementFrame>();
   if (!common_onboard::DataMapping::CvtPb2Measurement(
           pbdata, data_msg->measurement_frame)) {
     HLOG_ERROR << "DataMapping::CvtPb2Measurement failed";
@@ -145,13 +148,15 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
   auto transport_element =
       std::make_shared<common_onboard::NetaTransportElement>();
   auto fusion_msg = std::make_shared<common_onboard::FusionMessage>();
-  fusion_msg->fusion_frame = std::make_shared<base::FusionFrame>();
+  fusion_msg->fusion_frame = std::make_shared<perception_base::FusionFrame>();
 
   // 输入数据放入输入数据管理模块中。
   double ts = data_msg->measurement_frame->header.timestamp;
-  base::LocationPtr cur_location = std::make_shared<base::Location>();
-  bool ret = lib::LocationManager::Instance()->GetLocationByTimestamp(
-      ts, cur_location.get());
+  perception_base::LocationPtr cur_location =
+      std::make_shared<perception_base::Location>();
+  bool ret =
+      perception_lib::LocationManager::Instance()->GetLocationByTimestamp(
+          ts, cur_location.get());
   if (!ret) {
     HLOG_ERROR << "get location msg failed...";
     return false;

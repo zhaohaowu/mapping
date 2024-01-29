@@ -4,7 +4,6 @@
 // @brief: associate history lane_track to current detected lane　object
 
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/pipeline/roadedge_point_tracker_pipeline.h"
-
 #include <math.h>
 
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/data_fusion/simple_roadedge_tracker.h"
@@ -18,19 +17,11 @@
 namespace hozon {
 namespace mp {
 namespace environment {
-using base::LaneLine;
-using base::LaneLinePoint;
-using base::LaneLinePosition;
-using base::LaneLinePtr;
-using base::Location;
-using lib::FileUtil;
-using lib::LocationManager;
-using lib::ParseProtobufFromFile;
 
 bool RoadEdgePointFilterTrackerPipeline::Init(
-    const ProcessInitOption &options) {
-  auto config_manager = lib::ConfigManager::Instance();
-  const lib::ModelConfig *model_config = nullptr;
+    const ProcessInitOption& options) {
+  auto config_manager = perception_lib::ConfigManager::Instance();
+  const perception_lib::ModelConfig* model_config = nullptr;
   if (!config_manager->GetModelConfig(Name(), &model_config)) {
     HLOG_ERROR << "Parse config failed! Name: " << Name();
     return false;
@@ -45,11 +36,12 @@ bool RoadEdgePointFilterTrackerPipeline::Init(
   }
 
   LanePostProcessParam postprocess_param;
-  config_file = lib::FileUtil::GetAbsolutePath(work_root, config_file);
-  CHECK(ParseProtobufFromFile<LanePostProcessParam>(config_file,
-                                                    &lane_post_process_param_))
+  config_file =
+      perception_lib::FileUtil::GetAbsolutePath(work_root, config_file);
+  CHECK(perception_lib::ParseProtobufFromFile<LanePostProcessParam>(
+      config_file, &lane_post_process_param_))
       << "Read config failed: " << config_file;
-  const LaneTrackerPipelineParam &lane_tracker_pipeline_param =
+  const LaneTrackerPipelineParam& lane_tracker_pipeline_param =
       lane_post_process_param_.lane_tracker_pipeline_param();
   HLOG_DEBUG << "load lane_tracker_pipeline parameters from " << config_file
              << " \nParams: " << lane_tracker_pipeline_param.DebugString();
@@ -79,9 +71,9 @@ bool RoadEdgePointFilterTrackerPipeline::Init(
 }
 
 void RoadEdgePointFilterTrackerPipeline::TransMeasurementVehicle2Local(
-    std::vector<base::RoadEdgeMeasurementPtr> *detect_measurements) {
-  for (auto &detect_measurement : *detect_measurements) {
-    auto &points = detect_measurement->point_set;
+    std::vector<perception_base::RoadEdgeMeasurementPtr>* detect_measurements) {
+  for (auto& detect_measurement : *detect_measurements) {
+    auto& points = detect_measurement->point_set;
     TransVehiclePoint2Local(&points);
   }
 
@@ -89,22 +81,22 @@ void RoadEdgePointFilterTrackerPipeline::TransMeasurementVehicle2Local(
 }
 
 void RoadEdgePointFilterTrackerPipeline::TransTrackerLocal2Vehicle(
-    std::vector<base::RoadEdgePtr> *tracked_outputs) {
-  for (auto &tracked_output : *tracked_outputs) {
+    std::vector<perception_base::RoadEdgePtr>* tracked_outputs) {
+  for (auto& tracked_output : *tracked_outputs) {
     tracked_output->confidence = 1.0;
-    auto &points = tracked_output->point_set;
+    auto& points = tracked_output->point_set;
     TransLocalPoint2Vehicle(&points);
   }
   return;
 }
 
 bool RoadEdgePointFilterTrackerPipeline::Track(
-    const ProcessOption &options,
-    base::RoadEdgesMeasurementConstPtr detect_measurements_msg,
-    const base::RoadEdgesPtr &track_outputs) {
+    const ProcessOption& options,
+    perception_base::RoadEdgesMeasurementConstPtr detect_measurements_msg,
+    const perception_base::RoadEdgesPtr& track_outputs) {
   // PERF_FUNCTION();
   // PERF_BLOCK_START();
-  const auto &track_roadedges = &track_outputs->road_edges;
+  const auto& track_roadedges = &track_outputs->road_edges;
   track_roadedges->clear();
 
   // 1. 维护最近两帧的pose信息
@@ -114,9 +106,9 @@ bool RoadEdgePointFilterTrackerPipeline::Track(
 
   // 2. 观测车道线转换到local系
 
-  std::vector<base::RoadEdgeMeasurementPtr> vec_measurements =
+  std::vector<perception_base::RoadEdgeMeasurementPtr> vec_measurements =
       detect_measurements_msg->road_edges;
-  const auto &detect_measurements = &vec_measurements;
+  const auto& detect_measurements = &vec_measurements;
 
   HLOG_DEBUG << "start do TransMeasurementVehicle2Local...";
   TransMeasurementVehicle2Local(detect_measurements);
@@ -132,7 +124,7 @@ bool RoadEdgePointFilterTrackerPipeline::Track(
                             lane_trackers_, &point_association_result);
   HLOG_DEBUG << "detection nums: " << detect_measurements->size()
              << "tracker nums: " << lane_trackers_.size();
-  for (auto &assign : point_association_result.assignments) {
+  for (auto& assign : point_association_result.assignments) {
     auto target_idx = std::get<0>(assign);
     auto detect_idx = std::get<1>(assign);
     HLOG_DEBUG << "assignments target_idx: " << target_idx
@@ -178,9 +170,9 @@ void RoadEdgePointFilterTrackerPipeline::PostProcess() {
 }
 
 void RoadEdgePointFilterTrackerPipeline::UpdateAssignedTracks(
-    std::vector<base::RoadEdgeMeasurementPtr> *detected_lanelines,
-    const PointAssociationResult &association_result) {
-  auto &assignments = association_result.assignments;
+    std::vector<perception_base::RoadEdgeMeasurementPtr>* detected_lanelines,
+    const PointAssociationResult& association_result) {
+  auto& assignments = association_result.assignments;
   size_t track_index = 0;
   size_t detect_index = 0;
 
@@ -196,9 +188,10 @@ void RoadEdgePointFilterTrackerPipeline::UpdateAssignedTracks(
 }
 
 void RoadEdgePointFilterTrackerPipeline::UpdateUnassignedTracks(
-    const std::vector<base::RoadEdgeMeasurementPtr> *detected_lanelines,
-    const PointAssociationResult &association_result) {
-  auto &unassigned_track_indexs = association_result.unassigned_tracks;
+    const std::vector<perception_base::RoadEdgeMeasurementPtr>*
+        detected_lanelines,
+    const PointAssociationResult& association_result) {
+  auto& unassigned_track_indexs = association_result.unassigned_tracks;
   size_t track_index = 0;
   SimpleRoadEdgeTrackerOptions tracker_option;
   tracker_option.novatel2world_pose = novatel2world_pose_;
@@ -214,9 +207,10 @@ void RoadEdgePointFilterTrackerPipeline::UpdateUnassignedTracks(
 }
 
 void RoadEdgePointFilterTrackerPipeline::CreateNewTracks(
-    const std::vector<base::RoadEdgeMeasurementPtr> *detected_lanelines,
-    const PointAssociationResult &association_result) {
-  auto &unsigned_objects = association_result.unsigned_objects;
+    const std::vector<perception_base::RoadEdgeMeasurementPtr>*
+        detected_lanelines,
+    const PointAssociationResult& association_result) {
+  auto& unsigned_objects = association_result.unsigned_objects;
   size_t detect_index = 0;
   for (size_t i = 0; i < unsigned_objects.size(); ++i) {
     detect_index = unsigned_objects[i];
@@ -255,15 +249,16 @@ void RoadEdgePointFilterTrackerPipeline::RemoveLostTracks() {
 }
 
 void RoadEdgePointFilterTrackerPipeline::CollectOutputObjects(
-    std::vector<base::RoadEdgePtr> *tracked_lanelines) {
+    std::vector<perception_base::RoadEdgePtr>* tracked_lanelines) {
   PointLaneGatekeeperOptions options;
   for (size_t i = 0; i < lane_trackers_.size(); ++i) {
     HLOG_DEBUG << "########CollectOutputObjects############";
     RoadEdgeTargetConstPtr lane_target =
         lane_trackers_[i]->GetConstLaneTarget();
     HLOG_DEBUG << "Buffer LaneTarget " << lane_target->ToStr();
-    base::RoadEdgePtr output_lane_object = std::make_shared<base::RoadEdge>(
-        *lane_target->GetConstTrackedLaneLine());
+    perception_base::RoadEdgePtr output_lane_object =
+        std::make_shared<perception_base::RoadEdge>(
+            *lane_target->GetConstTrackedLaneLine());
     if (!point_lane_gate_keeper_->AbleToOutput(
             options, lane_trackers_[i]->GetConstLaneTarget(),
             GetAllLaneTarget())) {

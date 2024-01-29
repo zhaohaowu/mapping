@@ -13,13 +13,11 @@
 // #include "camera/common/laneline_quality_evaluator.h"
 // #include "camera/lib/lane/common/common_functions.h"
 #include "modules/laneline_postprocess/lib/laneline/utils/lane_utils.h"
-
 #include <float.h>
 
 #include <algorithm>
 #include <numeric>
 #include <utility>
-
 // #include
 // "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/data_fusion/laneline_quality_filter.h"
 #include "perception-base/base/utils/log.h"
@@ -29,36 +27,32 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-using base::LaneLineCurve;
-using base::LaneLinePosition;
-using base::LaneLinePtr;
-using base::LaneLineSceneType;
 // using common::Equal;
 
-bool IsForkOrConverge(const LaneLineSceneType &scene_type) {
+bool IsForkOrConverge(const LaneLineSceneType& scene_type) {
   return scene_type == LaneLineSceneType::FORK ||
          scene_type == LaneLineSceneType::CONVERGE;
 }
 
-bool IsForkOrConvergePair(const LaneLineSceneType &scene_type1,
-                          const LaneLineSceneType &scene_type2) {
+bool IsForkOrConvergePair(const LaneLineSceneType& scene_type1,
+                          const LaneLineSceneType& scene_type2) {
   return IsForkPair(scene_type1, scene_type2) ||
          IsConvergePair(scene_type1, scene_type2);
 }
 
-bool IsForkPair(const LaneLineSceneType &scene_type1,
-                const LaneLineSceneType &scene_type2) {
+bool IsForkPair(const LaneLineSceneType& scene_type1,
+                const LaneLineSceneType& scene_type2) {
   return (scene_type1 == LaneLineSceneType::FORK ||
           scene_type2 == LaneLineSceneType::FORK);
 }
 
-bool IsConvergePair(const LaneLineSceneType &scene_type1,
-                    const LaneLineSceneType &scene_type2) {
+bool IsConvergePair(const LaneLineSceneType& scene_type1,
+                    const LaneLineSceneType& scene_type2) {
   return (scene_type1 == LaneLineSceneType::CONVERGE ||
           scene_type2 == LaneLineSceneType::CONVERGE);
 }
 
-void GetRefValueForLineCurve(const LaneLineCurve &curve, float *d,
+void GetRefValueForLineCurve(const LaneLineCurve& curve, float* d,
                              float ref_min, float ref_length, int sample_num) {
   if (d == nullptr) {
     return;
@@ -80,8 +74,8 @@ void GetRefValueForLineCurve(const LaneLineCurve &curve, float *d,
   return;
 }
 
-void GetRefValueForLinePointSet(
-    const std::vector<base::LaneLinePoint> &point_set, float *d) {
+void GetRefValueForLinePointSet(const std::vector<LaneLinePoint>& point_set,
+                                float* d) {
   if (d == nullptr) {
     return;
   }
@@ -99,26 +93,30 @@ void GetRefValueForLinePointSet(
   return;
 }
 
-void SetLanePosition(const float &ref_min, const float &ref_length, const int &sample_num,
-                     const std::vector<LaneLinePtr> &lane_lines, const std::vector<bool> &far_lanes_flag,
-                     std::unordered_map<int, std::tuple<float, float>> &lane_d_map, bool use_far) {
+void SetLanePosition(
+    const float& ref_min, const float& ref_length, const int& sample_num,
+    const std::vector<LaneLinePtr>& lane_lines,
+    const std::vector<bool>& far_lanes_flag,
+    std::unordered_map<int, std::tuple<float, float>>* lane_d_map,
+    bool use_far) {
   std::vector<std::pair<int, float>> left_lane_index;
   std::vector<std::pair<int, float>> right_lane_index;
   int size = lane_lines.size();
 
   for (int i = 0; i < size; ++i) {
-    auto &curve = lane_lines[i]->vehicle_curve;
+    auto& curve = lane_lines[i]->vehicle_curve;
     float d = 0.f;
     GetRefValueForLineCurve(curve, &d, ref_min, ref_length, sample_num);
-    auto iter = lane_d_map.find(lane_lines[i]->id);
-    if (iter != lane_d_map.end()) {
-      auto &d_data = iter->second;
-      auto &last_d = std::get<0>(d_data);
-      auto &d_error = std::get<1>(d_data);
+    auto iter = lane_d_map->find(lane_lines[i]->id);
+    if (iter != lane_d_map->end()) {
+      auto& d_data = iter->second;
+      auto& last_d = std::get<0>(d_data);
+      auto& d_error = std::get<1>(d_data);
       d_error = std::abs(d - last_d);
       last_d = d;
     } else {
-      lane_d_map.emplace(std::make_pair(lane_lines[i]->id, std::make_tuple(d, 0.0)));
+      lane_d_map->emplace(
+          std::make_pair(lane_lines[i]->id, std::make_tuple(d, 0.0)));
     }
     // 近处和远处车道线赋值逻辑
     if (use_far && !far_lanes_flag[i]) {
@@ -138,12 +136,12 @@ void SetLanePosition(const float &ref_min, const float &ref_length, const int &s
   }
   // left_lane: sort by decrease
   std::sort(left_lane_index.begin(), left_lane_index.end(),
-            [](std::pair<int, float> &a, std::pair<int, float> &b) {
+            [](std::pair<int, float>& a, std::pair<int, float>& b) {
               return a.second < b.second;
             });
   // right_lane: sort by increase
   std::sort(right_lane_index.begin(), right_lane_index.end(),
-            [](std::pair<int, float> &a, std::pair<int, float> &b) {
+            [](std::pair<int, float>& a, std::pair<int, float>& b) {
               return a.second > b.second;
             });
 
@@ -170,15 +168,15 @@ void SetLanePosition(const float &ref_min, const float &ref_length, const int &s
   }
 }
 
-void SetLanePosition(const float &ref_min, const float &ref_length,
-                     const int &sample_num,
-                     const std::vector<LaneLinePtr> &lane_lines) {
+void SetLanePosition(const float& ref_min, const float& ref_length,
+                     const int& sample_num,
+                     const std::vector<LaneLinePtr>& lane_lines) {
   std::vector<std::pair<int, float>> left_lane_index;
   std::vector<std::pair<int, float>> right_lane_index;
   int size = lane_lines.size();
   for (int i = 0; i < size; ++i) {
     float d = 0.f;
-    auto &curve = lane_lines[i]->vehicle_curve;
+    auto& curve = lane_lines[i]->vehicle_curve;
     GetRefValueForLineCurve(curve, &d, ref_min, ref_length, sample_num);
 
     if (d > 0) {
@@ -189,12 +187,12 @@ void SetLanePosition(const float &ref_min, const float &ref_length,
   }
   // left_lane: sort by decrease
   std::sort(left_lane_index.begin(), left_lane_index.end(),
-            [](std::pair<int, float> &a, std::pair<int, float> &b) {
+            [](std::pair<int, float>& a, std::pair<int, float>& b) {
               return a.second < b.second;
             });
   // right_lane: sort by increase
   std::sort(right_lane_index.begin(), right_lane_index.end(),
-            [](std::pair<int, float> &a, std::pair<int, float> &b) {
+            [](std::pair<int, float>& a, std::pair<int, float>& b) {
               return a.second > b.second;
             });
 
@@ -247,8 +245,8 @@ void SetLanePosition(const float &ref_min, const float &ref_length,
 //   *result = sqrt(pow(1 + pow(diff_1, 2), 3)) / (fabs(diff_2) + 1e-9);
 // }
 
-void GetTrangentialAngle(const std::vector<float> &coeffs, float input,
-                         float *result) {
+void GetTrangentialAngle(const std::vector<float>& coeffs, float input,
+                         float* result) {
   // first order differential
   float diff_1 = 0.0f;
   float value = 1.0f;
@@ -260,8 +258,8 @@ void GetTrangentialAngle(const std::vector<float> &coeffs, float input,
 }
 
 bool TransformLaneLineCurveInNovatelPolyfit(
-    const LaneLineCurve &curve, const Eigen::Affine3d &transform_matrix,
-    LaneLineCurve *transform_line_curve) {
+    const LaneLineCurve& curve, const Eigen::Affine3d& transform_matrix,
+    LaneLineCurve* transform_line_curve) {
   if (!transform_line_curve) {
     return false;
   }
@@ -328,9 +326,9 @@ bool TransformLaneLineCurveInNovatelPolyfit(
   return true;
 }
 
-bool TransformLaneLineCurveInNovatel(const LaneLineCurve &curve,
-                                     const Eigen::Affine3d &transform_matrix,
-                                     LaneLineCurve *transform_line_curve) {
+bool TransformLaneLineCurveInNovatel(const LaneLineCurve& curve,
+                                     const Eigen::Affine3d& transform_matrix,
+                                     LaneLineCurve* transform_line_curve) {
   if (!transform_line_curve) {
     return false;
   }
@@ -395,8 +393,8 @@ bool TransformLaneLineCurveInNovatel(const LaneLineCurve &curve,
   return true;
 }
 
-bool GetSamplePoint(const LaneLineCurve &curve1, const LaneLineCurve &curve2,
-                    std::vector<float> *sample_values, float sample_interval,
+bool GetSamplePoint(const LaneLineCurve& curve1, const LaneLineCurve& curve2,
+                    std::vector<float>* sample_values, float sample_interval,
                     float care_start, float care_end, bool hard_interval) {
   if (sample_values == nullptr) {
     return false;
@@ -429,9 +427,9 @@ bool GetSamplePoint(const LaneLineCurve &curve1, const LaneLineCurve &curve2,
   return true;
 }
 
-bool CalLaneLineDistance(const LaneLineCurve &curve1,
-                         const LaneLineCurve &curve2, float *distance,
-                         float *var, float sample_interval, float care_start,
+bool CalLaneLineDistance(const LaneLineCurve& curve1,
+                         const LaneLineCurve& curve2, float* distance,
+                         float* var, float sample_interval, float care_start,
                          float care_end, bool hard_interval) {
   if (distance == nullptr || var == nullptr) {
     return false;
@@ -461,8 +459,8 @@ bool CalLaneLineDistance(const LaneLineCurve &curve1,
   return true;
 }
 
-bool CalLaneLineDistance(const LaneLineCurve &curve1,
-                         const LaneLineCurve &curve2, float *distance,
+bool CalLaneLineDistance(const LaneLineCurve& curve1,
+                         const LaneLineCurve& curve2, float* distance,
                          float sample_interval, float care_start,
                          float care_end, bool hard_interval) {
   if (distance == nullptr) {
@@ -485,9 +483,9 @@ bool CalLaneLineDistance(const LaneLineCurve &curve1,
   return true;
 }
 
-bool GetMiddleLineCurve(const LaneLineCurve &curve1,
-                        const LaneLineCurve &curve2,
-                        LaneLineCurve *middle_curve) {
+bool GetMiddleLineCurve(const LaneLineCurve& curve1,
+                        const LaneLineCurve& curve2,
+                        LaneLineCurve* middle_curve) {
   if (middle_curve == nullptr) {
     return false;
   }
@@ -508,9 +506,9 @@ bool GetMiddleLineCurve(const LaneLineCurve &curve1,
   return true;
 }
 
-float GetLength(const LaneLineCurve &curve) { return curve.max - curve.min; }
+float GetLength(const LaneLineCurve& curve) { return curve.max - curve.min; }
 
-float GetLength(const std::vector<base::LaneLinePoint> &point_sets) {
+float GetLength(const std::vector<LaneLinePoint>& point_sets) {
   // auto start_x = point_sets.begin()->vehicle_point.x;
   // auto end_x = point_sets.end()->vehicle_point.x;
   // auto length = end_x - start_x;
@@ -531,8 +529,8 @@ float GetLength(const std::vector<base::LaneLinePoint> &point_sets) {
   return total_length;
 }
 
-float GetDistPointLane(const base::Point3DF &x, const base::Point3DF &x1,
-                       const base::Point3DF &x2) {
+float GetDistPointLane(const Point3DF& x, const Point3DF& x1,
+                       const Point3DF& x2) {
   Eigen::Vector2f A(x.x, x.y), B(x1.x, x1.y), C(x2.x, x2.y);
   // 以B为起点计算向量BA 在向量BC上的投影
   Eigen::Vector2f BC = C - B;
@@ -543,9 +541,8 @@ float GetDistPointLane(const base::Point3DF &x, const base::Point3DF &x1,
   return AP.norm();
 }
 
-float GetDistBetweenTwoLane(
-    const std::vector<base::LaneLinePoint> &point_set1,
-    const std::vector<base::LaneLinePoint> &point_set2) {
+float GetDistBetweenTwoLane(const std::vector<LaneLinePoint>& point_set1,
+                            const std::vector<LaneLinePoint>& point_set2) {
   // 前提两条线的车辆系下的点已经从近到远排好序
   float curve_length1 =
       point_set1.back().vehicle_point.x - point_set1.front().vehicle_point.x;
@@ -557,7 +554,7 @@ float GetDistBetweenTwoLane(
     lane_long = point_set1;
   }
   double dist_sum = 0.0;
-  base::Point3DF A, B, C;
+  Point3DF A, B, C;
   for (int i = 0, j = 0; i < lane_short.size() && j < lane_long.size(); ++i) {
     A = lane_short[i].vehicle_point;
     if (A.x <= lane_long[0].vehicle_point.x) {
@@ -580,9 +577,8 @@ float GetDistBetweenTwoLane(
   return dist_sum / (lane_short.size());
 }
 
-float GetLengthRatioBetweenTwoLane(
-    const base::LaneLineMeasurementConstPtr &curve1,
-    const base::LaneLineMeasurementConstPtr &curve2) {
+float GetLengthRatioBetweenTwoLane(const LaneLineMeasurementConstPtr& curve1,
+                                   const LaneLineMeasurementConstPtr& curve2) {
   auto length1 = GetLength(curve1->point_set);
   auto length2 = GetLength(curve2->point_set);
 
@@ -593,9 +589,8 @@ float GetLengthRatioBetweenTwoLane(
   return length1 / (length2 + 0.001);
 }
 
-float GetOverLayRatioBetweenTwoLane(
-    const base::LaneLineMeasurementConstPtr &curve1,
-    const base::LaneLineMeasurementConstPtr &curve2) {
+float GetOverLayRatioBetweenTwoLane(const LaneLineMeasurementConstPtr& curve1,
+                                    const LaneLineMeasurementConstPtr& curve2) {
   auto length1 = GetLength(curve1->point_set);
   auto length2 = GetLength(curve2->point_set);
 

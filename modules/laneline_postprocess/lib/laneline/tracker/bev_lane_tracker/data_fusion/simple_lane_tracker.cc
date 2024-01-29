@@ -10,9 +10,6 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-using base::LaneLine;
-using base::LaneLineConstPtr;
-
 SimpleLaneTracker::SimpleLaneTracker() {}
 SimpleLaneTracker::~SimpleLaneTracker() {}
 
@@ -50,7 +47,7 @@ bool SimpleLaneTracker::Init(const SimpleLaneTrackerInitOptions& init_options,
 
 void SimpleLaneTracker::UpdateWithDetectedLaneLine(
     const SimpleLaneTrackerOptions& options,
-    const base::LaneLineMeasurementPtr& detected_laneline) {
+    const perception_base::LaneLineMeasurementPtr& detected_laneline) {
   // update lane_target
   lane_target_->UpdateWithDetectedLaneLine(detected_laneline);
   LaneFilterOptions lane_filter_options;

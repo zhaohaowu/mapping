@@ -37,12 +37,25 @@ void DataConvert::SetPerception(const hozon::perception::TransportElement& msg,
   SetZebraCrossing(msg, &perception->zebra_crossings_);
 }
 
+void SetIns(const hozon::localization::HafNodeInfo& msg, InsData* ins) {
+  ins->position_.x() = msg.pos_gcj02().x();
+  ins->position_.y() = msg.pos_gcj02().y();
+  ins->position_.z() = msg.pos_gcj02().z();
+
+  ins->quaternion_.w() = msg.quaternion().w();
+  ins->quaternion_.x() = msg.quaternion().x();
+  ins->quaternion_.y() = msg.quaternion().y();
+  ins->quaternion_.z() = msg.quaternion().z();
+
+  // Eigen::Vector3d p_G_V(msg->pos_gcj02().x(), msg->pos_gcj02().y(),
+  //                       msg->pos_gcj02().z());
+  // Eigen::Quaterniond q_G_V(msg->quaternion().w(), msg->quaternion().x(),
+  //                          msg->quaternion().y(), msg->quaternion().z());
+}
+
 void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
                               std::vector<LaneLine>* lane_lines) {
   for (const auto& lane_line : msg.lane()) {
-    if (lane_line.lanepos() == hozon::perception::OTHER) {
-      continue;
-    }
     LaneLine lane_line_tmp;
     lane_line_tmp.track_id_ = lane_line.track_id();
     ConvertProtoLanePos(lane_line.lanepos(), &lane_line_tmp.lanepos_);
@@ -53,7 +66,7 @@ void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
     }
     lane_line_tmp.start_point_x_ = lane_line_tmp.points_.front().x();
     lane_line_tmp.end_point_x_ = lane_line_tmp.points_.back().x();
-    if (lane_line_tmp.points_.empty() || lane_line_tmp.end_point_x_ > 150) {
+    if (lane_line_tmp.points_.empty()) {
       continue;
     }
     std::vector<double> c(4);
@@ -71,7 +84,7 @@ void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
       double y = lane_line_tmp.c0_ + lane_line_tmp.c1_ * x +
                  lane_line_tmp.c2_ * x * x + lane_line_tmp.c3_ * x * x * x;
       lane_line_tmp.points_.emplace_back(x, y, 0);
-      x++;
+      x = x + 1.0;
     }
     std::sort(lane_line_tmp.points_.begin(), lane_line_tmp.points_.end(),
               [](const Eigen::Vector3d& a, const Eigen::Vector3d& b) {
@@ -118,7 +131,7 @@ void DataConvert::SetEdgeLine(const hozon::perception::TransportElement& msg,
       double y = edge_line_tmp.c0_ + edge_line_tmp.c1_ * x +
                  edge_line_tmp.c2_ * x * x + edge_line_tmp.c3_ * x * x * x;
       edge_line_tmp.points_.emplace_back(x, y, 0);
-      x++;
+      x = x + 1.0;
     }
     std::sort(edge_line_tmp.points_.begin(), edge_line_tmp.points_.end(),
               [](const Eigen::Vector3d& a, const Eigen::Vector3d& b) {
@@ -208,8 +221,8 @@ void DataConvert::SetArrow(const hozon::perception::TransportElement& msg,
     arrow_tmp.mid_point_ = (points_order[0] + points_order[1] +
                             points_order[2] + points_order[3]) /
                            4;
-    Eigen::Vector3d top_point = (points[0] + points[3]) / 2;
-    Eigen::Vector3d bottom_point = (points[1] + points[2]) / 2;
+    Eigen::Vector3d top_point = (points_order[0] + points_order[3]) / 2;
+    Eigen::Vector3d bottom_point = (points_order[1] + points_order[2]) / 2;
     arrow_tmp.heading_ = atan2(top_point.y() - bottom_point.y(),
                                top_point.x() - bottom_point.x());
     ConvertProtoArrowType(arrow.type(), &arrow_tmp.type_);
@@ -269,8 +282,8 @@ void DataConvert::SetZebraCrossing(
     zebra_crossing_tmp.mid_point_ = (points_order[0] + points_order[1] +
                                      points_order[2] + points_order[3]) /
                                     4;
-    Eigen::Vector3d top_point = (points[0] + points[3]) / 2;
-    Eigen::Vector3d bottom_point = (points[1] + points[2]) / 2;
+    Eigen::Vector3d top_point = (points_order[0] + points_order[3]) / 2;
+    Eigen::Vector3d bottom_point = (points_order[1] + points_order[2]) / 2;
     zebra_crossing_tmp.heading_ = atan2(top_point.y() - bottom_point.y(),
                                         top_point.x() - bottom_point.x());
     zebra_crossings->emplace_back(zebra_crossing_tmp);

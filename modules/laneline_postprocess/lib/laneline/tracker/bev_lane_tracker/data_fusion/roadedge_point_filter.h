@@ -5,25 +5,27 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-#include <map>
+
 #include "boost/circular_buffer.hpp"
 #include "modules/laneline_postprocess/lib/laneline/curve_fitter/base_curve_fitter.h"
 #include "modules/laneline_postprocess/lib/laneline/proto/lane_postprocess.pb.h"
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/base/lane_filter.h"
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/base/roadedge_target.h"
+#include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/data_fusion/laneline_point_filter.h"
+#include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/data_fusion/point_manager.h"
 #include "modules/laneline_postprocess/lib/laneline/utils/laneline_polynomial.h"
 #include "perception-base/base/laneline/base_laneline.h"
-#include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/data_fusion/point_manager.h"
-#include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/data_fusion/laneline_point_filter.h"
 
 namespace hozon {
 namespace mp {
 namespace environment {
 
+namespace perception_base = hozon::perception::base;
 
 class RoadEdgePointFilter : public BaseRoadEdgeFilter {
  public:
@@ -35,8 +37,9 @@ class RoadEdgePointFilter : public BaseRoadEdgeFilter {
 
   bool Init(const LanePointFilterInitOptions& init_options);
 
-  void UpdateWithMeasurement(const LaneFilterOptions& filter_options,
-                             const base::RoadEdgeMeasurementPtr& measurement);
+  void UpdateWithMeasurement(
+      const LaneFilterOptions& filter_options,
+      const perception_base::RoadEdgeMeasurementPtr& measurement);
 
   void UpdateWithoutMeasurement(const LaneFilterOptions& filter_options);
 
@@ -45,17 +48,20 @@ class RoadEdgePointFilter : public BaseRoadEdgeFilter {
   void Reset();
 
  private:
-  void UpdateStage(const base::RoadEdgeMeasurementPtr& measurement_line);
+  void UpdateStage(
+      const perception_base::RoadEdgeMeasurementPtr& measurement_line);
 
   void PredictStage();
 
   void UpdateResult();
 
-  bool ConvertPointSet2Eigen(const std::vector<base::LaneLinePoint>& point_set,
-                             Eigen::Matrix<double, 40, 1>* eigen_vector);
+  bool ConvertPointSet2Eigen(
+      const std::vector<perception_base::LaneLinePoint>& point_set,
+      Eigen::Matrix<double, 40, 1>* eigen_vector);
 
-  bool ConvertEigen2PointSet(const Eigen::Matrix<double, 40, 1>& eigen_vector,
-                             std::vector<base::LaneLinePoint>* point_set);
+  bool ConvertEigen2PointSet(
+      const Eigen::Matrix<double, 40, 1>& eigen_vector,
+      std::vector<perception_base::LaneLinePoint>* point_set);
 
   void CalculateNormal();
   void CalculateNormalV2();
@@ -64,7 +70,8 @@ class RoadEdgePointFilter : public BaseRoadEdgeFilter {
 
   void RevisePredictFit();
 
-  void KalmanUpdate(const std::vector<base::LaneLinePoint>& measurement_points);
+  void KalmanUpdate(
+      const std::vector<perception_base::LaneLinePoint>& measurement_points);
 
  private:
   AdaptorPointManagerPtr point_manager_;

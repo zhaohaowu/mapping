@@ -39,7 +39,8 @@ bool LaneMatcher::Init(const LaneMatcherInitOptions& options) {
 
 bool LaneMatcher::Associate(
     const LaneMatcherOptions& options,
-    const std::vector<base::LaneLineMeasurementPtr>* detected_lanelines,
+    const std::vector<perception_base::LaneLineMeasurementPtr>*
+        detected_lanelines,
     const std::vector<SimpleLaneTrackerPtr>& lane_trackers,
     LaneAssociationResult* association_result) {
   if (!association_result) {
@@ -157,7 +158,8 @@ bool LaneMatcher::Associate(
 }
 
 void LaneMatcher::SolveBipartiteGraphMatchWithGreedy(
-    const std::vector<base::LaneLineMeasurementPtr>* detected_lanelines,
+    const std::vector<perception_base::LaneLineMeasurementPtr>*
+        detected_lanelines,
     const std::vector<MatchScoreTuple>& match_score_list, size_t targets_size,
     size_t objects_size, LaneAssociationResult* association_result) {
   target_used_mask_.resize(targets_size);

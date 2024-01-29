@@ -31,31 +31,33 @@ class AdaptorPointManager {
 
   ~AdaptorPointManager() {}
 
-  AdaptorPointManager(const AdaptorPointManager &) = delete;
-  AdaptorPointManager &operator=(const AdaptorPointManager &) = delete;
+  AdaptorPointManager(const AdaptorPointManager&) = delete;
+  AdaptorPointManager& operator=(const AdaptorPointManager&) = delete;
 
-  void init(Eigen::Matrix<double, 40, 1> *XPtr,
-            Eigen::Matrix<double, 40, 40> *PPtr);
+  void init(Eigen::Matrix<double, 40, 1>* XPtr,
+            Eigen::Matrix<double, 40, 40>* PPtr);
 
-  void CopyMatrix(Eigen::Matrix<double, 40, 1> *XPtr,
-                  Eigen::Matrix<double, 40, 40> *PPtr);
+  void CopyMatrix(Eigen::Matrix<double, 40, 1>* XPtr,
+                  Eigen::Matrix<double, 40, 40>* PPtr);
 
-  void AddObservePoints(const std::vector<base::LaneLinePoint> &point_set);
+  void AddObservePoints(
+      const std::vector<perception_base::LaneLinePoint>& point_set);
 
-  void Process(Eigen::Matrix<double, 40, 1> *X,
-               Eigen::Matrix<double, 40, 40> *P);
+  void Process(Eigen::Matrix<double, 40, 1>* X,
+               Eigen::Matrix<double, 40, 40>* P);
 
  private:
   void UpdatePointsNear(
-      const std::vector<base::LaneLinePoint> &measurement_points);
+      const std::vector<perception_base::LaneLinePoint>& measurement_points);
 
   void UpdatePointsFar(
-      const std::vector<base::LaneLinePoint> &measurement_points);
+      const std::vector<perception_base::LaneLinePoint>& measurement_points);
 
-  void DelPointsFar(const std::vector<base::LaneLinePoint> &measurement_points);
+  void DelPointsFar(
+      const std::vector<perception_base::LaneLinePoint>& measurement_points);
 
   // local_measurement_lines_ 用于储存当前帧观测数据
-  boost::circular_buffer<std::vector<base::LaneLinePoint>>
+  boost::circular_buffer<std::vector<perception_base::LaneLinePoint>>
       latest_measurement_lines_;
 
   Eigen::Matrix<double, 40, 1> X_, X_SWAP_;   // 跟踪点
@@ -65,8 +67,8 @@ class AdaptorPointManager {
 
   Eigen::Vector3d fastest_track_pt_;
   Eigen::Vector3d near_track_pt_;
-  base::Point3DF near_measure_pt_;
-  base::Point3DF far_measure_pt_;
+  perception_base::Point3DF near_measure_pt_;
+  perception_base::Point3DF far_measure_pt_;
   Eigen::Affine3d pose_;
   int pt_size_ = 20;
   double threshold_ = 0.0;

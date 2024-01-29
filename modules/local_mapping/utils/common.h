@@ -21,7 +21,6 @@
 #include "depend/proto/soc/sensor_image.pb.h"
 #include "interface/adsfi_proto/viz/sensor_msgs.pb.h"
 #include "modules/local_mapping/types/types.h"
-#include "modules/local_mapping/utils/map_manager.h"
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
@@ -1192,7 +1191,7 @@ class CommonUtil {
       txt_marker.mutable_color()->set_g(0.50);
       txt_marker.mutable_color()->set_b(0.66);
       txt_marker.mutable_color()->set_a(1);
-      txt_marker.set_text(std::to_string(lane_line.count_));
+      txt_marker.set_text(std::to_string(lane_line.tracked_count_));
       txt_marker.mutable_scale()->set_x(1);
       txt_marker.mutable_scale()->set_y(1);
       txt_marker.mutable_scale()->set_z(1);

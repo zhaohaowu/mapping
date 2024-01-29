@@ -18,10 +18,10 @@ LaneTarget::LaneTarget() {}
 LaneTarget::~LaneTarget() {}
 
 bool LaneTarget::Init(const LaneTargetInitOption& options,
-                      const base::LaneLineMeasurementPtr& detected_lane_line) {
+                      const LaneLineMeasurementPtr& detected_lane_line) {
   lane_target_param_ = options.lane_target_param;
 
-  tracked_laneline_ = std::make_shared<base::LaneLine>();
+  tracked_laneline_ = std::make_shared<perception_base::LaneLine>();
   // TODO(陈安猛)
   tracked_laneline_->point_set = detected_lane_line->point_set;
 
@@ -51,7 +51,7 @@ void LaneTarget::Reset() {
 }
 
 void LaneTarget::UpdateWithDetectedLaneLine(
-    const base::LaneLineMeasurementPtr& detected_lane_line) {
+    const LaneLineMeasurementPtr& detected_lane_line) {
   lost_age_ = 0;
   tracked_count_++;
 

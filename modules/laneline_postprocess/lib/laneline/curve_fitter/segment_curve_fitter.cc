@@ -48,7 +48,7 @@ bool SegmentCurveFitter::Init(const BaseCurveFitterInitOptions& options) {
 }
 
 bool SegmentCurveFitter::CurveFitting(
-    const std::vector<base::Point2DF>& point_set,
+    const std::vector<perception_base::Point2DF>& point_set,
     LaneLinePolynomialPtr polynomial) {
   order_ = polynomial->order;
   HLOG_DEBUG << "polynomial->order:" << polynomial->order;
@@ -171,8 +171,9 @@ double SegmentCurveFitter::CalculateRatioError(
 }
 
 bool SegmentCurveFitter::CurveFitting(
-    const std::vector<base::Point2DF>& point_set,
-    LaneLinePolynomialPtr polynomial, const base::LaneLineCurve& target_curve) {
+    const std::vector<perception_base::Point2DF>& point_set,
+    LaneLinePolynomialPtr polynomial,
+    const perception_base::LaneLineCurve& target_curve) {
   order_ = polynomial->order;
   HLOG_INFO << "polynomial->order:" << polynomial->order;
   if (order_ > max_order_) {
@@ -279,8 +280,9 @@ bool SegmentCurveFitter::CurveFitting(
 }
 
 bool SegmentCurveFitter::CurveFitting(
-    const std::vector<base::Point3DF>& point_set,
-    LaneLinePolynomialPtr polynomial, const base::LaneLineCurve& target_curve) {
+    const std::vector<perception_base::Point3DF>& point_set,
+    LaneLinePolynomialPtr polynomial,
+    const perception_base::LaneLineCurve& target_curve) {
   HLOG_INFO << "start do CurveFitting";
   int count = static_cast<int>(point_set.size());
   point_set_2d_.clear();
@@ -298,7 +300,7 @@ bool SegmentCurveFitter::CurveFitting(
 }
 
 bool SegmentCurveFitter::CurveFitting(
-    const std::vector<base::Point3DF>& point_set,
+    const std::vector<perception_base::Point3DF>& point_set,
     LaneLinePolynomialPtr polynomial) {
   HLOG_INFO << "start do CurveFitting";
   int count = static_cast<int>(point_set.size());
@@ -317,7 +319,8 @@ bool SegmentCurveFitter::CurveFitting(
 }
 
 bool SegmentCurveFitter::FixParamCurveFitting(
-    Candidate* king_candidate, const base::LaneLineCurve& target_curve) {
+    Candidate* king_candidate,
+    const perception_base::LaneLineCurve& target_curve) {
   bool fix_flag = false;
   Candidate candidate;
   candidate.Reset();
@@ -383,7 +386,7 @@ bool SegmentCurveFitter::FixParamCurveFitting(Candidate* king_candidate) {
 
 bool SegmentCurveFitter::MultiOrderCurveFitting(
     Candidate* king_candidate, bool fix_flag,
-    const base::LaneLineCurve& target_curve) {
+    const perception_base::LaneLineCurve& target_curve) {
   int order = order_;
   if (point_statistic_.x_len < curve_dist_param.linear_len) {
     order = 1;

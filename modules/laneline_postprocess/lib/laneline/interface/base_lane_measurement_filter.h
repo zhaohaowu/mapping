@@ -16,7 +16,8 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-using namespace hozon::perception;
+using hozon::perception::base::LaneLinesMeasurementConstPtr;
+using hozon::perception::base::LaneLinesMeasurementPtr;
 
 struct AnomalyFilterInitOptions {};
 
@@ -31,17 +32,16 @@ class BaseLaneMeasurementFilter {
   virtual ~BaseLaneMeasurementFilter() = default;
 
   virtual bool Init(
-      const AnomalyFilterInitOptions &options = AnomalyFilterInitOptions()) = 0;
+      const AnomalyFilterInitOptions& options = AnomalyFilterInitOptions()) = 0;
 
-  virtual bool Filter(
-      const AnomalyFilterOptions &options,
-      const base::LaneLinesMeasurementConstPtr &input_measurements,
-      const base::LaneLinesMeasurementPtr &output_measurements) = 0;
+  virtual bool Filter(const AnomalyFilterOptions& options,
+                      const LaneLinesMeasurementConstPtr& input_measurements,
+                      const LaneLinesMeasurementPtr& output_measurements) = 0;
 
   virtual std::string Name() const = 0;
 
-  BaseLaneMeasurementFilter(const BaseLaneMeasurementFilter &) = delete;
-  BaseLaneMeasurementFilter &operator=(const BaseLaneMeasurementFilter &) =
+  BaseLaneMeasurementFilter(const BaseLaneMeasurementFilter&) = delete;
+  BaseLaneMeasurementFilter& operator=(const BaseLaneMeasurementFilter&) =
       delete;
 };
 

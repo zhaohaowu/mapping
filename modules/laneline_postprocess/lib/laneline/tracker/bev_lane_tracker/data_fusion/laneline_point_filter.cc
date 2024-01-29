@@ -21,9 +21,6 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-using base::LaneLineConstPtr;
-using base::LaneLinePoint;
-
 bool LanePointFilter::Init(const LanePointFilterInitOptions& init_options) {
   // 点更新管理器初始化
   point_manager_ = std::make_shared<AdaptorPointManager>();
@@ -293,7 +290,7 @@ bool LanePointFilter::IsAbnormalPose(
 
 void LanePointFilter::UpdateWithMeasurement(
     const LaneFilterOptions& filter_options,
-    const base::LaneLineMeasurementPtr& measurement) {
+    const perception_base::LaneLineMeasurementPtr& measurement) {
   point_manager_->AddObservePoints(measurement->point_set);
   // PERF_FUNCTION();
   // PERF_BLOCK_START();
@@ -321,7 +318,7 @@ void LanePointFilter::UpdateWithoutMeasurement(
 }
 
 bool LanePointFilter::ConvertPointSet2Eigen(
-    const std::vector<base::LaneLinePoint>& point_set,
+    const std::vector<perception_base::LaneLinePoint>& point_set,
     Eigen::Matrix<double, 40, 1>* eigen_vector) {
   for (size_t p_idx = 0; p_idx < point_set.size(); ++p_idx) {
     auto& point = point_set[p_idx];
@@ -334,7 +331,7 @@ bool LanePointFilter::ConvertPointSet2Eigen(
 
 bool LanePointFilter::ConvertEigen2PointSet(
     const Eigen::Matrix<double, 40, 1>& eigen_vector,
-    std::vector<base::LaneLinePoint>* point_set) {
+    std::vector<perception_base::LaneLinePoint>* point_set) {
   assert(eigen_vector.rows() / 2 == point_set->size());
 
   auto& current_pose =
@@ -390,7 +387,7 @@ void LanePointFilter::CalculateNormal() {
 }
 
 void LanePointFilter::KalmanUpdate(
-    const std::vector<base::LaneLinePoint>& measurement_points) {
+    const std::vector<perception_base::LaneLinePoint>& measurement_points) {
   CalculateNormal();
   CalculateNormalV2();
 
@@ -438,7 +435,7 @@ void LanePointFilter::KalmanUpdate(
 }
 
 void LanePointFilter::UpdateStage(
-    const base::LaneLineMeasurementPtr& measurement_line) {
+    const perception_base::LaneLineMeasurementPtr& measurement_line) {
   auto& measurement_points = measurement_line->point_set;
 
   // PERF_FUNCTION();
@@ -472,7 +469,7 @@ void LanePointFilter::UpdateResult() {
   // 拿车身坐标系下的点进行三次方程拟合
   auto& track_polynomial =
       lane_target_ref_->GetTrackedLaneLine()->vehicle_curve;
-  std::vector<base::Point3DF> lane_vehicle_pts;
+  std::vector<perception_base::Point3DF> lane_vehicle_pts;
   lane_vehicle_pts.clear();
   for (const auto& lane_point : tracked_pt) {
     lane_vehicle_pts.push_back(lane_point.vehicle_point);

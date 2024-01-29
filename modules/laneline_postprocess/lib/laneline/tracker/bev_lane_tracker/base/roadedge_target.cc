@@ -19,10 +19,10 @@ RoadEdgeTarget::~RoadEdgeTarget() {}
 
 bool RoadEdgeTarget::Init(
     const LaneTargetInitOption& options,
-    const base::RoadEdgeMeasurementPtr& detected_lane_line) {
+    const perception_base::RoadEdgeMeasurementPtr& detected_lane_line) {
   lane_target_param_ = options.lane_target_param;
 
-  tracked_laneline_ = std::make_shared<base::RoadEdge>();
+  tracked_laneline_ = std::make_shared<perception_base::RoadEdge>();
   // TODO(陈安猛)
   tracked_laneline_->point_set = detected_lane_line->point_set;
 
@@ -49,7 +49,7 @@ void RoadEdgeTarget::Reset() {
 }
 
 void RoadEdgeTarget::UpdateWithDetectedLaneLine(
-    const base::RoadEdgeMeasurementPtr& detected_lane_line) {
+    const perception_base::RoadEdgeMeasurementPtr& detected_lane_line) {
   lost_age_ = 0;
   tracked_count_++;
 

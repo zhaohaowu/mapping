@@ -13,10 +13,11 @@ namespace mp {
 namespace common_onboard {
 
 static bool CvtZebraCrossingToPb(
-    const base::ZebraCrossingPtr &zebracrossing_msg, ZebraCrossing *pb_object);
+    const perception_base::ZebraCrossingPtr& zebracrossing_msg,
+    hozon::perception::ZebraCrossing* pb_object);
 
 bool DataMapping::CvtMultiZebraCrossingsToPb(
-    const std::vector<base::ZebraCrossingPtr> &zebracrossing_msgs,
+    const std::vector<perception_base::ZebraCrossingPtr>& zebracrossing_msgs,
     NetaTransportElementPtr pb_objects) {
   if (zebracrossing_msgs.size() == 0) {
     HLOG_DEBUG << "zebracrossing msg size is 0";
@@ -39,8 +40,8 @@ bool DataMapping::CvtMultiZebraCrossingsToPb(
 }
 
 bool DataMapping::CvtZebraCrossingToPb(
-    const base::ZebraCrossingPtr &zebracrossing_msg,
-    ZebraCrossing *pb_zebracrossing) {
+    const perception_base::ZebraCrossingPtr& zebracrossing_msg,
+    hozon::perception::ZebraCrossing* pb_zebracrossing) {
   if (nullptr == zebracrossing_msg || nullptr == pb_zebracrossing) {
     HLOG_ERROR << "zebracrossing msg  or pb_zebracrossing is nullptr.";
     return false;
@@ -49,7 +50,7 @@ bool DataMapping::CvtZebraCrossingToPb(
   pb_zebracrossing->set_confidence(zebracrossing_msg->confidence);
 
   if (zebracrossing_msg->point_set_3d.size() != 0) {
-    for (auto &item_pt : zebracrossing_msg->point_set_3d) {
+    for (auto& item_pt : zebracrossing_msg->point_set_3d) {
       auto arrow_points = pb_zebracrossing->mutable_points();
       auto pb_pt = arrow_points->add_point();
       pb_pt->set_x(item_pt.x);
@@ -57,7 +58,7 @@ bool DataMapping::CvtZebraCrossingToPb(
       pb_pt->set_z(item_pt.z);
     }
   } else if (zebracrossing_msg->point_set_2d.size() != 0) {
-    for (auto &item_pt : zebracrossing_msg->point_set_2d) {
+    for (auto& item_pt : zebracrossing_msg->point_set_2d) {
       auto arrow_points = pb_zebracrossing->mutable_points();
       auto pb_pt = arrow_points->add_point();
       pb_pt->set_x(item_pt.x);
@@ -71,14 +72,15 @@ bool DataMapping::CvtZebraCrossingToPb(
 }
 
 bool DataMapping::CvtZebraCrossingMeasurementToPb(
-    const std::vector<base::ZebraCrossingMeasurementPtr> &zebracrossing_measure,
-    hozon::perception::TransportElement *transport_element) {
-  for (auto &item : zebracrossing_measure) {
+    const std::vector<perception_base::ZebraCrossingMeasurementPtr>&
+        zebracrossing_measure,
+    hozon::perception::TransportElement* transport_element) {
+  for (auto& item : zebracrossing_measure) {
     auto pb_zebracrossing = transport_element->add_zebra_crossing();
     pb_zebracrossing->set_track_id(item->id);
     pb_zebracrossing->set_confidence(item->confidence);
     if (item->point_set_3d.size() != 0) {
-      for (auto &item_pt : item->point_set_3d) {
+      for (auto& item_pt : item->point_set_3d) {
         auto zebracross_points = pb_zebracrossing->mutable_points();
         auto pb_pt = zebracross_points->add_point();
         pb_pt->set_x(item_pt.x);
@@ -86,7 +88,7 @@ bool DataMapping::CvtZebraCrossingMeasurementToPb(
         pb_pt->set_z(item_pt.z);
       }
     } else if (item->point_set_2d.size() != 0) {
-      for (auto &item_pt : item->point_set_2d) {
+      for (auto& item_pt : item->point_set_2d) {
         auto zebracross_points = pb_zebracrossing->mutable_points();
         auto pb_pt = zebracross_points->add_point();
         pb_pt->set_x(item_pt.x);
@@ -98,13 +100,13 @@ bool DataMapping::CvtZebraCrossingMeasurementToPb(
   return true;
 }
 bool DataMapping::CvtPb2ZebraCrossingMeasurement(
-    const hozon::perception::ZebraCrossing &zebracrossing,
-    base::ZebraCrossingMeasurementPtr zebracrossingptr) {
+    const hozon::perception::ZebraCrossing& zebracrossing,
+    perception_base::ZebraCrossingMeasurementPtr zebracrossingptr) {
   zebracrossingptr->id = zebracrossing.track_id();
   zebracrossingptr->confidence = zebracrossing.confidence();
 
-  for (auto &item : zebracrossing.points().point()) {
-    base::Point3DF llpt;
+  for (auto& item : zebracrossing.points().point()) {
+    perception_base::Point3DF llpt;
     llpt.x = item.x();
     llpt.y = item.y();
     llpt.z = item.z();

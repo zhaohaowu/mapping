@@ -5,6 +5,8 @@
  *****************************************************************************/
 #include "modules/local_mapping/local_mapping.h"
 
+#include "modules/local_mapping/datalogger/load_data_singleton.h"
+
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -14,17 +16,17 @@ LMapApp::LMapApp(const std::string& mapping_path,
   YAML::Node config = YAML::LoadFile(config_file);
   use_rviz_ = config["use_rviz"].as<bool>();
   local_map_ptr_ = std::make_shared<LocalMap>();
-  laneOp_ = std::make_shared<LaneOp>();
   mmgr_ = std::make_shared<MapManager>();
-  // load city hdmap
-  provider_ = std::make_shared<PriorProvider>();
-  provider_->Init(mapping_path, config_file);
-  auto map = provider_->GetPrior();
-  if (map) {
-    hdmap_ = std::make_shared<hozon::hdmap::HDMap>();
-    hdmap_->LoadMapFromProto(*map);
-  }
+
   if (use_rviz_ && RVIZ_AGENT.Ok()) {
+    // load city hdmap
+    provider_ = std::make_shared<PriorProvider>();
+    provider_->Init(mapping_path, config_file);
+    auto map = provider_->GetPrior();
+    if (map) {
+      hdmap_ = std::make_shared<hozon::hdmap::HDMap>();
+      hdmap_->LoadMapFromProto(*map);
+    }
     stop_rviz_thread_.store(false);
     rviz_thread_ = std::thread(&LMapApp::RvizFunc, this);
   }
@@ -103,10 +105,7 @@ void LMapApp::RvizFunc() {
 }
 
 void LMapApp::OnLocalization(
-    const std::shared_ptr<const hozon::localization::Localization>& msg) {
-  std::shared_ptr<Localization> latest_localization =
-      std::make_shared<Localization>();
-  DataConvert::SetLocalization(*msg, latest_localization.get());
+    const std::shared_ptr<const Localization>& latest_localization) {
   Sophus::SE3d T_W_V_localization = Sophus::SE3d(
       latest_localization->quaternion_, latest_localization->position_);
   Eigen::Vector3d trans_pose = T_W_V_localization.translation();
@@ -135,13 +134,8 @@ void LMapApp::OnLocalization(
   }
 }
 
-void LMapApp::OnIns(
-    const std::shared_ptr<const hozon::localization::HafNodeInfo>& msg) {
-  Eigen::Vector3d p_G_V(msg->pos_gcj02().x(), msg->pos_gcj02().y(),
-                        msg->pos_gcj02().z());
-  Eigen::Quaterniond q_G_V(msg->quaternion().w(), msg->quaternion().x(),
-                           msg->quaternion().y(), msg->quaternion().z());
-  Sophus::SE3d T_G_V = Sophus::SE3d(q_G_V, p_G_V);
+void LMapApp::OnIns(const std::shared_ptr<const InsData>& msg) {
+  Sophus::SE3d T_G_V = Sophus::SE3d(msg->quaternion_, msg->position_);
   T_mutex_.lock();
   T_G_V_ = T_G_V;
   T_mutex_.unlock();
@@ -150,43 +144,11 @@ void LMapApp::OnIns(
   }
 }
 
-void LMapApp::OnPerception(
-    const std::shared_ptr<const hozon::perception::TransportElement>& msg) {
-  util::TicToc global_tic;
-  global_tic.Tic();
-  std::shared_ptr<Perception> perception = std::make_shared<Perception>();
-  DataConvert::SetPerception(*msg, perception.get());
-  HLOG_INFO << "perception->timestamp: " << SET_PRECISION(20)
-            << perception->timestamp_;
-  ConstDrDataPtr perception_pose =
-      laneOp_->GetDrPoseForTime(perception->timestamp_);
-  if (perception_pose == nullptr) {
-    HLOG_ERROR << "perception_pose is nullptr";
-    return;
-  }
-  static Sophus::SE3d last_T_W_V;
-  Sophus::SE3d T_W_V =
-      Sophus::SE3d(perception_pose->quaternion, perception_pose->pose);
-  Sophus::SE3d T_C_L = T_W_V.inverse() * last_T_W_V;
-  last_T_W_V = T_W_V;
-  mmgr_->UpdateLocalMap(local_map_ptr_.get(), T_C_L);
-  local_map_ptr_->timestamp = perception->timestamp_;
+void LMapApp::ProcLaneLine(
+    const std::shared_ptr<const Perception>& perception) {
   std::vector<LaneLineMatchInfo> lane_line_matches;
-  std::vector<EdgeLineMatchInfo> edge_line_matches;
-  std::vector<StopLineMatchInfo> stop_line_matches;
-  std::vector<ArrowMatchInfo> arrow_matches;
-  std::vector<ZebraCrossingMatchInfo> zebra_crossing_matches;
-  laneOp_->MatchLaneLine(perception->lane_lines_, local_map_ptr_->lane_lines_,
-                         &lane_line_matches);
-  laneOp_->MatchEdgeLine(perception->edge_lines_, local_map_ptr_->edge_lines_,
-                         &edge_line_matches);
-  laneOp_->MatchStopLine(perception->stop_lines_, local_map_ptr_->stop_lines_,
-                         &stop_line_matches);
-  laneOp_->MatchArrow(perception->arrows_, local_map_ptr_->arrows_,
-                      &arrow_matches);
-  laneOp_->MatchZebraCrossing(perception->zebra_crossings_,
-                              local_map_ptr_->zebra_crossings_,
-                              &zebra_crossing_matches);
+  mmgr_->MatchLaneLine(perception->lane_lines_, local_map_ptr_->lane_lines_,
+                       &lane_line_matches);
   for (const auto& match : lane_line_matches) {
     if (match.update_type_ == ObjUpdateType::ADD_NEW) {
       mmgr_->AddNewLaneLine(local_map_ptr_.get(), match.per_lane_line_);
@@ -195,6 +157,13 @@ void LMapApp::OnPerception(
                               match.map_lane_line_);
     }
   }
+}
+
+void LMapApp::ProcRoadEdge(
+    const std::shared_ptr<const Perception>& perception) {
+  std::vector<EdgeLineMatchInfo> edge_line_matches;
+  mmgr_->MatchEdgeLine(perception->edge_lines_, local_map_ptr_->edge_lines_,
+                       &edge_line_matches);
   for (const auto& match : edge_line_matches) {
     if (match.update_type_ == ObjUpdateType::ADD_NEW) {
       mmgr_->AddNewEdgeLine(local_map_ptr_.get(), match.per_edge_line_);
@@ -203,14 +172,12 @@ void LMapApp::OnPerception(
                               match.map_edge_line_);
     }
   }
-  for (const auto& match : stop_line_matches) {
-    if (match.update_type_ == ObjUpdateType::ADD_NEW) {
-      mmgr_->AddNewStopLine(local_map_ptr_.get(), match.per_stop_line_);
-    } else if (match.update_type_ == ObjUpdateType::MERGE_OLD) {
-      mmgr_->MergeOldStopLine(local_map_ptr_.get(), match.per_stop_line_,
-                              match.map_stop_line_);
-    }
-  }
+}
+
+void LMapApp::ProcArrow(const std::shared_ptr<const Perception>& perception) {
+  std::vector<ArrowMatchInfo> arrow_matches;
+  mmgr_->MatchArrow(perception->arrows_, local_map_ptr_->arrows_,
+                    &arrow_matches);
   for (const auto& match : arrow_matches) {
     if (match.update_type_ == ObjUpdateType::ADD_NEW) {
       mmgr_->AddNewArrow(local_map_ptr_.get(), match.per_arrow_);
@@ -219,6 +186,15 @@ void LMapApp::OnPerception(
                            match.map_arrow_);
     }
   }
+}
+
+void LMapApp::ProcZebraCrossing(
+    const std::shared_ptr<const Perception>& perception) {
+  std::vector<ZebraCrossingMatchInfo> zebra_crossing_matches;
+  mmgr_->MatchZebraCrossing(perception->zebra_crossings_,
+                            local_map_ptr_->zebra_crossings_,
+                            &zebra_crossing_matches);
+
   for (const auto& match : zebra_crossing_matches) {
     if (match.update_type_ == ObjUpdateType::ADD_NEW) {
       mmgr_->AddNewZebraCrossing(local_map_ptr_.get(),
@@ -229,16 +205,52 @@ void LMapApp::OnPerception(
                                    match.map_zebra_crossing_);
     }
   }
-  // for (auto& lane_line : local_map_ptr_->lane_lines_) {
-  //   MapManager::MergeMapLeftRight(local_map_ptr_.get(), &lane_line);
-  //   MapManager::MergeMapFrontBack(local_map_ptr_.get(), &lane_line);
-  // }
+}
+
+void LMapApp::ProcStopLine(
+    const std::shared_ptr<const Perception>& perception) {
+  std::vector<StopLineMatchInfo> stop_line_matches;
+  mmgr_->MatchStopLine(perception->stop_lines_, local_map_ptr_->stop_lines_,
+                       &stop_line_matches);
+  for (const auto& match : stop_line_matches) {
+    if (match.update_type_ == ObjUpdateType::ADD_NEW) {
+      mmgr_->AddNewStopLine(local_map_ptr_.get(), match.per_stop_line_);
+    } else if (match.update_type_ == ObjUpdateType::MERGE_OLD) {
+      mmgr_->MergeOldStopLine(local_map_ptr_.get(), match.per_stop_line_,
+                              match.map_stop_line_);
+    }
+  }
+}
+
+void LMapApp::OnPerception(
+    const std::shared_ptr<const Perception>& perception) {
+  util::TicToc global_tic;
+  global_tic.Tic();
+  HLOG_INFO << "perception->timestamp: " << SET_PRECISION(20)
+            << perception->timestamp_;
+  ConstDrDataPtr perception_pose =
+      LocalDataSingleton::GetInstance().GetDrPoseByTimeStamp(
+          perception->timestamp_);
+  if (perception_pose == nullptr) {
+    HLOG_ERROR << "perception_pose is nullptr";
+    return;
+  }
+  cur_twv_ = Sophus::SE3d(perception_pose->quaternion, perception_pose->pose);
+  Sophus::SE3d T_C_L = cur_twv_.inverse() * last_twv_;
+  mmgr_->UpdateLocalMap(local_map_ptr_.get(), T_C_L);
+  local_map_ptr_->timestamp = perception->timestamp_;
+
+  ProcLaneLine(perception);
+  ProcRoadEdge(perception);
+  ProcStopLine(perception);
+  ProcZebraCrossing(perception);
+  ProcArrow(perception);
+
   mmgr_->UpdateLanepos(local_map_ptr_.get());
-  mmgr_->MapMerge(local_map_ptr_.get());
+  mmgr_->MergeLaneLine(local_map_ptr_.get());
   CommonUtil::FitLaneLines(&local_map_ptr_->lane_lines_);
   CommonUtil::FitEdgeLines(&local_map_ptr_->edge_lines_);
   mmgr_->CutLocalMap(local_map_ptr_.get(), 80, 80);
-  mmgr_->UpdateLaneByLocalmap(local_map_ptr_.get());
   localmap_mutex_.lock();
   local_map_output_ = *local_map_ptr_;
   localmap_mutex_.unlock();
@@ -246,11 +258,13 @@ void LMapApp::OnPerception(
   perception_ = *perception;
   perception_mutex_.unlock();
   T_mutex_.lock();
-  T_W_V_ = T_W_V;
+  T_W_V_ = cur_twv_;
   T_mutex_.unlock();
   if (!perception_inited_) {
     perception_inited_ = true;
   }
+
+  last_twv_ = cur_twv_;
   HLOG_INFO << "on perception cost " << global_tic.Toc() << "ms";
 }
 

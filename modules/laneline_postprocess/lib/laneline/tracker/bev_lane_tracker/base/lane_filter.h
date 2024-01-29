@@ -13,6 +13,8 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+namespace perception_base = hozon::perception::base;
+
 struct LaneFilterOptions {
   int frame_id = 0;
   double timestamp = 0.0;
@@ -30,8 +32,9 @@ class BaseLaneFilter {
   BaseLaneFilter(const BaseLaneFilter&) = delete;
   BaseLaneFilter& operator=(const BaseLaneFilter&) = delete;
 
-  void UpdateWithMeasurement(const LaneFilterOptions& filter_options,
-                             const base::LaneLineConstPtr& measurement) {}
+  void UpdateWithMeasurement(
+      const LaneFilterOptions& filter_options,
+      const perception_base::LaneLineConstPtr& measurement) {}
 
   void UpdateWithoutMeasurement(const LaneFilterOptions& filter_options) {}
 
@@ -49,8 +52,9 @@ class BaseRoadEdgeFilter {
   BaseRoadEdgeFilter(const BaseRoadEdgeFilter&) = delete;
   BaseRoadEdgeFilter& operator=(const BaseRoadEdgeFilter&) = delete;
 
-  void UpdateWithMeasurement(const LaneFilterOptions& filter_options,
-                             const base::RoadEdgeConstPtr& measurement) {}
+  void UpdateWithMeasurement(
+      const LaneFilterOptions& filter_options,
+      const perception_base::RoadEdgeConstPtr& measurement) {}
 
   void UpdateWithoutMeasurement(const LaneFilterOptions& filter_options) {}
 

@@ -3,7 +3,6 @@
 // @file: simple_lane_tracker_pipeline.cc
 // @brief: associate history lane_track to current detected lane　object
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/pipeline/lane_measurements_filter.h"
-
 #include <math.h>
 
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/datalogger/load_data_singleton.h"
@@ -18,18 +17,13 @@
 namespace hozon {
 namespace mp {
 namespace environment {
-using base::LaneLine;
-using base::LaneLinePoint;
-using base::LaneLinePosition;
-using base::LaneLinePtr;
-using base::Location;
-using lib::FileUtil;
-using lib::LocationManager;
-using lib::ParseProtobufFromFile;
 
-bool LaneMeasurementFilter::Init(const AnomalyFilterInitOptions &options) {
-  auto config_manager = lib::ConfigManager::Instance();
-  const lib::ModelConfig *model_config = nullptr;
+namespace perception_base = hozon::perception::base;
+namespace perception_lib = hozon::perception::lib;
+
+bool LaneMeasurementFilter::Init(const AnomalyFilterInitOptions& options) {
+  auto config_manager = perception_lib::ConfigManager::Instance();
+  const perception_lib::ModelConfig* model_config = nullptr;
   if (!config_manager->GetModelConfig(Name(), &model_config)) {
     HLOG_ERROR << "Parse config failed! Name: " << Name();
     return false;
@@ -44,9 +38,10 @@ bool LaneMeasurementFilter::Init(const AnomalyFilterInitOptions &options) {
   }
 
   LanePostProcessParam postprocess_param;
-  config_file = lib::FileUtil::GetAbsolutePath(work_root, config_file);
-  CHECK(ParseProtobufFromFile<LanePostProcessParam>(config_file,
-                                                    &postprocess_param))
+  config_file =
+      perception_lib::FileUtil::GetAbsolutePath(work_root, config_file);
+  CHECK(perception_lib::ParseProtobufFromFile<LanePostProcessParam>(
+      config_file, &postprocess_param))
       << "Read config failed: " << config_file;
 
   lane_meas_filter_param_ = postprocess_param.lane_measurement_filter_param();
@@ -56,15 +51,15 @@ bool LaneMeasurementFilter::Init(const AnomalyFilterInitOptions &options) {
   return true;
 }
 
-bool CompareLaneLineFunc(const base::LaneLineMeasurementPtr &left,
-                         const base::LaneLineMeasurementPtr &right) {
+bool CompareLaneLineFunc(const perception_base::LaneLineMeasurementPtr& left,
+                         const perception_base::LaneLineMeasurementPtr& right) {
   float avg_left = 0.0, avg_right = 0.0;
-  const auto &left_pt = left->point_set;
+  const auto& left_pt = left->point_set;
   for (int i = 0; i < left_pt.size(); ++i) {
     avg_left += left_pt[i].vehicle_point.y;
   }
   avg_left = avg_left / left_pt.size();
-  const auto &right_pt = right->point_set;
+  const auto& right_pt = right->point_set;
   for (int i = 0; i < right_pt.size(); ++i) {
     avg_right += right_pt[i].vehicle_point.y;
   }
@@ -73,15 +68,15 @@ bool CompareLaneLineFunc(const base::LaneLineMeasurementPtr &left,
 }
 
 bool LaneMeasurementFilter::IsSamePosLaneLine(
-    const base::LaneLineMeasurementConstPtr &ori_lanelane,
-    const base::LaneLineMeasurementConstPtr &compare_laneline) {
+    const perception_base::LaneLineMeasurementConstPtr& ori_lanelane,
+    const perception_base::LaneLineMeasurementConstPtr& compare_laneline) {
   float avg_dist = GetDistBetweenTwoLane(ori_lanelane->point_set,
                                          compare_laneline->point_set);
   return avg_dist < lane_meas_filter_param_.same_pos_distance_thresh();
 }
 
 bool LaneMeasurementFilter::DelHighlyOverlayShortLaneLine(
-    std::vector<base::LaneLineMeasurementPtr> *measure_lanelines) {
+    std::vector<perception_base::LaneLineMeasurementPtr>* measure_lanelines) {
   if (measure_lanelines->size() == 0) {
     return true;
   }
@@ -124,7 +119,7 @@ bool LaneMeasurementFilter::DelHighlyOverlayShortLaneLine(
   return true;
 }
 bool LaneMeasurementFilter::DelHighlyOverlayLowConfLaneLine(
-    std::vector<base::LaneLineMeasurementPtr> *measure_lanelines) {
+    std::vector<perception_base::LaneLineMeasurementPtr>* measure_lanelines) {
   std::vector<int> remove_index;
   if (measure_lanelines->size() == 0) {
     return true;
@@ -166,7 +161,7 @@ bool LaneMeasurementFilter::DelHighlyOverlayLowConfLaneLine(
 }
 
 bool LaneMeasurementFilter::DelMiddleOverlayFarLaneline(
-    std::vector<base::LaneLineMeasurementPtr> *measure_lanelines) {
+    std::vector<perception_base::LaneLineMeasurementPtr>* measure_lanelines) {
   if (measure_lanelines->size() == 0) {
     return true;
   }
@@ -219,7 +214,7 @@ bool LaneMeasurementFilter::DelMiddleOverlayFarLaneline(
   return true;
 }
 bool LaneMeasurementFilter::DelAnomalyIntervalLaneLine(
-    std::vector<base::LaneLineMeasurementPtr> *measure_lanelines) {
+    std::vector<perception_base::LaneLineMeasurementPtr>* measure_lanelines) {
   HLOG_DEBUG << "DelAnomalyIntervalLaneLine start";
   if (measure_lanelines->size() == 0) {
     return true;
@@ -279,13 +274,13 @@ bool LaneMeasurementFilter::DelAnomalyIntervalLaneLine(
   return true;
 }
 bool LaneMeasurementFilter::Filter(
-    const AnomalyFilterOptions &options,
-    const base::LaneLinesMeasurementConstPtr &input_measurements,
-    const base::LaneLinesMeasurementPtr &output_measurements) {
+    const AnomalyFilterOptions& options,
+    const perception_base::LaneLinesMeasurementConstPtr& input_measurements,
+    const perception_base::LaneLinesMeasurementPtr& output_measurements) {
   // PERF_FUNCTION();
   // PERF_BLOCK_START();
 
-  std::vector<base::LaneLineMeasurementPtr> local_measurements =
+  std::vector<perception_base::LaneLineMeasurementPtr> local_measurements =
       input_measurements->lanelines;
   // // 1.1 检测NMS过滤
   // std::stringstream time_ss;
@@ -331,11 +326,11 @@ bool LaneMeasurementFilter::Filter(
   DelAnomalyIntervalLaneLine(&key_lanelines);
   HLOG_DEBUG << "[LaneMeasurementFilter], output measurement lanes size:"
              << key_lanelines.size();
-  for (auto &line : fork_merge_lanelines) {
+  for (auto& line : fork_merge_lanelines) {
     output_measurements->lanelines.push_back(line);
   }
 
-  for (auto &line : key_lanelines) {
+  for (auto& line : key_lanelines) {
     output_measurements->lanelines.push_back(line);
   }
 
@@ -347,15 +342,16 @@ std::string LaneMeasurementFilter::Name() const {
   return "LaneMeasurementFilter";
 }
 
-std::vector<base::LaneLineMeasurementPtr>
+std::vector<perception_base::LaneLineMeasurementPtr>
 LaneMeasurementFilter::GetUnForkOrMergeLaneLine(
-    const std::vector<base::LaneLineMeasurementPtr> &measure_lanelines) {
-  std::vector<base::LaneLineMeasurementPtr> output_lanelines;
+    const std::vector<perception_base::LaneLineMeasurementPtr>&
+        measure_lanelines) {
+  std::vector<perception_base::LaneLineMeasurementPtr> output_lanelines;
   output_lanelines.clear();
 
-  for (auto &line : measure_lanelines) {
-    if ((line->split != base::LaneLineSceneType::FORK) &&
-        (line->split != base::LaneLineSceneType::CONVERGE)) {
+  for (auto& line : measure_lanelines) {
+    if ((line->split != perception_base::LaneLineSceneType::FORK) &&
+        (line->split != perception_base::LaneLineSceneType::CONVERGE)) {
       output_lanelines.push_back(line);
     }
   }
@@ -363,15 +359,16 @@ LaneMeasurementFilter::GetUnForkOrMergeLaneLine(
   return output_lanelines;
 }
 
-std::vector<base::LaneLineMeasurementPtr>
+std::vector<perception_base::LaneLineMeasurementPtr>
 LaneMeasurementFilter::GetForkOrMergeLaneLine(
-    const std::vector<base::LaneLineMeasurementPtr> &measure_lanelines) {
-  std::vector<base::LaneLineMeasurementPtr> output_lanelines;
+    const std::vector<perception_base::LaneLineMeasurementPtr>&
+        measure_lanelines) {
+  std::vector<perception_base::LaneLineMeasurementPtr> output_lanelines;
   output_lanelines.clear();
 
-  for (auto &line : measure_lanelines) {
-    if ((line->split == base::LaneLineSceneType::FORK) ||
-        (line->split == base::LaneLineSceneType::CONVERGE)) {
+  for (auto& line : measure_lanelines) {
+    if ((line->split == perception_base::LaneLineSceneType::FORK) ||
+        (line->split == perception_base::LaneLineSceneType::CONVERGE)) {
       output_lanelines.push_back(line);
     }
   }
@@ -380,7 +377,7 @@ LaneMeasurementFilter::GetForkOrMergeLaneLine(
 }
 
 bool LaneMeasurementFilter::DeleteBehindVehicleLaneLine(
-    std::vector<base::LaneLineMeasurementPtr> *measure_lanelines) {
+    std::vector<perception_base::LaneLineMeasurementPtr>* measure_lanelines) {
   for (auto iter = measure_lanelines->begin();
        iter != measure_lanelines->end();) {
     if ((*iter)->point_set.rbegin()->vehicle_point.x < 2.0) {
@@ -394,7 +391,7 @@ bool LaneMeasurementFilter::DeleteBehindVehicleLaneLine(
 }
 
 bool LaneMeasurementFilter::DelFarShortLaneLine(
-    std::vector<base::LaneLineMeasurementPtr> *measure_lanelines) {
+    std::vector<perception_base::LaneLineMeasurementPtr>* measure_lanelines) {
   for (auto iter = measure_lanelines->begin();
        iter != measure_lanelines->end();) {
     auto length = GetLength((*iter)->point_set);

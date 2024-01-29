@@ -20,6 +20,10 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
+using hozon::perception::base::LaneLineMeasurementPtr;
+using hozon::perception::base::LaneLinePoint;
+using hozon::perception::base::LaneLinePosition;
+
 class LaneMeasurementFilter : public BaseLaneMeasurementFilter {
  public:
   LaneMeasurementFilter() : BaseLaneMeasurementFilter() {}
@@ -27,41 +31,41 @@ class LaneMeasurementFilter : public BaseLaneMeasurementFilter {
 
   bool Init(const AnomalyFilterInitOptions& options =
                 AnomalyFilterInitOptions()) override;
-  bool Filter(
-      const AnomalyFilterOptions& options,
-      const base::LaneLinesMeasurementConstPtr& input_measurements,
-      const base::LaneLinesMeasurementPtr& output_measurements) override;
+  bool Filter(const AnomalyFilterOptions& options,
+              const LaneLinesMeasurementConstPtr& input_measurements,
+              const LaneLinesMeasurementPtr& output_measurements) override;
 
   std::string Name() const override;
 
  private:
   bool DeleteBehindVehicleLaneLine(
-      std::vector<base::LaneLineMeasurementPtr>* measure_lanelines);
+      std::vector<LaneLineMeasurementPtr>* measure_lanelines);
 
   bool DelFarShortLaneLine(
-      std::vector<base::LaneLineMeasurementPtr>* measure_lanelines);
+      std::vector<LaneLineMeasurementPtr>* measure_lanelines);
 
   bool DelHighlyOverlayShortLaneLine(
-      std::vector<base::LaneLineMeasurementPtr>* measure_lanelines);
+      std::vector<LaneLineMeasurementPtr>* measure_lanelines);
 
   bool DelHighlyOverlayLowConfLaneLine(
-      std::vector<base::LaneLineMeasurementPtr>* measure_lanelines);
+      std::vector<LaneLineMeasurementPtr>* measure_lanelines);
 
   bool DelMiddleOverlayFarLaneline(
-      std::vector<base::LaneLineMeasurementPtr>* measure_lanelines);
+      std::vector<LaneLineMeasurementPtr>* measure_lanelines);
 
   bool DelAnomalyIntervalLaneLine(
-      std::vector<base::LaneLineMeasurementPtr>* measure_lanelines);
+      std::vector<LaneLineMeasurementPtr>* measure_lanelines);
 
-  std::vector<base::LaneLineMeasurementPtr> GetForkOrMergeLaneLine(
-      const std::vector<base::LaneLineMeasurementPtr>& measure_lanelines);
+  std::vector<LaneLineMeasurementPtr> GetForkOrMergeLaneLine(
+      const std::vector<LaneLineMeasurementPtr>& measure_lanelines);
 
-  std::vector<base::LaneLineMeasurementPtr> GetUnForkOrMergeLaneLine(
-      const std::vector<base::LaneLineMeasurementPtr>& measure_lanelines);
+  std::vector<LaneLineMeasurementPtr> GetUnForkOrMergeLaneLine(
+      const std::vector<LaneLineMeasurementPtr>& measure_lanelines);
 
   bool IsSamePosLaneLine(
-      const base::LaneLineMeasurementConstPtr& ori_lanelane,
-      const base::LaneLineMeasurementConstPtr& compare_laneline);
+      const hozon::perception::base::LaneLineMeasurementConstPtr& ori_lanelane,
+      const hozon::perception::base::LaneLineMeasurementConstPtr&
+          compare_laneline);
 
  private:
   LaneMeasurementFilterParam lane_meas_filter_param_;

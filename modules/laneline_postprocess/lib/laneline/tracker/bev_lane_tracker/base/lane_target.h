@@ -6,11 +6,12 @@
 #pragma once
 #include <algorithm>
 #include <atomic>
-#include <boost/circular_buffer.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include <boost/circular_buffer.hpp>
 
 #include "modules/laneline_postprocess/lib/laneline/proto/lane_postprocess.pb.h"
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/datalogger/load_data_singleton.h"
@@ -23,7 +24,7 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-using namespace hozon::perception;
+namespace perception_base = hozon::perception::base;
 
 struct LaneTargetInitOption {
   LaneTargetParam lane_target_param;
@@ -44,20 +45,22 @@ class LaneTarget {
   ~LaneTarget();
 
   bool Init(const LaneTargetInitOption& options,
-            const base::LaneLineMeasurementPtr& detected_lane_line);
+            const perception_base::LaneLineMeasurementPtr& detected_lane_line);
 
   void UpdateWithDetectedLaneLine(
-      const base::LaneLineMeasurementPtr& detected_lane_line);
+      const LaneLineMeasurementPtr& detected_lane_line);
 
   void UpdateWithoutDetectedLaneLine();
 
   void Reset();
 
-  inline const base::LaneLinePtr GetConstTrackedLaneLine() const {
+  inline const perception_base::LaneLinePtr GetConstTrackedLaneLine() const {
     return tracked_laneline_;
   }
 
-  inline base::LaneLinePtr& GetTrackedLaneLine() { return tracked_laneline_; }
+  inline perception_base::LaneLinePtr& GetTrackedLaneLine() {
+    return tracked_laneline_;
+  }
 
   inline bool IsInit() const { return track_status_ == TrackStatus::INIT; }
 
@@ -94,8 +97,8 @@ class LaneTarget {
     }
   }
 
-  inline void UpdateTrackStatus(bool cur_lost,
-                                const base::LaneLinePtr& tracked_lane_line_) {
+  inline void UpdateTrackStatus(
+      bool cur_lost, const perception_base::LaneLinePtr& tracked_lane_line_) {
     int reserve_age = lane_target_param_.reserve_age();
     InputDataSingleton* local_data = InputDataSingleton::Instance();
     if (local_data->GetTurnState()) {
@@ -135,7 +138,7 @@ class LaneTarget {
 
  private:
   // tracked_lane_object
-  base::LaneLinePtr tracked_laneline_ = nullptr;
+  LaneLinePtr tracked_laneline_ = nullptr;
 
   int id_ = 0;
   int lost_age_ = 0;

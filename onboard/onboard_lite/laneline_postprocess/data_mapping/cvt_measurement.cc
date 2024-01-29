@@ -11,27 +11,28 @@ namespace mp {
 namespace common_onboard {
 
 bool DataMapping::CvtPb2Measurement(
-    const std::shared_ptr<measurement::MeasurementPb> &measurepb,
-    std::shared_ptr<base::MeasurementFrame> measure_frame) {
+    const std::shared_ptr<hozon::perception::measurement::MeasurementPb>&
+        measurepb,
+    std::shared_ptr<perception_base::MeasurementFrame> measure_frame) {
   measure_frame->header.timestamp = measurepb->header().data_stamp();
   measure_frame->header.sequence_num = measurepb->header().seq();
   if (!measure_frame->objects_measurement_) {
     measure_frame->objects_measurement_ =
-        std::make_shared<base::ObjectMeasurement>();
+        std::make_shared<perception_base::ObjectMeasurement>();
   }
   measure_frame->lanelines_measurement_ =
-      std::make_shared<base::LaneLinesMeasurement>();
-  for (auto &item : measurepb->transport_element().lane()) {
-    base::LaneLineMeasurementPtr laneptr =
-        std::make_shared<base::LaneLineMeasurement>();
+      std::make_shared<perception_base::LaneLinesMeasurement>();
+  for (auto& item : measurepb->transport_element().lane()) {
+    perception_base::LaneLineMeasurementPtr laneptr =
+        std::make_shared<perception_base::LaneLineMeasurement>();
     CvtPb2LaneLineMeasurement(item, laneptr);
     measure_frame->lanelines_measurement_->lanelines.push_back(laneptr);
   }
   measure_frame->roadedges_measurement_ =
-      std::make_shared<base::RoadEdgesMeasurement>();
-  for (auto &item : measurepb->transport_element().road_edges()) {
-    base::RoadEdgeMeasurementPtr roadedgeptr =
-        std::make_shared<base::RoadEdgeMeasurement>();
+      std::make_shared<perception_base::RoadEdgesMeasurement>();
+  for (auto& item : measurepb->transport_element().road_edges()) {
+    perception_base::RoadEdgeMeasurementPtr roadedgeptr =
+        std::make_shared<perception_base::RoadEdgeMeasurement>();
     CvtPb2RoadEdgeMeasurement(item, roadedgeptr);
     measure_frame->roadedges_measurement_->road_edges.push_back(roadedgeptr);
   }

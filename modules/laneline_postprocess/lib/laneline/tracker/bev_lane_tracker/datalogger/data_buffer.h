@@ -30,27 +30,27 @@ class MessageBuffer {
   MessageBuffer();
   ~MessageBuffer();
 
-  bool push_new_message(const double timestamp, const MessageType &msg);
+  bool push_new_message(const double timestamp, const MessageType& msg);
   bool pop_oldest_message();
-  bool pop_oldest_message(MessageType *msg);
+  bool pop_oldest_message(MessageType* msg);
   bool pop_latest_message();
-  bool pop_latest_message(MessageType *msg);
-  bool get_message(const double timestamp, MessageType *msg);
-  bool get_latest_message(MessageType *msg);
-  bool get_message_before(const double timestamp, MessageType *msg);
+  bool pop_latest_message(MessageType* msg);
+  bool get_message(const double timestamp, MessageType* msg);
+  bool get_latest_message(MessageType* msg);
+  bool get_message_before(const double timestamp, MessageType* msg);
 
   /** @brief Get all messages after timestamp in msg buffer.
    * If the message in timestamp doesn't exist in msg buffer,
    * return all message in buffer. */
   void get_messages_after(
       const double timestamp,
-      ::std::vector<::std::pair<double, MessageType>> &msgs);  // NOLINT
+      ::std::vector<::std::pair<double, MessageType>>& msgs);  // NOLINT
   void clear();
 
   void set_capacity(const unsigned int capacity);
   unsigned int get_capacity();
   void get_all_messages(
-      ::std::list<::std::pair<double, MessageType>> *msg_list);
+      ::std::list<::std::pair<double, MessageType>>* msg_list);
 
   bool is_empty();
   bool is_full();
@@ -81,13 +81,13 @@ class IntepolableMessageBuffer : public MessageBuffer<MessageType> {
   IntepolableMessageBuffer();
   ~IntepolableMessageBuffer();
 
-  bool query_message(const double timestamp, MessageType *msg,
+  bool query_message(const double timestamp, MessageType* msg,
                      double timeout_s = 0.05);
 
  private:
   bool wait_message_buffer_ok(
-      const double timestamp, ::std::map<double, ListIterator> *msg_map,
-      ::std::list<::std::pair<double, MessageType>> *msg_list,
+      const double timestamp, ::std::map<double, ListIterator>* msg_map,
+      ::std::list<::std::pair<double, MessageType>>* msg_list,
       double timeout_ms);
 };
 
@@ -103,7 +103,7 @@ MessageBuffer<MessageType>::~MessageBuffer() {}
 
 template <class MessageType>
 bool MessageBuffer<MessageType>::push_new_message(const double timestamp,
-                                                  const MessageType &msg) {
+                                                  const MessageType& msg) {
   if (_capacity == 0) {
     // ::std::cerr << "The buffer capacity is 0." << ::std::endl;
     // LOCAL_LOG_ERROR_FORMAT("The buffer capacity is 0.");
@@ -134,7 +134,7 @@ bool MessageBuffer<MessageType>::push_new_message(const double timestamp,
 }
 
 template <class MessageType>
-bool MessageBuffer<MessageType>::pop_oldest_message(MessageType *msg) {
+bool MessageBuffer<MessageType>::pop_oldest_message(MessageType* msg) {
   _buffer_mutex.lock();
   if (_msg_list.empty()) {
     _buffer_mutex.unlock();
@@ -168,7 +168,7 @@ bool MessageBuffer<MessageType>::pop_oldest_message() {
 }
 
 template <class MessageType>
-bool MessageBuffer<MessageType>::pop_latest_message(MessageType *msg) {
+bool MessageBuffer<MessageType>::pop_latest_message(MessageType* msg) {
   _buffer_mutex.lock();
   if (_msg_list.empty()) {
     _buffer_mutex.unlock();
@@ -204,7 +204,7 @@ bool MessageBuffer<MessageType>::pop_latest_message() {
 
 template <class MessageType>
 bool MessageBuffer<MessageType>::get_message_before(const double timestamp,
-                                                    MessageType *msg) {
+                                                    MessageType* msg) {
   _buffer_mutex.lock();
   if (_msg_list.empty()) {
     _buffer_mutex.unlock();
@@ -231,7 +231,7 @@ bool MessageBuffer<MessageType>::get_message_before(const double timestamp,
 
 template <class MessageType>
 bool MessageBuffer<MessageType>::get_message(const double timestamp,
-                                             MessageType *msg) {
+                                             MessageType* msg) {
   _buffer_mutex.lock();
   auto found_iter = _msg_map.find(timestamp);
   if (found_iter != _msg_map.end()) {
@@ -244,7 +244,7 @@ bool MessageBuffer<MessageType>::get_message(const double timestamp,
 }
 
 template <class MessageType>
-bool MessageBuffer<MessageType>::get_latest_message(MessageType *msg) {
+bool MessageBuffer<MessageType>::get_latest_message(MessageType* msg) {
   _buffer_mutex.lock();
   if (_msg_list.empty()) {
     _buffer_mutex.unlock();
@@ -262,7 +262,7 @@ bool MessageBuffer<MessageType>::get_latest_message(MessageType *msg) {
 template <class MessageType>
 void MessageBuffer<MessageType>::get_messages_after(
     const double timestamp,
-    ::std::vector<::std::pair<double, MessageType>> &msgs) {  // NOLINT
+    ::std::vector<::std::pair<double, MessageType>>& msgs) {  // NOLINT
   _buffer_mutex.lock();
   auto found_iter = _msg_map.find(timestamp);
   if (found_iter != _msg_map.end()) {
@@ -296,7 +296,7 @@ unsigned int MessageBuffer<MessageType>::get_capacity() {
 
 template <class MessageType>
 void MessageBuffer<MessageType>::get_all_messages(
-    ::std::list<::std::pair<double, MessageType>> *msg_list) {
+    ::std::list<::std::pair<double, MessageType>>* msg_list) {
   _buffer_mutex.lock();
   msg_list->clear();
   ::std::copy(_msg_list.begin(), _msg_list.end(),
@@ -358,7 +358,6 @@ MessageType MessageBuffer<MessageType>::second() {
   return msg;
 }
 
-
 template <class MessageType>
 MessageType MessageBuffer<MessageType>::back2() {
   MessageType msg;
@@ -371,7 +370,6 @@ MessageType MessageBuffer<MessageType>::back2() {
   _buffer_mutex.unlock();
   return msg;
 }
-
 
 template <class MessageType>
 MessageType MessageBuffer<MessageType>::back() {
@@ -399,7 +397,7 @@ IntepolableMessageBuffer<MessageType>::~IntepolableMessageBuffer() {}
 
 template <class MessageType>
 bool IntepolableMessageBuffer<MessageType>::query_message(
-    const double timestamp, MessageType *msg, double timeout_s) {
+    const double timestamp, MessageType* msg, double timeout_s) {
   ::std::map<double, ListIterator> msg_map_tem;
   ::std::list<::std::pair<double, MessageType>> msg_list_tem;
 
@@ -448,8 +446,8 @@ bool IntepolableMessageBuffer<MessageType>::query_message(
 
 template <class MessageType>
 bool IntepolableMessageBuffer<MessageType>::wait_message_buffer_ok(
-    const double timestamp, ::std::map<double, ListIterator> *msg_map,
-    ::std::list<::std::pair<double, MessageType>> *msg_list,
+    const double timestamp, ::std::map<double, ListIterator>* msg_map,
+    ::std::list<::std::pair<double, MessageType>>* msg_list,
     double timeout_ms) {
   double sum_time = 0.0;
 

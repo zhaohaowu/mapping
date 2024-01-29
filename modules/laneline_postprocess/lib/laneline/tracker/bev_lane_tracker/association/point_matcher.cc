@@ -16,7 +16,7 @@ PointMatcher::PointMatcher() {}
 
 PointMatcher::~PointMatcher() {}
 
-bool PointMatcher::Init(const PointMatcherInitOptions &options) {
+bool PointMatcher::Init(const PointMatcherInitOptions& options) {
   lane_match_param_ = options.lane_match_param;
   target_used_mask_.reserve(50);
   det_used_mask_.reserve(50);
@@ -33,16 +33,17 @@ void PointMatcher::Clear() {
   }
 }
 
-double PointMatcher::NormPoint(base::Point3DF point) {
+double PointMatcher::NormPoint(perception_base::Point3DF point) {
   double dist = point.x * point.x + point.y * point.y + point.z * point.z;
   return std::sqrt(dist);
 }
 
 void PointMatcher::SetDetectionPointDist(
-    const std::vector<base::LaneLineMeasurementPtr> *detected_lanelines) {
+    const std::vector<perception_base::LaneLineMeasurementPtr>*
+        detected_lanelines) {
   det_lanes_size_ = detected_lanelines->size();
   for (int i = 0; i < det_lanes_size_; ++i) {
-    const auto &lane = detected_lanelines->at(i);
+    const auto& lane = detected_lanelines->at(i);
     int point_size = lane->point_set.size();
     std::vector<double> vec_dist;
     vec_dist.resize(point_size);
@@ -68,10 +69,11 @@ void PointMatcher::SetDetectionPointDist(
 }
 
 void PointMatcher::SetDetectionPointDist(
-    const std::vector<base::RoadEdgeMeasurementPtr> *detected_lanelines) {
+    const std::vector<perception_base::RoadEdgeMeasurementPtr>*
+        detected_lanelines) {
   det_lanes_size_ = detected_lanelines->size();
   for (int i = 0; i < det_lanes_size_; ++i) {
-    const auto &lane = detected_lanelines->at(i);
+    const auto& lane = detected_lanelines->at(i);
     int point_size = lane->point_set.size();
     std::vector<double> vec_dist;
     vec_dist.resize(point_size);
@@ -97,12 +99,12 @@ void PointMatcher::SetDetectionPointDist(
 }
 
 void PointMatcher::SetTrackKDTree(
-    const std::vector<SimpleLaneTrackerPtr> &lane_trackers) {
+    const std::vector<SimpleLaneTrackerPtr>& lane_trackers) {
   track_lanes_size_ = lane_trackers.size();
   track_kdtrees_.resize(track_lanes_size_);
   track_lanes_y_err_.resize(track_lanes_size_);
   for (size_t i = 0; i < track_lanes_size_; ++i) {
-    const auto &lane_line =
+    const auto& lane_line =
         lane_trackers[i]->GetConstLaneTarget()->GetConstTrackedLaneLine();
     if (lane_line->point_set.size() == 0) {
       track_kdtrees_[i] = nullptr;
@@ -111,7 +113,7 @@ void PointMatcher::SetTrackKDTree(
     double last_y = 0.0, std_y = 0.0;
     int pt_num = lane_line->point_set.size();
     for (size_t j = 0; j < pt_num; ++j) {
-      const auto &point = lane_line->point_set[j].local_point;
+      const auto& point = lane_line->point_set[j].local_point;
       cv_points.push_back(cv::Point2f(point.x, point.y));
       if (j > 0) {
         std_y += std::abs(lane_line->point_set[j].vehicle_point.y - last_y);
@@ -121,14 +123,14 @@ void PointMatcher::SetTrackKDTree(
     std_y /= pt_num - 1;
     track_lanes_y_err_[i] = std::min(std_y * vehicle_y_error_ratio_ + 1.0, 3.0);
     cv::flann::KDTreeIndexParams index_params(1);
-    cv::flann::Index *kdtree =
+    cv::flann::Index* kdtree =
         new cv::flann::Index(cv::Mat(cv_points).reshape(1), index_params);
     track_kdtrees_[i] = kdtree;
   }
   // 根据车辆打方向盘幅度（角速度大小）调整阈值
-  environment::InputDataSingleton *local_data_ =
+  environment::InputDataSingleton* local_data_ =
       environment::InputDataSingleton::Instance();
-  auto &dr_data_buffer = local_data_->dr_data_buffer_;
+  auto& dr_data_buffer = local_data_->dr_data_buffer_;
   if (dr_data_buffer.buffer_size() > 0) {
     float angular_velocity = dr_data_buffer.back()->angular_velocity[2];
     point_quantile_thresh_ += std::min(std::abs(angular_velocity), 0.2f);
@@ -136,31 +138,32 @@ void PointMatcher::SetTrackKDTree(
 }
 
 void PointMatcher::SetTrackKDTree(
-    const std::vector<SimpleRoadEdgeTrackerPtr> &lane_trackers) {
+    const std::vector<SimpleRoadEdgeTrackerPtr>& lane_trackers) {
   track_lanes_size_ = lane_trackers.size();
   track_kdtrees_.resize(track_lanes_size_);
   for (size_t i = 0; i < track_lanes_size_; ++i) {
-    const auto &lane_line =
+    const auto& lane_line =
         lane_trackers[i]->GetConstLaneTarget()->GetConstTrackedLaneLine();
     if (lane_line->point_set.size() == 0) {
       track_kdtrees_[i] = nullptr;
     }
     std::vector<cv::Point2f> cv_points;
     for (size_t j = 0; j < lane_line->point_set.size(); ++j) {
-      const auto &point = lane_line->point_set[j].local_point;
+      const auto& point = lane_line->point_set[j].local_point;
       cv_points.push_back(cv::Point2f(point.x, point.y));
     }
     cv::flann::KDTreeIndexParams index_params(1);
-    cv::flann::Index *kdtree =
+    cv::flann::Index* kdtree =
         new cv::flann::Index(cv::Mat(cv_points).reshape(1), index_params);
     track_kdtrees_[i] = kdtree;
   }
 }
 
 void PointMatcher::SolveBipartiteGraphMatchWithGreedy(
-    const std::vector<base::LaneLineMeasurementPtr> *detected_lanelines,
-    const std::vector<PointMatchScoreTuple> &match_score_list,
-    PointAssociationResult *association_result) {
+    const std::vector<perception_base::LaneLineMeasurementPtr>*
+        detected_lanelines,
+    const std::vector<PointMatchScoreTuple>& match_score_list,
+    PointAssociationResult* association_result) {
   HLOG_DEBUG << "bipartite size: " << track_lanes_size_ << ", "
              << det_lanes_size_;
   target_used_mask_.resize(track_lanes_size_);
@@ -168,7 +171,7 @@ void PointMatcher::SolveBipartiteGraphMatchWithGreedy(
   det_used_mask_.resize(det_lanes_size_);
   det_used_mask_.assign(det_used_mask_.size(), false);
 
-  for (auto &score_tuple : match_score_list) {
+  for (auto& score_tuple : match_score_list) {
     size_t track_index = std::get<0>(score_tuple);
     size_t detect_index = std::get<1>(score_tuple);
 
@@ -204,9 +207,10 @@ void PointMatcher::SolveBipartiteGraphMatchWithGreedy(
 }
 
 void PointMatcher::SolveBipartiteGraphMatchWithGreedy(
-    const std::vector<base::RoadEdgeMeasurementPtr> *detected_roadedges,
-    const std::vector<PointMatchScoreTuple> &match_score_list,
-    PointAssociationResult *association_result) {
+    const std::vector<perception_base::RoadEdgeMeasurementPtr>*
+        detected_roadedges,
+    const std::vector<PointMatchScoreTuple>& match_score_list,
+    PointAssociationResult* association_result) {
   HLOG_DEBUG << "bipartite size: " << track_lanes_size_ << ", "
              << det_lanes_size_;
   target_used_mask_.resize(track_lanes_size_);
@@ -214,7 +218,7 @@ void PointMatcher::SolveBipartiteGraphMatchWithGreedy(
   det_used_mask_.resize(det_lanes_size_);
   det_used_mask_.assign(det_used_mask_.size(), false);
 
-  for (auto &score_tuple : match_score_list) {
+  for (auto& score_tuple : match_score_list) {
     size_t track_index = std::get<0>(score_tuple);
     size_t detect_index = std::get<1>(score_tuple);
 
@@ -250,22 +254,23 @@ void PointMatcher::SolveBipartiteGraphMatchWithGreedy(
 }
 
 void PointMatcher::AssociationKnn(
-    const PointMatcherOptions &options,
-    const std::vector<SimpleLaneTrackerPtr> &lane_trackers,
-    const std::vector<base::LaneLineMeasurementPtr> *detected_lanelines,
-    PointAssociationResult *association_result) {
+    const PointMatcherOptions& options,
+    const std::vector<SimpleLaneTrackerPtr>& lane_trackers,
+    const std::vector<perception_base::LaneLineMeasurementPtr>*
+        detected_lanelines,
+    PointAssociationResult* association_result) {
   std::stringstream time_ss;
   time_ss << std::fixed << std::setprecision(10) << options.timestamp;
   debug_timestamp_ = time_ss.str();
   for (int i = 0; i < detected_lanelines->size(); ++i) {
-    const auto &det_point_set = detected_lanelines->at(i)->point_set;
+    const auto& det_point_set = detected_lanelines->at(i)->point_set;
     for (int j = 0; j < track_kdtrees_.size(); ++j) {
       if (track_kdtrees_[j] == nullptr) {
         continue;
       }
       lane_trackers[j]->GetLaneTarget()->SetLastestTrackedTimestamp(
           options.timestamp);
-      const auto &track_point_set = lane_trackers[j]
+      const auto& track_point_set = lane_trackers[j]
                                         ->GetConstLaneTarget()
                                         ->GetConstTrackedLaneLine()
                                         ->point_set;
@@ -356,20 +361,21 @@ void PointMatcher::AssociationKnn(
 }
 
 void PointMatcher::AssociationKnn(
-    const PointMatcherOptions &options,
-    const std::vector<SimpleRoadEdgeTrackerPtr> &lane_trackers,
-    const std::vector<base::RoadEdgeMeasurementPtr> *detected_lanelines,
-    PointAssociationResult *association_result) {
+    const PointMatcherOptions& options,
+    const std::vector<SimpleRoadEdgeTrackerPtr>& lane_trackers,
+    const std::vector<perception_base::RoadEdgeMeasurementPtr>*
+        detected_lanelines,
+    PointAssociationResult* association_result) {
   std::stringstream time_ss;
   time_ss << std::fixed << std::setprecision(10) << options.timestamp;
   debug_timestamp_ = time_ss.str();
   for (int i = 0; i < detected_lanelines->size(); ++i) {
-    const auto &det_point_set = detected_lanelines->at(i)->point_set;
+    const auto& det_point_set = detected_lanelines->at(i)->point_set;
     for (int j = 0; j < track_kdtrees_.size(); ++j) {
       if (track_kdtrees_[j] == nullptr) {
         continue;
       }
-      const auto &track_point_set = lane_trackers[j]
+      const auto& track_point_set = lane_trackers[j]
                                         ->GetConstLaneTarget()
                                         ->GetConstTrackedLaneLine()
                                         ->point_set;
@@ -447,10 +453,11 @@ void PointMatcher::AssociationKnn(
 }
 
 bool PointMatcher::Associate(
-    const PointMatcherOptions &options,
-    const std::vector<base::LaneLineMeasurementPtr> *detect_measurements,
-    const std::vector<SimpleLaneTrackerPtr> &lane_trackers,
-    PointAssociationResult *association_result) {
+    const PointMatcherOptions& options,
+    const std::vector<perception_base::LaneLineMeasurementPtr>*
+        detect_measurements,
+    const std::vector<SimpleLaneTrackerPtr>& lane_trackers,
+    PointAssociationResult* association_result) {
   Clear();
   SetTrackKDTree(lane_trackers);
   SetDetectionPointDist(detect_measurements);
@@ -460,10 +467,11 @@ bool PointMatcher::Associate(
 }
 
 bool PointMatcher::Associate(
-    const PointMatcherOptions &options,
-    const std::vector<base::RoadEdgeMeasurementPtr> *detect_measurements,
-    const std::vector<SimpleRoadEdgeTrackerPtr> &lane_trackers,
-    PointAssociationResult *association_result) {
+    const PointMatcherOptions& options,
+    const std::vector<perception_base::RoadEdgeMeasurementPtr>*
+        detect_measurements,
+    const std::vector<SimpleRoadEdgeTrackerPtr>& lane_trackers,
+    PointAssociationResult* association_result) {
   Clear();
   SetTrackKDTree(lane_trackers);
   SetDetectionPointDist(detect_measurements);

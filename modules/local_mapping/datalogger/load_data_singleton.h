@@ -5,6 +5,7 @@
  *****************************************************************************/
 #pragma once
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -27,6 +28,8 @@ class LocalDataSingleton {
   LocalDataSingleton(const LocalDataSingleton&) = delete;
   LocalDataSingleton& operator=(const LocalDataSingleton&) = delete;
   ~LocalDataSingleton() = default;
+
+  ConstDrDataPtr GetDrPoseByTimeStamp(double timestamp);
 
  private:
   LocalDataSingleton() : dr_data_buffer_(400) {}

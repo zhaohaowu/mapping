@@ -3,6 +3,8 @@
  *Author: Hozon
  *Date: 2023-09-16
  *****************************************************************************/
+
+#pragma once
 #include <memory>
 
 #include "adf-lite/include/base.h"
@@ -14,14 +16,14 @@ namespace hozon {
 namespace mp {
 namespace common_onboard {
 
-using namespace hozon::perception;
+namespace perception_base = hozon::perception::base;
 
 struct MeasurementMessage : hozon::netaos::adf_lite::BaseData {
-  std::shared_ptr<base::MeasurementFrame> measurement_frame;
+  std::shared_ptr<perception_base::MeasurementFrame> measurement_frame;
 };
 
 struct FusionMessage : netaos::adf_lite::BaseData {
-  std::shared_ptr<base::FusionFrame> fusion_frame;
+  std::shared_ptr<perception_base::FusionFrame> fusion_frame;
 };
 
 }  //  namespace common_onboard

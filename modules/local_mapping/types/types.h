@@ -139,13 +139,20 @@ class Localization {
   float heading_;
 };
 
+class InsData {
+ public:
+  double timestamp_;
+  Eigen::Vector3d position_;
+  Eigen::Quaterniond quaternion_;
+};
+
 enum ObjUpdateType { MERGE_OLD = 0, ADD_NEW = 1 };
 
 class LaneLine {
  public:
   int track_id_ = 1000;
-  double length_ = 1000.0;
-  double heading_ = 1000.0;
+  // double length_ = 1000.0;
+  // double heading_ = 1000.0;
   double confidence_ = 1000.0;
   LanePositionType lanepos_ = LanePositionType::OTHER;
   LaneType lanetype_;
@@ -158,7 +165,7 @@ class LaneLine {
   bool has_matched_ = false;
   bool ismature_ = false;
   bool is_after_stop_line_ = false;
-  int count_;
+  int tracked_count_;
   double c3_ = 1000.0;
   double c2_ = 1000.0;
   double c1_ = 1000.0;
@@ -180,7 +187,7 @@ class StopLine {
   bool has_matched_ = false;
   bool ismature_ = false;
   bool isstable_ = false;
-  int count_ = 0;
+  int tracked_count_ = 0;
 };
 
 class Arrow {
@@ -195,7 +202,7 @@ class Arrow {
   Eigen::Vector3d mid_point_;
   bool has_matched_ = false;
   bool ismature_ = false;
-  int count_ = 0;
+  int tracked_count_ = 0;
 };
 
 class ZebraCrossing {
@@ -209,7 +216,7 @@ class ZebraCrossing {
   Eigen::Vector3d mid_point_;
   bool has_matched_ = false;
   bool ismature_ = false;
-  int count_ = 0;
+  int tracked_count_ = 0;
 };
 class Perception {
  public:

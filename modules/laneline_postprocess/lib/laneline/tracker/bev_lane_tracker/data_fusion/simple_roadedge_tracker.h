@@ -8,8 +8,8 @@
 
 #include "modules/laneline_postprocess/lib/laneline/proto/lane_postprocess.pb.h"
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/base/roadedge_target.h"
-#include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/data_fusion/roadedge_point_filter.h"
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/data_fusion/laneline_type_filter.h"
+#include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/data_fusion/roadedge_point_filter.h"
 namespace hozon {
 namespace mp {
 namespace environment {
@@ -35,9 +35,10 @@ class SimpleRoadEdgeTracker {
 
   void UpdateWithDetectedLaneLine(
       const SimpleRoadEdgeTrackerOptions& options,
-      const base::RoadEdgeMeasurementPtr& detected_laneline);
+      const perception_base::RoadEdgeMeasurementPtr& detected_laneline);
 
-  void UpdateWithoutDetectedLaneLine(const SimpleRoadEdgeTrackerOptions& options);
+  void UpdateWithoutDetectedLaneLine(
+      const SimpleRoadEdgeTrackerOptions& options);
 
   inline const RoadEdgeTargetConstPtr GetConstLaneTarget() const {
     return lane_target_;
@@ -54,7 +55,8 @@ class SimpleRoadEdgeTracker {
 };
 
 typedef std::shared_ptr<SimpleRoadEdgeTracker> SimpleRoadEdgeTrackerPtr;
-typedef std::shared_ptr<const SimpleRoadEdgeTracker> SimpleRoadEdgeTrackerConstPtr;
+typedef std::shared_ptr<const SimpleRoadEdgeTracker>
+    SimpleRoadEdgeTrackerConstPtr;
 
 }  // namespace environment
 }  // namespace mp

@@ -13,6 +13,7 @@
 #include <queue>
 #include <string>
 
+#include "base/utils/log.h"
 #include "common/math/vec2d.h"
 #include "common/status/status.h"
 #include "common/util/macros.h"
@@ -33,6 +34,18 @@
 namespace hozon {
 namespace mp {
 namespace mf {
+
+struct IdHash {
+  size_t operator()(const hozon::hdmap::Id& id) const {
+    return std::hash<std::string>()(id.id());
+  }
+};
+
+struct IdEqual {
+  bool operator()(const hozon::hdmap::Id& a, const hozon::hdmap::Id& b) const {
+    return a.id() == b.id();
+  }
+};
 /**
  * @class Ehp
  *
@@ -61,6 +74,15 @@ class MapService {
                const std::shared_ptr<hozon::routing::RoutingResponse>& routing);
   bool BinProc(const hozon::localization::HafNodeInfo& ins_msg,
                const std::shared_ptr<hozon::hdmap::Map>& map);
+  void SetCurrentPathId(const hozon::common::PointENU& utm_pos,
+                        std::string* current_pathid);
+  static void SetLaneIdsPool(
+      const hozon::hdmap::LaneInfoConstPtr& current_lane,
+      std::unordered_set<hozon::hdmap::Id, IdHash, IdEqual>* lane_id_pool,
+      std::unordered_set<std::string>* last_roadid_pool);
+  static void GetAroundId(
+      const ::google::protobuf::RepeatedPtrField<::hozon::hdmap::Id>& ids,
+      std::unordered_set<hozon::hdmap::Id, IdHash, IdEqual>* lane_id_pool);
 
   std::shared_ptr<hozon::routing::RoutingResponse> routing_ = nullptr;
   hozon::common::math::Vec2d last_pose_;

@@ -9,6 +9,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "amap/GHDMapDefines.h"
@@ -26,6 +27,7 @@
 #include "proto/localization/node_info.pb.h"
 #include "proto/map/ehp.pb.h"
 #include "proto/map/map.pb.h"
+#include "proto/map/map_id.pb.h"
 #include "proto/routing/routing.pb.h"
 #include "util/mapping_log.h"
 
@@ -159,7 +161,7 @@ bool MapService::EhpProc(
   bool reset_map(false);
 
   hozon::hdmap::Map extend_map;
-  std::string current_pathid = "0";
+  std::string current_pathid;
   std::string to_pathid;
   auto x = ins_msg.pos_gcj02().x();
   auto y = ins_msg.pos_gcj02().y();
@@ -168,13 +170,9 @@ bool MapService::EhpProc(
   utm_pos.set_x(y);
   utm_pos.set_y(x);
   utm_pos.set_z(0.0);
-  hozon::hdmap::LaneInfoConstPtr nearst_lane = nullptr;
-  double s(0.0);
-  double l(0.0);
-  GLOBAL_HD_MAP->GetNearestLane(utm_pos, &nearst_lane, &s, &l);
-  if (nearst_lane != nullptr) {
-    current_pathid = nearst_lane->road_id().id();
-  }
+
+  SetCurrentPathId(utm_pos, &current_pathid);
+  HLOG_DEBUG << "currentpathid: " << current_pathid;
 
   if (!ehp_data_list.empty()) {
     for (const auto& one_ehp_data : ehp_data_list) {
@@ -208,122 +206,103 @@ bool MapService::EhpProc(
   return true;
 }
 
-// bool MapService::BinProc(const hozon::localization::HafNodeInfo& ins_msg,
-//                          const std::shared_ptr<hozon::hdmap::Map>& map) {
-//   double x = ins_msg.pos_gcj02().y();
-//   double y = ins_msg.pos_gcj02().x();
-//   hozon::common::coordinate_convertor::GCS2UTM(51, &x, &y);
+void MapService::SetCurrentPathId(const hozon::common::PointENU& utm_pos,
+                                  std::string* current_pathid) {
+  static std::unordered_set<hozon::hdmap::Id, IdHash, IdEqual> last_laneid_pool;
+  static std::unordered_set<std::string> last_roadid_pool;
+  hozon::hdmap::LaneInfoConstPtr nearst_lane = nullptr;
+  double s(0.0);
+  double l(0.0);
+  GLOBAL_HD_MAP->GetNearestLane(utm_pos, &nearst_lane, &s, &l);
+  if (nearst_lane != nullptr && l < 5.0) {
+    if (!last_laneid_pool.empty()) {
+      if (last_laneid_pool.count(nearst_lane->id()) == 0) {
+        std::vector<hdmap::LaneInfoConstPtr> lanes;
+        GLOBAL_HD_MAP->GetLanes(utm_pos, 5, &lanes);
+        if (lanes.empty()) {
+          current_pathid->clear();
+          last_laneid_pool.clear();
+          last_roadid_pool.clear();
+        } else if (lanes.size() == 1) {
+          *current_pathid = lanes.front()->road_id().id();
+          SetLaneIdsPool(lanes.front(), &last_laneid_pool, &last_roadid_pool);
+        } else if (lanes.size() >= 2) {
+          common::math::Vec2d point(utm_pos.x(), utm_pos.y());
+          std::sort(lanes.begin(), lanes.end(),
+                    [&](const auto& u, const auto& v) {
+                      return u->DistanceTo(point) < v->DistanceTo(point);
+                    });
+          if (lanes.at(0)->road_id().id() == lanes.at(1)->road_id().id()) {
+            *current_pathid = lanes.at(0)->road_id().id();
+            SetLaneIdsPool(lanes.at(0), &last_laneid_pool, &last_roadid_pool);
+          } else {
+            if (last_roadid_pool.count(lanes.at(0)->road_id().id()) != 0) {
+              *current_pathid = lanes.at(0)->road_id().id();
+              SetLaneIdsPool(lanes.at(0), &last_laneid_pool, &last_roadid_pool);
+            } else if (last_roadid_pool.count(lanes.at(1)->road_id().id()) !=
+                       0) {
+              *current_pathid = lanes.at(1)->road_id().id();
+              SetLaneIdsPool(lanes.at(1), &last_laneid_pool, &last_roadid_pool);
+            } else {
+              current_pathid->clear();
+              last_laneid_pool.clear();
+              last_roadid_pool.clear();
+            }
+          }
+        }
+      } else {
+        *current_pathid = nearst_lane->road_id().id();
+        SetLaneIdsPool(nearst_lane, &last_laneid_pool, &last_roadid_pool);
+      }
+    } else {
+      *current_pathid = nearst_lane->road_id().id();
+      SetLaneIdsPool(nearst_lane, &last_laneid_pool, &last_roadid_pool);
+    }
+  } else {
+    current_pathid->clear();
+    last_laneid_pool.clear();
+    last_roadid_pool.clear();
+  }
+}
 
-//   last_send_time_ = std::chrono::steady_clock::now();
-//   hozon::common::math::Vec2d loc{x, y};
-//   double distance = loc.DistanceTo(last_pose_);
-//   HLOG_DEBUG << "distance: " << distance;
+void MapService::SetLaneIdsPool(
+    const hozon::hdmap::LaneInfoConstPtr& current_lane,
+    std::unordered_set<hozon::hdmap::Id, IdHash, IdEqual>* lane_id_pool,
+    std::unordered_set<std::string>* last_roadid_pool) {
+  const int kSearchLevel = 2;
+  lane_id_pool->clear();
+  lane_id_pool->insert(current_lane->id());
+  GetAroundId(current_lane->lane().left_neighbor_forward_lane_id(),
+              lane_id_pool);
 
-//   if (distance >= FLAGS_transform_distance) {
-//     map->Clear();
-//     hozon::common::PointENU enupos;
-//     enupos.set_x(x);
-//     enupos.set_y(y);
-//     enupos.set_z(0);
+  GetAroundId(current_lane->lane().right_neighbor_forward_lane_id(),
+              lane_id_pool);
+  last_roadid_pool->insert(current_lane->road_id().id());
+  int i = 0;
+  std::unordered_set<hozon::hdmap::Id, IdHash, IdEqual> current_level(
+      *lane_id_pool);
+  while (i < kSearchLevel) {
+    std::unordered_set<hozon::hdmap::Id, IdHash, IdEqual> tmp;
+    for (const auto& lane_id : current_level) {
+      auto lane_prt = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_prt != nullptr) {
+        last_roadid_pool->insert(lane_prt->road_id().id());
+        GetAroundId(lane_prt->lane().successor_id(), lane_id_pool);
+        GetAroundId(lane_prt->lane().successor_id(), &tmp);
+      }
+    }
+    current_level = tmp;
+    i++;
+  }
+}
 
-//     std::vector<hozon::hdmap::JunctionInfoConstPtr> junctions;
-//     int result = hd_map_->GetJunctions(enupos, FLAGS_radius, &junctions);
-//     if (result == 0) {
-//       for (const auto& junction : junctions) {
-//         *map->add_junction() = junction->junction();
-//       }
-//     } else {
-//       HLOG_DEBUG << "get junctions failed";
-//     }
-
-//     std::vector<hozon::hdmap::RoadInfoConstPtr> roads;
-//     result = hd_map_->GetRoads(enupos, FLAGS_radius, &roads);
-//     if (result == 0) {
-//       for (const auto& road : roads) {
-//         *map->add_road() = road->road();
-//       }
-//     } else {
-//       HLOG_DEBUG << "get roads failed";
-//     }
-//     std::vector<hozon::hdmap::SignalInfoConstPtr> signals;
-//     result = hd_map_->GetSignals(enupos, FLAGS_radius, &signals);
-//     if (result == 0) {
-//       for (const auto& signal : signals) {
-//         *map->add_signal() = signal->signal();
-//       }
-//     } else {
-//       HLOG_DEBUG << "get signals failed";
-//     }
-
-//     std::vector<hozon::hdmap::LaneInfoConstPtr> lanes;
-//     result = hd_map_->GetLanes(enupos, FLAGS_radius, &lanes);
-//     if (result == 0) {
-//       for (const auto& lane : lanes) {
-//         *map->add_lane() = lane->lane();
-//       }
-//     } else {
-//       HLOG_DEBUG << "get lanes failed";
-//     }
-
-//     std::vector<hozon::hdmap::CrosswalkInfoConstPtr> crosswalks;
-//     result = hd_map_->GetCrosswalks(enupos, FLAGS_radius, &crosswalks);
-//     if (result == 0) {
-//       for (const auto& crosswalk : crosswalks) {
-//         *map->add_crosswalk() = crosswalk->crosswalk();
-//       }
-//     } else {
-//       HLOG_DEBUG << "get crosswalks failed";
-//     }
-
-//     std::vector<hozon::hdmap::StopSignInfoConstPtr> stop_signs;
-//     result = hd_map_->GetStopSigns(enupos, FLAGS_radius, &stop_signs);
-//     if (result == 0) {
-//       for (const auto& stopsign : stop_signs) {
-//         *map->add_stop_sign() = stopsign->stop_sign();
-//       }
-//     } else {
-//       HLOG_DEBUG << "get stop_signs failed";
-//     }
-
-//     std::vector<hozon::hdmap::YieldSignInfoConstPtr> yield_signs;
-//     result = hd_map_->GetYieldSigns(enupos, FLAGS_radius, &yield_signs);
-//     if (result == 0) {
-//       for (const auto& yieldsign : yield_signs) {
-//         *map->add_yield() = yieldsign->yield_sign();
-//       }
-//     } else {
-//       HLOG_DEBUG << "get yield_signs failed";
-//     }
-
-//     std::vector<hozon::hdmap::ClearAreaInfoConstPtr> clear_areas;
-//     result = hd_map_->GetClearAreas(enupos, FLAGS_radius, &clear_areas);
-//     if (result == 0) {
-//       for (const auto& cleararea : clear_areas) {
-//         *map->add_clear_area() = cleararea->clear_area();
-//       }
-//     } else {
-//       HLOG_DEBUG << "get clear_areas failed";
-//     }
-
-//     std::vector<hozon::hdmap::SpeedBumpInfoConstPtr> speed_bumps;
-//     result = hd_map_->GetSpeedBumps(enupos, FLAGS_radius, &speed_bumps);
-//     if (result == 0) {
-//       for (const auto& speedbump : speed_bumps) {
-//         *map->add_speed_bump() = speedbump->speed_bump();
-//       }
-//     } else {
-//       HLOG_DEBUG << "get speed_bumps failed";
-//     }
-
-//     // 更新位置
-//     last_pose_ = loc;
-//   }
-
-//   // if (prior_writer_) {
-//   //   prior_writer_->Write(crop_map_);
-//   // }
-//   return true;
-// }
+void MapService::GetAroundId(
+    const ::google::protobuf::RepeatedPtrField< ::hozon::hdmap::Id>& ids,
+    std::unordered_set<hozon::hdmap::Id, IdHash, IdEqual>* lane_id_pool) {
+  for (const auto& id : ids) {
+    lane_id_pool->insert(id);
+  }
+}
 
 MapService::~MapService() {
   is_amap_tsp_thread_stop_ = true;

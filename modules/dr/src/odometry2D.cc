@@ -348,12 +348,7 @@ void Odometry2D::UpdateOrientationByIMU(const ImuDataHozon& last_imu,
   Eigen::Vector3d gyro_unbias =
       0.5 * (last_gyr_measurement + cur_gyr_measurement) - gyro_bias_yaw;
   Eigen::Vector3d det_ang = gyro_unbias * dt;
-
-  if (gyro_bias_.norm() > 1e-2) {
-    w_by_gyro_ = 0.5 * (last_gyr_measurement + cur_gyr_measurement);
-  } else {
-    w_by_gyro_ = gyro_unbias;
-  }
+  w_by_gyro_ = gyro_unbias;
 
   if (det_ang.norm() > 1e-12) {
     qat_ = qat_ * Eigen::Quaterniond(

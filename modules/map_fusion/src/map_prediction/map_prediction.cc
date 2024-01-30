@@ -468,6 +468,10 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
     }
   }
 
+  if (local_enu_center_flag_) {
+    HLOG_ERROR << "init_pose_ not inited";
+    return nullptr;
+  }
   // for (int i = 0; i < row_min; ++i) {
   //   for (int j = 0; j < routing_lanes[i].size(); ++j) {
   //     hozon::hdmap::Id lane_id;
@@ -506,12 +510,7 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
     HLOG_ERROR << "nullptr hq_map_";
     return nullptr;
   }
-  if (local_enu_center_flag_) {
-    HLOG_ERROR << "init_pose_ not inited";
-    return nullptr;
-  }
   HDMapLaneToLocal();
-  RoutingPointToLocal(routing);
   // viz_map_.VizLocalMapLaneLine(hq_map_);
   // viz_map_.VizLaneID(hq_map_);
 
@@ -1585,7 +1584,7 @@ void MapPrediction::ArrawStopLineToLocal() {
 }
 
 void MapPrediction::RoutingPointToLocal(
-    hozon::routing::RoutingResponse* routing) {
+    hozon::routing::RoutingResponse* routing, const std::string& id) {
   for (auto way_point_it =
            (*routing->mutable_routing_request()->mutable_waypoint()).begin();
        way_point_it !=
@@ -1603,6 +1602,45 @@ void MapPrediction::RoutingPointToLocal(
       (*way_point_it).mutable_pose()->set_y(pt_local.y());
       (*way_point_it).mutable_pose()->set_z(0.0);
       ++way_point_it;
+    }
+  }
+
+  hozon::hdmap::Id lane_id;
+  lane_id.set_id(id);
+  auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+  if (lane_ptr != nullptr) {
+    auto* waypoints = routing->mutable_routing_request()->mutable_waypoint();
+    auto* start_point = waypoints->Add();
+    start_point->set_id(lane_ptr->lane().id().id());
+    start_point->set_s(0.0);
+    auto* start_pose = start_point->mutable_pose();
+    const auto& segments = lane_ptr->lane().central_curve().segment();
+    auto segment_size = segments.size();
+    if (segment_size > 0 && segments[0].line_segment().point_size() > 0) {
+      auto pt = segments[0].line_segment().original_point()[0];
+      Eigen::Vector3d pt_local = GcjPtToLocalEnu(pt);
+      pt_local = T_local_enu_to_local_ * pt_local;
+      start_pose->set_x(pt_local.x());
+      start_pose->set_y(pt_local.y());
+      start_pose->set_z(0.0);
+    }
+    start_point->set_type(hozon::routing::LaneWaypointType::NORMAL);
+
+    auto* end_point = waypoints->Add();
+    end_point->set_id(lane_ptr->lane().id().id());
+    end_point->set_s(lane_ptr->lane().length());
+    auto* end_pose = end_point->mutable_pose();
+    if (segment_size > 0 &&
+        segments[segment_size - 1].line_segment().point_size() > 0) {
+      auto pt =
+          segments[segment_size - 1].line_segment().original_point()
+              [segments[segment_size - 1].line_segment().point_size() - 1];
+      Eigen::Vector3d pt_local = GcjPtToLocalEnu(pt);
+      pt_local = T_local_enu_to_local_ * pt_local;
+      end_pose->set_x(pt_local.x());
+      end_pose->set_y(pt_local.y());
+      end_pose->set_z(0.0);
+      end_point->set_type(hozon::routing::LaneWaypointType::NORMAL);
     }
   }
 }

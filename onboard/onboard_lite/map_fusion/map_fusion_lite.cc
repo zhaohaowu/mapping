@@ -376,58 +376,61 @@ int MapFusionLite::SendFusionResult(
       "hd_map");
   if (!FLAGS_output_hd_map) {
     routing->mutable_routing_request()->mutable_waypoint()->Clear();
-  }
-  bool found = false;
-  for (auto road_it = routing->road().rbegin();
-       road_it != routing->road().rend(); ++road_it) {
-    if (road_it->passage_size() > 0) {
-      int count = road_it->passage_size() - 1;
-      for (const auto& lane : map->lane()) {
-        if (lane.id().id() == road_it->passage()[count].segment()[0].id()) {
-          auto* waypoints =
-              routing->mutable_routing_request()->mutable_waypoint();
-          auto* start_point = waypoints->Add();
-          start_point->set_id(lane.id().id());
-          start_point->set_s(0.0);
-          auto* start_pose = start_point->mutable_pose();
-          const auto& segments = lane.central_curve().segment();
-          auto segment_size = segments.size();
-          if (segment_size > 0 && segments[0].line_segment().point_size() > 0) {
-            start_pose->set_x(segments[0].line_segment().point()[0].x());
-            start_pose->set_y(segments[0].line_segment().point()[0].y());
-            start_pose->set_z(0.0);
-          }
-          start_point->set_type(hozon::routing::LaneWaypointType::NORMAL);
+    bool found_start = false;
+    bool found_end = false;
+    for (auto road_it = routing->road().rbegin();
+         road_it != routing->road().rend(); ++road_it) {
+      if (road_it->passage_size() > 0) {
+        int count = road_it->passage_size() - 1;
+        for (const auto& lane : map->lane()) {
+          if (lane.id().id() == road_it->passage()[count].segment()[0].id()) {
+            const auto& segments = lane.central_curve().segment();
+            auto segment_size = segments.size();
+            auto* waypoints =
+                routing->mutable_routing_request()->mutable_waypoint();
+            if (segment_size > 0 &&
+                segments[0].line_segment().point_size() > 0) {
+              auto* start_point = waypoints->Add();
+              start_point->set_id(lane.id().id());
+              start_point->set_s(0.0);
+              auto* start_pose = start_point->mutable_pose();
+              start_pose->set_x(segments[0].line_segment().point()[0].x());
+              start_pose->set_y(segments[0].line_segment().point()[0].y());
+              start_pose->set_z(0.0);
+              start_point->set_type(hozon::routing::LaneWaypointType::NORMAL);
+              found_start = true;
+            }
 
-          auto* end_point = waypoints->Add();
-          end_point->set_id(lane.id().id());
-          end_point->set_s(lane.length());
-          auto* end_pose = end_point->mutable_pose();
-          if (segment_size > 0 &&
-              segments[segment_size - 1].line_segment().point_size() > 0) {
-            end_pose->set_x(segments[segment_size - 1]
-                                .line_segment()
-                                .point()[segments[segment_size - 1]
-                                             .line_segment()
-                                             .point_size() -
-                                         1]
-                                .x());
-            end_pose->set_y(segments[segment_size - 1]
-                                .line_segment()
-                                .point()[segments[segment_size - 1]
-                                             .line_segment()
-                                             .point_size() -
-                                         1]
-                                .y());
-            end_pose->set_z(0.0);
-            end_point->set_type(hozon::routing::LaneWaypointType::NORMAL);
-            found = true;
-            break;
+            if (segment_size > 0 &&
+                segments[segment_size - 1].line_segment().point_size() > 0) {
+              auto* end_point = waypoints->Add();
+              end_point->set_id(lane.id().id());
+              end_point->set_s(lane.length());
+              auto* end_pose = end_point->mutable_pose();
+              end_pose->set_x(segments[segment_size - 1]
+                                  .line_segment()
+                                  .point()[segments[segment_size - 1]
+                                               .line_segment()
+                                               .point_size() -
+                                           1]
+                                  .x());
+              end_pose->set_y(segments[segment_size - 1]
+                                  .line_segment()
+                                  .point()[segments[segment_size - 1]
+                                               .line_segment()
+                                               .point_size() -
+                                           1]
+                                  .y());
+              end_pose->set_z(0.0);
+              end_point->set_type(hozon::routing::LaneWaypointType::NORMAL);
+              found_end = true;
+              break;
+            }
           }
         }
-      }
-      if (found) {
-        break;
+        if (found_start && found_end) {
+          break;
+        }
       }
     }
   }

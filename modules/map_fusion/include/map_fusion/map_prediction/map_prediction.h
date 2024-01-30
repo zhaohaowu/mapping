@@ -128,7 +128,8 @@ class MapPrediction {
   Eigen::Vector3d GcjPtToLocalEnu(const hozon::common::PointENU& point_gcj);
   void ConvertToLocal();
   void HDMapLaneToLocal();
-  void RoutingPointToLocal(hozon::routing::RoutingResponse* routing);
+  void RoutingPointToLocal(hozon::routing::RoutingResponse* routing,
+                           const std::string& id);
   void AppendRoutingLane(const hozon::hdmap::LaneInfoConstPtr& lane_ptr);
   void FusionMapLaneToLocal();
   void ArrawStopLineToLocal();

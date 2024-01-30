@@ -457,6 +457,8 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
     }
   }
 
+  std::unordered_set<std::string> road_id_set;
+
   for (int i = row_min; i <= row_max; ++i) {
     for (int j = 0; j < routing_lanes[i].size(); ++j) {
       hozon::hdmap::Id lane_id;
@@ -464,24 +466,10 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
       auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
       if (lane_ptr != nullptr) {
         hq_map_->add_lane()->CopyFrom(lane_ptr->lane());
+        road_id_set.emplace(lane_ptr->road_id().id());
       }
     }
   }
-
-  if (local_enu_center_flag_) {
-    HLOG_ERROR << "init_pose_ not inited";
-    return nullptr;
-  }
-  // for (int i = 0; i < row_min; ++i) {
-  //   for (int j = 0; j < routing_lanes[i].size(); ++j) {
-  //     hozon::hdmap::Id lane_id;
-  //     lane_id.set_id(routing_lanes[i][j]);
-  //     auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
-  //     if (lane_ptr != nullptr) {
-  //       AppendRoutingLane(lane_ptr);
-  //     }
-  //   }
-  // }
 
   for (int i = row_max + 1; i < routing_lanes.size(); ++i) {
     for (int j = 0; j < routing_lanes[i].size(); ++j) {
@@ -490,27 +478,42 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
       auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
       if (lane_ptr != nullptr) {
         AppendRoutingLane(lane_ptr);
+        road_id_set.emplace(lane_ptr->road_id().id());
       }
     }
   }
 
-  // 获取roads
-  std::vector<hozon::hdmap::RoadInfoConstPtr> roads;
-  ret = GLOBAL_HD_MAP->GetRoads(utm_pos, 300, &roads);
-  if (ret == 0) {
-    for (const auto& road : roads) {
-      hq_map_->add_road()->CopyFrom(road->road());
+  // // 获取roads
+  // std::vector<hozon::hdmap::RoadInfoConstPtr> roads;
+  // ret = GLOBAL_HD_MAP->GetRoads(utm_pos, 300, &roads);
+  // if (ret == 0) {
+  //   for (const auto& road : roads) {
+  //     hq_map_->add_road()->CopyFrom(road->road());
+  //   }
+  // } else {
+  //   HLOG_DEBUG << "get roads failed";
+  //   return nullptr;
+  // }
+  for (auto road_id_it = road_id_set.begin(); road_id_it != road_id_set.end();
+       ++road_id_it) {
+    hozon::hdmap::Id road_id;
+    road_id.set_id(*road_id_it);
+    auto road_ptr = GLOBAL_HD_MAP->GetRoadById(road_id);
+    if (road_ptr != nullptr) {
+      hq_map_->add_road()->CopyFrom(road_ptr->road());
     }
-  } else {
-    HLOG_DEBUG << "get roads failed";
-    return nullptr;
   }
 
   if (!hq_map_) {
     HLOG_ERROR << "nullptr hq_map_";
     return nullptr;
   }
+  if (local_enu_center_flag_) {
+    HLOG_ERROR << "init_pose_ not inited";
+    return nullptr;
+  }
   HDMapLaneToLocal();
+  RoutingPointToLocal(routing, routing_lanes[row_max].back());
   // viz_map_.VizLocalMapLaneLine(hq_map_);
   // viz_map_.VizLaneID(hq_map_);
 

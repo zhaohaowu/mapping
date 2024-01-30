@@ -437,6 +437,9 @@ int MapFusionLite::SendFusionResult(
 
   map_fusion->mutable_routing()->CopyFrom(*routing);
 
+  map_fusion->mutable_routing()->mutable_header()->set_publish_stamp(
+      location->header().publish_stamp());
+
   auto map_res = std::make_shared<hozon::netaos::adf_lite::BaseData>();
   map_res->proto_msg = map_fusion;
 

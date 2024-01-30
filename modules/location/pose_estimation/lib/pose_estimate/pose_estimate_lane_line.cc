@@ -308,7 +308,7 @@ void MatchLaneLine::MergeMapLines(
     if (start_point_v.x() > 60.f) {
       continue;
     }
-    if (start_point_v.y() > 8.f || start_point_v.y() < -8.f) {
+    if (start_point_v.y() > 30.f || start_point_v.y() < -30.f) {
       HLOG_ERROR << "delete!!!!";
       continue;
     }

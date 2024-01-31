@@ -33,7 +33,8 @@ FusionCenter::~FusionCenter() {
 
 bool FusionCenter::Init(const std::string& configfile,
                         const std::string& filterconf,
-                        const std::string& eskfconf) {
+                        const std::string& eskfconf,
+                        const std::string& monitorconf) {
   boost::filesystem::path path(configfile);
   if (!boost::filesystem::exists(path)) {
     HLOG_ERROR << "location fc conf:" << configfile << " not exist";
@@ -55,7 +56,14 @@ bool FusionCenter::Init(const std::string& configfile,
     return false;
   }
 
+  monitor_ = std::make_shared<Monitor>();
+  if (!monitor_->Init(monitorconf)) {
+    HLOG_WARN << "monitor init failed: " << monitorconf;
+    return false;
+  }
+
   th_fusion_ = std::make_shared<std::thread>(&FusionCenter::RunFusion, this);
+  fusion_run_ = true;
 
   return true;
 }
@@ -226,9 +234,8 @@ bool FusionCenter::GetCurrentContext(Context* const ctx) {
 
   if (!GetGlobalPose(ctx)) {
     HLOG_WARN << "get global pose failed";
-  } else {
-    ctx->global_node.location_state = GetGlobalLocationState();
   }
+
   return true;
 }
 
@@ -384,7 +391,7 @@ void FusionCenter::PruneDeques() {
   while (fusion_deque_.size() > params_.window_size) {
     fusion_deque_.pop_front();
   }
-  const double ticktime = fusion_deque_.front()->ticktime -2.0;
+  const double ticktime = fusion_deque_.front()->ticktime -3.0;
   fusion_deque_mutex_.unlock();
 
   ins_deque_mutex_.lock();
@@ -774,7 +781,7 @@ bool FusionCenter::GenerateNewESKFPre() {
 bool FusionCenter::GenerateNewESKFMeas() {
   // 进行优势传感器的测量数据收集（加入各种判断条件，如MM不工作时用INS）
   fusion_deque_mutex_.lock();
-  double cur_ticktime = fusion_deque_.back()->ticktime;
+  double cur_fusion_ticktime = fusion_deque_.back()->ticktime;
   fusion_deque_mutex_.unlock();
   bool meas_flag = false;
   meas_deque_.clear();
@@ -783,7 +790,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
   {
     std::unique_lock<std::mutex> lock(pe_deque_mutex_);
     for (const auto& mm_node : pe_deque_) {
-      if (mm_node->ticktime > cur_ticktime &&
+      if (mm_node->ticktime > cur_fusion_ticktime &&
           mm_node->ticktime > last_meas_time_) {
         meas_deque_.emplace_back(mm_node);
         meas_flag = true;
@@ -796,13 +803,17 @@ bool FusionCenter::GenerateNewESKFMeas() {
     latest_ins_mutex_.lock();
     double ins_ticktime = latest_ins_data_.header().data_stamp();
     latest_ins_mutex_.unlock();
-    double time_diff = ins_ticktime - cur_ticktime;
 
-    // (1)INS补帧MM测量
+    double time_diff = params_.no_mm_max_time;
     pe_deque_mutex_.lock();
     int mm_size = pe_deque_.size();
-    // HLOG_ERROR << "MM SIZE:" << mm_size;
+    if (mm_size != 0) {
+      double cur_mm_ticktime = pe_deque_.back()->ticktime;
+      time_diff = ins_ticktime - cur_mm_ticktime;
+    }
     pe_deque_mutex_.unlock();
+
+    // (1)INS补帧MM测量
     if (params_.use_ins_predict_mm && mm_size > 0 &&
         time_diff > params_.no_mm_min_time &&
         time_diff < params_.no_mm_max_time) {
@@ -816,7 +827,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
     } else if (mm_size == 0 || time_diff >= params_.no_mm_max_time) {
       std::unique_lock<std::mutex> lock(ins_deque_mutex_);
       for (const auto& ins_node : ins_deque_) {
-        if (ins_node->ticktime > cur_ticktime &&
+        if (ins_node->ticktime > cur_fusion_ticktime &&
             ins_node->ticktime > last_meas_time_ &&
             AllowInsMeas(ins_node->sys_status, ins_node->rtk_status)) {
           meas_deque_.emplace_back(ins_node);
@@ -880,18 +891,23 @@ bool FusionCenter::PredictMMMeas() {
     return false;
   }
 
+  fusion_deque_mutex_.lock();
+  double fusion_ticktime = fusion_deque_.back()->ticktime;
+  fusion_deque_mutex_.unlock();
+
   // 2.50ms一个，根据INS测量递推出MM测量
   double now_ticktime = mm_ticktime;
   ins_deque_mutex_.lock();
   for (const auto& ins_node : ins_deque_) {
-    if (ins_node->ticktime - now_ticktime > 0.1) {
+    if (ins_node->ticktime - now_ticktime > 0.1 &&
+        ins_node->ticktime > fusion_ticktime) {
       auto node = std::make_shared<Node>(*ins_node);
       const auto& T_delta =
           Node2SE3(*ins_refer).inverse() * Node2SE3(*ins_node);
       const auto& pose = Node2SE3(*mm_refer) * T_delta;
       node->enu = pose.translation();
       node->orientation = pose.so3().log();
-      node->type = NodeType::POSE_ESTIMATE;
+      node->type = NodeType::INS;
       meas_deque_.emplace_back(node);
       now_ticktime = ins_node->ticktime;
     }
@@ -1141,13 +1157,24 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     HLOG_ERROR << "ins time behind newest fusion time, something wrong";
     return false;
   }
+
+  // 定位状态码赋值
+  uint32_t loc_state = 0;
+  loc_state = GetGlobalLocationState();
+  ctx->global_node.location_state = loc_state;
+  monitor_->OnFc(ctx->global_node);
+  if (monitor_->MonitorFault()) {
+    loc_state = FaultCodeAssign(loc_state);
+  }
+
   if (ins_fusion_diff < 1e-3) {
     ctx->global_node = fusion_node;
+    ctx->global_node.location_state = loc_state;
     return true;
   }
 
+  // INS实时补帧至最新
   Node refer_node = fusion_node;
-
   Node ni;
   {
     std::lock_guard<std::mutex> lock(ins_deque_mutex_);
@@ -1156,9 +1183,9 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
       return false;
     }
   }
-  // HLOG_ERROR << "interpolate ins success";
 
   ctx->global_node = ctx->ins_node;
+  ctx->global_node.location_state = loc_state;
   const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(ctx->ins_node);
   const auto& pose = Node2SE3(refer_node) * T_delta;
   ctx->global_node.enu = pose.translation();
@@ -1180,6 +1207,24 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
   }
 
   return true;
+}
+
+uint32_t FusionCenter::FaultCodeAssign(uint32_t state) {
+  uint32_t loc_state = state;
+  // 普通故障
+  if (monitor_->fault_state.pecep_lane_error) {
+    loc_state = 123;
+  }
+  if (monitor_->fault_state.map_lane_error) {
+    loc_state = 124;
+  }
+  if (monitor_->fault_state.fc_single_jump_error) {
+    loc_state = 128;
+  }
+  if (monitor_->fault_state.fc_map_lane_match_error) {
+    loc_state = 130;
+  }
+  return loc_state;
 }
 
 uint32_t FusionCenter::GetGlobalLocationState() {

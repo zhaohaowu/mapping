@@ -15,6 +15,7 @@
 
 #include "modules/location/fusion_center/lib/eskf.h"
 #include "modules/location/fusion_center/lib/kalman_filter.h"
+#include "modules/location/fusion_center/lib/monitor.h"
 #include "proto/localization/localization.pb.h"
 #include "proto/localization/node_info.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
@@ -34,7 +35,7 @@ class FusionCenter {
   ~FusionCenter();
 
   bool Init(const std::string& configfile, const std::string& filterconf,
-            const std::string& eskfconf);
+            const std::string& eskfconf, const std::string& monitorconf);
   void OnImu(const ImuIns& imuins);
   void OnIns(const HafNodeInfo& ins);
   void OnDR(const HafNodeInfo& dr);
@@ -88,6 +89,7 @@ class FusionCenter {
   // Get local pose in local mapping coord to ctx.local_node
   bool GetLocalPose(Context* const ctx);
   std::string GetHdCurrLaneId(const Eigen::Vector3d& utm, double heading);
+  uint32_t FaultCodeAssign(uint32_t state);
 
  private:
   Params params_;
@@ -97,7 +99,7 @@ class FusionCenter {
   HafNodeInfo init_raw_dr_;
   Node init_dr_node_;
 
-  std::atomic<bool> fusion_run_{true};
+  std::atomic<bool> fusion_run_{false};
 
   std::mutex refpoint_mutex_;
   Eigen::Vector3d init_refpoint_ = Eigen::Vector3d::Zero();
@@ -131,6 +133,7 @@ class FusionCenter {
   std::shared_ptr<std::thread> th_fusion_ = nullptr;
   std::shared_ptr<ESKF> eskf_ = nullptr;
   KalmanFilter kalman_filter_;
+  std::shared_ptr<Monitor> monitor_ = nullptr;
 
   bool init_ins_ = false;
   bool can_output_ = false;

@@ -376,16 +376,12 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
     HLOG_ERROR << "wait change ins_ref_ in set location " << ins_timestamp_;
     return;
   }
-  static bool init_flag = false;
+
   if (info.location_state() == 0 || info.location_state() == 12 ||
       info.location_state() >= 100) {
-    if (!init_flag) {
-      return;
-    }
     HLOG_ERROR << "info.location_state() : " << info.location_state();
-  } else {
-    init_flag = true;
   }
+
   static double time = -1;
   uint64_t fc_sec = uint64_t(info.header().publish_stamp());
   uint64_t fc_nsec = uint64_t((info.header().publish_stamp() - fc_sec) * 1e9);

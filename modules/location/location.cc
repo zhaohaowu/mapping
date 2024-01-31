@@ -24,6 +24,8 @@ const char* const kFcKfConf =
     "runtime_service/mapping/conf/mapping/location/fusion_center/kalman.yaml";
 const char* const kFcEskfConf =
     "runtime_service/mapping/conf/mapping/location/fusion_center/eskf.yaml";
+const char* const kFcMonitorConf =
+    "runtime_service/mapping/conf/mapping/location/fusion_center/monitor.yaml";
 
 bool Localization::Init() {
   const std::string ws = hozon::perception::lib::GetEnv(
@@ -50,8 +52,9 @@ bool Localization::Init() {
   const std::string fc_conf(ws + kFcConf);
   const std::string fc_kf_conf(ws + kFcKfConf);
   const std::string fc_eskf_conf(ws + kFcEskfConf);
+  const std::string fc_monitor_conf(ws + kFcMonitorConf);
   fc_ = std::make_unique<FusionCenter>();
-  if (!fc_->Init(fc_conf, fc_kf_conf, fc_eskf_conf)) {
+  if (!fc_->Init(fc_conf, fc_kf_conf, fc_eskf_conf, fc_monitor_conf)) {
     return false;
   }
 

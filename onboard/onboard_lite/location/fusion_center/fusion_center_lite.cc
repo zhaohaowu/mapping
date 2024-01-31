@@ -30,6 +30,8 @@ const char* const kFcKfConfSuffix =
     "runtime_service/mapping/conf/mapping/location/fusion_center/kalman.yaml";
 const char* const kFcEskfConfSuffix =
     "runtime_service/mapping/conf/mapping/location/fusion_center/eskf.yaml";
+const char* const kFcMonitorConfSuffix =
+    "runtime_service/mapping/conf/mapping/location/fusion_center/monitor.yaml";
 const char* const kCoordAdapterConf =
     "runtime_service/mapping/conf/mapping/location/coord_adapter/config.yaml";
 
@@ -40,9 +42,12 @@ int32_t FusionCenterLite::AlgInit() {
   const std::string fc_kf_config = adflite_root_path + "/" + kFcKfConfSuffix;
   const std::string fc_eskf_config =
       adflite_root_path + "/" + kFcEskfConfSuffix;
+  const std::string fc_monitor_config =
+      adflite_root_path + "/" + kFcMonitorConfSuffix;
 
   fusion_center_ = std::make_unique<FusionCenter>();
-  if (!fusion_center_->Init(fc_config, fc_kf_config, fc_eskf_config)) {
+  if (!fusion_center_->Init(fc_config, fc_kf_config, fc_eskf_config,
+                            fc_monitor_config)) {
     return -1;
   }
   const std::string coord_adapter_conf =

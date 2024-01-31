@@ -23,7 +23,7 @@ for i in $(seq 0 `expr ${#pkgAlias[@]} - 1`); do
     jfrogRelDir=${pkgJfrogRelDir[i]}
     echo "============== okok dependRelDir: ${dependRelDir}"
     currPkg=$(python3 -c "import sys, json;
-with open('version.json','r') as f: print(json.load(f)['ORIN']['EP41']['${pkg}'])")
+with open('version.json','r') as f: print(json.load(f)['ORIN']['EP41']['${pkg}']['name'])")
 
     verInfo=''
     # if [ "$pkg" == "NOS" ]; then

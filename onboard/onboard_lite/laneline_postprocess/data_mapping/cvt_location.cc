@@ -40,10 +40,6 @@ bool DataMapping::CvtPbDR2Location(
       pb_dr->velocity().twist_vrf().angular_vrf().y();
   location_ptr->angular_velocity[2] =
       pb_dr->velocity().twist_vrf().angular_vrf().z();
-  std::cout << "location_ptr->datastamp====="
-            << std::to_string(location_ptr->timestamp) << std::endl;
-  std::cout << "location_ptr->pose==========" << location_ptr->pose.matrix()
-            << std::endl;
 
   return true;
 }

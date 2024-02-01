@@ -144,6 +144,12 @@ struct LineMatchPair {
   std::vector<std::string> map_line_idxs;
   LaneLinePerceptionPtr pecep_line;
 };
+
+struct MatchMapLine{
+  std::string map_id;
+  bool flag = false;
+  std::vector<PointMatchPair> match_pairs;
+};
 // struct EdgeMatchPair {
 //   EdgeMatchPair() { map_edge_idx = -1; }
 //   EdgeMatchPair(int idx, const PercpEdgeItem &pecep_edge)

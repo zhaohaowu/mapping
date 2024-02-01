@@ -108,6 +108,7 @@ void LMapApp::OnLocalization(
     const std::shared_ptr<const Localization>& latest_localization) {
   Sophus::SE3d T_W_V_localization = Sophus::SE3d(
       latest_localization->quaternion_, latest_localization->position_);
+  static double last_time = -1;
   Eigen::Vector3d trans_pose = T_W_V_localization.translation();
   Eigen::Quaterniond trans_quat = T_W_V_localization.so3().unit_quaternion();
   auto& local_data = LocalDataSingleton::GetInstance();
@@ -115,9 +116,7 @@ void LMapApp::OnLocalization(
             << local_data.dr_buffer().buffer_size();
   HLOG_INFO << "latest_localization timestamp: " << SET_PRECISION(20)
             << latest_localization->timestamp_;
-  if (local_data.dr_buffer().is_empty() ||
-      local_data.dr_buffer().back()->timestamp <
-          latest_localization->timestamp_) {
+  if (local_data.dr_buffer().is_empty()) {
     DrDataPtr dr_data_ptr = std::make_shared<DrData>();
     dr_data_ptr->timestamp = latest_localization->timestamp_;
     dr_data_ptr->pose = trans_pose;
@@ -126,6 +125,18 @@ void LMapApp::OnLocalization(
     dr_data_ptr->local_vel = latest_localization->linear_vrf_;
     local_data.dr_buffer().push_new_message(latest_localization->timestamp_,
                                             dr_data_ptr);
+    last_time = latest_localization->timestamp_;
+
+  } else if (last_time < latest_localization->timestamp_) {
+    DrDataPtr dr_data_ptr = std::make_shared<DrData>();
+    dr_data_ptr->timestamp = latest_localization->timestamp_;
+    dr_data_ptr->pose = trans_pose;
+    dr_data_ptr->quaternion = trans_quat;
+    dr_data_ptr->local_omg = latest_localization->angular_vrf_;
+    dr_data_ptr->local_vel = latest_localization->linear_vrf_;
+    local_data.dr_buffer().push_new_message(latest_localization->timestamp_,
+                                            dr_data_ptr);
+    last_time = latest_localization->timestamp_;
   } else {
     HLOG_ERROR << "localization timestamp error";
   }

@@ -68,7 +68,6 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
       }
       l_count++;
     } else if (lane.has_left_boundary()) {
-      HLOG_ERROR << "left xu ni xian";
       auto left_lane_boundary = lane.left_boundary();
       if (left_lane_boundary.id().empty()) {
         continue;
@@ -136,7 +135,6 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
       }
       r_count++;
     } else if (lane.has_right_boundary()) {
-      HLOG_ERROR << "right xu ni xian";
       auto right_lane_boundary = lane.right_boundary();
       if (right_lane_boundary.id().empty()) {
         continue;

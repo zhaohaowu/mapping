@@ -145,7 +145,8 @@ class MatchLaneLine {
       std::vector<std::pair<V3, std::string>>* nearest_line_match_pairs,
       std::vector<std::pair<V3, std::string>>* farest_line_match_pairs);
   void FilterPointPair(std::vector<PointMatchPair>* match_pairs, const SE3& T);
-
+  std::pair<double, double> CmpWidth(const MatchMapLine& match_pair0,
+                                     const MatchMapLine& match_pair1);
   /**
    * @brief line to line match
    * @param map_line_idx : map lane line id
@@ -211,11 +212,10 @@ class MatchLaneLine {
    *
    * @return true : get the fit pints; false : do not get the fit points
    */
-  bool GetFitPoints(const VP& control_poins, const double x, const SE3& T_W_V,
-                    V3* pt);
+  bool GetFitPoints(const VP& control_poins, const double x, V3* pt);
 
   bool GetFitMapPoints(const std::vector<ControlPoint>& control_poins,
-                       const double x, const SE3& T_W_V, V3* pt);
+                       const double x, V3* pt);
 
   /**
    * @brief merge the map lane line
@@ -284,7 +284,7 @@ class MatchLaneLine {
                        const double& last_dis);
   void Traversal(const std::map<V3, std::vector<std::pair<std::string, V3>>,
                                 PointV3Comp<V3>>& lines,
-                 V3 root_start_point,
+                 const V3& root_start_point,
                  std::vector<std::vector<std::string>>* linked_lines_id,
                  std::vector<std::string> line_ids, int loop);
   void AdjustWeightByLaneWidth(const std::vector<PointMatchPair>& match_pairs,
@@ -331,8 +331,7 @@ class MatchLaneLine {
  private:
   std::shared_ptr<hozon::mp::loc::FrechetDistance3D> frechet_distance3D_ =
       nullptr;
-  std::unordered_set<V3, EigenMatrixHash> visited_start_points_;
-  std::unordered_map<std::string, bool> visited_line_id_;
+  std::unordered_set<std::string> visited_id_;
   std::vector<std::vector<std::vector<std::string>>>
       multi_linked_lines_;  // 内层vector是一组前后继链接的车道线
   std::vector<std::string> linked_line_;

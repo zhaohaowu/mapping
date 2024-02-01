@@ -31,7 +31,7 @@ PhmComponent::~PhmComponent() {
 }
 
 bool PhmComponent::Init() {
-  HLOG_INFO << "[DEBUG_PHM] ======================================: " << Name();
+  HLOG_INFO << "[DEBUG_PHM] ************************: " << Name();
   config_manager_ = lib::ConfigManager::Instance();
   if (config_manager_ != nullptr) {
     if (!config_manager_->GetModelConfig(Name(), &model_config_)) {

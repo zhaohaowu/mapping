@@ -17,8 +17,20 @@ add_subdirectory(laneline_postprocess) # add by wenhai.zhang
 add_subdirectory(local_mapping)
 
 install(
+  DIRECTORY production/conf/phm_config
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/conf/mapping
+)
+
+install(
+  FILES production/conf/config_manager.config
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/conf/mapping
+)
+
+install(
   DIRECTORY production/conf/
   DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/conf/lite
+  PATTERN "production/conf/phm_config" EXCLUDE
+  PATTERN "production/conf/config_manager.config" EXCLUDE
 )
 
 if(${LOCAL_TARGET_PLATFORM} MATCHES orin)

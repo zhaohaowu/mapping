@@ -95,6 +95,15 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
       return;
     }
     latest_ins_data_ = ins;
+    // debug
+    if (ins.gps_status() == 0) {
+      HLOG_ERROR << "ins_seq:" << ins.header().seq()
+                 << ", ins_ticktime:" << ins.header().data_stamp()
+                 << " ,ins_gps_state:" << ins.gps_status()
+                 << " ,ins_linear_velocity:" << ins.linear_velocity().x()
+                 << " ," << ins.linear_velocity().y() << " ,"
+                 << ins.linear_velocity().z();
+    }
   }
 
   if (!ref_init_) {
@@ -651,6 +660,17 @@ void FusionCenter::Node2Localization(const Context& ctx,
   for (int i = 0; i < 36; ++i) {
     location->add_covariance(cov(i));
   }
+
+  // debug
+  if (global_node.rtk_status == 0) {
+    HLOG_ERROR << "ins_seq:" << ins.header().seq()
+               << ", ins_ticktime:" << ins.header().data_stamp()
+               << " ,ins_gps_state:" << ins.gps_status()
+               << " ,fc_rtk_state:" << global_node.rtk_status
+               << " ,ins_linear_velocity:" << ins.linear_velocity().x() << " ,"
+               << ins.linear_velocity().y() << " ,"
+               << ins.linear_velocity().z();
+  }
 }
 
 bool FusionCenter::IsInterpolable(const std::shared_ptr<Node>& n1,
@@ -941,9 +961,6 @@ void FusionCenter::RunESKFFusion() {
             << ", meas_type:" << meas_deque_.back()->type;
 
   // eskf开始
-  // debug
-  // static std::ofstream measured_file(data_file_path_ + "/mm_measurement.txt",
-  //                                    std::ios::trunc);
   fusion_deque_mutex_.lock();
   eskf_->StateInit(fusion_deque_.back());
   HLOG_INFO << "-------eskf前------- fusion_deque.size():" << fusion_deque_.size();
@@ -978,9 +995,6 @@ void FusionCenter::RunESKFFusion() {
         last_meas_time_ = meas_node.ticktime;
         meas_deque_.pop_front();
       }
-      // debug
-      // SaveTUMPose(measured_file, meas_node.quaternion, meas_node.enu,
-      //             meas_node.ticktime);
     }
 
     State state = eskf_->GetState();

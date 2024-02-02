@@ -92,18 +92,32 @@ void InsFusion::LoadConfigParams(const std::string& configfile) {
 }
 
 void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
-  std::unique_lock<std::mutex> lock(origin_ins_mutex_);
-  if (origin_ins.header().seq() <= latest_origin_ins_.header().seq() ||
-      origin_ins.header().sensor_stamp().imuins_stamp() <=
-          latest_origin_ins_.header().sensor_stamp().imuins_stamp()) {
-    return;
-  }
   InsNode ins84_node;
-  if (!Extract84InsNode(origin_ins, &ins84_node)) {
-    return;
+  {
+    std::unique_lock<std::mutex> lock(origin_ins_mutex_);
+    if (origin_ins.header().seq() <= latest_origin_ins_.header().seq() ||
+        origin_ins.header().sensor_stamp().imuins_stamp() <=
+            latest_origin_ins_.header().sensor_stamp().imuins_stamp()) {
+      return;
+    }
+    if (!Extract84InsNode(origin_ins, &ins84_node)) {
+      return;
+    }
+    ins_node_is_valid_ = true;
+    latest_origin_ins_ = origin_ins;
+    //debug
+    if (latest_origin_ins_.ins_info().gps_status() == 0) {
+      HLOG_ERROR << "ins_seq:" << latest_origin_ins_.header().seq()
+                 << ", ins_ticktime:"
+                 << origin_ins.header().sensor_stamp().imuins_stamp()
+                 << " ,ins_gps_state:"
+                 << latest_origin_ins_.ins_info().gps_status()
+                 << " ,ins_linear_velocity:"
+                 << latest_origin_ins_.ins_info().linear_velocity().x() << " ,"
+                 << latest_origin_ins_.ins_info().linear_velocity().y() << " ,"
+                 << latest_origin_ins_.ins_info().linear_velocity().z();
+    }
   }
-  ins_node_is_valid_ = true;
-  latest_origin_ins_ = origin_ins;
   {
     std::unique_lock<std::mutex> lock(ins84_deque_mutex_);
 
@@ -181,6 +195,16 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
   {
     std::unique_lock<std::mutex> lock(origin_ins_mutex_);
     origin_ins = latest_origin_ins_;
+    // debug
+    if (origin_ins.ins_info().gps_status() == 0) {
+      HLOG_ERROR << "ins_seq:" << origin_ins.header().seq() << ", ins_ticktime:"
+                 << origin_ins.header().sensor_stamp().imuins_stamp()
+                 << " ,ins_gps_state:" << origin_ins.ins_info().gps_status()
+                 << " ,ins_linear_velocity:"
+                 << origin_ins.ins_info().linear_velocity().x() << " ,"
+                 << origin_ins.ins_info().linear_velocity().y() << " ,"
+                 << origin_ins.ins_info().linear_velocity().z();
+    }
   }
   node_info->set_type(hozon::localization::HafNodeInfo_NodeType_INS);
   node_info->mutable_header()->set_seq(origin_ins.header().seq());
@@ -191,7 +215,7 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
   node_info->mutable_header()->set_publish_stamp(tp.time_since_epoch().count() * 1.0e-9);
   node_info->mutable_header()->set_gnss_stamp(origin_ins.header().gnss_stamp());
   node_info->mutable_header()->set_data_stamp(
-      origin_ins.header().publish_stamp());  // temp 20231205
+      origin_ins.header().sensor_stamp().imuins_stamp());
   node_info->mutable_header()->mutable_status()->set_error_code(
       origin_ins.header().status().error_code());
   node_info->mutable_header()->mutable_status()->set_msg(

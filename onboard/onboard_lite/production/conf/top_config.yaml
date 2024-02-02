@@ -21,8 +21,9 @@ resourceLimit:
 
 executors:
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/data_source_config.yaml
-  - confFile: ${ADFLITE_ROOT_PATH}/conf/mapping/phm_config/phm_common_onboard_config.yaml
     order: 1
+  - confFile: ${ADFLITE_ROOT_PATH}/conf/mapping/phm_config/phm_common_onboard_config.yaml
+    order: 2
     quit_order: 11
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_ins_fusion_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_fc_config.yaml

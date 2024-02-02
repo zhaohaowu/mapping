@@ -65,8 +65,8 @@ enum LaneType {
   UnclosedRoad = 12,               // 非封闭路段线
   RoadVirtualLine = 13,            // 道路虚拟线
   LaneChangeVirtualLine = 14,      // 变道虚拟线
-  RoadEdge = 15,                   // 路沿
-  Other = 99                       // 其他
+  // RoadEdge = 15,                   // 路沿
+  Other = 99  // 其他
 };
 
 enum EdgeType {
@@ -139,6 +139,21 @@ class Localization {
   float heading_;
 };
 
+class Object {
+ public:
+  Eigen::Vector3d center;
+  Eigen::Vector3f size;
+  float theta;
+  Eigen::Vector3f direction;
+  // ObjectType type;
+};
+
+class Objects {
+ public:
+  double timestamp_;
+  std::vector<Object> objs_;
+};
+
 class InsData {
  public:
   double timestamp_;
@@ -171,6 +186,27 @@ class LaneLine {
   double c1_ = 1000.0;
   double c0_ = 1000.0;
   double c0_for_lanepos_ = 1000.0;
+  double start_point_x_;
+  double end_point_x_;
+};
+
+class RoadEdge {
+ public:
+  int track_id_ = 1000;
+  double confidence_ = 1000.0;
+  LanePositionType lanepos_ = LanePositionType::OTHER;
+  EdgeType edgetype_;
+  std::vector<Eigen::Vector3d> points_;
+  std::vector<Eigen::Vector3d> control_points_;
+  std::vector<Eigen::Vector3d> fit_points_;
+  bool need_delete_ = false;
+  bool has_matched_ = false;
+  bool ismature_ = false;
+  int tracked_count_;
+  double c3_ = 1000.0;
+  double c2_ = 1000.0;
+  double c1_ = 1000.0;
+  double c0_ = 1000.0;
   double start_point_x_;
   double end_point_x_;
 };
@@ -222,40 +258,26 @@ class Perception {
  public:
   double timestamp_;
   std::vector<LaneLine> lane_lines_;
-  std::vector<LaneLine> edge_lines_;
+  std::vector<RoadEdge> road_edges_;
   std::vector<StopLine> stop_lines_;
   std::vector<Arrow> arrows_;
   std::vector<ZebraCrossing> zebra_crossings_;
-};
-
-class Lane {
- public:
-  int lane_id_ = 1000;
-  double width_ = 1000.0;
-  double length_ = 1000.0;
-  TurnType turn_type_ = TurnType::UNKNOWN_TURN_TYPE;
-  LaneLine left_line_;
-  LaneLine right_line_;
-  LaneLine center_line_;
-  int left_lane_id_ = 1000;
-  int right_lane_id_ = 1000;
 };
 
 class LocalMap {
  public:
-  double timestamp;
+  double timestamp_;
   std::vector<LaneLine> lane_lines_;
-  std::vector<LaneLine> edge_lines_;
+  std::vector<RoadEdge> road_edges_;
   std::vector<StopLine> stop_lines_;
   std::vector<Arrow> arrows_;
   std::vector<ZebraCrossing> zebra_crossings_;
-  std::vector<Lane> map_lanes_;
 
   std::vector<boost::circular_buffer<StopLine>>
       history_per_stop_lines_;  // 保存10帧感知停止线
-  std::vector<boost::circular_buffer<StopLine>>
+  std::vector<boost::circular_buffer<Arrow>>
       history_per_arrows_;  // 保存10帧感知箭头
-  std::vector<boost::circular_buffer<StopLine>>
+  std::vector<boost::circular_buffer<ZebraCrossing>>
       history_per_zebra_crossings_;  // 保存10帧感知斑马线
 };
 
@@ -266,10 +288,10 @@ class LaneLineMatchInfo {
   ObjUpdateType update_type_ = ObjUpdateType::ADD_NEW;
 };
 
-class EdgeLineMatchInfo {
+class RoadEdgeMatchInfo {
  public:
-  LaneLine per_edge_line_;
-  LaneLine map_edge_line_;
+  RoadEdge per_road_edge_;
+  RoadEdge map_road_edge_;
   ObjUpdateType update_type_ = ObjUpdateType::ADD_NEW;
 };
 

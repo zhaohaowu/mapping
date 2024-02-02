@@ -37,7 +37,7 @@ namespace mp {
 namespace environment {
 
 bool LanePostProcess::Init(const ProcessInitOption& init_option) {
-  std::cout << "LanePostProcess Init==========" << std::endl;
+  // std::cout << "LanePostProcess Init==========" << std::endl;
   auto config_manager = perception_lib::ConfigManager::Instance();
   const perception_lib::ModelConfig* model_config = nullptr;
   if (!config_manager->GetModelConfig(Name(), &model_config)) {
@@ -60,7 +60,7 @@ bool LanePostProcess::Init(const ProcessInitOption& init_option) {
     return false;
   }
 
-  std::cout << "***lane config file***:" << config_file << std::endl;
+  // std::cout << "***lane config file***:" << config_file << std::endl;
 
   // 车道线观测线过滤模块初始化
   lane_measurements_filter_.reset(
@@ -80,7 +80,7 @@ bool LanePostProcess::Init(const ProcessInitOption& init_option) {
   HLOG_DEBUG << "init lane tracker name: " << lane_tracker_->Name();
 
   last_track_lanelines_.clear();
-  std::cout << "LanePostProcess Init end==========" << std::endl;
+  // std::cout << "LanePostProcess Init end==========" << std::endl;
   return true;
 }
 
@@ -161,10 +161,10 @@ bool LanePostProcess::Process(
     return false;
   }
 
-  HLOG_INFO << "before filter amony measurement laneline:"
-            << detect_measurements->lanelines.size();
-  HLOG_INFO << "after filter amony measurement laneline:"
-            << filtered_measurement->lanelines.size();
+  HLOG_DEBUG << "before filter amony measurement laneline:"
+             << detect_measurements->lanelines.size();
+  HLOG_DEBUG << "after filter amony measurement laneline:"
+             << filtered_measurement->lanelines.size();
   if (!lane_tracker_->Track(track_options, filtered_measurement,
                             track_lanelines)) {
     HLOG_ERROR << "Do laneline tracking failed...";

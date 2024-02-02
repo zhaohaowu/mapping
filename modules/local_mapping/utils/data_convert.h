@@ -15,6 +15,7 @@
 #include "depend/proto/localization/node_info.pb.h"
 #include "depend/proto/map/map.pb.h"
 #include "depend/proto/map/navigation.pb.h"
+#include "depend/proto/perception/perception_measurement.pb.h"
 #include "modules/local_mapping/types/types.h"
 #include "modules/local_mapping/utils/common.h"
 #include "modules/util/include/util/mapping_log.h"
@@ -25,6 +26,9 @@ namespace lm {
 class DataConvert {
  public:
   DataConvert() = default;
+
+  static void SetObj(const hozon::perception::measurement::MeasurementPb& msg,
+                     std::shared_ptr<Objects> objects);
 
   static void SetLocalization(const hozon::localization::Localization& msg,
                               Localization* localization);
@@ -37,8 +41,8 @@ class DataConvert {
   static void SetLaneLine(const hozon::perception::TransportElement& msg,
                           std::vector<LaneLine>* lane_lines);
 
-  static void SetEdgeLine(const hozon::perception::TransportElement& msg,
-                          std::vector<LaneLine>* edge_lines);
+  static void SetRoadEdge(const hozon::perception::TransportElement& msg,
+                          std::vector<RoadEdge>* road_edges);
 
   static void SetStopLine(const hozon::perception::TransportElement& msg,
                           std::vector<StopLine>* stop_lines);
@@ -72,8 +76,8 @@ class DataConvert {
   static void ConvertInnerLaneType(const LaneType& inner_lanetype,
                                    hozon::mapping::LaneType* lanetype);
 
-  //   static void ConvertInnerColor(const Color& inner_color,
-  //                                 hozon::mapping::Color* color);
+  static void ConvertInnerColor(const Color& inner_color,
+                                hozon::mapping::Color* color);
 
   static void ConvertInnerMapLaneType(
       const Color& color, const bool& is_left, const LaneType& inner_lanetype,
@@ -81,6 +85,26 @@ class DataConvert {
 
   static void ConvertInnerArrowType(const ArrowType& inner_arrowtype,
                                     hozon::hdmap::ArrowData::Type* arrowtype);
+
+  static void ConvertMultiLaneLinesToPb(
+      const std::vector<LaneLine>& lane_lines,
+      const std::shared_ptr<hozon::mapping::LocalMap>& localmap);
+
+  static void ConvertMultiRoadEdgesToPb(
+      const std::vector<RoadEdge>& road_edges,
+      const std::shared_ptr<hozon::mapping::LocalMap>& localmap);
+
+  static void ConvertMultiStopLinesToPb(
+      const std::vector<StopLine>& stop_lines,
+      const std::shared_ptr<hozon::mapping::LocalMap>& localmap);
+
+  static void ConvertMultiArrowsToPb(
+      const std::vector<Arrow>& arrows,
+      const std::shared_ptr<hozon::mapping::LocalMap>& localmap);
+
+  static void ConvertMultiZebraCrossingsToPb(
+      const std::vector<ZebraCrossing>& zebra_crossings,
+      const std::shared_ptr<hozon::mapping::LocalMap>& localmap);
 };
 
 }  // namespace lm

@@ -1224,7 +1224,7 @@ void TopoAssignment::AppendTopoMapElements(
     }
     auto* arrow = topo_map->add_arraw();
     arrow->set_id(std::to_string(arrow_it.track_id()));
-    // arrow->set_type(arrow_it.arrow_type());
+    arrow->set_type(arrow_it.arrow_type());
 
     for (const auto& point_it : arrow_it.points().point()) {
       Eigen::Vector3d point(point_it.x(), point_it.y(), point_it.z());

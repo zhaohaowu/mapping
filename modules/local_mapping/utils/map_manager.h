@@ -41,8 +41,8 @@ class MapManager {
   static void AddNewLaneLine(LocalMap* local_map,
                              const LaneLine& per_lane_line);
 
-  static void AddNewEdgeLine(LocalMap* local_map,
-                             const LaneLine& per_edge_line);
+  static void AddNewRoadEdge(LocalMap* local_map,
+                             const RoadEdge& per_road_edge);
 
   static void AddNewStopLine(LocalMap* local_map,
                              const StopLine& per_stop_line);
@@ -56,9 +56,9 @@ class MapManager {
                                const LaneLine& per_lane_line,
                                const LaneLine& map_lane_line);
 
-  static void MergeOldEdgeLine(LocalMap* local_map,
-                               const LaneLine& per_edge_line,
-                               const LaneLine& map_edge_line);
+  static void MergeOldRoadEdge(LocalMap* local_map,
+                               const RoadEdge& per_road_edge,
+                               const RoadEdge& map_road_edge);
 
   static void MergeOldStopLine(LocalMap* local_map,
                                const StopLine& per_stop_line,
@@ -73,16 +73,26 @@ class MapManager {
 
   static void UpdateHeading(LocalMap* local_map);
 
-  static void UpdateLanepos(LocalMap* local_map);
+  static void UpdateLaneLinepos(LocalMap* local_map);
+
+  static void UpdateRoadEdgepos(LocalMap* local_map);
 
   static void MergeLaneLine(LocalMap* local_map);
+
+  static void MergeRoadEdge(LocalMap* local_map);
+
+  static void MergeZebraCrossing(LocalMap* local_map);
+
+  static void MergeArrow(LocalMap* local_map);
+
+  static void MergeStopLine(LocalMap* local_map);
 
   static void MatchLaneLine(const std::vector<LaneLine>& per_lane_lines,
                             const std::vector<LaneLine>& map_lane_lines,
                             std::vector<LaneLineMatchInfo>* lane_line_matches);
-  static void MatchEdgeLine(const std::vector<LaneLine>& per_edge_lines,
-                            const std::vector<LaneLine>& map_edge_lines,
-                            std::vector<EdgeLineMatchInfo>* edge_line_matches);
+  static void MatchRoadEdge(const std::vector<RoadEdge>& per_road_edges,
+                            const std::vector<RoadEdge>& map_road_edges,
+                            std::vector<RoadEdgeMatchInfo>* road_edge_matches);
   static void MatchStopLine(const std::vector<StopLine>& per_stop_lines,
                             const std::vector<StopLine>& map_stop_lines,
                             std::vector<StopLineMatchInfo>* stop_line_matches);

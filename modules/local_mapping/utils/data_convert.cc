@@ -27,11 +27,29 @@ void DataConvert::SetLocalization(const hozon::localization::Localization& msg,
   localization->angular_vrf_.z() = msg.pose().angular_velocity().z();
 }
 
+void DataConvert::SetObj(
+    const hozon::perception::measurement::MeasurementPb& msg,
+    std::shared_ptr<Objects> objects) {
+  objects->timestamp_ = msg.header().data_stamp();
+  for (auto& item : msg.obstacles().detected_obstacle()) {
+    Object object;
+    object.center.x() = item.center().x();
+    object.center.y() = item.center().y();
+    object.center.z() = item.center().z();
+
+    object.size.x() = item.length();
+    object.size.y() = item.width();
+    object.size.z() = item.height();
+
+    objects->objs_.push_back(object);
+  }
+}
+
 void DataConvert::SetPerception(const hozon::perception::TransportElement& msg,
                                 Perception* perception) {
   perception->timestamp_ = msg.header().data_stamp();
   SetLaneLine(msg, &perception->lane_lines_);
-  SetEdgeLine(msg, &perception->edge_lines_);
+  SetRoadEdge(msg, &perception->road_edges_);
   SetStopLine(msg, &perception->stop_lines_);
   SetArrow(msg, &perception->arrows_);
   SetZebraCrossing(msg, &perception->zebra_crossings_);
@@ -81,8 +99,7 @@ void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
     lane_line_tmp.points_.clear();
     double x = lane_line_tmp.start_point_x_;
     while (x < lane_line_tmp.end_point_x_) {
-      double y = lane_line_tmp.c0_ + lane_line_tmp.c1_ * x +
-                 lane_line_tmp.c2_ * x * x + lane_line_tmp.c3_ * x * x * x;
+      double y = CommonUtil::CalCubicCurveY(lane_line_tmp, x);
       lane_line_tmp.points_.emplace_back(x, y, 0);
       x = x + 1.0;
     }
@@ -94,50 +111,48 @@ void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
   }
 }
 
-void DataConvert::SetEdgeLine(const hozon::perception::TransportElement& msg,
-                              std::vector<LaneLine>* edge_lines) {
-  for (const auto& edge_line : msg.road_edges()) {
-    if (edge_line.points().empty()) {
+void DataConvert::SetRoadEdge(const hozon::perception::TransportElement& msg,
+                              std::vector<RoadEdge>* road_edges) {
+  for (const auto& road_edge : msg.road_edges()) {
+    if (road_edge.points().empty()) {
       continue;
     }
-    LaneLine edge_line_tmp;
-    edge_line_tmp.track_id_ = edge_line.id();
-    edge_line_tmp.confidence_ = edge_line.confidence();
-    ConvertProtoEdgeType(edge_line.type(), &edge_line_tmp.edgetype_);
-    for (const auto& point : edge_line.points()) {
+    RoadEdge road_edge_tmp;
+    road_edge_tmp.track_id_ = road_edge.id();
+    road_edge_tmp.confidence_ = road_edge.confidence();
+    ConvertProtoEdgeType(road_edge.type(), &road_edge_tmp.edgetype_);
+    for (const auto& point : road_edge.points()) {
       Eigen::Vector3d point_tmp = {point.x(), point.y(), point.z()};
-      // HLOG_ERROR << "point_tmp: " << point_tmp;
-      edge_line_tmp.points_.push_back(point_tmp);
+      road_edge_tmp.points_.push_back(point_tmp);
     }
-    edge_line_tmp.start_point_x_ = edge_line.points()[0].x();
-    edge_line_tmp.end_point_x_ =
-        edge_line.points()[edge_line.points().size() - 1].x();
+    road_edge_tmp.start_point_x_ = road_edge.points()[0].x();
+    road_edge_tmp.end_point_x_ =
+        road_edge.points()[road_edge.points().size() - 1].x();
 
-    if (edge_line_tmp.points_.empty() || edge_line_tmp.end_point_x_ > 150) {
+    if (road_edge_tmp.points_.empty() || road_edge_tmp.end_point_x_ > 150) {
       continue;
     }
     std::vector<double> c(4);
-    if (edge_line_tmp.points_.size() < 4) {
+    if (road_edge_tmp.points_.size() < 4) {
       continue;
     }
-    CommonUtil::FitLaneLine(edge_line_tmp.points_, &c);
-    edge_line_tmp.c0_ = c[0];
-    edge_line_tmp.c1_ = c[1];
-    edge_line_tmp.c2_ = c[2];
-    edge_line_tmp.c3_ = c[3];
+    CommonUtil::FitLaneLine(road_edge_tmp.points_, &c);
+    road_edge_tmp.c0_ = c[0];
+    road_edge_tmp.c1_ = c[1];
+    road_edge_tmp.c2_ = c[2];
+    road_edge_tmp.c3_ = c[3];
     // lane_line_tmp.points_.clear();
-    double x = edge_line_tmp.start_point_x_;
-    while (x < edge_line_tmp.end_point_x_) {
-      double y = edge_line_tmp.c0_ + edge_line_tmp.c1_ * x +
-                 edge_line_tmp.c2_ * x * x + edge_line_tmp.c3_ * x * x * x;
-      edge_line_tmp.points_.emplace_back(x, y, 0);
+    double x = road_edge_tmp.start_point_x_;
+    while (x < road_edge_tmp.end_point_x_) {
+      double y = CommonUtil::CalCubicCurveY(road_edge_tmp, x);
+      road_edge_tmp.points_.emplace_back(x, y, 0);
       x = x + 1.0;
     }
-    std::sort(edge_line_tmp.points_.begin(), edge_line_tmp.points_.end(),
+    std::sort(road_edge_tmp.points_.begin(), road_edge_tmp.points_.end(),
               [](const Eigen::Vector3d& a, const Eigen::Vector3d& b) {
                 return a.x() < b.x();
               });
-    edge_lines->emplace_back(edge_line_tmp);
+    road_edges->emplace_back(road_edge_tmp);
   }
 }
 
@@ -612,31 +627,31 @@ void DataConvert::ConvertInnerLaneType(const LaneType& inner_lanetype,
   }
 }
 
-// void DataConvert::ConvertInnerColor(const Color& inner_color,
-//                                     hozon::mapping::Color* color) {
-//   switch (inner_color) {
-//     case Color::UNKNOWN:
-//       *color = hozon::mapping::Color::UNKNOWN;
-//       break;
-//     case Color::BLACK:
-//       *color = hozon::mapping::Color::BLACK;
-//       break;
-//     case Color::GREEN:
-//       *color = hozon::mapping::Color::GREEN;
-//       break;
-//     case Color::RED:
-//       *color = hozon::mapping::Color::RED;
-//       break;
-//     case Color::WHITE:
-//       *color = hozon::mapping::Color::WHITE;
-//       break;
-//     case Color::YELLOW:
-//       *color = hozon::mapping::Color::YELLOW;
-//       break;
-//     default:
-//       break;
-//   }
-// }
+void DataConvert::ConvertInnerColor(const Color& inner_color,
+                                    hozon::mapping::Color* color) {
+  switch (inner_color) {
+    case Color::UNKNOWN:
+      *color = hozon::mapping::Color::UNKNOWN;
+      break;
+    case Color::BLACK:
+      *color = hozon::mapping::Color::BLACK;
+      break;
+    case Color::GREEN:
+      *color = hozon::mapping::Color::GREEN;
+      break;
+    case Color::RED:
+      *color = hozon::mapping::Color::RED;
+      break;
+    case Color::WHITE:
+      *color = hozon::mapping::Color::WHITE;
+      break;
+    case Color::YELLOW:
+      *color = hozon::mapping::Color::YELLOW;
+      break;
+    default:
+      break;
+  }
+}
 
 void DataConvert::ConvertInnerMapLaneType(
     const Color& color, const bool& is_left, const LaneType& inner_lanetype,
@@ -673,82 +688,244 @@ void DataConvert::ConvertInnerMapLaneType(
   }
 }
 
-// void DataConvert::ConvertInnerArrowType(
-//     const ArrowType& inner_arrowtype,
-//     hozon::hdmap::ArrowData::Type* arrowtype) {
-//   switch (inner_arrowtype) {
-//     case ArrowType::ARROWTYPE_UNKNOWN:
-//       *arrowtype =
-//       hozon::hdmap::ArrowData::Type::ArrowData_Type_UNKNOWN_TURN; break;
-//     case ArrowType::FORBID_TURN_LEFT:
-//       *arrowtype =
-//           hozon::hdmap::ArrowData::Type::ArrowData_Type_FORBID_LEFT_TURN;
-//       break;
-//     case ArrowType::FORBID_TURN_RIGHT:
-//       *arrowtype =
-//           hozon::hdmap::ArrowData::Type::ArrowData_Type_FORBID_RIGHT_TURN;
-//       break;
-//     case ArrowType::FORBID_TURN_AROUND:
-//       *arrowtype =
-//       hozon::hdmap::ArrowData::Type::ArrowData_Type_FORBID_U_TURN; break;
-//     case ArrowType::FRONT_NEAR_CROSSWALK:
-//       *arrowtype =
-//           hozon::hdmap::ArrowData::Type::ArrowData_Type_FRONT_NEAR_CROSSWALK;
-//       break;
-//     case ArrowType::STRAIGHT_FORWARD:
-//       *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_STRAIGHT;
-//       break;
-//     case ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT:
-//       *arrowtype =
-//           hozon::hdmap::ArrowData::Type::ArrowData_Type_STRAIGHT_LEFT_TURN;
-//       break;
-//     case ArrowType::STRAIGHT_FORWARD_OR_TURN_RIGHT:
-//       *arrowtype =
-//           hozon::hdmap::ArrowData::Type::ArrowData_Type_STRAIGHT_RIGHT_TURN;
-//       break;
-//     case ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT:
-//       *arrowtype = hozon::hdmap::ArrowData::Type::
-//           ArrowData_Type_STRAIGHT_LEFT_RIGHT_TURN;
-//       break;
-//     case ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND:
-//       *arrowtype =
-//           hozon::hdmap::ArrowData::Type::ArrowData_Type_STRAIGHT_U_TURN;
-//       break;
-//     case ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT:
-//       *arrowtype =
-//           hozon::hdmap::ArrowData::Type::ArrowData_Type_STRAIGHT_LEFT_U_TURN;
-//       break;
-//     case ArrowType::TURN_LEFT:
-//       *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_LEFT_TURN;
-//       break;
-//     case ArrowType::TURN_LEFT_OR_MERGE_LEFT:
-//       *arrowtype =
-//           hozon::hdmap::ArrowData::Type::ArrowData_Type_LEFT_FRONT_TURN;
-//       break;
-//     case ArrowType::TURN_LEFT_OR_TURN_AROUND:
-//       *arrowtype =
-//       hozon::hdmap::ArrowData::Type::ArrowData_Type_LEFT_U_TURN; break;
-//     case ArrowType::TURN_LEFT_OR_TURN_RIGHT:
-//       *arrowtype =
-//           hozon::hdmap::ArrowData::Type::ArrowData_Type_LEFT_RIGHT_TURN;
-//       break;
-//     case ArrowType::TURN_RIGHT:
-//       *arrowtype =
-//       hozon::hdmap::ArrowData::Type::ArrowData_Type_RIGHT_TURN; break;
-//     case ArrowType::TURN_RIGHT_OR_MERGE_RIGHT:
-//       *arrowtype =
-//           hozon::hdmap::ArrowData::Type::ArrowData_Type_RIGHT_FRONT_TURN;
-//       break;
-//     case ArrowType::TURN_RIGHT_OR_TURN_AROUND:
-//       *arrowtype =
-//       hozon::hdmap::ArrowData::Type::ArrowData_Type_RIGHT_U_TURN; break;
-//     case ArrowType::TURN_AROUND:
-//       *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_U_TURN;
-//       break;
-//     default:
-//       break;
-//   }
-// }
+void DataConvert::ConvertInnerArrowType(
+    const ArrowType& inner_arrowtype,
+    hozon::hdmap::ArrowData::Type* arrowtype) {
+  switch (inner_arrowtype) {
+    case ArrowType::ARROWTYPE_UNKNOWN:
+      *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_UNKNOWN_TURN;
+      break;
+    case ArrowType::FORBID_TURN_LEFT:
+      *arrowtype =
+          hozon::hdmap::ArrowData::Type::ArrowData_Type_FORBID_LEFT_TURN;
+      break;
+    case ArrowType::FORBID_TURN_RIGHT:
+      *arrowtype =
+          hozon::hdmap::ArrowData::Type::ArrowData_Type_FORBID_RIGHT_TURN;
+      break;
+    case ArrowType::FORBID_TURN_AROUND:
+      *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_FORBID_U_TURN;
+      break;
+    case ArrowType::FRONT_NEAR_CROSSWALK:
+      *arrowtype =
+          hozon::hdmap::ArrowData::Type::ArrowData_Type_FRONT_NEAR_CROSSWALK;
+      break;
+    case ArrowType::STRAIGHT_FORWARD:
+      *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_STRAIGHT;
+      break;
+    case ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT:
+      *arrowtype =
+          hozon::hdmap::ArrowData::Type::ArrowData_Type_STRAIGHT_LEFT_TURN;
+      break;
+    case ArrowType::STRAIGHT_FORWARD_OR_TURN_RIGHT:
+      *arrowtype =
+          hozon::hdmap::ArrowData::Type::ArrowData_Type_STRAIGHT_RIGHT_TURN;
+      break;
+    case ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT:
+      *arrowtype = hozon::hdmap::ArrowData::Type::
+          ArrowData_Type_STRAIGHT_LEFT_RIGHT_TURN;
+      break;
+    case ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND:
+      *arrowtype =
+          hozon::hdmap::ArrowData::Type::ArrowData_Type_STRAIGHT_U_TURN;
+      break;
+    case ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT:
+      *arrowtype =
+          hozon::hdmap::ArrowData::Type::ArrowData_Type_STRAIGHT_LEFT_U_TURN;
+      break;
+    case ArrowType::TURN_LEFT:
+      *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_LEFT_TURN;
+      break;
+    case ArrowType::TURN_LEFT_OR_MERGE_LEFT:
+      *arrowtype =
+          hozon::hdmap::ArrowData::Type::ArrowData_Type_LEFT_FRONT_TURN;
+      break;
+    case ArrowType::TURN_LEFT_OR_TURN_AROUND:
+      *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_LEFT_U_TURN;
+      break;
+    case ArrowType::TURN_LEFT_OR_TURN_RIGHT:
+      *arrowtype =
+          hozon::hdmap::ArrowData::Type::ArrowData_Type_LEFT_RIGHT_TURN;
+      break;
+    case ArrowType::TURN_RIGHT:
+      *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_RIGHT_TURN;
+      break;
+    case ArrowType::TURN_RIGHT_OR_MERGE_RIGHT:
+      *arrowtype =
+          hozon::hdmap::ArrowData::Type::ArrowData_Type_RIGHT_FRONT_TURN;
+      break;
+    case ArrowType::TURN_RIGHT_OR_TURN_AROUND:
+      *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_RIGHT_U_TURN;
+      break;
+    case ArrowType::TURN_AROUND:
+      *arrowtype = hozon::hdmap::ArrowData::Type::ArrowData_Type_U_TURN;
+      break;
+    default:
+      break;
+  }
+}
+
+void DataConvert::ConvertMultiLaneLinesToPb(
+    const std::vector<LaneLine>& lane_lines,
+    const std::shared_ptr<hozon::mapping::LocalMap>& localmap) {
+  for (const auto& lane_line_msg : lane_lines) {
+    if (!lane_line_msg.ismature_) {
+      continue;
+    }
+    hozon::mapping::LaneType lanetype =
+        hozon::mapping::LaneType::LaneType_UNKNOWN;
+    DataConvert::ConvertInnerLaneType(lane_line_msg.lanetype_, &lanetype);
+    hozon::mapping::LanePositionType lanepos =
+        hozon::mapping::LanePositionType::LanePositionType_OTHER;
+    DataConvert::ConvertInnerLanePos(lane_line_msg.lanepos_, &lanepos);
+    hozon::mapping::Color color = hozon::mapping::Color::UNKNOWN;
+    DataConvert::ConvertInnerColor(lane_line_msg.color_, &color);
+    auto* lane_line = localmap->add_lane_lines();
+    lane_line->set_track_id(lane_line_msg.track_id_);
+    lane_line->set_lanetype(lanetype);
+    lane_line->set_lanepos(lanepos);
+    lane_line->set_color(color);
+    for (auto point_msg : lane_line_msg.fit_points_) {
+      auto* point = lane_line->add_points();
+      point->set_x(point_msg.x());
+      point->set_y(point_msg.y());
+      point->set_z(point_msg.z());
+    }
+  }
+}
+
+void DataConvert::ConvertMultiRoadEdgesToPb(
+    const std::vector<RoadEdge>& road_edges,
+    const std::shared_ptr<hozon::mapping::LocalMap>& localmap) {
+  for (const auto& road_edge_msg : road_edges) {
+    if (!road_edge_msg.ismature_) {
+      continue;
+    }
+    auto* road_edge = localmap->add_edge_lines();
+    road_edge->set_track_id(road_edge_msg.track_id_);
+    hozon::mapping::LanePositionType lanepos =
+        hozon::mapping::LanePositionType::LanePositionType_OTHER;
+    DataConvert::ConvertInnerLanePos(road_edge_msg.lanepos_, &lanepos);
+    road_edge->set_lanepos(lanepos);
+    for (auto point_msg : road_edge_msg.fit_points_) {
+      auto* point = road_edge->add_points();
+      point->set_x(point_msg.x());
+      point->set_y(point_msg.y());
+      point->set_z(point_msg.z());
+    }
+  }
+}
+
+void DataConvert::ConvertMultiStopLinesToPb(
+    const std::vector<StopLine>& stop_lines,
+    const std::shared_ptr<hozon::mapping::LocalMap>& localmap) {
+  for (const auto& stop_line_msg : stop_lines) {
+    if (!stop_line_msg.ismature_) {
+      continue;
+    }
+    auto* stop_line = localmap->add_stop_lines();
+    stop_line->set_track_id(stop_line_msg.track_id_);
+    Eigen::Vector3d left_point_ = {
+        stop_line_msg.mid_point_.x() +
+            stop_line_msg.length_ / 2.0 * cos(stop_line_msg.heading_),
+        stop_line_msg.mid_point_.y() +
+            stop_line_msg.length_ / 2.0 * sin(stop_line_msg.heading_),
+        0};
+    Eigen::Vector3d right_point_ = {
+        stop_line_msg.mid_point_.x() -
+            stop_line_msg.length_ / 2.0 * cos(stop_line_msg.heading_),
+        stop_line_msg.mid_point_.y() -
+            stop_line_msg.length_ / 2.0 * sin(stop_line_msg.heading_),
+        0};
+    stop_line->mutable_left_point()->set_x(left_point_.x());
+    stop_line->mutable_left_point()->set_y(left_point_.y());
+    stop_line->mutable_left_point()->set_z(0);
+    stop_line->mutable_right_point()->set_x(right_point_.x());
+    stop_line->mutable_right_point()->set_y(right_point_.y());
+    stop_line->mutable_right_point()->set_z(0);
+  }
+}
+
+void DataConvert::ConvertMultiArrowsToPb(
+    const std::vector<Arrow>& arrows,
+    const std::shared_ptr<hozon::mapping::LocalMap>& localmap) {
+  for (const auto& arrow_msg : arrows) {
+    if (!arrow_msg.ismature_ || arrow_msg.length_ == 0 ||
+        arrow_msg.width_ == 0) {
+      continue;
+    }
+    auto* arrow = localmap->add_arrows();
+    arrow->set_track_id(arrow_msg.track_id_);
+    arrow->set_heading(arrow_msg.heading_);
+    Eigen::Vector3d l = {arrow_msg.length_ / 2 * cos(arrow_msg.heading_),
+                         arrow_msg.length_ / 2 * sin(arrow_msg.heading_), 0};
+    Eigen::Vector3d w = {-arrow_msg.width_ / 2 * sin(arrow_msg.heading_),
+                         arrow_msg.width_ / 2 * cos(arrow_msg.heading_), 0};
+    Eigen::Vector3d point_0 = arrow_msg.mid_point_ + l + w;
+    Eigen::Vector3d point_1 = arrow_msg.mid_point_ - l + w;
+    Eigen::Vector3d point_2 = arrow_msg.mid_point_ - l - w;
+    Eigen::Vector3d point_3 = arrow_msg.mid_point_ + l - w;
+    auto* point = arrow->mutable_points()->add_point();
+    point->set_x(point_0.x());
+    point->set_y(point_0.y());
+    point->set_z(point_0.z());
+    point = arrow->mutable_points()->add_point();
+    point->set_x(point_1.x());
+    point->set_y(point_1.y());
+    point->set_z(point_1.z());
+    point = arrow->mutable_points()->add_point();
+    point->set_x(point_2.x());
+    point->set_y(point_2.y());
+    point->set_z(point_2.z());
+    point = arrow->mutable_points()->add_point();
+    point->set_x(point_3.x());
+    point->set_y(point_3.y());
+    point->set_z(point_3.z());
+    hozon::hdmap::ArrowData::Type arrowtype =
+        hozon::hdmap::ArrowData::Type::ArrowData_Type_UNKNOWN_TURN;
+    DataConvert::ConvertInnerArrowType(arrow_msg.type_, &arrowtype);
+    arrow->set_arrow_type(arrowtype);
+  }
+}
+
+void DataConvert::ConvertMultiZebraCrossingsToPb(
+    const std::vector<ZebraCrossing>& zebra_crossings,
+    const std::shared_ptr<hozon::mapping::LocalMap>& localmap) {
+  for (const auto& zebra_crossing_msg : zebra_crossings) {
+    if (!zebra_crossing_msg.ismature_ || zebra_crossing_msg.length_ == 0 ||
+        zebra_crossing_msg.width_ == 0) {
+      continue;
+    }
+    auto* zebra_crossing = localmap->add_cross_walks();
+    zebra_crossing->set_track_id(zebra_crossing_msg.track_id_);
+    Eigen::Vector3d l = {
+        -zebra_crossing_msg.length_ / 2 * sin(zebra_crossing_msg.heading_),
+        zebra_crossing_msg.length_ / 2 * cos(zebra_crossing_msg.heading_), 0};
+    Eigen::Vector3d w = {
+        zebra_crossing_msg.width_ / 2 * cos(zebra_crossing_msg.heading_),
+        zebra_crossing_msg.width_ / 2 * sin(zebra_crossing_msg.heading_), 0};
+    Eigen::Vector3d point_0 = zebra_crossing_msg.mid_point_ + l + w;
+    Eigen::Vector3d point_1 = zebra_crossing_msg.mid_point_ + l - w;
+    Eigen::Vector3d point_2 = zebra_crossing_msg.mid_point_ - l - w;
+    Eigen::Vector3d point_3 = zebra_crossing_msg.mid_point_ - l + w;
+    auto* point = zebra_crossing->mutable_points()->add_point();
+    point->set_x(point_0.x());
+    point->set_y(point_0.y());
+    point->set_z(point_0.z());
+    point = zebra_crossing->mutable_points()->add_point();
+    point->set_x(point_1.x());
+    point->set_y(point_1.y());
+    point->set_z(point_1.z());
+    point = zebra_crossing->mutable_points()->add_point();
+    point->set_x(point_2.x());
+    point->set_y(point_2.y());
+    point->set_z(point_2.z());
+    point = zebra_crossing->mutable_points()->add_point();
+    point->set_x(point_3.x());
+    point->set_y(point_3.y());
+    point->set_z(point_3.z());
+  }
+}
 
 }  // namespace lm
 }  // namespace mp

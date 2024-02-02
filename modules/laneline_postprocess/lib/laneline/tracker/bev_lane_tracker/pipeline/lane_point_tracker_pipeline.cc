@@ -210,7 +210,7 @@ void LanePointFilterTrackerPipeline::UpdateAssignedTracks(
   for (size_t i = 0; i < assignments.size(); ++i) {
     track_index = std::get<0>(assignments[i]);
     detect_index = std::get<1>(assignments[i]);
-    // HLOG_INFO << "point_match_debug, trackId: " <<
+    // HLOG_DEBUG << "point_match_debug, trackId: " <<
     // lane_trackers_[track_index]->GetConstLaneTarget()->Id()
     //           << ", detectId: " << detected_lanelines->at(detect_index)->id;
     lane_trackers_[track_index]->UpdateWithDetectedLaneLine(
@@ -586,7 +586,7 @@ void LanePointFilterTrackerPipeline::GetMainRoadLaneLine(
 //   //     (main_road_right_quality == LaneLineQualityStatus::ERROR_JUMP ||
 //   //     main_road_right_quality == LaneLineQualityStatus::ERROR_POSITION);
 //   // if (is_right_low_quality) {
-//   //   HLOG_INFO << "[Single LaneLine] Main road right lane low0 quality! "
+//   //   HLOG_DEBUG << "[Single LaneLine] Main road right lane low0 quality! "
 //   //   << kLaneLineQualityStausToString.at(main_road_right_quality);
 //   //   right_laneline->quality = LaneLineQuality::LOW0;
 //   // }
@@ -595,7 +595,7 @@ void LanePointFilterTrackerPipeline::GetMainRoadLaneLine(
 //   //     (main_road_left_quality == LaneLineQualityStatus::ERROR_JUMP ||
 //   //     main_road_left_quality == LaneLineQualityStatus::ERROR_POSITION);
 //   // if (is_left_low_quality) {
-//   //   HLOG_INFO << "[Single LaneLine] Main road left lane low0 quality! "
+//   //   HLOG_DEBUG << "[Single LaneLine] Main road left lane low0 quality! "
 //   //   << kLaneLineQualityStausToString.at(main_road_left_quality);
 //   //   left_laneline->quality = LaneLineQuality::LOW0;
 //   // }
@@ -699,7 +699,7 @@ void LanePointFilterTrackerPipeline::print_debug_info() {
   // // vehicle_pt = novatel2world_pose_.inverse() * local_pt;
 
   // for (auto &track_info : filter_module_debug_info) {
-  //   HLOG_INFO << "track_id" << track_info->track_id;
+  //   HLOG_DEBUG << "track_id" << track_info->track_id;
   // }
 
   // for (auto &track_info : filter_module_debug_info) {
@@ -708,7 +708,7 @@ void LanePointFilterTrackerPipeline::print_debug_info() {
   //     // Eigen::Vector3d{point.local_point.x, point.local_point.y,
   //     // point.local_point.z};
 
-  //     HLOG_INFO << " [lane_debug] "
+  //     HLOG_DEBUG << " [lane_debug] "
   //               << " [filter:] "
   //               << " [current_ts:] " << std::to_string(cur_ts)
   //               << " [measurement point:] "
@@ -722,7 +722,7 @@ void LanePointFilterTrackerPipeline::print_debug_info() {
 
   // for (auto &track_info : filter_module_debug_info) {
   //   for (auto &point : track_info->update_points) {
-  //     HLOG_INFO << " [lane_debug] "
+  //     HLOG_DEBUG << " [lane_debug] "
   //               << " [filter:] "
   //               << " [current_ts:] " << std::to_string(cur_ts)
   //               << " [update point:] "
@@ -736,7 +736,7 @@ void LanePointFilterTrackerPipeline::print_debug_info() {
 
   // for (auto &track_info : filter_module_debug_info) {
   //   for (auto &point : track_info->predict_points) {
-  //     HLOG_INFO << " [lane_debug] "
+  //     HLOG_DEBUG << " [lane_debug] "
   //               << " [filter:] "
   //               << " [current_ts:] " << std::to_string(cur_ts)
   //               << " [predict point:] "
@@ -750,7 +750,7 @@ void LanePointFilterTrackerPipeline::print_debug_info() {
 
   // for (auto &track_info : filter_module_debug_info) {
   //   for (auto &point : track_info->tracked_points) {
-  //     HLOG_INFO << " [lane_debug] "
+  //     HLOG_DEBUG << " [lane_debug] "
   //               << " [filter:] "
   //               << " [current_ts:] " << std::to_string(cur_ts)
   //               << " [tracked point:] "

@@ -264,7 +264,7 @@ bool TransformLaneLineCurveInNovatelPolyfit(
     return false;
   }
 
-  // HLOG_INFO << "transform curve:" << transform_matrix.matrix();
+  // HLOG_DEBUG << "transform curve:" << transform_matrix.matrix();
   if (transform_matrix.matrix() == Eigen::Affine3d::Identity().matrix()) {
     *transform_line_curve = curve;
     return true;
@@ -282,7 +282,7 @@ bool TransformLaneLineCurveInNovatelPolyfit(
   }
 
   std::vector<Eigen::Matrix<float, 2, 1>> camera_pos_vec;
-  // HLOG_INFO << "src curve.coeffs: " << curve.coeffs[0] << " ,"
+  // HLOG_DEBUG << "src curve.coeffs: " << curve.coeffs[0] << " ,"
   //           << curve.coeffs[1] << " ," << curve.coeffs[2] << " ,"
   //           << curve.coeffs[3] << " max: " << curve.max;
   for (size_t i = 0; i <= points_num; ++i) {
@@ -315,7 +315,7 @@ bool TransformLaneLineCurveInNovatelPolyfit(
   // printf("拟合方程 1 为:y = %lf + %lfx + %lfx^2 + %lfx^3 \n",
   //        camera_coeff(0, 0), camera_coeff(1, 0), camera_coeff(2, 0),
   //        camera_coeff(3, 0));
-  // HLOG_INFO << "polyfit coeff: " << camera_coeff(0, 0) << " ,"
+  // HLOG_DEBUG << "polyfit coeff: " << camera_coeff(0, 0) << " ,"
   //           << camera_coeff(1, 0) << " ," << camera_coeff(2, 0) << " ,"
   //           << camera_coeff(3, 0) << " ,max:" << transform_line_curve->max;
   transform_line_curve->coeffs.clear();
@@ -333,7 +333,7 @@ bool TransformLaneLineCurveInNovatel(const LaneLineCurve& curve,
     return false;
   }
 
-  // HLOG_INFO << "transform curve:" <<  transform_matrix.matrix();
+  // HLOG_DEBUG << "transform curve:" <<  transform_matrix.matrix();
   if (transform_matrix.matrix() == Eigen::Affine3d::Identity().matrix()) {
     *transform_line_curve = curve;
     return true;

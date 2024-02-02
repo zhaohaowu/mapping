@@ -58,6 +58,12 @@ NAME_SHARED_PTR(NetaDeadReckoning)
 using NetaLoaction = hozon::localization::Localization;
 NAME_SHARED_PTR(NetaLoaction)
 
+using NetaPerceptionObstacles = hozon::perception::PerceptionObstacles;
+NAME_SHARED_PTR(NetaPerceptionObstacles)
+
+using NetaPerceptionObstacle = hozon::perception::PerceptionObstacle;
+NAME_SHARED_PTR(NetaPerceptionObstacle)
+
 namespace perception_base = hozon::perception::base;
 
 /**
@@ -103,6 +109,15 @@ class DataMapping {
       const std::shared_ptr<hozon::perception::measurement::MeasurementPb>&
           measurepb,
       std::shared_ptr<perception_base::MeasurementFrame> measure_frame);
+
+  static bool CvtPb2Object(const NetaPerceptionObstacle& pb_object,
+                           perception_base::ObjectPtr& object_msg);  // NOLINT
+  static bool CvtObjectToPb(const perception_base::ObjectPtr& object_msg,
+                            NetaPerceptionObstacle* pb_object);
+
+  static bool CvtPb2MultiObjects(
+      const hozon::perception::PerceptionObstacles& pb_objects,
+      std::vector<perception_base::ObjectPtr>& objects_msg);  // NOLINT
 
   /**
    * @brief convert lane measurement to proto

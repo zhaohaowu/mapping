@@ -197,13 +197,13 @@ void PointMatcher::SolveBipartiteGraphMatchWithGreedy(
     }
   }
 
-  HLOG_INFO << "point_match_debug timestamp: " << debug_timestamp_
-            << ", Greedy AssociationResult: matched_pair_num:"
-            << association_result->assignments.size()
-            << ", unmatch tracker_num:"
-            << association_result->unassigned_tracks.size()
-            << ", unmatch detect_num:"
-            << association_result->unsigned_objects.size();
+  HLOG_DEBUG << "point_match_debug timestamp: " << debug_timestamp_
+             << ", Greedy AssociationResult: matched_pair_num:"
+             << association_result->assignments.size()
+             << ", unmatch tracker_num:"
+             << association_result->unassigned_tracks.size()
+             << ", unmatch detect_num:"
+             << association_result->unsigned_objects.size();
 }
 
 void PointMatcher::SolveBipartiteGraphMatchWithGreedy(
@@ -244,13 +244,13 @@ void PointMatcher::SolveBipartiteGraphMatchWithGreedy(
     }
   }
 
-  HLOG_INFO << "point_match_debug timestamp: " << debug_timestamp_
-            << ", Greedy AssociationResult: matched_pair_num:"
-            << association_result->assignments.size()
-            << ", unmatch tracker_num:"
-            << association_result->unassigned_tracks.size()
-            << ", unmatch detect_num:"
-            << association_result->unsigned_objects.size();
+  HLOG_DEBUG << "point_match_debug timestamp: " << debug_timestamp_
+             << ", Greedy AssociationResult: matched_pair_num:"
+             << association_result->assignments.size()
+             << ", unmatch tracker_num:"
+             << association_result->unassigned_tracks.size()
+             << ", unmatch detect_num:"
+             << association_result->unsigned_objects.size();
 }
 
 void PointMatcher::AssociationKnn(
@@ -318,13 +318,14 @@ void PointMatcher::AssociationKnn(
         }
         dist_sum += det_knn_thd_[i][k];
       }
-      HLOG_INFO << "point_match_debug timestamp: " << debug_timestamp_
-                << ", trackId: " << lane_trackers[j]->GetConstLaneTarget()->Id()
-                << ", detectId: " << detected_lanelines->at(i)->id
-                << ", match_point_num: " << dist_match_cnt
-                << ", dist_match_sum: " << dist_match_sum
-                << ", average distance: " << dist_match_sum / dist_match_cnt
-                << ", y err: " << track_lanes_y_err_[j];
+      HLOG_DEBUG << "point_match_debug timestamp: " << debug_timestamp_
+                 << ", trackId: "
+                 << lane_trackers[j]->GetConstLaneTarget()->Id()
+                 << ", detectId: " << detected_lanelines->at(i)->id
+                 << ", match_point_num: " << dist_match_cnt
+                 << ", dist_match_sum: " << dist_match_sum
+                 << ", average distance: " << dist_match_sum / dist_match_cnt
+                 << ", y err: " << track_lanes_y_err_[j];
       double score = dist_match_sum / dist_match_cnt;
       float total_score = 5.0 / score;
 
@@ -336,7 +337,7 @@ void PointMatcher::AssociationKnn(
       if (dist_list.size() > 0) {
         std::sort(dist_list.begin(), dist_list.end());
         int key_idx = static_cast<int>(dist_list.size() * 0.70);
-        // HLOG_INFO << "50 percent distance:" << dist_list[key_idx];
+        // HLOG_DEBUG << "50 percent distance:" << dist_list[key_idx];
         if (dist_list[key_idx] > point_quantile_thresh_ * track_lanes_y_err_[j])
           continue;
       }
@@ -420,12 +421,13 @@ void PointMatcher::AssociationKnn(
         }
         dist_sum += det_knn_thd_[i][k];
       }
-      HLOG_INFO << "point_match_debug timestamp: " << debug_timestamp_
-                << ", trackId: " << lane_trackers[j]->GetConstLaneTarget()->Id()
-                << ", detectId: " << detected_lanelines->at(i)->id
-                << ", match_point_num: " << dist_match_cnt
-                << ", dist_match_sum: " << dist_match_sum
-                << ", average distance: " << dist_match_sum / dist_match_cnt;
+      HLOG_DEBUG << "point_match_debug timestamp: " << debug_timestamp_
+                 << ", trackId: "
+                 << lane_trackers[j]->GetConstLaneTarget()->Id()
+                 << ", detectId: " << detected_lanelines->at(i)->id
+                 << ", match_point_num: " << dist_match_cnt
+                 << ", dist_match_sum: " << dist_match_sum
+                 << ", average distance: " << dist_match_sum / dist_match_cnt;
       double score = dist_match_sum / dist_match_cnt;
       float total_score = 5.0 / score;
 

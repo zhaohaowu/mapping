@@ -5,6 +5,8 @@ depLibPath: ["${ADFLITE_ROOT_PATH}/lib/", "${ADFLITE_ROOT_PATH}/runtime_service/
 executorName: LocalMappingOnboard
 
 input:
+    - topic: percep_detection
+      capacity: 5
     - topic: percep_transport
       capacity: 5
     - topic: localization 
@@ -16,6 +18,12 @@ input:
 
 
 trigger:
+  - name: recv_detection_bevfusion_lane_proto
+    type: EVENT
+    timeWindow: 1000
+    mainSources:
+      - name: percep_detection
+        timeout: 1000
   - name: recv_laneline
     type: EVENT
     mainSources:
@@ -36,7 +44,3 @@ trigger:
     mainSources:
       - name: running_mode
         timeout: 1000
-  
-  - name: send_local_map # send workresult1,workresult2
-    type: PERIOD
-    period: 100

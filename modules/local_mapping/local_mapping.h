@@ -22,10 +22,12 @@
 
 #include "depend/common/utm_projection/coordinate_convertor.h"
 #include "depend/map/hdmap/hdmap.h"
+#include "depend/perception-base/base/frame/measurement_frame.h"
 #include "depend/proto/local_mapping/local_map.pb.h"
 #include "depend/proto/localization/node_info.pb.h"
 #include "depend/proto/map/map.pb.h"
 #include "depend/proto/map/navigation.pb.h"
+#include "depend/proto/perception/perception_measurement.pb.h"
 #include "depend/proto/soc/sensor_image.pb.h"
 #include "modules/local_mapping/datalogger/load_data_singleton.h"
 #include "modules/local_mapping/types/types.h"
@@ -33,6 +35,7 @@
 #include "modules/local_mapping/utils/data_convert.h"
 #include "modules/local_mapping/utils/fetch_hq.h"
 #include "modules/local_mapping/utils/map_manager.h"
+#include "modules/local_mapping/utils/rviz_common.h"
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
@@ -58,9 +61,11 @@ class LMapApp {
   void OnLocalization(
       const std::shared_ptr<const Localization>& latest_localization);
 
-  void OnPerception(const std::shared_ptr<const Perception>& perception);
+  void OnPerception(const std::shared_ptr<Perception>& perception);
 
   void OnIns(const std::shared_ptr<const InsData>& msg);
+
+  void OnPerceptionObj(std::shared_ptr<Objects> perception_objs);
 
   bool FetchLocalMap(
       const std::shared_ptr<hozon::mapping::LocalMap>& local_map);
@@ -73,6 +78,7 @@ class LMapApp {
   void ProcStopLine(const std::shared_ptr<const Perception>& perception);
   void ProcZebraCrossing(const std::shared_ptr<const Perception>& perception);
   void ProcArrow(const std::shared_ptr<const Perception>& perception);
+  void PreProcArrow(const std::shared_ptr<Perception>& perception);
 
  private:
   std::shared_ptr<MapManager> mmgr_;
@@ -95,6 +101,8 @@ class LMapApp {
 
   Sophus::SE3d last_twv_;
   Sophus::SE3d cur_twv_;
+
+  int seq_ = 0;
 };
 
 }  // namespace lm

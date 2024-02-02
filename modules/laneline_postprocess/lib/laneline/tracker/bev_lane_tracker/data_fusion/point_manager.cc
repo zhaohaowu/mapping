@@ -23,7 +23,7 @@ namespace environment {
 void AdaptorPointManager::AddObservePoints(
     const std::vector<perception_base::LaneLinePoint>& point_set) {
   latest_measurement_lines_.push_back(point_set);
-  // HLOG_INFO << "###### point_set:" << point_set.size();
+  // HLOG_DEBUG << "###### point_set:" << point_set.size();
 }
 
 void AdaptorPointManager::init(Eigen::Matrix<double, 40, 1>* XPtr,
@@ -116,7 +116,7 @@ void AdaptorPointManager::UpdatePointsFar(
     inter_points[i * 2 + 1] = measurement_points[append_index[i]].local_point.y;
   }
   int rest_size = pt_size_ - append_size;
-  HLOG_INFO << "append_size: " << append_size << ", rest_size: " << rest_size;
+  HLOG_DEBUG << "append_size: " << append_size << ", rest_size: " << rest_size;
   // 在最远处插值跟踪点, 更新集合里面的 X_ 和 P_
   if (append_size > 0) {
     X_SWAP_.setZero();
@@ -143,7 +143,7 @@ void AdaptorPointManager::DelPointsFar(
   // 检测远端的平均距离
   double mean_far_dect_x = 0.0;
   for (int i = latest_measurement_lines_.size() - 1, j = 1; i >= 0; i--, j++) {
-    // HLOG_INFO << "###### latest_measurement_lines_ size():"
+    // HLOG_DEBUG << "###### latest_measurement_lines_ size():"
     //           << (latest_measurement_lines_[i]);
     const auto& dect_pt = (latest_measurement_lines_[i]).back().vehicle_point;
     if (fastest_track_pt_.x() > dect_pt.x + threshold_ * j) {
@@ -153,7 +153,7 @@ void AdaptorPointManager::DelPointsFar(
       break;
     }
   }
-  // HLOG_INFO << "count_track_over_dect: " << count_track_over_dect
+  // HLOG_DEBUG << "count_track_over_dect: " << count_track_over_dect
   //           << ", y: " << fastest_track_pt_.y();
   if (count_track_over_dect >= 3) {
     // 近处插值点，目的是保证pt_size_

@@ -21,9 +21,6 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-
-
-
 bool RoadEdgePointFilter::Init(const LanePointFilterInitOptions& init_options) {
   // 点更新管理器初始化
   point_manager_ = std::make_shared<AdaptorPointManager>();
@@ -429,7 +426,7 @@ void RoadEdgePointFilter::KalmanUpdate(
 
   auto& x_gain = k * (-HZ_);
   // for (int i = 0; i < x_gain.size() / 2; ++i) {
-  //     HLOG_INFO << "X_GAIN:" << i << " == "  << x_gain[i * 2] << "," <<
+  //     HLOG_DEBUG << "X_GAIN:" << i << " == "  << x_gain[i * 2] << "," <<
   //     x_gain[i * 2 + 1];
   // }
   X_ = X_ + k * (-HZ_);
@@ -466,7 +463,7 @@ void RoadEdgePointFilter::UpdateResult() {
   // 将X_点存入跟踪线数据结构中进行发送
   ConvertEigen2PointSet(X_, &tracked_pt);
   // for (auto& point : tracked_pt) {
-  //   HLOG_INFO << "local x: " << point.local_point.x << " , y: " <<
+  //   HLOG_DEBUG << "local x: " << point.local_point.x << " , y: " <<
   //   point.local_point.y;
   // }
 

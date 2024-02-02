@@ -11,20 +11,25 @@
 #include <proto/localization/node_info.pb.h>
 
 #include <filesystem>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include <opencv2/opencv.hpp>
 
+#include "depend/perception-base/base/frame/measurement_frame.h"
+#include "depend/proto/perception/perception_measurement.pb.h"
+#include "onboard/onboard_lite/laneline_postprocess/measurement_message.h"
 #include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 #include "perception-base/base/state_machine/state_machine_info.h"
 #include "perception-lib/lib/environment/environment.h"
-
 namespace hozon {
 namespace mp {
 namespace lm {
 
 int32_t LocalMappingOnboard::AlgInit() {
+  REGISTER_PROTO_MESSAGE_TYPE("percep_detection",
+                              hozon::perception::measurement::MeasurementPb);
   REGISTER_PROTO_MESSAGE_TYPE("percep_transport",
                               hozon::perception::TransportElement);
   REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
@@ -46,7 +51,7 @@ int32_t LocalMappingOnboard::AlgInit() {
 
   YAML::Node config = YAML::LoadFile(config_file);
   if (config["use_rviz"].as<bool>()) {
-    HLOG_INFO << "Start RvizAgent!!!";
+    HLOG_DEBUG << "Start RvizAgent!!!";
     int ret = RVIZ_AGENT.Init(config["rviz_addr"].as<std::string>());
     if (ret < 0) {
       HLOG_ERROR << "RvizAgent start failed";
@@ -56,6 +61,10 @@ int32_t LocalMappingOnboard::AlgInit() {
   lmap_ = std::make_shared<LMapApp>(mapping_path, config_file);
   result = std::make_shared<hozon::mapping::LocalMap>();
   // NOLINTBEGIN
+  RegistAlgProcessFunc("recv_detection_bevfusion_lane_proto",
+                       std::bind(&LocalMappingOnboard::OnPerceptionObj, this,
+                                 std::placeholders::_1));
+
   RegistAlgProcessFunc("recv_laneline",
                        std::bind(&LocalMappingOnboard::OnPerception, this,
                                  std::placeholders::_1));
@@ -73,10 +82,6 @@ int32_t LocalMappingOnboard::AlgInit() {
     RegistAlgProcessFunc("recv_image", std::bind(&LocalMappingOnboard::OnImage,
                                                  this, std::placeholders::_1));
   }
-
-  RegistAlgProcessFunc("send_local_map",
-                       std::bind(&LocalMappingOnboard::LocalMapPublish, this,
-                                 std::placeholders::_1));
   // NOLINTEND
   return 0;
 }
@@ -125,10 +130,28 @@ int32_t LocalMappingOnboard::OnRunningMode(adf_lite_Bundle* input) {
   return 0;
 }
 
+int32_t LocalMappingOnboard::OnPerceptionObj(adf_lite_Bundle* input) {
+  HLOG_INFO << "*** receive perception obj ***";
+  auto percep_msg = input->GetOne("percep_detection");
+  if (percep_msg == nullptr) {
+    HLOG_ERROR << "nullptr perception detection plugin";
+    return -1;
+  }
+
+  auto measurepb =
+      std::static_pointer_cast<hozon::perception::measurement::MeasurementPb>(
+          percep_msg->proto_msg);
+  std::shared_ptr<Objects> objects = std::make_shared<Objects>();
+  objects->objs_.clear();
+  DataConvert::SetObj(*measurepb, objects);
+  lmap_->OnPerceptionObj(objects);
+  return 0;
+}
+
 int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
   auto* phm_fault = hozon::perception::lib::FaultManager::Instance();
   static double last_percep_time = -1.0;
-  HLOG_INFO << "receive laneline data...";
+  HLOG_DEBUG << "receive perception data...";
   auto percep_msg = input->GetOne("percep_transport");
   if (percep_msg == nullptr) {
     phm_fault->Report(MAKE_FM_TUPLE(
@@ -193,14 +216,16 @@ int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
   DataConvert::SetPerception(*msg, perception.get());
 
   lmap_->OnPerception(perception);
-  HLOG_INFO << "processed laneline data";
+
+  PublishLocalMap();
+  HLOG_DEBUG << "processed perception data";
   return 0;
 }
 
 int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
   auto* phm_fault = hozon::perception::lib::FaultManager::Instance();
   static double last_localization_time = -1.0;
-  HLOG_INFO << "receive localization data...";
+  HLOG_DEBUG << "receive localization data...";
   auto localization_msg = input->GetOne("localization");
   if (localization_msg == nullptr) {
     phm_fault->Report(MAKE_FM_TUPLE(
@@ -251,7 +276,7 @@ int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
   DataConvert::SetLocalization(*msg, latest_localization.get());
 
   lmap_->OnLocalization(latest_localization);
-  HLOG_INFO << "processed localization data";
+  HLOG_DEBUG << "processed localization data";
   return 0;
 }
 
@@ -322,7 +347,7 @@ std::shared_ptr<adsfi_proto::viz::CompressedImage> YUVNV12ImageToVizImage(
 
 int32_t LocalMappingOnboard::OnImage(adf_lite_Bundle* input) {
   auto image_msg = input->GetOne("lm_image");
-  HLOG_INFO << "image_msg->proto_msg " << image_msg.get();
+  HLOG_DEBUG << "image_msg->proto_msg " << image_msg.get();
   if (image_msg.get() == nullptr) {
     return -1;
   }
@@ -334,8 +359,8 @@ int32_t LocalMappingOnboard::OnImage(adf_lite_Bundle* input) {
   return 0;
 }
 
-int32_t LocalMappingOnboard::LocalMapPublish(adf_lite_Bundle* /*output*/) {
-  HLOG_INFO << "start publish localmap...";
+int32_t LocalMappingOnboard::PublishLocalMap() {
+  HLOG_DEBUG << "start publish localmap...";
   auto* phm_fault = hozon::perception::lib::FaultManager::Instance();
   static double last_localmap_publish_time = -1.0;
   result->Clear();
@@ -371,7 +396,7 @@ int32_t LocalMappingOnboard::LocalMapPublish(adf_lite_Bundle* /*output*/) {
             LOCALMAPPING_CANNOT_OUTPUT_LOCAL_MAP,
         hozon::perception::base::FaultStatus::RESET,
         hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
-    HLOG_INFO << "publish localmap suceessed...";
+    HLOG_DEBUG << "publish localmap suceessed...";
   } else {
     phm_fault->Report(MAKE_FM_TUPLE(
         hozon::perception::base::FmModuleId::MAPPING,
@@ -380,7 +405,7 @@ int32_t LocalMappingOnboard::LocalMapPublish(adf_lite_Bundle* /*output*/) {
         hozon::perception::base::FaultStatus::OCCUR,
         hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
   }
-  HLOG_INFO << "processed publish localmap";
+  HLOG_DEBUG << "processed publish localmap";
   return 0;
 }
 

@@ -85,7 +85,7 @@ void ButterworthFilter::set_coefficients(
 
 void ButterworthFilter::set_dead_zone(const double deadzone) {
   dead_zone_ = std::fabs(deadzone);
-  HLOG_INFO << "Setting digital filter dead zone = " << dead_zone_;
+  HLOG_DEBUG << "Setting digital filter dead zone = " << dead_zone_;
 }
 
 double ButterworthFilter::Filter(const double x_insert) {

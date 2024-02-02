@@ -22,11 +22,11 @@ namespace environment_onboard {
 // EnvBevfusionOnboard::~EnvBevfusionOnboard() {}
 
 int32_t EnvBevfusionOnboard::AlgInit() {
-  HLOG_INFO << "EnvBevfusionOnboard AlgInit Start...";
+  HLOG_DEBUG << "EnvBevfusionOnboard AlgInit Start...";
 
   perception_lib::LocationManager::Instance()->Init(100, 0.5);
 
-  // HLOG_INFO << "common_onboard::FLAGS_env_laneline_using_recv_proto: "
+  // HLOG_DEBUG << "common_onboard::FLAGS_env_laneline_using_recv_proto: "
   //           << common_onboard::FLAGS_env_laneline_using_recv_proto;
   REGISTER_PROTO_MESSAGE_TYPE("percep_detection",
                               hozon::perception::measurement::MeasurementPb);
@@ -59,14 +59,14 @@ int32_t EnvBevfusionOnboard::AlgInit() {
   lane_postprocessor_ = std::make_unique<environment::LanePostProcess>();
   environment::ProcessInitOption init_option;
   CHECK(lane_postprocessor_->Init(init_option));
-  HLOG_INFO << "lane_postprocessor_ init successfully";
+  HLOG_DEBUG << "lane_postprocessor_ init successfully";
 
   // 路沿后处理初始化
   roadedge_postprocessor_ =
       std::make_unique<environment::RoadEdgePostProcess>();
   CHECK(roadedge_postprocessor_->Init(init_option));
-  HLOG_INFO << "roadedge_postprocessor_ init successfully";
-  HLOG_INFO << "EnvBevfusionOnboard AlgInit End...";
+  HLOG_DEBUG << "roadedge_postprocessor_ init successfully";
+  HLOG_DEBUG << "EnvBevfusionOnboard AlgInit End...";
 
   return 0;
 }
@@ -74,7 +74,7 @@ int32_t EnvBevfusionOnboard::AlgInit() {
 void EnvBevfusionOnboard::AlgRelease() {}
 
 int32_t EnvBevfusionOnboard::ReceiveDr(adf_lite_Bundle* input) {
-  HLOG_INFO << "*** RECEIVE DR DATA ***";
+  HLOG_DEBUG << "*** RECEIVE DR DATA ***";
 
   auto dr_msg = input->GetOne("dr");
   if (dr_msg == nullptr) {
@@ -93,7 +93,7 @@ int32_t EnvBevfusionOnboard::ReceiveDr(adf_lite_Bundle* input) {
 }
 
 int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
-  HLOG_INFO << "EnvBevfusionOnboard LaneProcess start!!!";
+  HLOG_DEBUG << "EnvBevfusionOnboard LaneProcess start!!!";
   if (nullptr == input) {
     HLOG_ERROR << "input is nullptr.";
     return -1;
@@ -105,7 +105,7 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
   // if (sm_msg.running_mode == perception_base::RunningMode::PARKING) {
   //   if (last_running_mode !=
   //   static_cast<int32_t>(perception_base::RunningMode::PARKING)) {
-  //     HLOG_INFO << "running mode is parking";
+  //     HLOG_DEBUG << "running mode is parking";
   //     last_running_mode =
   //     static_cast<int32_t>(perception_base::RunningMode::PARKING);
   //   }
@@ -113,7 +113,7 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
   // } else if (sm_msg.running_mode == perception_base::RunningMode::DRIVING) {
   //   if (last_running_mode !=
   //   static_cast<int32_t>(perception_base::RunningMode::DRIVING)) {
-  //     HLOG_INFO << "running mode is driving";
+  //     HLOG_DEBUG << "running mode is driving";
   //     last_running_mode =
   //     static_cast<int32_t>(perception_base::RunningMode::DRIVING);
   //   }
@@ -171,15 +171,15 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
       ts, data_msg->measurement_frame->lanelines_measurement_->lanelines);
 
   // 车道线后处理和结果转换
-  HLOG_INFO << "do laneline postprocess...";
+  HLOG_DEBUG << "do laneline postprocess...";
   if (!lane_postprocessor_) {
     HLOG_ERROR << "lane_postprocessor_ is nullptr";
     return -1;
   }
   lane_postprocessor_->Process(data_msg->measurement_frame,
                                fusion_msg->fusion_frame);
-  HLOG_INFO << "output track laneline nums trans to pb:"
-            << fusion_msg->fusion_frame->scene_->lane_lines->lanelines.size();
+  HLOG_DEBUG << "output track laneline nums trans to pb:"
+             << fusion_msg->fusion_frame->scene_->lane_lines->lanelines.size();
 
   if (!common_onboard::DataMapping::CvtMultiLanesToPb(
           fusion_msg->fusion_frame->scene_->lane_lines->lanelines,
@@ -196,8 +196,8 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
   }
   roadedge_postprocessor_->Process(data_msg->measurement_frame,
                                    fusion_msg->fusion_frame);
-  HLOG_INFO << "output track road_edges nums trans to pb:"
-            << fusion_msg->fusion_frame->scene_->road_edges->road_edges.size();
+  HLOG_DEBUG << "output track road_edges nums trans to pb:"
+             << fusion_msg->fusion_frame->scene_->road_edges->road_edges.size();
 
   if (!common_onboard::DataMapping::CvtMultiRoadEdgesToPb(
           fusion_msg->fusion_frame->scene_->road_edges->road_edges,
@@ -233,7 +233,7 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
   lane_node_bundle.Add("percep_transport", EnvDataPtr);
   SendOutput(&lane_node_bundle);
 
-  HLOG_INFO << "EnvBevfusionOnboard LaneProcess End...";
+  HLOG_DEBUG << "EnvBevfusionOnboard LaneProcess End...";
   return 0;
 }
 

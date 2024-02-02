@@ -5,8 +5,10 @@
  *****************************************************************************/
 #include "modules/local_mapping/local_mapping.h"
 
+#include "Eigen/src/Core/Matrix.h"
 #include "modules/local_mapping/datalogger/load_data_singleton.h"
-
+#include "modules/local_mapping/utils/data_convert.h"
+#include "perception-base/base/utils/log.h"
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -59,48 +61,87 @@ void LMapApp::RvizFunc() {
     if (rviz_count >= 10 && ins_inited_) {
       rviz_count = 0;
       if (hdmap_) {
-        CommonUtil::PubHdMapPoints(T_G_V, T_W_V, hdmap_, sec, nsec,
-                                   "/localmap/hd_map_points");
+        RvizUtil::PubHdMapPoints(T_G_V, T_W_V, hdmap_, sec, nsec,
+                                 "/localmap/hd_map_points");
       }
-      CommonUtil::PubHqMapPoints(T_G_V, T_W_V, sec, nsec,
-                                 "/localmap/hq_map_points");
+      RvizUtil::PubHqMapPoints(T_G_V, T_W_V, sec, nsec,
+                               "/localmap/hq_map_points");
     }
-    CommonUtil::PubPerLaneLine(T_W_V, perception.lane_lines_, sec, nsec,
-                               "/localmap/per_lane_line");
-    CommonUtil::PubPerEdgeLine(T_W_V, perception.edge_lines_, sec, nsec,
-                               "/localmap/per_edge_line");
-    CommonUtil::PubPerStopLine(T_W_V, perception.stop_lines_, sec, nsec,
-                               "/localmap/per_stop_line");
-    CommonUtil::PubPerArrow(T_W_V, perception.arrows_, sec, nsec,
-                            "/localmap/per_arrow");
-    CommonUtil::PubPerZebraCrossing(T_W_V, perception.zebra_crossings_, sec,
-                                    nsec, "/localmap/per_zebra_crossing");
-    CommonUtil::PubMapLaneLine(T_W_V, local_map.lane_lines_, sec, nsec,
-                               "/localmap/map_lane_line");
-    CommonUtil::PubMapEdgeLine(T_W_V, local_map.edge_lines_, sec, nsec,
-                               "/localmap/map_edge_line");
-    CommonUtil::PubMapStopLine(T_W_V, local_map.stop_lines_, sec, nsec,
-                               "/localmap/map_stop_line");
-    CommonUtil::PubMapArrow(T_W_V, local_map.arrows_, sec, nsec,
-                            "/localmap/map_arrow");
-    CommonUtil::PubMapZebraCrossing(T_W_V, local_map.zebra_crossings_, sec,
-                                    nsec, "/localmap/map_zebra_crossing");
-    CommonUtil::PubMapLaneLineMarker(T_W_V, local_map.lane_lines_, sec, nsec,
-                                     "/localmap/map_lane_line/marker");
-    CommonUtil::PubMapEdgeLineMarker(T_W_V, local_map.edge_lines_, sec, nsec,
-                                     "/localmap/map_edge_line/marker");
-    CommonUtil::PubImmatureMapLaneLine(T_W_V, local_map.lane_lines_, sec, nsec,
-                                       "/localmap/immature_map_lane_line");
-    CommonUtil::PubImmatureMapLaneLineMarker(
+    RvizUtil::PubPerLaneLine(T_W_V, perception.lane_lines_, sec, nsec,
+                             "/localmap/per_lane_line");
+    RvizUtil::PubPerRoadEdge(T_W_V, perception.road_edges_, sec, nsec,
+                             "/localmap/per_road_edge");
+    RvizUtil::PubPerStopLine(T_W_V, perception.stop_lines_, sec, nsec,
+                             "/localmap/per_stop_line");
+    RvizUtil::PubPerArrow(T_W_V, perception.arrows_, sec, nsec,
+                          "/localmap/per_arrow");
+    RvizUtil::PubPerZebraCrossing(T_W_V, perception.zebra_crossings_, sec, nsec,
+                                  "/localmap/per_zebra_crossing");
+
+    RvizUtil::PubMapLaneLine(T_W_V, local_map.lane_lines_, sec, nsec,
+                             "/localmap/map_lane_line");
+    RvizUtil::PubMapLaneLineMarker(T_W_V, local_map.lane_lines_, sec, nsec,
+                                   "/localmap/map_lane_line/marker");
+    RvizUtil::PubMapRoadEdge(T_W_V, local_map.road_edges_, sec, nsec,
+                             "/localmap/map_road_edge");
+    RvizUtil::PubMapRoadEdgeMarker(T_W_V, local_map.road_edges_, sec, nsec,
+                                   "/localmap/map_road_edge/marker");
+    RvizUtil::PubMapStopLine(T_W_V, local_map.stop_lines_, sec, nsec,
+                             "/localmap/map_stop_line");
+    RvizUtil::PubMapArrow(T_W_V, local_map.arrows_, sec, nsec,
+                          "/localmap/map_arrow");
+    RvizUtil::PubMapZebraCrossing(T_W_V, local_map.zebra_crossings_, sec, nsec,
+                                  "/localmap/map_zebra_crossing");
+
+    RvizUtil::PubImmatureMapLaneLine(T_W_V, local_map.lane_lines_, sec, nsec,
+                                     "/localmap/immature_map_lane_line");
+    RvizUtil::PubImmatureMapLaneLineMarker(
         T_W_V, local_map.lane_lines_, sec, nsec,
         "/localmap/immature_map_lane_line/marker");
-    CommonUtil::PubMapLaneLineControl(T_W_V, local_map, sec, nsec,
-                                      "/localmap/map_lane_line/control");
-    CommonUtil::PubMapLane(T_W_V, local_map, sec, nsec, "/localmap/map_lane");
-    CommonUtil::PubOdom(T_W_V, sec, nsec, "/localmap/odom");
-    CommonUtil::PubTf(T_W_V, sec, nsec, "/localmap/tf");
-    CommonUtil::PubPath(T_W_V, sec, nsec, "/localmap/path");
+    RvizUtil::PubImmatureMapZebraCrossing(
+        T_W_V, local_map.zebra_crossings_, sec, nsec,
+        "/localmap/immature_map_zebra_crossing");
+    RvizUtil::PubImmatureMapZebraCrossingMarker(
+        T_W_V, local_map.zebra_crossings_, sec, nsec,
+        "/localmap/immature_map_zebra_crossing/marker");
+    RvizUtil::PubImmatureMapStopLine(
+        T_W_V, local_map.stop_lines_, sec, nsec,
+        "/localmap/immature_map_stop_lines");
+    RvizUtil::PubImmatureMapStopLineMarker(
+        T_W_V, local_map.stop_lines_, sec, nsec,
+        "/localmap/immature_map_stop_lines/marker");
+    RvizUtil::PubImmatureMapArrow(
+        T_W_V, local_map.arrows_, sec, nsec,
+        "/localmap/immature_map_arrow");
+    RvizUtil::PubImmatureMapArrowMarker(
+        T_W_V, local_map.arrows_, sec, nsec,
+        "/localmap/immature_map_arrow/marker");
+
+    RvizUtil::PubMapLaneLineControl(T_W_V, local_map, sec, nsec,
+                                    "/localmap/map_lane_line/control");
+    RvizUtil::PubOdom(T_W_V, sec, nsec, "/localmap/odom");
+    RvizUtil::PubTf(T_W_V, sec, nsec, "/localmap/tf");
+    RvizUtil::PubPath(T_W_V, sec, nsec, "/localmap/path");
     usleep(100 * 1e3);
+  }
+}
+
+void LMapApp::OnPerceptionObj(std::shared_ptr<Objects> perception_objs) {
+  auto& local_data = LocalDataSingleton::GetInstance();
+
+  if (perception_objs->objs_.empty()) {
+    return;
+  }
+
+  HLOG_DEBUG << "***receive perception object size***"
+             << perception_objs->objs_.size();
+  if (local_data.obj_buffer().is_empty() ||
+      local_data.obj_buffer().back()->timestamp_ <
+          perception_objs->timestamp_) {
+    local_data.obj_buffer().push_new_message(perception_objs->timestamp_,
+                                             perception_objs);
+  } else {
+    HLOG_ERROR << "perception object timestamp error";
   }
 }
 
@@ -172,17 +213,44 @@ void LMapApp::ProcLaneLine(
 
 void LMapApp::ProcRoadEdge(
     const std::shared_ptr<const Perception>& perception) {
-  std::vector<EdgeLineMatchInfo> edge_line_matches;
-  mmgr_->MatchEdgeLine(perception->edge_lines_, local_map_ptr_->edge_lines_,
-                       &edge_line_matches);
-  for (const auto& match : edge_line_matches) {
+  std::vector<RoadEdgeMatchInfo> road_edge_matches;
+  mmgr_->MatchRoadEdge(perception->road_edges_, local_map_ptr_->road_edges_,
+                       &road_edge_matches);
+  for (const auto& match : road_edge_matches) {
     if (match.update_type_ == ObjUpdateType::ADD_NEW) {
-      mmgr_->AddNewEdgeLine(local_map_ptr_.get(), match.per_edge_line_);
+      mmgr_->AddNewRoadEdge(local_map_ptr_.get(), match.per_road_edge_);
     } else if (match.update_type_ == ObjUpdateType::MERGE_OLD) {
-      mmgr_->MergeOldEdgeLine(local_map_ptr_.get(), match.per_edge_line_,
-                              match.map_edge_line_);
+      mmgr_->MergeOldRoadEdge(local_map_ptr_.get(), match.per_road_edge_,
+                              match.map_road_edge_);
     }
   }
+}
+
+void LMapApp::PreProcArrow(const std::shared_ptr<Perception>& perception) {
+  int input_size = perception->arrows_.size();
+  ConstObjDataPtr msg;
+  if (LocalDataSingleton::GetInstance().GetObjByTimeStamp(
+          perception->timestamp_, &msg)) {
+    HLOG_INFO << "***msg-objs***" << msg->objs_.size();
+    perception->arrows_.erase(
+        std::remove_if(
+            perception->arrows_.begin(), perception->arrows_.end(),
+            [&](const Arrow& arrow) {
+              Eigen::Vector3d center = arrow.mid_point_;
+              Eigen::Vector3d size = {arrow.width_, arrow.length_, 0.0};
+              return CommonUtil::IsOcclusionByObstacle(center, size,
+                                                       msg->objs_);
+            }),
+        perception->arrows_.end());
+  }
+
+  int out_size = perception->arrows_.size();
+
+  if (input_size - out_size) {
+    HLOG_INFO << "***delete input arrow size***" << input_size - out_size;
+  }
+
+  return;
 }
 
 void LMapApp::ProcArrow(const std::shared_ptr<const Perception>& perception) {
@@ -233,12 +301,9 @@ void LMapApp::ProcStopLine(
   }
 }
 
-void LMapApp::OnPerception(
-    const std::shared_ptr<const Perception>& perception) {
+void LMapApp::OnPerception(const std::shared_ptr<Perception>& perception) {
   util::TicToc global_tic;
   global_tic.Tic();
-  HLOG_INFO << "perception->timestamp: " << SET_PRECISION(20)
-            << perception->timestamp_;
   ConstDrDataPtr perception_pose =
       LocalDataSingleton::GetInstance().GetDrPoseByTimeStamp(
           perception->timestamp_);
@@ -249,18 +314,27 @@ void LMapApp::OnPerception(
   cur_twv_ = Sophus::SE3d(perception_pose->quaternion, perception_pose->pose);
   Sophus::SE3d T_C_L = cur_twv_.inverse() * last_twv_;
   mmgr_->UpdateLocalMap(local_map_ptr_.get(), T_C_L);
-  local_map_ptr_->timestamp = perception->timestamp_;
+  local_map_ptr_->timestamp_ = perception->timestamp_;
 
   ProcLaneLine(perception);
   ProcRoadEdge(perception);
   ProcStopLine(perception);
   ProcZebraCrossing(perception);
+
+  // PreProcArrow(perception);
   ProcArrow(perception);
 
-  mmgr_->UpdateLanepos(local_map_ptr_.get());
+  mmgr_->UpdateLaneLinepos(local_map_ptr_.get());
+  mmgr_->UpdateRoadEdgepos(local_map_ptr_.get());
+
   mmgr_->MergeLaneLine(local_map_ptr_.get());
+  mmgr_->MergeRoadEdge(local_map_ptr_.get());
+  mmgr_->MergeZebraCrossing(local_map_ptr_.get());
+  mmgr_->MergeArrow(local_map_ptr_.get());
+  mmgr_->MergeStopLine(local_map_ptr_.get());
+
   CommonUtil::FitLaneLines(&local_map_ptr_->lane_lines_);
-  CommonUtil::FitEdgeLines(&local_map_ptr_->edge_lines_);
+  CommonUtil::FitRoadEdges(&local_map_ptr_->road_edges_);
   mmgr_->CutLocalMap(local_map_ptr_.get(), 80, 80);
   localmap_mutex_.lock();
   local_map_output_ = *local_map_ptr_;
@@ -274,7 +348,6 @@ void LMapApp::OnPerception(
   if (!perception_inited_) {
     perception_inited_ = true;
   }
-
   last_twv_ = cur_twv_;
   HLOG_INFO << "on perception cost " << global_tic.Toc() << "ms";
 }
@@ -293,197 +366,23 @@ bool LMapApp::FetchLocalMap(
   localmap_mutex_.lock();
   auto local_map_msg = local_map_output_;
   localmap_mutex_.unlock();
-  static int seq = 0;
-  local_map->mutable_header()->set_seq(seq++);
-  static double init_timestamp = local_map_msg.timestamp;
-  local_map->set_init_timestamp(init_timestamp);
-  local_map->mutable_header()->set_gnss_stamp(local_map_msg.timestamp);
-  local_map->mutable_header()->set_publish_stamp(local_map_msg.timestamp);
-  local_map->mutable_header()->set_data_stamp(local_map_msg.timestamp);
-  for (const auto& lane_line_msg : local_map_msg.lane_lines_) {
-    if (!lane_line_msg.ismature_) {
-      continue;
-    }
-    hozon::mapping::LaneType lanetype =
-        hozon::mapping::LaneType::LaneType_UNKNOWN;
-    DataConvert::ConvertInnerLaneType(lane_line_msg.lanetype_, &lanetype);
-    hozon::mapping::LanePositionType lanepos =
-        hozon::mapping::LanePositionType::LanePositionType_OTHER;
-    DataConvert::ConvertInnerLanePos(lane_line_msg.lanepos_, &lanepos);
-    // hozon::mapping::Color color = hozon::mapping::Color::UNKNOWN;
-    // DataConvert::ConvertInnerColor(lane_line_msg.color_, &color);
-    auto* lane_line = local_map->add_lane_lines();
-    lane_line->set_track_id(lane_line_msg.track_id_);
-    lane_line->set_lanetype(lanetype);
-    lane_line->set_lanepos(lanepos);
-    // lane_line->set_color(color);
-    for (auto point_msg : lane_line_msg.fit_points_) {
-      auto* point = lane_line->add_points();
-      point->set_x(point_msg.x());
-      point->set_y(point_msg.y());
-      point->set_z(point_msg.z());
-    }
-  }
-  for (const auto& edge_line_msg : local_map_msg.edge_lines_) {
-    if (!edge_line_msg.ismature_) {
-      continue;
-    }
-    auto* edge_line = local_map->add_edge_lines();
-    edge_line->set_track_id(edge_line_msg.track_id_);
-    hozon::mapping::LanePositionType lanepos =
-        hozon::mapping::LanePositionType::LanePositionType_OTHER;
-    DataConvert::ConvertInnerLanePos(edge_line_msg.lanepos_, &lanepos);
-    edge_line->set_lanepos(lanepos);
-    for (auto point_msg : edge_line_msg.fit_points_) {
-      auto* point = edge_line->add_points();
-      point->set_x(point_msg.x());
-      point->set_y(point_msg.y());
-      point->set_z(point_msg.z());
-    }
-  }
-  for (const auto& lane_msg : local_map_msg.map_lanes_) {
-    hozon::mapping::LaneType left_lanetype =
-        hozon::mapping::LaneType::LaneType_UNKNOWN;
-    DataConvert::ConvertInnerLaneType(lane_msg.left_line_.lanetype_,
-                                      &left_lanetype);
-    hozon::mapping::LanePositionType left_lanepos =
-        hozon::mapping::LanePositionType::LanePositionType_OTHER;
-    DataConvert::ConvertInnerLanePos(lane_msg.left_line_.lanepos_,
-                                     &left_lanepos);
-    hozon::mapping::LaneType right_lanetype =
-        hozon::mapping::LaneType::LaneType_UNKNOWN;
-    DataConvert::ConvertInnerLaneType(lane_msg.right_line_.lanetype_,
-                                      &right_lanetype);
-    hozon::mapping::LanePositionType right_lanepos =
-        hozon::mapping::LanePositionType::LanePositionType_OTHER;
-    DataConvert::ConvertInnerLanePos(lane_msg.right_line_.lanepos_,
-                                     &right_lanepos);
-    auto* lane = local_map->add_lanes();
-    lane->set_lane_id(lane_msg.lane_id_);
-    lane->set_width(lane_msg.width_);
-    lane->mutable_left_line()->set_track_id(lane_msg.left_line_.track_id_);
-    lane->mutable_left_line()->set_lanetype(left_lanetype);
-    lane->mutable_left_line()->set_lanepos(left_lanepos);
-    for (auto point_msg : lane_msg.left_line_.points_) {
-      auto* point = lane->mutable_left_line()->add_points();
-      point->set_x(point_msg.x());
-      point->set_y(point_msg.y());
-      point->set_z(point_msg.z());
-    }
-    lane->mutable_right_line()->set_track_id(lane_msg.right_line_.track_id_);
-    lane->mutable_right_line()->set_lanetype(right_lanetype);
-    lane->mutable_right_line()->set_lanepos(right_lanepos);
-    for (auto point_msg : lane_msg.right_line_.points_) {
-      auto* point = lane->mutable_right_line()->add_points();
-      point->set_x(point_msg.x());
-      point->set_y(point_msg.y());
-      point->set_z(point_msg.z());
-    }
-    for (auto point_msg : lane_msg.center_line_.points_) {
-      auto* point = lane->mutable_center_line()->add_points();
-      point->set_x(point_msg.x());
-      point->set_y(point_msg.y());
-      point->set_z(point_msg.z());
-    }
-    lane->set_left_lane_id(lane_msg.left_lane_id_);
-    lane->set_right_lane_id(lane_msg.right_lane_id_);
-  }
-  for (const auto& stop_line_msg : local_map_msg.stop_lines_) {
-    if (!stop_line_msg.ismature_) {
-      continue;
-    }
-    auto* stop_line = local_map->add_stop_lines();
-    stop_line->set_track_id(stop_line_msg.track_id_);
-    Eigen::Vector3d left_point_ = {
-        stop_line_msg.mid_point_.x() +
-            stop_line_msg.length_ / 2.0 * cos(stop_line_msg.heading_),
-        stop_line_msg.mid_point_.y() +
-            stop_line_msg.length_ / 2.0 * sin(stop_line_msg.heading_),
-        0};
-    Eigen::Vector3d right_point_ = {
-        stop_line_msg.mid_point_.x() -
-            stop_line_msg.length_ / 2.0 * cos(stop_line_msg.heading_),
-        stop_line_msg.mid_point_.y() -
-            stop_line_msg.length_ / 2.0 * sin(stop_line_msg.heading_),
-        0};
-    stop_line->mutable_left_point()->set_x(left_point_.x());
-    stop_line->mutable_left_point()->set_y(left_point_.y());
-    stop_line->mutable_left_point()->set_z(0);
-    stop_line->mutable_right_point()->set_x(right_point_.x());
-    stop_line->mutable_right_point()->set_y(right_point_.y());
-    stop_line->mutable_right_point()->set_z(0);
-  }
-  for (const auto& arrow_msg : local_map_msg.arrows_) {
-    if (!arrow_msg.ismature_ || arrow_msg.length_ == 0 ||
-        arrow_msg.width_ == 0) {
-      continue;
-    }
-    auto* arrow = local_map->add_arrows();
-    arrow->set_track_id(arrow_msg.track_id_);
-    arrow->set_heading(arrow_msg.heading_);
-    Eigen::Vector3d l = {arrow_msg.length_ / 2 * cos(arrow_msg.heading_),
-                         arrow_msg.length_ / 2 * sin(arrow_msg.heading_), 0};
-    Eigen::Vector3d w = {-arrow_msg.width_ / 2 * sin(arrow_msg.heading_),
-                         arrow_msg.width_ / 2 * cos(arrow_msg.heading_), 0};
-    Eigen::Vector3d point_0 = arrow_msg.mid_point_ + l + w;
-    Eigen::Vector3d point_1 = arrow_msg.mid_point_ - l + w;
-    Eigen::Vector3d point_2 = arrow_msg.mid_point_ - l - w;
-    Eigen::Vector3d point_3 = arrow_msg.mid_point_ + l - w;
-    auto* point = arrow->mutable_points()->add_point();
-    point->set_x(point_0.x());
-    point->set_y(point_0.y());
-    point->set_z(point_0.z());
-    point = arrow->mutable_points()->add_point();
-    point->set_x(point_1.x());
-    point->set_y(point_1.y());
-    point->set_z(point_1.z());
-    point = arrow->mutable_points()->add_point();
-    point->set_x(point_2.x());
-    point->set_y(point_2.y());
-    point->set_z(point_2.z());
-    point = arrow->mutable_points()->add_point();
-    point->set_x(point_3.x());
-    point->set_y(point_3.y());
-    point->set_z(point_3.z());
-    // hozon::hdmap::ArrowData::Type arrowtype =
-    //     hozon::hdmap::ArrowData::Type::ArrowData_Type_UNKNOWN_TURN;
-    // DataConvert::ConvertInnerArrowType(arrow_msg.type_, &arrowtype);
-    // arrow->set_arrow_type(arrowtype);
-  }
-  for (const auto& zebra_crossing_msg : local_map_msg.zebra_crossings_) {
-    if (!zebra_crossing_msg.ismature_ || zebra_crossing_msg.length_ == 0 ||
-        zebra_crossing_msg.width_ == 0) {
-      continue;
-    }
-    auto* zebra_crossing = local_map->add_cross_walks();
-    zebra_crossing->set_track_id(zebra_crossing_msg.track_id_);
-    Eigen::Vector3d l = {
-        zebra_crossing_msg.length_ / 2 * cos(zebra_crossing_msg.heading_),
-        zebra_crossing_msg.length_ / 2 * sin(zebra_crossing_msg.heading_), 0};
-    Eigen::Vector3d w = {
-        -zebra_crossing_msg.width_ / 2 * sin(zebra_crossing_msg.heading_),
-        zebra_crossing_msg.width_ / 2 * cos(zebra_crossing_msg.heading_), 0};
-    Eigen::Vector3d point_0 = zebra_crossing_msg.mid_point_ + l + w;
-    Eigen::Vector3d point_1 = zebra_crossing_msg.mid_point_ - l + w;
-    Eigen::Vector3d point_2 = zebra_crossing_msg.mid_point_ - l - w;
-    Eigen::Vector3d point_3 = zebra_crossing_msg.mid_point_ + l - w;
-    auto* point = zebra_crossing->mutable_points()->add_point();
-    point->set_x(point_0.x());
-    point->set_y(point_0.y());
-    point->set_z(point_0.z());
-    point = zebra_crossing->mutable_points()->add_point();
-    point->set_x(point_1.x());
-    point->set_y(point_1.y());
-    point->set_z(point_1.z());
-    point = zebra_crossing->mutable_points()->add_point();
-    point->set_x(point_2.x());
-    point->set_y(point_2.y());
-    point->set_z(point_2.z());
-    point = zebra_crossing->mutable_points()->add_point();
-    point->set_x(point_3.x());
-    point->set_y(point_3.y());
-    point->set_z(point_3.z());
-  }
+
+  local_map->mutable_header()->set_seq(seq_++);
+  local_map->set_init_timestamp(local_map_msg.timestamp_);
+  local_map->mutable_header()->set_gnss_stamp(local_map_msg.timestamp_);
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now());
+  local_map->mutable_header()->set_publish_stamp(
+      static_cast<double>(tp.time_since_epoch().count()) * 1.0e-9);
+  local_map->mutable_header()->set_data_stamp(local_map_msg.timestamp_);
+
+  DataConvert::ConvertMultiLaneLinesToPb(local_map_msg.lane_lines_, local_map);
+  DataConvert::ConvertMultiRoadEdgesToPb(local_map_msg.road_edges_, local_map);
+  DataConvert::ConvertMultiStopLinesToPb(local_map_msg.stop_lines_, local_map);
+  DataConvert::ConvertMultiArrowsToPb(local_map_msg.arrows_, local_map);
+  DataConvert::ConvertMultiZebraCrossingsToPb(local_map_msg.zebra_crossings_,
+                                              local_map);
   return true;
 }
 

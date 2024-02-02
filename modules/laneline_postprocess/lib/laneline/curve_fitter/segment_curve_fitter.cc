@@ -81,11 +81,11 @@ bool SegmentCurveFitter::CurveFitting(
   }
   if (do_normalization_) {
     DoNormalization(&pos_vec_);
-    HLOG_INFO << "CurveFitting Norm Params:"
-              << "x_mean:" << point_statistic_.x_mean
-              << ",x_stdev:" << point_statistic_.x_stdev
-              << ",y_mean:" << point_statistic_.y_mean
-              << ",y_stdev:" << point_statistic_.y_stdev;
+    HLOG_DEBUG << "CurveFitting Norm Params:"
+               << "x_mean:" << point_statistic_.x_mean
+               << ",x_stdev:" << point_statistic_.x_stdev
+               << ",y_mean:" << point_statistic_.y_mean
+               << ",y_stdev:" << point_statistic_.y_stdev;
   }
   Candidate king_candidate;
   if (point_statistic_.x_min < curve_dist_param.fix_param_xmin) {
@@ -175,7 +175,7 @@ bool SegmentCurveFitter::CurveFitting(
     LaneLinePolynomialPtr polynomial,
     const perception_base::LaneLineCurve& target_curve) {
   order_ = polynomial->order;
-  HLOG_INFO << "polynomial->order:" << polynomial->order;
+  HLOG_DEBUG << "polynomial->order:" << polynomial->order;
   if (order_ > max_order_) {
     HLOG_ERROR << "order > max_order.";
     return false;
@@ -206,11 +206,11 @@ bool SegmentCurveFitter::CurveFitting(
 
   if (do_normalization_) {
     DoNormalization(&pos_vec_);
-    HLOG_INFO << "CurveFitting Norm Params:"
-              << "x_mean:" << point_statistic_.x_mean
-              << ",x_stdev:" << point_statistic_.x_stdev
-              << ",y_mean:" << point_statistic_.y_mean
-              << ",y_stdev:" << point_statistic_.y_stdev;
+    HLOG_DEBUG << "CurveFitting Norm Params:"
+               << "x_mean:" << point_statistic_.x_mean
+               << ",x_stdev:" << point_statistic_.x_stdev
+               << ",y_mean:" << point_statistic_.y_mean
+               << ",y_stdev:" << point_statistic_.y_stdev;
   }
   Candidate king_candidate;
   if (point_statistic_.x_min < curve_dist_param.fix_param_xmin) {
@@ -283,7 +283,7 @@ bool SegmentCurveFitter::CurveFitting(
     const std::vector<perception_base::Point3DF>& point_set,
     LaneLinePolynomialPtr polynomial,
     const perception_base::LaneLineCurve& target_curve) {
-  HLOG_INFO << "start do CurveFitting";
+  HLOG_DEBUG << "start do CurveFitting";
   int count = static_cast<int>(point_set.size());
   point_set_2d_.clear();
   point_set_2d_.resize(count);
@@ -302,7 +302,7 @@ bool SegmentCurveFitter::CurveFitting(
 bool SegmentCurveFitter::CurveFitting(
     const std::vector<perception_base::Point3DF>& point_set,
     LaneLinePolynomialPtr polynomial) {
-  HLOG_INFO << "start do CurveFitting";
+  HLOG_DEBUG << "start do CurveFitting";
   int count = static_cast<int>(point_set.size());
   point_set_2d_.clear();
   point_set_2d_.resize(count);
@@ -314,7 +314,7 @@ bool SegmentCurveFitter::CurveFitting(
     return false;
   }
 
-  HLOG_INFO << "finish do CurveFitting";
+  HLOG_DEBUG << "finish do CurveFitting";
   return true;
 }
 
@@ -340,9 +340,9 @@ bool SegmentCurveFitter::FixParamCurveFitting(
   if (candidate.inliers_ratio > curve_dist_param.linear_select_ratio) {
     fix_flag = true;
     fix_params_ = candidate.polynomial_candidate->params;
-    HLOG_INFO << "laneline fix params";
+    HLOG_DEBUG << "laneline fix params";
     for (const auto& param : fix_params_) {
-      HLOG_INFO << "param:" << param;
+      HLOG_DEBUG << "param:" << param;
     }
   }
   if (!MultiOrderCurveFitting(king_candidate, fix_flag)) {
@@ -372,9 +372,9 @@ bool SegmentCurveFitter::FixParamCurveFitting(Candidate* king_candidate) {
   if (candidate.inliers_ratio > curve_dist_param.linear_select_ratio) {
     fix_flag = true;
     fix_params_ = candidate.polynomial_candidate->params;
-    HLOG_INFO << "laneline fix params";
+    HLOG_DEBUG << "laneline fix params";
     for (const auto& param : fix_params_) {
-      HLOG_INFO << "param:" << param;
+      HLOG_DEBUG << "param:" << param;
     }
   }
   if (!MultiOrderCurveFitting(king_candidate, fix_flag)) {
@@ -393,8 +393,8 @@ bool SegmentCurveFitter::MultiOrderCurveFitting(
   } else if (point_statistic_.x_len < curve_dist_param.quadratic_len) {
     order = 2;
   }
-  HLOG_INFO << "laneline length:" << point_statistic_.x_len
-            << "  order:" << order;
+  HLOG_DEBUG << "laneline length:" << point_statistic_.x_len
+             << "  order:" << order;
   int count = static_cast<int>(pos_vec_.size());
   pos_vec_random_index_.clear();
   pos_vec_random_index_.resize(count);
@@ -453,8 +453,8 @@ bool SegmentCurveFitter::MultiOrderCurveFitting(
                << " candidate.inliers_ratio :" << candidate.inliers_ratio;
     if (candidate.inliers_ratio > king_candidate->inliers_ratio) {
       *king_candidate = candidate;
-      HLOG_INFO << "king_candidate iter:" << iter
-                << " inliers_ratio:" << candidate.inliers_ratio;
+      HLOG_DEBUG << "king_candidate iter:" << iter
+                 << " inliers_ratio:" << candidate.inliers_ratio;
     }
   }
   HLOG_DEBUG << "LaneTrack: MultiOrderCurveFitting: end";
@@ -469,8 +469,8 @@ bool SegmentCurveFitter::MultiOrderCurveFitting(Candidate* king_candidate,
   } else if (point_statistic_.x_len < curve_dist_param.quadratic_len) {
     order = 2;
   }
-  HLOG_INFO << "laneline length:" << point_statistic_.x_len
-            << "  order:" << order;
+  HLOG_DEBUG << "laneline length:" << point_statistic_.x_len
+             << "  order:" << order;
   int count = static_cast<int>(pos_vec_.size());
   pos_vec_random_index_.clear();
   pos_vec_random_index_.resize(count);
@@ -511,8 +511,8 @@ bool SegmentCurveFitter::MultiOrderCurveFitting(Candidate* king_candidate,
 
     if (candidate.inliers_ratio > king_candidate->inliers_ratio) {
       *king_candidate = candidate;
-      HLOG_INFO << "king_candidate iter:" << iter
-                << " inliers_ratio:" << candidate.inliers_ratio;
+      HLOG_DEBUG << "king_candidate iter:" << iter
+                 << " inliers_ratio:" << candidate.inliers_ratio;
     }
   }
   return true;

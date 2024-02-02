@@ -9,7 +9,7 @@ namespace hozon {
 namespace mp {
 namespace environment {
 
-float LaneLinePolynomial::eval(const float &x) const {
+float LaneLinePolynomial::eval(const float& x) const {
   float s = params[0];
   float t = x;
   for (int i = 1; i < static_cast<int>(params.size()); i++) {

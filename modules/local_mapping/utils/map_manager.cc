@@ -11,6 +11,7 @@ namespace lm {
 
 void MapManager::CutLocalMap(LocalMap* local_map, const double& length_x,
                              const double& length_y) {
+  // 地图车道线裁剪
   for (auto& lane_line : local_map->lane_lines_) {
     lane_line.points_.erase(
         std::remove_if(lane_line.points_.begin(), lane_line.points_.end(),
@@ -37,42 +38,48 @@ void MapManager::CutLocalMap(LocalMap* local_map, const double& length_x,
             }),
         lane_line.control_points_.end());
   }
+
+  // 地图空车道线删除
   local_map->lane_lines_.erase(
       std::remove_if(
           local_map->lane_lines_.begin(), local_map->lane_lines_.end(),
           [&](const LaneLine& lane_line) { return lane_line.points_.empty(); }),
       local_map->lane_lines_.end());
-  for (auto& edge_line : local_map->edge_lines_) {
-    edge_line.points_.erase(
-        std::remove_if(edge_line.points_.begin(), edge_line.points_.end(),
+
+  // 地图路沿裁剪
+  for (auto& road_edge : local_map->road_edges_) {
+    road_edge.points_.erase(
+        std::remove_if(road_edge.points_.begin(), road_edge.points_.end(),
                        [&](const Eigen::Vector3d& point) {
                          return (point.x() < -length_x ||
                                  point.x() > length_x ||
                                  point.y() < -length_y || point.y() > length_y);
                        }),
-        edge_line.points_.end());
-    edge_line.fit_points_.erase(
+        road_edge.points_.end());
+    road_edge.fit_points_.erase(
         std::remove_if(
-            edge_line.fit_points_.begin(), edge_line.fit_points_.end(),
+            road_edge.fit_points_.begin(), road_edge.fit_points_.end(),
             [&](const Eigen::Vector3d& point) {
               return (point.x() < -length_x || point.x() > length_x ||
                       point.y() < -length_y || point.y() > length_y);
             }),
-        edge_line.fit_points_.end());
-    edge_line.control_points_.erase(
+        road_edge.fit_points_.end());
+    road_edge.control_points_.erase(
         std::remove_if(
-            edge_line.control_points_.begin(), edge_line.control_points_.end(),
+            road_edge.control_points_.begin(), road_edge.control_points_.end(),
             [&](const Eigen::Vector3d& point) {
               return (point.x() < -length_x || point.x() > length_x ||
                       point.y() < -length_y || point.y() > length_y);
             }),
-        edge_line.control_points_.end());
+        road_edge.control_points_.end());
   }
-  local_map->edge_lines_.erase(
+
+  // 地图空路沿删除
+  local_map->road_edges_.erase(
       std::remove_if(
-          local_map->edge_lines_.begin(), local_map->edge_lines_.end(),
-          [&](const LaneLine& edge_line) { return edge_line.points_.empty(); }),
-      local_map->edge_lines_.end());
+          local_map->road_edges_.begin(), local_map->road_edges_.end(),
+          [&](const RoadEdge& road_edge) { return road_edge.points_.empty(); }),
+      local_map->road_edges_.end());
   local_map->history_per_stop_lines_.erase(
       std::remove_if(
           local_map->history_per_stop_lines_.begin(),
@@ -128,21 +135,32 @@ void MapManager::UpdateLocalMap(LocalMap* local_map,
     for (auto& point : lane_line.points_) {
       point = T_C_L * point;
     }
+    if (lane_line.points_.front().x() > lane_line.points_.back().x()) {
+      std::reverse(lane_line.points_.begin(), lane_line.points_.end());
+    }
     for (auto& point : lane_line.fit_points_) {
       point = T_C_L * point;
+    }
+    if (lane_line.fit_points_.front().x() > lane_line.fit_points_.back().x()) {
+      std::reverse(lane_line.fit_points_.begin(), lane_line.fit_points_.end());
     }
     for (auto& point : lane_line.control_points_) {
       point = T_C_L * point;
     }
+    if (lane_line.control_points_.front().x() >
+        lane_line.control_points_.back().x()) {
+      std::reverse(lane_line.control_points_.begin(),
+                   lane_line.control_points_.end());
+    }
   }
-  for (auto& edge_line : local_map->edge_lines_) {
-    for (auto& point : edge_line.points_) {
+  for (auto& road_edge : local_map->road_edges_) {
+    for (auto& point : road_edge.points_) {
       point = T_C_L * point;
     }
-    for (auto& point : edge_line.fit_points_) {
+    for (auto& point : road_edge.fit_points_) {
       point = T_C_L * point;
     }
-    for (auto& point : edge_line.control_points_) {
+    for (auto& point : road_edge.control_points_) {
       point = T_C_L * point;
     }
   }
@@ -153,9 +171,7 @@ void MapManager::UpdateLocalMap(LocalMap* local_map,
         sin(stop_line.heading_), cos(stop_line.heading_), 0, 0, 0, 1;
     Eigen::Matrix3d R_C_S = R_C_L * R_L_S;
     stop_line.heading_ = atan2(R_C_S(1, 0), R_C_S(0, 0));
-    HLOG_INFO << "before stop_line.mid_point_.x() " << stop_line.mid_point_.x();
     stop_line.mid_point_ = T_C_L * stop_line.mid_point_;
-    HLOG_INFO << "after stop_line.mid_point_.x() " << stop_line.mid_point_.x();
   }
   for (auto& arrow : local_map->arrows_) {
     Eigen::Matrix3d R_C_L = T_C_L.so3().matrix();
@@ -202,20 +218,20 @@ void MapManager::AddNewLaneLine(LocalMap* local_map,
   local_map->lane_lines_.emplace_back(lane_line);
 }
 
-void MapManager::AddNewEdgeLine(LocalMap* local_map,
-                                const LaneLine& per_edge_line) {
+void MapManager::AddNewRoadEdge(LocalMap* local_map,
+                                const RoadEdge& per_road_edge) {
   static int global_track_id = 0;
   if (global_track_id >= INT_MAX) {
     global_track_id = 0;
   }
-  LaneLine edge_line;
-  edge_line.track_id_ = global_track_id++;
-  edge_line.lanepos_ = per_edge_line.lanepos_;
-  edge_line.edgetype_ = per_edge_line.edgetype_;
-  edge_line.points_ = per_edge_line.points_;
-  edge_line.tracked_count_ = 0;
-  edge_line.ismature_ = false;
-  local_map->edge_lines_.emplace_back(edge_line);
+  RoadEdge road_edge;
+  road_edge.track_id_ = global_track_id++;
+  road_edge.lanepos_ = per_road_edge.lanepos_;
+  road_edge.edgetype_ = per_road_edge.edgetype_;
+  road_edge.points_ = per_road_edge.points_;
+  road_edge.tracked_count_ = 0;
+  road_edge.ismature_ = false;
+  local_map->road_edges_.emplace_back(road_edge);
 }
 
 void MapManager::AddNewStopLine(LocalMap* local_map,
@@ -298,7 +314,6 @@ void MapManager::MergeOldLaneLine(LocalMap* local_map,
     new_pts.emplace_back(x, y, 0);
     x += 1;
   }
-  // HLOG_ERROR << "map_lane.track_id_: " << map_lane.track_id_;
   for (auto& lane_line : local_map->lane_lines_) {
     if (lane_line.track_id_ == map_lane_line.track_id_) {
       lane_line.points_ = new_pts;
@@ -307,8 +322,14 @@ void MapManager::MergeOldLaneLine(LocalMap* local_map,
       lane_line.color_ = per_lane_line.color_;
       if (!lane_line.ismature_) {
         lane_line.tracked_count_++;
-        if (lane_line.tracked_count_ >= 10) {
-          lane_line.ismature_ = true;
+        if (lane_line.lanepos_ == -1 || lane_line.lanepos_ == 1) {
+          if (lane_line.tracked_count_ >= 5) {
+            lane_line.ismature_ = true;
+          }
+        } else {
+          if (lane_line.tracked_count_ >= 10) {
+            lane_line.ismature_ = true;
+          }
         }
       }
       return;
@@ -316,15 +337,15 @@ void MapManager::MergeOldLaneLine(LocalMap* local_map,
   }
 }
 
-void MapManager::MergeOldEdgeLine(LocalMap* local_map,
-                                  const LaneLine& per_edge_line,
-                                  const LaneLine& map_edge_line) {
-  if (map_edge_line.points_.empty()) {
+void MapManager::MergeOldRoadEdge(LocalMap* local_map,
+                                  const RoadEdge& per_road_edge,
+                                  const RoadEdge& map_road_edge) {
+  if (map_road_edge.points_.empty()) {
     return;
   }
   std::vector<Eigen::Vector3d> new_pts;
-  for (auto point : map_edge_line.points_) {
-    if (point.x() < per_edge_line.start_point_x_) {
+  for (auto point : map_road_edge.points_) {
+    if (point.x() < per_road_edge.start_point_x_) {
       new_pts.emplace_back(point);
     }
   }
@@ -332,24 +353,23 @@ void MapManager::MergeOldEdgeLine(LocalMap* local_map,
   if (!new_pts.empty()) {
     tmp_x = new_pts[new_pts.size() - 1].x() + 1;
   } else {
-    tmp_x = per_edge_line.start_point_x_;
+    tmp_x = per_road_edge.start_point_x_;
   }
   double x = tmp_x;
-  while (x <= per_edge_line.end_point_x_) {
-    double y = CommonUtil::CalCubicCurveY(per_edge_line, x);
+  while (x <= per_road_edge.end_point_x_) {
+    double y = CommonUtil::CalCubicCurveY(per_road_edge, x);
     new_pts.emplace_back(x, y, 0);
     x += 1;
   }
-  // HLOG_ERROR << "map_lane.track_id_: " << map_lane.track_id_;
-  for (auto& edge_line : local_map->edge_lines_) {
-    if (edge_line.track_id_ == map_edge_line.track_id_) {
-      edge_line.points_ = new_pts;
-      edge_line.lanepos_ = per_edge_line.lanepos_;
-      edge_line.edgetype_ = per_edge_line.edgetype_;
-      if (!edge_line.ismature_) {
-        edge_line.tracked_count_++;
-        if (edge_line.tracked_count_ >= 10) {
-          edge_line.ismature_ = true;
+  for (auto& road_edge : local_map->road_edges_) {
+    if (road_edge.track_id_ == map_road_edge.track_id_) {
+      road_edge.points_ = new_pts;
+      road_edge.lanepos_ = per_road_edge.lanepos_;
+      road_edge.edgetype_ = per_road_edge.edgetype_;
+      if (!road_edge.ismature_) {
+        road_edge.tracked_count_++;
+        if (road_edge.tracked_count_ >= 10) {
+          road_edge.ismature_ = true;
         }
       }
       return;
@@ -364,7 +384,7 @@ void MapManager::MergeOldStopLine(LocalMap* local_map,
     if (stop_line.track_id_ == map_stop_line.track_id_) {
       if (!stop_line.ismature_) {
         stop_line.tracked_count_++;
-        if (stop_line.tracked_count_ >= 10) {
+        if (stop_line.tracked_count_ >= 5) {
           stop_line.ismature_ = true;
         }
       }
@@ -465,7 +485,7 @@ void MapManager::MergeOldArrow(LocalMap* local_map, const Arrow& per_arrow,
     if (arrow.track_id_ == map_arrow.track_id_) {
       if (!arrow.ismature_) {
         arrow.tracked_count_++;
-        if (arrow.tracked_count_ >= 10) {
+        if (arrow.tracked_count_ >= 5) {
           arrow.ismature_ = true;
         }
       }
@@ -526,7 +546,7 @@ void MapManager::MergeOldZebraCrossing(
     if (zebra_crossing.track_id_ == map_zebra_crossing.track_id_) {
       if (!zebra_crossing.ismature_) {
         zebra_crossing.tracked_count_++;
-        if (zebra_crossing.tracked_count_ >= 10) {
+        if (zebra_crossing.tracked_count_ >= 5) {
           zebra_crossing.ismature_ = true;
         }
       }
@@ -590,8 +610,6 @@ void MapManager::MergeOldZebraCrossing(
       }
       LaneLine left_lane_line;
       LaneLine right_lane_line;
-      HLOG_INFO << "before_dis " << before_dis;
-      HLOG_INFO << "after_dis " << after_dis;
       if (before_dis < 10 && after_dis > 10) {
         left_lane_line = before_left_lane_line;
         right_lane_line = before_right_lane_line;
@@ -601,8 +619,6 @@ void MapManager::MergeOldZebraCrossing(
       }
       int left_size = static_cast<int>(left_lane_line.fit_points_.size());
       int right_size = static_cast<int>(right_lane_line.fit_points_.size());
-      HLOG_INFO << "left_size " << left_size;
-      HLOG_INFO << "right_size " << right_size;
       if (left_size < 2 || right_size < 2) {
         zebra_crossing.heading_ = 0.5 * per_zebra_crossing.heading_ +
                                   0.5 * map_zebra_crossing.heading_;
@@ -629,7 +645,7 @@ void MapManager::MergeOldZebraCrossing(
   }
 }
 
-void MapManager::UpdateLanepos(LocalMap* local_map) {
+void MapManager::UpdateLaneLinepos(LocalMap* local_map) {
   std::map<double, LaneLine> before_left_lane_lines;
   std::map<double, LaneLine, std::greater<>> before_right_lane_lines;
   std::map<double, LaneLine> after_left_lane_lines;
@@ -670,11 +686,6 @@ void MapManager::UpdateLanepos(LocalMap* local_map) {
     lane_line.is_after_stop_line_ =
         has_nearby_stop_line &&
         lane_line.points_.front().x() > nearby_stop_line.mid_point_.x();
-    HLOG_INFO << "has_nearby_stop_line " << has_nearby_stop_line;
-    HLOG_INFO << " lane_line.track_id " << lane_line.track_id_ << " "
-              << lane_line.is_after_stop_line_;
-    HLOG_INFO << lane_line.points_.front().x() << " "
-              << nearby_stop_line.mid_point_.x();
     if (lane_line.is_after_stop_line_) {
       if (lane_line.c0_for_lanepos_ > 0) {
         after_left_lane_lines[lane_line.c0_for_lanepos_] = lane_line;
@@ -688,8 +699,6 @@ void MapManager::UpdateLanepos(LocalMap* local_map) {
         before_right_lane_lines[lane_line.c0_for_lanepos_] = lane_line;
       }
     }
-    HLOG_INFO << "lane_line.lanepos " << lane_line.lanepos_
-              << "lane_line.c0_for_lanepos_ " << lane_line.c0_for_lanepos_;
   }
   local_map->lane_lines_.clear();
   local_map->lane_lines_ = unknown_lanepos_lane_lines;
@@ -760,81 +769,83 @@ void MapManager::UpdateLanepos(LocalMap* local_map) {
       pre_it = it;
     }
   }
-  std::map<double, LaneLine> left_edge_lines;
-  std::map<double, LaneLine, std::greater<>> right_edge_lines;
-  std::vector<LaneLine> unknown_lanepos_edge_lines;
-  for (auto& edge_line : local_map->edge_lines_) {
-    if (edge_line.points_.empty()) {
+}
+
+void MapManager::UpdateRoadEdgepos(LocalMap* local_map) {
+  std::map<double, RoadEdge> left_road_edges;
+  std::map<double, RoadEdge, std::greater<>> right_road_edges;
+  std::vector<RoadEdge> unknown_lanepos_road_edges;
+  for (auto& road_edge : local_map->road_edges_) {
+    if (road_edge.points_.empty()) {
       continue;
     }
-    if (edge_line.points_.back().x() - edge_line.points_.front().x() < 10 ||
-        edge_line.points_.back().x() < -60 ||
-        edge_line.points_.front().x() > 60 || !edge_line.ismature_) {
-      edge_line.lanepos_ = LanePositionType::OTHER;
-      unknown_lanepos_edge_lines.emplace_back(edge_line);
+    if (road_edge.points_.back().x() - road_edge.points_.front().x() < 10 ||
+        road_edge.points_.back().x() < -60 ||
+        road_edge.points_.front().x() > 60 || !road_edge.ismature_) {
+      road_edge.lanepos_ = LanePositionType::OTHER;
+      unknown_lanepos_road_edges.emplace_back(road_edge);
       continue;
     }
-    if (edge_line.points_.back().x() < 0) {
-      edge_line.c0_ = edge_line.points_.back().y();
-    } else if (edge_line.points_.front().x() > 0) {
-      edge_line.c0_ = edge_line.points_.front().y();
+    if (road_edge.points_.back().x() < 0) {
+      road_edge.c0_ = road_edge.points_.back().y();
+    } else if (road_edge.points_.front().x() > 0) {
+      road_edge.c0_ = road_edge.points_.front().y();
     } else {
       std::vector<Eigen::Vector3d> points;
-      for (const auto& point : edge_line.points_) {
+      for (const auto& point : road_edge.points_) {
         if (point.x() > -10 && point.x() < 10) {
           points.emplace_back(point);
         }
       }
       if (points.size() < 4) {
-        edge_line.lanepos_ = LanePositionType::OTHER;
-        unknown_lanepos_lane_lines.emplace_back(edge_line);
+        road_edge.lanepos_ = LanePositionType::OTHER;
+        unknown_lanepos_road_edges.emplace_back(road_edge);
         continue;
       }
       std::vector<double> c(4);
       CommonUtil::FitLaneLine(points, &c);
-      edge_line.c0_ = c[0];
-      edge_line.c1_ = c[1];
-      edge_line.c2_ = c[2];
-      edge_line.c3_ = c[3];
+      road_edge.c0_ = c[0];
+      road_edge.c1_ = c[1];
+      road_edge.c2_ = c[2];
+      road_edge.c3_ = c[3];
     }
-    if (edge_line.c0_ > 0) {
-      left_edge_lines[edge_line.c0_] = edge_line;
-    } else if (edge_line.c0_ < 0) {
-      right_edge_lines[edge_line.c0_] = edge_line;
+    if (road_edge.c0_ > 0) {
+      left_road_edges[road_edge.c0_] = road_edge;
+    } else if (road_edge.c0_ < 0) {
+      right_road_edges[road_edge.c0_] = road_edge;
     }
-    HLOG_INFO << "edge_line.lanepos " << edge_line.lanepos_ << "edge_line.c0 "
-              << edge_line.c0_;
   }
-  local_map->edge_lines_.clear();
-  local_map->edge_lines_ = unknown_lanepos_edge_lines;
-  pre_it = left_edge_lines.begin();
-  if (pre_it != left_edge_lines.end()) {
+  local_map->road_edges_.clear();
+  local_map->road_edges_ = unknown_lanepos_road_edges;
+
+  auto pre_it = left_road_edges.begin();
+  if (pre_it != left_road_edges.end()) {
     pre_it->second.lanepos_ = static_cast<LanePositionType>(-1);
-    local_map->edge_lines_.emplace_back(pre_it->second);
+    local_map->road_edges_.emplace_back(pre_it->second);
     int left_index = -2;
-    for (auto it = std::next(pre_it); it != left_edge_lines.end(); it++) {
+    for (auto it = std::next(pre_it); it != left_road_edges.end(); it++) {
       if (it->first - pre_it->first > 3) {
         it->second.lanepos_ = static_cast<LanePositionType>(left_index--);
-        local_map->edge_lines_.emplace_back(it->second);
+        local_map->road_edges_.emplace_back(it->second);
       } else {
         it->second.lanepos_ = pre_it->second.lanepos_;
-        local_map->edge_lines_.emplace_back(it->second);
+        local_map->road_edges_.emplace_back(it->second);
       }
       pre_it = it;
     }
   }
-  pre_it = right_edge_lines.begin();
-  if (pre_it != right_edge_lines.end()) {
+  pre_it = right_road_edges.begin();
+  if (pre_it != right_road_edges.end()) {
     pre_it->second.lanepos_ = static_cast<LanePositionType>(1);
-    local_map->edge_lines_.emplace_back(pre_it->second);
+    local_map->road_edges_.emplace_back(pre_it->second);
     int right_index = 2;
-    for (auto it = std::next(pre_it); it != right_edge_lines.end(); it++) {
+    for (auto it = std::next(pre_it); it != right_road_edges.end(); it++) {
       if (pre_it->first - it->first > 3) {
         it->second.lanepos_ = static_cast<LanePositionType>(right_index++);
-        local_map->edge_lines_.emplace_back(it->second);
+        local_map->road_edges_.emplace_back(it->second);
       } else {
         it->second.lanepos_ = pre_it->second.lanepos_;
-        local_map->edge_lines_.emplace_back(it->second);
+        local_map->road_edges_.emplace_back(it->second);
       }
       pre_it = it;
     }
@@ -878,6 +889,220 @@ void MapManager::MergeLaneLine(LocalMap* local_map) {
     // |
     //
     //  |
+    // bool condition2 = cur_front > next_back;
+    //  |
+    // ||
+    // |
+    bool condition3 =
+        cur_front < next_front && cur_back > next_front && cur_back < next_back;
+    //  |
+    //
+    // |
+    // bool condition4 = cur_back < next_front;
+    //  |
+    // ||
+    //  |
+    bool condition5 = cur_front > next_front && cur_back < next_back;
+    // |
+    // ||
+    // |
+    bool condition6 = cur_front < next_front && cur_back > next_front;
+    if (condition1) {
+      double sum = 0.0;
+      int n = 0;
+      for (const auto& cur_point : cur_lane_line.points_) {
+        if (cur_point.x() > next_back) {
+          break;
+        }
+        double next_y =
+            CommonUtil::CalCubicCurveY(next_lane_line, cur_point.x());
+        sum += fabs(cur_point.y() - next_y);
+        n++;
+      }
+      double ave_dis = sum / n;
+      if (ave_dis < 0.5 && n >= 3) {
+        local_map->lane_lines_[i].need_delete_ = true;
+        std::vector<Eigen::Vector3d> points;
+        for (const auto& next_point : next_lane_line.points_) {
+          if (next_point.x() < cur_front) {
+            points.emplace_back(next_point);
+          }
+        }
+        for (const auto& cur_point : cur_lane_line.points_) {
+          points.emplace_back(cur_point);
+        }
+        local_map->lane_lines_[i + 1].points_ = points;
+      }
+    } else if (condition3) {
+      // else if (condition2) {
+      //   bool need_skip = false;
+      //   for (auto& stop_line : local_map->stop_lines_) {
+      //     if (fabs(cur_front - stop_line.mid_point_.x()) < 5.0 ||
+      //         fabs(next_back - stop_line.mid_point_.x()) < 5.0) {
+      //       need_skip = true;
+      //       break;
+      //     }
+      //   }
+      //   if (need_skip) {
+      //     continue;
+      //   }
+      //   double ave_dis = fabs(cur_lane_line.points_.front().y() -
+      //                         next_lane_line.points_.back().y());
+      //   if (ave_dis < 1) {
+      //     local_map->lane_lines_[i].need_delete_ = true;
+      //     double x0 = next_lane_line.points_.back().x();
+      //     double y0 = next_lane_line.points_.back().y();
+      //     double x1 = cur_lane_line.points_.front().x();
+      //     double y1 = cur_lane_line.points_.front().y();
+      //     if (x1 - x0 == 0) {
+      //       continue;
+      //     }
+      //     double k = (y1 - y0) / (x1 - x0);
+      //     double x = x0;
+      //     while (x < x1 - 1) {
+      //       x = x + 1.0;
+      //       double y = k * (x - x0) + y0;
+      //       local_map->lane_lines_[i + 1].points_.emplace_back(x, y, 0);
+      //     }
+      //     for (const auto& cur_point : cur_lane_line.points_) {
+      //       local_map->lane_lines_[i + 1].points_.emplace_back(cur_point);
+      //     }
+      //   }
+      // }
+      double sum = 0.0;
+      int n = 0;
+      for (const auto& next_point : next_lane_line.points_) {
+        if (next_point.x() > cur_back) {
+          break;
+        }
+        double cur_y =
+            CommonUtil::CalCubicCurveY(cur_lane_line, next_point.x());
+        sum += fabs(cur_y - next_point.y());
+        n++;
+      }
+      double ave_dis = sum / n;
+      if (ave_dis < 0.5 && n >= 3) {
+        local_map->lane_lines_[i].need_delete_ = true;
+        std::vector<Eigen::Vector3d> points;
+        for (const auto& cur_point : cur_lane_line.points_) {
+          if (cur_point.x() < next_front) {
+            points.emplace_back(cur_point);
+          }
+        }
+        for (const auto& next_point : next_lane_line.points_) {
+          points.emplace_back(next_point);
+        }
+        local_map->lane_lines_[i + 1].points_ = points;
+      }
+    } else if (condition5) {
+      // else if (condition4) {
+      //   bool need_skip = false;
+      //   for (auto& stop_line : local_map->stop_lines_) {
+      //     if (fabs(cur_back - stop_line.mid_point_.x()) < 5.0 ||
+      //         fabs(next_front - stop_line.mid_point_.x()) < 5.0) {
+      //       need_skip = true;
+      //       break;
+      //     }
+      //   }
+      //   if (need_skip) {
+      //     continue;
+      //   }
+      //   double ave_dis = fabs(cur_lane_line.points_.back().y() -
+      //                         next_lane_line.points_.front().y());
+      //   if (ave_dis < 1) {
+      //     local_map->lane_lines_[i].need_delete_ = true;
+      //     double x0 = cur_lane_line.points_.back().x();
+      //     double y0 = cur_lane_line.points_.back().y();
+      //     double x1 = next_lane_line.points_.front().x();
+      //     double y1 = next_lane_line.points_.front().y();
+      //     if (x1 - x0 == 0) {
+      //       continue;
+      //     }
+      //     double k = (y1 - y0) / (x1 - x0);
+      //     double x = x0;
+      //     while (x < x1 - 1) {
+      //       x = x + 1.0;
+      //       double y = k * (x - x0) + y0;
+      //       cur_lane_line.points_.emplace_back(x, y, 0);
+      //     }
+      //     for (const auto& next_point : next_lane_line.points_) {
+      //       cur_lane_line.points_.emplace_back(next_point);
+      //     }
+      //     local_map->lane_lines_[i + 1].points_ = cur_lane_line.points_;
+      //   }
+      // }
+      double sum = 0.0;
+      int n = 0;
+      for (const auto& cur_point : cur_lane_line.points_) {
+        double next_y =
+            CommonUtil::CalCubicCurveY(next_lane_line, cur_point.x());
+        sum += fabs(cur_point.y() - next_y);
+        n++;
+      }
+      double ave_dis = sum / n;
+      if (ave_dis < 0.5 && n >= 3) {
+        local_map->lane_lines_[i].need_delete_ = true;
+      }
+    } else if (condition6) {
+      double sum = 0.0;
+      int n = 0;
+      for (const auto& next_point : next_lane_line.points_) {
+        double cur_y =
+            CommonUtil::CalCubicCurveY(cur_lane_line, next_point.x());
+        sum += fabs(cur_y - next_point.y());
+        n++;
+      }
+      double ave_dis = sum / n;
+      if (ave_dis < 0.5 && n >= 3) {
+        local_map->lane_lines_[i].need_delete_ = true;
+        local_map->lane_lines_[i + 1].points_ = cur_lane_line.points_;
+      }
+    }
+  }
+  local_map->lane_lines_.erase(
+      std::remove_if(
+          local_map->lane_lines_.begin(), local_map->lane_lines_.end(),
+          [&](const LaneLine& lane_line) { return lane_line.need_delete_; }),
+      local_map->lane_lines_.end());
+}
+
+void MapManager::MergeRoadEdge(LocalMap* local_map) {
+  std::multimap<int, RoadEdge> multimap;
+  std::vector<RoadEdge> unknown_lanepos_road_edges;
+  for (const auto& road_edge : local_map->road_edges_) {
+    if (road_edge.lanepos_ == LanePositionType::OTHER) {
+      unknown_lanepos_road_edges.emplace_back(road_edge);
+      continue;
+    }
+    multimap.insert({static_cast<int>(road_edge.lanepos_), road_edge});
+  }
+  local_map->road_edges_.clear();
+  local_map->road_edges_ = unknown_lanepos_road_edges;
+  for (const auto& element : multimap) {
+    local_map->road_edges_.emplace_back(element.second);
+  }
+  for (int i = 0; i < static_cast<int>(local_map->road_edges_.size() - 1);
+       i++) {
+    if (local_map->road_edges_[i].lanepos_ == LanePositionType::OTHER) {
+      continue;
+    }
+    RoadEdge cur_road_edge = local_map->road_edges_[i];
+    RoadEdge next_road_edge = local_map->road_edges_[i + 1];
+    if (cur_road_edge.points_.empty() || next_road_edge.points_.empty()) {
+      continue;
+    }
+    double cur_front = cur_road_edge.points_.front().x();
+    double cur_back = cur_road_edge.points_.back().x();
+    double next_front = next_road_edge.points_.front().x();
+    double next_back = next_road_edge.points_.back().x();
+    // |
+    // ||
+    //  |
+    bool condition1 =
+        cur_front > next_front && cur_front < next_back && cur_back > next_back;
+    // |
+    //
+    //  |
     bool condition2 = cur_front > next_back;
     //  |
     // ||
@@ -899,30 +1124,28 @@ void MapManager::MergeLaneLine(LocalMap* local_map) {
     if (condition1) {
       double sum = 0.0;
       int n = 0;
-      for (const auto& cur_point : cur_lane_line.points_) {
+      for (const auto& cur_point : cur_road_edge.points_) {
         if (cur_point.x() > next_back) {
           break;
         }
-        double next_y = next_lane_line.c0_ +
-                        next_lane_line.c1_ * cur_point.x() +
-                        next_lane_line.c2_ * pow(cur_point.x(), 2) +
-                        next_lane_line.c3_ * pow(cur_point.x(), 3);
+        double next_y =
+            CommonUtil::CalCubicCurveY(next_road_edge, cur_point.x());
         sum += fabs(cur_point.y() - next_y);
         n++;
       }
       double ave_dis = sum / n;
-      if (ave_dis < 0.5 && n >= 3) {
-        HLOG_INFO << "track_id " << cur_lane_line.track_id_ << ", "
-                  << next_lane_line.track_id_;
-        HLOG_INFO << "lanepos " << cur_lane_line.lanepos_ << ", "
-                  << next_lane_line.lanepos_;
-        HLOG_INFO << "condition1 ave_dis " << ave_dis << " n " << n;
-        local_map->lane_lines_[i].need_delete_ = true;
-        for (const auto& cur_point : cur_lane_line.points_) {
-          if (cur_point.x() > next_back) {
-            local_map->lane_lines_[i + 1].points_.emplace_back(cur_point);
+      if (ave_dis < 2 && n >= 3) {
+        local_map->road_edges_[i].need_delete_ = true;
+        std::vector<Eigen::Vector3d> points;
+        for (const auto& next_point : next_road_edge.points_) {
+          if (next_point.x() < cur_front) {
+            points.emplace_back(next_point);
           }
         }
+        for (const auto& cur_point : cur_road_edge.points_) {
+          points.emplace_back(cur_point);
+        }
+        local_map->road_edges_[i + 1].points_ = points;
       }
     } else if (condition2) {
       bool need_skip = false;
@@ -936,57 +1159,53 @@ void MapManager::MergeLaneLine(LocalMap* local_map) {
       if (need_skip) {
         continue;
       }
-      double ave_dis = fabs(cur_lane_line.points_.front().y() -
-                            next_lane_line.points_.back().y());
+      double ave_dis = fabs(cur_road_edge.points_.front().y() -
+                            cur_road_edge.points_.back().y());
       if (ave_dis < 1) {
-        HLOG_INFO << "track_id " << cur_lane_line.track_id_ << ", "
-                  << next_lane_line.track_id_;
-        HLOG_INFO << "lanepos " << cur_lane_line.lanepos_ << ", "
-                  << next_lane_line.lanepos_;
-        HLOG_INFO << "condition2 ave_dis " << ave_dis;
-        local_map->lane_lines_[i].need_delete_ = true;
-        double x0 = next_lane_line.points_.back().x();
-        double y0 = next_lane_line.points_.back().y();
-        double x1 = cur_lane_line.points_.front().x();
-        double y1 = cur_lane_line.points_.front().y();
+        local_map->road_edges_[i].need_delete_ = true;
+        double x0 = next_road_edge.points_.back().x();
+        double y0 = next_road_edge.points_.back().y();
+        double x1 = cur_road_edge.points_.front().x();
+        double y1 = cur_road_edge.points_.front().y();
+        if (x1 - x0 == 0) {
+          continue;
+        }
         double k = (y1 - y0) / (x1 - x0);
         double x = x0;
         while (x < x1 - 1) {
           x = x + 1.0;
           double y = k * (x - x0) + y0;
-          local_map->lane_lines_[i + 1].points_.emplace_back(x, y, 0);
+          local_map->road_edges_[i + 1].points_.emplace_back(x, y, 0);
         }
-        for (const auto& cur_point : cur_lane_line.points_) {
-          local_map->lane_lines_[i + 1].points_.emplace_back(cur_point);
+        for (const auto& cur_point : cur_road_edge.points_) {
+          local_map->road_edges_[i + 1].points_.emplace_back(cur_point);
         }
       }
     } else if (condition3) {
       double sum = 0.0;
       int n = 0;
-      for (const auto& next_point : next_lane_line.points_) {
+      for (const auto& next_point : next_road_edge.points_) {
         if (next_point.x() > cur_back) {
           break;
         }
-        double cur_y = cur_lane_line.c0_ + cur_lane_line.c1_ * next_point.x() +
-                       cur_lane_line.c2_ * pow(next_point.x(), 2) +
-                       cur_lane_line.c3_ * pow(next_point.x(), 3);
+        double cur_y =
+            CommonUtil::CalCubicCurveY(cur_road_edge, next_point.x());
         sum += fabs(cur_y - next_point.y());
         n++;
       }
       double ave_dis = sum / n;
-      if (ave_dis < 0.5 && n >= 3) {
-        HLOG_INFO << "track_id " << cur_lane_line.track_id_ << ", "
-                  << next_lane_line.track_id_;
-        HLOG_INFO << "lanepos " << cur_lane_line.lanepos_ << ", "
-                  << next_lane_line.lanepos_;
-        HLOG_INFO << "condition3 ave_dis " << ave_dis << " n " << n;
-        local_map->lane_lines_[i].need_delete_ = true;
-        for (const auto& next_point : next_lane_line.points_) {
-          if (next_point.x() > cur_back) {
-            cur_lane_line.points_.emplace_back(next_point);
+      if (ave_dis < 2 && n >= 3) {
+        local_map->road_edges_[i].need_delete_ = true;
+        std::vector<Eigen::Vector3d> points;
+        for (const auto& cur_point : cur_road_edge.points_) {
+          if (cur_point.x() < next_front) {
+            points.emplace_back(cur_point);
           }
         }
-        local_map->lane_lines_[i + 1].points_ = cur_lane_line.points_;
+        for (const auto& next_point : next_road_edge.points_) {
+          points.emplace_back(next_point);
+        }
+        local_map->road_edges_[i + 1].points_ = points;
       }
     } else if (condition4) {
       bool need_skip = false;
@@ -1000,78 +1219,203 @@ void MapManager::MergeLaneLine(LocalMap* local_map) {
       if (need_skip) {
         continue;
       }
-      double ave_dis = fabs(cur_lane_line.points_.back().y() -
-                            next_lane_line.points_.front().y());
+      double ave_dis = fabs(cur_road_edge.points_.back().y() -
+                            next_road_edge.points_.front().y());
       if (ave_dis < 1) {
-        HLOG_INFO << "track_id " << cur_lane_line.track_id_ << ", "
-                  << next_lane_line.track_id_;
-        HLOG_INFO << "lanepos " << cur_lane_line.lanepos_ << ", "
-                  << next_lane_line.lanepos_;
-        HLOG_INFO << "condition4 ave_dis " << ave_dis;
-        local_map->lane_lines_[i].need_delete_ = true;
-        double x0 = cur_lane_line.points_.back().x();
-        double y0 = cur_lane_line.points_.back().y();
-        double x1 = next_lane_line.points_.front().x();
-        double y1 = next_lane_line.points_.front().y();
+        local_map->road_edges_[i].need_delete_ = true;
+        double x0 = cur_road_edge.points_.back().x();
+        double y0 = cur_road_edge.points_.back().y();
+        double x1 = next_road_edge.points_.front().x();
+        double y1 = next_road_edge.points_.front().y();
         double k = (y1 - y0) / (x1 - x0);
         double x = x0;
         while (x < x1 - 1) {
           x = x + 1.0;
           double y = k * (x - x0) + y0;
-          cur_lane_line.points_.emplace_back(x, y, 0);
+          cur_road_edge.points_.emplace_back(x, y, 0);
         }
-        for (const auto& next_point : next_lane_line.points_) {
-          cur_lane_line.points_.emplace_back(next_point);
+        for (const auto& next_point : next_road_edge.points_) {
+          cur_road_edge.points_.emplace_back(next_point);
         }
-        local_map->lane_lines_[i + 1].points_ = cur_lane_line.points_;
+        local_map->road_edges_[i + 1].points_ = cur_road_edge.points_;
       }
     } else if (condition5) {
       double sum = 0.0;
       int n = 0;
-      for (const auto& cur_point : cur_lane_line.points_) {
-        double next_y = next_lane_line.c0_ +
-                        next_lane_line.c1_ * cur_point.x() +
-                        next_lane_line.c2_ * pow(cur_point.x(), 2) +
-                        next_lane_line.c3_ * pow(cur_point.x(), 3);
+      for (const auto& cur_point : cur_road_edge.points_) {
+        double next_y =
+            CommonUtil::CalCubicCurveY(next_road_edge, cur_point.x());
         sum += fabs(cur_point.y() - next_y);
         n++;
       }
       double ave_dis = sum / n;
-      if (ave_dis < 0.5 && n >= 3) {
-        HLOG_INFO << "track_id " << cur_lane_line.track_id_ << ", "
-                  << next_lane_line.track_id_;
-        HLOG_INFO << "lanepos " << cur_lane_line.lanepos_ << ", "
-                  << next_lane_line.lanepos_;
-        HLOG_INFO << "condition5 ave_dis " << ave_dis << " n " << n;
-        local_map->lane_lines_[i].need_delete_ = true;
+      if (ave_dis < 2 && n >= 3) {
+        local_map->road_edges_[i].need_delete_ = true;
       }
     } else if (condition6) {
       double sum = 0.0;
       int n = 0;
-      for (const auto& next_point : next_lane_line.points_) {
-        double cur_y = cur_lane_line.c0_ + cur_lane_line.c1_ * next_point.x() +
-                       cur_lane_line.c2_ * pow(next_point.x(), 2) +
-                       cur_lane_line.c3_ * pow(next_point.x(), 3);
+      for (const auto& next_point : next_road_edge.points_) {
+        double cur_y =
+            CommonUtil::CalCubicCurveY(cur_road_edge, next_point.x());
         sum += fabs(cur_y - next_point.y());
         n++;
       }
       double ave_dis = sum / n;
-      if (ave_dis < 0.5 && n >= 3) {
-        HLOG_INFO << "track_id " << cur_lane_line.track_id_ << ", "
-                  << next_lane_line.track_id_;
-        HLOG_INFO << "lanepos " << cur_lane_line.lanepos_ << ", "
-                  << next_lane_line.lanepos_;
-        HLOG_INFO << "condition6 ave_dis " << ave_dis << " n " << n;
-        local_map->lane_lines_[i].need_delete_ = true;
-        local_map->lane_lines_[i + 1].points_ = cur_lane_line.points_;
+      if (ave_dis < 2 && n >= 3) {
+        local_map->road_edges_[i].need_delete_ = true;
+        local_map->road_edges_[i + 1].points_ = cur_road_edge.points_;
       }
     }
   }
-  local_map->lane_lines_.erase(
+  local_map->road_edges_.erase(
       std::remove_if(
-          local_map->lane_lines_.begin(), local_map->lane_lines_.end(),
-          [&](const LaneLine& lane_line) { return lane_line.need_delete_; }),
-      local_map->lane_lines_.end());
+          local_map->road_edges_.begin(), local_map->road_edges_.end(),
+          [&](const RoadEdge& road_edge) { return road_edge.need_delete_; }),
+      local_map->road_edges_.end());
+}
+
+void MapManager::MergeZebraCrossing(LocalMap* local_map) {
+  if (static_cast<int>(local_map->zebra_crossings_.size()) < 2) {
+    return;
+  }
+  for (auto& cur_zebra_crossing : local_map->zebra_crossings_) {
+    if (!cur_zebra_crossing.ismature_) {
+      continue;
+    }
+    int tmp_track_id = -1;
+    for (auto& local_map_zebra_crossing : local_map->zebra_crossings_) {
+      if (cur_zebra_crossing.track_id_ == local_map_zebra_crossing.track_id_ ||
+          !local_map_zebra_crossing.ismature_) {
+        continue;
+      }
+      double distance = CommonUtil::CalTwoPointsDis(
+          cur_zebra_crossing.mid_point_, local_map_zebra_crossing.mid_point_);
+      if (distance > 10) {
+        continue;
+      }
+      // if (cur_zebra_crossing.track_id_ < local_map_zebra_crossing.track_id_)
+      // {
+      //   local_map_zebra_crossing.track_id_ = cur_zebra_crossing.track_id_;
+      // }
+      local_map_zebra_crossing.confidence_ =
+          (local_map_zebra_crossing.confidence_ +
+           cur_zebra_crossing.confidence_) /
+          2;
+      local_map_zebra_crossing.mid_point_ =
+          0.5 * local_map_zebra_crossing.mid_point_ +
+          0.5 * cur_zebra_crossing.mid_point_;
+      local_map_zebra_crossing.length_ =
+          0.5 * local_map_zebra_crossing.length_ +
+          0.5 * cur_zebra_crossing.length_;
+      local_map_zebra_crossing.width_ = 0.5 * local_map_zebra_crossing.width_ +
+                                        0.5 * cur_zebra_crossing.width_;
+      local_map_zebra_crossing.heading_ =
+          0.5 * local_map_zebra_crossing.heading_ +
+          0.5 * cur_zebra_crossing.heading_;
+      tmp_track_id = cur_zebra_crossing.track_id_;
+      break;
+    }
+    for (int i = 0; i < static_cast<int>(local_map->zebra_crossings_.size());
+         i++) {
+      if (local_map->zebra_crossings_[i].track_id_ != tmp_track_id) {
+        continue;
+      }
+      local_map->zebra_crossings_.erase(local_map->zebra_crossings_.begin() +
+                                        i);
+      i--;
+    }
+  }
+}
+
+void MapManager::MergeStopLine(LocalMap* local_map) {
+  if (static_cast<int>(local_map->stop_lines_.size()) < 2) {
+    return;
+  }
+  for (auto& cur_stop_line : local_map->stop_lines_) {
+    if (!cur_stop_line.ismature_) {
+      continue;
+    }
+    int tmp_track_id = -1;
+    for (auto& local_map_stop_line : local_map->stop_lines_) {
+      if (cur_stop_line.track_id_ == local_map_stop_line.track_id_ ||
+          !local_map_stop_line.ismature_) {
+        continue;
+      }
+      double distance = CommonUtil::CalTwoPointsDis(
+          cur_stop_line.mid_point_, local_map_stop_line.mid_point_);
+      // HLOG_ERROR << "地图停止线distance距离" << distance;
+      if (distance > 10) {
+        continue;
+      }
+      local_map_stop_line.confidence_ =
+          (local_map_stop_line.confidence_ + cur_stop_line.confidence_) / 2;
+      local_map_stop_line.mid_point_ =
+          0.5 * local_map_stop_line.mid_point_ + 0.5 * cur_stop_line.mid_point_;
+      local_map_stop_line.length_ =
+          0.5 * local_map_stop_line.length_ + 0.5 * cur_stop_line.length_;
+      local_map_stop_line.heading_ =
+          0.5 * local_map_stop_line.heading_ + 0.5 * cur_stop_line.heading_;
+      tmp_track_id = cur_stop_line.track_id_;
+      break;
+    }
+    for (int i = 0; i < static_cast<int>(local_map->stop_lines_.size()); i++) {
+      if (local_map->stop_lines_[i].track_id_ != tmp_track_id) {
+        continue;
+      }
+      local_map->stop_lines_.erase(local_map->stop_lines_.begin() + i);
+      i--;
+    }
+  }
+}
+
+void MapManager::MergeArrow(LocalMap* local_map) {
+  if (static_cast<int>(local_map->arrows_.size()) < 2) {
+    return;
+  }
+  for (auto& cur_arrow : local_map->arrows_) {
+    if (!cur_arrow.ismature_) {
+      continue;
+    }
+    int tmp_track_id = -1;
+    for (auto& local_map_arrow : local_map->arrows_) {
+      if (cur_arrow.track_id_ == local_map_arrow.track_id_ ||
+          !local_map_arrow.ismature_) {
+        continue;
+      }
+      double distance = CommonUtil::CalTwoPointsDis(cur_arrow.mid_point_,
+                                                    local_map_arrow.mid_point_);
+      // HLOG_ERROR << "地图箭头x距离"<<fabs(cur_arrow.mid_point_.x() -
+      // local_map_arrow.mid_point_.x()); HLOG_ERROR <<
+      // "地图箭头y距离"<<fabs(cur_arrow.mid_point_.y() -
+      // local_map_arrow.mid_point_.y());
+      if (fabs(cur_arrow.mid_point_.x() - local_map_arrow.mid_point_.x()) >
+              10 ||
+          fabs(cur_arrow.mid_point_.y() - local_map_arrow.mid_point_.y()) >
+              2.5) {
+        continue;
+      }
+      local_map_arrow.confidence_ =
+          (local_map_arrow.confidence_ + cur_arrow.confidence_) / 2;
+      local_map_arrow.mid_point_ =
+          0.5 * local_map_arrow.mid_point_ + 0.5 * cur_arrow.mid_point_;
+      local_map_arrow.length_ =
+          0.5 * local_map_arrow.length_ + 0.5 * cur_arrow.length_;
+      local_map_arrow.width_ =
+          0.5 * local_map_arrow.width_ + 0.5 * cur_arrow.width_;
+      local_map_arrow.heading_ =
+          0.5 * local_map_arrow.heading_ + 0.5 * cur_arrow.heading_;
+      tmp_track_id = cur_arrow.track_id_;
+      break;
+    }
+    for (int i = 0; i < static_cast<int>(local_map->arrows_.size()); i++) {
+      if (local_map->arrows_[i].track_id_ != tmp_track_id) {
+        continue;
+      }
+      local_map->arrows_.erase(local_map->arrows_.begin() + i);
+      i--;
+    }
+  }
 }
 
 void MapManager::MatchLaneLine(
@@ -1082,7 +1426,6 @@ void MapManager::MatchLaneLine(
   for (const auto& per_lane_line : per_lane_lines) {
     bool per_has_matched = false;
     LaneLineMatchInfo match;
-    HLOG_INFO << "per_lane_line.lanepos_ " << per_lane_line.lanepos_;
     double min_ave_dis = FLT_MAX;
     int map_lane_index = 0;
     for (int i = 0; i < static_cast<int>(map_lane_lines_tmp.size()); i++) {
@@ -1092,9 +1435,9 @@ void MapManager::MatchLaneLine(
       double sum = 0.0;
       int n = 0;
       double linear_max_x =
-          per_lane_line.end_point_x_ * 0.7 + per_lane_line.start_point_x_ * 0.3;
+          per_lane_line.end_point_x_ * 0.2 + per_lane_line.start_point_x_ * 0.8;
       double curve_max_x =
-          per_lane_line.end_point_x_ * 0.5 + per_lane_line.start_point_x_ * 0.5;
+          per_lane_line.end_point_x_ * 0.2 + per_lane_line.start_point_x_ * 0.8;
       for (const auto& map_point : map_lane_lines_tmp[i].points_) {
         if ((per_lane_line.c2_ > 0.001 ? map_point.x() > curve_max_x
                                        : map_point.x() > linear_max_x) ||
@@ -1109,9 +1452,6 @@ void MapManager::MatchLaneLine(
         continue;
       }
       double ave_dis = sum / n;
-      HLOG_INFO << "map_lane_lines_tmp[i].lanepos_ "
-                << map_lane_lines_tmp[i].lanepos_;
-      HLOG_INFO << "ave_dis " << ave_dis << " n " << n;
       if (ave_dis < min_ave_dis && n >= 3) {
         min_ave_dis = ave_dis;
         map_lane_index = i;
@@ -1132,53 +1472,57 @@ void MapManager::MatchLaneLine(
   }
 }
 
-void MapManager::MatchEdgeLine(
-    const std::vector<LaneLine>& per_edge_lines,
-    const std::vector<LaneLine>& map_edge_lines,
-    std::vector<EdgeLineMatchInfo>* edge_line_matches) {
-  std::vector<LaneLine> map_edge_lines_tmp = map_edge_lines;
-  for (const auto& per_edge_line : per_edge_lines) {
-    ObjUpdateType type = ObjUpdateType::ADD_NEW;
+void MapManager::MatchRoadEdge(
+    const std::vector<RoadEdge>& per_road_edges,
+    const std::vector<RoadEdge>& map_road_edges,
+    std::vector<RoadEdgeMatchInfo>* road_edge_matches) {
+  std::vector<RoadEdge> map_road_edges_tmp = map_road_edges;
+  for (const auto& per_road_edge : per_road_edges) {
     bool per_has_matched = false;
-    EdgeLineMatchInfo match;
-    HLOG_INFO << "per_edge_line.lanepos_ " << per_edge_line.lanepos_;
-    double min_ave_dis = 0.5;
+    RoadEdgeMatchInfo match;
+    double min_ave_dis = FLT_MAX;
     int map_lane_index = 0;
-    for (int i = 0; i < static_cast<int>(map_edge_lines_tmp.size()); i++) {
-      if (map_edge_lines_tmp[i].has_matched_) {
+    for (int i = 0; i < static_cast<int>(map_road_edges_tmp.size()); i++) {
+      if (map_road_edges_tmp[i].has_matched_) {
         continue;
       }
       double sum = 0.0;
       int n = 0;
-      for (const auto& map_point : map_edge_lines_tmp[i].points_) {
-        if (map_point.x() > per_edge_line.end_point_x_ ||
-            map_point.x() < per_edge_line.start_point_x_) {
+      double linear_max_x =
+          per_road_edge.end_point_x_ * 0.2 + per_road_edge.start_point_x_ * 0.8;
+      double curve_max_x =
+          per_road_edge.end_point_x_ * 0.2 + per_road_edge.start_point_x_ * 0.8;
+      for (const auto& map_point : map_road_edges_tmp[i].points_) {
+        if ((per_road_edge.c2_ > 0.001 ? map_point.x() > curve_max_x
+                                       : map_point.x() > linear_max_x) ||
+            map_point.x() < per_road_edge.start_point_x_) {
           continue;
         }
-        double per_y = CommonUtil::CalCubicCurveY(per_edge_line, map_point.x());
+        double per_y = CommonUtil::CalCubicCurveY(per_road_edge, map_point.x());
         sum += fabs(map_point.y() - per_y);
         n++;
       }
+      if (n == 0) {
+        continue;
+      }
       double ave_dis = sum / n;
-      HLOG_INFO << "map_edge_line.lanepos_ " << map_edge_lines_tmp[i].lanepos_;
-      HLOG_INFO << "ave_dis " << ave_dis << " n " << n;
       if (ave_dis < min_ave_dis && n >= 3) {
         min_ave_dis = ave_dis;
         map_lane_index = i;
       }
     }
     if (min_ave_dis < 0.5) {
-      match.per_edge_line_ = per_edge_line;
-      match.map_edge_line_ = map_edge_lines_tmp[map_lane_index];
+      match.per_road_edge_ = per_road_edge;
+      match.map_road_edge_ = map_road_edges_tmp[map_lane_index];
       match.update_type_ = ObjUpdateType::MERGE_OLD;
       per_has_matched = true;
-      map_edge_lines_tmp[map_lane_index].has_matched_ = true;
+      map_road_edges_tmp[map_lane_index].has_matched_ = true;
     }
     if (!per_has_matched) {
-      match.per_edge_line_ = per_edge_line;
+      match.per_road_edge_ = per_road_edge;
       match.update_type_ = ObjUpdateType::ADD_NEW;
     }
-    edge_line_matches->emplace_back(match);
+    road_edge_matches->emplace_back(match);
   }
 }
 
@@ -1187,8 +1531,15 @@ void MapManager::MatchStopLine(
     const std::vector<StopLine>& map_stop_lines,
     std::vector<StopLineMatchInfo>* stop_line_matches) {
   std::vector<StopLine> map_stop_lines_tmp = map_stop_lines;
+  bool close_stop_line = false;
+  for (const auto& map_stop_line : map_stop_lines) {
+    if (map_stop_line.ismature_ && map_stop_line.mid_point_.x() < 10) {
+      close_stop_line = true;
+      break;
+    }
+  }
   for (const auto& per_stop_line : per_stop_lines) {
-    if (per_stop_line.mid_point_.x() < 10) {
+    if (close_stop_line && per_stop_line.mid_point_.x() < 10) {
       continue;
     }
 
@@ -1226,8 +1577,15 @@ void MapManager::MatchArrow(const std::vector<Arrow>& per_arrows,
                             const std::vector<Arrow>& map_arrows,
                             std::vector<ArrowMatchInfo>* arrow_matches) {
   std::vector<Arrow> map_arrows_tmp = map_arrows;
+  bool close_arrow = false;
+  for (const auto& map_arrow : map_arrows) {
+    if (map_arrow.ismature_ && map_arrow.mid_point_.x() < 10) {
+      close_arrow = true;
+      break;
+    }
+  }
   for (const auto& per_arrow : per_arrows) {
-    if (per_arrow.mid_point_.x() < 10) {
+    if (close_arrow && per_arrow.mid_point_.x() < 10) {
       continue;
     }
     ObjUpdateType type = ObjUpdateType::ADD_NEW;
@@ -1268,8 +1626,16 @@ void MapManager::MatchZebraCrossing(
     const std::vector<ZebraCrossing>& map_zebra_crossings,
     std::vector<ZebraCrossingMatchInfo>* zebra_crossing_matches) {
   std::vector<ZebraCrossing> map_zebra_crossings_tmp = map_zebra_crossings;
+  bool close_zebra_crossing = false;
+  for (const auto& map_zebra_crossing : map_zebra_crossings) {
+    if (map_zebra_crossing.ismature_ &&
+        map_zebra_crossing.mid_point_.x() < 10) {
+      close_zebra_crossing = true;
+      break;
+    }
+  }
   for (const auto& per_zebra_crossing : per_zebra_crossings) {
-    if (per_zebra_crossing.mid_point_.x() < 10) {
+    if (close_zebra_crossing && per_zebra_crossing.mid_point_.x() < 10) {
       continue;
     }
     bool per_has_matched = false;

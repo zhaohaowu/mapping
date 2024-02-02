@@ -14,13 +14,13 @@ namespace mp {
 namespace environment {
 
 void PointLaneGatekeeper::Init(
-    const PointLaneGatekeeperInitOptions &init_options) {
+    const PointLaneGatekeeperInitOptions& init_options) {
   lane_gate_keeper_param_ = init_options.lane_gate_keeper_param;
   inited_ = true;
 }
 
-bool PointLaneGatekeeper::AbleToOutput(const LaneTargetConstPtr &target) const {
-  auto &laneline = target->GetConstTrackedLaneLine();
+bool PointLaneGatekeeper::AbleToOutput(const LaneTargetConstPtr& target) const {
+  auto& laneline = target->GetConstTrackedLaneLine();
   // 1. donot output short laneline which is not in the blind area
   float len = GetLength(laneline->point_set);
   bool is_far_short = len < lane_gate_keeper_param_.output_lane_length() &&
@@ -48,8 +48,8 @@ bool PointLaneGatekeeper::AbleToOutput(const LaneTargetConstPtr &target) const {
 }
 
 bool PointLaneGatekeeper::AbleToOutput(
-    const RoadEdgeTargetConstPtr &target) const {
-  auto &laneline = target->GetConstTrackedLaneLine();
+    const RoadEdgeTargetConstPtr& target) const {
+  auto& laneline = target->GetConstTrackedLaneLine();
   // 1. donot output short laneline which is not in the blind area
   if (target->IsTracked()) {
     return true;
@@ -67,17 +67,17 @@ bool PointLaneGatekeeper::AbleToOutput(
 }
 
 bool PointLaneGatekeeper::AbleToOutput(
-    const PointLaneGatekeeperOptions &options, const LaneTargetConstPtr &target,
-    const std::vector<LaneTargetConstPtr> &targets) const {
+    const PointLaneGatekeeperOptions& options, const LaneTargetConstPtr& target,
+    const std::vector<LaneTargetConstPtr>& targets) const {
   if (!inited_) {
     return false;
   }
   if (!AbleToOutput(target)) {
-    HLOG_INFO << "NOT AbleToOutput return false ";
+    HLOG_DEBUG << "NOT AbleToOutput return false ";
     return false;
   }
 
-  const auto &point_set1 = target->GetConstTrackedLaneLine()->point_set;
+  const auto& point_set1 = target->GetConstTrackedLaneLine()->point_set;
 
   // nms
   for (int i = 0; i < targets.size(); ++i) {
@@ -85,7 +85,7 @@ bool PointLaneGatekeeper::AbleToOutput(
       continue;
     }
     if (AbleToOutput(targets[i])) {
-      const auto &point_set2 = targets[i]->GetConstTrackedLaneLine()->point_set;
+      const auto& point_set2 = targets[i]->GetConstTrackedLaneLine()->point_set;
       float distance = GetDistBetweenTwoLane(point_set1, point_set2);
       HLOG_DEBUG << "distance: " << distance;
       bool is_lateral_overlap =
@@ -142,17 +142,17 @@ bool PointLaneGatekeeper::AbleToOutput(
 }
 
 bool PointLaneGatekeeper::AbleToOutput(
-    const PointLaneGatekeeperOptions &options,
-    const RoadEdgeTargetConstPtr &target,
-    const std::vector<RoadEdgeTargetConstPtr> &targets) const {
+    const PointLaneGatekeeperOptions& options,
+    const RoadEdgeTargetConstPtr& target,
+    const std::vector<RoadEdgeTargetConstPtr>& targets) const {
   if (!inited_) {
     return false;
   }
   if (!AbleToOutput(target)) {
-    HLOG_INFO << "NOT AbleToOutput return false ";
+    HLOG_DEBUG << "NOT AbleToOutput return false ";
     return false;
   }
-  const auto &point_set1 = target->GetConstTrackedLaneLine()->point_set;
+  const auto& point_set1 = target->GetConstTrackedLaneLine()->point_set;
 
   // nms
   for (int i = 0; i < targets.size(); ++i) {
@@ -160,7 +160,7 @@ bool PointLaneGatekeeper::AbleToOutput(
       continue;
     }
     if (AbleToOutput(targets[i])) {
-      const auto &point_set2 = targets[i]->GetConstTrackedLaneLine()->point_set;
+      const auto& point_set2 = targets[i]->GetConstTrackedLaneLine()->point_set;
       float distance = GetDistBetweenTwoLane(point_set1, point_set2);
       HLOG_DEBUG << "RoadEdge distance: " << distance;
       bool is_lateral_overlap =

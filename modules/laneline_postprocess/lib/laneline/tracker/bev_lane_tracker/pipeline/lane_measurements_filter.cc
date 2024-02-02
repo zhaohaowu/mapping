@@ -82,9 +82,9 @@ bool LaneMeasurementFilter::DelHighlyOverlayShortLaneLine(
   }
 
   std::vector<int> remove_index;
-  HLOG_INFO << "measure_lanelines_nums:" << measure_lanelines->size();
+  HLOG_DEBUG << "measure_lanelines_nums:" << measure_lanelines->size();
   for (int i = 0; i < measure_lanelines->size() - 1; ++i) {
-    HLOG_INFO << "measure_lanelines_idxs:" << i;
+    HLOG_DEBUG << "measure_lanelines_idxs:" << i;
     auto left_lane = measure_lanelines->at(i);
     float left_lane_length = GetLength(left_lane->point_set);
 

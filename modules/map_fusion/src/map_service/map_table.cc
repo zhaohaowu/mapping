@@ -396,8 +396,7 @@ void MapTable::ObtainEquation(const std::string& idd, const int& next_size) {
 
   double width_last = 0.;
   ComputeEndWidth(lane_idds, lane_idd_nxt, &width_last, lane_idd_nxts);
-  if (lane_idds[lane_idds.size() - 2] == lane_idd_nxt &&
-      lane_idds.size() >= 2) {
+  if (lane_idds.size() >= 2 && lane_idds[lane_idds.size() - 2] == lane_idd_nxt) {
     width_last = 0;
   }
   if (lane_idds.size() == 1) {

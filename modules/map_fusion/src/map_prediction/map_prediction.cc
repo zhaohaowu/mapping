@@ -34,8 +34,10 @@
 #include <vector>
 
 #include "Eigen/src/Core/Matrix.h"
+#include "base/utils/log.h"
 #include "boost/thread/exceptions.hpp"
 #include "common/configs/config_gflags.h"
+#include "common/math/double_type.h"
 #include "common/math/line_segment2d.h"
 #include "common/math/vec2d.h"
 #include "common/time/clock.h"
@@ -206,10 +208,10 @@ void MapPrediction::OnTopoMap(
     return;
   }
 
-  if (msg->lane().empty()) {
-    HLOG_ERROR << "no OnTopoMap info!";
-    return;
-  }
+  // if (msg->lane().empty()) {
+  //   HLOG_ERROR << "no OnTopoMap info!";
+  //   return;
+  // }
 
   hozon::common::PointENU utm_pos;
   // uint32_t utm_zone = 0;
@@ -265,7 +267,7 @@ void MapPrediction::OnTopoMap(
 
     lane_table_ = std::get<0>(map_info);
     // 更新站心
-    if (local_enu_center_flag_) {
+    if (local_enu_center_flag_ && !lane_table_.empty()) {
       local_enu_center_ = lane_table_.begin()->second.ref_point;
       local_enu_center_flag_ = false;
     }
@@ -651,6 +653,20 @@ void MapPrediction::CreatAddIdVector(
       curr_lane_id = last;
     }
   }
+
+  std::set<std::string> all_lanes;
+  bool flag = false;
+  for (const auto& it : lane_table_) {
+    if (it.second.extra_boundary != 0) {
+      flag = true;
+    }
+    all_lanes.insert(it.second.lane_id);
+  }
+  if (flag) {
+    add_lane_ids_ = all_lanes;
+    local_msg_->mutable_lane()->Clear();
+    topo_lane_ids_.clear();
+  }
 }
 
 void MapPrediction::FusionLocalAndMap() {
@@ -692,47 +708,69 @@ void MapPrediction::FusionLanePoint() {
       continue;
     }
     auto left_points = lane_table_.at(it.id().id()).left_line;
+    std::vector<Eigen::Vector3d> left_vec;
     for (auto& left_seg :
          *it.mutable_left_boundary()->mutable_curve()->mutable_segment()) {
       for (auto& pt : *left_seg.mutable_line_segment()->mutable_point()) {
         Eigen::Vector3d P(pt.x(), pt.y(), pt.z());
+        left_vec.emplace_back(P);
         Eigen::Vector3d C;
         bool flag = false;
         ComputePerpendicularPoint(P, left_points, &C, &flag);
         if (!flag) {
           FusionStartOrEndLeftPoint(P, it.id().id(), &C, &flag);
           if (!flag) {
+            // pt.Clear();
             continue;
           }
         }
         // 对原始点和新点进行加权平均
-        auto new_point = (P + C) / 2.0;
+        auto dis = (P - C).norm();
+        double a = 5;  // 控制权重的衰减速度
+        double w = std::exp(-a * dis);
+        auto new_point = P * (1 - w) + C * w;
+        // auto new_point = (P + C) / 2.0;
         pt.set_x(new_point.x());
         pt.set_y(new_point.y());
         pt.set_z(new_point.z());
       }
     }
 
+    if (left_vec.size() < 2) {
+      it.mutable_left_boundary()->mutable_curve()->mutable_segment()->Clear();
+    }
+
     auto right_points = lane_table_.at(it.id().id()).right_line;
+    std::vector<Eigen::Vector3d> right_vec;
     for (auto& right_seg :
          *it.mutable_right_boundary()->mutable_curve()->mutable_segment()) {
       for (auto& pt : *right_seg.mutable_line_segment()->mutable_point()) {
         Eigen::Vector3d P(pt.x(), pt.y(), pt.z());
+        right_vec.emplace_back(P);
         Eigen::Vector3d C;
         bool flag = false;
         ComputePerpendicularPoint(P, right_points, &C, &flag);
         if (!flag) {
           FusionStartOrEndRightPoint(P, it.id().id(), &C, &flag);
           if (!flag) {
+            // pt.Clear();
             continue;
           }
         }
         // 对原始点和新点进行加权平均
-        auto new_point = (P + C) / 2.0;
+        auto dis = (P - C).norm();
+        double a = 5;  // 控制权重的衰减速度
+        double w = std::exp(-a * dis);
+        auto new_point = P * (1 - w) + C * w;
+        // auto new_point = (P + C) / 2.0;
         pt.set_x(new_point.x());
         pt.set_y(new_point.y());
         pt.set_z(new_point.z());
       }
+    }
+
+    if (right_vec.size() < 2) {
+      it.mutable_right_boundary()->mutable_curve()->mutable_segment()->Clear();
     }
   }
 }
@@ -844,7 +882,7 @@ void MapPrediction::ComputePerpendicularPoint(
     const auto& AB = B - A;
     const auto& AP = P - A;
     double ABLengthSquared = AB.squaredNorm();
-    if (ABLengthSquared == 0) {
+    if (std::fabs(ABLengthSquared) < 1e-6) {
       continue;
     }
     double t = AB.dot(AP) / ABLengthSquared;
@@ -1015,7 +1053,8 @@ void MapPrediction::ExpansionLeft(hdmap::Lane* lane) {
   if (lane_table_.find(lane->id().id()) == lane_table_.end()) {
     return;
   }
-  auto line_points = lane_table_.at(lane->id().id()).pred_left_line;
+  // auto line_points = lane_table_.at(lane->id().id()).pred_left_line;
+  auto line_points = lane_table_.at(lane->id().id()).left_line;
   if (line_points.empty()) {
     return;
   }
@@ -1142,7 +1181,8 @@ void MapPrediction::ExpansionRight(hdmap::Lane* lane) {
   if (lane_table_.find(lane->id().id()) == lane_table_.end()) {
     return;
   }
-  auto line_points = lane_table_.at(lane->id().id()).pred_right_line;
+  // auto line_points = lane_table_.at(lane->id().id()).pred_right_line;
+  auto line_points = lane_table_.at(lane->id().id()).right_line;
   if (line_points.empty()) {
     return;
   }
@@ -1409,16 +1449,19 @@ void MapPrediction::AddArrawStopLine() {
   if (local_msg_->arraw_size() != 0) {
     hq_map_->mutable_arraw()->CopyFrom(local_msg_->arraw());
   }
+  HLOG_ERROR << "Arraw size: " << hq_map_->arraw_size();
 
   if (local_msg_->stop_line_size() != 0) {
     hq_map_->mutable_stop_line()->CopyFrom(local_msg_->stop_line());
   }
+  HLOG_ERROR << "stop_line size: " << hq_map_->stop_line_size();
 }
 
 void MapPrediction::AddCrossWalk() {
   if (local_msg_->crosswalk_size() != 0) {
     hq_map_->mutable_crosswalk()->CopyFrom(local_msg_->crosswalk());
   }
+  HLOG_ERROR << "Cross walk size: " << hq_map_->crosswalk_size();
 }
 
 void MapPrediction::AddRoadEdge() {
@@ -1791,13 +1834,92 @@ void MapPrediction::FitLaneCenterline() {
       continue;
     }
     cent_points.clear();
-    common::math::GenerateCenterPoint(left_point, right_point, &cent_points);
+    GenerateCenterPoint(left_point, right_point, &cent_points);
 
     viz_map_.VizCenterLane(cent_points);
 
     // 此时获得了中心线上的点,塞入local_msg_中
     InsertCenterPoint(&lane, cent_points);
   }
+}
+
+void MapPrediction::GenerateCenterPoint(const std::vector<Vec2d>& left_point,
+                                        const std::vector<Vec2d>& right_point,
+                                        std::vector<Vec2d>* cent_point) {
+  if (left_point.size() >= 2 && right_point.size() >= 2) {
+    if (left_point.size() >= right_point.size()) {
+      CenterPoint(left_point, right_point, cent_point);
+    } else {
+      CenterPoint(right_point, left_point, cent_point);
+    }
+  } else {
+    HLOG_ERROR << "point size error";
+  }
+}
+
+void MapPrediction::CenterPoint(const std::vector<Vec2d>& project_points,
+                                const std::vector<Vec2d>& points,
+                                std::vector<Vec2d>* cent_point) {
+  cent_point->emplace_back(
+      (project_points.front().x() + points.front().x()) / 2,
+      (project_points.front().y() + points.front().y()) / 2);
+  for (int i = 1; i < project_points.size() - 1; ++i) {
+    bool found(false);
+    int point_count(0);
+    double lambda(0.0);
+    while (!found) {
+      if (point_count + 1 < points.size()) {
+        if (CalculateLambda(project_points[i], project_points[i + 1],
+                            points[point_count], points[point_count + 1],
+                            &lambda)) {
+          found = true;
+          break;
+        }
+      } else {
+        break;
+      }
+      ++point_count;
+    }
+    if (found) {
+      Vec2d sub_point(lambda * points[point_count].x() +
+                          (1 - lambda) * points[point_count + 1].x(),
+                      lambda * points[point_count].y() +
+                          (1 - lambda) * points[point_count + 1].y());
+
+      double l1(sub_point.DistanceTo(project_points[i]));
+      double l2(points[point_count].DistanceTo(points[point_count + 1]));
+      if (l1 * l2 == 0) {
+        continue;
+      }
+      double theta =
+          acos((project_points[i] - sub_point)
+                   .InnerProd(points[point_count + 1] - points[point_count]) /
+               (l1 * l2));
+      double alpha = sin(theta) / (1 + sin(theta));
+      cent_point->emplace_back((1 - alpha) * project_points[i] +
+                               alpha * sub_point);
+    } else {
+      // cent_point->clear();
+      HLOG_ERROR << "inital point error";
+      continue;
+    }
+  }
+  cent_point->emplace_back((project_points.back().x() + points.back().x()) / 2,
+                           (project_points.back().y() + points.back().y()) / 2);
+}
+
+bool MapPrediction::CalculateLambda(const Vec2d& p1, const Vec2d& p2,
+                                    const Vec2d& p3, const Vec2d& p4,
+                                    double* lambda) {
+  double delta = (p3.x() - p4.x()) * (p2.x() - p1.x()) -
+                 (p3.y() - p4.y()) * (p1.y() - p2.y());
+  if (!hozon::common::math::double_type::IsZero(delta)) {
+    *lambda = ((p2.x() - p1.x()) * (p1.x() - p4.x()) +
+               (p1.y() - p2.y()) * (p4.y() - p1.y())) /
+              delta;
+    return *lambda >= 0 && *lambda <= 1;
+  }
+  return false;
 }
 
 void MapPrediction::InsertCenterPoint(hozon::hdmap::Lane* lane,
@@ -1857,10 +1979,11 @@ void MapPrediction::CheckLocalLane(std::set<std::string>* side_miss_ids) {
     }
     auto left_seg_size = lane.left_boundary().curve().segment_size();
     auto right_seg_size = lane.right_boundary().curve().segment_size();
-    auto left_points = lane_table_.at(lane_id).pred_left_line;
-    auto* left_seg =
-        lane.mutable_left_boundary()->mutable_curve()->add_segment();
+    // auto left_points = lane_table_.at(lane_id).pred_left_line;
+    auto left_points = lane_table_.at(lane_id).left_line;
     if (left_seg_size == 0) {
+      auto* left_seg =
+          lane.mutable_left_boundary()->mutable_curve()->add_segment();
       for (const auto& point : left_points) {
         auto* pt = left_seg->mutable_line_segment()->add_point();
         pt->set_x(point.x());
@@ -1869,10 +1992,11 @@ void MapPrediction::CheckLocalLane(std::set<std::string>* side_miss_ids) {
       }
     }
 
-    auto right_points = lane_table_.at(lane_id).pred_right_line;
-    auto* right_seg =
-        lane.mutable_right_boundary()->mutable_curve()->add_segment();
+    // auto right_points = lane_table_.at(lane_id).pred_right_line;
+    auto right_points = lane_table_.at(lane_id).right_line;
     if (right_seg_size == 0) {
+      auto* right_seg =
+          lane.mutable_right_boundary()->mutable_curve()->add_segment();
       for (const auto& point : right_points) {
         auto* pt = right_seg->mutable_line_segment()->add_point();
         pt->set_x(point.x());
@@ -1903,8 +2027,10 @@ void MapPrediction::PredLeftRight(const std::set<std::string>& side_miss_ids) {
     if (lane_table_.find(it) == lane_table_.end()) {
       continue;
     }
-    auto left_points = lane_table_.at(it).pred_left_line;
-    auto right_points = lane_table_.at(it).pred_right_line;
+    // auto left_points = lane_table_.at(it).pred_left_line;
+    // auto right_points = lane_table_.at(it).pred_right_line;
+    auto left_points = lane_table_.at(it).left_line;
+    auto right_points = lane_table_.at(it).right_line;
     // 创建新的lane
     auto* new_lane = local_msg_->add_lane();
     new_lane->mutable_id()->set_id(it);
@@ -1952,8 +2078,10 @@ void MapPrediction::PredAheadLanes() {
       if (lane_table_.find(it) == lane_table_.end()) {
         continue;
       }
-      auto left_points = lane_table_.at(it).pred_left_line;
-      auto right_points = lane_table_.at(it).pred_right_line;
+      // auto left_points = lane_table_.at(it).pred_left_line;
+      // auto right_points = lane_table_.at(it).pred_right_line;
+      auto left_points = lane_table_.at(it).left_line;
+      auto right_points = lane_table_.at(it).right_line;
       // 创建新的lane
       auto* new_lane = local_msg_->add_lane();
       new_lane->mutable_id()->set_id(it);

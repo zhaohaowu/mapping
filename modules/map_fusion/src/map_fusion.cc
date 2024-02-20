@@ -175,6 +175,13 @@ int MapFusion::ProcFusion(
   return 0;
 }
 
+MapServiceFault MapFusion::GetMapServiceFault() {
+  if (map_service_ != nullptr) {
+    return map_service_->GetFault();
+  }
+  return MS_NO_ERROR;
+}
+
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon

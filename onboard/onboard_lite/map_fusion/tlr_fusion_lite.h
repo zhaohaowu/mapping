@@ -14,6 +14,7 @@
 #include <mutex>
 
 #include "modules/map_fusion/include/map_fusion/tlr_fusion.h"
+#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 
 namespace hozon {
 namespace perception {
@@ -26,6 +27,7 @@ class TlrFusionLite : public hozon::netaos::adf_lite::Executor {
 
   int32_t AlgInit() override;
   void AlgRelease() override;
+  int32_t OnRunningMode(hozon::netaos::adf_lite::Bundle* input);
 
  private:
   int32_t OnTlr(hozon::netaos::adf_lite::Bundle* input);

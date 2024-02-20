@@ -93,13 +93,104 @@ int32_t DrFusionLite::send_dr(Bundle* input) {
 
 // recieve in-process data and interprocess data
 int32_t DrFusionLite::receive_dr(Bundle* input) {
+  static double last_dr_time = -1.0;
+  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   auto ptr_rec_dr = input->GetOne("dr");
+  static bool input_data_loss_error_flag = false;
+  static bool input_data_value_error_flag = false;
+  static bool input_data_time_error_flag = false;
   if (!ptr_rec_dr) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+                        MULTI_FRAME_DR_INPUT_DATA_LOSS,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+        input_data_loss_error_flag = true;
+    HLOG_ERROR << "Location: receive dr is null";
     return -1;
+  } else {
+    if (input_data_loss_error_flag) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::MULTI_FRAME_DR_INPUT_DATA_LOSS,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      input_data_loss_error_flag = false;
+    }
   }
   std::shared_ptr<hozon::dead_reckoning::DeadReckoning> dr_proto =
       std::static_pointer_cast<hozon::dead_reckoning::DeadReckoning>(
           ptr_rec_dr->proto_msg);
+  if (!dr_proto) {
+    return -1;
+  }
+  double cur_dr_time = dr_proto->header().data_stamp();
+  if (last_dr_time > 0) {
+    if (cur_dr_time - last_dr_time < 0) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+                        MULTI_FRAME_DR_INPUT_TIME_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+        input_data_time_error_flag = true;
+      HLOG_ERROR << "Location: receive dr data stamp is error";
+    } else {
+      if (input_data_time_error_flag) {
+        phm_fault->Report(MAKE_FM_TUPLE(
+            hozon::perception::base::FmModuleId::MAPPING,
+            hozon::perception::base::FaultType::MULTI_FRAME_DR_INPUT_TIME_ERROR,
+            hozon::perception::base::FaultStatus::RESET,
+            hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+        input_data_time_error_flag = false;
+      }
+    }
+    if (cur_dr_time - last_dr_time >= 0.03) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+                        MULTI_FRAME_DR_INPUT_TIME_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+        input_data_time_error_flag = true;
+      HLOG_ERROR << "Location: receive dr data stamp is delay";
+    } else {
+      if (input_data_time_error_flag) {
+        phm_fault->Report(MAKE_FM_TUPLE(
+            hozon::perception::base::FmModuleId::MAPPING,
+            hozon::perception::base::FaultType::MULTI_FRAME_DR_INPUT_TIME_ERROR,
+            hozon::perception::base::FaultStatus::RESET,
+            hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+        input_data_time_error_flag = false;
+      }
+    }
+  }
+  last_dr_time = cur_dr_time;
+  double pose_x = dr_proto->pose().pose_local().position().x();
+  double qua_w = dr_proto->pose().pose_local().quaternion().w();
+  double qua_x = dr_proto->pose().pose_local().quaternion().x();
+  double qua_y = dr_proto->pose().pose_local().quaternion().y();
+  double qua_z = dr_proto->pose().pose_local().quaternion().z();
+  double magnitude = std::sqrt(qua_w *qua_w + qua_x *qua_x + qua_y *qua_y + qua_z *qua_z);
+  if (std::isnan(pose_x) || (abs(magnitude) < 1e-7)) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::MULTI_FRAME_DR_INPUT_VALUE_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+        input_data_value_error_flag = true;
+    HLOG_ERROR << "Location: receive dr data Nan";
+  } else {
+    if (input_data_value_error_flag) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::MULTI_FRAME_DR_INPUT_VALUE_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      input_data_value_error_flag = false;
+    }
+  }
   dr_fusion_->OnDr(*dr_proto.get());
   return 0;
 }

@@ -138,6 +138,7 @@ void MapService::OnInsAdcNodeInfo(
       }
     }
     EhpProc(ins_msg, adc_msg, routing_);
+    SetFautl();
   }
 }
 
@@ -297,11 +298,53 @@ void MapService::SetLaneIdsPool(
 }
 
 void MapService::GetAroundId(
-    const ::google::protobuf::RepeatedPtrField< ::hozon::hdmap::Id>& ids,
+    const ::google::protobuf::RepeatedPtrField<::hozon::hdmap::Id>& ids,
     std::unordered_set<hozon::hdmap::Id, IdHash, IdEqual>* lane_id_pool) {
   for (const auto& id : ids) {
     lane_id_pool->insert(id);
   }
+}
+
+void MapService::SetFautl() {
+  std::lock_guard<std::mutex> lock(fault_mutex_);
+  if (amap_adapter_.GetInitState()) {
+    fault_ = MS_EHP_INIT_ERROR;
+    return;
+  }
+  ::hdmap::service::DiagnosisState state(
+      ::hdmap::service::DIAGNOSIS_STATUS_OFF);
+  auto type(static_cast<::hdmap::service::DiagnosisType>(0));
+  std::string detailMessage;
+  amap_adapter_.GetDiagnose(&state, &type, &detailMessage);
+
+  if (static_cast<::hdmap::service::DiagnosisType>(0) == type) {
+    return;
+  }
+
+  if (::hdmap::service::DIAGNOSIS_TYPE_SYSTEM_FAULT == type) {
+    fault_ = MS_SDK_INNER_ERROR;
+  } else if (::hdmap::service::DIAGNOSIS_TYPE_UID_FAULT == type) {
+    fault_ = MS_UUID_ERROR;
+  } else if (::hdmap::service::DIAGNOSIS_TYPE_ROM_ERROR == type) {
+    fault_ = MS_MAP_DATA_ROM_ERROR;
+  } else if (::hdmap::service::DIAGNOSIS_TYPE_PATH_ERROR == type) {
+    fault_ = MS_MAP_DATA_PATH_ERROR;
+  } else if (::hdmap::service::DIAGNOSIS_TYPE_FILE_AUTH_FAULT == type) {
+    fault_ = MS_PATH_RW_ERROR;
+  } else if (::hdmap::service::DIAGNOSIS_TYPE_HDMAP_FAULT == type) {
+    fault_ = MS_SDK_INIT_FAIL;
+  } else if (::hdmap::service::DIAGNOSIS_TYPE_ACTIVATION_FAULT == type) {
+    fault_ = MS_SDK_ACTIVE_ERROR;
+  } else if (::hdmap::service::DIAGNOSIS_TYPE_POS_SIGNAL_FAULT == type ||
+             ::hdmap::service::DIAGNOSIS_TYPE_GNSS_LOST_FAULT == type ||
+             ::hdmap::service::DIAGNOSIS_TYPE_GNSS_INVALID_FAULT == type) {
+    fault_ = MS_INPUT_LOC_ERROR;
+  }
+}
+
+MapServiceFault MapService::GetFault() {
+  std::lock_guard<std::mutex> lock(fault_mutex_);
+  return fault_;
 }
 
 MapService::~MapService() {

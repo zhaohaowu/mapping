@@ -18,6 +18,8 @@
 #include "modules/location/coord_adapter/lib/coord_adapter.h"
 #include "modules/location/fusion_center/lib/fusion_center.h"
 #include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
+#include "depend/perception-lib/lib/fault_manager/fault_manager.h"
+#include "depend/perception-lib/lib/health_manager/health_manager.h"
 
 namespace hozon {
 namespace perception {

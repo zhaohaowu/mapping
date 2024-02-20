@@ -11,6 +11,7 @@
 
 #include <string>
 
+#include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 #include "onboard/onboard_lite/map_fusion/map_fusion_lite.h"
@@ -115,22 +116,36 @@ void MapFusionLite::RegistProcessFunc() {
 }
 
 int32_t MapFusionLite::OnLocation(Bundle* input) {
+  static int location_unavailable_frames = 0;
+  static bool location_unavailable_flags = false;
+  static bool location_error_flags = false;
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   if (!input) {
+    location_unavailable_frames += 1;
+    return -1;
+  } else {
+    location_unavailable_frames = 0;
+  }
+  if (location_unavailable_frames >= 5) {
     phm_fault->Report(MAKE_FM_TUPLE(
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::MUL_FRAM_LOCATION_UNUSEFUL,
         hozon::perception::base::FaultStatus::OCCUR,
         hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
-    return -1;
+    location_unavailable_flags = true;
+    HLOG_ERROR << "Consecutive frames with unavailable location";
+  } else {
+    if (location_unavailable_flags) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::MUL_FRAM_LOCATION_UNUSEFUL,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      location_unavailable_flags = false;
+    }
   }
   auto p_loc = input->GetOne("localization");
   if (!p_loc) {
-    phm_fault->Report(MAKE_FM_TUPLE(
-        hozon::perception::base::FmModuleId::MAPPING,
-        hozon::perception::base::FaultType::MUL_FRAM_LOCATION_UNUSEFUL,
-        hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
     HLOG_ERROR << "nullptr location message";
     return -1;
   }
@@ -139,17 +154,47 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
           p_loc->proto_msg);
 
   if (!loc_res) {
-    phm_fault->Report(MAKE_FM_TUPLE(
-        hozon::perception::base::FmModuleId::MAPPING,
-        hozon::perception::base::FaultType::MUL_FRAM_LOCATION_UNUSEFUL,
-        hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
     HLOG_ERROR << "nullptr location";
     return -1;
   }
+  static std::shared_ptr<hozon::localization::Localization> prev_loc_res =
+      nullptr;
+  prev_loc_res = curr_loc_;
   {
     std::lock_guard<std::mutex> lock(loc_mtx_);
     curr_loc_ = std::make_shared<hozon::localization::Localization>(*loc_res);
+  }
+  if (prev_loc_res != nullptr && curr_loc_ != nullptr) {
+    auto loc_distance = std::sqrt(std::pow(curr_loc_->pose().gcj02().x() -
+                                               prev_loc_res->pose().gcj02().x(),
+                                           2.0) +
+                                  std::pow(curr_loc_->pose().gcj02().y() -
+                                               prev_loc_res->pose().gcj02().y(),
+                                           2.0) +
+                                  std::pow(curr_loc_->pose().gcj02().z() -
+                                               prev_loc_res->pose().gcj02().z(),
+                                           2.0));
+    auto loc_yaw = std::abs(prev_loc_res->pose().euler_angles().z() -
+                            curr_loc_->pose().euler_angles().z());
+    // 前后帧定位距离大于 6m，或者yaw角大于0.04时候认为位置和姿态发生突变
+    if (loc_distance > 6 || loc_yaw > 0.04) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::LOCATION_POS_ATTITUDE_ERROR,
+          hozon::perception::base::FaultStatus::OCCUR,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+      location_error_flags = true;
+      HLOG_ERROR << "Location pos error";
+    } else {
+      if (location_error_flags) {
+        phm_fault->Report(MAKE_FM_TUPLE(
+            hozon::perception::base::FmModuleId::MAPPING,
+            hozon::perception::base::FaultType::LOCATION_POS_ATTITUDE_ERROR,
+            hozon::perception::base::FaultStatus::RESET,
+            hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+        location_error_flags = false;
+      }
+    }
   }
 
   return 0;
@@ -157,14 +202,25 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
 
 int32_t MapFusionLite::OnLocalMap(Bundle* input) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+  static bool localmapping_cm_errror_flags = false;
+  static bool nullptr_localmapping_message = false;
   if (!input) {
     phm_fault->Report(MAKE_FM_TUPLE(
         hozon::perception::base::FmModuleId::MAPPING,
-        hozon::perception::base::FaultType::
-            LOCALMAPPING_LOCATION_INPUT_DATA_ERROR,
+        hozon::perception::base::FaultType::LOCALMAPPING_LOCATION_CM_ERROR,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    localmapping_cm_errror_flags = true;
     return -1;
+  } else {
+    if (localmapping_cm_errror_flags) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::LOCALMAPPING_LOCATION_CM_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      localmapping_cm_errror_flags = false;
+    }
   }
   auto p_local_map = input->GetOne("local_map");
   if (!p_local_map) {
@@ -173,9 +229,20 @@ int32_t MapFusionLite::OnLocalMap(Bundle* input) {
         hozon::perception::base::FaultType::
             LOCALMAPPING_LOCATION_INPUT_DATA_ERROR,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    nullptr_localmapping_message = true;
     HLOG_ERROR << "nullptr local map message";
     return -1;
+  } else {
+    if (nullptr_localmapping_message) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              LOCALMAPPING_LOCATION_INPUT_DATA_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      nullptr_localmapping_message = false;
+    }
   }
   const auto local_map_res = std::static_pointer_cast<hozon::mapping::LocalMap>(
       p_local_map->proto_msg);
@@ -186,9 +253,20 @@ int32_t MapFusionLite::OnLocalMap(Bundle* input) {
         hozon::perception::base::FaultType::
             LOCALMAPPING_LOCATION_INPUT_DATA_ERROR,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    nullptr_localmapping_message = true;
     HLOG_ERROR << "nullptr local map";
     return -1;
+  } else {
+    if (nullptr_localmapping_message) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              LOCALMAPPING_LOCATION_INPUT_DATA_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      nullptr_localmapping_message = false;
+    }
   }
   {
     std::lock_guard<std::mutex> lock(local_map_mtx_);
@@ -273,7 +351,8 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     HLOG_ERROR << "SendFusionResult failed";
     return -1;
   }
-
+  auto fault = mf_->GetMapServiceFault();
+  MapServiceFaultOutput(fault);
   return 0;
 }
 
@@ -314,15 +393,27 @@ int MapFusionLite::SendFusionResult(
     const std::shared_ptr<hozon::hdmap::Map>& map,
     hozon::routing::RoutingResponse* routing) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+  static bool input_nullptr_map_or_routing_flags = false;
   if (map == nullptr || routing == nullptr) {
     phm_fault->Report(MAKE_FM_TUPLE(
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::
             LOCALMAPPING_MAPFUSION_CAN_NOT_OUPT_LOCAL_MAP,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    input_nullptr_map_or_routing_flags = true;
     HLOG_ERROR << "input nullptr map or routing";
     return -1;
+  } else {
+    if (input_nullptr_map_or_routing_flags) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              LOCALMAPPING_MAPFUSION_CAN_NOT_OUPT_LOCAL_MAP,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      input_nullptr_map_or_routing_flags = false;
+    }
   }
   auto phm_health = hozon::perception::lib::HealthManager::Instance();
   phm_health->HealthReport(MAKE_HM_TUPLE(
@@ -440,6 +531,8 @@ int MapFusionLite::SendFusionResult(
   map_fusion->mutable_routing()->mutable_header()->set_publish_stamp(
       location->header().publish_stamp());
 
+  MapFusionOutputEvaluation(map_fusion);
+
   auto map_res = std::make_shared<hozon::netaos::adf_lite::BaseData>();
   map_res->proto_msg = map_fusion;
 
@@ -479,6 +572,206 @@ int32_t MapFusionLite::OnRunningMode(hozon::netaos::adf_lite::Bundle* input) {
     ResumeTrigger("recv_loc_plugin");
     ResumeTrigger("send_map_fusion");
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
+  }
+  return 0;
+}
+
+int MapFusionLite::MapFusionOutputEvaluation(
+    const std::shared_ptr<hozon::navigation_hdmap::MapMsg>& map_fusion) {
+  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+  static double pre_publish_stamp = 0;
+  static bool map_fusion_outputs_abnormal_flags = false;
+  auto cur_publish_stamp = map_fusion->header().publish_stamp();
+  // 时间戳可容忍程度
+  auto epsilon = 0.05;
+  if (pre_publish_stamp != 0 &&
+      cur_publish_stamp - pre_publish_stamp > (0.1 + epsilon)) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            LOCALMAPPING_MAPFUSION_OUTPUT_MAP_DATA_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    pre_publish_stamp = cur_publish_stamp;
+    map_fusion_outputs_abnormal_flags = true;
+    HLOG_ERROR << "Map fusion outputs abnormal time difference between frames";
+    return -1;
+  } else {
+    if (map_fusion_outputs_abnormal_flags) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              LOCALMAPPING_MAPFUSION_OUTPUT_MAP_DATA_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      map_fusion_outputs_abnormal_flags = false;
+    }
+  }
+  pre_publish_stamp = cur_publish_stamp;
+
+  return 0;
+}
+
+int MapFusionLite::MapServiceFaultOutput(
+    const hozon::mp::mf::MapServiceFault& fault) {
+  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+  static bool hd_map_input_loc_error = false;
+  static bool hd_map_ehp_init_error = false;
+  static bool hd_map_data_rom_error = false;
+  static bool hd_map_uuid_error = false;
+  static bool hd_map_sdk_input_error = false;
+  static bool hd_map_data_path_error = false;
+  static bool hd_map_path_rw_error = false;
+  static bool hd_map_active_error = false;
+  static bool hd_map_init_fail = false;
+  int fault_value = static_cast<int>(fault);
+  if (fault_value != pre_fault_value_ && pre_fault_value_ != -1) {
+    if (hd_map_input_loc_error) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::HD_MAP_INPUT_LOC_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      hd_map_input_loc_error = false;
+    }
+    if (hd_map_ehp_init_error) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::HD_MAP_EHP_INIT_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      hd_map_ehp_init_error = false;
+    }
+    if (hd_map_data_rom_error) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::HD_MAP_MAP_DATA_ROM_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      hd_map_data_rom_error = false;
+    }
+    if (hd_map_uuid_error) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::HD_MAP_UUID_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      hd_map_uuid_error = false;
+    }
+    if (hd_map_sdk_input_error) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::HD_MAP_SDK_INNER_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      hd_map_sdk_input_error = false;
+    }
+    if (hd_map_data_path_error) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::HD_MAP_MAP_DATA_PATH_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      hd_map_data_path_error = false;
+    }
+    if (hd_map_path_rw_error) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::HD_MAP_PATH_RW_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      hd_map_path_rw_error = false;
+    }
+    if (hd_map_active_error) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::HD_MAP_SDK_ACTIVE_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      hd_map_active_error = false;
+    }
+    if (hd_map_init_fail) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::HD_MAP_SDK_INIT_FAIL,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      hd_map_init_fail = false;
+    }
+  }
+  pre_fault_value_ = fault_value;
+  if (fault_value == 0) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::HD_MAP_INPUT_LOC_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    hd_map_input_loc_error = true;
+    HLOG_ERROR << "HD_MAP_INPUT_LOC_ERROR";
+  } else if (fault_value == 1) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::HD_MAP_EHP_INIT_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    hd_map_ehp_init_error = true;
+    HLOG_ERROR << "HD_MAP_EHP_INIT_ERROR";
+  } else if (fault_value == 2) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::HD_MAP_MAP_DATA_ROM_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    hd_map_data_rom_error = true;
+    HLOG_ERROR << "HD_MAP_MAP_DATA_ROM_ERROR";
+  } else if (fault_value == 3) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::HD_MAP_UUID_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    hd_map_uuid_error = true;
+    HLOG_ERROR << "HD_MAP_UUID_ERROR";
+  } else if (fault_value == 4) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::HD_MAP_SDK_INNER_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    hd_map_sdk_input_error = true;
+    HLOG_ERROR << "HD_MAP_SDK_INNER_ERROR";
+  } else if (fault_value == 5) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::HD_MAP_MAP_DATA_PATH_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    hd_map_data_path_error = true;
+    HLOG_ERROR << "HD_MAP_MAP_DATA_PATH_ERROR";
+  } else if (fault_value == 6) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::HD_MAP_PATH_RW_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    hd_map_path_rw_error = true;
+    HLOG_ERROR << "HD_MAP_PATH_RW_ERROR ";
+  } else if (fault_value == 7) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::HD_MAP_SDK_ACTIVE_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    hd_map_active_error = true;
+    HLOG_ERROR << "HD_MAP_SDK_ACTIVE_ERROR ";
+  } else if (fault_value == 8) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::HD_MAP_SDK_INIT_FAIL,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    hd_map_init_fail = true;
+    HLOG_ERROR << "HD_MAP_SDK_INIT_FAIL ";
   }
   return 0;
 }

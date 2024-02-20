@@ -9,7 +9,8 @@ add_library(${MAPPING_ONBOARD_LITE_DR} ${PROTO_SRCS}
 )
 target_link_libraries(${MAPPING_ONBOARD_LITE_DR}
     util
-     
+    perception-base
+    perception-lib 
     gtest
     dr
     ${DEPENDS_LIBS}

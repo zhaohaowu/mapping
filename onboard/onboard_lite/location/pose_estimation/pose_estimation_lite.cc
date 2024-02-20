@@ -140,10 +140,25 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
   if (!input) {
     return -1;
   }
+  static double last_percep_time = -1.0;
+  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   auto p_perception = input->GetOne(kPerceptionTopic);
-  if (!p_perception) {
+  if (p_perception == nullptr) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            MULTI_FRAME_PERCEPTION_INPUT_DATA_LOSS,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
+    HLOG_ERROR << "Location:perception input data loss";
     return -1;
   }
+  phm_fault->Report(
+      MAKE_FM_TUPLE(hozon::perception::base::FmModuleId::MAPPING,
+                    hozon::perception::base::FaultType::
+                        MULTI_FRAME_PERCEPTION_INPUT_DATA_LOSS,
+                    hozon::perception::base::FaultStatus::RESET,
+                    hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
 
   const auto perception =
       std::static_pointer_cast<hozon::perception::TransportElement>(
@@ -151,6 +166,26 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
   if (!perception) {
     return -1;
   }
+  double cur_percep_time = perception->header().data_stamp();
+  if (last_percep_time > 0) {
+    if (last_percep_time - cur_percep_time > 0) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              MULTI_FRAME_PERCEPTION_INPUT_TIME_ERROR,
+          hozon::perception::base::FaultStatus::OCCUR,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
+      HLOG_ERROR << "Location:receieve perception time error";
+    } else {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              MULTI_FRAME_PERCEPTION_INPUT_TIME_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+    }
+  }
+  last_percep_time = cur_percep_time;
 
   pose_estimation_->OnPerception(perception);
 

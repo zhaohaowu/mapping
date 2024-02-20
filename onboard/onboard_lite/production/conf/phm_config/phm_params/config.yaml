@@ -47,6 +47,13 @@ phmMonitor:
       faultId: 4010
       faultObj: 40
 
-
+    - monitorType: alive
+      periodMs: 1000
+      expectedIndication: 100
+      minMargin: 2
+      maxMargin: 2
+      checkPointId: [1]
+      faultId: 4010
+      faultObj: 30
 
     

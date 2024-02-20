@@ -11,6 +11,8 @@ input:
     capacity: 2
   - topic: running_mode 
     capacity: 2
+  - topic: gnssinfo
+    capacity: 2
 
 output:
   - topic: /location/ins_fusion
@@ -29,6 +31,11 @@ trigger:
     mainSources:
       - name: imu_ins
         timeout: 100
+  - name: receive_gnss
+    type: EVENT
+    mainSources:
+      - name: gnssinfo
+        timeout: 1000
   - name: recv_running_mode
     type: EVENT
     mainSources:

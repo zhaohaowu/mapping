@@ -15,6 +15,7 @@ target_link_libraries(${MAPPING_ONBOARD_LITE_FC}
   gflags
   ${DEPENDS_LIBS}
   perception-lib
+  perception-base
   location_fusion_center_core
   location_coord_adapter_core
   lmap_core

@@ -7,6 +7,8 @@ executorName: TlrFusionLite
 input:
   - topic: tlr_percep
     capacity: 5
+  - topic: running_mode 
+    capacity: 5
 
 output:
   - topic: tlr_fusion
@@ -16,4 +18,9 @@ trigger:
     type: EVENT
     mainSources:
       - name: tlr_percep
+        timeout: 1000
+  - name: recv_running_mode
+    type: EVENT
+    mainSources:
+      - name: running_mode
         timeout: 1000

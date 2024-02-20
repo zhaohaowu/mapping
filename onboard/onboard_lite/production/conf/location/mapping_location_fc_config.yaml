@@ -32,7 +32,7 @@ trigger:
     type: EVENT
     mainSources:
       - name: /location/pose_estimation
-        timeout: 100
+        timeout: 1000
   - name: recv_dr_fusion
     type: EVENT
     mainSources:
@@ -43,8 +43,8 @@ trigger:
     mainSources:
       - name: running_mode
         timeout: 1000
-  # - name: recv_local_map
-  #   type: EVENT
-  #   mainSources:
-  #     - name: local_map
-  #       timeout: 100
+  - name: recv_local_map
+    type: EVENT
+    mainSources:
+      - name: local_map
+        timeout: 1000

@@ -13,6 +13,8 @@ target_link_libraries(${MAPPING_ONBOARD_LITE_POSE_ESTIMATION}
     gtest
     ${DEPENDS_LIBS}
     location_pose_estimation_core
+    perception-base
+    perception-lib
     gflags)
 
 install(

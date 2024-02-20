@@ -18,6 +18,8 @@
 #include <string>
 #include <thread>
 
+#include "map_fusion/map_service/map_service_fault.h"
+
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -41,8 +43,9 @@ class MapFusion {
   int ProcFusion(
       const std::shared_ptr<hozon::localization::Localization>& curr_loc,
       const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
-      bool need_update_global_hd,
-      hozon::hdmap::Map* fusion_map, hozon::routing::RoutingResponse* routing);
+      bool need_update_global_hd, hozon::hdmap::Map* fusion_map,
+      hozon::routing::RoutingResponse* routing);
+  MapServiceFault GetMapServiceFault();
 
  private:
   std::shared_ptr<MapService> map_service_ = nullptr;

@@ -54,6 +54,10 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
       const std::shared_ptr<hozon::hdmap::Map>& map,
       hozon::routing::RoutingResponse* routing);
 
+  int MapFusionOutputEvaluation(
+      const std::shared_ptr<hozon::navigation_hdmap::MapMsg>& map_fusion);
+  int MapServiceFaultOutput(const hozon::mp::mf::MapServiceFault& fault);
+
  private:
   std::shared_ptr<hozon::routing::RoutingResponse> curr_routing_ = nullptr;
   std::unique_ptr<MapFusion> mf_ = nullptr;
@@ -64,6 +68,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   std::shared_ptr<hozon::localization::Localization> curr_loc_ = nullptr;
   std::mutex local_map_mtx_;
   std::shared_ptr<hozon::mapping::LocalMap> curr_local_map_ = nullptr;
+  int pre_fault_value_ = -1;
 };
 
 REGISTER_ADF_CLASS(MapFusionLite, MapFusionLite);

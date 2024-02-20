@@ -11,6 +11,7 @@
 
 #include "base/utils/log.h"
 #include "modules/util/include/util/mapping_log.h"
+#include "perception-base/base/state_machine/state_machine_info.h"
 
 namespace hozon {
 namespace perception {
@@ -20,11 +21,15 @@ int32_t TlrFusionLite::AlgInit() {
   REGISTER_PROTO_MESSAGE_TYPE("tlr_percep",
                               hozon::perception::TrafficLightDetection);
   REGISTER_PROTO_MESSAGE_TYPE("tlr_result", hozon::hdmap::JunctionPassable);
-
+  REGISTER_PROTO_MESSAGE_TYPE("running_mode",
+                              hozon::perception::common_onboard::running_mode);
   tlr_fusion_ = std::make_shared<hozon::mp::mf::TlrFusion>();
 
   RegistAlgProcessFunc("recv_tlr_percep", std::bind(&TlrFusionLite::OnTlr, this,
                                                     std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_running_mode",
+      std::bind(&TlrFusionLite::OnRunningMode, this, std::placeholders::_1));
   return 0;
 }
 
@@ -66,6 +71,35 @@ int32_t TlrFusionLite::OnTlr(hozon::netaos::adf_lite::Bundle* input) {
   SendOutput("tlr_fusion", output_msg);
   HLOG_DEBUG << "SendOutput tlr_fusion:\n" << tlr_result->DebugString();
 
+  return 0;
+}
+
+int32_t TlrFusionLite::OnRunningMode(hozon::netaos::adf_lite::Bundle* input) {
+  auto rm_msg = input->GetOne("running_mode");
+  if (rm_msg == nullptr) {
+    HLOG_ERROR << "nullptr rm_msg plugin";
+    return -1;
+  }
+  auto msg =
+      std::static_pointer_cast<hozon::perception::common_onboard::running_mode>(
+          rm_msg->proto_msg);
+  if (msg == nullptr) {
+    HLOG_ERROR << "nullptr rm_msg->proto_msg";
+    return -1;
+  }
+  int runmode = msg->mode();
+  // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
+  if (runmode ==
+      static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
+    PauseTrigger("recv_tlr_percep");
+    // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
+  } else if (runmode == static_cast<int>(
+                            hozon::perception::base::RunningMode::DRIVING) ||
+             runmode ==
+                 static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
+    ResumeTrigger("recv_tlr_percep");
+    // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
+  }
   return 0;
 }
 

@@ -38,7 +38,7 @@ trigger:
     type: EVENT
     mainSources:
       - name: percep_transport
-        timeout: 100
+        timeout: 1000
 
   - name: recv_running_mode
     type: EVENT

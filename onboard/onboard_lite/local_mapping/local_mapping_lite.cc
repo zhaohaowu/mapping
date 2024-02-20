@@ -190,7 +190,8 @@ int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
 
   double cur_percep_time = msg->header().data_stamp();
   if (last_percep_time > 0) {
-    if (last_percep_time - cur_percep_time < 0) {
+    if (cur_percep_time - last_percep_time <= 0 ||
+        cur_percep_time - last_percep_time > 0.4) {
       phm_fault->Report(MAKE_FM_TUPLE(
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::
@@ -225,6 +226,9 @@ int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
 int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
   auto* phm_fault = hozon::perception::lib::FaultManager::Instance();
   static double last_localization_time = -1.0;
+  static bool input_data_loss_error_flag = false;
+  static bool input_data_value_error_flag = false;
+  static bool input_data_time_error_flag = false;
   HLOG_DEBUG << "receive localization data...";
   auto localization_msg = input->GetOne("localization");
   if (localization_msg == nullptr) {
@@ -234,39 +238,76 @@ int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
             LOCALMAPPING_MUL_FRAM_LOCALIZATION_INPUT_DATA_LOSS,
         hozon::perception::base::FaultStatus::OCCUR,
         hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+    input_data_loss_error_flag = true;
     HLOG_ERROR << "nullptr localization plugin";
     return -1;
+  } else {
+    if (input_data_loss_error_flag) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              LOCALMAPPING_MUL_FRAM_LOCALIZATION_INPUT_DATA_LOSS,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      input_data_loss_error_flag = false;
+    }
   }
-  phm_fault->Report(
-      MAKE_FM_TUPLE(hozon::perception::base::FmModuleId::MAPPING,
-                    hozon::perception::base::FaultType::
-                        LOCALMAPPING_MUL_FRAM_LOCALIZATION_INPUT_DATA_LOSS,
-                    hozon::perception::base::FaultStatus::RESET,
-                    hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
 
   auto msg = std::static_pointer_cast<hozon::localization::Localization>(
       localization_msg->proto_msg);
+  double pose_x = msg->pose_local().position().x();
+  double pose_y = msg->pose_local().position().y();
+  double qua_w = msg->pose_local().quaternion().w();
+  double qua_x = msg->pose_local().quaternion().x();
+  double qua_y = msg->pose_local().quaternion().y();
+  double qua_z = msg->pose_local().quaternion().z();
+  if (std::isnan(pose_x) || std::isnan(pose_y) ||
+      (qua_w == 0 && qua_x == 0 && qua_y == 0 && qua_z == 0)) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            LOCALMAPPING_MUL_FRAM_LOCALIZATION_INPUT_VALUE_ERROR,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+    input_data_value_error_flag = true;
+    HLOG_ERROR << "localmapping input localization value error";
+  } else {
+    if (input_data_value_error_flag) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              LOCALMAPPING_MUL_FRAM_LOCALIZATION_INPUT_VALUE_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      input_data_value_error_flag = false;
+    }
+  }
   double cur_localization_time = msg->header().data_stamp();
   if (last_localization_time > 0) {
-    if (last_localization_time - cur_localization_time < 0) {
+    if (cur_localization_time - last_localization_time <= 0 ||
+        cur_localization_time - last_localization_time > 0.2) {
       phm_fault->Report(MAKE_FM_TUPLE(
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::
               LOCALMAPPING_MUL_FRAM_LOCALIZATION_INPUT_TIME_ERROR,
           hozon::perception::base::FaultStatus::OCCUR,
           hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+      input_data_time_error_flag = true;
       // std::cout << "last_localization_time: " << std::setprecision(20)
       //           << last_localization_time;
       // std::cout << "cur_localization_time: " << std::setprecision(20)
       //           << cur_localization_time;
       HLOG_ERROR << "receieve localization time error";
     } else {
-      phm_fault->Report(MAKE_FM_TUPLE(
-          hozon::perception::base::FmModuleId::MAPPING,
-          hozon::perception::base::FaultType::
-              LOCALMAPPING_MUL_FRAM_LOCALIZATION_INPUT_TIME_ERROR,
-          hozon::perception::base::FaultStatus::RESET,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      if (input_data_time_error_flag) {
+        phm_fault->Report(MAKE_FM_TUPLE(
+            hozon::perception::base::FmModuleId::MAPPING,
+            hozon::perception::base::FaultType::
+                LOCALMAPPING_MUL_FRAM_LOCALIZATION_INPUT_TIME_ERROR,
+            hozon::perception::base::FaultStatus::RESET,
+            hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+        input_data_time_error_flag = false;
+      }
     }
   }
   last_localization_time = cur_localization_time;
@@ -367,7 +408,7 @@ int32_t LocalMappingOnboard::PublishLocalMap() {
   if (lmap_->FetchLocalMap(result)) {
     double cur_localmap_publish_time = result->header().data_stamp();
     if (last_localmap_publish_time > 0) {
-      if (last_localmap_publish_time - cur_localmap_publish_time < 0) {
+      if (cur_localmap_publish_time - last_localmap_publish_time <= 0) {
         phm_fault->Report(MAKE_FM_TUPLE(
             hozon::perception::base::FmModuleId::MAPPING,
             hozon::perception::base::FaultType::

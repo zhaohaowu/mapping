@@ -1,6 +1,7 @@
 project(mapping_onboard_lite)
 
 include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/fast-dds/include)
+include_directories(${MAPPING}/modules/map_fusion/include)
 
 if(${LOCAL_TARGET_PLATFORM} MATCHES x86)
   set(NOS_PLATFORM x86_2004)

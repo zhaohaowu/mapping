@@ -23,6 +23,7 @@
 #include "map/ehr/ehr_factory.h"
 #include "map/hdmap/hdmap.h"
 #include "map_fusion/map_service/ehp/amap_core.h"
+#include "map_fusion/map_service/map_service_fault.h"
 #include "modules/map_fusion/include/map_fusion/map_service/ehp/amap_core.h"
 #include "proto/localization/localization.pb.h"
 #include "proto/map/adasisv3.pb.h"
@@ -67,6 +68,7 @@ class MapService {
   std::shared_ptr<hozon::routing::RoutingResponse> GetRouting() const {
     return routing_;
   }
+  MapServiceFault GetFault();
 
  private:
   void GetUidThread();
@@ -84,7 +86,7 @@ class MapService {
   static void GetAroundId(
       const ::google::protobuf::RepeatedPtrField<::hozon::hdmap::Id>& ids,
       std::unordered_set<hozon::hdmap::Id, IdHash, IdEqual>* lane_id_pool);
-
+  void SetFautl();
   std::shared_ptr<hozon::routing::RoutingResponse> routing_ = nullptr;
   hozon::common::math::Vec2d last_pose_;
   std::chrono::steady_clock::time_point last_send_time_{};
@@ -96,6 +98,8 @@ class MapService {
 
   std::atomic<bool> is_amap_tsp_thread_stop_{false};
   std::string uuid_{};
+  MapServiceFault fault_{MS_NO_ERROR};
+  std::mutex fault_mutex_{};
 };
 
 }  // namespace mf

@@ -96,6 +96,9 @@ void FusionCenterLite::RegistProcessFunc() {
 }
 
 int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
+  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+  static bool input_data_init_error_flag = false;
+  static bool input_data_value_error_flag = false;
   if (!input) {
     return -1;
   }
@@ -109,7 +112,23 @@ int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
       std::static_pointer_cast<hozon::localization::HafNodeInfo>(
           p_ins_fusion->proto_msg);
   if (!ins_fusion) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::LOCALIZATION_CAN_NOT_INIT,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 1, 1000));
+    input_data_init_error_flag = true;
+    HLOG_ERROR << "Location init failed!!!";
     return -1;
+  } else {
+    if (input_data_init_error_flag) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::LOCALIZATION_CAN_NOT_INIT,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      input_data_init_error_flag = false;
+    }
   }
 
   fusion_center_->OnIns(*ins_fusion);
@@ -120,7 +139,33 @@ int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
     HLOG_ERROR << "onboard get localization result error";
     return -1;
   }
-
+  double pose_x = localization->pose_local().position().x();
+  double pose_y = localization->pose_local().position().y();
+  double qua_w = localization->pose_local().quaternion().w();
+  double qua_x = localization->pose_local().quaternion().x();
+  double qua_y = localization->pose_local().quaternion().y();
+  double qua_z = localization->pose_local().quaternion().z();
+  if (std::isnan(pose_x) || std::isnan(pose_y) ||
+      (qua_w == 0 && qua_x == 0 && qua_y == 0 && qua_z == 0)) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+                        LOCALIZATION_POSE_AND_ATTITUDE_CRITICAL_ABNORMALITY,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+    input_data_value_error_flag = true;
+    HLOG_ERROR << "Location: output Nan";
+  } else {
+    if (input_data_value_error_flag) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+                          LOCALIZATION_POSE_AND_ATTITUDE_CRITICAL_ABNORMALITY,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+      input_data_value_error_flag = false;
+    }
+  }
   auto localization_pack =
       std::make_shared<hozon::netaos::adf_lite::BaseData>();
   localization_pack->proto_msg = localization;
@@ -158,26 +203,61 @@ int32_t FusionCenterLite::OnLocalMap(Bundle* input) {
   if (init_dr_) {
     return 0;
   }
+  static double last_lm_time = -1.0;
+  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   auto p_local_map = input->GetOne(kLocalMapTopic);
   if (!p_local_map) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            MULTI_FRAME_LOCALMAPPING_INPUT_DATA_LOSS,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
+    HLOG_ERROR << "Location:localmap input data loss";
     return -1;
   }
+  phm_fault->Report(
+      MAKE_FM_TUPLE(hozon::perception::base::FmModuleId::MAPPING,
+                    hozon::perception::base::FaultType::
+                        MULTI_FRAME_LOCALMAPPING_INPUT_DATA_LOSS,
+                    hozon::perception::base::FaultStatus::RESET,
+                    hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
   const auto local_map = std::static_pointer_cast<hozon::mapping::LocalMap>(
       p_local_map->proto_msg);
   if (!local_map) {
     return -1;
   }
-  coord_adapter_->OnLocalMap(*local_map);
-  if (!coord_adapter_->IsCoordInitSucc()) {
-    return -1;
+  double cur_lm_time = local_map->header().data_stamp();
+  if (last_lm_time > 0) {
+    if (last_lm_time - cur_lm_time > 0) {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              MULTI_FRAME_LOCALMAPPING_INPUT_TIME_ERROR,
+          hozon::perception::base::FaultStatus::OCCUR,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
+      HLOG_ERROR << "Location:receieve localmap time error";
+    } else {
+      phm_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::
+              MULTI_FRAME_LOCALMAPPING_INPUT_TIME_ERROR,
+          hozon::perception::base::FaultStatus::RESET,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+    }
   }
-  const auto& init_dr = coord_adapter_->GetSysInitDrFusion();
-  fusion_center_->OnInitDR(init_dr);
-  if (coord_adapter_->IsCoordInitSucc()) {
-    init_dr_ = true;
-  } else {
-    HLOG_ERROR << "OnInitDR Failed";
-  }
+  last_lm_time = cur_lm_time;
+  // coord_adapter_->OnLocalMap(*local_map);
+  // if (!coord_adapter_->IsCoordInitSucc()) {
+  //   return -1;
+  // }
+  // const auto& init_dr = coord_adapter_->GetSysInitDrFusion();
+  // fusion_center_->OnInitDR(init_dr);
+  // if (coord_adapter_->IsCoordInitSucc()) {
+  //   init_dr_ = true;
+  // } else {
+  //   HLOG_ERROR << "OnInitDR Failed";
+  // }
 
   return 0;
 }

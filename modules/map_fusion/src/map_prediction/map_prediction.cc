@@ -432,30 +432,32 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
   int row_min = 0;
 
   for (int i = row; i < routing_lanes.size(); ++i) {
-    hozon::hdmap::Id lane_id;
-    auto size = routing_lanes[i].size();
-    lane_id.set_id(routing_lanes[i][size - 1]);
-    auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
-    if (lane_ptr != nullptr) {
-      lane_length_forward = lane_length_forward + lane_ptr->lane().length();
-    }
-    row_max = i;
-    if (lane_length_forward >= 300) {
-      break;
+    if (!routing_lanes[i].empty()) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(routing_lanes[i].back());
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        lane_length_forward = lane_length_forward + lane_ptr->lane().length();
+      }
+      row_max = i;
+      if (lane_length_forward >= 300) {
+        break;
+      }
     }
   }
 
   for (int i = row - 1; i >= 0; --i) {
-    hozon::hdmap::Id lane_id;
-    auto size = routing_lanes[i].size();
-    lane_id.set_id(routing_lanes[i][size - 1]);
-    auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
-    if (lane_ptr != nullptr) {
-      lane_length_backward = lane_length_backward + lane_ptr->lane().length();
-    }
-    row_min = i;
-    if (lane_length_backward >= 100) {
-      break;
+    if (!routing_lanes[i].empty()) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(routing_lanes[i].back());
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        lane_length_backward = lane_length_backward + lane_ptr->lane().length();
+      }
+      row_min = i;
+      if (lane_length_backward >= 100) {
+        break;
+      }
     }
   }
 

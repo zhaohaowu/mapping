@@ -179,6 +179,9 @@ void MapTable::CreatLaneTable(
 
     // 存储每条lane右边线最后两个点的单位向量
     const auto& right_size = local_lane.right_line.size();
+    if (right_size < 2) {
+      continue;
+    }
     const auto& last_normal = (local_lane.right_line[right_size - 2] -
                                local_lane.right_line[right_size - 1])
                                   .normalized();
@@ -396,7 +399,8 @@ void MapTable::ObtainEquation(const std::string& idd, const int& next_size) {
 
   double width_last = 0.;
   ComputeEndWidth(lane_idds, lane_idd_nxt, &width_last, lane_idd_nxts);
-  if (lane_idds.size() >= 2 && lane_idds[lane_idds.size() - 2] == lane_idd_nxt) {
+  if (lane_idds.size() >= 2 &&
+      lane_idds[lane_idds.size() - 2] == lane_idd_nxt) {
     width_last = 0;
   }
   if (lane_idds.size() == 1) {
@@ -649,9 +653,12 @@ void MapTable::FitVirtualPoint(
     // width += wid[index];
     if (lane_table_.at(sec_lane_id[j]).extra_boundary == 1) {
       // 如果是变道引导线，求两个法向量之间的交点
-      HLOG_ERROR << "---------------------------sec_lane_id.size(): " << sec_lane_id.size();
-      HLOG_ERROR << "---------------------------sec_lane_id.size() - j - 1: " << sec_lane_id.size() - j - 1;
-      HLOG_ERROR << "---------------------------predict_line: " << predict_line->size();
+      HLOG_ERROR << "---------------------------sec_lane_id.size(): "
+                 << sec_lane_id.size();
+      HLOG_ERROR << "---------------------------sec_lane_id.size() - j - 1: "
+                 << sec_lane_id.size() - j - 1;
+      HLOG_ERROR << "---------------------------predict_line: "
+                 << predict_line->size();
       if (predict_line->at(sec_lane_id.size() - j - 1).empty()) {
         continue;
       }

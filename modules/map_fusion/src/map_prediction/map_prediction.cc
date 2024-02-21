@@ -362,6 +362,7 @@ void MapPrediction::OnTopoMap(
 std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
     bool need_update_global_hd, hozon::routing::RoutingResponse* routing) {
   if (!need_update_global_hd) {
+    HDMapLaneToLocal();
     return hq_map_;
   }
 
@@ -1546,6 +1547,9 @@ void MapPrediction::FusionMapLaneToLocal() {
 
 void MapPrediction::HDMapLaneToLocal() {
   // gcj02 to local
+  if (hq_map_ == nullptr) {
+    return;
+  }
   for (auto& hq_lane : *hq_map_->mutable_lane()) {
     for (auto& seg : *hq_lane.mutable_central_curve()->mutable_segment()) {
       (*seg.mutable_line_segment()->mutable_point()).Clear();

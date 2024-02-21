@@ -371,6 +371,11 @@ std::shared_ptr<hozon::mapping::LocalMap> MapFusionLite::GetLatestLocalMap() {
   std::shared_ptr<hozon::mapping::LocalMap> latest_local_map = nullptr;
   std::lock_guard<std::mutex> lock(local_map_mtx_);
   if (curr_local_map_ != nullptr) {
+    auto local_map_size = curr_local_map_->ByteSizeLong();
+    auto one_mb = static_cast<size_t>(1 * 1024 * 1024);
+    if (local_map_size > one_mb) {
+      HLOG_ERROR << "LocalMap size is greater than 1MB";
+    }
     latest_local_map =
         std::make_shared<hozon::mapping::LocalMap>(*curr_local_map_);
   }

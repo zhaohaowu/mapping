@@ -5,10 +5,13 @@ TOP_DIR="$(builtin cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P)"
 function copy() {
   pushd ${TOP_DIR}/../runtime_service/
   cp -rf * /app/runtime_service/
+  chown nvidia:nvidia -R /app/runtime_service/mapping
   chmod 755 -R /app/runtime_service/mapping
   popd
 
   cp -rf ${TOP_DIR}/../conf/* /app/conf
+  chown nvidia:nvidia -R /app/conf/mapping
+  chmod 755 -R /app/conf/mapping
 
   cp -rf ${TOP_DIR}/../data/* /app/data
 

@@ -24,6 +24,8 @@ fi
 lib_folder="${WORKSPACE}/release/mal_orin/lib/"
 mv $lib_folder/libperception-base.so ${WORKSPACE}/release/lib/
 mv $lib_folder/libperception-lib.so ${WORKSPACE}/release/lib/
+conf_folder="${WORKSPACE}/release/mal_orin/conf/"
+rm $conf_folder/global_flagfile.txt
 
 WITH_MAL_PLUGIN_FLAG=$(cat plugin_env.txt)
 if [ "${WITH_MAL_PLUGIN_FLAG}" = "true" ]; then

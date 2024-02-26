@@ -932,6 +932,10 @@ std::vector<std::string> TopoAssignment::FindLaneLineHead(
     }
 
     auto prev_id = all_lane_info_[curr_lane_id].prev_lane_ids.back();
+    if (std::find(lane_id_vec.begin(), lane_id_vec.end(), prev_id) !=
+        lane_id_vec.end()) {
+      break;
+    }
     if (all_lane_info_.find(prev_id) == all_lane_info_.end()) {
       break;
     }
@@ -972,6 +976,10 @@ std::vector<std::string> TopoAssignment::FindLaneLineTail(
     }
 
     auto next_id = all_lane_info_[curr_lane_id].next_lane_ids.back();
+    if (std::find(lane_id_vec.begin(), lane_id_vec.end(), next_id) !=
+        lane_id_vec.end()) {
+      break;
+    }
     if (all_lane_info_.find(next_id) == all_lane_info_.end()) {
       break;
     }

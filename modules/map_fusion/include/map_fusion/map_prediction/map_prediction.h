@@ -87,11 +87,11 @@ class MapPrediction {
   void CreatAddIdVector(const std::vector<std::string>& end_lane_ids_);
   void FitLaneCenterline();
   static void GenerateCenterPoint(const std::vector<Vec2d>& left_point,
-                           const std::vector<Vec2d>& right_point,
-                           std::vector<Vec2d>* cent_point);
+                                  const std::vector<Vec2d>& right_point,
+                                  std::vector<Vec2d>* cent_point);
   static void CenterPoint(const std::vector<Vec2d>& project_points,
-                   const std::vector<Vec2d>& points,
-                   std::vector<Vec2d>* cent_point);
+                          const std::vector<Vec2d>& points,
+                          std::vector<Vec2d>* cent_point);
   static bool CalculateLambda(const Vec2d& p1, const Vec2d& p2, const Vec2d& p3,
                               const Vec2d& p4, double* lambda);
   static void InsertCenterPoint(hozon::hdmap::Lane* lane,
@@ -142,6 +142,7 @@ class MapPrediction {
   void FusionMapLaneToLocal();
   void ArrawStopLineToLocal();
   void CrossWalkToLocal();
+  void JunctionToLocal();
   void RoadToLocal();
   void DeelEdge(hozon::hdmap::BoundaryEdge* edge);
   void VizLocAndHqMap();

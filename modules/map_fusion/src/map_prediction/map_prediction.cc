@@ -630,7 +630,9 @@ void MapPrediction::CreatAddIdVector(
         break;
       }
       std::string first = local_lane.next_lane_ids.front();
-      std::string last = local_lane.next_lane_ids.back();
+      if (add_lane_ids_.find(first) != add_lane_ids_.end()) {
+        break;
+      }
       add_lane_ids_.insert(first);
       if (std::find(add_section_ids_.begin(), add_section_ids_.end(),
                     local_lane.section_id) == add_section_ids_.end()) {
@@ -648,6 +650,9 @@ void MapPrediction::CreatAddIdVector(
         break;
       }
       std::string last = local_lane.next_lane_ids.back();
+      if (add_lane_ids_.find(last) != add_lane_ids_.end()) {
+        break;
+      }
       add_lane_ids_.insert(last);
       if (std::find(add_section_ids_.begin(), add_section_ids_.end(),
                     local_lane.section_id) == add_section_ids_.end()) {
@@ -1505,6 +1510,7 @@ void MapPrediction::ConvertToLocal() {
   RoadToLocal();
   ArrawStopLineToLocal();
   CrossWalkToLocal();
+  JunctionToLocal();
 }
 
 void MapPrediction::FusionMapLaneToLocal() {
@@ -1812,6 +1818,18 @@ void MapPrediction::CrossWalkToLocal() {
   for (auto& hq_cross_walk : *hq_map_->mutable_crosswalk()) {
     for (auto& pt : *hq_cross_walk.mutable_polygon()->mutable_point()) {
       Eigen::Vector3d pt_local(pt.x(), pt.y(), pt.z());
+      pt_local = T_local_enu_to_local_ * pt_local;
+      pt.set_x(pt_local.x());
+      pt.set_y(pt_local.y());
+      pt.set_z(0);
+    }
+  }
+}
+
+void MapPrediction::JunctionToLocal() {
+  for (auto& hq_junction : *hq_map_->mutable_junction()) {
+    for (auto& pt : *hq_junction.mutable_polygon()->mutable_point()) {
+      Eigen::Vector3d pt_local = UtmPtToLocalEnu(pt);
       pt_local = T_local_enu_to_local_ * pt_local;
       pt.set_x(pt_local.x());
       pt.set_y(pt_local.y());

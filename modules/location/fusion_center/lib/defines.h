@@ -39,6 +39,7 @@ struct Params {
   uint32_t run_fusion_interval_ms = 10;
   uint32_t window_size = 30;
   bool require_local_pose = false;
+  bool use_debug_txt = false;
 
   std::vector<std::pair<uint32_t, uint32_t>> ins_init_status;
 };

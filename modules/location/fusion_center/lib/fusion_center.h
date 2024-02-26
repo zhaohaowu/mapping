@@ -12,6 +12,7 @@
 #include <string>
 #include <thread>
 #include <utility>
+#include <fstream>
 
 #include "modules/location/fusion_center/lib/eskf.h"
 #include "modules/location/fusion_center/lib/kalman_filter.h"
@@ -90,6 +91,8 @@ class FusionCenter {
   bool GetLocalPose(Context* const ctx);
   std::string GetHdCurrLaneId(const Eigen::Vector3d& utm, double heading);
   uint32_t FaultCodeAssign(uint32_t state);
+  void DebugDiffTxt(std::ofstream& diff_file, const Node& compare_node,
+                    const Node& ins_node);
 
  private:
   Params params_;
@@ -145,6 +148,8 @@ class FusionCenter {
 
   std::deque<std::shared_ptr<Node>> pre_deque_;
   std::deque<std::shared_ptr<Node>> meas_deque_;
+  std::ofstream fc_ins_diff_file_;
+  std::ofstream mm_ins_diff_file_;
 };
 
 }  // namespace fc

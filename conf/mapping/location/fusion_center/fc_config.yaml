@@ -24,8 +24,10 @@ no_mm_max_time: 3    # 超过max_time无mm测量，直接使用ins测量
 use_dr_measurement: false
 # fc线程频率
 run_fusion_interval_ms: 10
-window_size: 30      # fc队列长度
+window_size: 100      # fc队列长度
 smooth_outputs: true # 开启KF平滑滤波
 use_smooth_yaw: true
+# fc使用txt调试mm,fc与INS差值
+use_debug_txt: false
 
 require_local_pose: false

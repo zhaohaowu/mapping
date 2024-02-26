@@ -126,6 +126,7 @@ bool ESKF::Predict(const Node& cur_pre_data) {
   const auto cur_ang_v = cur_pre_data.angular_velocity;
 
   X_.type = StateType::PREDICT;
+  X_.meas_type = NodeType::NONE;
   X_.p = X_.p + X_.v * dt + 0.5 * (X_.R * (cur_acc - X_.b_a)) * dt * dt;
   X_.v = X_.v + (X_.R * (cur_acc - X_.b_a)) * dt;
   X_.R = X_.R * SO3::exp((cur_ang_v - X_.b_g) * dt);

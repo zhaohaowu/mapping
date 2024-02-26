@@ -29,6 +29,16 @@ FusionCenter::~FusionCenter() {
   if (th_fusion_->joinable()) {
     th_fusion_->join();
   }
+
+  if (params_.use_debug_txt) {
+    if (fc_ins_diff_file_.is_open()) {
+      fc_ins_diff_file_.close();
+    }
+
+    if (mm_ins_diff_file_.is_open()) {
+      mm_ins_diff_file_.close();
+    }
+  }
 }
 
 bool FusionCenter::Init(const std::string& configfile,
@@ -60,6 +70,12 @@ bool FusionCenter::Init(const std::string& configfile,
   if (!monitor_->Init(monitorconf)) {
     HLOG_WARN << "monitor init failed: " << monitorconf;
     return false;
+  }
+
+  // debug print enu and euler diff
+  if (params_.use_debug_txt) {
+    fc_ins_diff_file_.open("./fc_ins_diff.txt", std::ios::trunc);
+    mm_ins_diff_file_.open("./mm_ins_diff.txt", std::ios::trunc);
   }
 
   th_fusion_ = std::make_shared<std::thread>(&FusionCenter::RunFusion, this);
@@ -179,6 +195,20 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   std::unique_lock<std::mutex> lock(pe_deque_mutex_);
   pe_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&pe_deque_, params_.pe_deque_max_size);
+
+  // debug print enu and euler diff
+  if (params_.use_debug_txt) {
+    std::unique_lock<std::mutex> lock(ins_deque_mutex_);
+    Node ins_debug_node;
+    for (auto ins_node : ins_deque_) {
+      if (ins_node->ticktime - node.ticktime < 0.001) {
+        ins_debug_node = *ins_node;
+      }
+    }
+    if (ins_debug_node.ticktime > 0) {
+      DebugDiffTxt(mm_ins_diff_file_, node, ins_debug_node);
+    }
+  }
 }
 
 void FusionCenter::SetEhpCounter(int32_t counter) { ehp_counter_ = counter; }
@@ -199,7 +229,7 @@ bool FusionCenter::GetCurrentOutput(Localization* const location) {
     return false;
   }
   if (!GetCurrentContext(&ctx)) {
-    HLOG_INFO << "get context failed";
+    HLOG_ERROR << "get context failed";
     return false;
   }
 
@@ -271,6 +301,7 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
   params_.window_size = node["window_size"].as<uint32_t>();
   params_.require_local_pose = node["require_local_pose"].as<bool>();
   params_.use_ins_predict_mm = node["use_ins_predict_mm"].as<bool>();
+  params_.use_debug_txt = node["use_debug_txt"].as<bool>();
   params_.ins_init_status.clear();
   const auto& init_status_node = node["ins_init_status"];
   for (const auto& init_status : init_status_node) {
@@ -369,7 +400,6 @@ void FusionCenter::RunFusion() {
       RunESKFFusion();
     }
 
-    can_output_ = true;
     PruneDeques();
     usleep(params_.run_fusion_interval_ms * 1000);
   }
@@ -502,6 +532,8 @@ void FusionCenter::Node2Localization(const Context& ctx,
   auto* const pose = location->mutable_pose();
 
   const Sophus::SO3d& rot = Sophus::SO3d::exp(global_node.orientation);
+  // const auto& ins_node = ctx.ins_node;
+  // const Sophus::SO3d& rot = Sophus::SO3d::exp(ins_node.orientation);
   pose->mutable_quaternion()->set_w(
       static_cast<float>(rot.unit_quaternion().w()));
   pose->mutable_quaternion()->set_x(
@@ -854,7 +886,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
           meas_flag = true;
         }
       }
-      HLOG_INFO << "No MM measurement,insert INS meas. time_diff:" << time_diff;
+      HLOG_DEBUG << "No MM measurement,insert INS meas. time_diff:" << time_diff;
     }
   }
 
@@ -955,7 +987,7 @@ void FusionCenter::InsertESKFFusionNode(const Node& node) {
 }
 
 void FusionCenter::RunESKFFusion() {
-  HLOG_INFO << "-------eskf前-------"
+  HLOG_DEBUG << "-------eskf前-------"
             << "pre_deque_.size():" << pre_deque_.size()
             << ", meas_deque_.size():" << meas_deque_.size()
             << ", meas_type:" << meas_deque_.back()->type;
@@ -963,7 +995,7 @@ void FusionCenter::RunESKFFusion() {
   // eskf开始
   fusion_deque_mutex_.lock();
   eskf_->StateInit(fusion_deque_.back());
-  HLOG_INFO << "-------eskf前------- fusion_deque.size():" << fusion_deque_.size();
+  HLOG_DEBUG << "-------eskf前------- fusion_deque.size():" << fusion_deque_.size();
   fusion_deque_mutex_.unlock();
   while (!pre_deque_.empty() && !meas_deque_.empty()) {
     Node meas_node, predict_node;
@@ -1000,8 +1032,9 @@ void FusionCenter::RunESKFFusion() {
     State state = eskf_->GetState();
     InsertESKFFusionNode(State2Node(state));
   }
+  can_output_ = true;
 
-  HLOG_INFO << "-------eskf后-------"
+  HLOG_DEBUG << "-------eskf后-------"
             << "pre_deque_.size():" << pre_deque_.size()
             << ", meas_deque_.size():" << meas_deque_.size()
             << ", meas_type:" << meas_deque_.back()->type;
@@ -1152,6 +1185,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
 
   if (params_.passthrough_ins) {
     ctx->global_node = ctx->ins_node;
+    ctx->global_node.location_state = 5;
     return true;
   }
 
@@ -1163,7 +1197,20 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
       HLOG_ERROR << "fusion deque is empty";
       return false;
     }
-    fusion_node = *(fusion_deque_.back());
+    // 判断融合队列的值是通过Ins、MM观测更新的才有效输出
+    auto it = fusion_deque_.rbegin();
+    for (; it != fusion_deque_.rend(); ++it) {
+      if ((*it)->type >= 0) {
+        fusion_node = *((*it));
+        break;
+      }
+    }
+
+    if (it == fusion_deque_.rend()) {
+      HLOG_ERROR << "not find valid output in fusion deque";
+      return false;
+    }
+    // fusion_node = *(fusion_deque_.back());
   }
 
   const double ins_fusion_diff = ctx->ins_node.ticktime - fusion_node.ticktime;
@@ -1220,6 +1267,24 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     prev_global_valid_ = true;
   }
 
+  // debug print enu and euler diff(pe队列更新了此处才更新)
+  if (params_.use_debug_txt) {
+    Node pe_now_node;
+    static Node prev_pe_node;
+    pe_deque_mutex_.lock();
+    uint32_t pe_deque_size = pe_deque_.size();
+    if (pe_deque_size > 0) {
+      pe_now_node = *pe_deque_.back();
+    }
+    pe_deque_mutex_.unlock();
+
+    if (pe_deque_size > 0) {
+      if (prev_pe_node.ticktime < pe_now_node.ticktime) {
+        DebugDiffTxt(fc_ins_diff_file_, ctx->global_node, ctx->ins_node);
+        prev_pe_node = pe_now_node;
+      }
+    }
+  }
   return true;
 }
 
@@ -1302,6 +1367,47 @@ std::string FusionCenter::GetHdCurrLaneId(const Eigen::Vector3d& utm,
   }
 
   return nearest_lane->id().id();
+}
+
+void FusionCenter::DebugDiffTxt(std::ofstream& diff_file,
+                                const Node& compare_node,
+                                const Node& ins_node) {
+  const auto com_SO3 = Sophus::SO3d::exp(compare_node.orientation);
+  const auto ins_SO3 = Sophus::SO3d::exp(ins_node.orientation);
+  Eigen::Matrix3d com_rot = com_SO3.matrix();
+  Eigen::Matrix3d ins_rot = ins_SO3.matrix();
+  Eigen::Vector3d com_euler = com_rot.eulerAngles(0, 1, 2);
+  Eigen::Vector3d ins_euler = ins_rot.eulerAngles(0, 1, 2);
+
+  Eigen::Vector3d euler_diff = com_euler - ins_euler;
+  Eigen::Vector3d enu_diff = compare_node.enu - ins_node.enu;
+
+  if (euler_diff.x() > 3.1) {
+    euler_diff.x() -= M_PI;
+  } else if (euler_diff.x() < -3.1) {
+    euler_diff.x() += M_PI;
+  }
+
+  if (euler_diff.y() > 3.1) {
+    euler_diff.y() -= M_PI;
+  } else if (euler_diff.y() < -3.1) {
+    euler_diff.y() += M_PI;
+  }
+
+  if (euler_diff.z() > 3.1) {
+    euler_diff.z() -= M_PI;
+  } else if (euler_diff.z() < -3.1) {
+    euler_diff.z() += M_PI;
+  }
+
+  euler_diff.x() = euler_diff.x() * 180 / M_PI;
+  euler_diff.y() = euler_diff.y() * 180 / M_PI;
+  euler_diff.z() = euler_diff.z() * 180 / M_PI;
+
+  diff_file << std::fixed << std::setprecision(10) << compare_node.ticktime
+            << " " << enu_diff.x() << " " << enu_diff.y() << " " << enu_diff.z()
+            << " " << euler_diff.x() << " " << euler_diff.y() << " "
+            << euler_diff.z() << std::endl;
 }
 
 }  // namespace fc

@@ -8,6 +8,7 @@
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_lane_line.h"
 
 #include "modules/location/pose_estimation/lib/util/euler.h"
+#include "modules/location/pose_estimation/lib/util/globals.h"
 
 namespace hozon {
 namespace mp {
@@ -32,7 +33,15 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
   }
   HLOG_INFO << "lane_ptr_vec.size = " << lane_ptr_vec.size();
   size_t l_count = 0, r_count = 0;
+  bool is_big_curvature_lane = false;
   for (const auto& lane_ptr : lane_ptr_vec) {
+    double s = lane_ptr->accumulate_s()[1];
+    auto lane_curvature = lane_ptr->Curvature(s);
+    HLOG_INFO << "lane_curvature: " << lane_curvature;
+    if (fabs(lane_curvature) > mm_params.curvature_thresold) {
+      HLOG_INFO << "big curvature!!!!";
+      is_big_curvature_lane = true;
+    }
     auto lane = (*lane_ptr).lane();
     if (lane.has_extra_left_boundary()) {
       auto left_lane_boundary = lane.extra_left_boundary();
@@ -53,14 +62,15 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
           // 地图是经纬度和ins相反
           Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
           Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-          ControlPoint cpoint(0, {0, 0, 0});
+          ControlPoint cpoint(0, 0, {0, 0, 0});
           if (bl.line_type == DoubleLineType::DoubleSolidLine ||
               bl.line_type == DoubleLineType::DoubleDashedLine ||
               bl.line_type == DoubleLineType::LeftSolidRightDashed ||
               bl.line_type == DoubleLineType::RightSolidLeftDashed) {
             cpoint.line_type = 1;
-          } else {
-            cpoint.line_type = 0;
+          }
+          if (is_big_curvature_lane) {
+            cpoint.lane_type = 1;
           }
           cpoint.point = p_enu;
           bl.control_point.emplace_back(cpoint);
@@ -86,14 +96,15 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
           // 地图是经纬度和ins相反
           Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
           Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-          ControlPoint cpoint(0, {0, 0, 0});
+          ControlPoint cpoint(0, 0, {0, 0, 0});
           if (bl.line_type == DoubleLineType::DoubleSolidLine ||
               bl.line_type == DoubleLineType::DoubleDashedLine ||
               bl.line_type == DoubleLineType::LeftSolidRightDashed ||
               bl.line_type == DoubleLineType::RightSolidLeftDashed) {
             cpoint.line_type = 1;
-          } else {
-            cpoint.line_type = 0;
+          }
+          if (is_big_curvature_lane) {
+            cpoint.lane_type = 1;
           }
           cpoint.point = p_enu;
           bl.control_point.emplace_back(cpoint);
@@ -120,14 +131,15 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
           // 地图是经纬度和ins相反
           Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
           Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-          ControlPoint cpoint(0, {0, 0, 0});
+          ControlPoint cpoint(0, 0, {0, 0, 0});
           if (br.line_type == DoubleLineType::DoubleSolidLine ||
               br.line_type == DoubleLineType::DoubleDashedLine ||
               br.line_type == DoubleLineType::LeftSolidRightDashed ||
               br.line_type == DoubleLineType::RightSolidLeftDashed) {
             cpoint.line_type = 1;
-          } else {
-            cpoint.line_type = 0;
+          }
+          if (is_big_curvature_lane) {
+            cpoint.lane_type = 1;
           }
           cpoint.point = p_enu;
           br.control_point.emplace_back(cpoint);
@@ -153,14 +165,15 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
           // 地图是经纬度和ins相反
           Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
           Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-          ControlPoint cpoint(0, {0, 0, 0});
+          ControlPoint cpoint(0, 0, {0, 0, 0});
           if (br.line_type == DoubleLineType::DoubleSolidLine ||
               br.line_type == DoubleLineType::DoubleDashedLine ||
               br.line_type == DoubleLineType::LeftSolidRightDashed ||
               br.line_type == DoubleLineType::RightSolidLeftDashed) {
             cpoint.line_type = 1;
-          } else {
-            cpoint.line_type = 0;
+          }
+          if (is_big_curvature_lane) {
+            cpoint.lane_type = 1;
           }
           cpoint.point = p_enu;
           br.control_point.emplace_back(cpoint);

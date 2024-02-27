@@ -29,7 +29,6 @@ bool MapMatching::Init(const std::string& config_file,
 
   map_crop_front_ = config["map_crop_front"].as<double>();
   map_crop_width_ = config["map_crop_width"].as<double>();
-  HLOG_ERROR << "map_crop_front_ = " << map_crop_front_;
   use_inter_ = config["use_interpolate"].as<bool>();
   delay_frame_ = config["delay_frame"].as<int>();
   max_frame_buf_ = config["max_frame_buf"].as<int>();
@@ -47,7 +46,7 @@ bool MapMatching::Init(const std::string& config_file,
   mm_params.near_dis = config["near_dis"].as<double>();
   mm_params.last_straight_dis = config["last_straight_dis"].as<double>();
   mm_params.last_curve_dis = config["last_curve_dis"].as<double>();
-  mm_params.curvature_thr = config["curvature_thr"].as<double>();
+  // mm_params.curvature_thr = config["curvature_thr"].as<double>();
   mm_params.use_fc_offset_onelane_fault =
       config["use_fc_offset_onelane_fault"].as<bool>();
   mm_params.offset_onelane_max_err =
@@ -106,6 +105,11 @@ bool MapMatching::Init(const std::string& config_file,
   mm_params.line_error_normal_thr =
       config["line_error_normal_thr"].as<double>();
   mm_params.use_rviz_bridge = config["use_rviz_bridge"].as<bool>();
+  mm_params.common_max_line_length = config["common_max_line_length"].as<double>();
+  mm_params.common_min_line_length = config["common_min_line_length"].as<double>();
+  mm_params.max_length_offset = config["max_length_offset"].as<double>();
+  mm_params.curvature_thresold = config["curvature_thresold"].as<double>();
+
   if (mm_params.use_rviz_bridge) {
     int ret = hozon::mp::util::RvizAgent::Instance()
                   .Register<adsfi_proto::viz::TransformStamped>(kTopicMmTf);

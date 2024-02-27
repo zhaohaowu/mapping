@@ -25,6 +25,7 @@ namespace loc {
 
 struct BoundaryLine {
   size_t line_type;
+  size_t lane_type;
   size_t id_center;
   std::string id_boundary;
   std::vector<ControlPoint> control_point;

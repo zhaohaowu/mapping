@@ -150,6 +150,7 @@ class FusionCenter {
   std::deque<std::shared_ptr<Node>> meas_deque_;
   std::ofstream fc_ins_diff_file_;
   std::ofstream mm_ins_diff_file_;
+  std::deque<std::pair<double, double>> lateral_error_compensation_;
 };
 
 }  // namespace fc

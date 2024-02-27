@@ -31,3 +31,4 @@ use_smooth_yaw: true
 use_debug_txt: false
 
 require_local_pose: false
+lateral_error_compensation: true

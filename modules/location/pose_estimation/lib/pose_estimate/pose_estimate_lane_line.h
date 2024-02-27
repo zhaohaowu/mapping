@@ -141,7 +141,7 @@ class MatchLaneLine {
   bool GetNeighboringMapLines(
       const VP& target_perception_line_points,
       const std::unordered_map<std::string, std::vector<ControlPoint>>&
-          map_points_cache,
+      map_points_cache, const double max_dis, const double min_dis,
       std::vector<std::pair<V3, std::string>>* nearest_line_match_pairs,
       std::vector<std::pair<V3, std::string>>* farest_line_match_pairs);
   void FilterPointPair(std::vector<PointMatchPair>* match_pairs, const SE3& T);

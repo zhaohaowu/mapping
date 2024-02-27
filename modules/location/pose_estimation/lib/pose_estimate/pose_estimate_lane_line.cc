@@ -82,6 +82,7 @@ void MatchLaneLine::Match(const HdMap& hd_map,
   }
   LaneLineConnect(percep_lanelines_, merged_map_lines_);
   FilterPointPair(&match_pairs_, T_W_V_);
+  HLOG_ERROR << "after filter match_pairs size: " << match_pairs_.size();
   bool adjust_left_pairs_weight = false;
   bool adjust_right_pairs_weight = false;
   size_t left_pairs_count = 0;
@@ -203,7 +204,7 @@ void MatchLaneLine::FilterPercpLaneline(
 bool MatchLaneLine::GetNeighboringMapLines(
     const VP& target_perception_line_points,
     const std::unordered_map<std::string, std::vector<ControlPoint>>&
-        map_points_cache,
+        map_points_cache, const double max_dis, const double min_dis,
     std::vector<std::pair<V3, std::string>>* nearest_line_match_pairs,
     std::vector<std::pair<V3, std::string>>* farest_line_match_pairs) {
   if (nearest_line_match_pairs == nullptr ||
@@ -215,20 +216,17 @@ bool MatchLaneLine::GetNeighboringMapLines(
       target_perception_line_farest_point{0, 0, 0};
   bool nearest_percp_pt_flag = false, farest_percp_pt_flag = false;
   bool nearest_map_pt_flag = false, farest_map_pt_flag = false;
-  auto rot = Sophus::SO3d(Eigen::Matrix3d::Identity());
-  auto trans = Eigen::Vector3d{0, 0, 0};
-  auto identity = SE3(rot.unit_quaternion(), trans);
-  if (target_perception_line_points.front().x() > 2.0) {
+  if (target_perception_line_points.front().x() > min_dis) {
     target_perception_line_nearest_point =
         target_perception_line_points.front();
   } else {
-    nearest_percp_pt_flag = GetFitPoints(target_perception_line_points, 2.0,
+    nearest_percp_pt_flag = GetFitPoints(target_perception_line_points, min_dis,
                                          &target_perception_line_nearest_point);
   }
-  if (target_perception_line_points.back().x() < 30.0) {
+  if (target_perception_line_points.back().x() < max_dis) {
     target_perception_line_farest_point = target_perception_line_points.back();
   } else {
-    farest_percp_pt_flag = GetFitPoints(target_perception_line_points, 30.0,
+    farest_percp_pt_flag = GetFitPoints(target_perception_line_points, max_dis,
                                         &target_perception_line_farest_point);
   }
   for (auto& map_lane : map_points_cache) {
@@ -246,7 +244,6 @@ bool MatchLaneLine::GetNeighboringMapLines(
     if (nearest_map_pt_flag && (map_line_nearest_point).norm() > 1e-10) {
       nearest_delta_y = fabs(target_perception_line_nearest_point.y() -
                              (map_line_nearest_point).y());
-
       if (nearest_delta_y < 1.5) {
         nearest_line_match_pairs->emplace_back(
             make_pair(target_perception_line_nearest_point, map_line_id));
@@ -331,7 +328,6 @@ void MatchLaneLine::MergeMapLines(
       if (line_ids.empty()) {
         continue;
       }
-
       auto first_line_id = line_ids.front();
       auto last_line_id = line_ids.back();
       if (last_line_ids.find(last_line_id) != last_line_ids.end()) {
@@ -394,8 +390,8 @@ void MatchLaneLine::LaneLineConnect(
     const std::unordered_map<std::string, std::vector<ControlPoint>>&
         boundary_lines) {
   static const double y_dist_thres = 1.f;
-  double min_match_x = 2.f;
-  double max_match_x = 30.f;
+  double min_match_x = mm_params.common_min_line_length;
+  double max_match_x = mm_params.common_max_line_length;
   auto lane_lines = percep_->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE);
   for (auto& fil_line_list : percep_lanelines) {
     if (fil_line_list.size() == 0) {
@@ -412,13 +408,12 @@ void MatchLaneLine::LaneLineConnect(
         continue;
       }
       double weight = 1.f;
-      auto perception_first_point = perception_points[0];
       PercepLineType cur_type =
           static_cast<PercepLineType>(perception_line->lane_position_type());
       size_t map_line_type = 0;
       std::vector<std::pair<V3, std::string>> nearest_line_match_pairs;
       std::vector<std::pair<V3, std::string>> farest_line_match_pairs;
-      if (GetNeighboringMapLines(perception_points, boundary_lines,
+      if (GetNeighboringMapLines(perception_points, boundary_lines, max_match_x, min_match_x,
                                  &nearest_line_match_pairs,
                                  &farest_line_match_pairs)) {
         for (auto& nearest_line_match_pair : nearest_line_match_pairs) {
@@ -435,6 +430,10 @@ void MatchLaneLine::LaneLineConnect(
           MatchMapLine tmp_MatchMapLine;
           tmp_MatchMapLine.map_id = map_line_id;
           tmp_MatchMapLine.flag = true;
+          if (map_points.front().lane_type) {
+            max_match_x -= mm_params.max_length_offset;
+            HLOG_INFO << "max_match_x need to be shorted, max_match_x: " << max_match_x;
+          }
           for (int i = 0; i < perception_points.size(); ++i) {
             V3 pt{0, 0, 0};
             if (perception_points[i].x() < min_match_x ||
@@ -461,6 +460,7 @@ void MatchLaneLine::LaneLineConnect(
           }
           match_mapline_cache[perception_line->lane_position_type()]
               .emplace_back(tmp_MatchMapLine);
+          max_match_x = mm_params.common_max_line_length;
         }
       }
     }
@@ -552,6 +552,7 @@ void MatchLaneLine::LaneLineConnect(
       }
     }
   }
+  HLOG_INFO << "match_pairs_ size: " << match_pairs_.size();
 }
 
 std::pair<double, double> MatchLaneLine::CmpWidth(
@@ -616,7 +617,7 @@ bool MatchLaneLine::GetFitMapPoints(const std::vector<ControlPoint>& points,
     return false;
   }
   auto iter =
-      std::lower_bound(points.begin(), points.end(), ControlPoint(0, {x, 0, 0}),
+      std::lower_bound(points.begin(), points.end(), ControlPoint(0, 0, {x, 0, 0}),
                        [](const ControlPoint& p0, const ControlPoint& p1) {
                          return p0.point(0, 0) < p1.point(0, 0);
                        });

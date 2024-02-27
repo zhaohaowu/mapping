@@ -39,6 +39,7 @@ FusionCenter::~FusionCenter() {
       mm_ins_diff_file_.close();
     }
   }
+  lateral_error_compensation_.clear();
 }
 
 bool FusionCenter::Init(const std::string& configfile,
@@ -309,6 +310,7 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
     const auto gps_status = init_status["gps_status"].as<uint32_t>();
     params_.ins_init_status.emplace_back(sys_status, gps_status);
   }
+  params_.lateral_error_compensation =  node["lateral_error_compensation"].as<bool>();
   return true;
 }
 
@@ -833,7 +835,8 @@ bool FusionCenter::GenerateNewESKFPre() {
 bool FusionCenter::GenerateNewESKFMeas() {
   // 进行优势传感器的测量数据收集（加入各种判断条件，如MM不工作时用INS）
   fusion_deque_mutex_.lock();
-  double cur_fusion_ticktime = fusion_deque_.back()->ticktime;
+  auto last_fc_node = fusion_deque_.back();
+  double cur_fusion_ticktime = last_fc_node->ticktime;
   fusion_deque_mutex_.unlock();
   bool meas_flag = false;
   meas_deque_.clear();
@@ -842,10 +845,31 @@ bool FusionCenter::GenerateNewESKFMeas() {
   {
     std::unique_lock<std::mutex> lock(pe_deque_mutex_);
     for (const auto& mm_node : pe_deque_) {
-      if (mm_node->ticktime > cur_fusion_ticktime &&
-          mm_node->ticktime > last_meas_time_) {
+      auto ticktime_diff = mm_node->ticktime - cur_fusion_ticktime;
+      if (ticktime_diff && mm_node->ticktime > last_meas_time_) {
         meas_deque_.emplace_back(mm_node);
         meas_flag = true;
+      }
+    }
+
+    std::unique_lock<std::mutex> lock2(ins_deque_mutex_);
+    bool find_nearest_ins_fc = false;
+    for (const auto& ins_node : ins_deque_) {
+      auto ticktime_diff = ins_node->ticktime - cur_fusion_ticktime;
+      if (!find_nearest_ins_fc && ticktime_diff > 0 && ticktime_diff < 0.1) {
+        // currently we implement the high precision positioning.
+        if (ins_node->rtk_status != 4 || ins_node->sys_status != 2) {
+          continue;
+        }
+        auto diff = last_fc_node->enu - ins_node->enu;
+        auto half_lane = 3.75 / 2.0;
+        if (diff.norm() > half_lane) {
+          continue;
+        }
+        lateral_error_compensation_.emplace_back(
+            std::pair<double, double>{diff(0), diff(1)});
+        find_nearest_ins_fc = true;
+        break;
       }
     }
   }
@@ -877,11 +901,28 @@ bool FusionCenter::GenerateNewESKFMeas() {
 
       // (2)INS测量加入
     } else if (mm_size == 0 || time_diff >= params_.no_mm_max_time) {
+      double x_lateral_error = 0;
+      double y_lateral_error = 0;
+      if (params_.lateral_error_compensation) {
+        auto cnt = 0;
+        for (auto it = lateral_error_compensation_.begin();
+             it != lateral_error_compensation_.end(); ++it) {
+          ++cnt;
+          x_lateral_error += (*it).first / (1 << cnt);
+          y_lateral_error += (*it).second / (1 << cnt);
+        }
+        lateral_error_compensation_.emplace_back(
+            std::pair<double, double>{x_lateral_error, y_lateral_error});
+      }
       std::unique_lock<std::mutex> lock(ins_deque_mutex_);
       for (const auto& ins_node : ins_deque_) {
         if (ins_node->ticktime > cur_fusion_ticktime &&
             ins_node->ticktime > last_meas_time_ &&
             AllowInsMeas(ins_node->sys_status, ins_node->rtk_status)) {
+          if (params_.lateral_error_compensation) {
+            ins_node->enu(0) += x_lateral_error;
+            ins_node->enu(1) += y_lateral_error;
+          }
           meas_deque_.emplace_back(ins_node);
           meas_flag = true;
         }
@@ -889,6 +930,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
       HLOG_DEBUG << "No MM measurement,insert INS meas. time_diff:" << time_diff;
     }
   }
+  ShrinkQueue(&lateral_error_compensation_, 10);
 
   // 2. DR测量加入（目前用INS的相对代替）
   if (params_.use_dr_measurement) {
@@ -982,6 +1024,10 @@ void FusionCenter::InsertESKFFusionNode(const Node& node) {
   }
   *new_node = node;
   fusion_deque_mutex_.lock();
+  const Sophus::SO3d& rot = Sophus::SO3d::exp(new_node->orientation);
+    Eigen::Vector3d euler = Rot2Euler312(rot.matrix());
+  euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
+  new_node->heading = euler.z() / M_PI * 180;
   fusion_deque_.emplace_back(new_node);
   fusion_deque_mutex_.unlock();
 }

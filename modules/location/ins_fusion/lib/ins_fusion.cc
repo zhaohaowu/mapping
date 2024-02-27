@@ -91,36 +91,34 @@ void InsFusion::LoadConfigParams(const std::string& configfile) {
       config_parser["fix_deflection_repeat"].as<bool>();
 }
 
-void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
+bool InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins, hozon::localization::HafNodeInfo* const node_info) {
   InsNode ins84_node;
-  {
-    std::unique_lock<std::mutex> lock(origin_ins_mutex_);
-    if (origin_ins.header().seq() <= latest_origin_ins_.header().seq() ||
-        origin_ins.header().sensor_stamp().imuins_stamp() <=
-            latest_origin_ins_.header().sensor_stamp().imuins_stamp()) {
-      return;
-    }
-    if (!Extract84InsNode(origin_ins, &ins84_node)) {
-      return;
-    }
-    ins_node_is_valid_ = true;
-    latest_origin_ins_ = origin_ins;
-    //debug
-    if (latest_origin_ins_.ins_info().gps_status() == 0) {
-      HLOG_ERROR << "ins_seq:" << latest_origin_ins_.header().seq()
-                 << ", ins_ticktime:"
-                 << origin_ins.header().sensor_stamp().imuins_stamp()
-                 << " ,ins_gps_state:"
-                 << latest_origin_ins_.ins_info().gps_status()
-                 << " ,ins_linear_velocity:"
-                 << latest_origin_ins_.ins_info().linear_velocity().x() << " ,"
-                 << latest_origin_ins_.ins_info().linear_velocity().y() << " ,"
-                 << latest_origin_ins_.ins_info().linear_velocity().z();
-    }
+
+  if (origin_ins.header().seq() <= latest_origin_ins_.header().seq() ||
+      origin_ins.header().sensor_stamp().imuins_stamp() <=
+          latest_origin_ins_.header().sensor_stamp().imuins_stamp()) {
+    return false;
+  }
+
+  if (!Extract84InsNode(origin_ins, &ins84_node)) {
+    return false;
+  }
+  latest_origin_ins_ = origin_ins;
+
+  // debug
+  if (latest_origin_ins_.ins_info().gps_status() == 0) {
+    HLOG_ERROR << "ins_seq:" << latest_origin_ins_.header().seq()
+               << ", ins_ticktime:"
+               << latest_origin_ins_.header().sensor_stamp().imuins_stamp()
+               << " ,ins_gps_state:"
+               << latest_origin_ins_.ins_info().gps_status()
+               << " ,ins_linear_velocity:"
+               << latest_origin_ins_.ins_info().linear_velocity().x() << " ,"
+               << latest_origin_ins_.ins_info().linear_velocity().y() << " ,"
+               << latest_origin_ins_.ins_info().linear_velocity().z();
   }
   {
     std::unique_lock<std::mutex> lock(ins84_deque_mutex_);
-
     ins84_deque_.emplace_back(ins84_node);
     while (ins84_deque_.size() > config_.ins84_deque_max_size) {
       ins84_deque_.pop_front();
@@ -128,16 +126,23 @@ void InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
   }
   if (!config_.use_inspva) {
     last_node_ = ins84_node;
+  } else {
+    return false;
   }
+  if (config_.use_rviz_bridge) {
+    PublishTopic();
+  }
+  Convert(origin_ins, node_info);
+  return true;
 }
 
-void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
+bool InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva,
+                         hozon::localization::HafNodeInfo* const node_info) {
   if (!config_.use_inspva) {
-    return;
+    return false;
   }
-  std::unique_lock<std::mutex> lock(inspva_mutex_);
   if (inspva.header().seq() <= latest_inspva_data_.header().seq()) {
-    return;
+    return false;
   }
   if (!ref_init_) {
     Eigen::Vector3d blh(inspva.pos_gcj02().x(), inspva.pos_gcj02().y(),
@@ -150,7 +155,7 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
 
   curr_node_.Reset();
   if (!Extract02InsNode(inspva, &curr_node_)) {
-    return;
+    return false;
   }
   inspva_node_is_valid_ = true;
   // keep main structure of inspva for passthrough
@@ -168,44 +173,16 @@ void InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva) {
     SmoothProc(&curr_node_);
   }
   last_node_ = curr_node_;
-}
-
-bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
-  if (config_.use_inspva) {
-    if (!inspva_node_is_valid_ || !node_info) {
-      return false;
-    }
-  } else if (!node_info || !ins_node_is_valid_) {
-    return false;
-  }
   if (config_.use_rviz_bridge) {
     PublishTopic();
   }
-  node_info->Clear();
-  if (config_.use_inspva) {
-    {
-      std::unique_lock<std::mutex> lock(inspva_mutex_);
-      *node_info = latest_inspva_data_;
-    }
-    node_info->set_type(hozon::localization::HafNodeInfo_NodeType_INS);
-    node_info->mutable_header()->set_frame_id("ins_fusion");
-    return true;
-  }
-  hozon::soc::ImuIns origin_ins;
-  {
-    std::unique_lock<std::mutex> lock(origin_ins_mutex_);
-    origin_ins = latest_origin_ins_;
-    // debug
-    if (origin_ins.ins_info().gps_status() == 0) {
-      HLOG_ERROR << "ins_seq:" << origin_ins.header().seq() << ", ins_ticktime:"
-                 << origin_ins.header().sensor_stamp().imuins_stamp()
-                 << " ,ins_gps_state:" << origin_ins.ins_info().gps_status()
-                 << " ,ins_linear_velocity:"
-                 << origin_ins.ins_info().linear_velocity().x() << " ,"
-                 << origin_ins.ins_info().linear_velocity().y() << " ,"
-                 << origin_ins.ins_info().linear_velocity().z();
-    }
-  }
+  *node_info = latest_inspva_data_;
+  node_info->set_type(hozon::localization::HafNodeInfo_NodeType_INS);
+  node_info->mutable_header()->set_frame_id("ins_fusion");
+  return true;
+}
+
+void InsFusion::Convert(const hozon::soc::ImuIns& origin_ins, hozon::localization::HafNodeInfo* const node_info) {
   node_info->set_type(hozon::localization::HafNodeInfo_NodeType_INS);
   node_info->mutable_header()->set_seq(origin_ins.header().seq());
   node_info->mutable_header()->set_frame_id("ins_fusion");
@@ -336,8 +313,6 @@ bool InsFusion::GetResult(hozon::localization::HafNodeInfo* const node_info) {
   }
   node_info->set_gps_week(origin_ins.gps_week());
   node_info->set_gps_sec(origin_ins.gps_sec());
-
-  return true;
 }
 
 void InsFusion::SetRefpoint(const Eigen::Vector3d& blh) { refpoint_ = blh; }
@@ -572,7 +547,7 @@ bool InsFusion::SmoothProc(InsNode* const node) {
 }
 
 bool InsFusion::PublishTopic() {
-  if (!mp::util::RvizAgent::Instance().Ok() || !ins_node_is_valid_) {
+  if (!mp::util::RvizAgent::Instance().Ok()) {
     return false;
   }
   adsfi_proto::viz::Odometry odom;

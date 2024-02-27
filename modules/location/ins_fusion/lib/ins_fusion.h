@@ -29,12 +29,14 @@ class InsFusion {
   ~InsFusion();
 
   InsInitStatus Init(const std::string& configfile);
-  void OnOriginIns(const hozon::soc::ImuIns& origin_ins);
-  void OnInspva(const hozon::localization::HafNodeInfo& inspva);
-  bool GetResult(hozon::localization::HafNodeInfo* const node_info);
+  bool OnOriginIns(const hozon::soc::ImuIns& origin_ins,
+                   hozon::localization::HafNodeInfo* const node_info);
+  bool OnInspva(const hozon::localization::HafNodeInfo& inspva,
+                hozon::localization::HafNodeInfo* const node_info);
   void SetRefpoint(const Eigen::Vector3d& blh);
   Eigen::Vector3d GetRefpoint() const;
   bool InsFusionState();
+  void Convert(const hozon::soc::ImuIns& origin_ins, hozon::localization::HafNodeInfo* const node_info);
 
  private:
   void LoadConfigParams(const std::string& configfile);
@@ -56,9 +58,11 @@ class InsFusion {
   Eigen::Vector3d refpoint_;
 
   std::mutex inspva_mutex_;
+  hozon::soc::ImuIns latest_origin_ins_;
   hozon::localization::HafNodeInfo latest_inspva_data_;
   std::mutex origin_ins_mutex_;
-  hozon::soc::ImuIns latest_origin_ins_;
+  std::mutex origin_ins_mutex2_;
+  std::deque<hozon::soc::ImuIns> latest_origin_ins_deque_;
   hozon::localization::HafNodeInfo curr_output_;
 
   Eigen::Vector3d pos_china_ref_ = Eigen::Vector3d::Zero();
@@ -77,6 +81,7 @@ class InsFusion {
   InsNode curr_node_;
   bool ins_node_is_valid_ = false;
   bool inspva_node_is_valid_ = false;
+  bool init_send_ins_fusion_ = false;
 
   // store origin ins from IMU/INS message
   std::mutex ins84_deque_mutex_;

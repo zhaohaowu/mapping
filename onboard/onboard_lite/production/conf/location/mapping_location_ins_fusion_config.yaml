@@ -18,9 +18,6 @@ output:
   - topic: /location/ins_fusion
 
 trigger:
-  - name: send_ins_proc
-    type: PERIOD
-    period: 10
   - name: receive_inspva
     type: EVENT
     mainSources:

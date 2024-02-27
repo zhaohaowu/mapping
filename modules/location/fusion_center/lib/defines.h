@@ -40,6 +40,8 @@ struct Params {
   uint32_t window_size = 30;
   bool require_local_pose = false;
   bool use_debug_txt = false;
+  bool lateral_error_compensation = false;
+
 
   std::vector<std::pair<uint32_t, uint32_t>> ins_init_status;
 };

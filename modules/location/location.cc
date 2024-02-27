@@ -67,9 +67,9 @@ void Localization::OnDr(const hozon::dead_reckoning::DeadReckoning& dr) {
 }
 
 void Localization::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
-  ins_fusion_->OnOriginIns(origin_ins);
   hozon::localization::HafNodeInfo ins_fusion_ret;
-  if (!ins_fusion_->GetResult(&ins_fusion_ret)) {
+  bool flag = ins_fusion_->OnOriginIns(origin_ins, &ins_fusion_ret);
+  if (!flag) {
     return;
   }
 
@@ -81,7 +81,11 @@ void Localization::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
 
 void Localization::OnInspva(
     const hozon::localization::HafNodeInfo& inspva_node) {
-  ins_fusion_->OnInspva(inspva_node);
+  hozon::localization::HafNodeInfo ins_fusion_ret;
+  bool flag = ins_fusion_->OnInspva(inspva_node, &ins_fusion_ret);
+  if (!flag) {
+    return;
+  }
 }
 
 void Localization::OnImu(const hozon::soc::ImuIns& imuins) {

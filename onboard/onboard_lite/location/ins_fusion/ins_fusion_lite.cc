@@ -48,9 +48,6 @@ int32_t InsFusionLite::AlgInit() {
   REGISTER_PROTO_MESSAGE_TYPE("running_mode",
                               hozon::perception::common_onboard::running_mode);
   HLOG_INFO << "RegistAlgProcessFunc";
-  // 输出Ins数据
-  RegistAlgProcessFunc("send_ins_proc", std::bind(&InsFusionLite::send_ins,
-                                                  this, std::placeholders::_1));
   // 接收数据线程
   RegistAlgProcessFunc("receive_ins", std::bind(&InsFusionLite::receive_ins,
                                                 this, std::placeholders::_1));
@@ -80,21 +77,6 @@ void InsFusionLite::AlgRelease() {
   if (mp::util::RvizAgent::Instance().Ok()) {
     mp::util::RvizAgent::Instance().Term();
   }
-}
-
-// send in-process data and interprocess data
-int32_t InsFusionLite::send_ins(Bundle* input) {
-  auto ins_workflow = std::make_shared<hozon::netaos::adf_lite::BaseData>();
-
-  std::shared_ptr<hozon::localization::HafNodeInfo> msg(
-      new hozon::localization::HafNodeInfo);
-  if (!ins_fusion_->GetResult(msg.get())) {
-    return -1;
-  }
-
-  ins_workflow->proto_msg = msg;
-  SendOutput("/location/ins_fusion", ins_workflow);
-  return 0;
 }
 
 // recieve in-process data and interprocess data
@@ -130,7 +112,14 @@ int32_t InsFusionLite::receive_ins(Bundle* input) {
   if (!ins_proto) {
     return -1;
   }
-  ins_fusion_->OnOriginIns(*ins_proto.get());
+  auto ins_workflow = std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  std::shared_ptr<hozon::localization::HafNodeInfo> msg(
+      new hozon::localization::HafNodeInfo);
+  bool flag = ins_fusion_->OnOriginIns(*ins_proto.get(), msg.get());
+  if (flag) {
+    ins_workflow->proto_msg = msg;
+    SendOutput("/location/ins_fusion", ins_workflow);
+  }
   double cur_ins_time =
       ins_proto->header().sensor_stamp().imuins_stamp();
   if (last_ins_time > 0) {
@@ -301,7 +290,14 @@ int32_t InsFusionLite::receive_inspva(Bundle* input) {
   std::shared_ptr<hozon::localization::HafNodeInfo> inspva_proto =
       std::static_pointer_cast<hozon::localization::HafNodeInfo>(
           ptr_rec_inspva->proto_msg);
-  ins_fusion_->OnInspva(*inspva_proto.get());
+  auto ins_workflow = std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  std::shared_ptr<hozon::localization::HafNodeInfo> msg(
+      new hozon::localization::HafNodeInfo);
+  bool flag = ins_fusion_->OnInspva(*inspva_proto.get(), msg.get());
+  if (flag) {
+    ins_workflow->proto_msg = msg;
+    SendOutput("/location/ins_fusion", ins_workflow);
+  }
   return 0;
 }
 

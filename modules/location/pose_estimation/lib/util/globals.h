@@ -50,7 +50,7 @@ struct MapMatchLaneLineParams {
   double near_dis;
   double last_straight_dis;
   double last_curve_dis;
-  double curvature_thr;
+  // double curvature_thr;
   double line_error_normal_thr = 0.05;
   // 125fault
   bool use_fc_offset_onelane_fault;
@@ -83,6 +83,13 @@ struct MapMatchLaneLineParams {
   bool adjust_weight_by_lane_width_check;
   double min_lane_width_check_thre;
   double max_lane_width_check_thre;
+  // match perception line length
+  double common_max_line_length;
+  double common_min_line_length;
+  // offset param
+  double max_length_offset;
+  // lane curvature thresold
+  double curvature_thresold;
 };
 
 extern MapMatchLaneLineParams mm_params;

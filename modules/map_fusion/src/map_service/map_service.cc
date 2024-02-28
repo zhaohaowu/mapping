@@ -307,7 +307,7 @@ void MapService::GetAroundId(
 
 void MapService::SetFautl() {
   std::lock_guard<std::mutex> lock(fault_mutex_);
-  if (amap_adapter_.GetInitState()) {
+  if (!amap_adapter_.GetInitState()) {
     fault_ = MS_EHP_INIT_ERROR;
     return;
   }

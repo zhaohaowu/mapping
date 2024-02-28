@@ -337,13 +337,13 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     return -1;
   }
 
-  auto latest_map = std::make_shared<hozon::hdmap::Map>();
-  latest_map->Clear();
+  std::shared_ptr<hozon::hdmap::Map> latest_map = nullptr;
   int ret = mf_->ProcFusion(latest_loc, latest_local_map, global_hd_updated,
-                            latest_map.get(), curr_routing_.get());
-  if (ret < 0) {
-    HLOG_ERROR << "map fusion ProcFusion failed";
+                            latest_map, curr_routing_.get());
+  if (ret < 0 || latest_map == nullptr) {
+    latest_map = std::make_shared<hozon::hdmap::Map>();
     latest_map->Clear();
+    HLOG_ERROR << "map fusion ProcFusion failed";
   }
 
   ret = SendFusionResult(latest_loc, latest_map, curr_routing_.get());
@@ -376,8 +376,7 @@ std::shared_ptr<hozon::mapping::LocalMap> MapFusionLite::GetLatestLocalMap() {
     if (local_map_size > one_mb) {
       HLOG_ERROR << "LocalMap size is greater than 1MB";
     }
-    latest_local_map =
-        std::make_shared<hozon::mapping::LocalMap>(*curr_local_map_);
+    latest_local_map = curr_local_map_;
   }
   return latest_local_map;
 }

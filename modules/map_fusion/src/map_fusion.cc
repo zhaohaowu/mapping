@@ -98,13 +98,8 @@ int MapFusion::ProcService(
 int MapFusion::ProcFusion(
     const std::shared_ptr<hozon::localization::Localization>& curr_loc,
     const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
-    bool need_update_global_hd, hozon::hdmap::Map* fusion_map,
+    bool need_update_global_hd, std::shared_ptr<hozon::hdmap::Map>& fusion_map,
     hozon::routing::RoutingResponse* routing) {
-  if (fusion_map == nullptr) {
-    HLOG_ERROR << "input nullptr fusion map";
-    return -1;
-  }
-
   if (!curr_loc) {
     HLOG_ERROR << "input nullptr current localization";
     return -1;
@@ -168,7 +163,7 @@ int MapFusion::ProcFusion(
   }
   HLOG_INFO << "pred cost " << local_tic.Toc();
   local_tic.Tic();
-  fusion_map->CopyFrom(*map);
+  fusion_map = map;
   HLOG_INFO << "copy fusion_map cost " << local_tic.Toc();
   HLOG_INFO << "topo+pred cost " << global_tic.Toc();
 

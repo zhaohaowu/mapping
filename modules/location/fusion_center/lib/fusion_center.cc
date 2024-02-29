@@ -1099,6 +1099,7 @@ Node FusionCenter::State2Node(const State& state) {
   node.b_a = state.b_a;
   node.quaternion = state.R.unit_quaternion();
   node.orientation = state.R.log();
+  node.blh =  hmu::Geo::EnuToBlh(node.enu, node.refpoint);
 
   node.sys_status = state.sys_status;
   node.rtk_status = state.rtk_status;

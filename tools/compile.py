@@ -276,8 +276,8 @@ def make_package(platform):
     start_copy_head(platform)
 
 def build_rviz_bridge(workspace, jobs):
-    LOG_INFO("Build rviz_bridge")
-    build_dir = osp.join(workspace, 'tools', 'rviz_bridge', 'build')
+    LOG_INFO("Build mapping rviz")
+    build_dir = osp.join(workspace, 'tools', 'rviz', 'build')
     os.makedirs(build_dir, exist_ok=True)
     os.chdir(build_dir)
     cmd = 'cmake .. && make -j{} && make install'.format(jobs)

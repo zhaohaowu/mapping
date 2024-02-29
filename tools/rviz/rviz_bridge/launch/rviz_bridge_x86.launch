@@ -8,7 +8,8 @@
         ipc:///tmp/rviz_agent_mf,
         ipc:///tmp/rviz_agent_local_map,
         ipc:///tmp/rviz_agent_pose_estimation,
-        ipc:///tmp/rviz_agent_fusion_center
+        ipc:///tmp/rviz_agent_fusion_center,
+        ipc:///tmp/rviz_agent_viz_cvt
     ]"/>
 
 <!-- rviz_bridge在本机，业务在远端（上海MDC台架） -->

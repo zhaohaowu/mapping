@@ -14,6 +14,12 @@
 #include <adsfi_proto/viz/sensor_msgs.pb.h>
 #include <adsfi_proto/viz/tf2_msgs.pb.h>
 #include <adsfi_proto/viz/visualization_msgs.pb.h>
+// #include <adsfi_proto/viz/proto_msg.pb.h>
+#include <proto/dead_reckoning/dr.pb.h>
+#include <proto/localization/localization.pb.h>
+#include <proto/localization/node_info.pb.h>
+#include <proto/soc/chassis.pb.h>
+#include <proto/soc/sensor_imu_ins.pb.h>
 
 #include <memory>
 #include <string>
@@ -40,6 +46,12 @@ static const std::string kPointCloud = "PointCloud";              // NOLINT
 static const std::string kPointCloud2 = "PointCloud2";            // NOLINT
 static const std::string kPoseArray = "PoseArray";                // NOLINT
 static const std::string kOccupancyGrid = "OccupancyGrid";        // NOLINT
+// custom proto visualization types
+static const std::string kLocalization = "Localization";    // NOLINT
+static const std::string kDeadReckoning = "DeadReckoning";  // NOLINT
+static const std::string kImuIns = "ImuIns";                // NOLINT
+static const std::string kHafNodeInfo = "HafNodeInfo";      // NOLINT
+static const std::string kChassis = "Chassis";              // NOLINT
 
 static const std::string kCtrlTopic = "/RvizAgent/Ctrl";  // NOLINT
 
@@ -77,6 +89,16 @@ using PoseArrayCallback = std::function<void(
     const std::string&, std::shared_ptr<adsfi_proto::viz::PoseArray>)>;
 using OccupancyGridCallback = std::function<void(
     const std::string&, std::shared_ptr<adsfi_proto::viz::OccupancyGrid>)>;
+using LocalizationCallback = std::function<void(
+    const std::string&, std::shared_ptr<hozon::localization::Localization>)>;
+using DeadReckoningCallback = std::function<void(
+    const std::string&, std::shared_ptr<hozon::dead_reckoning::DeadReckoning>)>;
+using ImuInsCallback = std::function<void(const std::string&,
+                                          std::shared_ptr<hozon::soc::ImuIns>)>;
+using HafNodeInfoCallback = std::function<void(
+    const std::string&, std::shared_ptr<hozon::localization::HafNodeInfo>)>;
+using ChassisCallback = std::function<void(
+    const std::string&, std::shared_ptr<hozon::soc::Chassis>)>;
 
 #define TYPEDEF_COMMON_TYPES \
   typedef void Void;         \
@@ -148,6 +170,31 @@ struct Checker<adsfi_proto::viz::OccupancyGrid> {
   TYPEDEF_COMMON_TYPES
 };
 
+template <>
+struct Checker<hozon::localization::Localization> {
+  TYPEDEF_COMMON_TYPES
+};
+
+template <>
+struct Checker<hozon::dead_reckoning::DeadReckoning> {
+  TYPEDEF_COMMON_TYPES
+};
+
+template <>
+struct Checker<hozon::soc::ImuIns> {
+  TYPEDEF_COMMON_TYPES
+};
+
+template <>
+struct Checker<hozon::localization::HafNodeInfo> {
+  TYPEDEF_COMMON_TYPES
+};
+
+template <>
+struct Checker<hozon::soc::Chassis> {
+  TYPEDEF_COMMON_TYPES
+};
+
 template <typename ProtoType>
 typename Checker<ProtoType>::String GetTypeAlias() {
   std::string alias;
@@ -176,6 +223,18 @@ typename Checker<ProtoType>::String GetTypeAlias() {
     alias = kPoseArray;
   } else if (std::is_same<ProtoType, adsfi_proto::viz::OccupancyGrid>::value) {
     alias = kOccupancyGrid;
+  } else if (std::is_same<ProtoType,
+                          hozon::localization::Localization>::value) {
+    alias = kLocalization;
+  } else if (std::is_same<ProtoType,
+                          hozon::dead_reckoning::DeadReckoning>::value) {
+    alias = kDeadReckoning;
+  } else if (std::is_same<ProtoType, hozon::soc::ImuIns>::value) {
+    alias = kImuIns;
+  } else if (std::is_same<ProtoType, hozon::localization::HafNodeInfo>::value) {
+    alias = kHafNodeInfo;
+  } else if (std::is_same<ProtoType, hozon::soc::Chassis>::value) {
+    alias = kChassis;
   }
 
   return alias;

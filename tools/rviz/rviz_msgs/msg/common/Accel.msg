@@ -1,0 +1,3 @@
+geometry_msgs/Vector3 linear_raw_vrf
+geometry_msgs/Vector3 linear_vrf
+geometry_msgs/Vector3 angular_vrf

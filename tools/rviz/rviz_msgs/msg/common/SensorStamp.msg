@@ -1,0 +1,7 @@
+float64 lidar_stamp
+float64 radar_stamp
+float64 uss_stamp
+float64 chassis_stamp
+float64 camera_stamp
+float64 imuins_stamp
+float64 gnss_stamp

@@ -1,0 +1,10 @@
+float64 latitude
+float64 longitude
+float64 altitude
+geometry_msgs/Point attitude
+geometry_msgs/Vector3 linear_velocity
+geometry_msgs/Vector3 augular_velocity
+geometry_msgs/Vector3 linear_acceleration
+float32 heading
+uint32 sys_status
+uint32 gps_status

@@ -1,0 +1,6 @@
+int32 seq
+string frame_id
+float64 publish_stamp
+float64 gnss_stamp
+SensorStamp sensor_stamp
+float64 data_stamp

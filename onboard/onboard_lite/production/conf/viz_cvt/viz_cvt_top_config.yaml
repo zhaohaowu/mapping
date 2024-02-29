@@ -1,0 +1,25 @@
+%YAML:1.0
+
+processName: viz_cvt
+
+appLog:
+  name: viz_cvt
+  description: viz_cvt
+  # file: /opt/usr/log/soc_log
+  file: ./
+  mode: 3
+  level: 2
+
+schedule:
+  policy: RR
+  priority: 99
+  cpuAffinity: [1, 2 ,3]
+
+resourceLimit:
+  group: viz_cvt
+  cpu: 150
+  memory: 200
+
+executors:
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/viz_cvt/viz_cvt_data_source_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/viz_cvt/viz_cvt_config.yaml

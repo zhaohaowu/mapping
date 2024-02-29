@@ -129,6 +129,26 @@ void RvizAgentClient::ProcCommonMsg(const std::string& topic, void* data,
     auto proto = std::make_shared<adsfi_proto::viz::OccupancyGrid>();
     proto->ParseFromArray(data, static_cast<int>(size));
     occupancy_grid_cbk_(topic, proto);
+  } else if (type == kLocalization && localization_cbk_ != nullptr) {
+    auto proto = std::make_shared<hozon::localization::Localization>();
+    proto->ParseFromArray(data, static_cast<int>(size));
+    localization_cbk_(topic, proto);
+  } else if (type == kHafNodeInfo && haf_node_info_cbk_ != nullptr) {
+    auto proto = std::make_shared<hozon::localization::HafNodeInfo>();
+    proto->ParseFromArray(data, static_cast<int>(size));
+    haf_node_info_cbk_(topic, proto);
+  } else if (type == kImuIns && imu_ins_cbk_ != nullptr) {
+    auto proto = std::make_shared<hozon::soc::ImuIns>();
+    proto->ParseFromArray(data, static_cast<int>(size));
+    imu_ins_cbk_(topic, proto);
+  } else if (type == kDeadReckoning && dead_reckoning_cbk_ != nullptr) {
+    auto proto = std::make_shared<hozon::dead_reckoning::DeadReckoning>();
+    proto->ParseFromArray(data, static_cast<int>(size));
+    dead_reckoning_cbk_(topic, proto);
+  } else if (type == kChassis && chassis_cbk_ != nullptr) {
+    auto proto = std::make_shared<hozon::soc::Chassis>();
+    proto->ParseFromArray(data, static_cast<int>(size));
+    chassis_cbk_(topic, proto);
   }
 }
 
@@ -171,6 +191,11 @@ void RvizAgentClient::Term() {
   pt_cloud2_cbk_ = nullptr;
   pose_array_cbk_ = nullptr;
   occupancy_grid_cbk_ = nullptr;
+  localization_cbk_ = nullptr;
+  haf_node_info_cbk_ = nullptr;
+  imu_ins_cbk_ = nullptr;
+  dead_reckoning_cbk_ = nullptr;
+  chassis_cbk_ = nullptr;
   reg_msgs_.clear();
 }
 

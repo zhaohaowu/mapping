@@ -16,6 +16,7 @@ add_subdirectory(dr)
 add_subdirectory(location)
 add_subdirectory(laneline_postprocess) # add by wenhai.zhang
 add_subdirectory(local_mapping)
+add_subdirectory(viz_converter)
 
 install(
   DIRECTORY production/conf/phm_config

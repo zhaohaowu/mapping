@@ -141,6 +141,14 @@ class RvizAgent {
 
 #define RVIZ_AGENT hozon::mp::util::RvizAgent::Instance()
 
+template <typename ProtoType>
+void VizProtoMsg(const ProtoType& msg, const std::string& topic) {
+  if (!RVIZ_AGENT.Ok()) {
+    return;
+  }
+  RVIZ_AGENT.Publish(topic, msg);
+}
+
 }  // namespace util
 }  // namespace mp
 }  // namespace hozon

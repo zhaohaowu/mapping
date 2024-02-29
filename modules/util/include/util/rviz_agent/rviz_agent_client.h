@@ -155,6 +155,56 @@ class RvizAgentClient {
     return 0;
   }
 
+  int Register(LocalizationCallback callback) {
+    if (localization_cbk_ != nullptr) {
+      HLOG_ERROR << "localization callback already registered";
+      return -1;
+    }
+    std::lock_guard<std::mutex> lock(mtx_);
+    localization_cbk_ = std::move(callback);
+    return 0;
+  }
+
+  int Register(HafNodeInfoCallback callback) {
+    if (haf_node_info_cbk_ != nullptr) {
+      HLOG_ERROR << "HafNodeInfo callback already registered";
+      return -1;
+    }
+    std::lock_guard<std::mutex> lock(mtx_);
+    haf_node_info_cbk_ = std::move(callback);
+    return 0;
+  }
+
+  int Register(ImuInsCallback callback) {
+    if (imu_ins_cbk_ != nullptr) {
+      HLOG_ERROR << "ImuIns callback already registered";
+      return -1;
+    }
+    std::lock_guard<std::mutex> lock(mtx_);
+    imu_ins_cbk_ = std::move(callback);
+    return 0;
+  }
+
+  int Register(DeadReckoningCallback callback) {
+    if (dead_reckoning_cbk_ != nullptr) {
+      HLOG_ERROR << "DeadReckoning callback already registered";
+      return -1;
+    }
+    std::lock_guard<std::mutex> lock(mtx_);
+    dead_reckoning_cbk_ = std::move(callback);
+    return 0;
+  }
+
+  int Register(ChassisCallback callback) {
+    if (chassis_cbk_ != nullptr) {
+      HLOG_ERROR << "Chassis callback already registered";
+      return -1;
+    }
+    std::lock_guard<std::mutex> lock(mtx_);
+    chassis_cbk_ = std::move(callback);
+    return 0;
+  }
+
   /*
     template <typename ProtoType>
     typename Checker<ProtoType>::Int
@@ -201,6 +251,16 @@ class RvizAgentClient {
       pose_array_cbk_ = nullptr;
     } else if (type_alias == kOccupancyGrid) {
       occupancy_grid_cbk_ = nullptr;
+    } else if (type_alias == kLocalization) {
+      localization_cbk_ = nullptr;
+    } else if (type_alias == kHafNodeInfo) {
+      haf_node_info_cbk_ = nullptr;
+    } else if (type_alias == kImuIns) {
+      imu_ins_cbk_ = nullptr;
+    } else if (type_alias == kDeadReckoning) {
+      dead_reckoning_cbk_ = nullptr;
+    } else if (type_alias == kChassis) {
+      chassis_cbk_ = nullptr;
     }
   }
 
@@ -233,6 +293,16 @@ class RvizAgentClient {
       ret = true;
     } else if (type_alias == kOccupancyGrid && occupancy_grid_cbk_) {
       ret = true;
+    } else if (type_alias == kLocalization && localization_cbk_) {
+      ret = true;
+    } else if (type_alias == kHafNodeInfo && haf_node_info_cbk_) {
+      ret = true;
+    } else if (type_alias == kImuIns && imu_ins_cbk_) {
+      ret = true;
+    } else if (type_alias == kDeadReckoning && dead_reckoning_cbk_) {
+      ret = true;
+    } else if (type_alias == kChassis && chassis_cbk_) {
+      ret = true;
     }
     return ret;
   }
@@ -252,6 +322,11 @@ class RvizAgentClient {
   PointCloud2Callback pt_cloud2_cbk_ = nullptr;
   PoseArrayCallback pose_array_cbk_ = nullptr;
   OccupancyGridCallback occupancy_grid_cbk_ = nullptr;
+  LocalizationCallback localization_cbk_ = nullptr;
+  HafNodeInfoCallback haf_node_info_cbk_ = nullptr;
+  ImuInsCallback imu_ins_cbk_ = nullptr;
+  DeadReckoningCallback dead_reckoning_cbk_ = nullptr;
+  ChassisCallback chassis_cbk_ = nullptr;
   std::shared_ptr<SubWorker> sub_ = nullptr;
   // <topic, type_alias>
   std::map<std::string, std::string> reg_msgs_;

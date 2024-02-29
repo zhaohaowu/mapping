@@ -1,0 +1,95 @@
+%YAML:1.0
+
+library: "${ADFLITE_ROOT_PATH}/runtime_service/mapping/lib/libmapping_onboard_lite_viz_cvt.so"
+depLibPath: ["${ADFLITE_ROOT_PATH}/lib", "${ADFLITE_ROOT_PATH}/runtime_service/mapping/lib"]
+executorName: VizConverterLite
+
+input:
+  - topic: imu_ins
+  - topic: inspva
+#  - topic: gnssinfo
+  - topic: chassis
+  - topic: percep_detection
+  - topic: camera_0
+#  - topic: tlr_percep
+  - topic: localization
+  - topic: map_fusion
+  - topic: dr
+  - topic: percep_transport
+  - topic: local_map
+#  - topic: /location/pose_estimation
+#  - topic: tlr_fusion
+
+trigger:
+  - name: recv_imu_ins
+    type: EVENT
+    mainSources:
+      - name: imu_ins
+        timeout: 10000
+  - name: recv_inspva
+    type: EVENT
+    mainSources:
+      - name: inspva
+        timeout: 10000
+#  - name: recv_gnssinfo
+#    type: EVENT
+#    mainSources:
+#      - name: gnssinfo
+#        timeout: 10000
+  - name: recv_chassis
+    type: EVENT
+    mainSources:
+      - name: chassis
+        timeout: 10000
+  - name: recv_percep_detection
+    type: EVENT
+    mainSources:
+      - name: percep_detection
+        timeout: 100
+  - name: recv_camera_0
+    type: EVENT
+    mainSources:
+      - name: camera_0
+        timeout: 10000
+#  - name: recv_tlr_percep
+#    type: EVENT
+#    mainSources:
+#      - name: tlr_percep
+#        timeout: 1000
+  - name: recv_localization
+    type: EVENT
+    mainSources:
+      - name: localization
+        timeout: 10000
+  - name: recv_map_fusion
+    type: EVENT
+    mainSources:
+      - name: map_fusion
+        timeout: 100
+  - name: recv_dr
+    type: EVENT
+    mainSources:
+      - name: dr
+        timeout: 10000
+  - name: recv_percep_transport
+    type: EVENT
+    mainSources:
+      - name: percep_transport
+        timeout: 100
+  - name: recv_local_map
+    type: EVENT
+    mainSources:
+      - name: local_map
+        timeout: 100
+#  - name: recv_pose_estimation
+#    type: EVENT
+#    mainSources:
+#      - name: pose_estimation
+#        timeout: 10000
+#  - name: recv_tlr_fusion
+#    type: EVENT
+#    mainSources:
+#      - name: tlr_fusion
+#        timeout: 10000
+
+viz_addr: ipc:///tmp/rviz_agent_viz_cvt

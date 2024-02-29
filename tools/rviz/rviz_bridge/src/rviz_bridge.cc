@@ -20,6 +20,7 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/Odometry.h>
 #include <nav_msgs/Path.h>
+#include <proto/localization/localization.pb.h>
 #include <sensor_msgs/CompressedImage.h>
 #include <sensor_msgs/PointCloud.h>
 #include <sensor_msgs/PointCloud2.h>
@@ -83,6 +84,16 @@ class PubManager {
         pub = nh_.advertise<geometry_msgs::PoseArray>(topic, 10);
       } else if (type_alias == kOccupancyGrid) {
         pub = nh_.advertise<nav_msgs::OccupancyGrid>(topic, 10);
+      } else if (type_alias == kLocalization) {
+        pub = nh_.advertise<rviz_msgs::Localization>(topic, 10);
+      } else if (type_alias == kDeadReckoning) {
+        pub = nh_.advertise<rviz_msgs::DeadReckoning>(topic, 10);
+      } else if (type_alias == kImuIns) {
+        pub = nh_.advertise<rviz_msgs::ImuIns>(topic, 10);
+      } else if (type_alias == kHafNodeInfo) {
+        pub = nh_.advertise<rviz_msgs::HafNodeInfo>(topic, 10);
+      } else if (type_alias == kChassis) {
+        pub = nh_.advertise<rviz_msgs::Chassis>(topic, 10);
       }
       type_pubs.insert({topic, pub});
     }
@@ -191,6 +202,44 @@ class RvizBridge {
     ret = RvizAgentClient::Instance().Register(occupancy_grid_cbk);
     if (ret < 0) {
       HLOG_ERROR << "Register occupancy grid callback failed";
+      return -1;
+    }
+    auto localization_cbk =
+        std::bind(&RvizBridge::OnLocalization, this, std::placeholders::_1,
+                  std::placeholders::_2);
+    ret = RvizAgentClient::Instance().Register(localization_cbk);
+    if (ret < 0) {
+      HLOG_ERROR << "Register Localization callback failed";
+      return -1;
+    }
+    auto dead_reckoning_cbk =
+        std::bind(&RvizBridge::OnDeadReckoning, this, std::placeholders::_1,
+                  std::placeholders::_2);
+    ret = RvizAgentClient::Instance().Register(dead_reckoning_cbk);
+    if (ret < 0) {
+      HLOG_ERROR << "Register DeadReckoning callback failed";
+      return -1;
+    }
+    auto imu_ins_cbk = std::bind(&RvizBridge::OnImuIns, this,
+                                 std::placeholders::_1, std::placeholders::_2);
+    ret = RvizAgentClient::Instance().Register(imu_ins_cbk);
+    if (ret < 0) {
+      HLOG_ERROR << "Register ImuIns callback failed";
+      return -1;
+    }
+    auto haf_node_info_cbk =
+        std::bind(&RvizBridge::OnHafNodeInfo, this, std::placeholders::_1,
+                  std::placeholders::_2);
+    ret = RvizAgentClient::Instance().Register(haf_node_info_cbk);
+    if (ret < 0) {
+      HLOG_ERROR << "Register HafNodeInfo callback failed";
+      return -1;
+    }
+    auto chassis_cbk = std::bind(&RvizBridge::OnChassis, this,
+                                 std::placeholders::_1, std::placeholders::_2);
+    ret = RvizAgentClient::Instance().Register(chassis_cbk);
+    if (ret < 0) {
+      HLOG_ERROR << "Register Chassis callback failed";
       return -1;
     }
 
@@ -312,6 +361,43 @@ class RvizBridge {
     nav_msgs::OccupancyGrid ros;
     TypeConverter::Convert(*proto, &ros);
     pub_mng_.GetPub(kOccupancyGrid, topic).publish(ros);
+  }
+
+  void OnLocalization(
+      const std::string& topic,
+      std::shared_ptr<hozon::localization::Localization> proto) {
+    rviz_msgs::Localization ros;
+    TypeConverter::Convert(*proto, &ros);
+    pub_mng_.GetPub(kLocalization, topic).publish(ros);
+  }
+
+  void OnDeadReckoning(
+      const std::string& topic,
+      std::shared_ptr<hozon::dead_reckoning::DeadReckoning> proto) {
+    rviz_msgs::DeadReckoning ros;
+    TypeConverter::Convert(*proto, &ros);
+    pub_mng_.GetPub(kDeadReckoning, topic).publish(ros);
+  }
+
+  void OnImuIns(const std::string& topic,
+                std::shared_ptr<hozon::soc::ImuIns> proto) {
+    rviz_msgs::ImuIns ros;
+    TypeConverter::Convert(*proto, &ros);
+    pub_mng_.GetPub(kImuIns, topic).publish(ros);
+  }
+
+  void OnHafNodeInfo(const std::string& topic,
+                     std::shared_ptr<hozon::localization::HafNodeInfo> proto) {
+    rviz_msgs::HafNodeInfo ros;
+    TypeConverter::Convert(*proto, &ros);
+    pub_mng_.GetPub(kHafNodeInfo, topic).publish(ros);
+  }
+
+  void OnChassis(const std::string& topic,
+                 std::shared_ptr<hozon::soc::Chassis> proto) {
+    rviz_msgs::Chassis ros;
+    TypeConverter::Convert(*proto, &ros);
+    pub_mng_.GetPub(kChassis, topic).publish(ros);
   }
 };
 

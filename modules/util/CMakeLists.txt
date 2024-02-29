@@ -28,6 +28,7 @@ set(UTIL_SRCS
     ${RVIZ_AGENT_SRCS}
     ${GEO_SRCS}
     src/rate.cc
+    src/viz_helper.cc
 )
 
 add_mapping_library(util ${UTIL_SRCS})
@@ -39,6 +40,9 @@ target_link_libraries(util
     glog
     yaml-cpp
     ${CMAKE_DL_LIBS}
+    opencv_core
+    opencv_imgproc
+    opencv_imgcodecs
 )
 install(
     TARGETS util

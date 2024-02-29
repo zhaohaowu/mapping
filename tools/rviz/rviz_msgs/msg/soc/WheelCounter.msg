@@ -1,0 +1,8 @@
+bool is_wheel_cnt_rr_valid
+float64 wheel_counter_rr
+bool is_wheel_cnt_rl_valid
+float64 wheel_counter_rl
+bool is_wheel_cnt_fr_valid
+float64 wheel_counter_fr
+bool is_wheel_cnt_fl_valid
+float64 wheel_counter_fl

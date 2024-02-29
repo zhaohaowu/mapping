@@ -47,7 +47,7 @@ if __name__ == '__main__':
                 && source devel/setup.bash \
                 && cd {} \
                 && source set_envs.sh \
-                && cd {}/tools/rviz_bridge/launch \
+                && cd {}/tools/rviz/rviz_bridge/launch \
                 && roslaunch rviz_bridge rviz_bridge.launch abs_rviz_conf:=/home/ouyanghailin/Documents/mm_adc_rviz_oyhl.rviz;exec bash".format(
         rviz_mapping_path, rviz_mapping_path, rviz_mapping_path)
     cmd = "\"bash -c '{}'\"".format(cmd)

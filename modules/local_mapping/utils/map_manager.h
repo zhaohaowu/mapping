@@ -15,6 +15,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -103,6 +104,20 @@ class MapManager {
       const std::vector<ZebraCrossing>& per_zebra_crossings,
       const std::vector<ZebraCrossing>& map_zebra_crossings,
       std::vector<ZebraCrossingMatchInfo>* zebra_crossing_matches);
+
+  static ArrowType getArrowType(
+      boost::circular_buffer<Arrow> history_per_arrows, const Arrow& per_arrow);
+  static int countContinueArrowTypeNum(
+      boost::circular_buffer<Arrow> history_per_arrows, const Arrow& per_arrow);
+  static bool countArrowTypeProbability(
+      boost::circular_buffer<Arrow> history_per_arrows, const Arrow& per_arrow);
+  static std::unordered_map<hozon::mp::lm::ArrowType, double>
+      arrow_type_probability_;
+
+  static ArrowType arrow_max_count_type_;
+  static void DeleteOldLaneLinePoints(
+      LocalMap* local_map,
+      const std::vector<LaneLineMatchInfo>& lane_line_matches);
 };
 
 }  // namespace lm

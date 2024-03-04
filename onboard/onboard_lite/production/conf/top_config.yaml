@@ -5,7 +5,7 @@ processName: mapping
 appLog:
   name: mapping
   description: mapping
-  file: /opt/usr/log/soc_log
+  file: ./ #/opt/usr/log/soc_log
   mode: 3
   level: 2
 
@@ -30,7 +30,6 @@ executors:
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_dr_fusion_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_pose_estimation_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/dr/dr_config.yaml
-  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/laneline_postprocess/lp_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/local_mapping/lm_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/map_fusion/mf_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/map_fusion/tlr_config.yaml

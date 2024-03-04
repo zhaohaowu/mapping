@@ -17,8 +17,6 @@
 namespace hozon {
 namespace mp {
 namespace lm {
-using ConstObjDataPtr = std::shared_ptr<Objects const>;
-using ObjDataPtr = std::shared_ptr<Objects>;
 
 class LocalDataSingleton {
  public:
@@ -36,19 +34,13 @@ class LocalDataSingleton {
   void Init();
   MessageBuffer<ConstDrDataPtr>& dr_buffer() { return dr_data_buffer_; }
 
-  MessageBuffer<ConstObjDataPtr>& obj_buffer() { return obj_data_buffer_; }
-
   ConstDrDataPtr GetDrPoseByTimeStamp(double timestamp);
 
-  bool GetObjByTimeStamp(double timestamp, ConstObjDataPtr* msg);
-
  private:
-  LocalDataSingleton() : dr_data_buffer_(400), obj_data_buffer_(5) {}
+  LocalDataSingleton() : dr_data_buffer_(400) {}
 
   /** @brief sensor data buffer. */
   MessageBuffer<ConstDrDataPtr> dr_data_buffer_;
-
-  MessageBuffer<ConstObjDataPtr> obj_data_buffer_;
 };
 
 }  // namespace lm

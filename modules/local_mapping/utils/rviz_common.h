@@ -467,6 +467,36 @@ class RvizUtil {
     util::RvizAgent::Instance().Publish(topic, points_msg);
   }
 
+  static void PubMapLaneLineOri(const Sophus::SE3d& T_W_V,
+                                const std::vector<LaneLine>& map_lane_lines,
+                                const uint64_t& sec, const uint64_t& nsec,
+                                const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::PointCloud points_msg;
+    points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = points_msg.add_channels();
+    channels->set_name("rgb");
+    for (const auto& lane_line : map_lane_lines) {
+      if (!lane_line.ismature_) {
+        continue;
+      }
+      for (const auto& point : lane_line.points_) {
+        auto point_world = T_W_V * point;
+        auto* point_msg = points_msg.add_points();
+        point_msg->set_x(static_cast<float>(point_world.x()));
+        point_msg->set_y(static_cast<float>(point_world.y()));
+        point_msg->set_z(static_cast<float>(point_world.z()));
+      }
+    }
+    util::RvizAgent::Instance().Publish(topic, points_msg);
+  }
+
   static void PubMapRoadEdge(const Sophus::SE3d& T_W_V,
                              const std::vector<RoadEdge>& map_road_edges,
                              const uint64_t& sec, const uint64_t& nsec,

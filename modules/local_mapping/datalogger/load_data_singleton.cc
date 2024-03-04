@@ -9,15 +9,7 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
-void LocalDataSingleton::Init() {
-  dr_data_buffer_.set_capacity(1000);
-  obj_data_buffer_.set_capacity(5);
-}
-
-bool LocalDataSingleton::GetObjByTimeStamp(double timestamp,
-                                           ConstObjDataPtr* msg) {
-  return obj_data_buffer_.get_message(timestamp, msg);
-}
+void LocalDataSingleton::Init() { dr_data_buffer_.set_capacity(1000); }
 
 ConstDrDataPtr LocalDataSingleton::GetDrPoseByTimeStamp(double timestamp) {
   ConstDrDataPtr before = nullptr;

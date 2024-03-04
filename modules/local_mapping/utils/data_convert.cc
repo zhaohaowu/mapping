@@ -27,32 +27,24 @@ void DataConvert::SetLocalization(const hozon::localization::Localization& msg,
   localization->angular_vrf_.z() = msg.pose().angular_velocity().z();
 }
 
-void DataConvert::SetObj(
-    const hozon::perception::measurement::MeasurementPb& msg,
-    std::shared_ptr<Objects> objects) {
-  objects->timestamp_ = msg.header().data_stamp();
-  for (auto& item : msg.obstacles().detected_obstacle()) {
-    Object object;
-    object.center.x() = item.center().x();
-    object.center.y() = item.center().y();
-    object.center.z() = item.center().z();
-
-    object.size.x() = item.length();
-    object.size.y() = item.width();
-    object.size.z() = item.height();
-
-    objects->objs_.push_back(object);
-  }
+void DataConvert::SetPerceptionEnv(
+    const std::shared_ptr<hozon::perception::base::FusionFrame>& msg,
+    Perception* perception) {
+  perception->timestamp_ = msg->header.timestamp;
+  SetLaneLine(msg->scene_->lane_lines->lanelines, &perception->lane_lines_);
+  SetRoadEdge(msg->scene_->road_edges->road_edges, &perception->road_edges_);
+  SetStopLine(msg->scene_->stop_lines->stoplines, &perception->stop_lines_);
+  SetArrow(msg->scene_->road_arrows->arrows, &perception->arrows_);
+  SetZebraCrossing(msg->scene_->zebra_crossings->crosswalks,
+                   &perception->zebra_crossings_);
 }
 
-void DataConvert::SetPerception(const hozon::perception::TransportElement& msg,
-                                Perception* perception) {
-  perception->timestamp_ = msg.header().data_stamp();
-  SetLaneLine(msg, &perception->lane_lines_);
-  SetRoadEdge(msg, &perception->road_edges_);
-  SetStopLine(msg, &perception->stop_lines_);
-  SetArrow(msg, &perception->arrows_);
-  SetZebraCrossing(msg, &perception->zebra_crossings_);
+void DataConvert::SetPerceptionObj(
+    const std::shared_ptr<hozon::perception::base::MeasurementFrame>& msg,
+    Perception* perception) {
+  for (const auto& measure_obj : msg->objects_measurement_->objects_) {
+    perception->objects_.push_back(*measure_obj);
+  }
 }
 
 void SetIns(const hozon::localization::HafNodeInfo& msg, InsData* ins) {
@@ -64,23 +56,20 @@ void SetIns(const hozon::localization::HafNodeInfo& msg, InsData* ins) {
   ins->quaternion_.x() = msg.quaternion().x();
   ins->quaternion_.y() = msg.quaternion().y();
   ins->quaternion_.z() = msg.quaternion().z();
-
-  // Eigen::Vector3d p_G_V(msg->pos_gcj02().x(), msg->pos_gcj02().y(),
-  //                       msg->pos_gcj02().z());
-  // Eigen::Quaterniond q_G_V(msg->quaternion().w(), msg->quaternion().x(),
-  //                          msg->quaternion().y(), msg->quaternion().z());
 }
 
-void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
-                              std::vector<LaneLine>* lane_lines) {
-  for (const auto& lane_line : msg.lane()) {
+void DataConvert::SetLaneLine(
+    std::vector<hozon::perception::base::LaneLinePtr> perception_lanelines,
+    std::vector<LaneLine>* lane_lines) {
+  for (const auto& lane_line : perception_lanelines) {
     LaneLine lane_line_tmp;
-    lane_line_tmp.track_id_ = lane_line.track_id();
-    ConvertProtoLanePos(lane_line.lanepos(), &lane_line_tmp.lanepos_);
-    ConvertProtoLaneType(lane_line.lanetype(), &lane_line_tmp.lanetype_);
-    ConvertProtoColor(lane_line.color(), &lane_line_tmp.color_);
-    for (const auto& point : lane_line.points()) {
-      lane_line_tmp.points_.emplace_back(point.x(), point.y(), point.z());
+    lane_line_tmp.track_id_ = lane_line->id;
+    ConvertStructLanePos(lane_line->position, &lane_line_tmp.lanepos_);
+    ConvertStructLaneType(lane_line->type, &lane_line_tmp.lanetype_);
+    ConvertStructColor(lane_line->color, &lane_line_tmp.color_);
+    for (const auto& laneline_point : lane_line->point_set) {
+      const auto point = laneline_point.vehicle_point;
+      lane_line_tmp.points_.emplace_back(point.x, point.y, point.z);
     }
     lane_line_tmp.start_point_x_ = lane_line_tmp.points_.front().x();
     lane_line_tmp.end_point_x_ = lane_line_tmp.points_.back().x();
@@ -111,23 +100,24 @@ void DataConvert::SetLaneLine(const hozon::perception::TransportElement& msg,
   }
 }
 
-void DataConvert::SetRoadEdge(const hozon::perception::TransportElement& msg,
-                              std::vector<RoadEdge>* road_edges) {
-  for (const auto& road_edge : msg.road_edges()) {
-    if (road_edge.points().empty()) {
+void DataConvert::SetRoadEdge(
+    std::vector<hozon::perception::base::RoadEdgePtr> perception_roadedges,
+    std::vector<RoadEdge>* road_edges) {
+  for (const auto& road_edge : perception_roadedges) {
+    if (road_edge->point_set.empty()) {
       continue;
     }
     RoadEdge road_edge_tmp;
-    road_edge_tmp.track_id_ = road_edge.id();
-    road_edge_tmp.confidence_ = road_edge.confidence();
-    ConvertProtoEdgeType(road_edge.type(), &road_edge_tmp.edgetype_);
-    for (const auto& point : road_edge.points()) {
-      Eigen::Vector3d point_tmp = {point.x(), point.y(), point.z()};
+    road_edge_tmp.track_id_ = road_edge->id;
+    road_edge_tmp.confidence_ = road_edge->confidence;
+    ConvertStrutEdgeType(road_edge->type, &road_edge_tmp.edgetype_);
+    for (const auto& laneline_point : road_edge->point_set) {
+      const auto& point = laneline_point.vehicle_point;
+      Eigen::Vector3d point_tmp = {point.x, point.y, point.z};
       road_edge_tmp.points_.push_back(point_tmp);
     }
-    road_edge_tmp.start_point_x_ = road_edge.points()[0].x();
-    road_edge_tmp.end_point_x_ =
-        road_edge.points()[road_edge.points().size() - 1].x();
+    road_edge_tmp.start_point_x_ = road_edge_tmp.points_.front().x();
+    road_edge_tmp.end_point_x_ = road_edge_tmp.points_.back().x();
 
     if (road_edge_tmp.points_.empty() || road_edge_tmp.end_point_x_ > 150) {
       continue;
@@ -156,28 +146,35 @@ void DataConvert::SetRoadEdge(const hozon::perception::TransportElement& msg,
   }
 }
 
-void DataConvert::SetStopLine(const hozon::perception::TransportElement& msg,
-                              std::vector<StopLine>* stop_lines) {
-  for (const auto& stop_line : msg.stopline()) {
-    if (stop_line.left_point().y() - stop_line.right_point().y() < 3 ||
-        fabs(stop_line.left_point().x() - stop_line.right_point().x()) > 1) {
+void DataConvert::SetStopLine(
+    std::vector<hozon::perception::base::StopLinePtr> stoplines,
+    std::vector<StopLine>* stop_lines) {
+  HLOG_INFO << "=======test stopline===============";
+  for (const auto& stop_line : stoplines) {
+    if (stop_line->point_set_3d.front().y - stop_line->point_set_3d.back().y <
+            3 ||
+        fabs(stop_line->point_set_3d.front().x -
+             stop_line->point_set_3d.back().x) > 1) {
       continue;
     }
     StopLine stop_line_tmp;
-    stop_line_tmp.confidence_ = stop_line.confidence();
-    stop_line_tmp.track_id_ = stop_line.track_id();
-    stop_line_tmp.left_point_ =
-        Eigen::Vector3d{stop_line.left_point().x(), stop_line.left_point().y(),
-                        stop_line.left_point().z()};
-    stop_line_tmp.right_point_ = Eigen::Vector3d{stop_line.right_point().x(),
-                                                 stop_line.right_point().y(),
-                                                 stop_line.right_point().z()};
+    stop_line_tmp.confidence_ = stop_line->confidence;
+    stop_line_tmp.track_id_ = stop_line->id;
+    stop_line_tmp.left_point_ = Eigen::Vector3d{
+        stop_line->point_set_3d.front().x, stop_line->point_set_3d.front().y,
+        stop_line->point_set_3d.front().z};
+    stop_line_tmp.right_point_ = Eigen::Vector3d{
+        stop_line->point_set_3d.back().x, stop_line->point_set_3d.back().y,
+        stop_line->point_set_3d.back().z};
     stop_line_tmp.mid_point_.x() =
-        (stop_line.left_point().x() + stop_line.right_point().x()) / 2;
+        (stop_line->point_set_3d.front().x + stop_line->point_set_3d.back().x) /
+        2;
     stop_line_tmp.mid_point_.y() =
-        (stop_line.left_point().y() + stop_line.right_point().y()) / 2;
+        (stop_line->point_set_3d.front().y + stop_line->point_set_3d.back().y) /
+        2;
     stop_line_tmp.mid_point_.z() =
-        (stop_line.left_point().z() + stop_line.right_point().z()) / 2;
+        (stop_line->point_set_3d.front().z + stop_line->point_set_3d.back().z) /
+        2;
     stop_line_tmp.length_ = CommonUtil::CalTwoPointsDis(
         stop_line_tmp.left_point_, stop_line_tmp.right_point_);
     stop_line_tmp.heading_ = CommonUtil::CalTwoPointsHeading(
@@ -186,16 +183,17 @@ void DataConvert::SetStopLine(const hozon::perception::TransportElement& msg,
   }
 }
 
-void DataConvert::SetArrow(const hozon::perception::TransportElement& msg,
-                           std::vector<Arrow>* arrows) {
-  for (const auto& arrow : msg.arrow()) {
+void DataConvert::SetArrow(
+    std::vector<hozon::perception::base::ArrowPtr> perception_arrows,
+    std::vector<Arrow>* arrows) {
+  for (const auto& arrow : perception_arrows) {
     Arrow arrow_tmp;
-    arrow_tmp.track_id_ = arrow.track_id();
-    arrow_tmp.confidence_ = arrow.confidence();
-    arrow_tmp.points_.is_closure = arrow.points().is_closure();
+    arrow_tmp.track_id_ = arrow->id;
+    arrow_tmp.confidence_ = arrow->confidence;
+    arrow_tmp.points_.is_closure = false;
     std::vector<Eigen::Vector3d> points;
-    for (const auto& point : arrow.points().point()) {
-      points.emplace_back(point.x(), point.y(), point.z());
+    for (const auto& point : arrow->point_set_3d) {
+      points.emplace_back(point.x, point.y, point.z);
     }
     if (!CommonUtil::IsConvex(points)) {
       continue;
@@ -240,23 +238,23 @@ void DataConvert::SetArrow(const hozon::perception::TransportElement& msg,
     Eigen::Vector3d bottom_point = (points_order[1] + points_order[2]) / 2;
     arrow_tmp.heading_ = atan2(top_point.y() - bottom_point.y(),
                                top_point.x() - bottom_point.x());
-    ConvertProtoArrowType(arrow.type(), &arrow_tmp.type_);
+    ConvertStructArrowType(arrow->type, &arrow_tmp.type_);
     arrows->emplace_back(arrow_tmp);
   }
 }
 
 void DataConvert::SetZebraCrossing(
-    const hozon::perception::TransportElement& msg,
+    std::vector<hozon::perception::base::ZebraCrossingPtr>
+        perception_zebracrosswalks,
     std::vector<ZebraCrossing>* zebra_crossings) {
-  for (const auto& zebra_crossing : msg.zebra_crossing()) {
+  for (const auto& zebra_crossing : perception_zebracrosswalks) {
     ZebraCrossing zebra_crossing_tmp;
-    zebra_crossing_tmp.track_id_ = zebra_crossing.track_id();
-    zebra_crossing_tmp.confidence_ = zebra_crossing.confidence();
-    zebra_crossing_tmp.points_.is_closure =
-        zebra_crossing.points().is_closure();
+    zebra_crossing_tmp.track_id_ = zebra_crossing->id;
+    zebra_crossing_tmp.confidence_ = zebra_crossing->confidence;
+    zebra_crossing_tmp.points_.is_closure = false;
     std::vector<Eigen::Vector3d> points;
-    for (const auto& point : zebra_crossing.points().point()) {
-      points.emplace_back(point.x(), point.y(), point.z());
+    for (const auto& point : zebra_crossing->point_set_3d) {
+      points.emplace_back(point.x, point.y, point.z);
     }
     if (!CommonUtil::IsConvex(points)) {
       continue;
@@ -305,6 +303,48 @@ void DataConvert::SetZebraCrossing(
   }
 }
 
+void DataConvert::ConvertStructLanePos(
+    const hozon::perception::base::LaneLinePosition& raw_lanepos,
+    LanePositionType* lanepos) {
+  switch (raw_lanepos) {
+    case hozon::perception::base::LaneLinePosition::BOLLARD_LEFT:
+      *lanepos = LanePositionType::BOLLARD_LEFT;
+      break;
+    case hozon::perception::base::LaneLinePosition::FOURTH_LEFT:
+      *lanepos = LanePositionType::FOURTH_LEFT;
+      break;
+    case hozon::perception::base::LaneLinePosition::THIRD_LEFT:
+      *lanepos = LanePositionType::THIRD_LEFT;
+      break;
+    case hozon::perception::base::LaneLinePosition::ADJACENT_LEFT:
+      *lanepos = LanePositionType::ADJACENT_LEFT;
+      break;
+    case hozon::perception::base::LaneLinePosition::EGO_LEFT:
+      *lanepos = LanePositionType::EGO_LEFT;
+      break;
+    case hozon::perception::base::LaneLinePosition::EGO_RIGHT:
+      *lanepos = LanePositionType::EGO_RIGHT;
+      break;
+    case hozon::perception::base::LaneLinePosition::ADJACENT_RIGHT:
+      *lanepos = LanePositionType::ADJACENT_RIGHT;
+      break;
+    case hozon::perception::base::LaneLinePosition::THIRD_RIGHT:
+      *lanepos = LanePositionType::THIRD_RIGHT;
+      break;
+    case hozon::perception::base::LaneLinePosition::FOURTH_RIGHT:
+      *lanepos = LanePositionType::FOURTH_RIGHT;
+      break;
+    case hozon::perception::base::LaneLinePosition::BOLLARD_RIGHT:
+      *lanepos = LanePositionType::BOLLARD_RIGHT;
+      break;
+    case hozon::perception::base::LaneLinePosition::OTHER:
+      *lanepos = LanePositionType::OTHER;
+      break;
+    default:
+      break;
+  }
+}
+
 void DataConvert::ConvertProtoLanePos(
     const hozon::perception::LanePositionType& raw_lanepos,
     LanePositionType* lanepos) {
@@ -341,6 +381,48 @@ void DataConvert::ConvertProtoLanePos(
       break;
     case hozon::perception::LanePositionType::OTHER:
       *lanepos = LanePositionType::OTHER;
+      break;
+    default:
+      break;
+  }
+}
+
+void DataConvert::ConvertStructLaneType(
+    const hozon::perception::base::LaneLineType& raw_lanetype,
+    LaneType* lanetype) {
+  switch (raw_lanetype) {
+    case hozon::perception::base::LaneLineType::Unknown:
+      *lanetype = LaneType::Unknown;
+      break;
+    case hozon::perception::base::LaneLineType::SolidLine:
+      *lanetype = LaneType::SolidLine;
+      break;
+    case hozon::perception::base::LaneLineType::DashedLine:
+      *lanetype = LaneType::DashedLine;
+      break;
+    case hozon::perception::base::LaneLineType::ShortDashedLine:
+      *lanetype = LaneType::ShortDashedLine;
+      break;
+    case hozon::perception::base::LaneLineType::DoubleSolidLine:
+      *lanetype = LaneType::DoubleSolidLine;
+      break;
+    case hozon::perception::base::LaneLineType::DoubleDashedLine:
+      *lanetype = LaneType::DoubleDashedLine;
+      break;
+    case hozon::perception::base::LaneLineType::LeftSolidRightDashed:
+      *lanetype = LaneType::LeftSolidRightDashed;
+      break;
+    case hozon::perception::base::LaneLineType::RightSolidLeftDashed:
+      *lanetype = LaneType::RightSolidLeftDashed;
+      break;
+    case hozon::perception::base::LaneLineType::FishBone:
+      *lanetype = LaneType::FishBone;
+      break;
+    case hozon::perception::base::LaneLineType::CrossGuideLine:
+      *lanetype = LaneType::CrossGuideLine;
+      break;
+    case hozon::perception::base::LaneLineType::Other:
+      *lanetype = LaneType::Other;
       break;
     default:
       break;
@@ -403,6 +485,33 @@ void DataConvert::ConvertProtoLaneType(
   }
 }
 
+void DataConvert::ConvertStrutEdgeType(
+    const hozon::perception::base::RoadEdgeType& raw_edgetype,
+    EdgeType* edgetype) {
+  switch (raw_edgetype) {
+    case hozon::perception::base::RoadEdgeType::UNKNOWN:
+      *edgetype = EdgeType::UNKNOWN_EDGE;
+      break;
+    case hozon::perception::base::RoadEdgeType::CONE_EDGE:
+      *edgetype = EdgeType::CONE_EDGE;
+      break;
+    case hozon::perception::base::RoadEdgeType::FENCE_EDGE:
+      *edgetype = EdgeType::FENCE_EDGE;
+      break;
+    case hozon::perception::base::RoadEdgeType::GROUND_EDGE:
+      *edgetype = EdgeType::GROUND_EDGE;
+      break;
+    case hozon::perception::base::RoadEdgeType::ROAD_EDGE:
+      *edgetype = EdgeType::ROAD_EDGE;
+      break;
+    case hozon::perception::base::RoadEdgeType::WATERHORSE_EDGE:
+      *edgetype = EdgeType::WATERHORSE_EDGE;
+      break;
+    default:
+      break;
+  }
+}
+
 void DataConvert::ConvertProtoEdgeType(
     const hozon::perception::RoadEdge::RoadEdgeType& raw_edgetype,
     EdgeType* edgetype) {
@@ -430,6 +539,68 @@ void DataConvert::ConvertProtoEdgeType(
     case hozon::perception::RoadEdge::RoadEdgeType::
         RoadEdge_RoadEdgeType_WATERHORSE_EDGE:
       *edgetype = EdgeType::WATERHORSE_EDGE;
+      break;
+    default:
+      break;
+  }
+}
+
+void DataConvert::ConvertStructArrowType(
+    const hozon::perception::base::ArrowType& raw_arrowtype,
+    ArrowType* arrowtype) {
+  switch (raw_arrowtype) {
+    case hozon::perception::base::ArrowType::UNKNOWN:
+      *arrowtype = ArrowType::ARROWTYPE_UNKNOWN;
+      break;
+    case hozon::perception::base::ArrowType::STRAIGHT_FORWARD:
+      *arrowtype = ArrowType::STRAIGHT_FORWARD;
+      break;
+    case hozon::perception::base::ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT:
+      *arrowtype = ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT;
+      break;
+    case hozon::perception::base::ArrowType::STRAIGHT_FORWARD_OR_TURN_RIGHT:
+      *arrowtype = ArrowType::STRAIGHT_FORWARD_OR_TURN_RIGHT;
+      break;
+    case hozon::perception::base::ArrowType::
+        STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT:
+      *arrowtype = ArrowType::STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT;
+      break;
+    case hozon::perception::base::ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND:
+      *arrowtype = ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND;
+    case hozon::perception::base::ArrowType::
+        STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT:
+      *arrowtype = ArrowType::STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT;
+    case hozon::perception::base::ArrowType::TURN_LEFT:
+      *arrowtype = ArrowType::TURN_LEFT;
+    case hozon::perception::base::ArrowType::TURN_LEFT_OR_MERGE_LEFT:
+      *arrowtype = ArrowType::TURN_LEFT_OR_MERGE_LEFT;
+    case hozon::perception::base::ArrowType::TURN_LEFT_OR_TURN_AROUND:
+      *arrowtype = ArrowType::TURN_LEFT_OR_TURN_AROUND;
+    case hozon::perception::base::ArrowType::TURN_LEFT_OR_TURN_RIGHT:
+      *arrowtype = ArrowType::TURN_LEFT_OR_TURN_RIGHT;
+      break;
+    case hozon::perception::base::ArrowType::TURN_RIGHT:
+      *arrowtype = ArrowType::TURN_RIGHT;
+      break;
+    case hozon::perception::base::ArrowType::TURN_RIGHT_OR_MERGE_RIGHT:
+      *arrowtype = ArrowType::TURN_RIGHT_OR_MERGE_RIGHT;
+      break;
+    case hozon::perception::base::ArrowType::TURN_RIGHT_OR_TURN_AROUND:
+      *arrowtype = ArrowType::TURN_RIGHT_OR_TURN_AROUND;
+      break;
+    case hozon::perception::base::ArrowType::TURN_AROUND:
+      *arrowtype = ArrowType::TURN_AROUND;
+      break;
+    case hozon::perception::base::ArrowType::FORBID_TURN_LEFT:
+      *arrowtype = ArrowType::FORBID_TURN_LEFT;
+      break;
+    case hozon::perception::base::ArrowType::FORBID_TURN_RIGHT:
+      *arrowtype = ArrowType::FORBID_TURN_RIGHT;
+    case hozon::perception::base::ArrowType::FORBID_TURN_AROUND:
+      *arrowtype = ArrowType::FORBID_TURN_AROUND;
+      break;
+    case hozon::perception::base::ArrowType::FRONT_NEAR_CROSSWALK:
+      *arrowtype = ArrowType::FRONT_NEAR_CROSSWALK;
       break;
     default:
       break;
@@ -491,6 +662,32 @@ void DataConvert::ConvertProtoArrowType(
       break;
     case hozon::perception::ArrowType::FRONT_NEAR_CROSSWALK:
       *arrowtype = ArrowType::FRONT_NEAR_CROSSWALK;
+      break;
+    default:
+      break;
+  }
+}
+
+void DataConvert::ConvertStructColor(
+    const hozon::perception::base::LaneLineColor& raw_color, Color* color) {
+  switch (raw_color) {
+    case hozon::perception::base::LaneLineColor::UNKNOWN:
+      *color = Color::UNKNOWN;
+      break;
+    case hozon::perception::base::LaneLineColor::WHITE:
+      *color = Color::WHITE;
+      break;
+    case hozon::perception::base::LaneLineColor::YELLOW:
+      *color = Color::YELLOW;
+      break;
+    case hozon::perception::base::LaneLineColor::GREEN:
+      *color = Color::GREEN;
+      break;
+    case hozon::perception::base::LaneLineColor::RED:
+      *color = Color::RED;
+      break;
+    case hozon::perception::base::LaneLineColor::BLACK:
+      *color = Color::BLACK;
       break;
     default:
       break;

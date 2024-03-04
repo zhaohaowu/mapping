@@ -5,9 +5,9 @@ depLibPath: ["${ADFLITE_ROOT_PATH}/lib/", "${ADFLITE_ROOT_PATH}/runtime_service/
 executorName: LocalMappingOnboard
 
 input:
-    - topic: percep_detection
+    - topic: dr 
       capacity: 5
-    - topic: percep_transport
+    - topic: percep_detection
       capacity: 5
     - topic: localization 
       capacity: 5
@@ -16,18 +16,20 @@ input:
     - topic: running_mode 
       capacity: 5
 
+output:
+    - topic: /perception/fsd/transportelement_1
 
 trigger:
-  - name: recv_detection_bevfusion_lane_proto
+  - name: recv_detection
     type: EVENT
     timeWindow: 1000
     mainSources:
       - name: percep_detection
         timeout: 1000
-  - name: recv_laneline
+  - name: recv_dr
     type: EVENT
     mainSources:
-      - name: percep_transport
+      - name: dr
         timeout: 1000
   - name: recv_localization
     type: EVENT

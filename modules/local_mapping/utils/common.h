@@ -31,30 +31,30 @@ namespace lm {
 
 class CommonUtil {
  public:
-  static bool IsOcclusionByObstacle(Eigen::Vector3d center,
-                                    Eigen::Vector3d size,
-                                    std::vector<Object> obstacles) {
-    auto input_x1 = center.x() - size.x() / 2.0;
-    auto input_y1 = center.y() - size.y() / 2.0;
-    auto input_x2 = center.x() + size.x() / 2.0;
-    auto input_y2 = center.y() + size.y() / 2.0;
+  // static bool IsOcclusionByObstacle(Eigen::Vector3d center,
+  //                                   Eigen::Vector3d size,
+  //                                   std::vector<Object> obstacles) {
+  //   auto input_x1 = center.x() - size.x() / 2.0;
+  //   auto input_y1 = center.y() - size.y() / 2.0;
+  //   auto input_x2 = center.x() + size.x() / 2.0;
+  //   auto input_y2 = center.y() + size.y() / 2.0;
 
-    for (auto& item : obstacles) {
-      auto compare_x1 = item.center.x() - item.size.x() / 2.0;
-      auto compare_y1 = item.center.y() - item.size.y() / 2.0;
-      auto compare_x2 = item.center.x() + item.size.x() / 2.0;
-      auto compare_y2 = item.center.y() + item.size.y() / 2.0;
+  //   for (auto& item : obstacles) {
+  //     auto compare_x1 = item.center.x() - item.size.x() / 2.0;
+  //     auto compare_y1 = item.center.y() - item.size.y() / 2.0;
+  //     auto compare_x2 = item.center.x() + item.size.x() / 2.0;
+  //     auto compare_y2 = item.center.y() + item.size.y() / 2.0;
 
-      if (input_x1 > compare_x1 && input_x1 < compare_x2 &&
-          input_y1 > compare_y1 && input_y1 < compare_y2 &&
-          input_x2 > compare_x1 && input_x2 < compare_x2 &&
-          input_y2 > compare_y1 && input_y2 < compare_y2) {
-        return true;
-      }
-    }
+  //     if (input_x1 > compare_x1 && input_x1 < compare_x2 &&
+  //         input_y1 > compare_y1 && input_y1 < compare_y2 &&
+  //         input_x2 > compare_x1 && input_x2 < compare_x2 &&
+  //         input_y2 > compare_y1 && input_y2 < compare_y2) {
+  //       return true;
+  //     }
+  //   }
 
-    return false;
-  }
+  //   return false;
+  // }
 
   static void FitLaneLine(const std::vector<Eigen::Vector3d>& pts,
                           std::vector<double>* c) {
@@ -119,11 +119,14 @@ class CommonUtil {
   static void EraseErrorPts(std::vector<Eigen::Vector3d>* pts) {
     for (int i = 0; i < static_cast<int>(pts->size() - 2); i++) {
       if ((pts->at(i + 1).y() - pts->at(i).y() > 1 &&
+           pts->at(i + 2).y() - pts->at(i + 1).y() < 0) ||
+          (pts->at(i + 1).y() - pts->at(i).y() > 0 &&
            pts->at(i + 2).y() - pts->at(i + 1).y() < -1) ||
           (pts->at(i + 1).y() - pts->at(i).y() < -1 &&
+           pts->at(i + 2).y() - pts->at(i + 1).y() > 0) ||
+          (pts->at(i + 1).y() - pts->at(i).y() < 0 &&
            pts->at(i + 2).y() - pts->at(i + 1).y() > 1)) {
-        pts->erase(pts->begin() + i + 1);
-        i--;
+        pts->at(i + 1).y() = (pts->at(i).y() + pts->at(i + 2).y()) / 2;
       }
     }
   }
@@ -196,9 +199,7 @@ class CommonUtil {
           back_pts.push_back(lane_line.points_[i]);
         }
       }
-      if (fabs(lane_line.c2_) < 0.001) {
-        CommonUtil::EraseErrorPts(&pts);
-      }
+      // CommonUtil::EraseErrorPts(&pts);
       if (pts.size() < 4) {
         continue;
       }
@@ -244,14 +245,18 @@ class CommonUtil {
           back_pts.push_back(road_edge.points_[i]);
         }
       }
-      if (fabs(road_edge.c2_) < 0.001) {
-        CommonUtil::EraseErrorPts(&pts);
-      }
+      CommonUtil::EraseErrorPts(&pts);
       if (pts.size() < 4) {
         continue;
       }
       road_edge.control_points_ = pts;
       CatmullRom(pts, &road_edge.fit_points_);
+      std::vector<double> c(4);
+      CommonUtil::FitLaneLine(pts, &c);
+      road_edge.c0_ = c[0];
+      road_edge.c1_ = c[1];
+      road_edge.c2_ = c[2];
+      road_edge.c3_ = c[3];
       for (const auto& point : back_pts) {
         road_edge.fit_points_.push_back(point);
       }

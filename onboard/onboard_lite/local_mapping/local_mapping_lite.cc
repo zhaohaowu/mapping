@@ -17,25 +17,35 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "depend/perception-base/base/frame/measurement_frame.h"
+#include "base/state_machine/state_machine_info.h"
 #include "depend/proto/perception/perception_measurement.pb.h"
-#include "onboard/onboard_lite/laneline_postprocess/measurement_message.h"
+#include "modules/local_mapping/lib/laneline/interface/base_lane_process.h"
+#include "modules/local_mapping/lib/laneline/interface/base_roadedge_process.h"
+#include "onboard/onboard_lite/local_mapping/data_mapping/data_mapping.h"
+#include "onboard/onboard_lite/local_mapping/measurement_message.h"
 #include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 #include "perception-base/base/state_machine/state_machine_info.h"
 #include "perception-lib/lib/environment/environment.h"
+#include "perception-lib/lib/fault_manager/fault_manager.h"
+#include "perception-lib/lib/health_manager/health_manager.h"
+#include "perception-lib/lib/state_manager/state_manager.h"
 namespace hozon {
 namespace mp {
 namespace lm {
 
 int32_t LocalMappingOnboard::AlgInit() {
+  perception_lib::LocationManager::Instance()->Init(100, 0.5);
+
   REGISTER_PROTO_MESSAGE_TYPE("percep_detection",
                               hozon::perception::measurement::MeasurementPb);
-  REGISTER_PROTO_MESSAGE_TYPE("percep_transport",
-                              hozon::perception::TransportElement);
+  // REGISTER_PROTO_MESSAGE_TYPE("percep_transport",
+  //                             hozon::perception::TransportElement);
   REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
   REGISTER_PROTO_MESSAGE_TYPE("lm_image", hozon::soc::Image);
   REGISTER_PROTO_MESSAGE_TYPE("running_mode",
                               hozon::perception::common_onboard::running_mode);
+  // REGISTER_PROTO_MESSAGE_TYPE("/localization/deadreckoning",
+  //                             hozon::dead_reckoning::DeadReckoning);
 
   std::string default_work_root = "/app/";
   std::string work_root =
@@ -59,16 +69,14 @@ int32_t LocalMappingOnboard::AlgInit() {
   }
 
   lmap_ = std::make_shared<LMapApp>(mapping_path, config_file);
-  result = std::make_shared<hozon::mapping::LocalMap>();
-  // NOLINTBEGIN
-  RegistAlgProcessFunc("recv_detection_bevfusion_lane_proto",
-                       std::bind(&LocalMappingOnboard::OnPerceptionObj, this,
-                                 std::placeholders::_1));
 
-  RegistAlgProcessFunc("recv_laneline",
+  RegistAlgProcessFunc("recv_detection",
                        std::bind(&LocalMappingOnboard::OnPerception, this,
                                  std::placeholders::_1));
 
+  RegistAlgProcessFunc("recv_dr", std::bind(&LocalMappingOnboard::OnDr, this,
+                                            std::placeholders::_1));
+  // NOLINTBEGIN
   RegistAlgProcessFunc("recv_localization",
                        std::bind(&LocalMappingOnboard::Onlocalization, this,
                                  std::placeholders::_1));
@@ -106,63 +114,74 @@ int32_t LocalMappingOnboard::OnRunningMode(adf_lite_Bundle* input) {
   // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
   if (runmode ==
       static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
-    PauseTrigger("recv_laneline");
+    PauseTrigger("recv_detection");
     PauseTrigger("recv_localization");
+    PauseTrigger("recv_dr");
     if (RVIZ_AGENT.Ok()) {
       PauseTrigger("recv_ins");
       PauseTrigger("recv_image");
     }
-    PauseTrigger("send_local_map");
     // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
   } else if (runmode == static_cast<int>(
                             hozon::perception::base::RunningMode::DRIVING) ||
              runmode ==
                  static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
-    ResumeTrigger("recv_laneline");
+    ResumeTrigger("recv_dr");
+    ResumeTrigger("recv_detection");
     ResumeTrigger("recv_localization");
     if (RVIZ_AGENT.Ok()) {
       ResumeTrigger("recv_ins");
       ResumeTrigger("recv_image");
     }
-    ResumeTrigger("send_local_map");
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
   }
   return 0;
 }
 
-int32_t LocalMappingOnboard::OnPerceptionObj(adf_lite_Bundle* input) {
-  HLOG_INFO << "*** receive perception obj ***";
-  auto percep_msg = input->GetOne("percep_detection");
-  if (percep_msg == nullptr) {
-    HLOG_ERROR << "nullptr perception detection plugin";
+int32_t LocalMappingOnboard::OnDr(adf_lite_Bundle* input) {
+  HLOG_DEBUG << "*** RECEIVE DR DATA ***";
+
+  auto dr_msg = input->GetOne("dr");
+  if (dr_msg == nullptr) {
+    HLOG_ERROR << " dr_msg is nullptr. ";
     return -1;
   }
 
-  auto measurepb =
-      std::static_pointer_cast<hozon::perception::measurement::MeasurementPb>(
-          percep_msg->proto_msg);
-  std::shared_ptr<Objects> objects = std::make_shared<Objects>();
-  objects->objs_.clear();
-  DataConvert::SetObj(*measurepb, objects);
-  lmap_->OnPerceptionObj(objects);
+  auto pb_location =
+      std::static_pointer_cast<hozon::dead_reckoning::DeadReckoning>(
+          dr_msg->proto_msg);
+
+  std::shared_ptr<perception_base::Location> location_msg =
+      std::make_shared<perception_base::Location>();
+  common_onboard::DataMapping::CvtPbDR2Location(pb_location, location_msg);
+
+  lmap_->OnDr(location_msg);
+
   return 0;
 }
 
 int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
+  HLOG_INFO << "*** LocalMappingOnboard Run Start ***";
+  if (nullptr == input) {
+    HLOG_ERROR << "input is nullptr.";
+    return -1;
+  }
+
   auto* phm_fault = hozon::perception::lib::FaultManager::Instance();
   static double last_percep_time = -1.0;
   HLOG_DEBUG << "receive perception data...";
-  auto percep_msg = input->GetOne("percep_transport");
-  if (percep_msg == nullptr) {
+  auto percept_detection = input->GetOne("percep_detection");
+  if (!percept_detection) {
     phm_fault->Report(MAKE_FM_TUPLE(
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::
             LOCALMAPPING_MUL_FRAM_PERCEPTION_INPUT_DATA_LOSS,
         hozon::perception::base::FaultStatus::OCCUR,
         hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
-    HLOG_ERROR << "nullptr track lane plugin";
+    HLOG_ERROR << "nullptr detect lane plugin";
     return -1;
   }
+
   phm_fault->Report(
       MAKE_FM_TUPLE(hozon::perception::base::FmModuleId::MAPPING,
                     hozon::perception::base::FaultType::
@@ -185,10 +204,11 @@ int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
       hozon::perception::base::FaultStatus::RESET,
       hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
 
-  auto msg = std::static_pointer_cast<hozon::perception::TransportElement>(
-      percep_msg->proto_msg);
+  auto measure_pbdata =
+      std::static_pointer_cast<hozon::perception::measurement::MeasurementPb>(
+          percept_detection->proto_msg);
 
-  double cur_percep_time = msg->header().data_stamp();
+  double cur_percep_time = measure_pbdata->header().data_stamp();
   if (last_percep_time > 0) {
     if (cur_percep_time - last_percep_time <= 0 ||
         cur_percep_time - last_percep_time > 0.4) {
@@ -213,13 +233,54 @@ int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
     }
   }
   last_percep_time = cur_percep_time;
+
+  // 感知车道线模型输出结果pb转为内部数据结构
+  hozon::perception::base::MeasurementFramePtr measurement_frame =
+      std::make_shared<hozon::perception::base::MeasurementFrame>();
+  if (!common_onboard::DataMapping::CvtPb2Measurement(measure_pbdata,
+                                                      measurement_frame)) {
+    HLOG_ERROR << "DataMapping::CvtPb2Measurement failed";
+    return -1;
+  }
+
+  if (!measurement_frame) {
+    HLOG_ERROR << "measurement_frame is nullptr";
+    return -1;
+  }
+
+  util::TicToc global_tic;
+  global_tic.Tic();
+  hozon::perception::base::FusionFramePtr fusion_frame =
+      std::make_shared<hozon::perception::base::FusionFrame>();
+  util::TicToc local_tic;
+  local_tic.Tic();
+  // 后处理模块功能实现（车道线、路沿等元素）
+  if (!lmap_->DoPostProcess(measurement_frame, fusion_frame)) {
+    // 如果后处理失败， 直接返回。
+    return 0;
+  }
+  HLOG_INFO << "后处理耗时 " << local_tic.Toc() << "ms";
+  // 中间模块，为了临时支持其他第三方模块功能联调。未来会做废弃处理。
+  PublishPostLaneLine(measure_pbdata, fusion_frame);
+
+  // 将后处理数据结构转换为内部数据结构
+  HLOG_DEBUG << "start do localmap work job...";
   std::shared_ptr<Perception> perception = std::make_shared<Perception>();
-  DataConvert::SetPerception(*msg, perception.get());
+  DataConvert::SetPerceptionEnv(fusion_frame, perception.get());
+  DataConvert::SetPerceptionObj(measurement_frame, perception.get());
 
-  lmap_->OnPerception(perception);
+  // 建图模块功能实现
+  lmap_->DoBuildMap(perception);
+  HLOG_DEBUG << "finish do localmap work job...";
 
+  // 发送localmap地图给下游
   PublishLocalMap();
-  HLOG_DEBUG << "processed perception data";
+
+  HLOG_INFO << "总耗时 " << global_tic.Toc() << "ms";
+  static double max_time = 0;
+  max_time = global_tic.Toc() > max_time ? global_tic.Toc() : max_time;
+  HLOG_INFO << "最大耗时 " << max_time << "ms";
+  HLOG_INFO << "*** LocalMappingOnboard Run End ***";
   return 0;
 }
 
@@ -400,11 +461,58 @@ int32_t LocalMappingOnboard::OnImage(adf_lite_Bundle* input) {
   return 0;
 }
 
+int32_t LocalMappingOnboard::PublishPostLaneLine(
+    std::shared_ptr<const hozon::perception::measurement::MeasurementPb>
+        measure_pbdata,
+    std::shared_ptr<const perception_base::FusionFrame> fusion_frame) {
+  auto transport_element =
+      std::make_shared<common_onboard::NetaTransportElement>();
+  if (!common_onboard::DataMapping::CvtMultiLanesToPb(
+          fusion_frame->scene_->lane_lines->lanelines, transport_element)) {
+    HLOG_ERROR << "multi laneline convert to proto struct failed.";
+  }
+
+  if (!common_onboard::DataMapping::CvtMultiRoadEdgesToPb(
+          fusion_frame->scene_->road_edges->road_edges, transport_element)) {
+    HLOG_ERROR << "multi laneline convert to proto struct failed.";
+  }
+
+  // 箭头、斑马线、停止线等其他路面元素透传
+  *(transport_element->mutable_arrow()) =
+      measure_pbdata->transport_element().arrow();
+  *(transport_element->mutable_zebra_crossing()) =
+      measure_pbdata->transport_element().zebra_crossing();
+  *(transport_element->mutable_stopline()) =
+      measure_pbdata->transport_element().stopline();
+  *(transport_element->mutable_slow_downs()) =
+      measure_pbdata->transport_element().slow_downs();
+  *(transport_element->mutable_cross_points()) =
+      measure_pbdata->transport_element().cross_points();
+  *(transport_element->mutable_turn_waiting_zone()) =
+      measure_pbdata->transport_element().turn_waiting_zone();
+  *(transport_element->mutable_no_parking_zone()) =
+      measure_pbdata->transport_element().no_parking_zone();
+  transport_element->mutable_header()->set_data_stamp(
+      measure_pbdata->header().data_stamp());
+  transport_element->mutable_header()->set_seq(measure_pbdata->header().seq());
+
+  auto EnvDataPtr = std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  EnvDataPtr->proto_msg = transport_element;
+
+  adf_lite_Bundle lane_node_bundle;
+  lane_node_bundle.Add("percep_transport", EnvDataPtr);
+  SendOutput(&lane_node_bundle);
+
+  return 0;
+}
+
 int32_t LocalMappingOnboard::PublishLocalMap() {
   HLOG_DEBUG << "start publish localmap...";
   auto* phm_fault = hozon::perception::lib::FaultManager::Instance();
   static double last_localmap_publish_time = -1.0;
-  result->Clear();
+
+  std::shared_ptr<hozon::mapping::LocalMap> result =
+      std::make_shared<hozon::mapping::LocalMap>();
   if (lmap_->FetchLocalMap(result)) {
     double cur_localmap_publish_time = result->header().data_stamp();
     if (last_localmap_publish_time > 0) {

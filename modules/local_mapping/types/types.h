@@ -13,13 +13,13 @@
 #include "Sophus/se3.hpp"
 // #include "boost/circular_buffer/base.hpp"
 #include "boost/circular_buffer.hpp"
+#include "depend/perception-base/base/object/object.h"
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d.hpp"
 #include "proto/dead_reckoning/dr.pb.h"
 #include "proto/local_mapping/local_map.pb.h"
 #include "proto/localization/localization.pb.h"
 #include "proto/perception/transport_element.pb.h"
-
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -65,8 +65,9 @@ enum LaneType {
   UnclosedRoad = 12,               // 非封闭路段线
   RoadVirtualLine = 13,            // 道路虚拟线
   LaneChangeVirtualLine = 14,      // 变道虚拟线
-  // RoadEdge = 15,                   // 路沿
-  Other = 99  // 其他
+  FishBone = 15,                   // 鱼骨线
+  CrossGuideLine = 16,             // 引导线
+  Other = 99                       // 其他
 };
 
 enum EdgeType {
@@ -139,21 +140,6 @@ class Localization {
   float heading_;
 };
 
-class Object {
- public:
-  Eigen::Vector3d center;
-  Eigen::Vector3f size;
-  float theta;
-  Eigen::Vector3f direction;
-  // ObjectType type;
-};
-
-class Objects {
- public:
-  double timestamp_;
-  std::vector<Object> objs_;
-};
-
 class InsData {
  public:
   double timestamp_;
@@ -166,12 +152,9 @@ enum ObjUpdateType { MERGE_OLD = 0, ADD_NEW = 1 };
 class LaneLine {
  public:
   int track_id_ = 1000;
-  // double length_ = 1000.0;
-  // double heading_ = 1000.0;
   double confidence_ = 1000.0;
   LanePositionType lanepos_ = LanePositionType::OTHER;
   LaneType lanetype_;
-  EdgeType edgetype_;
   Color color_;
   std::vector<Eigen::Vector3d> points_;
   std::vector<Eigen::Vector3d> control_points_;
@@ -179,8 +162,9 @@ class LaneLine {
   bool need_delete_ = false;
   bool has_matched_ = false;
   bool ismature_ = false;
-  bool is_after_stop_line_ = false;
-  int tracked_count_;
+  bool after_intersection = false;
+  int tracked_count_ = 0;
+  int lost_count_ = 0;
   double c3_ = 1000.0;
   double c2_ = 1000.0;
   double c1_ = 1000.0;
@@ -202,11 +186,13 @@ class RoadEdge {
   bool need_delete_ = false;
   bool has_matched_ = false;
   bool ismature_ = false;
-  int tracked_count_;
+  bool after_intersection = false;
+  int tracked_count_ = 0;
   double c3_ = 1000.0;
   double c2_ = 1000.0;
   double c1_ = 1000.0;
   double c0_ = 1000.0;
+  double c0_for_lanepos_ = 1000.0;
   double start_point_x_;
   double end_point_x_;
 };
@@ -262,6 +248,7 @@ class Perception {
   std::vector<StopLine> stop_lines_;
   std::vector<Arrow> arrows_;
   std::vector<ZebraCrossing> zebra_crossings_;
+  std::vector<hozon::perception::base::Object> objects_;
 };
 
 class LocalMap {

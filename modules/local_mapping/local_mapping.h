@@ -29,6 +29,9 @@
 #include "depend/proto/map/navigation.pb.h"
 #include "depend/proto/perception/perception_measurement.pb.h"
 #include "depend/proto/soc/sensor_image.pb.h"
+#include "modules/local_mapping/app/laneline_postprocess.h"
+#include "modules/local_mapping/app/roadedge_postprocess.h"
+#include "modules/local_mapping/app/roadmark_postprocess.h"
 #include "modules/local_mapping/datalogger/load_data_singleton.h"
 #include "modules/local_mapping/types/types.h"
 #include "modules/local_mapping/utils/common.h"
@@ -40,9 +43,11 @@
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
 #include "modules/util/include/util/tic_toc.h"
+#include "perception-lib/lib/location_manager/location_manager.h"
 namespace hozon {
 namespace mp {
 namespace lm {
+
 class LMapApp {
  public:
   explicit LMapApp(const std::string& mapping_path,
@@ -61,11 +66,16 @@ class LMapApp {
   void OnLocalization(
       const std::shared_ptr<const Localization>& latest_localization);
 
-  void OnPerception(const std::shared_ptr<Perception>& perception);
+  void OnDr(const std::shared_ptr<hozon::perception::base::Location>&
+                latest_localization);
+
+  void DoBuildMap(const std::shared_ptr<Perception>& perception);
+
+  bool DoPostProcess(
+      hozon::perception::base::MeasurementFramePtr measurement_frame,
+      hozon::perception::base::FusionFramePtr fusion_frame);
 
   void OnIns(const std::shared_ptr<const InsData>& msg);
-
-  void OnPerceptionObj(std::shared_ptr<Objects> perception_objs);
 
   bool FetchLocalMap(
       const std::shared_ptr<hozon::mapping::LocalMap>& local_map);
@@ -78,9 +88,13 @@ class LMapApp {
   void ProcStopLine(const std::shared_ptr<const Perception>& perception);
   void ProcZebraCrossing(const std::shared_ptr<const Perception>& perception);
   void ProcArrow(const std::shared_ptr<const Perception>& perception);
-  void PreProcArrow(const std::shared_ptr<Perception>& perception);
+  static void PreProcArrow(const std::shared_ptr<Perception>& perception);
 
  private:
+  std::unique_ptr<environment::RoadMarkPostProcess> roadmark_postprocessor_;
+  std::unique_ptr<environment::LanePostProcess> lane_postprocessor_;
+  std::unique_ptr<environment::RoadEdgePostProcess> roadedge_postprocessor_;
+
   std::shared_ptr<MapManager> mmgr_;
   std::shared_ptr<hozon::hdmap::HDMap> hdmap_ = nullptr;
   std::shared_ptr<hozon::hdmap::Map> hqmap_ = nullptr;

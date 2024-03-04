@@ -5,6 +5,8 @@
  *****************************************************************************/
 #include "modules/local_mapping/local_mapping.h"
 
+#include <string>
+
 #include "Eigen/src/Core/Matrix.h"
 #include "modules/local_mapping/datalogger/load_data_singleton.h"
 #include "modules/local_mapping/utils/data_convert.h"
@@ -13,12 +15,31 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
+namespace perception_base = hozon::perception::base;
+namespace perception_lib = hozon::perception::lib;
+
 LMapApp::LMapApp(const std::string& mapping_path,
                  const std::string& config_file) {
   YAML::Node config = YAML::LoadFile(config_file);
   use_rviz_ = config["use_rviz"].as<bool>();
   local_map_ptr_ = std::make_shared<LocalMap>();
   mmgr_ = std::make_shared<MapManager>();
+
+  // 车道线后处理初始化
+  lane_postprocessor_ = std::make_unique<environment::LanePostProcess>();
+  environment::ProcessInitOption init_option;
+  CHECK(lane_postprocessor_->Init(init_option));
+  HLOG_DEBUG << "lane_postprocessor_ init successfully";
+
+  // 路沿后处理初始化
+  roadedge_postprocessor_ =
+      std::make_unique<environment::RoadEdgePostProcess>();
+  CHECK(roadedge_postprocessor_->Init(init_option));
+
+  // 地面标识后处理初始化
+  roadmark_postprocessor_ =
+      std::make_unique<environment::RoadMarkPostProcess>();
+  // CHECK(roadmark_postprocessor_->Init(init_option));
 
   if (use_rviz_ && RVIZ_AGENT.Ok()) {
     // load city hdmap
@@ -80,6 +101,8 @@ void LMapApp::RvizFunc() {
 
     RvizUtil::PubMapLaneLine(T_W_V, local_map.lane_lines_, sec, nsec,
                              "/localmap/map_lane_line");
+    RvizUtil::PubMapLaneLineOri(T_W_V, local_map.lane_lines_, sec, nsec,
+                                "/localmap/map_lane_line_ori");
     RvizUtil::PubMapLaneLineMarker(T_W_V, local_map.lane_lines_, sec, nsec,
                                    "/localmap/map_lane_line/marker");
     RvizUtil::PubMapRoadEdge(T_W_V, local_map.road_edges_, sec, nsec,
@@ -104,18 +127,15 @@ void LMapApp::RvizFunc() {
     RvizUtil::PubImmatureMapZebraCrossingMarker(
         T_W_V, local_map.zebra_crossings_, sec, nsec,
         "/localmap/immature_map_zebra_crossing/marker");
-    RvizUtil::PubImmatureMapStopLine(
-        T_W_V, local_map.stop_lines_, sec, nsec,
-        "/localmap/immature_map_stop_lines");
+    RvizUtil::PubImmatureMapStopLine(T_W_V, local_map.stop_lines_, sec, nsec,
+                                     "/localmap/immature_map_stop_lines");
     RvizUtil::PubImmatureMapStopLineMarker(
         T_W_V, local_map.stop_lines_, sec, nsec,
         "/localmap/immature_map_stop_lines/marker");
-    RvizUtil::PubImmatureMapArrow(
-        T_W_V, local_map.arrows_, sec, nsec,
-        "/localmap/immature_map_arrow");
-    RvizUtil::PubImmatureMapArrowMarker(
-        T_W_V, local_map.arrows_, sec, nsec,
-        "/localmap/immature_map_arrow/marker");
+    RvizUtil::PubImmatureMapArrow(T_W_V, local_map.arrows_, sec, nsec,
+                                  "/localmap/immature_map_arrow");
+    RvizUtil::PubImmatureMapArrowMarker(T_W_V, local_map.arrows_, sec, nsec,
+                                        "/localmap/immature_map_arrow/marker");
 
     RvizUtil::PubMapLaneLineControl(T_W_V, local_map, sec, nsec,
                                     "/localmap/map_lane_line/control");
@@ -126,23 +146,10 @@ void LMapApp::RvizFunc() {
   }
 }
 
-void LMapApp::OnPerceptionObj(std::shared_ptr<Objects> perception_objs) {
-  auto& local_data = LocalDataSingleton::GetInstance();
-
-  if (perception_objs->objs_.empty()) {
-    return;
-  }
-
-  HLOG_DEBUG << "***receive perception object size***"
-             << perception_objs->objs_.size();
-  if (local_data.obj_buffer().is_empty() ||
-      local_data.obj_buffer().back()->timestamp_ <
-          perception_objs->timestamp_) {
-    local_data.obj_buffer().push_new_message(perception_objs->timestamp_,
-                                             perception_objs);
-  } else {
-    HLOG_ERROR << "perception object timestamp error";
-  }
+void LMapApp::OnDr(const std::shared_ptr<hozon::perception::base::Location>&
+                       latest_localization) {
+  hozon::perception::lib::LocationManager::Instance()->Push(
+      *latest_localization);
 }
 
 void LMapApp::OnLocalization(
@@ -157,18 +164,9 @@ void LMapApp::OnLocalization(
             << local_data.dr_buffer().buffer_size();
   HLOG_INFO << "latest_localization timestamp: " << SET_PRECISION(20)
             << latest_localization->timestamp_;
-  if (local_data.dr_buffer().is_empty()) {
-    DrDataPtr dr_data_ptr = std::make_shared<DrData>();
-    dr_data_ptr->timestamp = latest_localization->timestamp_;
-    dr_data_ptr->pose = trans_pose;
-    dr_data_ptr->quaternion = trans_quat;
-    dr_data_ptr->local_omg = latest_localization->angular_vrf_;
-    dr_data_ptr->local_vel = latest_localization->linear_vrf_;
-    local_data.dr_buffer().push_new_message(latest_localization->timestamp_,
-                                            dr_data_ptr);
-    last_time = latest_localization->timestamp_;
-
-  } else if (last_time < latest_localization->timestamp_) {
+  if (local_data.dr_buffer().is_empty() ||
+      local_data.dr_buffer().back()->timestamp <
+          latest_localization->timestamp_) {
     DrDataPtr dr_data_ptr = std::make_shared<DrData>();
     dr_data_ptr->timestamp = latest_localization->timestamp_;
     dr_data_ptr->pose = trans_pose;
@@ -209,6 +207,7 @@ void LMapApp::ProcLaneLine(
                               match.map_lane_line_);
     }
   }
+  mmgr_->DeleteOldLaneLinePoints(local_map_ptr_.get(), lane_line_matches);
 }
 
 void LMapApp::ProcRoadEdge(
@@ -226,32 +225,30 @@ void LMapApp::ProcRoadEdge(
   }
 }
 
-void LMapApp::PreProcArrow(const std::shared_ptr<Perception>& perception) {
-  int input_size = perception->arrows_.size();
-  ConstObjDataPtr msg;
-  if (LocalDataSingleton::GetInstance().GetObjByTimeStamp(
-          perception->timestamp_, &msg)) {
-    HLOG_INFO << "***msg-objs***" << msg->objs_.size();
-    perception->arrows_.erase(
-        std::remove_if(
-            perception->arrows_.begin(), perception->arrows_.end(),
-            [&](const Arrow& arrow) {
-              Eigen::Vector3d center = arrow.mid_point_;
-              Eigen::Vector3d size = {arrow.width_, arrow.length_, 0.0};
-              return CommonUtil::IsOcclusionByObstacle(center, size,
-                                                       msg->objs_);
-            }),
-        perception->arrows_.end());
-  }
+// void LMapApp::PreProcArrow(const std::shared_ptr<Perception>& perception) {
+//   int input_size = static_cast<int>(perception->arrows_.size());
+//   ConstObjDataPtr msg;
+//   if (LocalDataSingleton::GetInstance().GetObjByTimeStamp(
+//           perception->timestamp_, &msg)) {
+//     HLOG_INFO << "***msg-objs***" << msg->objs_.size();
+//     perception->arrows_.erase(
+//         std::remove_if(
+//             perception->arrows_.begin(), perception->arrows_.end(),
+//             [&](const Arrow& arrow) {
+//               Eigen::Vector3d center = arrow.mid_point_;
+//               Eigen::Vector3d size = {arrow.width_, arrow.length_, 0.0};
+//               return CommonUtil::IsOcclusionByObstacle(center, size,
+//                                                        msg->objs_);
+//             }),
+//         perception->arrows_.end());
+//   }
 
-  int out_size = perception->arrows_.size();
+//   int out_size = static_cast<int>(perception->arrows_.size());
 
-  if (input_size - out_size) {
-    HLOG_INFO << "***delete input arrow size***" << input_size - out_size;
-  }
-
-  return;
-}
+//   if ((input_size - out_size) != 0) {
+//     HLOG_INFO << "***delete input arrow size***" << input_size - out_size;
+//   }
+// }
 
 void LMapApp::ProcArrow(const std::shared_ptr<const Perception>& perception) {
   std::vector<ArrowMatchInfo> arrow_matches;
@@ -300,19 +297,90 @@ void LMapApp::ProcStopLine(
     }
   }
 }
+bool LMapApp::DoPostProcess(
+    hozon::perception::base::MeasurementFramePtr measurement_frame,
+    hozon::perception::base::FusionFramePtr fusion_frame) {
+  fusion_frame->header.timestamp = measurement_frame->header.timestamp;
+  fusion_frame->header.sequence_num = measurement_frame->header.sequence_num;
+  // 输入数据放入输入数据管理模块中。
+  double ts = measurement_frame->header.timestamp;
+  perception_base::LocationPtr cur_location =
+      std::make_shared<perception_base::Location>();
+  bool ret =
+      perception_lib::LocationManager::Instance()->GetLocationByTimestamp(
+          ts, cur_location.get());
+  if (!ret) {
+    HLOG_ERROR << "get location msg failed...";
+    return false;
+  }
 
-void LMapApp::OnPerception(const std::shared_ptr<Perception>& perception) {
-  util::TicToc global_tic;
-  global_tic.Tic();
+  // 车道线后处理输入观测数据保存
+  environment::InputDataSingleton* local_data_ =
+      environment::InputDataSingleton::Instance();
+  local_data_->dr_data_buffer_.push_new_message(ts, cur_location);
+  local_data_->roadedges_buffer_.push_new_message(
+      ts, measurement_frame->roadedges_measurement_->road_edges);
+  local_data_->lanes_buffer_.push_new_message(
+      ts, measurement_frame->lanelines_measurement_->lanelines);
+
+  // 车道线后处理和结果转换
+  HLOG_DEBUG << "do laneline postprocess...";
+  if (!lane_postprocessor_) {
+    HLOG_ERROR << "lane_postprocessor_ is nullptr";
+    return -1;
+  }
+  lane_postprocessor_->Process(measurement_frame, fusion_frame);
+  HLOG_DEBUG << "output track laneline nums trans to pb:"
+             << fusion_frame->scene_->lane_lines->lanelines.size();
+
+  // 路沿后处理和结果转换
+  HLOG_DEBUG << "do roadedge_postprocess...";
+  if (!roadedge_postprocessor_) {
+    HLOG_ERROR << "roadedge_postprocessor_ is nullptr";
+    return -1;
+  }
+  roadedge_postprocessor_->Process(measurement_frame, fusion_frame);
+  HLOG_DEBUG << "output track road_edges nums trans to pb:"
+             << fusion_frame->scene_->road_edges->road_edges.size();
+
+  HLOG_DEBUG << "do roadmark_postprocess...";
+  if (!roadmark_postprocessor_) {
+    HLOG_ERROR << "roadmark_postprocessor_ is nullptr";
+    return -1;
+  }
+  roadmark_postprocessor_->Process(measurement_frame, fusion_frame);
+
+  HLOG_DEBUG << "output track stop_lines nums trans to pb:"
+             << fusion_frame->scene_->stop_lines->stoplines.size();
+  HLOG_DEBUG << "output track noparkings nums trans to pb:"
+             << fusion_frame->scene_->no_parkings->noparkings.size();
+  HLOG_DEBUG << "output track road_arrows nums trans to pb:"
+             << fusion_frame->scene_->road_arrows->arrows.size();
+  HLOG_DEBUG << "output track slow_downs nums trans to pb:"
+             << fusion_frame->scene_->slow_downs->slow_downs.size();
+  HLOG_DEBUG << "output track stoplines nums trans to pb:"
+             << fusion_frame->scene_->stop_lines->stoplines.size();
+  HLOG_DEBUG << "output track waitzones nums trans to pb:"
+             << fusion_frame->scene_->wait_zones->waitzones.size();
+  HLOG_DEBUG << "output track waitzones nums trans to pb:"
+             << fusion_frame->scene_->zebra_crossings->crosswalks.size();
+
+  return true;
+}
+
+void LMapApp::DoBuildMap(const std::shared_ptr<Perception>& perception) {
   ConstDrDataPtr perception_pose =
       LocalDataSingleton::GetInstance().GetDrPoseByTimeStamp(
           perception->timestamp_);
   if (perception_pose == nullptr) {
+    HLOG_ERROR << "perception time is:"
+               << std::to_string(perception->timestamp_);
     HLOG_ERROR << "perception_pose is nullptr";
     return;
   }
   cur_twv_ = Sophus::SE3d(perception_pose->quaternion, perception_pose->pose);
   Sophus::SE3d T_C_L = cur_twv_.inverse() * last_twv_;
+  last_twv_ = cur_twv_;
   mmgr_->UpdateLocalMap(local_map_ptr_.get(), T_C_L);
   local_map_ptr_->timestamp_ = perception->timestamp_;
 
@@ -326,7 +394,6 @@ void LMapApp::OnPerception(const std::shared_ptr<Perception>& perception) {
 
   mmgr_->UpdateLaneLinepos(local_map_ptr_.get());
   mmgr_->UpdateRoadEdgepos(local_map_ptr_.get());
-
   mmgr_->MergeLaneLine(local_map_ptr_.get());
   mmgr_->MergeRoadEdge(local_map_ptr_.get());
   mmgr_->MergeZebraCrossing(local_map_ptr_.get());
@@ -336,20 +403,20 @@ void LMapApp::OnPerception(const std::shared_ptr<Perception>& perception) {
   CommonUtil::FitLaneLines(&local_map_ptr_->lane_lines_);
   CommonUtil::FitRoadEdges(&local_map_ptr_->road_edges_);
   mmgr_->CutLocalMap(local_map_ptr_.get(), 80, 80);
-  localmap_mutex_.lock();
-  local_map_output_ = *local_map_ptr_;
-  localmap_mutex_.unlock();
-  perception_mutex_.lock();
-  perception_ = *perception;
-  perception_mutex_.unlock();
-  T_mutex_.lock();
-  T_W_V_ = cur_twv_;
-  T_mutex_.unlock();
+  if (use_rviz_ && RVIZ_AGENT.Ok()) {
+    localmap_mutex_.lock();
+    local_map_output_ = *local_map_ptr_;
+    localmap_mutex_.unlock();
+    perception_mutex_.lock();
+    perception_ = *perception;
+    perception_mutex_.unlock();
+    T_mutex_.lock();
+    T_W_V_ = cur_twv_;
+    T_mutex_.unlock();
+  }
   if (!perception_inited_) {
     perception_inited_ = true;
   }
-  last_twv_ = cur_twv_;
-  HLOG_INFO << "on perception cost " << global_tic.Toc() << "ms";
 }
 
 bool LMapApp::FetchLocalMap(
@@ -362,26 +429,24 @@ bool LMapApp::FetchLocalMap(
     HLOG_ERROR << "==========perception_inited_ failed=======";
     return false;
   }
-
-  localmap_mutex_.lock();
-  auto local_map_msg = local_map_output_;
-  localmap_mutex_.unlock();
-
   local_map->mutable_header()->set_seq(seq_++);
-  local_map->set_init_timestamp(local_map_msg.timestamp_);
-  local_map->mutable_header()->set_gnss_stamp(local_map_msg.timestamp_);
+  local_map->set_init_timestamp(local_map_ptr_->timestamp_);
+  local_map->mutable_header()->set_gnss_stamp(local_map_ptr_->timestamp_);
   std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
       tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
           std::chrono::system_clock::now());
   local_map->mutable_header()->set_publish_stamp(
       static_cast<double>(tp.time_since_epoch().count()) * 1.0e-9);
-  local_map->mutable_header()->set_data_stamp(local_map_msg.timestamp_);
+  local_map->mutable_header()->set_data_stamp(local_map_ptr_->timestamp_);
 
-  DataConvert::ConvertMultiLaneLinesToPb(local_map_msg.lane_lines_, local_map);
-  DataConvert::ConvertMultiRoadEdgesToPb(local_map_msg.road_edges_, local_map);
-  DataConvert::ConvertMultiStopLinesToPb(local_map_msg.stop_lines_, local_map);
-  DataConvert::ConvertMultiArrowsToPb(local_map_msg.arrows_, local_map);
-  DataConvert::ConvertMultiZebraCrossingsToPb(local_map_msg.zebra_crossings_,
+  DataConvert::ConvertMultiLaneLinesToPb(local_map_ptr_->lane_lines_,
+                                         local_map);
+  DataConvert::ConvertMultiRoadEdgesToPb(local_map_ptr_->road_edges_,
+                                         local_map);
+  DataConvert::ConvertMultiStopLinesToPb(local_map_ptr_->stop_lines_,
+                                         local_map);
+  DataConvert::ConvertMultiArrowsToPb(local_map_ptr_->arrows_, local_map);
+  DataConvert::ConvertMultiZebraCrossingsToPb(local_map_ptr_->zebra_crossings_,
                                               local_map);
   return true;
 }

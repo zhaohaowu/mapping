@@ -2094,6 +2094,12 @@ void MapPrediction::PredLeftRight(const std::set<std::string>& side_miss_ids) {
 }
 
 void MapPrediction::PredAheadLanes() {
+  if (topo_lane_ids_.empty()) {
+    add_lane_ids_.clear();
+    for (const auto& it : lane_table_) {
+      add_lane_ids_.insert(it.second.lane_id);
+    }
+  }
   // 预测前方缺失车道线
   if (add_lane_ids_.empty()) {
     return;

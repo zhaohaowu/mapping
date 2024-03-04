@@ -82,7 +82,7 @@ void MatchLaneLine::Match(const HdMap& hd_map,
   }
   LaneLineConnect(percep_lanelines_, merged_map_lines_);
   FilterPointPair(&match_pairs_, T_W_V_);
-  HLOG_ERROR << "after filter match_pairs size: " << match_pairs_.size();
+  HLOG_INFO << "after filter match_pairs size: " << match_pairs_.size();
   bool adjust_left_pairs_weight = false;
   bool adjust_right_pairs_weight = false;
   size_t left_pairs_count = 0;
@@ -289,13 +289,7 @@ void MatchLaneLine::MergeMapLines(
     if (start_point.norm() == end_point.norm()) {
       continue;
     }
-    if (start_point_v.x() > 60.f) {
-      continue;
-    }
     if (start_point_v.y() > 30.f || start_point_v.y() < -30.f) {
-      continue;
-    }
-    if (end_point_v.x() < -40) {
       continue;
     }
     LineSegment line_segment{id, end_point_v};
@@ -358,6 +352,9 @@ void MatchLaneLine::Traversal(
     return;
   }
   ++loop;
+  if (loop > 10000) {
+    return;
+  }
   V3 cur_start_point = root_start_point;
   auto cur_line_infos_iter = lines.find(cur_start_point);
 

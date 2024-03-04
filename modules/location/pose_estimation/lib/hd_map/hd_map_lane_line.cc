@@ -44,157 +44,79 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
     }
     auto lane = (*lane_ptr).lane();
     if (lane.has_extra_left_boundary()) {
-      auto left_lane_boundary = lane.extra_left_boundary();
-      if (left_lane_boundary.id().empty()) {
-        continue;
+      auto extra_left_lane_boundary = lane.extra_left_boundary();
+      if (AddMapLine(extra_left_lane_boundary, ref_point, is_big_curvature_lane)) {
+        l_count++;
       }
-      auto left_lane_boundary_id = left_lane_boundary.id(0).id();
-      if (boundary_line_.find(left_lane_boundary_id) != boundary_line_.end()) {
-        continue;
-      }
-      auto& bl = boundary_line_[left_lane_boundary_id];
-      bl.id_boundary = left_lane_boundary_id;
-      bl.line_type = 0;
-      auto left_lane_boundary_curve = left_lane_boundary.curve();
-      for (const auto& curve_segment : left_lane_boundary_curve.segment()) {
-        auto line_segment = curve_segment.line_segment();
-        for (const auto& p : line_segment.original_point()) {
-          // 地图是经纬度和ins相反
-          Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
-          Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-          ControlPoint cpoint(0, 0, {0, 0, 0});
-          if (bl.line_type == DoubleLineType::DoubleSolidLine ||
-              bl.line_type == DoubleLineType::DoubleDashedLine ||
-              bl.line_type == DoubleLineType::LeftSolidRightDashed ||
-              bl.line_type == DoubleLineType::RightSolidLeftDashed) {
-            cpoint.line_type = 1;
-          }
-          if (is_big_curvature_lane) {
-            cpoint.lane_type = 1;
-          }
-          cpoint.point = p_enu;
-          bl.control_point.emplace_back(cpoint);
-        }
-      }
-      l_count++;
     } else if (lane.has_left_boundary()) {
       auto left_lane_boundary = lane.left_boundary();
-      if (left_lane_boundary.id().empty()) {
-        continue;
+      if (AddMapLine(left_lane_boundary, ref_point, is_big_curvature_lane)) {
+        l_count++;
       }
-      auto left_lane_boundary_id = left_lane_boundary.id(0).id();
-      if (boundary_line_.find(left_lane_boundary_id) != boundary_line_.end()) {
-        continue;
-      }
-      auto& bl = boundary_line_[left_lane_boundary_id];
-      bl.id_boundary = left_lane_boundary_id;
-      bl.line_type = 0;
-      auto left_lane_boundary_curve = left_lane_boundary.curve();
-      for (const auto& curve_segment : left_lane_boundary_curve.segment()) {
-        auto line_segment = curve_segment.line_segment();
-        for (const auto& p : line_segment.original_point()) {
-          // 地图是经纬度和ins相反
-          Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
-          Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-          ControlPoint cpoint(0, 0, {0, 0, 0});
-          if (bl.line_type == DoubleLineType::DoubleSolidLine ||
-              bl.line_type == DoubleLineType::DoubleDashedLine ||
-              bl.line_type == DoubleLineType::LeftSolidRightDashed ||
-              bl.line_type == DoubleLineType::RightSolidLeftDashed) {
-            cpoint.line_type = 1;
-          }
-          if (is_big_curvature_lane) {
-            cpoint.lane_type = 1;
-          }
-          cpoint.point = p_enu;
-          bl.control_point.emplace_back(cpoint);
-        }
-      }
-      l_count++;
     }
     if (lane.has_extra_right_boundary()) {
-      auto right_lane_boundary = lane.extra_right_boundary();
-      if (right_lane_boundary.id().empty()) {
-        continue;
+      auto extra_right_lane_boundary = lane.extra_right_boundary();
+      if (AddMapLine(extra_right_lane_boundary, ref_point, is_big_curvature_lane)) {
+        r_count++;
       }
-      auto right_lane_boundary_id = right_lane_boundary.id(0).id();
-      if (boundary_line_.find(right_lane_boundary_id) != boundary_line_.end()) {
-        continue;
-      }
-      auto& br = boundary_line_[right_lane_boundary_id];
-      br.id_boundary = right_lane_boundary_id;
-      br.line_type = 0;
-      auto right_lane_boundary_curve = right_lane_boundary.curve();
-      for (const auto& curve_segment : right_lane_boundary_curve.segment()) {
-        auto line_segment = curve_segment.line_segment();
-        for (const auto& p : line_segment.original_point()) {
-          // 地图是经纬度和ins相反
-          Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
-          Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-          ControlPoint cpoint(0, 0, {0, 0, 0});
-          if (br.line_type == DoubleLineType::DoubleSolidLine ||
-              br.line_type == DoubleLineType::DoubleDashedLine ||
-              br.line_type == DoubleLineType::LeftSolidRightDashed ||
-              br.line_type == DoubleLineType::RightSolidLeftDashed) {
-            cpoint.line_type = 1;
-          }
-          if (is_big_curvature_lane) {
-            cpoint.lane_type = 1;
-          }
-          cpoint.point = p_enu;
-          br.control_point.emplace_back(cpoint);
-        }
-      }
-      r_count++;
     } else if (lane.has_right_boundary()) {
       auto right_lane_boundary = lane.right_boundary();
-      if (right_lane_boundary.id().empty()) {
-        continue;
+      if (AddMapLine(right_lane_boundary, ref_point, is_big_curvature_lane)) {
+        r_count++;
       }
-      auto right_lane_boundary_id = right_lane_boundary.id(0).id();
-      if (boundary_line_.find(right_lane_boundary_id) != boundary_line_.end()) {
-        continue;
-      }
-      auto& br = boundary_line_[right_lane_boundary_id];
-      br.id_boundary = right_lane_boundary_id;
-      br.line_type = 0;
-      auto right_lane_boundary_curve = right_lane_boundary.curve();
-      for (const auto& curve_segment : right_lane_boundary_curve.segment()) {
-        auto line_segment = curve_segment.line_segment();
-        for (const auto& p : line_segment.original_point()) {
-          // 地图是经纬度和ins相反
-          Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
-          Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-          ControlPoint cpoint(0, 0, {0, 0, 0});
-          if (br.line_type == DoubleLineType::DoubleSolidLine ||
-              br.line_type == DoubleLineType::DoubleDashedLine ||
-              br.line_type == DoubleLineType::LeftSolidRightDashed ||
-              br.line_type == DoubleLineType::RightSolidLeftDashed) {
-            cpoint.line_type = 1;
-          }
-          if (is_big_curvature_lane) {
-            cpoint.lane_type = 1;
-          }
-          cpoint.point = p_enu;
-          br.control_point.emplace_back(cpoint);
-        }
-      }
-      r_count++;
     }
   }
-  HLOG_INFO << "l_count = " << l_count << " , r_count = " << r_count;
+  HLOG_INFO << "l_count = " << l_count << " , r_count = " << r_count
+            << ", boundary_line_ size: " << boundary_line_.size();
   // Print(boundary_line_);
   this->type_ = HD_MAP_LANE_BOUNDARY_LINE;
 }
 
+bool MapBoundaryLine::AddMapLine(
+    const hozon::hdmap::LaneBoundary& lane_boundary, const V3& ref_point,
+    bool is_big_curvature_lane) {
+  if (lane_boundary.id().empty()) {
+    return false;
+  }
+  auto lane_boundary_id = lane_boundary.id(0).id();
+  if (boundary_line_.find(lane_boundary_id) != boundary_line_.end()) {
+    return false;
+  }
+  auto& bl = boundary_line_[lane_boundary_id];
+  bl.id_boundary = lane_boundary_id;
+  bl.line_type = 0;
+  auto lane_boundary_curve = lane_boundary.curve();
+  for (const auto& curve_segment : lane_boundary_curve.segment()) {
+    auto line_segment = curve_segment.line_segment();
+    for (const auto& p : line_segment.original_point()) {
+      // 地图是经纬度和ins相反
+      Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
+      Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
+      ControlPoint cpoint(0, 0, {0, 0, 0});
+      if (bl.line_type == DoubleLineType::DoubleSolidLine ||
+          bl.line_type == DoubleLineType::DoubleDashedLine ||
+          bl.line_type == DoubleLineType::LeftSolidRightDashed ||
+          bl.line_type == DoubleLineType::RightSolidLeftDashed) {
+        cpoint.line_type = 1;
+      }
+      if (is_big_curvature_lane) {
+        cpoint.lane_type = 1;
+      }
+      cpoint.point = p_enu;
+      bl.control_point.emplace_back(cpoint);
+    }
+  }
+  return true;
+}
+
 void MapBoundaryLine::Print(
     const std::unordered_map<std::string, BoundaryLine>& boundarylines) {
-  HLOG_ERROR << "boundarylines.size = " << boundarylines.size();
+  HLOG_INFO << "boundarylines.size = " << boundarylines.size();
   for (auto line : boundarylines) {
     auto id = line.first;
     auto cpt = line.second.control_point;
-    HLOG_ERROR << "id = " << id;
-    HLOG_ERROR << "cpt.size = " << cpt.size();
+    HLOG_INFO << "id = " << id;
+    HLOG_INFO << "cpt.size = " << cpt.size();
   }
 }
 

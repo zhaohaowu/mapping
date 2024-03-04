@@ -517,12 +517,12 @@ void MapMatching::procData() {
         }
       },
       "pb convert:");
-  pubTimeAndInsStatus(T02_W_V, stampe);
+  pubTimeAndInsStatus(T02_W_V, input_stamp);
   Sophus::SE3d T02_W_VF = T02_W_V, _T_W_V_fine = T02_W_V;
   hozon::mp::loc::Connect connect;
   time_.evaluate(
       [&, this] {
-        map_match_->SetInsTs(ins_timestamp_);
+        map_match_->SetInsTs(input_stamp);
         map_match_->Match(mhd_map_, all_perception, T02_W_V_INPUT);
       },
       "match lane :");
@@ -550,7 +550,18 @@ void MapMatching::procData() {
   auto solver_time =
       (t2_solver.time_since_epoch() - t1_solver.time_since_epoch()).count() /
       1e9;
-
+  double avg_diff_y = 0.f;
+  double sum_diff_y = 0.f;
+  for (auto& pair : connect.lane_line_match_pairs) {
+    auto map_point = pair.map_pw;
+    auto percep_point = pair.pecep_pv;
+    auto diff_y = (T_output_.inverse() * map_point).y() - percep_point.y();
+    sum_diff_y += diff_y;
+    HLOG_INFO << "map_point.y: " << map_point.y() << ", percep_point.y: "
+              << percep_point.y() << ", diff_y: " << diff_y;
+  }
+  avg_diff_y = sum_diff_y / connect.lane_line_match_pairs.size();
+  HLOG_INFO << "avg_diff_y: " << avg_diff_y;
   if (!solve_is_ok) {
     HLOG_ERROR << "solver is not ok stamp:" << ins_timestamp_;
     std::lock_guard<std::mutex> lg(mm_output_lck_);
@@ -605,9 +616,9 @@ void MapMatching::procData() {
           mm_params.use_rviz_bridge) {
         if (optimize_success_ && !_T_W_V_fine.translation().isZero()) {
           HLOG_INFO << "optimize_finish_, " << Precusion(proc_stamp_, 16);
-          setPoints(*lane, T_output_, &front_points_);
+          setPoints(*lane, T02_W_V_INPUT, &front_points_);
           pubOdomPoints(kTopicMmOdom, T_output_.translation(),
-                        T_output_.unit_quaternion(), sec, nsec);
+                        T02_W_V_INPUT.unit_quaternion(), sec, nsec);
         } else {
           setPoints(*lane, T02_W_V_INPUT, &front_points_);
         }
@@ -706,7 +717,7 @@ void MapMatching::setSubMap(const Eigen::Vector3d& vehicle_position,
           for (auto line : p->boundary_line_) {
             auto& new_line = line.second;
             VP points;
-            for (auto point : new_line.control_point) {
+            for (auto& point : new_line.control_point) {
               points.emplace_back(point.point);
             }
             if (!points.empty()) {
@@ -1107,7 +1118,7 @@ adsfi_proto::viz::Marker MapMatching::lineIdToMarker(const V3 point,
   marker.mutable_pose()->mutable_orientation()->set_y(0.);
   marker.mutable_pose()->mutable_orientation()->set_z(0.);
   marker.mutable_pose()->mutable_orientation()->set_w(1.);
-  const double text_size = 0.2;
+  const double text_size = 0.6;
   marker.mutable_scale()->set_z(text_size);
   marker.mutable_lifetime()->set_sec(0);
   marker.mutable_lifetime()->set_nsec(0);

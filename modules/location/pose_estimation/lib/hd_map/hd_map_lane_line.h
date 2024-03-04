@@ -57,6 +57,8 @@ class MapBoundaryLine : public MapElement {
   void Set(const hozon::common::PointENU &position,
            const Eigen::Matrix3d &rotation, const double &distance,
            const V3 &ref_point);
+  bool AddMapLine(const hozon::hdmap::LaneBoundary &lane_boundary,
+                  const V3 &ref_point, bool is_big_curvature_lane);
   using Ptr = std::shared_ptr<MapBoundaryLine>;
   std::unordered_map<std::string, BoundaryLine> boundary_line_;
 };

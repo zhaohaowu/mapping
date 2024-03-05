@@ -5,7 +5,7 @@ processName: mapping
 appLog:
   name: mapping
   description: mapping
-  file: ./ #/opt/usr/log/soc_log
+  file: /opt/usr/log/soc_log
   mode: 3
   level: 2
 

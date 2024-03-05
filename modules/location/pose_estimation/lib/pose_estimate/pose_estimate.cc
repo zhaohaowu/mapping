@@ -16,6 +16,8 @@ namespace loc {
 
 MapMatch::MapMatch() {
   lane_line_ = std::make_shared<MatchLaneLine>();
+  has_err_ = false;
+  err_type_ = static_cast<int>(ERROR_TYPE::NO_ERROR);
 }
 
 void MapMatch::SetInsTs(const double &ins_ts) {
@@ -32,9 +34,10 @@ bool MapMatch::CheckLaneWidth(const SE3 &T) {
 
 void MapMatch::Match(const HdMap &hd_map,
                      const std::shared_ptr<Perception> &perception,
-                     const SE3 &T02_W_V) {
+                     const SE3 &T02_W_V, const SE3 &T_fc) {
   lane_line_->set_ins_ts(ins_timestamp_);
-  lane_line_->Match(hd_map, perception, T02_W_V);
+  lane_line_->Match(hd_map, perception, T02_W_V, T_fc);
+  lane_line_->GetError(&has_err_, &err_type_);
   connect_.lane_line_match_pairs = lane_line_->get_match_pairs();
   HLOG_INFO << "CONNECT LANE LINE SIZE: "
             << connect_.lane_line_match_pairs.size();

@@ -33,6 +33,8 @@ using hozon::mp::loc::MapBoundaryLine;
 class MatchLaneLine {
  public:
   MatchLaneLine();
+  bool has_err_;
+  ERROR_TYPE err_type_;
   /**
    * @brief get the match pairs
    *
@@ -42,7 +44,7 @@ class MatchLaneLine {
    * @return
    */
   void Match(const HdMap& hd_map, const std::shared_ptr<Perception>& perception,
-             const SE3& T_W_V);
+             const SE3& T_W_V, const SE3 &T_fc);
 
   /**
    * @brief check the solve result
@@ -102,6 +104,10 @@ class MatchLaneLine {
    * @return timestamp
    */
   void set_ins_ts(const double& ins_ts);
+  inline void GetError(bool* has_err, int* err_type) {
+    *has_err = has_err_;
+    *err_type = static_cast<int>(err_type_);
+  }
   VP SetRvizMergeMapLines();
 
   using Ptr = std::shared_ptr<MatchLaneLine>;
@@ -121,6 +127,9 @@ class MatchLaneLine {
                       const LaneLinePerceptionPtr& pecep,
                       const double& min_match_x, const double& max_match_x,
                       const double& sample_interval, const bool& is_good_check);
+  void CheckIsGoodMatchFCbyLine(const SE3 &T_fc);
+  void CalLinesMinDist(const LaneLinePerceptionPtr &percep, const SE3 &T_fc,
+                       double *const near, double *const far);
 
   static bool SortPairByX(const PointMatchPair& pair1,
                           const PointMatchPair& pair2) {
@@ -179,7 +188,7 @@ class MatchLaneLine {
    *
    * @return
    */
-  void CheckIsGoodMatchFcByLine(const SE3& T_fc);
+  // void CheckIsGoodMatchFcByLine(const SE3& T_fc);
 
   /**
    * @brief get the matched pairs
@@ -213,6 +222,8 @@ class MatchLaneLine {
    * @return true : get the fit pints; false : do not get the fit points
    */
   bool GetFitPoints(const VP& control_poins, const double x, V3* pt);
+  bool GetFcFitPoints(const VP &control_poins, const double x, V3* pt, const SE3 &T_W_V);
+  bool GetPerceFitPoints(const VP& points, const double x, V3* pt);
 
   bool GetFitMapPoints(const std::vector<ControlPoint>& control_poins,
                        const double x, V3* pt);
@@ -279,9 +290,9 @@ class MatchLaneLine {
    *
    * @return
    */
-  void CalLinesMinDist(const LaneLinePerceptionPtr& percep, const SE3& T_fc,
-                       double* const near, double* const far,
-                       const double& last_dis);
+  // void CalLinesMinDist(const LaneLinePerceptionPtr& percep, const SE3& T_fc,
+  //                      double* const near, double* const far,
+  //                      const double& last_dis);
   void Traversal(const std::map<V3, std::vector<std::pair<std::string, V3>>,
                                 PointV3Comp<V3>>& lines,
                  const V3& root_start_point,
@@ -302,6 +313,7 @@ class MatchLaneLine {
   double max_y_observe_thres_ = 15.f;
   double nearest_point_max_dist_thres_ = 20.f;
   double ts_;
+  double last_ins_timestamp_ = 0;
   double ins_timestamp_;
   std::vector<PointMatchPair> match_pairs_;
   std::shared_ptr<Perception> percep_;
@@ -337,6 +349,7 @@ class MatchLaneLine {
   std::vector<std::string> linked_line_;
   std::vector<std::string> copy_linked_line_;
   std::unordered_map<std::string, std::vector<ControlPoint>> merged_map_lines_;
+  std::unordered_map<std::string, std::vector<ControlPoint>> merged_fcmap_lines_;
 };
 
 }  // namespace loc

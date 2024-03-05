@@ -27,8 +27,10 @@ class MapMatch {
  public:
   MapMatch();
   void Match(const HdMap &hd_map, const std::shared_ptr<Perception> &perception,
-             const SE3 &T02_W_V);
+             const SE3 &T02_W_V, const SE3 &T_fc);
   Connect Result(void);
+  inline bool hasError() { return has_err_; }
+  inline int GetErrorType() { return err_type_; }
   bool GoodMatchCheck(const SE3 &T);
   bool CheckLaneWidth(const SE3 &T);
   void SetInsTs(const double &ins_ts);
@@ -41,6 +43,8 @@ class MapMatch {
   Connect connect_;
   Connect origin_connect_;
   double ts_;
+  bool has_err_;
+  int err_type_;
   double ins_timestamp_;
 };
 

@@ -178,21 +178,25 @@ void FusionCenter::OnInitDR(const HafNodeInfo& initdr) {
 }
 
 void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
-  if (!ref_init_ || !params_.recv_pe || !pe.valid_estimate()) {
+  if (!ref_init_ || !params_.recv_pe) {
     return;
   }
   // seq not used on orin
   // if (pe.header().seq() == prev_raw_pe_.header().seq()) {
   //   return;
   // }
-  prev_raw_pe_ = pe;
+  monitor_->OnPeFault(pe);
+
+  if (!pe.valid_estimate()) {
+    return;
+  }
 
   Node node;
   node.type = NodeType::POSE_ESTIMATE;
   if (!ExtractBasicInfo(pe, &node)) {
     return;
   }
-
+  prev_raw_pe_ = pe;
   std::unique_lock<std::mutex> lock(pe_deque_mutex_);
   pe_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&pe_deque_, params_.pe_deque_max_size);
@@ -1229,7 +1233,6 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
   if (!ctx) {
     return false;
   }
-
   if (params_.passthrough_ins) {
     ctx->global_node = ctx->ins_node;
     ctx->global_node.location_state = 5;

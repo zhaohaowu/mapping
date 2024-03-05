@@ -48,6 +48,7 @@ struct MapMatchLaneLineParams {
   double map_lane_match_ser_max;
   int map_lane_match_ser_buff;
   double near_dis;
+  double last_dis;
   double last_straight_dis;
   double last_curve_dis;
   // double curvature_thr;
@@ -61,9 +62,10 @@ struct MapMatchLaneLineParams {
   double offset_maxlane;
   // 123fault
   bool use_valid_pecep_lane_fault;
-  int invalid_pecep_cnt_thr;
+  double invalid_pecep_thr;
   // 124fault
   bool use_valid_map_lane_fault;
+  double invalid_map_thr;
   bool use_rviz_bridge = false;
   // double line type point weight
   float double_line_point_weight;

@@ -28,6 +28,9 @@ MatchLaneLine::MatchLaneLine() {
   visited_id_.clear();
   multi_linked_lines_.clear();
   merged_map_lines_.clear();
+  merged_fcmap_lines_.clear();
+  has_err_ = false;
+  err_type_ = ERROR_TYPE::NO_ERROR;
   T_W_V_ = SE3();
   T_V_W_ = SE3();
   percep_ = nullptr;
@@ -35,30 +38,49 @@ MatchLaneLine::MatchLaneLine() {
 }
 
 void MatchLaneLine::set_ins_ts(const double& ins_ts) {
+  last_ins_timestamp_ = ins_timestamp_;
   ins_timestamp_ = ins_ts;
 }
 
 void MatchLaneLine::Match(const HdMap& hd_map,
                           const std::shared_ptr<Perception>& perception,
-                          const SE3& T_W_V) {
+                          const SE3& T_W_V, const SE3 &T_fc) {
   percep_ = perception;
+  has_err_ = false;
+  err_type_ = ERROR_TYPE::NO_ERROR;
   T_W_V_ = T_W_V;
   T_V_W_ = T_W_V.inverse();
   match_pairs_.clear();
   line_match_pairs_.clear();
   percep_lanelines_.clear();
   static int invalid_pecep_cnt = 0;
+  static double invalid_pecep_duration = 0;
+  static double invalid_map_duration = 0;
 
   auto map_elment =
       hd_map.GetElement(hozon::mp::loc::HD_MAP_LANE_BOUNDARY_LINE);
   if (map_elment == nullptr) {
-    HLOG_ERROR << "map_lane_line == nullptr";
+    if (mm_params.use_valid_map_lane_fault && last_ins_timestamp_ != 0) {
+      invalid_map_duration += fabs(ins_timestamp_ - last_ins_timestamp_);
+      if (invalid_map_duration > mm_params.invalid_map_thr) {
+        has_err_ = true;
+        err_type_ = ERROR_TYPE::NO_VALID_MAP_LANE;
+        invalid_map_duration = mm_params.invalid_map_thr;
+      }
+    }
     return;
   }
   std::shared_ptr<MapBoundaryLine> map_boundary_lines =
       std::static_pointer_cast<MapBoundaryLine>(map_elment);
   if (map_boundary_lines->boundary_line_.size() == 0) {
-    HLOG_ERROR << "map_boundary_lines->_boundary_line.size() == 0";
+    if (mm_params.use_valid_map_lane_fault && last_ins_timestamp_ != 0) {
+      invalid_map_duration += fabs(ins_timestamp_ - last_ins_timestamp_);
+      if (invalid_map_duration > mm_params.invalid_map_thr) {
+        has_err_ = true;
+        err_type_ = ERROR_TYPE::NO_MAP_BOUNDARY_LINE;
+        invalid_map_duration = mm_params.invalid_map_thr;
+      }
+    }
     return;
   }
 
@@ -71,14 +93,33 @@ void MatchLaneLine::Match(const HdMap& hd_map,
     }
   }
   if (percep_lanelines_.size() == 0) {
-    HLOG_ERROR << "percep_lanelines_.size() == 0 stamp:" << ins_timestamp_;
+    if (mm_params.use_valid_pecep_lane_fault && last_ins_timestamp_ != 0) {
+      invalid_pecep_duration += fabs(ins_timestamp_ - last_ins_timestamp_);
+      if (invalid_pecep_duration > mm_params.invalid_pecep_thr) {
+        has_err_ = true;
+        err_type_ = ERROR_TYPE::NO_VALID_PECEP_LANE;
+        invalid_pecep_duration = mm_params.invalid_pecep_thr;
+      }
+    }
     return;
-  } else {
-    invalid_pecep_cnt = 0;
   }
   MergeMapLines(map_boundary_lines, T_W_V);
   if (merged_map_lines_.empty()) {
+    if (mm_params.use_valid_map_lane_fault && last_ins_timestamp_ != 0) {
+      invalid_map_duration += fabs(ins_timestamp_ - last_ins_timestamp_);
+      if (invalid_map_duration > mm_params.invalid_map_thr) {
+        has_err_ = true;
+        err_type_ = ERROR_TYPE::NO_MERGE_MAP_LANE;
+        invalid_map_duration = mm_params.invalid_map_thr;
+      }
+    }
     return;
+  }
+  invalid_pecep_duration = 0;
+  invalid_map_duration = 0;
+  // 130 fault
+  if (mm_params.use_map_lane_match_fault) {
+    CheckIsGoodMatchFCbyLine(T_fc);
   }
   LaneLineConnect(percep_lanelines_, merged_map_lines_);
   FilterPointPair(&match_pairs_, T_W_V_);
@@ -110,6 +151,211 @@ void MatchLaneLine::Match(const HdMap& hd_map,
       }
     }
   }
+}
+
+void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3 &T_fc) {
+  if (percep_lanelines_.empty()) {
+    return;
+  }
+  const auto &fil_line_list = percep_lanelines_.back();
+  if (fil_line_list.empty()) {
+    return;
+  }
+  double left_dist_near_v = 0.0;
+  double left_dist_far_v = 0.0;
+  double right_dist_near_v = 0.0;
+  double right_dist_far_v = 0.0;
+  for (auto &line : fil_line_list) {
+    if (line->lane_position_type() == -1) {
+      CalLinesMinDist(line, T_fc, &left_dist_near_v, &left_dist_far_v);
+    }
+    if (line->lane_position_type() == 1) {
+      CalLinesMinDist(line, T_fc, &right_dist_near_v, &right_dist_far_v);
+    }
+  }
+  HLOG_ERROR << "left_dist_near_v = " << left_dist_near_v << "left_dist_far_v = " << left_dist_far_v
+             << "right_dist_near_v = " << right_dist_near_v << "right_dist_far_v = " << right_dist_far_v;
+  const double left_error = (left_dist_near_v + left_dist_far_v) * 0.5;
+  const double right_error = (right_dist_near_v + right_dist_far_v) * 0.5;
+  const double global_error = (left_error + right_error) * 0.5;
+  const double global_near_error = (left_dist_near_v + right_dist_near_v) * 0.5;
+
+  bool fc_good_match_check = true;
+  bool fc_good_match_ser_check = true;
+  // 针对内外八场景加的global--if判断
+  if (fabs(global_error) >= mm_params.line_error_normal_thr ||
+      fabs(global_near_error) >= mm_params.line_error_normal_thr) {
+    // normal
+    if (fabs(left_dist_near_v) >= mm_params.line_error_normal_thr &&
+        fabs(right_dist_near_v) >= mm_params.line_error_normal_thr) {
+      fc_good_match_check = false;
+    }
+    if (fabs(left_error) >= mm_params.map_lane_match_max &&
+        fabs(right_error) >= mm_params.map_lane_match_max) {
+      fc_good_match_check = false;
+    }
+
+    // serious
+    if (fabs(left_dist_near_v) >= mm_params.map_lane_match_ser_max &&
+        fabs(right_dist_near_v) >= mm_params.map_lane_match_ser_max) {
+      fc_good_match_ser_check = false;
+    }
+    if (fabs(left_error) >= mm_params.map_lane_match_ser_max &&
+        fabs(right_error) >= mm_params.map_lane_match_ser_max) {
+      fc_good_match_ser_check = false;
+    }
+  }
+
+  static uint32_t match_err_cnt = 0;
+  static uint32_t match_err_ser_cnt = 0;
+  if (!fc_good_match_check) {
+    ++match_err_cnt;
+  } else {
+    match_err_cnt = 0;
+  }
+  if (!fc_good_match_ser_check) {
+    ++match_err_ser_cnt;
+  } else {
+    match_err_ser_cnt = 0;
+  }
+
+  if (match_err_cnt > mm_params.map_lane_match_buff ||
+      match_err_ser_cnt > mm_params.map_lane_match_ser_buff) {
+    err_type_ = ERROR_TYPE::MAP_LANE_MATCH_FAIL;
+  }
+}
+
+void MatchLaneLine::CalLinesMinDist(const LaneLinePerceptionPtr &percep,
+                              const SE3 &T_fc,
+                              double *const near, double *const far) {
+  if (!percep || !near || !far) {
+    return;
+  }
+  double min_y_near = DOUBLE_MAX;
+  double min_y_far = DOUBLE_MAX;
+  V3 anchor_pt0(mm_params.near_dis, 0, 0);
+  V3 anchor_pt1(mm_params.last_dis, 0, 0);
+  V3 anchor_pt2(mm_params.near_dis, 0, 0);
+  V3 anchor_pt3(mm_params.last_dis, 0, 0);
+  for (const auto &map_line : merged_fcmap_lines_) {
+    const auto line_idx = map_line.first;
+    std::vector<V3> map_points;
+    std::vector<V3> perce_points;
+    for (auto &control_point : map_line.second) {
+      map_points.emplace_back(control_point.point);
+    }
+    for (auto &point : percep->points()) {
+      perce_points.emplace_back(point);
+    }
+    V3 v_p_near(0, 0, 0);
+    V3 v_p_far(0, 0, 0);
+    bool flag_fit0 = GetFcFitPoints(
+        map_points, std::max(2.0, static_cast<double>(percep->Min())), &anchor_pt0, T_fc);
+    if (flag_fit0) {
+      v_p_near = anchor_pt0;
+    }
+    bool flag_fit1 = GetFcFitPoints(map_points, anchor_pt1.x(), &anchor_pt1, T_fc);
+    if (flag_fit1) {
+      v_p_far = anchor_pt1;
+    }
+    V3 w_p_near(0, 0, 0);
+    bool flag_fit2 = GetPerceFitPoints(
+        perce_points, std::max(2.0, static_cast<double>(percep->Min())), &anchor_pt2);
+    if (flag_fit2) {
+      w_p_near = anchor_pt2;
+    }
+    V3 w_p_far(0, 0, 0);
+    bool flag_fit3 = GetPerceFitPoints(perce_points, anchor_pt3.x(), &anchor_pt3);
+    if (flag_fit3) {
+      w_p_far = anchor_pt3;
+    }
+    double y_near = 0.0;
+    double y_far = 0.0;
+    if (flag_fit0 && flag_fit2 && percep->IsIn(v_p_near.x())) {
+      y_near = w_p_near.y() - v_p_near.y();
+      if (fabs(y_near) < fabs(min_y_near)) {
+        min_y_near = y_near;
+      }
+    }
+    if (flag_fit1 && flag_fit3 && percep->IsIn(v_p_far.x())) {
+      y_far = w_p_far.y() - v_p_far.y();
+      if (fabs(y_far) < fabs(min_y_far)) {
+        min_y_far = y_far;
+      }
+    }
+  }
+  if (fabs(fabs(min_y_near) - DOUBLE_MAX) < 1e-8) {
+    min_y_near = 0.0;
+  }
+  if (fabs(fabs(min_y_far) - DOUBLE_MAX) < 1e-8) {
+    min_y_far = 0.0;
+  }
+
+  *near = min_y_near;
+  *far = min_y_far;
+}
+
+bool MatchLaneLine::GetFcFitPoints(const VP &control_poins, const double x,
+                                   V3 *pt, const SE3 &T_W_V) {
+  if (pt == nullptr) {
+    return false;
+  }
+  if (control_poins.size() < 2) {
+    return false;
+  }
+  SE3 T_V_W = T_W_V.inverse();
+  VP points;
+  for (int i = 0; i < control_poins.size(); i++) {
+    V3  cur = T_V_W * control_poins[i];
+    points.push_back(cur);
+  }
+  auto iter = std::lower_bound(
+      points.begin(), points.end(), V3({x, 0, 0}),
+      [](const V3& p0, const V3& p1) { return p0(0, 0) < p1(0, 0); });
+  if (iter == points.end()) {
+    HLOG_INFO << "can not find points";
+    return false;
+  }
+  if (iter == points.begin()) {
+    (*pt).x() = x;
+    (*pt).y() = iter->y();
+    (*pt).z() = iter->z();
+  } else {
+    auto iter_pre = std::prev(iter);
+    (*pt).x() = x;
+    double ratio = (x - iter_pre->x()) / (iter->x() - iter_pre->x());
+    (*pt).y() = ratio * (iter->y() - iter_pre->y()) + iter_pre->y();
+    (*pt).z() = ratio * (iter->z() - iter_pre->z()) + iter_pre->z();
+  }
+  return true;
+}
+
+bool MatchLaneLine::GetPerceFitPoints(const VP& points, const double x, V3* pt) {
+  if (pt == nullptr) {
+    return false;
+  }
+  if (points.size() < 2) {
+    return false;
+  }
+  auto iter = std::lower_bound(
+      points.begin(), points.end(), V3({x, 0, 0}),
+      [](const V3& p0, const V3& p1) { return p0(0, 0) < p1(0, 0); });
+  if (iter == points.end()) {
+    HLOG_ERROR << "can not find points";
+    return false;
+  }
+  if (iter == points.begin()) {
+    (*pt).x() = x;
+    (*pt).y() = iter->y();
+    (*pt).z() = iter->z();
+  } else {
+    auto iter_pre = std::prev(iter);
+    (*pt).x() = x;
+    double ratio = (x - iter_pre->x()) / (iter->x() - iter_pre->x());
+    (*pt).y() = ratio * (iter->y() - iter_pre->y()) + iter_pre->y();
+    (*pt).z() = ratio * (iter->z() - iter_pre->z()) + iter_pre->z();
+  }
+  return true;
 }
 
 void MatchLaneLine::GetAverageDiffY(
@@ -316,6 +562,9 @@ void MatchLaneLine::MergeMapLines(
   if (!merged_map_lines_.empty()) {
     merged_map_lines_.clear();
   }
+  if (!merged_fcmap_lines_.empty()) {
+    merged_fcmap_lines_.clear();
+  }
   std::unordered_map<std::string, int> last_line_ids;
   for (auto& lines : multi_linked_lines_) {
     for (auto& line_ids : lines) {
@@ -329,6 +578,13 @@ void MatchLaneLine::MergeMapLines(
         continue;
       }
       std::vector<ControlPoint> control_points;
+      for (auto& line_id : line_ids) {
+        for (auto& control_point :
+             boundary_lines->boundary_line_[line_id].control_point) {
+            // HLOG_ERROR <<"fcmerge = " << (control_point.point).x();
+          merged_fcmap_lines_[last_line_id].emplace_back(control_point);
+        }
+      }
       for (auto& line_id : line_ids) {
         for (auto& control_point :
              boundary_lines->boundary_line_[line_id].control_point) {

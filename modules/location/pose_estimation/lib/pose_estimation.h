@@ -94,6 +94,17 @@ struct INTEGRAL_INFO {
   double yawrate;
 };
 
+// MM故障，后续可补充
+struct MMFault {
+  bool map_lane_match_error = false;  // 感知与地图车道线差距过大
+  bool valid_estimate_last_error = false;  // mm正常优化一段时间后，优化失败了
+  bool valid_estimate = false;           // mm是否正常优化
+  bool pecep_lane_error = false;         // 无有效感知车道线
+  bool map_lane_error = false;           // 无有效地图车道线
+  bool fc_exceed_curb_error = false;     // fc超出高精地图路沿
+  bool fc_offset_onelane_error = false;  // fc偏移一个车道
+};
+
 class MapMatchingFrameRateRecord {
  public:
   void CalFrameRate(const double &ts, const std::string &prefix) {
@@ -113,7 +124,8 @@ class MapMatchingFrameRateRecord {
 class MapMatching {
  public:
   MapMatching()
-      : ins_status_type_(static_cast<int>(InsStatus::INVALID)),
+      : mm_err_type_(static_cast<int>(ERROR_TYPE::NO_ERROR)),
+        ins_status_type_(static_cast<int>(InsStatus::INVALID)),
         delay_frame_(0),
         max_frame_buf_(0),
         optimize_success_(false),
@@ -257,6 +269,7 @@ class MapMatching {
 
 
  private:
+  int mm_err_type_;        // 用于接收map_match_lane_line中的故障
   int ins_status_type_;
   int delay_frame_;
   int max_frame_buf_;
@@ -290,7 +303,8 @@ class MapMatching {
 
   VP front_points_;
   std::deque<SE3> se3_buffer_;
-
+  // fault diagnosis
+  MMFault mmfault_;
   // 车道线匹配效果校验相关
   int matched_lane_pair_size_;
   SE3 T_delta_last_;

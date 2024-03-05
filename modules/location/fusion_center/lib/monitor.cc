@@ -22,9 +22,13 @@ bool Monitor::Init(const std::string& configfile) {
   YAML::Node config_parser = YAML::LoadFile(configfile);
   params_.ins_deque_max_size =
       config_parser["ins_deque_max_size"].as<uint32_t>();
+  params_.pe_fault_deque_max_size =
+      config_parser["pe_fault_deque_max_size"].as<uint32_t>();
   params_.fc_deque_max_size = config_parser["fc_deque_max_size"].as<uint32_t>();
   params_.use_fault = config_parser["use_fault"].as<bool>();
 
+  // fault-pe-123,124,130
+  params_.pe_fault = config_parser["pe_fault"].as<bool>();
   // fault-128---PoseJump
   params_.fault_128 = config_parser["fault_128"].as<bool>();
   params_.fc_ts_maxdiff = config_parser["fc_ts_maxdiff"].as<double>();
@@ -51,16 +55,48 @@ void Monitor::OnFc(const Node& node) {
   ShrinkQueue(&fc_deque_, params_.fc_deque_max_size);
 }
 
+void Monitor::OnPeFault(const HafNodeInfo& msg) {
+  std::unique_lock<std::shared_mutex> lock(pe_fault_deque_mutex_);
+
+  FaultNode fnode;
+  fnode.ticktime = msg.header().publish_stamp();
+  fnode.fault = msg.warn_info();
+
+  pe_fault_deque_.push_back(std::make_shared<FaultNode>(fnode));
+  ShrinkQueue(&pe_fault_deque_, params_.pe_fault_deque_max_size);
+}
+
 bool Monitor::MonitorFault() {
   if (!params_.use_fault) {
     return false;
   }
 
-  // fault(123)
+  // pe传输过来的故障----fault 123,124,128
+  if (params_.pe_fault) {
+    uint32_t pe_fault_state = 0;
 
-  // fault(124)
+    pe_fault_state = MergePeFault();
+    if (pe_fault_state == 123) {
+      fault_state.pecep_lane_error = true;
+      HLOG_ERROR << "pe fault(123):PE No Peception lane";
+    } else {
+      fault_state.pecep_lane_error = false;
+    }
 
-  // fault(130)
+    if (pe_fault_state == 124) {
+      fault_state.map_lane_error = true;
+      HLOG_ERROR << "pe fault(124):PE No Map lane";
+    } else {
+      fault_state.map_lane_error = false;
+    }
+
+    if (pe_fault_state == 130) {
+      fault_state.fc_map_lane_match_error = true;
+      HLOG_ERROR << "fc fault(130):PE No Peception lane";
+    } else {
+      fault_state.fc_map_lane_match_error = false;
+    }
+  }
 
   // fault(128)
   if (params_.fault_128) {
@@ -130,9 +166,28 @@ bool Monitor::PoseJumpSingleFrameVehicle() {
   return false;
 }
 
-  Sophus::SE3d Monitor::Node2SE3(const Node& node) {
-    return Sophus::SE3d(Sophus::SO3d::exp(node.orientation), node.enu);
+Sophus::SE3d Monitor::Node2SE3(const Node& node) {
+  return Sophus::SE3d(Sophus::SO3d::exp(node.orientation), node.enu);
+}
+
+uint32_t Monitor::MergePeFault() {
+  std::unique_lock<std::shared_mutex> lock(pe_fault_deque_mutex_);
+  static uint32_t res = 0;
+
+  if (pe_fault_deque_.empty()) {
+    return res;
   }
+
+  // 故障判断
+  FaultNode fnode;
+  fnode = *pe_fault_deque_.back();
+  if (abs(pre_pe_ticktime_ - fnode.ticktime) > 0.001) {
+    res = fnode.fault;
+    pre_pe_ticktime_ = fnode.ticktime;
+  }
+
+  return res;
+}
 
 }  // namespace fc
 }  // namespace loc

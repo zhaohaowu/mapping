@@ -44,6 +44,7 @@ bool MapMatching::Init(const std::string& config_file,
   mm_params.map_lane_match_ser_buff =
       config["map_lane_match_ser_buff"].as<int>();
   mm_params.near_dis = config["near_dis"].as<double>();
+  mm_params.last_dis = config["last_dis"].as<double>();
   mm_params.last_straight_dis = config["last_straight_dis"].as<double>();
   mm_params.last_curve_dis = config["last_curve_dis"].as<double>();
   // mm_params.curvature_thr = config["curvature_thr"].as<double>();
@@ -65,8 +66,8 @@ bool MapMatching::Init(const std::string& config_file,
       config["use_valid_pecep_lane_fault"].as<bool>();
   mm_params.use_valid_map_lane_fault =
       config["use_valid_map_lane_fault"].as<bool>();
-  mm_params.invalid_pecep_cnt_thr =
-      config["invalid_pecep_cnt_thr"].as<double>();
+  mm_params.invalid_pecep_thr = config["invalid_pecep_thr"].as<double>();
+  mm_params.invalid_map_thr = config["invalid_map_thr"].as<double>();
 
   // global params
   mm_params.map_distance = config["map_distance"].as<double>();
@@ -523,7 +524,7 @@ void MapMatching::procData() {
   time_.evaluate(
       [&, this] {
         map_match_->SetInsTs(input_stamp);
-        map_match_->Match(mhd_map_, all_perception, T02_W_V_INPUT);
+        map_match_->Match(mhd_map_, all_perception, T02_W_V_INPUT, T_fc_);
       },
       "match lane :");
   if (hozon::mp::util::RvizAgent::Instance().Ok()) {
@@ -536,6 +537,35 @@ void MapMatching::procData() {
   if (matched_lane_pair_size_ < 2) {
     HLOG_WARN << "matched_lane_pair_size stamp:" << ins_timestamp_
               << " size:" << matched_lane_pair_size_;
+  }
+  ERROR_TYPE mm_err_type{static_cast<ERROR_TYPE>(map_match_->GetErrorType())};
+  switch (mm_err_type) {
+    case ERROR_TYPE::NO_ERROR:
+      mmfault_.pecep_lane_error = false;
+      mmfault_.map_lane_error = false;
+      mmfault_.map_lane_match_error = false;
+      mmfault_.fc_offset_onelane_error = false;
+      break;
+    case ERROR_TYPE::NO_VALID_PECEP_LANE:
+      mmfault_.pecep_lane_error = true;
+      return;
+    case ERROR_TYPE::NO_VALID_MAP_LANE:
+      mmfault_.map_lane_error = true;
+      return;
+    case ERROR_TYPE::NO_MAP_BOUNDARY_LINE:
+      mmfault_.map_lane_error = true;
+      return;
+    case ERROR_TYPE::NO_MERGE_MAP_LANE:
+      mmfault_.map_lane_error = true;
+      return;
+    case ERROR_TYPE::MAP_LANE_MATCH_FAIL:
+      mmfault_.map_lane_match_error = true;
+      break;
+    case ERROR_TYPE::OFFSET_ONELANE:
+      mmfault_.fc_offset_onelane_error = true;
+      break;
+    default:
+      break;
   }
   connect = map_match_->Result();
   bool solve_is_ok = true;
@@ -860,6 +890,23 @@ MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V, uint64_t sec,
     HLOG_ERROR << "MM is not valid due to rare connect!!!";
   }
   HLOG_INFO << "node info pub";
+  // error code
+  node_info->set_warn_info(0);
+  if (mmfault_.pecep_lane_error == true) {
+     node_info->set_warn_info(123);
+     HLOG_ERROR << "mmfault:123r";
+  }
+  if (mmfault_.map_lane_error == true) {
+     node_info->set_warn_info(124);
+     HLOG_ERROR << "mmfault:124";
+  }
+  if (mmfault_.map_lane_match_error == true) {
+     node_info->set_warn_info(130);
+     HLOG_ERROR << "mmfault:130";
+  }
+  //  if (130-fault){
+  //    node_info->set_warn_info(130);
+  // }
   return node_info;
 }
 

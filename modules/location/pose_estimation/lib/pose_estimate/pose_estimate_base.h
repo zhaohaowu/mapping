@@ -61,6 +61,16 @@ enum class InsStatus {
   RTK_STABLE_LOCATION_UNORIEN = 8,    // RTK稳定解定位不定向
   RTK_FLOAT_LOCATION_UNORIEN = 9      // RTK浮点解定位不定向
 };
+enum class ERROR_TYPE : int {
+  NO_ERROR = 0,
+  NO_VALID_PECEP_LANE = 1,   // 无有效感知车道线
+  ERROR_EDGE = 2,            // 路沿错误
+  NO_VALID_MAP_LANE = 3,     // 无有效地图车道线-1
+  NO_MAP_BOUNDARY_LINE = 4,  // 无有效地图车道线-2
+  NO_MERGE_MAP_LANE = 5,     // 无有效地图车道线-3
+  MAP_LANE_MATCH_FAIL = 6,   // 感知和地图车道线偏差大
+  OFFSET_ONELANE = 7         // FC偏移一个车道
+};
 enum MapLineType {
   LaneChangeVirtualLine = adsfi_proto::internal::SubMap::LineType::
       SubMap_LineType_LineType_LaneChangeVirtualLine,

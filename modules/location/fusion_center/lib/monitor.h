@@ -12,20 +12,27 @@
 #include <string>
 #include <Sophus/se3.hpp>
 #include "modules/location/fusion_center/lib/defines.h"
+#include "proto/localization/node_info.pb.h"
 
 namespace hozon {
 namespace mp {
 namespace loc {
 namespace fc {
 
+using hozon::localization::HafNodeInfo;
+
 struct MonitorParams {
   bool use_fault = false;
   uint32_t ins_deque_max_size = 100;
   uint32_t fc_deque_max_size = 100;
 
+  uint32_t pe_fault_deque_max_size = 100;
+
+  // fault-pe
+  bool pe_fault = true;
   // fault-128
   bool fault_128 = true;
-  double fc_ts_maxdiff = 0.1;    // s
+  double fc_ts_maxdiff = 0.1;     // s
   double fc_vel_max = 33.3;       // Longitudinal speed (m/s)---120KM/h
   double fc_acc_max = 3;          // Longitudinal acceleration (m/s2)
   double fc_yaw_maxdiff = 0.001;  // (deg)
@@ -49,6 +56,13 @@ struct FaultState {
   }
 };
 
+// 通信的故障节点
+struct FaultNode {
+  int seq = -1;
+  double ticktime = -1;
+  uint32_t fault = 0;
+};
+
 template <typename T>
 void ShrinkQueue(T* const queue, uint32_t maxsize) {
   if (!queue) {
@@ -64,6 +78,8 @@ class Monitor {
   bool Init(const std::string& configfile);
   void OnIns(const Node& node);
   void OnFc(const Node& node);
+  void OnPeFault(const HafNodeInfo& msg);
+  uint32_t MergePeFault();
   bool MonitorFault();
   void Clear();
 
@@ -80,6 +96,9 @@ class Monitor {
   std::deque<std::shared_ptr<Node>> ins_deque_;
   std::shared_mutex fc_deque_mutex_;
   std::deque<std::shared_ptr<Node>> fc_deque_;
+  std::shared_mutex pe_fault_deque_mutex_;
+  std::deque<std::shared_ptr<FaultNode>> pe_fault_deque_;
+  double pre_pe_ticktime_ = -1;
 };
 
 }  // namespace fc

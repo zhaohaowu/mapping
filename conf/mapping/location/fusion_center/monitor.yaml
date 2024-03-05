@@ -2,10 +2,12 @@
 # Fault Total Switch
 use_fault: true
 # Fault Switch
+pe_fault: true     # fault-pe
 fault_128: true    # fault-128
 
 ins_deque_max_size: 500
 fc_deque_max_size: 500
+pe_fault_deque_max_size: 500
 
 # 128-单帧跳变
 ts_err_buf: 2

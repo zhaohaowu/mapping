@@ -1165,7 +1165,7 @@ void MapManager::MergeLaneLine(LocalMap* local_map) {
     // |
     // ||
     // |
-    bool condition4 = cur_front < next_front && cur_back > next_front;
+    bool condition4 = cur_front < next_front && cur_back > next_back;
     if (condition1) {
       double sum = 0.0;
       int n = 0;
@@ -1300,7 +1300,7 @@ void MapManager::MergeRoadEdge(LocalMap* local_map) {
     // |
     // ||
     // |
-    bool condition4 = cur_front < next_front && cur_back > next_front;
+    bool condition4 = cur_front < next_front && cur_back > next_back;
     if (condition1) {
       double sum = 0.0;
       int n = 0;

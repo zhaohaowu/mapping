@@ -150,7 +150,7 @@ bool ESKF::Predict(const Node& cur_pre_data) {
   X_.rtk_status = cur_pre_data.rtk_status;
   X_.ticktime = cur_pre_data.ticktime;
 
-  HLOG_INFO << "eskf predict............";
+  HLOG_DEBUG << "eskf predict............";
 
   // LOC_INFO << "X_.p" << X_.p;
   // LOC_INFO << "X_.v" << X_.v;
@@ -200,7 +200,7 @@ void ESKF::Correct(const Node& cur_meas_data) {
   UpdateAndReset();
   // LOC_INFO << "X_" << X_.p << " ,cur_meas_data.enu:" << cur_meas_data.enu
   //          << " ,diff:" << X_.p - cur_meas_data.enu;
-  HLOG_INFO << "eskf update............X_.meas_type: " << X_.meas_type;
+  HLOG_DEBUG << "eskf update............X_.meas_type: " << X_.meas_type;
 }
 
 void ESKF::UpdateAndReset() {

@@ -141,7 +141,7 @@ class FusionCenter {
   bool init_ins_ = false;
   bool can_output_ = false;
   double last_meas_time_ = 0.0;
-  bool prev_global_valid_ = false;
+  std::atomic<bool> prev_global_valid_{false};
   std::mutex prev_global_node_mutex_;
   Node prev_global_node_;
   bool init_dr_ = true;

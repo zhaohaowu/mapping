@@ -741,6 +741,7 @@ bool FusionCenter::Interpolate(double ticktime,
   const int dlen = static_cast<int>(d.size());
 
   if (dlen == 0) {
+    HLOG_ERROR << "Interpolate error 1,INS deque is empty";
     return false;
   }
   for (; i < dlen; ++i) {
@@ -754,10 +755,12 @@ bool FusionCenter::Interpolate(double ticktime,
   }
 
   if (i == 0 || i == dlen) {
+    HLOG_ERROR << "Interpolate error 2,i:" << i;
     return false;
   }
 
   if (!IsInterpolable(d[i - 1], d[i], dis_tol, ang_tol, time_tol)) {
+    HLOG_ERROR << "Interpolate error 3";
     return false;
   }
 
@@ -768,6 +771,7 @@ bool FusionCenter::Interpolate(double ticktime,
   double ratio =
       (ticktime - d[i - 1]->ticktime) / (d[i]->ticktime - d[i - 1]->ticktime);
   if (std::isnan(ratio) || std::isinf(ratio)) {
+    HLOG_ERROR << "Interpolate error 4, ratio error";
     return false;
   }
 
@@ -786,8 +790,8 @@ bool FusionCenter::Interpolate(double ticktime,
 }
 
 bool FusionCenter::PoseInit() {
-  // 使用ins初始化(if--->第一次初始化
-  if (fusion_deque_.empty()) {
+  // 1.使用ins初始化(if--->第一次初始化
+  if (!prev_global_valid_) {
     std::unique_lock<std::mutex> lock(ins_deque_mutex_);
     for (auto iter = ins_deque_.rbegin(); iter != ins_deque_.rend(); ++iter) {
       if (AllowInit((*iter)->sys_status, (*iter)->rtk_status)) {
@@ -798,21 +802,35 @@ bool FusionCenter::PoseInit() {
       }
     }
     return false;
-  }
-
-  // 后续初始化（非第一次，通过fusion_deque_.empty()判断）
-  if (prev_global_valid_) {
+  } else {
+    // 2.后续初始化（非第一次，通过prev_global_valid_判断）
     fusion_deque_mutex_.lock();
     fusion_deque_.clear();
     fusion_deque_mutex_.unlock();
+    // 2.1 首选使用上次最终的融合定位结果初始化，卡尔曼之后的输出
+    std::unique_lock<std::mutex> lock(ins_deque_mutex_);
+    std::unique_lock<std::mutex> lock2(prev_global_node_mutex_);
+    double ins_earliest_time = ins_deque_.front()->ticktime;
 
-    prev_global_node_mutex_.lock();
-    InsertESKFFusionNode(prev_global_node_);
-    prev_global_node_mutex_.unlock();
-    HLOG_ERROR << "FusionDeque pos reinit when not first time";
-    init_ins_ = true;
-    return true;
+    if (prev_global_node_.ticktime > ins_earliest_time) {
+      InsertESKFFusionNode(prev_global_node_);
+      HLOG_ERROR << "FusionDeque use prev_global_node_ reinit";
+      init_ins_ = true;
+      return true;
+    } else {
+      // 2.2 备选使用INS测量进行初始化，防止上一次定位有效输出无法在INS队列插值
+      for (auto iter = ins_deque_.rbegin(); iter != ins_deque_.rend(); ++iter) {
+        if (AllowInsMeas((*iter)->sys_status, (*iter)->rtk_status)) {
+          (*iter)->enu = hmu::Geo::BlhToEnu((*iter)->blh, (*iter)->refpoint);
+          InsertESKFFusionNode(**iter);
+          HLOG_ERROR << "FusionDeque use ins meas reinit";
+          init_ins_ = true;
+          return true;
+        }
+      }
+    }
   }
+
   return false;
 }
 
@@ -827,7 +845,7 @@ bool FusionCenter::GenerateNewESKFPre() {
     std::unique_lock<std::mutex> lock(ins_deque_mutex_);
     for (const auto& ins_node : ins_deque_) {
       if (ins_node->ticktime - cur_ticktime > 0) {
-        pre_deque_.push_back(ins_node);
+        pre_deque_.emplace_back(std::make_shared<Node>(*ins_node));
         pre_flag = true;
       }
     }
@@ -851,7 +869,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
     for (const auto& mm_node : pe_deque_) {
       auto ticktime_diff = mm_node->ticktime - cur_fusion_ticktime;
       if (ticktime_diff && mm_node->ticktime > last_meas_time_) {
-        meas_deque_.emplace_back(mm_node);
+        meas_deque_.emplace_back(std::make_shared<Node>(*mm_node));
         meas_flag = true;
       }
     }
@@ -927,7 +945,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
             ins_node->enu(0) += x_lateral_error;
             ins_node->enu(1) += y_lateral_error;
           }
-          meas_deque_.emplace_back(ins_node);
+          meas_deque_.emplace_back(std::make_shared<Node>(*ins_node));
           meas_flag = true;
         }
       }
@@ -1153,7 +1171,7 @@ bool FusionCenter::InsertESKFMeasDR() {
   ins_deque_mutex_.lock();
   for (const auto& ins_node : ins_deque_) {
     if (ins_node->ticktime - fc_ticktime > 0.001) {
-      std::shared_ptr<Node> node = ins_node;
+      auto node = std::make_shared<Node>(*ins_node);
       const auto& T_delta =
           Node2SE3(*ins_refer).inverse() * Node2SE3(*ins_node);
       const auto& pose = Node2SE3(*fc_refer) * T_delta;

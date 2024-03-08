@@ -61,7 +61,7 @@ PerceptionLaneLineList::PerceptionLaneLineList(
     auto new_line = std::make_shared<PerceptionLaneLine>(line);
     lane_line_list_.emplace_back(new_line);
   }
-  HLOG_INFO << "lane_line_list_.size() = " << lane_line_list_.size();
+  HLOG_DEBUG << "lane_line_list_.size() = " << lane_line_list_.size();
 }
 
 PerceptionLaneLineList::PerceptionLaneLineList() {}

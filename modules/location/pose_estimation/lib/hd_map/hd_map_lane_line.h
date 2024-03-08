@@ -25,7 +25,6 @@ namespace loc {
 
 struct BoundaryLine {
   size_t line_type;
-  size_t lane_type;
   size_t id_center;
   std::string id_boundary;
   std::vector<ControlPoint> control_point;
@@ -58,7 +57,7 @@ class MapBoundaryLine : public MapElement {
            const Eigen::Matrix3d &rotation, const double &distance,
            const V3 &ref_point);
   bool AddMapLine(const hozon::hdmap::LaneBoundary &lane_boundary,
-                  const V3 &ref_point, bool is_big_curvature_lane);
+                  const V3 &ref_point);
   using Ptr = std::shared_ptr<MapBoundaryLine>;
   std::unordered_map<std::string, BoundaryLine> boundary_line_;
 };

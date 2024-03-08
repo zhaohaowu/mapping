@@ -39,11 +39,13 @@ void MapMatch::Match(const HdMap &hd_map,
   lane_line_->Match(hd_map, perception, T02_W_V, T_fc);
   lane_line_->GetError(&has_err_, &err_type_);
   connect_.lane_line_match_pairs = lane_line_->get_match_pairs();
-  HLOG_INFO << "CONNECT LANE LINE SIZE: "
+  origin_connect_.lane_line_match_pairs = lane_line_->getOriginMatchPairs();
+  HLOG_DEBUG << "CONNECT LANE LINE SIZE: "
             << connect_.lane_line_match_pairs.size();
 }
 
 Connect MapMatch::Result(void) { return connect_; }
+Connect MapMatch::OriginResult(void) { return origin_connect_; }
 
 }  // namespace loc
 }  // namespace mp

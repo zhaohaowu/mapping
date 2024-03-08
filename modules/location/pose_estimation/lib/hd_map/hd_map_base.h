@@ -39,10 +39,9 @@ enum {
 
 struct ControlPoint {
   size_t line_type;
-  size_t lane_type;
   V3 point;
-  ControlPoint(size_t line_type, size_t lane_type, V3 point)
-      : line_type(line_type), lane_type(lane_type), point(point) {}
+  ControlPoint(size_t line_type, V3 point)
+      : line_type(line_type), point(point) {}
 };
 
 class MapElement {

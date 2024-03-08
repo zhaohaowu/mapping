@@ -62,7 +62,7 @@ Sophus::SE3d MapMatchSolver::solve2D(const Connect &connect,
   auto duration =
       std::chrono::duration_cast<std::chrono::microseconds>(end - start)
           .count();
-  HLOG_INFO << "test mm | solve_time = " << duration * 0.000001 << "s";
+  HLOG_DEBUG << "test mm | solve_time = " << duration * 0.000001 << "s";
   HLOG_ERROR << "summary.num_successful_steps : "
              << summary.num_successful_steps;
   HLOG_ERROR << "summary.final_cost : " << summary.final_cost;

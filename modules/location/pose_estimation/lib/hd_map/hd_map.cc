@@ -19,7 +19,7 @@ void Map<Map_Type>::set_ref_point(const V3& ref_point) {
 }
 template <typename Map_Type>
 V3 Map<Map_Type>::get_ref_point(void) {
-  HLOG_INFO << "get_ref_point_ = [" << ref_point_.x() << ", " << ref_point_.y()
+  HLOG_DEBUG << "get_ref_point_ = [" << ref_point_.x() << ", " << ref_point_.y()
             << ", " << ref_point_.z() << "]";
   return ref_point_;
 }

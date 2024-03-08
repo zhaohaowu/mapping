@@ -109,7 +109,10 @@ class MatchLaneLine {
     *err_type = static_cast<int>(err_type_);
   }
   VP SetRvizMergeMapLines();
-
+  inline std::vector<PointMatchPair> getOriginMatchPairs() {
+    return origin_match_pairs_;
+  }
+  std::vector<PointMatchPair> origin_match_pairs_;
   using Ptr = std::shared_ptr<MatchLaneLine>;
 
  private:

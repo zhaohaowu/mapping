@@ -253,7 +253,14 @@ class MapMatching {
   void pubMatchPoints(const VP &points);
   void PubMatchPoints(const VP &points, const uint64_t &sec,
                       const uint64_t &nsec, const std::string &topic_name);
-
+  void setConnectPercepPoints(const Connect &connect, const SE3 &T_W_V, VP &points); // NOLINT
+  void pubConnectPercepPoints(const VP &points, uint64_t sec, uint64_t nsec);
+  void setOriginConnectPercepPoints(const Connect &connect, const SE3 &T_W_V, VP &points); // NOLINT
+  void pubOriginConnectPercepPoints(const VP &points, uint64_t sec, uint64_t nsec);
+  void setOriginConnectMapPoints(const Connect &connect, const SE3 &T_W_V, VP &points); // NOLINT
+  void pubOriginConnectMapPoints(const VP &points, uint64_t sec, uint64_t nsec);
+  void setConnectMapPoints(const Connect &connect, const SE3 &T_W_V, VP &points); // NOLINT
+  void pubConnectMapPoints(const VP &points, uint64_t sec, uint64_t nsec);
   adsfi_proto::viz::Marker laneToMarker(const VP &points, std::string id,
                                         bool is_points, bool is_center,
                                         float point_size = 1,
@@ -331,6 +338,10 @@ class MapMatching {
   const std::string kTopicMmPerceptionPointsEdge = "/mm/perception_point_edge";
   const std::string kTopicMmMapPointsEdge = "/mm/map_point_edge";
   const std::string kTopicLocstate = "/fc/locstate";
+  const std::string kTopicMmConnectPercepPoints = "/mm/connect_per_point";
+  const std::string kTopicMmConnectMapPoints = "/mm/connect_map_point";
+  const std::string kTopicMmOriginConnectPercepPoints = "/mm/origin_connect_per_point";
+  const std::string kTopicMmOriginConnectMapPoints = "/mm/origin_connect_map_point";
 };
 
 }  // namespace loc

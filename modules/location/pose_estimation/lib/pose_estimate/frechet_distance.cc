@@ -26,7 +26,7 @@ double FrechetDistance3D::frechetDistance(
   if (std::min(fil_line->points().size(), P2.size()) <= 0) {
     return -1.0;
   }
-  HLOG_INFO << "fil_line->points().size = " << fil_line->points().size()
+  HLOG_DEBUG << "fil_line->points().size = " << fil_line->points().size()
             << " , map_points.size = " << P2.size();
   std::vector<hozon::mp::loc::V3> p0, p1;
   double result = -1, ratio;
@@ -57,7 +57,7 @@ double FrechetDistance3D::frechetDistance(
         tmp_q = q;
         p_q_distance = distance;
       }
-      HLOG_INFO << "percep_point: " << p.x() << ", " << p.y() << ", " << p.z()
+      HLOG_DEBUG << "percep_point: " << p.x() << ", " << p.y() << ", " << p.z()
                 << " | map_point[" << line_id << "]:" << q.x() << ", " << q.y()
                 << ", " << q.z() << " | cal_distance: " << distance
                 << " | std::min(1.5, distance): " << std::min(1.5, distance);
@@ -82,7 +82,7 @@ double FrechetDistance3D::frechetDistance(
     p_q->emplace_back(p, tmp_q, cur_type,
                       weight);  // 找到最匹配的点 加入match_pairs中
   }
-    HLOG_INFO << "f_min = " << f_min << ", f_max = " << f_max;
+    HLOG_DEBUG << "f_min = " << f_min << ", f_max = " << f_max;
 
   // compute frechet distance
   double res = (f_max - f_min) / 10;
@@ -91,7 +91,7 @@ double FrechetDistance3D::frechetDistance(
   std::vector<std::vector<int>> frechet_compare_matrix;
   for (double range = f_min; range < f_max; range += res) {
     int mode = 0;  // bwlabel = 0, astar = 1;
-    HLOG_INFO << "frechet_dis_matrix row size = " << frechet_dis_matrix.size()
+    HLOG_DEBUG << "frechet_dis_matrix row size = " << frechet_dis_matrix.size()
               << " , col size = " << frechet_dis_matrix[0].size();
     compareMatrix(frechet_dis_matrix, &frechet_compare_matrix, range, mode);
     if (frechet_compare_matrix.empty()) {
@@ -100,7 +100,7 @@ double FrechetDistance3D::frechetDistance(
     if (frechet_compare_matrix[0].empty()) {
       continue;
     }
-    HLOG_INFO << "frechet_compare_matrix row size = "
+    HLOG_DEBUG << "frechet_compare_matrix row size = "
               << frechet_compare_matrix.size()
               << " , col size = " << frechet_compare_matrix[0].size();
     hozon::mp::loc::BwLbel bwlabel_process;
@@ -126,7 +126,7 @@ double FrechetDistance3D::frechetDistance(
   if (ratio < 0.8) {
     p_q->clear();
   }
-  HLOG_INFO << "ratio = " << ratio;
+  HLOG_DEBUG << "ratio = " << ratio;
   return ratio;
 }
 

@@ -165,13 +165,33 @@ bool MapMatching::Init(const std::string& config_file,
     if (ret < 0) {
       HLOG_WARN << "RvizAgent register " << kTopicLocstate << " failed";
     }
+    ret = hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
+        kTopicMmConnectPercepPoints);
+    if (ret < 0) {
+      HLOG_WARN << "RvizAgent register " << kTopicMmConnectPercepPoints << " failed";
+    }
+    ret = hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
+        kTopicMmConnectMapPoints);
+    if (ret < 0) {
+      HLOG_WARN << "RvizAgent register " << kTopicMmConnectMapPoints << " failed";
+    }
+    ret = hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
+        kTopicMmOriginConnectPercepPoints);
+    if (ret < 0) {
+      HLOG_WARN << "RvizAgent register " << kTopicMmOriginConnectPercepPoints << " failed";
+    }
+    ret = hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
+        kTopicMmOriginConnectMapPoints);
+    if (ret < 0) {
+      HLOG_WARN << "RvizAgent register " << kTopicMmOriginConnectMapPoints << " failed";
+    }
   }
   optimize_success_ = false;
 
   proc_thread_run_ = true;
   proc_thread_ = std::thread(&MapMatching::mmProcCallBack, this);
 
-  HLOG_INFO << "MM Init finish ";
+  HLOG_DEBUG << "MM Init finish ";
   sleep(1);
   return true;
 }
@@ -280,7 +300,7 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
   }
 
   if (!init_) {
-    HLOG_INFO << "ref_point_ = pose";
+    HLOG_DEBUG << "ref_point_ = pose";
     ref_point_ = pose;
     init_ = true;
     return;
@@ -293,7 +313,7 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
     is_chging_map_ref_ = true;
     is_chging_ins_ref_ = true;
     enu = hozon::mp::util::Geo::Gcj02ToEnu(pose, ref_point_);
-    HLOG_INFO << "ref point changed: " << ins_timestamp_
+    HLOG_DEBUG << "ref point changed: " << ins_timestamp_
               << " newref: " << ref_point_.x() << " " << ref_point_.y() << " "
               << ref_point_.z();
   }
@@ -521,6 +541,8 @@ void MapMatching::procData() {
   pubTimeAndInsStatus(T02_W_V, input_stamp);
   Sophus::SE3d T02_W_VF = T02_W_V, _T_W_V_fine = T02_W_V;
   hozon::mp::loc::Connect connect;
+  hozon::mp::loc::Connect origin_connect;
+
   time_.evaluate(
       [&, this] {
         map_match_->SetInsTs(input_stamp);
@@ -568,6 +590,7 @@ void MapMatching::procData() {
       break;
   }
   connect = map_match_->Result();
+  origin_connect = map_match_->OriginResult();
   bool solve_is_ok = true;
   auto t1_solver = std::chrono::steady_clock::now();
   time_.evaluate(
@@ -587,11 +610,11 @@ void MapMatching::procData() {
     auto percep_point = pair.pecep_pv;
     auto diff_y = (T_output_.inverse() * map_point).y() - percep_point.y();
     sum_diff_y += diff_y;
-    HLOG_INFO << "map_point.y: " << map_point.y() << ", percep_point.y: "
+    HLOG_DEBUG << "map_point.y: " << map_point.y() << ", percep_point.y: "
               << percep_point.y() << ", diff_y: " << diff_y;
   }
   avg_diff_y = sum_diff_y / connect.lane_line_match_pairs.size();
-  HLOG_INFO << "avg_diff_y: " << avg_diff_y;
+  HLOG_DEBUG << "avg_diff_y: " << avg_diff_y;
   if (!solve_is_ok) {
     HLOG_ERROR << "solver is not ok stamp:" << ins_timestamp_;
     std::lock_guard<std::mutex> lg(mm_output_lck_);
@@ -616,7 +639,7 @@ void MapMatching::procData() {
   bool lane_width_check = false;
   if (mm_params.lane_width_check_switch) {
     lane_width_check = map_match_->CheckLaneWidth(T02_W_VF);
-    HLOG_INFO << "lane_width_check = " << lane_width_check;
+    HLOG_DEBUG << "lane_width_check = " << lane_width_check;
   }
   if (lane_width_check) {
     HLOG_ERROR << "lane width check failed!";
@@ -645,14 +668,26 @@ void MapMatching::procData() {
       if (hozon::mp::util::RvizAgent::Instance().Ok() &&
           mm_params.use_rviz_bridge) {
         if (optimize_success_ && !_T_W_V_fine.translation().isZero()) {
-          HLOG_INFO << "optimize_finish_, " << Precusion(proc_stamp_, 16);
-          setPoints(*lane, T02_W_V_INPUT, &front_points_);
+          HLOG_DEBUG << "optimize_finish_, " << Precusion(proc_stamp_, 16);
+          setPoints(*lane, T_output_, &front_points_);
           pubOdomPoints(kTopicMmOdom, T_output_.translation(),
-                        T02_W_V_INPUT.unit_quaternion(), sec, nsec);
+                        T_output_.unit_quaternion(), sec, nsec);
         } else {
           setPoints(*lane, T02_W_V_INPUT, &front_points_);
         }
         pubPoints(front_points_, time_sec_, time_nsec_, kTopicMmFrontPoints);
+        front_points_.clear();
+        setConnectPercepPoints(connect, T_output_, front_points_);
+        pubConnectPercepPoints(front_points_, time_sec_, time_nsec_);
+        front_points_.clear();
+        setConnectMapPoints(connect, T_output_, front_points_);
+        pubConnectMapPoints(front_points_, time_sec_, time_nsec_);
+        front_points_.clear();
+        setOriginConnectMapPoints(origin_connect, T_output_, front_points_);
+        pubOriginConnectMapPoints(front_points_, time_sec_, time_nsec_);
+        front_points_.clear();
+        setOriginConnectPercepPoints(origin_connect, T_output_, front_points_);
+        pubOriginConnectPercepPoints(front_points_, time_sec_, time_nsec_);
       }
     }
   }
@@ -667,7 +702,7 @@ void MapMatching::procData() {
   t = t2.time_since_epoch().count() / 1e9;
   auto proc_time =
       (t2.time_since_epoch() - t1.time_since_epoch()).count() / 1e9;
-  HLOG_INFO << "test mm | proc_time = " << proc_time;
+  HLOG_DEBUG << "test mm | proc_time = " << proc_time;
   static MapMatchingFrameRateRecord mm_effective_fr;
   mm_effective_fr.CalFrameRate(t, "mm effective frame rate");
 
@@ -882,14 +917,14 @@ MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V, uint64_t sec,
   node_info->mutable_quaternion()->set_z(T_W_V.unit_quaternion().z());
   node_info->mutable_quaternion()->set_w(T_W_V.unit_quaternion().w());
   if (!has_err) {
-    HLOG_INFO << "blh.x()," << blh.x() << ",blh.y()," << blh.y() << ",blh.z()"
+    HLOG_DEBUG << "blh.x()," << blh.x() << ",blh.y()," << blh.y() << ",blh.z()"
               << blh.z() << ",proc_stamp_," << proc_stamp_;
     node_info->set_valid_estimate(true);
   } else {
     node_info->set_valid_estimate(false);
     HLOG_ERROR << "MM is not valid due to rare connect!!!";
   }
-  HLOG_INFO << "node info pub";
+  HLOG_DEBUG << "node info pub";
   // error code
   node_info->set_warn_info(0);
   if (mmfault_.pecep_lane_error == true) {
@@ -1179,6 +1214,120 @@ adsfi_proto::viz::Marker MapMatching::lineIdToMarker(const V3 point,
   auto text = marker.mutable_text();
   *text = "ID: " + id;
   return marker;
+}
+void MapMatching::pubConnectPercepPoints(const VP &points, uint64_t sec, uint64_t nsec) {
+  if (!hozon::mp::util::RvizAgent::Instance().Ok()) {
+    return;
+  }
+  adsfi_proto::viz::PointCloud lane_points;
+  static uint32_t seq = 0;
+  int curr_seq = seq++;
+  lane_points.mutable_header()->set_seq(curr_seq);
+  lane_points.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
+  lane_points.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
+  lane_points.mutable_header()->set_frameid("map");
+  auto *channels = lane_points.add_channels();
+  channels->set_name("rgb");
+  for (const auto &p : points) {
+    auto *points_ = lane_points.add_points();
+    points_->set_x(p.x());
+    points_->set_y(p.y());
+    points_->set_z(p.z());
+  }
+  hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmConnectPercepPoints, lane_points);
+}
+
+void MapMatching::pubConnectMapPoints(const VP &points, uint64_t sec, uint64_t nsec) {
+  if (hozon::mp::util::RvizAgent::Instance().Ok()) {
+    adsfi_proto::viz::PointCloud lane_points;
+    static uint32_t seq = 0;
+    int curr_seq = seq++;
+    lane_points.mutable_header()->set_seq(curr_seq);
+    lane_points.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
+    lane_points.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
+    lane_points.mutable_header()->set_frameid("map");
+    auto *channels = lane_points.add_channels();
+    channels->set_name("rgb");
+    for (const auto &p : points) {
+      auto *points_ = lane_points.add_points();
+      points_->set_x(p.x());
+      points_->set_y(p.y());
+      points_->set_z(p.z());
+    }
+    hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmConnectMapPoints, lane_points);
+  }
+}
+
+void MapMatching::pubOriginConnectPercepPoints(const VP &points, uint64_t sec, uint64_t nsec) {
+  if (hozon::mp::util::RvizAgent::Instance().Ok()) {
+    adsfi_proto::viz::PointCloud lane_points;
+    static uint32_t seq = 0;
+    int curr_seq = seq++;
+    lane_points.mutable_header()->set_seq(curr_seq);
+    lane_points.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
+    lane_points.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
+    lane_points.mutable_header()->set_frameid("map");
+    auto *channels = lane_points.add_channels();
+    channels->set_name("rgb");
+    for (const auto &p : points) {
+      auto *points_ = lane_points.add_points();
+      points_->set_x(p.x());
+      points_->set_y(p.y());
+      points_->set_z(p.z());
+    }
+    hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmOriginConnectPercepPoints, lane_points);
+  }
+}
+
+void MapMatching::pubOriginConnectMapPoints(const VP &points, uint64_t sec, uint64_t nsec) {
+  if (hozon::mp::util::RvizAgent::Instance().Ok()) {
+    adsfi_proto::viz::PointCloud lane_points;
+    static uint32_t seq = 0;
+    int curr_seq = seq++;
+    lane_points.mutable_header()->set_seq(curr_seq);
+    lane_points.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
+    lane_points.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
+    lane_points.mutable_header()->set_frameid("map");
+    auto *channels = lane_points.add_channels();
+    channels->set_name("rgb");
+    for (const auto &p : points) {
+      auto *points_ = lane_points.add_points();
+      points_->set_x(p.x());
+      points_->set_y(p.y());
+      points_->set_z(p.z());
+    }
+    hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmOriginConnectMapPoints, lane_points);
+  }
+}
+
+void MapMatching::setConnectPercepPoints(const Connect &connect, const SE3 &T_W_V, VP &points) { // NOLINT
+  for (int i = 0; i < connect.lane_line_match_pairs.size(); ++i) {
+    auto perception_point = connect.lane_line_match_pairs[i].pecep_pv;
+    auto point = T_W_V * perception_point;
+    points.emplace_back(point);
+  }
+}
+
+void MapMatching::setConnectMapPoints(const Connect &connect, const SE3 &T_W_V, VP &points) { // NOLINT
+  for (int i = 0; i < connect.lane_line_match_pairs.size(); ++i) {
+    auto point = connect.lane_line_match_pairs[i].map_pw;
+    points.emplace_back(point);
+  }
+}
+
+void MapMatching::setOriginConnectPercepPoints(const Connect &connect, const SE3 &T_W_V, VP &points) { // NOLINT
+  for (int i = 0; i < connect.lane_line_match_pairs.size(); ++i) {
+    auto perception_point = connect.lane_line_match_pairs[i].pecep_pv;
+    auto point = T_W_V * perception_point;
+    points.emplace_back(point);
+  }
+}
+
+void MapMatching::setOriginConnectMapPoints(const Connect &connect, const SE3 &T_W_V, VP &points) { // NOLINT
+  for (int i = 0; i < connect.lane_line_match_pairs.size(); ++i) {
+    auto point = connect.lane_line_match_pairs[i].map_pw;
+    points.emplace_back(point);
+  }
 }
 
 bool MapMatching::CheckLaneMatch(const SE3& T_delta_cur) {

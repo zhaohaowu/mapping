@@ -17,6 +17,7 @@ namespace loc {
 void MapBoundaryLine::Set(const hozon::common::PointENU& position,
                           const Eigen::Matrix3d& rotation,
                           const double& distance, const V3& ref_point) {
+  boundary_line_.clear();
   Eigen::Vector3d euler = hozon::mp::loc::RotToEuler312(rotation);
   euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
   double heading = 90.0 - euler.z() / M_PI * 180;
@@ -31,50 +32,42 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
     HLOG_ERROR << "get nearest lane failed";
     return;
   }
-  HLOG_INFO << "lane_ptr_vec.size = " << lane_ptr_vec.size();
+  HLOG_DEBUG << "lane_ptr_vec.size = " << lane_ptr_vec.size();
   size_t l_count = 0, r_count = 0;
   bool is_big_curvature_lane = false;
   for (const auto& lane_ptr : lane_ptr_vec) {
-    double s = lane_ptr->accumulate_s()[1];
-    auto lane_curvature = lane_ptr->Curvature(s);
-    HLOG_INFO << "lane_curvature: " << lane_curvature;
-    if (fabs(lane_curvature) > mm_params.curvature_thresold) {
-      HLOG_INFO << "big curvature!!!!";
-      is_big_curvature_lane = true;
-    }
     auto lane = (*lane_ptr).lane();
     if (lane.has_extra_left_boundary()) {
       auto extra_left_lane_boundary = lane.extra_left_boundary();
-      if (AddMapLine(extra_left_lane_boundary, ref_point, is_big_curvature_lane)) {
+      if (AddMapLine(extra_left_lane_boundary, ref_point)) {
         l_count++;
       }
     } else if (lane.has_left_boundary()) {
       auto left_lane_boundary = lane.left_boundary();
-      if (AddMapLine(left_lane_boundary, ref_point, is_big_curvature_lane)) {
+      if (AddMapLine(left_lane_boundary, ref_point)) {
         l_count++;
       }
     }
     if (lane.has_extra_right_boundary()) {
       auto extra_right_lane_boundary = lane.extra_right_boundary();
-      if (AddMapLine(extra_right_lane_boundary, ref_point, is_big_curvature_lane)) {
+      if (AddMapLine(extra_right_lane_boundary, ref_point)) {
         r_count++;
       }
     } else if (lane.has_right_boundary()) {
       auto right_lane_boundary = lane.right_boundary();
-      if (AddMapLine(right_lane_boundary, ref_point, is_big_curvature_lane)) {
+      if (AddMapLine(right_lane_boundary, ref_point)) {
         r_count++;
       }
     }
   }
-  HLOG_INFO << "l_count = " << l_count << " , r_count = " << r_count
+  HLOG_DEBUG << "l_count = " << l_count << " , r_count = " << r_count
             << ", boundary_line_ size: " << boundary_line_.size();
   // Print(boundary_line_);
   this->type_ = HD_MAP_LANE_BOUNDARY_LINE;
 }
 
 bool MapBoundaryLine::AddMapLine(
-    const hozon::hdmap::LaneBoundary& lane_boundary, const V3& ref_point,
-    bool is_big_curvature_lane) {
+    const hozon::hdmap::LaneBoundary& lane_boundary, const V3& ref_point) {
   if (lane_boundary.id().empty()) {
     return false;
   }
@@ -92,15 +85,12 @@ bool MapBoundaryLine::AddMapLine(
       // 地图是经纬度和ins相反
       Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
       Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
-      ControlPoint cpoint(0, 0, {0, 0, 0});
+      ControlPoint cpoint(0, {0, 0, 0});
       if (bl.line_type == DoubleLineType::DoubleSolidLine ||
           bl.line_type == DoubleLineType::DoubleDashedLine ||
           bl.line_type == DoubleLineType::LeftSolidRightDashed ||
           bl.line_type == DoubleLineType::RightSolidLeftDashed) {
         cpoint.line_type = 1;
-      }
-      if (is_big_curvature_lane) {
-        cpoint.lane_type = 1;
       }
       cpoint.point = p_enu;
       bl.control_point.emplace_back(cpoint);
@@ -111,12 +101,12 @@ bool MapBoundaryLine::AddMapLine(
 
 void MapBoundaryLine::Print(
     const std::unordered_map<std::string, BoundaryLine>& boundarylines) {
-  HLOG_INFO << "boundarylines.size = " << boundarylines.size();
+  HLOG_DEBUG << "boundarylines.size = " << boundarylines.size();
   for (auto line : boundarylines) {
     auto id = line.first;
     auto cpt = line.second.control_point;
-    HLOG_INFO << "id = " << id;
-    HLOG_INFO << "cpt.size = " << cpt.size();
+    HLOG_DEBUG << "id = " << id;
+    HLOG_DEBUG << "cpt.size = " << cpt.size();
   }
 }
 

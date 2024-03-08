@@ -29,6 +29,7 @@ class MapMatch {
   void Match(const HdMap &hd_map, const std::shared_ptr<Perception> &perception,
              const SE3 &T02_W_V, const SE3 &T_fc);
   Connect Result(void);
+  Connect OriginResult(void);
   inline bool hasError() { return has_err_; }
   inline int GetErrorType() { return err_type_; }
   bool GoodMatchCheck(const SE3 &T);

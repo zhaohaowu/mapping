@@ -1158,7 +1158,7 @@ void TopoAssignment::AppendTopoMapTopology(
 void TopoAssignment::AppendTopoMapRoadEdge(
     const std::shared_ptr<hozon::hdmap::Map>& topo_map,
     const Eigen::Isometry3d& T_U_V) {
-  if (local_map_->edge_lines().empty()) {
+  if (local_map_->road_edges().empty()) {
     return;
   }
   auto* local_road = topo_map->add_road();
@@ -1167,7 +1167,7 @@ void TopoAssignment::AppendTopoMapRoadEdge(
   auto* local_road_edge =
       local_road_sec->mutable_boundary()->mutable_outer_polygon()->add_edge();
   auto* local_road_seg = local_road_edge->mutable_curve()->add_segment();
-  for (const auto& road_edge : local_map_->edge_lines()) {
+  for (const auto& road_edge : local_map_->road_edges()) {
     for (const auto& local_road_point : road_edge.points()) {
       Eigen::Vector3d road_point(local_road_point.x(), local_road_point.y(),
                                  local_road_point.z());

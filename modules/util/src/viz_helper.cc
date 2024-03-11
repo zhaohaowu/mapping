@@ -1126,6 +1126,81 @@ void TransportElementToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
   }
 }
 
+void LmRoadEdgeToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
+                         const adsfi_proto::hz_Adsfi::HafTime& lifetime,
+                         const hozon::mapping::RoadEdge& line,
+                         const std::string& ns_prefix,
+                         const adsfi_proto::viz::ColorRGBA& rgba,
+                         adsfi_proto::viz::MarkerArray* ma) {
+  if (ma == nullptr) {
+    return;
+  }
+
+  if (line.points().empty()) {
+    return;
+  }
+
+  const std::string lane_ns = ns_prefix + "/" + std::to_string(line.track_id());
+
+  auto* marker_line = ma->add_markers();
+  marker_line->mutable_header()->CopyFrom(header);
+  marker_line->mutable_lifetime()->CopyFrom(lifetime);
+  marker_line->set_ns(lane_ns);
+  marker_line->set_id(0);
+
+  marker_line->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+  marker_line->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+  marker_line->mutable_pose()->mutable_orientation()->set_x(0.);
+  marker_line->mutable_pose()->mutable_orientation()->set_y(0.);
+  marker_line->mutable_pose()->mutable_orientation()->set_z(0.);
+  marker_line->mutable_pose()->mutable_orientation()->set_w(1.);
+  const double line_width = 0.2;
+  marker_line->mutable_scale()->set_x(line_width);
+  marker_line->mutable_color()->CopyFrom(rgba);
+  for (const auto& pt : line.points()) {
+    auto* mpt = marker_line->add_points();
+    mpt->set_x(pt.x());
+    mpt->set_y(pt.y());
+    mpt->set_z(pt.z());
+  }
+
+  const auto first_pt = *line.points().begin();
+  auto* marker_info = ma->add_markers();
+  marker_info->mutable_header()->CopyFrom(header);
+  marker_info->mutable_lifetime()->CopyFrom(lifetime);
+  marker_info->set_ns(lane_ns);
+  marker_info->set_id(1);
+
+  marker_info->set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+  marker_info->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+  marker_info->mutable_pose()->mutable_position()->set_x(first_pt.x());
+  marker_info->mutable_pose()->mutable_position()->set_y(first_pt.y());
+  marker_info->mutable_pose()->mutable_position()->set_z(first_pt.z());
+  marker_info->mutable_pose()->mutable_orientation()->set_x(0.);
+  marker_info->mutable_pose()->mutable_orientation()->set_y(0.);
+  marker_info->mutable_pose()->mutable_orientation()->set_z(0.);
+  marker_info->mutable_pose()->mutable_orientation()->set_w(1.);
+  const double text_size = 0.3;
+  marker_info->mutable_scale()->set_z(text_size);
+  marker_info->mutable_color()->CopyFrom(marker_line->color());
+
+  std::string track_id = "track_id: " + std::to_string(line.track_id());
+  // std::string lane_type =
+  //     "lane_type: " + hozon::mapping::LaneType_Name(line.type());
+  std::string lane_type = "roadedge_type: ";
+  std::string lane_pos =
+      "lane_pos: " + hozon::mapping::LanePositionType_Name(line.lanepos());
+  std::ostringstream out;
+  out.precision(3);
+  out << std::fixed << line.confidence();
+  std::string confidence = "confidence: " + out.str();
+  std::string use_type =
+      "use_type: " + hozon::mapping::LaneUseType_Name(line.use_type());
+  auto* text = marker_info->mutable_text();
+  *text = (track_id + "\n" + lane_type + "\n" + lane_pos + "\n" + confidence +
+           "\n" + use_type + "\n");
+}
+
 void LmLaneLineToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
                          const adsfi_proto::hz_Adsfi::HafTime& lifetime,
                          const hozon::mapping::LaneLine& line,
@@ -1444,7 +1519,7 @@ void LocalMapToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
     LmLaneLineToMarkers(header, lifetime, lane_line, lane_line_ns, rgba, ma);
   }
 
-  for (const auto& edge_line : local_map.edge_lines()) {
+  for (const auto& edge_line : local_map.road_edges()) {
     std::string edge_line_ns = ns + "edge_line/";
     adsfi_proto::viz::ColorRGBA rgba;
     Rgb rgb = ColorRgb(PURPLE);
@@ -1452,7 +1527,7 @@ void LocalMapToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
     rgba.set_r(rgb.r);
     rgba.set_g(rgb.g);
     rgba.set_b(rgb.b);
-    LmLaneLineToMarkers(header, lifetime, edge_line, edge_line_ns, rgba, ma);
+    LmRoadEdgeToMarkers(header, lifetime, edge_line, edge_line_ns, rgba, ma);
   }
 
   for (const auto& stop_line : local_map.stop_lines()) {

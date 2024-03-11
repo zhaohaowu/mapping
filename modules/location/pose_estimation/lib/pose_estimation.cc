@@ -33,6 +33,7 @@ bool MapMatching::Init(const std::string& config_file,
   delay_frame_ = config["delay_frame"].as<int>();
   max_frame_buf_ = config["max_frame_buf"].as<int>();
   use_smooth_ = config["use_smooth"].as<bool>();
+  ins_deque_max_size_ = config["ins_deque_max_size"].as<int>();
 
   // global fault
   mm_params.use_map_lane_match_fault =
@@ -106,8 +107,10 @@ bool MapMatching::Init(const std::string& config_file,
   mm_params.line_error_normal_thr =
       config["line_error_normal_thr"].as<double>();
   mm_params.use_rviz_bridge = config["use_rviz_bridge"].as<bool>();
-  mm_params.common_max_line_length = config["common_max_line_length"].as<double>();
-  mm_params.common_min_line_length = config["common_min_line_length"].as<double>();
+  mm_params.common_max_line_length =
+      config["common_max_line_length"].as<double>();
+  mm_params.common_min_line_length =
+      config["common_min_line_length"].as<double>();
   mm_params.max_length_offset = config["max_length_offset"].as<double>();
   mm_params.curvature_thresold = config["curvature_thresold"].as<double>();
 
@@ -165,25 +168,32 @@ bool MapMatching::Init(const std::string& config_file,
     if (ret < 0) {
       HLOG_WARN << "RvizAgent register " << kTopicLocstate << " failed";
     }
-    ret = hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
-        kTopicMmConnectPercepPoints);
+    ret = hozon::mp::util::RvizAgent::Instance()
+              .Register<adsfi_proto::viz::PointCloud>(
+                  kTopicMmConnectPercepPoints);
     if (ret < 0) {
-      HLOG_WARN << "RvizAgent register " << kTopicMmConnectPercepPoints << " failed";
+      HLOG_WARN << "RvizAgent register " << kTopicMmConnectPercepPoints
+                << " failed";
     }
-    ret = hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
-        kTopicMmConnectMapPoints);
+    ret = hozon::mp::util::RvizAgent::Instance()
+              .Register<adsfi_proto::viz::PointCloud>(kTopicMmConnectMapPoints);
     if (ret < 0) {
-      HLOG_WARN << "RvizAgent register " << kTopicMmConnectMapPoints << " failed";
+      HLOG_WARN << "RvizAgent register " << kTopicMmConnectMapPoints
+                << " failed";
     }
-    ret = hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
-        kTopicMmOriginConnectPercepPoints);
+    ret = hozon::mp::util::RvizAgent::Instance()
+              .Register<adsfi_proto::viz::PointCloud>(
+                  kTopicMmOriginConnectPercepPoints);
     if (ret < 0) {
-      HLOG_WARN << "RvizAgent register " << kTopicMmOriginConnectPercepPoints << " failed";
+      HLOG_WARN << "RvizAgent register " << kTopicMmOriginConnectPercepPoints
+                << " failed";
     }
-    ret = hozon::mp::util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(
-        kTopicMmOriginConnectMapPoints);
+    ret = hozon::mp::util::RvizAgent::Instance()
+              .Register<adsfi_proto::viz::PointCloud>(
+                  kTopicMmOriginConnectMapPoints);
     if (ret < 0) {
-      HLOG_WARN << "RvizAgent register " << kTopicMmOriginConnectMapPoints << " failed";
+      HLOG_WARN << "RvizAgent register " << kTopicMmOriginConnectMapPoints
+                << " failed";
     }
   }
   optimize_success_ = false;
@@ -227,41 +237,50 @@ void MapMatching::OnIns(
   setIns(*msg);
 }
 
-void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
-  ins_status_type_ = ins.gps_status();
-  if (ins_status_type_ !=
-          static_cast<int>(InsStatus::SINGLE_POINT_LOCATION_ORIEN) &&
-      ins_status_type_ != static_cast<int>(InsStatus::PSEUD_DIFF) &&
-      ins_status_type_ != static_cast<int>(InsStatus::COMB_EXTRAPOLATE) &&
-      ins_status_type_ != static_cast<int>(InsStatus::RTK_STABLE) &&
-      ins_status_type_ != static_cast<int>(InsStatus::RTK_FLOAT)) {
+template <typename T>
+void MapMatching::ShrinkQueue(T* const deque, uint32_t maxsize) {
+  if (!deque) {
     return;
   }
-  if (ins_status_type_ ==
-          static_cast<int>(InsStatus::SINGLE_POINT_LOCATION_ORIEN) ||
-      ins_status_type_ == static_cast<int>(InsStatus::PSEUD_DIFF) ||
-      ins_status_type_ == static_cast<int>(InsStatus::COMB_EXTRAPOLATE)) {
-    use_extrapolate_ = true;
-  } else {
-    use_extrapolate_ = false;
+  while (deque->size() > maxsize) {
+    deque->pop_front();
   }
-  time_sec_ = static_cast<uint64_t>(ins.header().data_stamp());
-  time_nsec_ =
-      static_cast<uint64_t>((ins.header().data_stamp() - time_sec_) * 1e9);
-  static double ins_time = -1;
-  double ins_stamp = ins.header().data_stamp();
-  ins_timestamp_ = ins_stamp;
-  if (ins_time > 0) {
-    auto dt_ins = ins_stamp - ins_time;
+}
+
+void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
+  // 重复时间戳判断
+  {
+    std::unique_lock<std::mutex> lock(latest_ins_mutex_);
+    if (ins.header().seq() == latest_ins_.header().seq()) {
+      HLOG_ERROR << "INS seq repeats,seq:" << ins.header().seq();
+      return;
+    }
+    latest_ins_ = ins;
+  }
+
+  // 插入INS队列
+  {
+    std::unique_lock<std::mutex> lock(ins_deque_mutex_);
+    ins_deque_.emplace_back(ins);
+    ShrinkQueue(&ins_deque_, ins_deque_max_size_);
+  }
+
+  auto time_sec = static_cast<uint64_t>(ins.header().data_stamp());
+  auto time_nsec =
+      static_cast<uint64_t>((ins.header().data_stamp() - time_sec) * 1e9);
+  static double last_ins_time = -1;
+  ins_timestamp_ = ins.header().data_stamp();
+  if (last_ins_time > 0) {
+    auto dt_ins = ins_timestamp_ - last_ins_time;
     if (dt_ins < 0 || dt_ins > 1) {
       // 0.时间出现超前
       // 1.延时超过1s
       HLOG_ERROR << "Time error:" << dt_ins;
-      ins_time = ins_stamp;
+      last_ins_time = ins_timestamp_;
       return;
     }
   }
-  ins_time = ins_stamp;
+  last_ins_time = ins_timestamp_;
 
   Eigen::Vector3d pose(ins.pos_gcj02().x(), ins.pos_gcj02().y(),
                        ins.pos_gcj02().z());
@@ -272,64 +291,148 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
     HLOG_WARN << "Inspva_quaternion is null";
     return;
   }
-
   Eigen::Quaterniond q_W_V(ins.quaternion().w(), ins.quaternion().x(),
                            ins.quaternion().y(), ins.quaternion().z());
-  if (q_W_V.norm() < 1e-10) {
+  if (q_W_V.norm() < 1e-6) {
+    HLOG_ERROR << "setIns q_W_V.norm() < 1e-6 ";
     return;
   }
   q_W_V.normalize();
 
+  // ref_point
+  if (!init_) {
+    HLOG_INFO << "ref_point_ = pose";
+    ref_point_mutex_.lock();
+    ref_point_ = pose;
+    ref_point_mutex_.unlock();
+    init_ = true;
+    return;
+  }
+  ref_point_mutex_.lock();
+  Eigen::Vector3d enu = hozon::mp::util::Geo::Gcj02ToEnu(pose, ref_point_);
+  ref_point_mutex_.unlock();
+  if (mm_params.can_ref_point_changed && (!use_extrapolate_) &&
+      enu.head<2>().norm() > mm_params.thre_ref_point_change &&
+      (!is_chging_ins_ref_)) {
+    ref_point_mutex_.lock();
+    ref_point_ = pose;
+    is_chging_map_ref_ = true;
+    is_chging_ins_ref_ = true;
+    enu = hozon::mp::util::Geo::Gcj02ToEnu(pose, ref_point_);
+    HLOG_DEBUG << "ref point changed: " << ins_timestamp_
+               << " newref: " << ref_point_.x() << " " << ref_point_.y() << " "
+               << ref_point_.z();
+    ref_point_mutex_.unlock();
+  }
+  auto T02_W_V = SE3(q_W_V, enu);
+
+  if (mm_params.use_rviz_bridge) {
+    pubVehicle(T02_W_V, time_sec, time_nsec);
+    pubOdomPoints(kTopicInsOdom, enu, q_W_V, time_sec, time_nsec);
+  }
+}
+bool MapMatching::FindPecepINS(HafNodeInfo* cur_ins) {
+  // 时间戳同步:使用将mm时间戳对齐至ins时间戳
+  percep_stamp_mutex_.lock();
+  double percep_stamp = percep_stamp_;
+  percep_stamp_mutex_.unlock();
+
+  std::unique_lock<std::mutex> lock(ins_deque_mutex_);
+  auto it = ins_deque_.rbegin();
+  for (; it != ins_deque_.rend(); ++it) {
+    if ((*it).header().data_stamp() <= percep_stamp) {
+      break;
+    }
+  }
+  if (it == ins_deque_.rend()) {
+    HLOG_ERROR << "Not find ins node in INS deque,error!";
+    return false;
+  } else if (it == ins_deque_.rbegin()) {
+    *cur_ins = *it;
+    return true;
+  } else {
+    auto it_next = std::prev(it);
+    if (abs(percep_stamp - (*it).header().data_stamp()) <=
+        abs(percep_stamp - (*it_next).header().data_stamp())) {
+      *cur_ins = *it;
+    } else {
+      *cur_ins = *it_next;
+    }
+    return true;
+  }
+}
+
+bool MapMatching::ExtractInsMsg(HafNodeInfo* cur_ins, SE3* T02_W_V_ins) {
+  static SE3 T02_W_V_pre(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
+  // 1.RTK state
+  ins_status_type_ = (*cur_ins).gps_status();
+  if (ins_status_type_ !=
+          static_cast<int>(InsStatus::SINGLE_POINT_LOCATION_ORIEN) &&
+      ins_status_type_ != static_cast<int>(InsStatus::PSEUD_DIFF) &&
+      ins_status_type_ != static_cast<int>(InsStatus::COMB_EXTRAPOLATE) &&
+      ins_status_type_ != static_cast<int>(InsStatus::RTK_STABLE) &&
+      ins_status_type_ != static_cast<int>(InsStatus::RTK_FLOAT)) {
+    HLOG_ERROR << "INS RTK state error,RTK state:" << ins_status_type_;
+    return false;
+  }
+  if (ins_status_type_ ==
+          static_cast<int>(InsStatus::SINGLE_POINT_LOCATION_ORIEN) ||
+      ins_status_type_ == static_cast<int>(InsStatus::PSEUD_DIFF) ||
+      ins_status_type_ == static_cast<int>(InsStatus::COMB_EXTRAPOLATE)) {
+    use_extrapolate_ = true;
+  } else {
+    use_extrapolate_ = false;
+  }
+
+  // 2.旋转与平移提取,enu转换
+  Eigen::Vector3d pose((*cur_ins).pos_gcj02().x(), (*cur_ins).pos_gcj02().y(),
+                       (*cur_ins).pos_gcj02().z());
+  ins_altitude_ = pose.z();
+  ref_point_mutex_.lock();
+  Eigen::Vector3d enu = hozon::mp::util::Geo::Gcj02ToEnu(pose, ref_point_);
+  ref_point_mutex_.unlock();
+
+  Eigen::Quaterniond q_W_V(
+      (*cur_ins).quaternion().w(), (*cur_ins).quaternion().x(),
+      (*cur_ins).quaternion().y(), (*cur_ins).quaternion().z());
+  if (q_W_V.norm() < 1e-10) {
+    HLOG_ERROR << "setIns q_W_V.norm() < 1e-10 ";
+    return false;
+  }
+  q_W_V.normalize();
+
+  if (q_W_V.norm() < 1e-7) {
+    HLOG_ERROR << "setIns q_W_V.norm() < 1e-7 ";
+    return false;
+  }
+
+  if (std::fabs(q_W_V.norm() - 1) > 1e-3) {
+    HLOG_WARN << "HafNodeInfo quaternion(w,x,y,z) "
+              << (*cur_ins).quaternion().w() << ","
+              << (*cur_ins).quaternion().x() << ","
+              << (*cur_ins).quaternion().y() << ","
+              << (*cur_ins).quaternion().z() << ",norm:" << q_W_V.norm();
+    return false;
+  }
+
+  // 3.结果赋值
   {
     std::lock_guard<std::mutex> lock_set_map(map_lck_);
     map_pos_ = pose;
     map_rot_ = q_W_V;
     map_rot_.normalize();
   }
+  if (!T02_W_V_pre.translation().isZero()) {
+    T02_W_V_pre_ = T02_W_V_pre;
+  }
+  *T02_W_V_ins = SE3(q_W_V, enu);
+  T02_W_V_pre = *T02_W_V_ins;
 
-  if (q_W_V.norm() < 1e-7) {
-    HLOG_ERROR << "setIns q_W_V.norm() < 1e-7 ";
-    return;
-  }
+  time_sec_ = static_cast<uint64_t>((*cur_ins).header().data_stamp());
+  time_nsec_ = static_cast<uint64_t>(
+      ((*cur_ins).header().data_stamp() - time_sec_) * 1e9);
 
-  if (std::fabs(q_W_V.norm() - 1) > 1e-3) {
-    HLOG_WARN << "HafNodeInfo quaternion(w,x,y,z) " << ins.quaternion().w()
-              << "," << ins.quaternion().x() << "," << ins.quaternion().y()
-              << "," << ins.quaternion().z() << ",norm:" << q_W_V.norm();
-    return;
-  }
-
-  if (!init_) {
-    HLOG_DEBUG << "ref_point_ = pose";
-    ref_point_ = pose;
-    init_ = true;
-    return;
-  }
-  Eigen::Vector3d enu = hozon::mp::util::Geo::Gcj02ToEnu(pose, ref_point_);
-  if (mm_params.can_ref_point_changed && (!use_extrapolate_) &&
-      enu.head<2>().norm() > mm_params.thre_ref_point_change &&
-      (!is_chging_ins_ref_)) {
-    ref_point_ = pose;
-    is_chging_map_ref_ = true;
-    is_chging_ins_ref_ = true;
-    enu = hozon::mp::util::Geo::Gcj02ToEnu(pose, ref_point_);
-    HLOG_DEBUG << "ref point changed: " << ins_timestamp_
-              << " newref: " << ref_point_.x() << " " << ref_point_.y() << " "
-              << ref_point_.z();
-  }
-  T02_W_V_ = SE3(q_W_V, enu);
-
-  std::unique_lock<std::mutex> lck(ins_msg_lck_);
-  if (!newest_ins_msg_.pose.translation().isZero()) {
-    T02_W_V_pre_ = newest_ins_msg_.pose;
-  }
-  newest_ins_msg_ = InsMsg(T02_W_V_, ins_stamp);
-  ins_input_ready_ = true;
-  ins_input_cv_.notify_one();
-  pubVehicle(T02_W_V_, time_sec_, time_nsec_);
-  if (mm_params.use_rviz_bridge) {
-    pubOdomPoints(kTopicInsOdom, enu, q_W_V, time_sec_, time_nsec_);
-  }
+  return true;
 }
 
 void MapMatching::pubOdomPoints(const std::string& topic,
@@ -408,9 +511,9 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
   }
 
   static double time = -1;
-  uint64_t fc_sec = uint64_t(info.header().publish_stamp());
-  uint64_t fc_nsec = uint64_t((info.header().publish_stamp() - fc_sec) * 1e9);
-  double stampe = static_cast<double>(info.header().publish_stamp());
+  uint64_t fc_sec = uint64_t(info.header().data_stamp());
+  uint64_t fc_nsec = uint64_t((info.header().data_stamp() - fc_sec) * 1e9);
+  double stampe = static_cast<double>(info.header().data_stamp());
   if (time > 0) {
     auto dt = stampe - time;
     if (dt < 0 || dt > 1) {
@@ -440,8 +543,10 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
     return;
   }
 
+  ref_point_mutex_.lock();
   auto enu_84 = hozon::mp::util::Geo::BlhToEnu(pose_84, ref_point_);
   Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, ref_point_);
+  ref_point_mutex_.unlock();
 
   auto fc_timestamp = stampe;
   T_fc_ = SE3(q_W_V, enu);
@@ -488,7 +593,9 @@ static std::string Precusion(double num, int n) {
 }
 
 void MapMatching::procData() {
+  ref_point_mutex_.lock();
   esti_ref_point_ = ref_point_;
+  ref_point_mutex_.unlock();
   auto t1 = std::chrono::steady_clock::now();
   auto t2 = std::chrono::steady_clock::now();
   double t = 0;
@@ -498,37 +605,52 @@ void MapMatching::procData() {
     setSubMap(map_pos_, map_rot_.toRotationMatrix());
   }
 
-  SE3 T02_W_V, T02_W_V_pre, T02_W_V_INPUT;
-  double input_stamp = 0;
-  {
-    // ins数据处理
-    std::unique_lock<std::mutex> lck(ins_msg_lck_);
-    while (!ins_input_ready_) {
-      ins_input_cv_.wait(lck);
-    }
-    ins_input_ready_ = false;
-    T02_W_V = T02_W_V_;
-    T02_W_V_pre = T02_W_V_pre_;
-    T02_W_V_INPUT = T02_W_V;
-    input_stamp = newest_ins_msg_.stamp;
-
-    bool use_extrapolate = use_extrapolate_;
-    if (use_extrapolate && proc_stamp_last_ > 0.0) {
-      T02_W_V_INPUT = T02_W_VF_last_ * (T02_W_V_last_.inverse() * T02_W_V);
-    }
-  }
-
-  // 感知数据处理
+  // 感知车道线时间戳获取
   SensorSync curr_roadmark_sensor;
   road_mark_mutex_.lock();
   if (!roadmark_sensor_.empty()) {
     curr_roadmark_sensor = *(roadmark_sensor_.back());
   }
   road_mark_mutex_.unlock();
-  double stampe = 0;
   if (curr_roadmark_sensor.frame_id != 0) {
-    stampe = curr_roadmark_sensor.transport_element.header().data_stamp();
+    percep_stamp_mutex_.lock();
+    percep_stamp_ =
+        curr_roadmark_sensor.transport_element.header().data_stamp();
+    percep_stamp_mutex_.unlock();
   }
+
+  // ins数据处理
+  SE3 T02_W_V, T02_W_V_pre, T02_W_V_INPUT;
+  double input_stamp = 0;
+  HafNodeInfo cur_ins;
+  ins_deque_mutex_.lock();
+  if (ins_deque_.empty()) {
+    HLOG_ERROR << "INS deque is empty!";
+    return;
+  }
+  ins_deque_mutex_.unlock();
+
+  if (!FindPecepINS(&cur_ins)) {
+    HLOG_ERROR << "Dont find ins when use perception line to find ins deque";
+    std::unique_lock<std::mutex> lock(latest_ins_mutex_);
+    cur_ins = latest_ins_;
+  }
+
+  if (!ExtractInsMsg(&cur_ins, &T02_W_V)) {
+    HLOG_ERROR << "ExtractInsMsg Fail!";
+    return;
+  }
+
+  T02_W_V_pre = T02_W_V_pre_;
+  T02_W_V_INPUT = T02_W_V;
+  input_stamp = (cur_ins).header().data_stamp();
+
+  bool use_extrapolate = use_extrapolate_;
+  if (use_extrapolate && proc_stamp_last_ > 0.0) {
+    T02_W_V_INPUT = T02_W_VF_last_ * (T02_W_V_last_.inverse() * T02_W_V);
+  }
+
+  // 感知数据处理
   std::shared_ptr<Perception> all_perception = std::make_shared<Perception>();
   time_.evaluate(
       [&, this] {
@@ -610,8 +732,9 @@ void MapMatching::procData() {
     auto percep_point = pair.pecep_pv;
     auto diff_y = (T_output_.inverse() * map_point).y() - percep_point.y();
     sum_diff_y += diff_y;
-    HLOG_DEBUG << "map_point.y: " << map_point.y() << ", percep_point.y: "
-              << percep_point.y() << ", diff_y: " << diff_y;
+    HLOG_DEBUG << "map_point.y: " << map_point.y()
+               << ", percep_point.y: " << percep_point.y()
+               << ", diff_y: " << diff_y;
   }
   avg_diff_y = sum_diff_y / connect.lane_line_match_pairs.size();
   HLOG_DEBUG << "avg_diff_y: " << avg_diff_y;
@@ -659,7 +782,6 @@ void MapMatching::procData() {
     }
     optimize_success_ = true;
     proc_stamp_ = input_stamp;
-    mm_nearest_ins_msg_ = newest_ins_msg_;
     if (curr_roadmark_sensor.frame_id != 0) {
       auto lane_lines =
           all_perception->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE);
@@ -671,7 +793,7 @@ void MapMatching::procData() {
           HLOG_DEBUG << "optimize_finish_, " << Precusion(proc_stamp_, 16);
           setPoints(*lane, T_output_, &front_points_);
           pubOdomPoints(kTopicMmOdom, T_output_.translation(),
-                        T_output_.unit_quaternion(), sec, nsec);
+                        T_output_.unit_quaternion(), time_sec_, time_nsec_);
         } else {
           setPoints(*lane, T02_W_V_INPUT, &front_points_);
         }
@@ -717,14 +839,22 @@ MapMatching::getMmNodeInfo() {
   if (!output_valid_) {
     return generateNodeInfo(T_output_, 0, 0, true);
   } else {
-    uint64_t sec = 0;
-    uint64_t nsec = 0;
+    uint64_t curr_sec = 0;
+    uint64_t curr_nsec = 0;
     if (use_inter_) {
-      sec = uint64_t(output_stamp_);
-      nsec = uint64_t((output_stamp_ - static_cast<double>(sec)) * 1e9);
+      curr_sec = uint64_t(output_stamp_);
+      curr_nsec =
+          uint64_t((output_stamp_ - static_cast<double>(curr_sec)) * 1e9);
     } else {
-      sec = uint64_t(proc_stamp_);
-      nsec = uint64_t((proc_stamp_ - static_cast<double>(sec)) * 1e9);
+      // 当前车道线的INS初值时间戳
+      // curr_sec = uint64_t(proc_stamp_);
+      // curr_nsec = uint64_t((proc_stamp_ - static_cast<double>(curr_sec)) *
+      // 1e9); 当前感知车道线时间戳
+      percep_stamp_mutex_.lock();
+      curr_sec = uint64_t(percep_stamp_);
+      curr_nsec =
+          uint64_t((percep_stamp_ - static_cast<double>(curr_sec)) * 1e9);
+      percep_stamp_mutex_.unlock();
     }
     if (last_proc_stamp != 0) {
       SE3 relative_T = last_T_output.inverse() * T_output_;
@@ -738,7 +868,7 @@ MapMatching::getMmNodeInfo() {
     if (!match_inited) {
       match_inited = true;
     }
-    return generateNodeInfo(T_output_, sec, nsec, false);
+    return generateNodeInfo(T_output_, curr_sec, curr_nsec, false);
   }
 }
 
@@ -762,10 +892,11 @@ void MapMatching::setSubMap(const Eigen::Vector3d& vehicle_position,
     HLOG_ERROR << "hdmap server load map failed";
     return;
   }
-
+  ref_point_mutex_.lock();
   mhd_map_.Clear();
   mhd_map_.set_ref_point(ref_point_);
   mhd_map_.SetMap(enupt, vehicle_rotation, mm_params.map_distance, ref_point_);
+  ref_point_mutex_.unlock();
   is_chging_map_ref_ = false;
   if (!mm_params.use_rviz_bridge ||
       !hozon::mp::util::RvizAgent::Instance().Ok()) {
@@ -918,7 +1049,7 @@ MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V, uint64_t sec,
   node_info->mutable_quaternion()->set_w(T_W_V.unit_quaternion().w());
   if (!has_err) {
     HLOG_DEBUG << "blh.x()," << blh.x() << ",blh.y()," << blh.y() << ",blh.z()"
-              << blh.z() << ",proc_stamp_," << proc_stamp_;
+               << blh.z() << ",proc_stamp_," << proc_stamp_;
     node_info->set_valid_estimate(true);
   } else {
     node_info->set_valid_estimate(false);
@@ -928,16 +1059,16 @@ MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V, uint64_t sec,
   // error code
   node_info->set_warn_info(0);
   if (mmfault_.pecep_lane_error == true) {
-     node_info->set_warn_info(123);
-     HLOG_ERROR << "mmfault:123r";
+    node_info->set_warn_info(123);
+    HLOG_ERROR << "mmfault:123r";
   }
   if (mmfault_.map_lane_error == true) {
-     node_info->set_warn_info(124);
-     HLOG_ERROR << "mmfault:124";
+    node_info->set_warn_info(124);
+    HLOG_ERROR << "mmfault:124";
   }
   if (mmfault_.map_lane_match_error == true) {
-     node_info->set_warn_info(130);
-     HLOG_ERROR << "mmfault:130";
+    node_info->set_warn_info(130);
+    HLOG_ERROR << "mmfault:130";
   }
   //  if (130-fault){
   //    node_info->set_warn_info(130);
@@ -1215,7 +1346,8 @@ adsfi_proto::viz::Marker MapMatching::lineIdToMarker(const V3 point,
   *text = "ID: " + id;
   return marker;
 }
-void MapMatching::pubConnectPercepPoints(const VP &points, uint64_t sec, uint64_t nsec) {
+void MapMatching::pubConnectPercepPoints(const VP& points, uint64_t sec,
+                                         uint64_t nsec) {
   if (!hozon::mp::util::RvizAgent::Instance().Ok()) {
     return;
   }
@@ -1226,18 +1358,20 @@ void MapMatching::pubConnectPercepPoints(const VP &points, uint64_t sec, uint64_
   lane_points.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
   lane_points.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
   lane_points.mutable_header()->set_frameid("map");
-  auto *channels = lane_points.add_channels();
+  auto* channels = lane_points.add_channels();
   channels->set_name("rgb");
-  for (const auto &p : points) {
-    auto *points_ = lane_points.add_points();
+  for (const auto& p : points) {
+    auto* points_ = lane_points.add_points();
     points_->set_x(p.x());
     points_->set_y(p.y());
     points_->set_z(p.z());
   }
-  hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmConnectPercepPoints, lane_points);
+  hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmConnectPercepPoints,
+                                                 lane_points);
 }
 
-void MapMatching::pubConnectMapPoints(const VP &points, uint64_t sec, uint64_t nsec) {
+void MapMatching::pubConnectMapPoints(const VP& points, uint64_t sec,
+                                      uint64_t nsec) {
   if (hozon::mp::util::RvizAgent::Instance().Ok()) {
     adsfi_proto::viz::PointCloud lane_points;
     static uint32_t seq = 0;
@@ -1246,19 +1380,21 @@ void MapMatching::pubConnectMapPoints(const VP &points, uint64_t sec, uint64_t n
     lane_points.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
     lane_points.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
     lane_points.mutable_header()->set_frameid("map");
-    auto *channels = lane_points.add_channels();
+    auto* channels = lane_points.add_channels();
     channels->set_name("rgb");
-    for (const auto &p : points) {
-      auto *points_ = lane_points.add_points();
+    for (const auto& p : points) {
+      auto* points_ = lane_points.add_points();
       points_->set_x(p.x());
       points_->set_y(p.y());
       points_->set_z(p.z());
     }
-    hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmConnectMapPoints, lane_points);
+    hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmConnectMapPoints,
+                                                   lane_points);
   }
 }
 
-void MapMatching::pubOriginConnectPercepPoints(const VP &points, uint64_t sec, uint64_t nsec) {
+void MapMatching::pubOriginConnectPercepPoints(const VP& points, uint64_t sec,
+                                               uint64_t nsec) {
   if (hozon::mp::util::RvizAgent::Instance().Ok()) {
     adsfi_proto::viz::PointCloud lane_points;
     static uint32_t seq = 0;
@@ -1267,19 +1403,21 @@ void MapMatching::pubOriginConnectPercepPoints(const VP &points, uint64_t sec, u
     lane_points.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
     lane_points.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
     lane_points.mutable_header()->set_frameid("map");
-    auto *channels = lane_points.add_channels();
+    auto* channels = lane_points.add_channels();
     channels->set_name("rgb");
-    for (const auto &p : points) {
-      auto *points_ = lane_points.add_points();
+    for (const auto& p : points) {
+      auto* points_ = lane_points.add_points();
       points_->set_x(p.x());
       points_->set_y(p.y());
       points_->set_z(p.z());
     }
-    hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmOriginConnectPercepPoints, lane_points);
+    hozon::mp::util::RvizAgent::Instance().Publish(
+        kTopicMmOriginConnectPercepPoints, lane_points);
   }
 }
 
-void MapMatching::pubOriginConnectMapPoints(const VP &points, uint64_t sec, uint64_t nsec) {
+void MapMatching::pubOriginConnectMapPoints(const VP& points, uint64_t sec,
+                                            uint64_t nsec) {
   if (hozon::mp::util::RvizAgent::Instance().Ok()) {
     adsfi_proto::viz::PointCloud lane_points;
     static uint32_t seq = 0;
@@ -1288,19 +1426,22 @@ void MapMatching::pubOriginConnectMapPoints(const VP &points, uint64_t sec, uint
     lane_points.mutable_header()->mutable_timestamp()->set_sec(time_sec_);
     lane_points.mutable_header()->mutable_timestamp()->set_nsec(time_nsec_);
     lane_points.mutable_header()->set_frameid("map");
-    auto *channels = lane_points.add_channels();
+    auto* channels = lane_points.add_channels();
     channels->set_name("rgb");
-    for (const auto &p : points) {
-      auto *points_ = lane_points.add_points();
+    for (const auto& p : points) {
+      auto* points_ = lane_points.add_points();
       points_->set_x(p.x());
       points_->set_y(p.y());
       points_->set_z(p.z());
     }
-    hozon::mp::util::RvizAgent::Instance().Publish(kTopicMmOriginConnectMapPoints, lane_points);
+    hozon::mp::util::RvizAgent::Instance().Publish(
+        kTopicMmOriginConnectMapPoints, lane_points);
   }
 }
 
-void MapMatching::setConnectPercepPoints(const Connect &connect, const SE3 &T_W_V, VP &points) { // NOLINT
+void MapMatching::setConnectPercepPoints(const Connect& connect,
+                                         const SE3& T_W_V,
+                                         VP& points) {  // NOLINT
   for (int i = 0; i < connect.lane_line_match_pairs.size(); ++i) {
     auto perception_point = connect.lane_line_match_pairs[i].pecep_pv;
     auto point = T_W_V * perception_point;
@@ -1308,14 +1449,17 @@ void MapMatching::setConnectPercepPoints(const Connect &connect, const SE3 &T_W_
   }
 }
 
-void MapMatching::setConnectMapPoints(const Connect &connect, const SE3 &T_W_V, VP &points) { // NOLINT
+void MapMatching::setConnectMapPoints(const Connect& connect, const SE3& T_W_V,
+                                      VP& points) {  // NOLINT
   for (int i = 0; i < connect.lane_line_match_pairs.size(); ++i) {
     auto point = connect.lane_line_match_pairs[i].map_pw;
     points.emplace_back(point);
   }
 }
 
-void MapMatching::setOriginConnectPercepPoints(const Connect &connect, const SE3 &T_W_V, VP &points) { // NOLINT
+void MapMatching::setOriginConnectPercepPoints(const Connect& connect,
+                                               const SE3& T_W_V,
+                                               VP& points) {  // NOLINT
   for (int i = 0; i < connect.lane_line_match_pairs.size(); ++i) {
     auto perception_point = connect.lane_line_match_pairs[i].pecep_pv;
     auto point = T_W_V * perception_point;
@@ -1323,7 +1467,9 @@ void MapMatching::setOriginConnectPercepPoints(const Connect &connect, const SE3
   }
 }
 
-void MapMatching::setOriginConnectMapPoints(const Connect &connect, const SE3 &T_W_V, VP &points) { // NOLINT
+void MapMatching::setOriginConnectMapPoints(const Connect& connect,
+                                            const SE3& T_W_V,
+                                            VP& points) {  // NOLINT
   for (int i = 0; i < connect.lane_line_match_pairs.size(); ++i) {
     auto point = connect.lane_line_match_pairs[i].map_pw;
     points.emplace_back(point);

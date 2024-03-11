@@ -15,6 +15,8 @@ map_distance: 250
 lane_line_topic: "/perception/fsd/transportelement_1"
 node_info_topic: "/mapping/location/pose_estimate"
 ins_topic: "/mapping/location/ins"
+# deque size
+ins_deque_max_size: 500
 
 # fault diagnosis
 # Fault Switch

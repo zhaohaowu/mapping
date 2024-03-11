@@ -197,6 +197,32 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
     return;
   }
   prev_raw_pe_ = pe;
+
+  // 时间戳同步:使用将mm时间戳对齐至ins时间戳
+  {
+    std::unique_lock<std::mutex> lock(ins_deque_mutex_);
+    auto it = ins_deque_.rbegin();
+    for (; it != ins_deque_.rend(); ++it) {
+      if ((*it)->ticktime <= node.ticktime) {
+        break;
+      }
+    }
+    if (it == ins_deque_.rend()) {
+      HLOG_ERROR << "Not find ins node in INS deque,error!";
+      return;
+    } else if (it == ins_deque_.rbegin()) {
+      node.ticktime = (*it)->ticktime;
+    } else {
+      auto it_next = std::prev(it);
+      if (abs(node.ticktime - (*it)->ticktime) <=
+          abs(node.ticktime - (*it_next)->ticktime)) {
+        node.ticktime = (*it)->ticktime;
+      } else {
+        node.ticktime = (*it_next)->ticktime;
+      }
+    }
+  }
+
   std::unique_lock<std::mutex> lock(pe_deque_mutex_);
   pe_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&pe_deque_, params_.pe_deque_max_size);
@@ -514,6 +540,8 @@ void FusionCenter::Node2Localization(const Context& ctx,
   header->set_seq(seq_++);
   header->set_frame_id("location");
   header->set_data_stamp(ticktime);
+  HLOG_ERROR << "location global node.ticktime:" << global_node.ticktime
+             << ", local node.ticktime:" << local_node.ticktime;
   std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
       tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
           std::chrono::system_clock::now());
@@ -1011,12 +1039,14 @@ bool FusionCenter::PredictMMMeas() {
   double fusion_ticktime = fusion_deque_.back()->ticktime;
   fusion_deque_mutex_.unlock();
 
-  // 2.50ms一个，根据INS测量递推出MM测量
+  // 2.100ms一个，根据INS测量递推出MM测量
+  static double last_predict_mmmeas = 0;
   double now_ticktime = mm_ticktime;
   ins_deque_mutex_.lock();
   for (const auto& ins_node : ins_deque_) {
     if (ins_node->ticktime - now_ticktime > 0.1 &&
-        ins_node->ticktime > fusion_ticktime) {
+        ins_node->ticktime > fusion_ticktime &&
+        ins_node->ticktime - last_predict_mmmeas > 0.1) {
       auto node = std::make_shared<Node>(*ins_node);
       const auto& T_delta =
           Node2SE3(*ins_refer).inverse() * Node2SE3(*ins_node);
@@ -1026,12 +1056,14 @@ bool FusionCenter::PredictMMMeas() {
       node->type = NodeType::INS;
       meas_deque_.emplace_back(node);
       now_ticktime = ins_node->ticktime;
+      last_predict_mmmeas = ins_node->ticktime;
+      HLOG_ERROR << "INS predict MM successfully,last_predict_mmmeas:" << last_predict_mmmeas
+                 << ", meas_deque_.size():" << meas_deque_.size();
     }
   }
   ins_deque_mutex_.unlock();
 
   if (meas_deque_.size() > 0) {
-    HLOG_ERROR << "Success,meas_deque_.size():" << meas_deque_.size();
     return true;
   }
 

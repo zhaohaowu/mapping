@@ -92,6 +92,8 @@ struct MapMatchLaneLineParams {
   double max_length_offset;
   // lane curvature thresold
   double curvature_thresold;
+  // ins deque MAX size
+  int ins_deque_max_size;
 };
 
 extern MapMatchLaneLineParams mm_params;

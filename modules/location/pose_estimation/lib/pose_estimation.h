@@ -203,6 +203,7 @@ class MapMatching {
   std::shared_ptr<hozon::mp::loc::MapMatch> map_match_;
   // std::shared_ptr<Project> project;
 
+  std::mutex ref_point_mutex_;
   Eigen::Vector3d ref_point_;
   Eigen::Vector3d esti_ref_point_;
   Eigen::Vector3f _att;
@@ -261,6 +262,9 @@ class MapMatching {
   void pubOriginConnectMapPoints(const VP &points, uint64_t sec, uint64_t nsec);
   void setConnectMapPoints(const Connect &connect, const SE3 &T_W_V, VP &points); // NOLINT
   void pubConnectMapPoints(const VP &points, uint64_t sec, uint64_t nsec);
+  template <typename T>
+  void ShrinkQueue(T* const deque, uint32_t maxsize);
+
   adsfi_proto::viz::Marker laneToMarker(const VP &points, std::string id,
                                         bool is_points, bool is_center,
                                         float point_size = 1,
@@ -273,7 +277,8 @@ class MapMatching {
                                                int id);
   bool CheckLaneMatch(const SE3 &T_delta_cur);
   bool GetHdCurrLaneType(const Eigen::Vector3d& utm);
-
+  bool FindPecepINS(HafNodeInfo* now_ins);
+  bool ExtractInsMsg(HafNodeInfo* now_ins, SE3* T02_W_V_ins);
 
  private:
   int mm_err_type_;        // 用于接收map_match_lane_line中的故障
@@ -303,6 +308,13 @@ class MapMatching {
   Eigen::Vector3d fc_enu_pose_;
 
   std::mutex ins_mutex_;
+  std::mutex percep_stamp_mutex_;
+  double percep_stamp_ = -0.1;
+  std::mutex ins_deque_mutex_;
+  std::deque<HafNodeInfo> ins_deque_;
+  int ins_deque_max_size_;
+  std::mutex latest_ins_mutex_;
+  HafNodeInfo latest_ins_;
 
   adsfi_proto::viz::TransformStamped geo_tf_;
   adsfi_proto::viz::Path gnss_gcj02_path_;

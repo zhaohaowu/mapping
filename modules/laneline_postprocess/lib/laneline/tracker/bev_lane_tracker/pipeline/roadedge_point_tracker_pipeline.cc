@@ -165,8 +165,8 @@ bool RoadEdgePointFilterTrackerPipeline::Track(
 }
 
 void RoadEdgePointFilterTrackerPipeline::PostProcess() {
-  // set lane pose atrribute
-  // SetPoseAttribute();
+  // set roadedge pose atrribute
+  SetPoseAttribute();
 }
 
 void RoadEdgePointFilterTrackerPipeline::UpdateAssignedTracks(
@@ -295,6 +295,25 @@ RoadEdgePointFilterTrackerPipeline::GetAllLaneTarget() {
 
 std::string RoadEdgePointFilterTrackerPipeline::Name() const {
   return "RoadEdgePointFilterTrackerPipeline";
+}
+
+void RoadEdgePointFilterTrackerPipeline::SetPoseAttribute() {
+  const auto& lane_tracker_pipeline_param =
+      lane_post_process_param_.lane_tracker_pipeline_param();
+  float ref_min =
+      lane_tracker_pipeline_param.lane_pose_setter_param().ref_min();
+  float ref_length =
+      lane_tracker_pipeline_param.lane_pose_setter_param().ref_length();
+  int sample_num =
+      lane_tracker_pipeline_param.lane_pose_setter_param().sample_point_num();
+  std::vector<RoadEdgePtr> lane_lines;
+  PointLaneGatekeeperOptions options;
+  for (int i = 0; i < lane_trackers_.size(); ++i) {
+    RoadEdgeTargetConstPtr lane_target =
+        lane_trackers_[i]->GetConstLaneTarget();
+    lane_lines.push_back(lane_target->GetConstTrackedLaneLine());
+  }
+  SetLanePosition(ref_min, ref_length, sample_num, lane_lines);
 }
 
 }  // namespace environment

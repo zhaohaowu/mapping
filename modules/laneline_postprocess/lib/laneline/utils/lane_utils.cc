@@ -170,6 +170,57 @@ void SetLanePosition(
 
 void SetLanePosition(const float& ref_min, const float& ref_length,
                      const int& sample_num,
+                     const std::vector<RoadEdgePtr>& roadedges) {
+  std::vector<std::pair<int, float>> left_lane_index;
+  std::vector<std::pair<int, float>> right_lane_index;
+  int size = roadedges.size();
+  for (int i = 0; i < size; ++i) {
+    float d = 0.f;
+    auto& curve = roadedges[i]->vehicle_curve;
+    GetRefValueForLineCurve(curve, &d, ref_min, ref_length, sample_num);
+
+    if (d > 0) {
+      left_lane_index.push_back(std::pair<int, float>(i, d));
+    } else {
+      right_lane_index.push_back(std::pair<int, float>(i, d));
+    }
+  }
+  // left_lane: sort by decrease
+  std::sort(left_lane_index.begin(), left_lane_index.end(),
+            [](std::pair<int, float>& a, std::pair<int, float>& b) {
+              return a.second < b.second;
+            });
+  // right_lane: sort by increase
+  std::sort(right_lane_index.begin(), right_lane_index.end(),
+            [](std::pair<int, float>& a, std::pair<int, float>& b) {
+              return a.second > b.second;
+            });
+
+  // set left lane pos_type
+  for (int i = 0; i < left_lane_index.size(); ++i) {
+    int lane_index = left_lane_index[i].first;
+    int temp = 0 - i - 1;
+    if (kIndex2LanePosMap.count(temp) > 0) {
+      roadedges[lane_index]->position = kIndex2LanePosMap.at(temp);
+    } else {
+      roadedges[lane_index]->position = LaneLinePosition::FOURTH_LEFT;
+    }
+  }
+
+  // set right lane pos_type
+  for (int i = 0; i < right_lane_index.size(); ++i) {
+    int lane_index = right_lane_index[i].first;
+    int temp = i + 1;
+    if (kIndex2LanePosMap.count(temp) > 0) {
+      roadedges[lane_index]->position = kIndex2LanePosMap.at(temp);
+    } else {
+      roadedges[lane_index]->position = LaneLinePosition::FOURTH_RIGHT;
+    }
+  }
+}
+
+void SetLanePosition(const float& ref_min, const float& ref_length,
+                     const int& sample_num,
                      const std::vector<LaneLinePtr>& lane_lines) {
   std::vector<std::pair<int, float>> left_lane_index;
   std::vector<std::pair<int, float>> right_lane_index;

@@ -19,7 +19,7 @@
 #include "base/utils/log.h"
 #include "perception-base/base/measurement/laneline_measurement.h"
 #include "perception-base/base/scene/laneline.h"
-
+#include "perception-base/base/scene/roadedges.h"
 namespace hozon {
 namespace mp {
 namespace environment {
@@ -34,6 +34,8 @@ using hozon::perception::base::LaneLinePtr;
 using hozon::perception::base::LaneLineSceneType;
 using hozon::perception::base::Point2DF;
 using hozon::perception::base::Point3DF;
+using hozon::perception::base::RoadEdge;
+using hozon::perception::base::RoadEdgePtr;
 
 const std::map<int, LaneLinePosition> kIndex2LanePosMap = {
     {-99, LaneLinePosition::OTHER},        {1, LaneLinePosition::EGO_RIGHT},
@@ -172,6 +174,10 @@ void SetLanePosition(
 void SetLanePosition(const float& ref_min, const float& ref_length,
                      const int& sample_num,
                      const std::vector<LaneLinePtr>& lane_lines);
+
+void SetLanePosition(const float& ref_min, const float& ref_length,
+                     const int& sample_num,
+                     const std::vector<RoadEdgePtr>& roadedges);
 
 void GetCurvartureRadius(const std::vector<float>& coeffs, float input,
                          float* result);

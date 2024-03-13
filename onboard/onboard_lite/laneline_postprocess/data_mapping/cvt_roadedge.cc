@@ -124,6 +124,8 @@ bool DataMapping::CvtRoadEdgeToPb(
   pb_roadedge->set_confidence(roadedge_msg->confidence);
   hozon::perception::LanePositionType send_pos_type =
       CvtRoadEdgePosType(roadedge_msg->position);
+
+  // HLOG_INFO << "roadedge_msg->position" << int(roadedge_msg->position);
   pb_roadedge->set_lanepos(send_pos_type);
 
   if (roadedge_msg->point_set.size() != 0) {

@@ -61,6 +61,32 @@ static perception_base::RoadEdgeType CvtPb2RoadEdgeType(
   }
 }
 
+static hozon::perception::LanePositionType CvtRoadEdgePosType(
+    perception_base::LaneLinePosition type) {
+  switch (type) {
+    case perception_base::LaneLinePosition::OTHER:
+      return hozon::perception::LanePositionType::OTHER;
+    case perception_base::LaneLinePosition::FOURTH_LEFT:
+      return hozon::perception::LanePositionType::FOURTH_LEFT;
+    case perception_base::LaneLinePosition::THIRD_LEFT:
+      return hozon::perception::LanePositionType::THIRD_LEFT;
+    case perception_base::LaneLinePosition::ADJACENT_LEFT:
+      return hozon::perception::LanePositionType::ADJACENT_LEFT;
+    case perception_base::LaneLinePosition::EGO_LEFT:
+      return hozon::perception::LanePositionType::EGO_LEFT;
+    case perception_base::LaneLinePosition::EGO_RIGHT:
+      return hozon::perception::LanePositionType::EGO_RIGHT;
+    case perception_base::LaneLinePosition::ADJACENT_RIGHT:
+      return hozon::perception::LanePositionType::ADJACENT_RIGHT;
+    case perception_base::LaneLinePosition::THIRD_RIGHT:
+      return hozon::perception::LanePositionType::THIRD_RIGHT;
+    case perception_base::LaneLinePosition::FOURTH_RIGHT:
+      return hozon::perception::LanePositionType::FOURTH_RIGHT;
+    default:
+      return hozon::perception::LanePositionType::OTHER;
+  }
+}
+
 bool DataMapping::CvtMultiRoadEdgesToPb(
     const std::vector<perception_base::RoadEdgePtr>& roadedge_msgs,
     NetaTransportElementPtr pb_objects) {
@@ -96,6 +122,9 @@ bool DataMapping::CvtRoadEdgeToPb(
       CvtRoadEdgeType2Pb(roadedge_msg->type);
   pb_roadedge->set_type(send_type);
   pb_roadedge->set_confidence(roadedge_msg->confidence);
+  hozon::perception::LanePositionType send_pos_type =
+      CvtRoadEdgePosType(roadedge_msg->position);
+  pb_roadedge->set_lanepos(send_pos_type);
 
   if (roadedge_msg->point_set.size() != 0) {
     for (auto& item_pt : roadedge_msg->point_set) {

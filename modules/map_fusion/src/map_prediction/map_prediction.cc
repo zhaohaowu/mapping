@@ -427,8 +427,8 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
     return nullptr;
   }
 
-  double lane_length_forward = 0.;
-  double lane_length_backward = 0.;
+  double lane_length_forward = -nearest_s;
+  double lane_length_backward = nearest_s;
 
   int row_max = -1;
   int row_min = 0;

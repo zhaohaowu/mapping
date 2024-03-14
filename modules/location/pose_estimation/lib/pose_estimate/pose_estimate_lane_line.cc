@@ -713,6 +713,10 @@ void MatchLaneLine::LaneLineConnect(
           std::vector<double> function_coeffs;
           percep_lane_line_curve_fitting_.Fitting(perception_points, 3,
                                                   &function_coeffs);
+          if (function_coeffs.size() != 4) {
+            HLOG_ERROR << "Fitting failed!";
+            continue;
+          }
           static const double unusual_avg_curvature_thre = 0.019;
           static const double unusual_max_curvature_thre = 0.039;
           int i = 0;
@@ -877,7 +881,8 @@ void MatchLaneLine::LaneLineConnect(
 
 void MatchLaneLine::ComputeCurvature(const std::vector<double>& coeffs,
                                      const double x, double* curvature) {
-  if (curvature == NULL) {
+  if (curvature == NULL || coeffs.size() != 4) {
+    HLOG_ERROR << "ComputeCurvature failed!";
     return;
   }
   double c_0 = coeffs[0];

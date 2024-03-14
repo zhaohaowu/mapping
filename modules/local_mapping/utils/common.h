@@ -225,9 +225,6 @@ class CommonUtil {
 
   static void FitRoadEdges(std::vector<RoadEdge>* map_road_edges) {
     for (auto& road_edge : *map_road_edges) {
-      if (!road_edge.ismature_) {
-        continue;
-      }
       road_edge.fit_points_.clear();
       road_edge.control_points_.clear();
       int n = static_cast<int>(road_edge.points_.size());
@@ -245,7 +242,7 @@ class CommonUtil {
           back_pts.push_back(road_edge.points_[i]);
         }
       }
-      CommonUtil::EraseErrorPts(&pts);
+      // CommonUtil::EraseErrorPts(&pts);
       if (pts.size() < 4) {
         continue;
       }
@@ -261,6 +258,12 @@ class CommonUtil {
         road_edge.fit_points_.push_back(point);
       }
     }
+    map_road_edges->erase(
+        std::remove_if(map_road_edges->begin(), map_road_edges->end(),
+                       [&](const RoadEdge& road_edge) {
+                         return road_edge.fit_points_.empty();
+                       }),
+        map_road_edges->end());
   }
 
   static DrData Interpolate(const double& scale, const DrData& start,

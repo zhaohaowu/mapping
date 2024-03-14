@@ -85,6 +85,10 @@ void DataConvert::SetLaneLine(
     lane_line_tmp.c1_ = c[1];
     lane_line_tmp.c2_ = c[2];
     lane_line_tmp.c3_ = c[3];
+    if (fabs(lane_line_tmp.c0_) > 50 || fabs(lane_line_tmp.c1_) > 10 ||
+        fabs(lane_line_tmp.c2_) > 10) {
+      continue;
+    }
     lane_line_tmp.points_.clear();
     double x = lane_line_tmp.start_point_x_;
     while (x < lane_line_tmp.end_point_x_) {
@@ -131,6 +135,10 @@ void DataConvert::SetRoadEdge(
     road_edge_tmp.c1_ = c[1];
     road_edge_tmp.c2_ = c[2];
     road_edge_tmp.c3_ = c[3];
+    if (fabs(road_edge_tmp.c0_) > 50 || fabs(road_edge_tmp.c1_) > 10 ||
+        fabs(road_edge_tmp.c2_) > 10) {
+      continue;
+    }
     // lane_line_tmp.points_.clear();
     double x = road_edge_tmp.start_point_x_;
     while (x < road_edge_tmp.end_point_x_) {

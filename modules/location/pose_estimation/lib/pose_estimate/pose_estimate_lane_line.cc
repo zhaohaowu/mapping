@@ -659,7 +659,7 @@ void MatchLaneLine::Traversal(
       line_ids.pop_back();
     }
   } else {
-    HLOG_ERROR << "traversal loop: " << loop << " no sucsess";
+    HLOG_ERROR << "traversal loop: " << loop << " failed!";
   }
 }
 
@@ -671,6 +671,7 @@ void MatchLaneLine::LaneLineConnect(
   double min_match_x = mm_params.common_min_line_length;
   double max_match_x = mm_params.common_max_line_length;
   auto lane_lines = percep_->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE);
+  // PerceptionLaneLineFitting perceptionLaneLineFitting;
   for (auto& fil_line_list : percep_lanelines) {
     if (fil_line_list.size() == 0) {
       HLOG_ERROR << "fil_line_list.size() == 0";
@@ -682,7 +683,8 @@ void MatchLaneLine::LaneLineConnect(
         continue;
       }
       auto perception_points = perception_line->points();
-      if (perception_points.empty() || perception_points.size() < 2) {
+      auto perception_points_size = perception_points.size();
+      if (perception_points_size < 2) {
         continue;
       }
       double weight = 1.f;
@@ -708,7 +710,36 @@ void MatchLaneLine::LaneLineConnect(
           MatchMapLine tmp_MatchMapLine;
           tmp_MatchMapLine.map_id = map_line_id;
           tmp_MatchMapLine.flag = true;
-          for (int i = 0; i < perception_points.size(); ++i) {
+          std::vector<double> function_coeffs;
+          percep_lane_line_curve_fitting_.Fitting(perception_points, 3,
+                                                  &function_coeffs);
+          static const double unusual_avg_curvature_thre = 0.019;
+          static const double unusual_max_curvature_thre = 0.039;
+          int i = 0;
+          for (auto& coeff : function_coeffs) {
+            HLOG_ERROR << "timestamp: " << ins_timestamp_ << ", coeff[" << i++
+                     << "] : " << coeff;
+          }
+          double sum_curvature = 0.f;
+          double max_curvature = 0.f;
+          for (int i = 0; i < perception_points_size; ++i) {
+            double point_curvature = 0.f;
+            ComputeCurvature(function_coeffs, perception_points[i].x(),
+                             &point_curvature);
+            // HLOG_DEBUG << "timestamp: " << ins_timestamp_ << ",
+            // point_curvature: " << point_curvature;
+            sum_curvature += point_curvature;
+            max_curvature = std::max(max_curvature, point_curvature);
+          }
+          double avg_curvature = sum_curvature / perception_points_size;
+          HLOG_ERROR << "timestamp: " << ins_timestamp_ << ", avg_curvature:" << avg_curvature
+                     << ", bigest_curvature: " << max_curvature;
+          if (avg_curvature > unusual_avg_curvature_thre && max_curvature > unusual_max_curvature_thre) {
+            max_match_x -= mm_params.max_length_offset;
+            HLOG_ERROR << "timestamp: " << ins_timestamp_
+                       << ", big curvature!!!, max_match_x: " << max_match_x;
+          }
+          for (int i = 0; i < perception_points_size; ++i) {
             V3 pt{0, 0, 0};
             if (perception_points[i].x() < min_match_x ||
                 perception_points[i].x() > max_match_x) {
@@ -743,9 +774,9 @@ void MatchLaneLine::LaneLineConnect(
     for (auto& tmp_match_mapline : match_mapline_cache) {
       int lanepose = tmp_match_mapline.first;  // perception line
       auto& candidate_match_lines = tmp_match_mapline.second;  // map lines
-      for (auto map_line : candidate_match_lines) {
-        HLOG_DEBUG << "tmp_map_line id: " << map_line.map_id;
-      }
+      // for (auto map_line : candidate_match_lines) {
+      //   HLOG_DEBUG << "tmp_map_line id: " << map_line.map_id;
+      // }
       if (candidate_match_lines.size() >= 2) {
         int left = lanepose == 1 ? lanepose - 2 : lanepose - 1;
         int right = lanepose == -1 ? lanepose + 2 : lanepose + 1;
@@ -821,7 +852,7 @@ void MatchLaneLine::LaneLineConnect(
         if (!candidate_match_lines[i].flag) {
           continue;
         }
-        for (auto match_pair : candidate_match_lines[i].match_pairs) {
+        for (auto& match_pair : candidate_match_lines[i].match_pairs) {
           auto map_v = T_V_W_ * match_pair.map_pw;
           HLOG_DEBUG << "timestamp," << ins_timestamp_ << ","
                      << "after matched map point," << map_v.x() << ","
@@ -835,13 +866,28 @@ void MatchLaneLine::LaneLineConnect(
           }
           match_pairs_.emplace_back(match_pair);
         }
-        HLOG_ERROR << "LaneLineConnect | percep line: " << lanepose
+        HLOG_DEBUG << "LaneLineConnect | percep line: " << lanepose
                    << ", map line: " << candidate_match_lines[i].map_id;
       }
     }
     origin_match_pairs_ = match_pairs_;
   }
   HLOG_DEBUG << "match_pairs_ size: " << match_pairs_.size();
+}
+
+void MatchLaneLine::ComputeCurvature(const std::vector<double>& coeffs,
+                                     const double x, double* curvature) {
+  if (curvature == NULL) {
+    return;
+  }
+  double c_0 = coeffs[0];
+  double c_1 = coeffs[1];
+  double c_2 = coeffs[2];
+  double c_3 = coeffs[3];
+  auto second_derivative = 2 * c_2 + 6 * c_3 * x;
+  auto first_derivative = c_1 + 2 * c_2 * x + 3 * c_3 * x * x;
+  double a = 1 + std::pow(first_derivative, 2);
+  *curvature = fabs(second_derivative) / std::pow(a, (3.0 / 2.0));
 }
 
 std::pair<double, double> MatchLaneLine::CmpWidth(
@@ -886,7 +932,7 @@ bool MatchLaneLine::GetFitPoints(const VP& points, const double x, V3* pt) {
       points.begin(), points.end(), V3({x, 0, 0}),
       [](const V3& p0, const V3& p1) { return p0(0, 0) < p1(0, 0); });
   if (iter == points.end() || iter == points.begin()) {
-    HLOG_ERROR << "can not find point";
+    HLOG_ERROR << "can not find percep point";
     return false;
   }
   auto iter_pre = std::prev(iter);
@@ -911,7 +957,7 @@ bool MatchLaneLine::GetFitMapPoints(const std::vector<ControlPoint>& points,
                          return p0.point(0, 0) < p1.point(0, 0);
                        });
   if (iter == points.end() || iter == points.begin()) {
-    HLOG_ERROR << "can not find point";
+    HLOG_ERROR << "can not find map point";
     return false;
   }
   auto iter_pre = std::prev(iter);

@@ -31,11 +31,8 @@ class DrFusionLite : public hozon::netaos::adf_lite::Executor {
   void AlgRelease() override;
 
  private:
-  // recieve in-process data and interprocess data
-  int32_t send_dr(Bundle* input);
   // send in-process data and interprocess data
   int32_t receive_dr(Bundle* input);
-  int32_t receive_ins_fusion(Bundle* input);
   int32_t OnRunningMode(Bundle* input);
 
  private:

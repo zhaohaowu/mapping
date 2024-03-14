@@ -18,6 +18,7 @@
 
 #include "modules/location/pose_estimation/lib/hd_map/hd_map.h"
 #include "modules/location/pose_estimation/lib/perception/perception.h"
+#include "modules/location/pose_estimation/lib/perception/perception_lane_line_fitting.h"
 #include "modules/location/pose_estimation/lib/pose_estimate/frechet_distance.h"
 #include "modules/location/pose_estimation/lib/pose_estimate/pose_estimate_base.h"
 #include "modules/location/pose_estimation/lib/util/globals.h"
@@ -44,7 +45,7 @@ class MatchLaneLine {
    * @return
    */
   void Match(const HdMap& hd_map, const std::shared_ptr<Perception>& perception,
-             const SE3& T_W_V, const SE3 &T_fc);
+             const SE3& T_W_V, const SE3& T_fc);
 
   /**
    * @brief check the solve result
@@ -130,9 +131,9 @@ class MatchLaneLine {
                       const LaneLinePerceptionPtr& pecep,
                       const double& min_match_x, const double& max_match_x,
                       const double& sample_interval, const bool& is_good_check);
-  void CheckIsGoodMatchFCbyLine(const SE3 &T_fc);
-  void CalLinesMinDist(const LaneLinePerceptionPtr &percep, const SE3 &T_fc,
-                       double *const near, double *const far);
+  void CheckIsGoodMatchFCbyLine(const SE3& T_fc);
+  void CalLinesMinDist(const LaneLinePerceptionPtr& percep, const SE3& T_fc,
+                       double* const near, double* const far);
 
   static bool SortPairByX(const PointMatchPair& pair1,
                           const PointMatchPair& pair2) {
@@ -153,7 +154,8 @@ class MatchLaneLine {
   bool GetNeighboringMapLines(
       const VP& target_perception_line_points,
       const std::unordered_map<std::string, std::vector<ControlPoint>>&
-      map_points_cache, const double max_dis, const double min_dis,
+          map_points_cache,
+      const double max_dis, const double min_dis,
       std::vector<std::pair<V3, std::string>>* nearest_line_match_pairs,
       std::vector<std::pair<V3, std::string>>* farest_line_match_pairs);
   void FilterPointPair(std::vector<PointMatchPair>* match_pairs, const SE3& T);
@@ -225,7 +227,8 @@ class MatchLaneLine {
    * @return true : get the fit pints; false : do not get the fit points
    */
   bool GetFitPoints(const VP& control_poins, const double x, V3* pt);
-  bool GetFcFitPoints(const VP &control_poins, const double x, V3* pt, const SE3 &T_W_V);
+  bool GetFcFitPoints(const VP& control_poins, const double x, V3* pt,
+                      const SE3& T_W_V);
   bool GetPerceFitPoints(const VP& points, const double x, V3* pt);
 
   bool GetFitMapPoints(const std::vector<ControlPoint>& control_poins,
@@ -306,6 +309,8 @@ class MatchLaneLine {
                                size_t* right_pairs_count,
                                bool* adjust_left_pairs_weight,
                                bool* adjust_right_pairs_weight);
+  void ComputeCurvature(const std::vector<double>& coeffs, const double x,
+                        double* curvature);
 
  public:
   V3 anchor_pt0_{2.0, 0.0, 0.0};
@@ -327,6 +332,7 @@ class MatchLaneLine {
   bool is_good_match_;
   SE3 T_W_V_;
   SE3 T_V_W_;
+  PerceptionLaneLineFitting percep_lane_line_curve_fitting_;
   typedef std::pair<std::string, V3>
       LineSegment;  // LineSegment: {id, end_point}
 
@@ -352,7 +358,8 @@ class MatchLaneLine {
   std::vector<std::string> linked_line_;
   std::vector<std::string> copy_linked_line_;
   std::unordered_map<std::string, std::vector<ControlPoint>> merged_map_lines_;
-  std::unordered_map<std::string, std::vector<ControlPoint>> merged_fcmap_lines_;
+  std::unordered_map<std::string, std::vector<ControlPoint>>
+      merged_fcmap_lines_;
 };
 
 }  // namespace loc

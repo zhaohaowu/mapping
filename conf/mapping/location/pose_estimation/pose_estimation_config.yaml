@@ -115,6 +115,6 @@ max_lane_width_check_thre: 0.35
 common_max_line_length: 50.0
 common_min_line_length: 2.0
 
-max_length_offset: 30.0
+max_length_offset: 20.0
 
 curvature_thresold: 0.05

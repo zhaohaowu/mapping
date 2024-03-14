@@ -147,6 +147,12 @@ void FusionCenter::OnDR(const HafNodeInfo& dr) {
   }
   // seq not used on orin
   if (dr.header().seq() <= prev_raw_dr_.header().seq()) {
+    HLOG_ERROR << "error,seq:\n" << dr.header().seq();
+    return;
+  }
+  if (dr.header().data_stamp() <= prev_raw_dr_.header().data_stamp()) {
+    HLOG_ERROR << "error,data_stamp:\n"
+               << dr.header().data_stamp();
     return;
   }
   prev_raw_dr_ = dr;

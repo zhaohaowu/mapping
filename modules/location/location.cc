@@ -62,7 +62,7 @@ bool Localization::Init() {
 }
 
 void Localization::OnDr(const hozon::dead_reckoning::DeadReckoning& dr) {
-  dr_fusion_->OnDr(dr);
+  // dr_fusion_->OnDr(dr);
   DrFusionPoseProcess(1);
 }
 
@@ -72,11 +72,6 @@ void Localization::OnOriginIns(const hozon::soc::ImuIns& origin_ins) {
   if (!flag) {
     return;
   }
-
-  dr_fusion_->OnInsFusion(ins_fusion_ret);
-  DrFusionPoseProcess(2);
-
-  fc_->OnIns(ins_fusion_ret);
 }
 
 void Localization::OnInspva(
@@ -103,18 +98,6 @@ void Localization::OnLocalMap(const hozon::mapping::LocalMap& local_map) {
 }
 
 void Localization::DrFusionPoseProcess(int dr_state) {
-  const int real_dr_state = dr_fusion_->DrFusionState();
-  if (real_dr_state != dr_state) {
-    return;
-  }
-
-  hozon::localization::HafNodeInfo dr_fusion_ret;
-  if (!dr_fusion_->GetResult(&dr_fusion_ret)) {
-    return;
-  }
-
-  coord_adapter_->OnDrFusion(dr_fusion_ret);
-  fc_->OnDR(dr_fusion_ret);
 }
 
 bool Localization::GetCurrentLocalization(

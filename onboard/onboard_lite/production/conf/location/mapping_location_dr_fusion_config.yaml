@@ -7,8 +7,6 @@ executorName: DrFusionLite
 input:
   - topic: dr
     capacity: 2
-  - topic: /location/ins_fusion
-    capacity: 2
   - topic: running_mode 
     capacity: 2
 
@@ -16,14 +14,6 @@ output:
   - topic: /location/dr_fusion
 
 trigger:
-  - name: send_dr_proc
-    type: PERIOD
-    period: 10
-  - name: receive_ins_fusion
-    type: EVENT
-    mainSources:
-      - name: /location/ins_fusion
-        timeout: 100
   - name: receive_dr
     type: EVENT
     mainSources:

@@ -48,9 +48,9 @@ struct MapMatchLaneLineParams {
   double map_lane_match_ser_max;
   int map_lane_match_ser_buff;
   double near_dis;
-  double last_dis;
-  double last_straight_dis;
-  double last_curve_dis;
+  double far_dis;
+  double straight_far_dis;
+  double curve_far_dis;
   // double curvature_thr;
   double line_error_normal_thr = 0.05;
   // 125fault

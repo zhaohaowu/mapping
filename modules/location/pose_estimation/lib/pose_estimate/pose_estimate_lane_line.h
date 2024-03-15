@@ -133,7 +133,8 @@ class MatchLaneLine {
                       const double& sample_interval, const bool& is_good_check);
   void CheckIsGoodMatchFCbyLine(const SE3& T_fc);
   void CalLinesMinDist(const LaneLinePerceptionPtr& percep, const SE3& T_fc,
-                       double* const near, double* const far);
+                       double* const near, double* const far,
+                       const double& far_dis);
 
   static bool SortPairByX(const PointMatchPair& pair1,
                           const PointMatchPair& pair2) {
@@ -292,13 +293,13 @@ class MatchLaneLine {
    * @param T_fc : fc output pose
    * @param near : nearest distance
    * @param far : farest distance
-   * @param last_dis : last distance
+   * @param far_dis : last distance
    *
    * @return
    */
   // void CalLinesMinDist(const LaneLinePerceptionPtr& percep, const SE3& T_fc,
   //                      double* const near, double* const far,
-  //                      const double& last_dis);
+  //                      const double& far_dis);
   void Traversal(const std::map<V3, std::vector<std::pair<std::string, V3>>,
                                 PointV3Comp<V3>>& lines,
                  const V3& root_start_point,
@@ -350,6 +351,7 @@ class MatchLaneLine {
   };
 
  private:
+  bool big_curvature_ = false;
   std::shared_ptr<hozon::mp::loc::FrechetDistance3D> frechet_distance3D_ =
       nullptr;
   std::unordered_set<std::string> visited_id_;

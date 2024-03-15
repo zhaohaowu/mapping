@@ -34,6 +34,7 @@ bool MapMatching::Init(const std::string& config_file,
   max_frame_buf_ = config["max_frame_buf"].as<int>();
   use_smooth_ = config["use_smooth"].as<bool>();
   ins_deque_max_size_ = config["ins_deque_max_size"].as<int>();
+  fc_deque_max_size_ = config["fc_deque_max_size"].as<int>();
 
   // global fault
   mm_params.use_map_lane_match_fault =
@@ -45,9 +46,8 @@ bool MapMatching::Init(const std::string& config_file,
   mm_params.map_lane_match_ser_buff =
       config["map_lane_match_ser_buff"].as<int>();
   mm_params.near_dis = config["near_dis"].as<double>();
-  mm_params.last_dis = config["last_dis"].as<double>();
-  mm_params.last_straight_dis = config["last_straight_dis"].as<double>();
-  mm_params.last_curve_dis = config["last_curve_dis"].as<double>();
+  mm_params.straight_far_dis = config["straight_far_dis"].as<double>();
+  mm_params.curve_far_dis = config["curve_far_dis"].as<double>();
   // mm_params.curvature_thr = config["curvature_thr"].as<double>();
   mm_params.use_fc_offset_onelane_fault =
       config["use_fc_offset_onelane_fault"].as<bool>();
@@ -510,6 +510,12 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
     HLOG_ERROR << "info.location_state() : " << info.location_state();
   }
 
+  {
+    std::unique_lock<std::mutex> lock(fc_deque_mutex_);
+    fc_deque_.emplace_back(info);
+    ShrinkQueue(&fc_deque_, fc_deque_max_size_);
+  }
+
   static double time = -1;
   uint64_t fc_sec = uint64_t(info.header().data_stamp());
   uint64_t fc_nsec = uint64_t((info.header().data_stamp() - fc_sec) * 1e9);
@@ -583,6 +589,37 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
     text_marker.mutable_scale()->set_z(0.8);
 
     hozon::mp::util::RvizAgent::Instance().Publish(kTopicLocstate, text_marker);
+  }
+}
+
+bool MapMatching::FindPecepFC(hozon::localization::Localization* cur_fc) {
+  // 时间戳同步:使用将mm时间戳对齐至fc时间戳
+  percep_stamp_mutex_.lock();
+  double percep_stamp = percep_stamp_;
+  percep_stamp_mutex_.unlock();
+
+  std::unique_lock<std::mutex> lock(fc_deque_mutex_);
+  auto it = fc_deque_.rbegin();
+  for (; it != fc_deque_.rend(); ++it) {
+    if ((*it).header().data_stamp() <= percep_stamp) {
+      break;
+    }
+  }
+  if (it == fc_deque_.rend()) {
+    HLOG_ERROR << "Not find fc node in FC deque,error!";
+    return false;
+  } else if (it == fc_deque_.rbegin()) {
+    *cur_fc = *it;
+    return true;
+  } else {
+    auto it_next = std::prev(it);
+    if (abs(percep_stamp - (*it).header().data_stamp()) <=
+        abs(percep_stamp - (*it_next).header().data_stamp())) {
+      *cur_fc = *it;
+    } else {
+      *cur_fc = *it_next;
+    }
+    return true;
   }
 }
 
@@ -664,7 +701,11 @@ void MapMatching::procData() {
   Sophus::SE3d T02_W_VF = T02_W_V, _T_W_V_fine = T02_W_V;
   hozon::mp::loc::Connect connect;
   hozon::mp::loc::Connect origin_connect;
-
+  hozon::localization::Localization cur_fc;
+  if (!FindPecepFC(&cur_fc)) {
+    HLOG_ERROR << "Dont find fc when use perception line to find fc deque";
+    return;
+  }
   time_.evaluate(
       [&, this] {
         map_match_->SetInsTs(input_stamp);

@@ -129,11 +129,11 @@ void MatchLaneLine::Match(const HdMap& hd_map,
   }
   invalid_pecep_duration = 0;
   invalid_map_duration = 0;
+  LaneLineConnect(percep_lanelines_, merged_map_lines_);
   // 130 fault
   if (mm_params.use_map_lane_match_fault) {
     CheckIsGoodMatchFCbyLine(T_fc);
   }
-  LaneLineConnect(percep_lanelines_, merged_map_lines_);
   FilterPointPair(&match_pairs_, T_W_V_);
   HLOG_DEBUG << "after filter match_pairs size: " << match_pairs_.size();
   bool adjust_left_pairs_weight = false;
@@ -177,12 +177,23 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& T_fc) {
   double left_dist_far_v = 0.0;
   double right_dist_near_v = 0.0;
   double right_dist_far_v = 0.0;
+  double far_dis = 0.0;
   for (auto& line : fil_line_list) {
     if (line->lane_position_type() == -1) {
-      CalLinesMinDist(line, T_fc, &left_dist_near_v, &left_dist_far_v);
+      if (big_curvature_) {
+        far_dis = mm_params.curve_far_dis;
+      } else {
+        far_dis = mm_params.straight_far_dis;
+      }
+      CalLinesMinDist(line, T_fc, &left_dist_near_v, &left_dist_far_v, far_dis);
     }
     if (line->lane_position_type() == 1) {
-      CalLinesMinDist(line, T_fc, &right_dist_near_v, &right_dist_far_v);
+      if (big_curvature_) {
+        far_dis = mm_params.curve_far_dis;
+      } else {
+        far_dis = mm_params.straight_far_dis;
+      }
+      CalLinesMinDist(line, T_fc, &right_dist_near_v, &right_dist_far_v, far_dis);
     }
   }
   HLOG_ERROR << "left_dist_near_v = " << left_dist_near_v
@@ -241,16 +252,16 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& T_fc) {
 
 void MatchLaneLine::CalLinesMinDist(const LaneLinePerceptionPtr& percep,
                                     const SE3& T_fc, double* const near,
-                                    double* const far) {
+                                    double* const far, const double& far_dis) {
   if (!percep || !near || !far) {
     return;
   }
   double min_y_near = DOUBLE_MAX;
   double min_y_far = DOUBLE_MAX;
   V3 anchor_pt0(mm_params.near_dis, 0, 0);
-  V3 anchor_pt1(mm_params.last_dis, 0, 0);
+  V3 anchor_pt1(far_dis, 0, 0);
   V3 anchor_pt2(mm_params.near_dis, 0, 0);
-  V3 anchor_pt3(mm_params.last_dis, 0, 0);
+  V3 anchor_pt3(far_dis, 0, 0);
   for (const auto& map_line : merged_fcmap_lines_) {
     const auto line_idx = map_line.first;
     std::vector<V3> map_points;
@@ -259,6 +270,7 @@ void MatchLaneLine::CalLinesMinDist(const LaneLinePerceptionPtr& percep,
       map_points.emplace_back(control_point.point);
     }
     for (auto& point : percep->points()) {
+      // HLOG_ERROR << "points" << point.x() << "  " << point.y();
       perce_points.emplace_back(point);
     }
     V3 v_p_near(0, 0, 0);
@@ -667,6 +679,7 @@ void MatchLaneLine::LaneLineConnect(
     const std::list<std::list<LaneLinePerceptionPtr>>& percep_lanelines,
     const std::unordered_map<std::string, std::vector<ControlPoint>>&
         boundary_lines) {
+  big_curvature_ = false;
   static const double y_dist_thres = 1.f;
   double min_match_x = mm_params.common_min_line_length;
   double max_match_x = mm_params.common_max_line_length;
@@ -739,6 +752,7 @@ void MatchLaneLine::LaneLineConnect(
           HLOG_ERROR << "timestamp: " << ins_timestamp_ << ", avg_curvature:" << avg_curvature
                      << ", bigest_curvature: " << max_curvature;
           if (avg_curvature > unusual_avg_curvature_thre && max_curvature > unusual_max_curvature_thre) {
+            big_curvature_ = true;
             max_match_x -= mm_params.max_length_offset;
             HLOG_ERROR << "timestamp: " << ins_timestamp_
                        << ", big curvature!!!, max_match_x: " << max_match_x;

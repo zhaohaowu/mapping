@@ -17,6 +17,7 @@ node_info_topic: "/mapping/location/pose_estimate"
 ins_topic: "/mapping/location/ins"
 # deque size
 ins_deque_max_size: 500
+fc_deque_max_size: 500
 
 # fault diagnosis
 # Fault Switch
@@ -33,9 +34,8 @@ map_lane_match_buff: 20         # 超过buff次就上报故障
 map_lane_match_ser_max: 0.8     # 阈值2
 map_lane_match_ser_buff: 5
 near_dis: 2                     # 近段点距离
-last_dis: 10                    # 远段点距离
-last_straight_dis: 20           # 直道远段点距离
-last_curve_dis: 8               # 匝道远段点距离
+straight_far_dis: 25           # 直道远段点距离
+curve_far_dis: 12               # 匝道远段点距离
 curvature_thr: 0.0005           # 感知车道线曲率阈值
 ##valid_estimate_last_fault
 valid_estimate_last_buff: 100   # 持续valid_estimate_buff_* 0.033s

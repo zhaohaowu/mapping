@@ -278,6 +278,7 @@ class MapMatching {
   bool CheckLaneMatch(const SE3 &T_delta_cur);
   bool GetHdCurrLaneType(const Eigen::Vector3d& utm);
   bool FindPecepINS(HafNodeInfo* now_ins);
+  bool FindPecepFC(hozon::localization::Localization* cur_fc);
   bool ExtractInsMsg(HafNodeInfo* now_ins, SE3* T02_W_V_ins);
 
  private:
@@ -311,8 +312,11 @@ class MapMatching {
   std::mutex percep_stamp_mutex_;
   double percep_stamp_ = -0.1;
   std::mutex ins_deque_mutex_;
+  std::mutex fc_deque_mutex_;
   std::deque<HafNodeInfo> ins_deque_;
+  std::deque<hozon::localization::Localization> fc_deque_;
   int ins_deque_max_size_;
+  int fc_deque_max_size_;
   std::mutex latest_ins_mutex_;
   HafNodeInfo latest_ins_;
 

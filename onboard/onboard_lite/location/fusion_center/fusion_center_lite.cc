@@ -98,7 +98,6 @@ void FusionCenterLite::RegistProcessFunc() {
 int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   static bool input_data_init_error_flag = false;
-  static bool input_data_value_error_flag = false;
   if (!input) {
     return -1;
   }
@@ -132,6 +131,30 @@ int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
   }
 
   fusion_center_->OnIns(*ins_fusion);
+  return 0;
+}
+
+int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
+  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+  static bool input_data_value_error_flag = false;
+  if (!input) {
+    return -1;
+  }
+  auto p_dr_fusion = input->GetOne(kDrFusionTopic);
+  if (!p_dr_fusion) {
+    return -1;
+  }
+  const auto dr_fusion =
+      std::static_pointer_cast<hozon::localization::HafNodeInfo>(
+          p_dr_fusion->proto_msg);
+  if (!dr_fusion) {
+    return -1;
+  }
+  if (!coord_adapter_->IsCoordInitSucc()) {
+    fusion_center_->OnInitDR(*dr_fusion);
+    coord_adapter_->OnDrFusion(*dr_fusion);
+  }
+  fusion_center_->OnDR(*dr_fusion);
 
   // send output
   auto localization = std::make_shared<hozon::localization::Localization>();
@@ -170,28 +193,6 @@ int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
       std::make_shared<hozon::netaos::adf_lite::BaseData>();
   localization_pack->proto_msg = localization;
   SendOutput(kFcTopic, localization_pack);
-  return 0;
-}
-
-int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
-  if (!input) {
-    return -1;
-  }
-  auto p_dr_fusion = input->GetOne(kDrFusionTopic);
-  if (!p_dr_fusion) {
-    return -1;
-  }
-  const auto dr_fusion =
-      std::static_pointer_cast<hozon::localization::HafNodeInfo>(
-          p_dr_fusion->proto_msg);
-  if (!dr_fusion) {
-    return -1;
-  }
-  if (!coord_adapter_->IsCoordInitSucc()) {
-    fusion_center_->OnInitDR(*dr_fusion);
-    coord_adapter_->OnDrFusion(*dr_fusion);
-  }
-  fusion_center_->OnDR(*dr_fusion);
 
   return 0;
 }

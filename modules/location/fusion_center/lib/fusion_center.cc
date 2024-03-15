@@ -7,7 +7,9 @@
 
 #include "modules/location/fusion_center/lib/fusion_center.h"
 #include <yaml-cpp/yaml.h>
+
 #include <chrono>
+
 #include <boost/filesystem.hpp>
 
 #include "modules/location/common/data_verify.h"
@@ -15,7 +17,6 @@
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
-
 
 namespace hozon {
 namespace mp {
@@ -151,8 +152,7 @@ void FusionCenter::OnDR(const HafNodeInfo& dr) {
     return;
   }
   if (dr.header().data_stamp() <= prev_raw_dr_.header().data_stamp()) {
-    HLOG_ERROR << "error,data_stamp:\n"
-               << dr.header().data_stamp();
+    HLOG_ERROR << "error,data_stamp:\n" << dr.header().data_stamp();
     return;
   }
   prev_raw_dr_ = dr;
@@ -346,7 +346,8 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
     const auto gps_status = init_status["gps_status"].as<uint32_t>();
     params_.ins_init_status.emplace_back(sys_status, gps_status);
   }
-  params_.lateral_error_compensation =  node["lateral_error_compensation"].as<bool>();
+  params_.lateral_error_compensation =
+      node["lateral_error_compensation"].as<bool>();
   return true;
 }
 
@@ -366,7 +367,8 @@ bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
   }
 
   const auto& mq = msg.quaternion();
-  if (std::isnan(mq.w()) || std::isnan(mq.x()) || std::isnan(mq.y()) || std::isnan(mq.z())) {
+  if (std::isnan(mq.w()) || std::isnan(mq.x()) || std::isnan(mq.y()) ||
+      std::isnan(mq.z())) {
     HLOG_WARN << "quaternion is nan";
     return false;
   }
@@ -468,7 +470,7 @@ void FusionCenter::PruneDeques() {
   while (fusion_deque_.size() > params_.window_size) {
     fusion_deque_.pop_front();
   }
-  const double ticktime = fusion_deque_.front()->ticktime -3.0;
+  const double ticktime = fusion_deque_.front()->ticktime - 3.0;
   fusion_deque_mutex_.unlock();
 
   ins_deque_mutex_.lock();
@@ -659,8 +661,8 @@ void FusionCenter::Node2Localization(const Context& ctx,
 
   // set laneid
   // temp close getting lane_id
-  // const std::string laneid = GetHdCurrLaneId(curr_utm, ConvertHeading(heading));
-  // location->set_laneid(laneid);
+  // const std::string laneid = GetHdCurrLaneId(curr_utm,
+  // ConvertHeading(heading)); location->set_laneid(laneid);
 
   pose->mutable_linear_acceleration_raw_vrf()->set_x(
       imu.imuvb_linear_acceleration().x());
@@ -716,6 +718,15 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose_local->mutable_position()->set_x(local_node.enu(0));
   pose_local->mutable_position()->set_y(local_node.enu(1));
   pose_local->mutable_position()->set_z(local_node.enu(2));
+
+  pose_local->mutable_linear_velocity()->set_x(local_node.velocity(0));
+  pose_local->mutable_linear_velocity()->set_y(local_node.velocity(1));
+  pose_local->mutable_linear_velocity()->set_z(local_node.velocity(2));
+
+  pose_local->mutable_angular_velocity()->set_x(local_node.angular_velocity(0));
+  pose_local->mutable_angular_velocity()->set_y(local_node.angular_velocity(1));
+  pose_local->mutable_angular_velocity()->set_z(local_node.angular_velocity(2));
+
   pose_local->set_local_heading(local_heading);
 
   Eigen::Matrix<float, 6, 1> diag;
@@ -762,7 +773,6 @@ bool FusionCenter::IsInterpolable(const std::shared_ptr<Node>& n1,
 
   return (dis_delta < dis_tol && ang_delta < ang_tol && time_delta < time_tol);
 }
-
 
 bool FusionCenter::Interpolate(double ticktime,
                                const std::deque<std::shared_ptr<Node>>& d,
@@ -983,7 +993,8 @@ bool FusionCenter::GenerateNewESKFMeas() {
           meas_flag = true;
         }
       }
-      HLOG_DEBUG << "No MM measurement,insert INS meas. time_diff:" << time_diff;
+      HLOG_DEBUG << "No MM measurement,insert INS meas. time_diff:"
+                 << time_diff;
     }
   }
   ShrinkQueue(&lateral_error_compensation_, 10);
@@ -1063,7 +1074,8 @@ bool FusionCenter::PredictMMMeas() {
       meas_deque_.emplace_back(node);
       now_ticktime = ins_node->ticktime;
       last_predict_mmmeas = ins_node->ticktime;
-      HLOG_ERROR << "INS predict MM successfully,last_predict_mmmeas:" << last_predict_mmmeas
+      HLOG_ERROR << "INS predict MM successfully,last_predict_mmmeas:"
+                 << last_predict_mmmeas
                  << ", meas_deque_.size():" << meas_deque_.size();
     }
   }
@@ -1085,7 +1097,7 @@ void FusionCenter::InsertESKFFusionNode(const Node& node) {
   *new_node = node;
   fusion_deque_mutex_.lock();
   const Sophus::SO3d& rot = Sophus::SO3d::exp(new_node->orientation);
-    Eigen::Vector3d euler = Rot2Euler312(rot.matrix());
+  Eigen::Vector3d euler = Rot2Euler312(rot.matrix());
   euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
   new_node->heading = euler.z() / M_PI * 180;
   fusion_deque_.emplace_back(new_node);
@@ -1094,14 +1106,15 @@ void FusionCenter::InsertESKFFusionNode(const Node& node) {
 
 void FusionCenter::RunESKFFusion() {
   HLOG_DEBUG << "-------eskf前-------"
-            << "pre_deque_.size():" << pre_deque_.size()
-            << ", meas_deque_.size():" << meas_deque_.size()
-            << ", meas_type:" << meas_deque_.back()->type;
+             << "pre_deque_.size():" << pre_deque_.size()
+             << ", meas_deque_.size():" << meas_deque_.size()
+             << ", meas_type:" << meas_deque_.back()->type;
 
   // eskf开始
   fusion_deque_mutex_.lock();
   eskf_->StateInit(fusion_deque_.back());
-  HLOG_DEBUG << "-------eskf前------- fusion_deque.size():" << fusion_deque_.size();
+  HLOG_DEBUG << "-------eskf前------- fusion_deque.size():"
+             << fusion_deque_.size();
   fusion_deque_mutex_.unlock();
   while (!pre_deque_.empty() && !meas_deque_.empty()) {
     Node meas_node, predict_node;
@@ -1141,9 +1154,9 @@ void FusionCenter::RunESKFFusion() {
   can_output_ = true;
 
   HLOG_DEBUG << "-------eskf后-------"
-            << "pre_deque_.size():" << pre_deque_.size()
-            << ", meas_deque_.size():" << meas_deque_.size()
-            << ", meas_type:" << meas_deque_.back()->type;
+             << "pre_deque_.size():" << pre_deque_.size()
+             << ", meas_deque_.size():" << meas_deque_.size()
+             << ", meas_type:" << meas_deque_.back()->type;
 }
 
 Node FusionCenter::State2Node(const State& state) {
@@ -1159,7 +1172,7 @@ Node FusionCenter::State2Node(const State& state) {
   node.b_a = state.b_a;
   node.quaternion = state.R.unit_quaternion();
   node.orientation = state.R.log();
-  node.blh =  hmu::Geo::EnuToBlh(node.enu, node.refpoint);
+  node.blh = hmu::Geo::EnuToBlh(node.enu, node.refpoint);
 
   node.sys_status = state.sys_status;
   node.rtk_status = state.rtk_status;

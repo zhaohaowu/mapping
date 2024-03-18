@@ -128,7 +128,7 @@ int MapFusion::ProcFusion(
   util::TicToc local_tic;
   std::shared_ptr<hozon::hdmap::Map> map;
   if (!FLAGS_output_hd_map) {
-    map_table_->OnLocalization(curr_loc);
+    map_table_->OnLocalization(curr_loc, routing);
     auto map_info = map_table_->GetMapTable();
     topo_->OnLocalization(curr_loc);
     HLOG_INFO << "topo OnLocalization cost " << local_tic.Toc();
@@ -146,7 +146,7 @@ int MapFusion::ProcFusion(
     local_tic.Tic();
 
     pred_->OnLocalization(curr_loc);
-    pred_->OnTopoMap(topo_map, map_info);
+    pred_->OnTopoMap(topo_map, map_info, routing);
     pred_->Prediction();
 
     //! 注意：MapPrediction内部保证每次返回的都是全新的ptr，

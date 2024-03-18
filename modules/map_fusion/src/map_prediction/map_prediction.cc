@@ -200,27 +200,28 @@ void MapPrediction::OnHqMap(const std::shared_ptr<hozon::hdmap::Map>& hqmap) {
 void MapPrediction::OnTopoMap(
     const std::shared_ptr<hozon::hdmap::Map>& msg,
     const std::tuple<std::unordered_map<std::string, LaneInfo>,
-                     std::unordered_map<std::string, RoadInfo>>& map_info) {
+                     std::unordered_map<std::string, RoadInfo>>& map_info,
+    hozon::routing::RoutingResponse* routing) {
   // std::lock_guard<std::mutex> lock(mtx_);
-  hq_map_ = std::make_shared<hozon::hdmap::Map>();
+  if (hq_map_ == nullptr) {
+    hq_map_ = std::make_shared<hozon::hdmap::Map>();
+  } else {
+    hq_map_->Clear();
+  }
   if (!msg) {
     HLOG_ERROR << "nullptr topo map";
     return;
   }
-
-  // if (msg->lane().empty()) {
-  //   HLOG_ERROR << "no OnTopoMap info!";
-  //   return;
-  // }
 
   hozon::common::PointENU utm_pos;
   // uint32_t utm_zone = 0;
   {
     std::lock_guard<std::mutex> lock(mtx_);
 
-    local_msg_ = std::make_shared<hozon::hdmap::Map>();
-    local_msg_->Clear();
-    local_msg_->CopyFrom(*msg);
+    // local_msg_ = std::make_shared<hozon::hdmap::Map>();
+    // local_msg_->Clear();
+    // local_msg_->CopyFrom(*msg);
+    local_msg_ = msg;
     utm_pos.set_x(location_utm_.x());
     utm_pos.set_y(location_utm_.y());
     utm_pos.set_z(0);
@@ -322,7 +323,124 @@ void MapPrediction::OnTopoMap(
         }
       }
     } else if (FLAGS_map_service_mode == 1) {
-      GLOBAL_HD_MAP->GetMapWithoutLaneGeometry(hq_map_.get());
+      // GLOBAL_HD_MAP->GetMapWithoutLaneGeometry(hq_map_.get());
+      std::unordered_set<std::string> road_id_set;
+      for (const auto& road_it : routing->road()) {
+        for (const auto& pass_it : road_it.passage()) {
+          for (const auto& lane_it : pass_it.segment()) {
+            hozon::hdmap::Id lane_id;
+            lane_id.set_id(lane_it.id());
+            auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+            if (lane_ptr == nullptr) {
+              continue;
+            }
+            road_id_set.emplace(lane_ptr->road_id().id());
+            auto* new_lane = hq_map_->add_lane();
+            // new_lane->CopyFrom(lane_ptr->lane());
+            new_lane->mutable_id()->CopyFrom(lane_ptr->lane().id());
+            // // central_curve
+            for (const auto& seg : lane_ptr->lane().central_curve().segment()) {
+              auto* new_seg = new_lane->mutable_central_curve()->add_segment();
+              new_seg->set_s(seg.s());
+              new_seg->mutable_start_position()->CopyFrom(seg.start_position());
+              new_seg->set_heading(seg.heading());
+              new_seg->set_length(seg.length());
+            }
+
+            // // left_boundary
+            for (const auto& seg :
+                 lane_ptr->lane().left_boundary().curve().segment()) {
+              auto* new_seg = new_lane->mutable_left_boundary()
+                                  ->mutable_curve()
+                                  ->add_segment();
+              new_seg->set_s(seg.s());
+              new_seg->mutable_start_position()->CopyFrom(seg.start_position());
+              new_seg->set_heading(seg.heading());
+              new_seg->set_length(seg.length());
+            }
+            new_lane->mutable_left_boundary()->set_length(
+                lane_ptr->lane().left_boundary().length());
+            new_lane->mutable_left_boundary()->set_virtual_(
+                lane_ptr->lane().left_boundary().virtual_());
+            new_lane->mutable_left_boundary()
+                ->mutable_boundary_type()
+                ->CopyFrom(lane_ptr->lane().left_boundary().boundary_type());
+            new_lane->mutable_left_boundary()->mutable_id()->CopyFrom(
+                lane_ptr->lane().left_boundary().id());
+
+            // right_boundary
+            for (const auto& seg :
+                 lane_ptr->lane().right_boundary().curve().segment()) {
+              auto* new_seg = new_lane->mutable_right_boundary()
+                                  ->mutable_curve()
+                                  ->add_segment();
+              new_seg->set_s(seg.s());
+              new_seg->mutable_start_position()->CopyFrom(seg.start_position());
+              new_seg->set_heading(seg.heading());
+              new_seg->set_length(seg.length());
+            }
+
+            new_lane->mutable_right_boundary()->set_length(
+                lane_ptr->lane().right_boundary().length());
+            new_lane->mutable_right_boundary()->set_virtual_(
+                lane_ptr->lane().right_boundary().virtual_());
+            new_lane->mutable_right_boundary()
+                ->mutable_boundary_type()
+                ->CopyFrom(lane_ptr->lane().right_boundary().boundary_type());
+            new_lane->mutable_right_boundary()->mutable_id()->CopyFrom(
+                lane_ptr->lane().right_boundary().id());
+
+            new_lane->set_length(lane_ptr->lane().length());
+            new_lane->set_speed_limit(lane_ptr->lane().speed_limit());
+            new_lane->mutable_overlap_id()->CopyFrom(
+                lane_ptr->lane().overlap_id());
+            new_lane->mutable_predecessor_id()->CopyFrom(
+                lane_ptr->lane().predecessor_id());
+            new_lane->mutable_successor_id()->CopyFrom(
+                lane_ptr->lane().successor_id());
+            new_lane->mutable_left_neighbor_forward_lane_id()->CopyFrom(
+                lane_ptr->lane().left_neighbor_forward_lane_id());
+            new_lane->mutable_right_neighbor_forward_lane_id()->CopyFrom(
+                lane_ptr->lane().right_neighbor_forward_lane_id());
+            new_lane->set_type(lane_ptr->lane().type());
+            new_lane->set_turn(lane_ptr->lane().turn());
+            new_lane->mutable_left_neighbor_reverse_lane_id()->CopyFrom(
+                lane_ptr->lane().left_neighbor_reverse_lane_id());
+            new_lane->mutable_right_neighbor_reverse_lane_id()->CopyFrom(
+                lane_ptr->lane().right_neighbor_reverse_lane_id());
+            new_lane->mutable_junction_id()->CopyFrom(
+                lane_ptr->lane().junction_id());
+            new_lane->mutable_left_sample()->CopyFrom(
+                lane_ptr->lane().left_sample());
+            new_lane->mutable_right_sample()->CopyFrom(
+                lane_ptr->lane().right_sample());
+            new_lane->set_direction(lane_ptr->lane().direction());
+            new_lane->mutable_left_road_sample()->CopyFrom(
+                lane_ptr->lane().left_road_sample());
+            new_lane->mutable_right_road_sample()->CopyFrom(
+                lane_ptr->lane().right_road_sample());
+            new_lane->mutable_self_reverse_lane_id()->CopyFrom(
+                lane_ptr->lane().self_reverse_lane_id());
+            new_lane->set_lane_transition(lane_ptr->lane().lane_transition());
+            new_lane->mutable_map_lane_type()->CopyFrom(
+                lane_ptr->lane().map_lane_type());
+            new_lane->mutable_gcs_lane_point()->CopyFrom(
+                lane_ptr->lane().gcs_lane_point());
+            new_lane->mutable_extra_left_boundary()->CopyFrom(
+                lane_ptr->lane().extra_left_boundary());
+            new_lane->mutable_extra_right_boundary()->CopyFrom(
+                lane_ptr->lane().extra_right_boundary());
+          }
+        }
+      }
+      for (const auto& road_id_it : road_id_set) {
+        hozon::hdmap::Id road_id;
+        road_id.set_id(road_id_it);
+        auto road_ptr = GLOBAL_HD_MAP->GetRoadById(road_id);
+        if (road_ptr != nullptr) {
+          hq_map_->add_road()->CopyFrom(road_ptr->road());
+        }
+      }
     }
 
     hq_map_->mutable_header()->CopyFrom(msg->header());
@@ -407,7 +525,6 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
     HLOG_ERROR << "get rouitng message failed";
     return nullptr;
   }
-
   int row = -1;
   // 查找车辆所在lane的位置
   for (int i = 0; i < routing_lanes.size(); ++i) {

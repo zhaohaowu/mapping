@@ -556,22 +556,22 @@ void TopoAssignment::AppendAllLaneInfo(
     info.id = it.first;
     std::vector<Eigen::Vector2d> points_vec;
     Eigen::Vector2d point;
-    if (it.second.pred_left_line.size() >= 2) {
-      point.x() = it.second.pred_left_line.front().x();
-      point.y() = it.second.pred_left_line.front().y();
+    if (it.second.left_line.size() >= 2) {
+      point.x() = it.second.left_line.front().x();
+      point.y() = it.second.left_line.front().y();
       points_vec.emplace_back(point);
-      point.x() = it.second.pred_left_line.back().x();
-      point.y() = it.second.pred_left_line.back().y();
+      point.x() = it.second.left_line.back().x();
+      point.y() = it.second.left_line.back().y();
       points_vec.emplace_back(point);
       info.left_start_end = points_vec;
     }
     points_vec.clear();
-    if (it.second.pred_right_line.size() >= 2) {
-      point.x() = it.second.pred_right_line.front().x();
-      point.y() = it.second.pred_right_line.front().y();
+    if (it.second.right_line.size() >= 2) {
+      point.x() = it.second.right_line.front().x();
+      point.y() = it.second.right_line.front().y();
       points_vec.emplace_back(point);
-      point.x() = it.second.pred_right_line.back().x();
-      point.y() = it.second.pred_right_line.back().y();
+      point.x() = it.second.right_line.back().x();
+      point.y() = it.second.right_line.back().y();
       points_vec.emplace_back(point);
       info.right_start_end = points_vec;
     }

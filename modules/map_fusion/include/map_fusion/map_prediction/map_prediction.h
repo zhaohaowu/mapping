@@ -66,7 +66,8 @@ class MapPrediction {
   void OnTopoMap(
       const std::shared_ptr<hozon::hdmap::Map>& msg,
       const std::tuple<std::unordered_map<std::string, LaneInfo>,
-                       std::unordered_map<std::string, RoadInfo>>& map_info);
+                       std::unordered_map<std::string, RoadInfo>>& map_info,
+      hozon::routing::RoutingResponse* routing);
   std::shared_ptr<hozon::hdmap::Map> GetHdMap(
       bool need_update_global_hd, hozon::routing::RoutingResponse* routing);
   std::shared_ptr<hozon::hdmap::Map> GetPredictionMap();

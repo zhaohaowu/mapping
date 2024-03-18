@@ -73,7 +73,8 @@ class MapTable {
 
  public:
   void OnLocalization(
-      const std::shared_ptr<hozon::localization::Localization>& msg);
+      const std::shared_ptr<hozon::localization::Localization>& msg,
+      hozon::routing::RoutingResponse* routing);
   std::tuple<std::unordered_map<std::string, LaneInfo>,
              std::unordered_map<std::string, RoadInfo>>
   GetMapTable();
@@ -81,7 +82,7 @@ class MapTable {
  private:
   void Clear();
   void OnLocationInGlobal(double utm_x, double utm_y);
-  void BuildLaneTable();
+  void BuildLaneTable(hozon::routing::RoutingResponse* routing);
   static void ObtainLaneAndRoad(
       const hozon::common::PointENU& utm_pos, const double& range,
       std::vector<hozon::hdmap::LaneInfoConstPtr>* lanes_in_range,
@@ -92,7 +93,8 @@ class MapTable {
                                const hdmap::Lane& lane);
   void CreatRoadTable(
       const std::vector<hozon::hdmap::RoadInfoConstPtr>& roads_in_range);
-  // void StoreLeftAndRightBoundary(const hozon::hdmap::RoadSection& it, Section* section);
+  // void StoreLeftAndRightBoundary(const hozon::hdmap::RoadSection& it,
+  // Section* section);
   void CalculateTanTheta(const std::string& idd);
   void ObtainEquation(const std::string& idd, const int& next_size);
   void ConstructLaneLine(const std::vector<Eigen::Vector3d>& road_boundary,
@@ -137,6 +139,7 @@ class MapTable {
 
   std::unordered_map<std::string, LaneInfo> lane_table_;
   std::unordered_map<std::string, RoadInfo> road_table_;
+  std::vector<std::string> rout_lane_id_;
   std::vector<std::string> all_section_ids_;
   std::unordered_map<std::string, std::vector<Eigen::Vector3d>>
       left_virtual_line_;

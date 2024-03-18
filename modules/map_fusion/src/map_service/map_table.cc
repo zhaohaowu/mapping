@@ -25,7 +25,8 @@ namespace mp {
 namespace mf {
 
 void MapTable::OnLocalization(
-    const std::shared_ptr<hozon::localization::Localization>& msg) {
+    const std::shared_ptr<hozon::localization::Localization>& msg,
+    hozon::routing::RoutingResponse* routing) {
   // gcj02
   Eigen::Vector3d pos_global(msg->pose().gcj02().x(), msg->pose().gcj02().y(),
                              0);
@@ -40,7 +41,7 @@ void MapTable::OnLocalization(
   {
     std::lock_guard<std::mutex> lock(mtx_);
     Clear();
-    BuildLaneTable();
+    BuildLaneTable(routing);
   }
 }
 
@@ -60,7 +61,7 @@ void MapTable::OnLocationInGlobal(double utm_x, double utm_y) {
   location_utm_.y() = utm_y;
 }
 
-void MapTable::BuildLaneTable() {
+void MapTable::BuildLaneTable(hozon::routing::RoutingResponse* routing) {
   // 创建lane_table
   hozon::common::PointENU utm_pos;
   utm_pos.set_x(location_utm_.x());
@@ -71,9 +72,18 @@ void MapTable::BuildLaneTable() {
   std::vector<hozon::hdmap::LaneInfoConstPtr> lanes_in_range;
   std::vector<hozon::hdmap::RoadInfoConstPtr> roads_in_range;
   ObtainLaneAndRoad(utm_pos, range, &lanes_in_range, &roads_in_range);
+  // 存储routing中的lane_id
+  for (const auto& road_it : routing->road()) {
+    for (const auto& pass_it : road_it.passage()) {
+      for (const auto& lane_it : pass_it.segment()) {
+        rout_lane_id_.emplace_back(lane_it.id());
+      }
+    }
+  }
   CreatLaneTable(lanes_in_range);
   CreatRoadTable(roads_in_range);
 
+#if 0
   for (const auto& it : lanes_in_range) {
     if (lane_table_.find(it->lane().id().id()) == lane_table_.end()) {
       continue;
@@ -113,6 +123,7 @@ void MapTable::BuildLaneTable() {
       ConstructLaneLine(road_boundary, sec_lane_id);
     }
   }
+#endif
 }
 
 void MapTable::ObtainLaneAndRoad(
@@ -140,6 +151,10 @@ void MapTable::CreatLaneTable(
   // 创建lane
   // 创建lane_table_
   for (const auto& lane : lanes_in_range) {
+    if (std::find(rout_lane_id_.begin(), rout_lane_id_.end(),
+                  lane->id().id()) == rout_lane_id_.end()) {
+      continue;
+    }
     const auto& lane_id = lane->id().id();
     LaneInfo local_lane;
     local_lane.lane_id = lane_id;
@@ -189,17 +204,34 @@ void MapTable::CreatLaneTable(
 
     // 存储拓扑
     for (const auto& it : lane->lane().left_neighbor_forward_lane_id()) {
+      if (std::find(rout_lane_id_.begin(), rout_lane_id_.end(), it.id()) ==
+          rout_lane_id_.end()) {
+        continue;
+      }
       local_lane.left_lane_ids.emplace_back(it.id());
     }
     for (const auto& it : lane->lane().right_neighbor_forward_lane_id()) {
+      if (std::find(rout_lane_id_.begin(), rout_lane_id_.end(), it.id()) ==
+          rout_lane_id_.end()) {
+        continue;
+      }
       local_lane.right_lane_ids.emplace_back(it.id());
     }
     for (const auto& it : lane->lane().predecessor_id()) {
+      if (std::find(rout_lane_id_.begin(), rout_lane_id_.end(), it.id()) ==
+          rout_lane_id_.end()) {
+        continue;
+      }
       local_lane.prev_lane_ids.emplace_back(it.id());
     }
     for (const auto& it : lane->lane().successor_id()) {
+      if (std::find(rout_lane_id_.begin(), rout_lane_id_.end(), it.id()) ==
+          rout_lane_id_.end()) {
+        continue;
+      }
       local_lane.next_lane_ids.emplace_back(it.id());
     }
+#if 0
     // 存储lane的宽度
     double length = lane->lane().length();
     double s = 0.;
@@ -212,6 +244,7 @@ void MapTable::CreatLaneTable(
     double end_width = lane->GetWidth(length);
     lane_width.push_back(end_width);
     local_lane.lane_width = lane_width;
+#endif
     // 存储站心
     local_lane.ref_point = local_enu_center_;
     lane_table_.insert_or_assign(lane_id, local_lane);
@@ -792,6 +825,7 @@ void MapTable::ComputeVirtualPoint(const Eigen::Vector3d& A,
 void MapTable::Clear() {
   lane_table_.clear();
   road_table_.clear();
+  rout_lane_id_.clear();
   all_section_ids_.clear();
   left_virtual_line_.clear();
   had_equ_.clear();

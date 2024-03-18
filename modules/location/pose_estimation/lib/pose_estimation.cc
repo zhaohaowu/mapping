@@ -504,7 +504,7 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
     HLOG_ERROR << "wait change ins_ref_ in set location " << ins_timestamp_;
     return;
   }
-
+  // 1. FC deque
   if (info.location_state() == 0 || info.location_state() == 12 ||
       info.location_state() >= 100) {
     HLOG_ERROR << "info.location_state() : " << info.location_state();
@@ -514,6 +514,12 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
     std::unique_lock<std::mutex> lock(fc_deque_mutex_);
     fc_deque_.emplace_back(info);
     ShrinkQueue(&fc_deque_, fc_deque_max_size_);
+  }
+
+  // 2. FC rviz
+  if (!hozon::mp::util::RvizAgent::Instance().Ok() ||
+      !mm_params.use_rviz_bridge) {
+    return;
   }
 
   static double time = -1;
@@ -533,9 +539,6 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
   Eigen::Vector3d pose(info.pose().gcj02().x(), info.pose().gcj02().y(),
                        info.pose().gcj02().z());
 
-  Eigen::Vector3d pose_84(info.pose().wgs().x(), info.pose().wgs().y(),
-                          info.pose().wgs().z());
-
   Eigen::Quaterniond q_W_V(
       info.pose().quaternion().w(), info.pose().quaternion().x(),
       info.pose().quaternion().y(), info.pose().quaternion().z());
@@ -550,46 +553,38 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
   }
 
   ref_point_mutex_.lock();
-  auto enu_84 = hozon::mp::util::Geo::BlhToEnu(pose_84, ref_point_);
   Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, ref_point_);
   ref_point_mutex_.unlock();
-
-  auto fc_timestamp = stampe;
-  T_fc_ = SE3(q_W_V, enu);
   pubOdomPoints(kTopicFcOdom, enu, q_W_V, fc_sec, fc_nsec);
-  auto fc_enu_ = enu;
-  auto fc_enu84_ = enu_84;
-  fc_enu_pose_ = enu;
-  if (hozon::mp::util::RvizAgent::Instance().Ok()) {
-    adsfi_proto::viz::Marker text_marker;
-    text_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
-    text_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
-    text_marker.set_id(0);
-    text_marker.mutable_lifetime()->set_sec(0);
-    text_marker.mutable_header()->mutable_timestamp()->set_sec(fc_sec);
-    text_marker.mutable_header()->mutable_timestamp()->set_nsec(fc_nsec);
-    text_marker.mutable_header()->set_frameid("map");
-    text_marker.mutable_pose()->mutable_position()->set_x(enu(0));
-    text_marker.mutable_pose()->mutable_position()->set_y(enu(1));
-    text_marker.mutable_pose()->mutable_position()->set_z(12);
 
-    text_marker.mutable_pose()->mutable_orientation()->set_x(0);
-    text_marker.mutable_pose()->mutable_orientation()->set_y(0);
-    text_marker.mutable_pose()->mutable_orientation()->set_z(0);
-    text_marker.mutable_pose()->mutable_orientation()->set_w(1);
 
-    text_marker.mutable_color()->set_r(1);
-    text_marker.mutable_color()->set_g(1);
-    text_marker.mutable_color()->set_b(1);
-    text_marker.mutable_color()->set_a(1);
+  adsfi_proto::viz::Marker text_marker;
+  text_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+  text_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+  text_marker.set_id(0);
+  text_marker.mutable_lifetime()->set_sec(0);
+  text_marker.mutable_header()->mutable_timestamp()->set_sec(fc_sec);
+  text_marker.mutable_header()->mutable_timestamp()->set_nsec(fc_nsec);
+  text_marker.mutable_header()->set_frameid("map");
+  text_marker.mutable_pose()->mutable_position()->set_x(enu(0));
+  text_marker.mutable_pose()->mutable_position()->set_y(enu(1));
+  text_marker.mutable_pose()->mutable_position()->set_z(12);
 
-    text_marker.set_text("loc-state:" + std::to_string(info.location_state()));
-    text_marker.mutable_scale()->set_x(0.1);
-    text_marker.mutable_scale()->set_y(0);
-    text_marker.mutable_scale()->set_z(0.8);
+  text_marker.mutable_pose()->mutable_orientation()->set_x(0);
+  text_marker.mutable_pose()->mutable_orientation()->set_y(0);
+  text_marker.mutable_pose()->mutable_orientation()->set_z(0);
+  text_marker.mutable_pose()->mutable_orientation()->set_w(1);
 
-    hozon::mp::util::RvizAgent::Instance().Publish(kTopicLocstate, text_marker);
-  }
+  text_marker.mutable_color()->set_r(1);
+  text_marker.mutable_color()->set_g(1);
+  text_marker.mutable_color()->set_b(1);
+  text_marker.mutable_color()->set_a(1);
+
+  text_marker.set_text("loc-state:" + std::to_string(info.location_state()));
+  text_marker.mutable_scale()->set_x(0.1);
+  text_marker.mutable_scale()->set_y(0);
+  text_marker.mutable_scale()->set_z(0.8);
+  hozon::mp::util::RvizAgent::Instance().Publish(kTopicLocstate, text_marker);
 }
 
 bool MapMatching::FindPecepFC(hozon::localization::Localization* cur_fc) {
@@ -706,6 +701,16 @@ void MapMatching::procData() {
     HLOG_ERROR << "Dont find fc when use perception line to find fc deque";
     return;
   }
+  Eigen::Quaterniond q_W_V(
+      cur_fc.pose().quaternion().w(), cur_fc.pose().quaternion().x(),
+      cur_fc.pose().quaternion().y(), cur_fc.pose().quaternion().z());
+  Eigen::Vector3d pose(cur_fc.pose().gcj02().x(), cur_fc.pose().gcj02().y(),
+                       cur_fc.pose().gcj02().z());
+  ref_point_mutex_.lock();
+  Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, ref_point_);
+  ref_point_mutex_.unlock();
+  T_fc_ = SE3(q_W_V, enu);
+
   time_.evaluate(
       [&, this] {
         map_match_->SetInsTs(input_stamp);

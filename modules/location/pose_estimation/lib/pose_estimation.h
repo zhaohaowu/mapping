@@ -306,7 +306,6 @@ class MapMatching {
   uint32_t time_sec_ = 0;
   uint32_t time_nsec_ = 0;
   int64_t last_submap_seq_ = -1;
-  Eigen::Vector3d fc_enu_pose_;
 
   std::mutex ins_mutex_;
   std::mutex percep_stamp_mutex_;

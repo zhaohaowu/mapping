@@ -154,7 +154,11 @@ int MapFusion::ProcFusion(
     map = pred_->GetPredictionMap();
   } else {
     pred_->OnLocalization(curr_loc);
-    map = pred_->GetHdMap(need_update_global_hd, routing);
+    if (FLAGS_map_service_mode == 1) {
+      map = pred_->GetHdMapNNP(need_update_global_hd, routing);
+    } else if (FLAGS_map_service_mode == 0) {
+      map = pred_->GetHdMapNCP(need_update_global_hd, routing);
+    }
   }
 
   if (!map) {

@@ -68,7 +68,9 @@ class MapPrediction {
       const std::tuple<std::unordered_map<std::string, LaneInfo>,
                        std::unordered_map<std::string, RoadInfo>>& map_info,
       hozon::routing::RoutingResponse* routing);
-  std::shared_ptr<hozon::hdmap::Map> GetHdMap(
+  std::shared_ptr<hozon::hdmap::Map> GetHdMapNNP(
+      bool need_update_global_hd, hozon::routing::RoutingResponse* routing);
+  std::shared_ptr<hozon::hdmap::Map> GetHdMapNCP(
       bool need_update_global_hd, hozon::routing::RoutingResponse* routing);
   std::shared_ptr<hozon::hdmap::Map> GetPredictionMap();
 

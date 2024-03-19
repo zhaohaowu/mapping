@@ -477,7 +477,7 @@ void MapPrediction::OnTopoMap(
   }
 }
 
-std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
+std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
     bool need_update_global_hd, hozon::routing::RoutingResponse* routing) {
   if (!need_update_global_hd) {
     HDMapLaneToLocal();
@@ -606,17 +606,6 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
     }
   }
 
-  // // 获取roads
-  // std::vector<hozon::hdmap::RoadInfoConstPtr> roads;
-  // ret = GLOBAL_HD_MAP->GetRoads(utm_pos, 300, &roads);
-  // if (ret == 0) {
-  //   for (const auto& road : roads) {
-  //     hq_map_->add_road()->CopyFrom(road->road());
-  //   }
-  // } else {
-  //   HLOG_DEBUG << "get roads failed";
-  //   return nullptr;
-  // }
   for (auto road_id_it = road_id_set.begin(); road_id_it != road_id_set.end();
        ++road_id_it) {
     hozon::hdmap::Id road_id;
@@ -641,24 +630,41 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMap(
   current_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
   current_routing_->CopyFrom(*routing);
   RoutingPointToLocal(need_update_global_hd, routing, routing_lane_id_);
-  // viz_map_.VizLocalMapLaneLine(hq_map_);
-  // viz_map_.VizLaneID(hq_map_);
 
-  // for (const auto& lane : hq_map_->lane()) {
-  //   std::vector<Vec2d> cent_points;
+  return hq_map_;
+}
 
-  //   cent_points.clear();
-  //   for (const auto& lane_seg : lane.central_curve().segment()) {
-  //     for (const auto& point : lane_seg.line_segment().point()) {
-  //       Vec2d cent_point;
-  //       cent_point.set_x(point.x());
-  //       cent_point.set_y(point.y());
-  //       cent_points.emplace_back(cent_point);
-  //     }
-  //   }
+std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
+    bool need_update_global_hd, hozon::routing::RoutingResponse* routing) {
+  if (!GLOBAL_HD_MAP) {
+    HLOG_ERROR << "nullptr hq_map_server_";
+    return nullptr;
+  }
 
-  //   viz_map_.VizCenterLane(cent_points);
-  // }
+  hozon::common::PointENU utm_pos;
+  utm_pos.set_x(location_utm_.x());
+  utm_pos.set_y(location_utm_.y());
+  utm_pos.set_z(0);
+
+  hq_map_ = std::make_shared<hozon::hdmap::Map>();
+
+  auto ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {500, 500}, hq_map_.get());
+  if (ret != 0) {
+    HLOG_ERROR << "GetLocalMap failed";
+    return nullptr;
+  }
+
+  if (!hq_map_) {
+    HLOG_ERROR << "nullptr hq_map_";
+    return nullptr;
+  }
+  if (local_enu_center_flag_) {
+    HLOG_ERROR << "init_pose_ not inited";
+    return nullptr;
+  }
+  HDMapLaneToLocal();
+  JunctionToLocal();
+
   return hq_map_;
 }
 

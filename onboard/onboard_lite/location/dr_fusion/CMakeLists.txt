@@ -13,8 +13,8 @@ target_link_libraries(${MAPPING_ONBOARD_LITE_DR_FUSION}
     gtest
     ${DEPENDS_LIBS}
     localization_dr_fusion_core
-    perception-base
-    perception-lib
+    perception-base-mal
+    perception-lib-mal
     gflags)
 
 install(

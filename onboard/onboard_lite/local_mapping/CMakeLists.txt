@@ -18,8 +18,8 @@ target_link_libraries(onboard_lite_localmapping
   opencv_core
   opencv_imgproc
   opencv_imgcodecs
-  perception-base
-  perception-lib
+  perception-base-mal
+  perception-lib-mal
 )
 
 include_directories(

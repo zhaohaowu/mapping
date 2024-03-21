@@ -30,8 +30,8 @@ target_link_libraries(lmap_core
   opencv_imgproc 
   opencv_flann
   mf
-  perception-base
-  perception-lib
+  perception-base-mal
+  perception-lib-mal
 )
 
 set_target_properties(lmap_core PROPERTIES LINKER_LANGUAGE CXX)

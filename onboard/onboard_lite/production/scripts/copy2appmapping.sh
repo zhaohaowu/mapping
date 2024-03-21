@@ -9,6 +9,10 @@ function copy() {
   chmod 755 -R /app/runtime_service/mapping
   popd
 
+  cp -rf ${TOP_DIR}/../lib/* /app/lib/
+  chown nvidia:nvidia -R /app/lib/
+  chmod 755 -R /app/lib/
+
   cp -rf ${TOP_DIR}/../conf/* /app/conf
   chown nvidia:nvidia -R /app/conf/mapping
   chmod 755 -R /app/conf/mapping

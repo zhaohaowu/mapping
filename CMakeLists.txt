@@ -120,6 +120,8 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     include_directories(depend/ap-release/include/generated/includes)
 
     # These enable variables are defined in compile.py
+    set(MAL_ENABLE_COMPILE_BASE ON)
+    set(MAL_ENABLE_COMPILE_LIB ON)
     # if (MAPPING_ENABLE_COMPILE_BASE)
         add_subdirectory(depend/perception-base)
     # endif()

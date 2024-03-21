@@ -10,8 +10,8 @@ message(status " ==================== ${_SRCS} ")
 
 set(LIBS
     ${DEPENDS_LIBS}
-    perception-base
-    perception-lib
+    perception-base-mal
+    perception-lib-mal
     neta_phm
     mal_gflags
     glog

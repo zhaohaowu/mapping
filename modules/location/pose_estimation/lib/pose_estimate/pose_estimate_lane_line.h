@@ -19,7 +19,6 @@
 #include "modules/location/pose_estimation/lib/hd_map/hd_map.h"
 #include "modules/location/pose_estimation/lib/perception/perception.h"
 #include "modules/location/pose_estimation/lib/perception/perception_lane_line_fitting.h"
-#include "modules/location/pose_estimation/lib/pose_estimate/frechet_distance.h"
 #include "modules/location/pose_estimation/lib/pose_estimate/pose_estimate_base.h"
 #include "modules/location/pose_estimation/lib/util/globals.h"
 #include "modules/location/pose_estimation/lib/util/graph.h"
@@ -34,8 +33,6 @@ using hozon::mp::loc::MapBoundaryLine;
 class MatchLaneLine {
  public:
   MatchLaneLine();
-  bool has_err_;
-  ERROR_TYPE err_type_;
   /**
    * @brief get the match pairs
    *
@@ -55,7 +52,6 @@ class MatchLaneLine {
    */
   bool CheckIsGoodMatch(const SE3& T);
   bool CompareLaneWidth(const SE3& T);
-  bool is_double_line_ = false;
 
   /**
    * @brief filter perception lane lines
@@ -73,8 +69,6 @@ class MatchLaneLine {
    * @return match pairs
    */
   inline std::vector<PointMatchPair> get_match_pairs() { return match_pairs_; }
-  // inline std::vector<PointMatchPair> get_origin_match_pairs() { return
-  // origin_match_pairs_; }
 
   /**
    * @brief get match lane line size
@@ -110,11 +104,9 @@ class MatchLaneLine {
     *err_type = static_cast<int>(err_type_);
   }
   VP SetRvizMergeMapLines();
-  inline std::vector<PointMatchPair> getOriginMatchPairs() {
+  inline std::vector<PointMatchPair> get_origin_pairs() {
     return origin_match_pairs_;
   }
-  std::vector<PointMatchPair> origin_match_pairs_;
-  using Ptr = std::shared_ptr<MatchLaneLine>;
 
  private:
   /**
@@ -189,34 +181,11 @@ class MatchLaneLine {
           boundary_lines);
 
   /**
-   * @brief location safety strategy about checking the match is good by fc
-   * output pose
-   *
-   * @return
-   */
-  // void CheckIsGoodMatchFcByLine(const SE3& T_fc);
-
-  /**
    * @brief get the matched pairs
    *
    * @return
    */
   void ConnectPoint(const bool& is_good_check);
-
-  /**
-   * @brief judge whether the perception lane line is curve
-   *
-   * @return true : yes; false : no
-   */
-  bool IsPercepLineCurve(const LaneLinePerceptionPtr& line);
-
-  /**
-   * @brief non maximum suppression filters out similar lane lines
-   * @param map_lines : map lane lines
-   *
-   * @return
-   */
-  void NmsByLat(std::vector<std::pair<V3, std::string>>* map_lines);
 
   /**
    * @brief filter points that meet the x threshold
@@ -231,7 +200,6 @@ class MatchLaneLine {
   bool GetFcFitPoints(const VP& control_poins, const double x, V3* pt,
                       const SE3& T_W_V);
   bool GetPerceFitPoints(const VP& points, const double x, V3* pt);
-
   bool GetFitMapPoints(const std::vector<ControlPoint>& control_poins,
                        const double x, V3* pt);
 
@@ -244,62 +212,6 @@ class MatchLaneLine {
   void MergeMapLines(const std::shared_ptr<MapBoundaryLine>& boundary_lines,
                      const SE3& T);
 
-  /**
-   * @brief filter map lane connected to specified perception lane
-   * @param mlane_ids : map boundary lane lines id
-   * @param plane : perception lane lines
-   *
-   * @return
-   */
-  void FilterMapLane(std::vector<std::string>* mlane_ids,
-                     const LaneLinePerceptionPtr& plane);
-
-  /**
-   * @brief group map lanes by project in X axis
-   * @param mlane_ids : map boundary lane lines id
-   * @param groups : grouped map lanes
-   *
-   * @return
-   */
-  void GroupByXProject(const std::vector<std::string>& mlane_ids,
-                       std::vector<std::list<std::string>>* groups);
-
-  /**
-   * @brief select best map lane, minimum Y distance between perception lane
-   * @param mlane_ids : map boundary lane lines id
-   * @param plane : grouped map lanes
-   * @param best_mlane_id : best map lane line id
-   *
-   * @return true : best map lane line meet the condition exists; false : do not
-   * exist
-   */
-  bool SelectBestMapLane(const std::list<std::string>& mlane_ids,
-                         const LaneLinePerceptionPtr& plane,
-                         std::string* best_mlane_id);
-
-  /**
-   * @brief find both side nearest perception line, max level LL or RR
-   * @param lines : perception lane lines
-   * @param left_id_ptr : left lane line nearest
-   * @param right_id_ptr : right lane line nearest
-   *
-   * @return
-   */
-  void GetNearestPercepLinesId(const std::list<LaneLinePerceptionPtr>& lines,
-                               int* const left_id_ptr, int* const right_id_ptr);
-
-  /**
-   * @brief find the nearest and the farest distance in Y axis
-   * @param T_fc : fc output pose
-   * @param near : nearest distance
-   * @param far : farest distance
-   * @param far_dis : last distance
-   *
-   * @return
-   */
-  // void CalLinesMinDist(const LaneLinePerceptionPtr& percep, const SE3& T_fc,
-  //                      double* const near, double* const far,
-  //                      const double& far_dis);
   void Traversal(const std::map<V3, std::vector<std::pair<std::string, V3>>,
                                 PointV3Comp<V3>>& lines,
                  const V3& root_start_point,
@@ -314,28 +226,25 @@ class MatchLaneLine {
                         double* curvature);
 
  public:
-  V3 anchor_pt0_{2.0, 0.0, 0.0};
-  V3 anchor_pt1_{22.0, 0.0, 0.0};
-  static constexpr double max_match_y_thres = 2;
-  double max_x_observe_thres_ = 40.f;
-  double min_x_observe_thres_ = -0.f;
-  double max_y_observe_thres_ = 15.f;
-  double nearest_point_max_dist_thres_ = 20.f;
   double ts_;
-  double last_ins_timestamp_ = 0;
-  double ins_timestamp_;
+  double last_ins_timestamp_ = 0.f;
+  double ins_timestamp_ = 0.f;
+  std::vector<PointMatchPair> origin_match_pairs_;
   std::vector<PointMatchPair> match_pairs_;
-  std::shared_ptr<Perception> percep_;
   std::list<LineMatchPair> line_match_pairs_;
+  std::shared_ptr<Perception> percep_;
   std::list<std::list<LaneLinePerceptionPtr>> percep_lanelines_;
-  std::list<LaneLinePerceptionPtr>* fil_percep_laneline_;
   bool lanelineconnect_ = true;
+  bool is_double_line_ = false;
   bool is_good_match_;
+  bool has_err_;
+  ERROR_TYPE err_type_;
   SE3 T_W_V_;
   SE3 T_V_W_;
   PerceptionLaneLineFitting percep_lane_line_curve_fitting_;
-  typedef std::pair<std::string, V3>
-      LineSegment;  // LineSegment: {id, end_point}
+  using LineSegment =
+      std::pair<std::string, V3>;  // LineSegment: {id, end_point}
+  using MatchLaneLinePtr = std::shared_ptr<MatchLaneLine>;
 
  private:
   struct EigenMatrixHash {
@@ -352,8 +261,6 @@ class MatchLaneLine {
 
  private:
   bool big_curvature_ = false;
-  std::shared_ptr<hozon::mp::loc::FrechetDistance3D> frechet_distance3D_ =
-      nullptr;
   std::unordered_set<std::string> visited_id_;
   std::vector<std::vector<std::vector<std::string>>>
       multi_linked_lines_;  // 内层vector是一组前后继链接的车道线

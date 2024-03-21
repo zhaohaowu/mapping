@@ -35,7 +35,6 @@ MatchLaneLine::MatchLaneLine() {
   T_W_V_ = SE3();
   T_V_W_ = SE3();
   percep_ = nullptr;
-  frechet_distance3D_ = std::make_shared<FrechetDistance3D>();
 }
 
 void MatchLaneLine::set_ins_ts(const double& ins_ts) {
@@ -57,7 +56,6 @@ void MatchLaneLine::Match(const HdMap& hd_map,
   static int invalid_pecep_cnt = 0;
   static double invalid_pecep_duration = 0;
   static double invalid_map_duration = 0;
-
   auto map_elment =
       hd_map.GetElement(hozon::mp::loc::HD_MAP_LANE_BOUNDARY_LINE);
   if (map_elment == nullptr) {
@@ -84,7 +82,6 @@ void MatchLaneLine::Match(const HdMap& hd_map,
     }
     return;
   }
-
   for (const auto& p : percep_->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE)) {
     auto lane = std::static_pointer_cast<PerceptionLaneLineList>(p);
     std::list<LaneLinePerceptionPtr> fil_percep_laneline;
@@ -117,7 +114,7 @@ void MatchLaneLine::Match(const HdMap& hd_map,
     return;
   }
   HLOG_DEBUG << "merged_map_lines_ size: " << merged_map_lines_.size();
-  for (auto merge_map_line : merged_map_lines_) {
+  for (auto& merge_map_line : merged_map_lines_) {
     auto id = merge_map_line.first;
     for (const auto& point : merge_map_line.second) {
       auto tmp_point = T_W_V_ * point.point;
@@ -193,10 +190,11 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& T_fc) {
       } else {
         far_dis = mm_params.straight_far_dis;
       }
-      CalLinesMinDist(line, T_fc, &right_dist_near_v, &right_dist_far_v, far_dis);
+      CalLinesMinDist(line, T_fc, &right_dist_near_v, &right_dist_far_v,
+                      far_dis);
     }
   }
-  HLOG_ERROR << "left_dist_near_v = " << left_dist_near_v
+  HLOG_DEBUG << "left_dist_near_v = " << left_dist_near_v
              << "left_dist_far_v = " << left_dist_far_v
              << "right_dist_near_v = " << right_dist_near_v
              << "right_dist_far_v = " << right_dist_far_v;
@@ -270,7 +268,6 @@ void MatchLaneLine::CalLinesMinDist(const LaneLinePerceptionPtr& percep,
       map_points.emplace_back(control_point.point);
     }
     for (auto& point : percep->points()) {
-      // HLOG_ERROR << "points" << point.x() << "  " << point.y();
       perce_points.emplace_back(point);
     }
     V3 v_p_near(0, 0, 0);
@@ -372,7 +369,7 @@ bool MatchLaneLine::GetPerceFitPoints(const VP& points, const double x,
       points.begin(), points.end(), V3({x, 0, 0}),
       [](const V3& p0, const V3& p1) { return p0(0, 0) < p1(0, 0); });
   if (iter == points.end()) {
-    HLOG_ERROR << "can not find points";
+    HLOG_DEBUG << "can not find points";
     return false;
   }
   if (iter == points.begin()) {
@@ -573,7 +570,7 @@ void MatchLaneLine::MergeMapLines(
       continue;
     }
     LineSegment line_segment{id, end_point_v};
-    lines[start_point_v].emplace_back(line_segment);
+    lines[start_point_v].emplace_back(std::move(line_segment));
   }
   if (!visited_id_.empty()) {
     visited_id_.clear();
@@ -613,11 +610,9 @@ void MatchLaneLine::MergeMapLines(
         merge_lane_ids[merge_lane_id] += 1;
         continue;
       }
-
       for (auto& line_id : line_ids) {
         for (auto& control_point :
              boundary_lines->boundary_line_[line_id].control_point) {
-          // HLOG_ERROR <<"fcmerge = " << (control_point.point).x();
           merged_fcmap_lines_[merge_lane_id].emplace_back(control_point);
         }
       }
@@ -684,7 +679,6 @@ void MatchLaneLine::LaneLineConnect(
   double min_match_x = mm_params.common_min_line_length;
   double max_match_x = mm_params.common_max_line_length;
   auto lane_lines = percep_->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE);
-  // PerceptionLaneLineFitting perceptionLaneLineFitting;
   for (auto& fil_line_list : percep_lanelines) {
     if (fil_line_list.size() == 0) {
       HLOG_ERROR << "fil_line_list.size() == 0";
@@ -733,29 +727,22 @@ void MatchLaneLine::LaneLineConnect(
           static const double unusual_avg_curvature_thre = 0.019;
           static const double unusual_max_curvature_thre = 0.039;
           int i = 0;
-          for (auto& coeff : function_coeffs) {
-            HLOG_ERROR << "timestamp: " << ins_timestamp_ << ", coeff[" << i++
-                     << "] : " << coeff;
-          }
           double sum_curvature = 0.f;
           double max_curvature = 0.f;
           for (int i = 0; i < perception_points_size; ++i) {
             double point_curvature = 0.f;
             ComputeCurvature(function_coeffs, perception_points[i].x(),
                              &point_curvature);
-            // HLOG_DEBUG << "timestamp: " << ins_timestamp_ << ",
-            // point_curvature: " << point_curvature;
             sum_curvature += point_curvature;
             max_curvature = std::max(max_curvature, point_curvature);
           }
           double avg_curvature = sum_curvature / perception_points_size;
-          HLOG_ERROR << "timestamp: " << ins_timestamp_ << ", avg_curvature:" << avg_curvature
-                     << ", bigest_curvature: " << max_curvature;
-          if (avg_curvature > unusual_avg_curvature_thre && max_curvature > unusual_max_curvature_thre) {
+          if (avg_curvature > unusual_avg_curvature_thre &&
+              max_curvature > unusual_max_curvature_thre) {
             big_curvature_ = true;
             max_match_x -= mm_params.max_length_offset;
-            HLOG_ERROR << "timestamp: " << ins_timestamp_
-                       << ", big curvature!!!, max_match_x: " << max_match_x;
+            HLOG_INFO << "timestamp: " << ins_timestamp_
+                      << ", big curvature!!!, max_match_x: " << max_match_x;
           }
           for (int i = 0; i < perception_points_size; ++i) {
             V3 pt{0, 0, 0};
@@ -792,9 +779,6 @@ void MatchLaneLine::LaneLineConnect(
     for (auto& tmp_match_mapline : match_mapline_cache) {
       int lanepose = tmp_match_mapline.first;  // perception line
       auto& candidate_match_lines = tmp_match_mapline.second;  // map lines
-      // for (auto map_line : candidate_match_lines) {
-      //   HLOG_DEBUG << "tmp_map_line id: " << map_line.map_id;
-      // }
       if (candidate_match_lines.size() >= 2) {
         int left = lanepose == 1 ? lanepose - 2 : lanepose - 1;
         int right = lanepose == -1 ? lanepose + 2 : lanepose + 1;

@@ -40,7 +40,7 @@ class MapMatch {
   VP GetRvizMergeMapLines() { return lane_line_->SetRvizMergeMapLines(); }
 
  private:
-  MatchLaneLine::Ptr lane_line_;
+  MatchLaneLine::MatchLaneLinePtr lane_line_;
   Connect connect_;
   Connect origin_connect_;
   double ts_;

@@ -26,7 +26,7 @@ void PerceptionLaneLineFitting::Fitting(
   if (order <= 0 || size < order) {
     return;
   }
-  HLOG_ERROR << "size: " << size;
+  HLOG_DEBUG << "size: " << size;
   Eigen::MatrixXd T(size, order + 1);
   Eigen::VectorXd V = Eigen::VectorXd::Map(&perception_points.front().y(),
                                            perception_points.size());

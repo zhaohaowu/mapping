@@ -39,7 +39,7 @@ void MapMatch::Match(const HdMap &hd_map,
   lane_line_->Match(hd_map, perception, T02_W_V, T_fc);
   lane_line_->GetError(&has_err_, &err_type_);
   connect_.lane_line_match_pairs = lane_line_->get_match_pairs();
-  origin_connect_.lane_line_match_pairs = lane_line_->getOriginMatchPairs();
+  origin_connect_.lane_line_match_pairs = lane_line_->get_origin_pairs();
   HLOG_DEBUG << "CONNECT LANE LINE SIZE: "
             << connect_.lane_line_match_pairs.size();
 }

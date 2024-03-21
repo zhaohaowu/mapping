@@ -14,6 +14,7 @@
 #include <google/protobuf/util/json_util.h>
 #include <yaml-cpp/yaml.h>
 
+#include <algorithm>
 #include <condition_variable>
 #include <deque>
 #include <iostream>
@@ -24,7 +25,6 @@
 #include <thread>
 #include <tuple>
 #include <vector>
-#include <algorithm>
 
 #include "depend/proto/localization/node_info.pb.h"
 #include "depend/proto/map/map.pb.h"
@@ -42,6 +42,7 @@ namespace mp {
 namespace loc {
 
 using hozon::localization::HafNodeInfo;
+using PtrNodeInfo = std::shared_ptr<::hozon::localization::HafNodeInfo>;
 
 struct SensorSync {
   int status = 0;
@@ -160,11 +161,13 @@ class MapMatching {
   unsigned int sensorSize();
 
   void setSubMap(const Eigen::Vector3d &vehicle_position,
-                 const Eigen::Matrix3d &vehicle_rotation);
+                 const Eigen::Matrix3d &vehicle_rotation,
+                 const Eigen::Vector3d &ref_point);
   void setFrontRoadMark(const ::hozon::perception::TransportElement &roadmark,
                         bool is_roadmark);
-  void setLocation(const ::hozon::localization::Localization& info);
-  void OnLocation(const std::shared_ptr<const ::hozon::localization::Localization>& msg);
+  void setLocation(const ::hozon::localization::Localization &info);
+  void OnLocation(
+      const std::shared_ptr<const ::hozon::localization::Localization> &msg);
 
   // void setObject(const ::perception::ObjectList &object);
   void setIns(const ::hozon::localization::HafNodeInfo &ins);
@@ -172,13 +175,12 @@ class MapMatching {
   void mmProcCallBack(void);
   // void mmInterpCallBack(void);
   void procData();
-  bool smoothResult(const Sophus::SE3d &pose);
   void start(void);
   void reset(void);
-  std::shared_ptr<::hozon::localization::HafNodeInfo> getMmNodeInfo();
-  std::shared_ptr<::hozon::localization::HafNodeInfo> generateNodeInfo(
-      const Sophus::SE3d &T_W_V, uint64_t sec, uint64_t nsec,
-      const bool &has_err);
+  PtrNodeInfo getMmNodeInfo();
+  PtrNodeInfo generateNodeInfo(const Sophus::SE3d &T_W_V, uint64_t sec,
+                               uint64_t nsec, const bool &has_err,
+                               Eigen::Vector3d ref_point);
   inline double normalizeAngle(double z) { return atan2(sin(z), cos(z)); }
   inline double transAngleValue2ZeroToTwoPi(double z) {
     return (z < 0) ? (M_PI * 2 + z) : z;
@@ -205,7 +207,6 @@ class MapMatching {
 
   std::mutex ref_point_mutex_;
   Eigen::Vector3d ref_point_;
-  Eigen::Vector3d esti_ref_point_;
   Eigen::Vector3f _att;
   Eigen::Vector3d map_pos_;
   Eigen::Quaterniond map_rot_;
@@ -246,7 +247,8 @@ class MapMatching {
  private:
   void setPoints(const PerceptionLaneLineList &line_list, const SE3 &T_W_V,
                  VP *points);
-  void pubPoints(const VP &points, const uint64_t &sec, const uint64_t &nsec, const std::string &krviz_topic);
+  void pubPoints(const VP &points, const uint64_t &sec, const uint64_t &nsec,
+                 const std::string &krviz_topic);
   void pubOdomPoints(const std::string &topic, const Eigen::Vector3d &trans,
                      const Eigen::Quaterniond &q, uint64_t sec, uint64_t nsec);
   void pubVehicle(const SE3 &T, const double &sec, const double &nsec);
@@ -254,16 +256,21 @@ class MapMatching {
   void pubMatchPoints(const VP &points);
   void PubMatchPoints(const VP &points, const uint64_t &sec,
                       const uint64_t &nsec, const std::string &topic_name);
-  void setConnectPercepPoints(const Connect &connect, const SE3 &T_W_V, VP &points); // NOLINT
+  void setConnectPercepPoints(const Connect &connect, const SE3 &T_W_V,
+                              VP &points);  // NOLINT
   void pubConnectPercepPoints(const VP &points, uint64_t sec, uint64_t nsec);
-  void setOriginConnectPercepPoints(const Connect &connect, const SE3 &T_W_V, VP &points); // NOLINT
-  void pubOriginConnectPercepPoints(const VP &points, uint64_t sec, uint64_t nsec);
-  void setOriginConnectMapPoints(const Connect &connect, const SE3 &T_W_V, VP &points); // NOLINT
+  void setOriginConnectPercepPoints(const Connect &connect, const SE3 &T_W_V,
+                                    VP &points);  // NOLINT
+  void pubOriginConnectPercepPoints(const VP &points, uint64_t sec,
+                                    uint64_t nsec);
+  void setOriginConnectMapPoints(const Connect &connect, const SE3 &T_W_V,
+                                 VP &points);  // NOLINT
   void pubOriginConnectMapPoints(const VP &points, uint64_t sec, uint64_t nsec);
-  void setConnectMapPoints(const Connect &connect, const SE3 &T_W_V, VP &points); // NOLINT
+  void setConnectMapPoints(const Connect &connect, const SE3 &T_W_V,
+                           VP &points);  // NOLINT
   void pubConnectMapPoints(const VP &points, uint64_t sec, uint64_t nsec);
   template <typename T>
-  void ShrinkQueue(T* const deque, uint32_t maxsize);
+  void ShrinkQueue(T *const deque, uint32_t maxsize);
 
   adsfi_proto::viz::Marker laneToMarker(const VP &points, std::string id,
                                         bool is_points, bool is_center,
@@ -276,13 +283,14 @@ class MapMatching {
   adsfi_proto::viz::Marker roadmarkingToMarker(const std::vector<VP> &vpoints,
                                                int id);
   bool CheckLaneMatch(const SE3 &T_delta_cur);
-  bool GetHdCurrLaneType(const Eigen::Vector3d& utm);
-  bool FindPecepINS(HafNodeInfo* now_ins);
-  bool FindPecepFC(hozon::localization::Localization* cur_fc);
-  bool ExtractInsMsg(HafNodeInfo* now_ins, SE3* T02_W_V_ins);
+  bool GetHdCurrLaneType(const Eigen::Vector3d &utm);
+  bool FindPecepINS(HafNodeInfo *now_ins);
+  bool FindPecepFC(hozon::localization::Localization *cur_fc);
+  bool ExtractInsMsg(HafNodeInfo *now_ins, SE3 *T02_W_V_ins,
+                     const Eigen::Vector3d &ref_point);
 
  private:
-  int mm_err_type_;        // 用于接收map_match_lane_line中的故障
+  int mm_err_type_;  // 用于接收map_match_lane_line中的故障
   int ins_status_type_;
   int delay_frame_;
   int max_frame_buf_;
@@ -318,6 +326,7 @@ class MapMatching {
   int fc_deque_max_size_;
   std::mutex latest_ins_mutex_;
   HafNodeInfo latest_ins_;
+  PtrNodeInfo mm_node_info_;
 
   adsfi_proto::viz::TransformStamped geo_tf_;
   adsfi_proto::viz::Path gnss_gcj02_path_;
@@ -342,7 +351,8 @@ class MapMatching {
   const std::string kTopicMmCarPath = "/mm/car_path";
   const std::string kTopicMmInterCarPath = "/mm/car_path_inter";
   const std::string kTopicMmFrontPoints = "/mm/front_point";
-  const std::string kTopicMmMergedMapLaneLinePoints = "/mm/merged_map_lane_line_points";
+  const std::string kTopicMmMergedMapLaneLinePoints =
+      "/mm/merged_map_lane_line_points";
   const std::string kTopicInsOdom = "/mm/ins_odom";
   const std::string kTopicMmOdom = "/mm/mm_odom";
   const std::string kTopicFcOdom = "/mm/fc_odom";
@@ -355,8 +365,10 @@ class MapMatching {
   const std::string kTopicLocstate = "/fc/locstate";
   const std::string kTopicMmConnectPercepPoints = "/mm/connect_per_point";
   const std::string kTopicMmConnectMapPoints = "/mm/connect_map_point";
-  const std::string kTopicMmOriginConnectPercepPoints = "/mm/origin_connect_per_point";
-  const std::string kTopicMmOriginConnectMapPoints = "/mm/origin_connect_map_point";
+  const std::string kTopicMmOriginConnectPercepPoints =
+      "/mm/origin_connect_per_point";
+  const std::string kTopicMmOriginConnectMapPoints =
+      "/mm/origin_connect_map_point";
 };
 
 }  // namespace loc

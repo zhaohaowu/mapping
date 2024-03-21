@@ -30,22 +30,12 @@ namespace loc {
 
 using HdMap = Map<hozon::hdmap::Map>;
 using LaneLinePerceptionPtr = std::shared_ptr<PerceptionLaneLine>;
-// using Perception = Perception<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>;
-// using PerceptionLaneLine =
-//     PerceptionLaneLine<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>;
-// using PerceptionLaneLineList =
-//     PerceptionLaneLineList<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>;
-// using PerceptionRoadEdge =
-//     PerceptionRoadEdge<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>;
-// using RoadMarkingPerceptionRoadEdgeList =
-//     PerceptionRoadEdgeList<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>;
 enum class LineSide { UNKNOWN_SIDE = 0, LEFT_SIDE = 1, RIGHT_SIDE = 2 };
-enum CommonState { NO = 0, YES = 1, UNKNOW = 2 };
 enum class PercepLineType {
   UNKOWN = 100000,
   L_LINE = -1,
   R_LINE = 1,
-  LL_LINE = -1,
+  LL_LINE = -2,
   RR_LINE = 2,
   EDGE_LINE = 8
 };

@@ -13,7 +13,7 @@ fi
 
 # package alias in version.json
 # pkgAlias=(ADF NOS third_party CUDA)
-pkgAlias=(ADF NOS third_party CUDA)
+pkgAlias=(ADF middleWare third_party CUDA)
 pkgDependRelDir=(ap-release nos third_party third_party/x86/cuda)
 pkgJfrogRelDir=(ADC/EP40/ADF/release ORIN/EP41/NOS/release EP40_MDC_TP/build nvidia/cuda )
 

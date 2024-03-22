@@ -23,6 +23,7 @@ function copy() {
 }
 function remove() {
   rm -rf /app/runtime_service/mapping
+  rm -rf /app/conf/mapping/*
 }
 
 function backup() {

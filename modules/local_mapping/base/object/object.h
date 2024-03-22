@@ -11,18 +11,18 @@
 #include <vector>
 
 #include "Eigen/Core"
-#include "depend/perception-base/base/object/object_types.h"
+#include "modules/local_mapping/base/object/object_types.h"
 
 namespace hozon {
 namespace mp {
-namespace lm2 {
+namespace lm {
 
 struct Object {
   // @brief object id per frame, required
   int id = -1;
 
   // @brief existence confidence, required
-  float confidence = 1.0f;
+  float confidence = 1.0;
 
   // @brief center of the boundingbox (cx, cy, cz), required
   Eigen::Vector3d center = Eigen::Vector3d(0, 0, 0);
@@ -40,9 +40,9 @@ struct Object {
   Eigen::Vector3f size_variance = Eigen::Vector3f(0, 0, 0);
 
   // @brief theta, required, [-pai,pai]
-  float theta = 0.0f;
+  float theta = 0.0;
   // @brief theta variance, required  朝向角方差
-  float theta_variance = 0.0f;
+  float theta_variance = 0.0;
 
   // oriented boundingbox information
   // @brief main direction of the object, required
@@ -66,6 +66,14 @@ struct Object {
 using ObjectPtr = std::shared_ptr<Object>;
 using ObjectConstPtr = std::shared_ptr<const Object>;
 
-}  // namespace lm2
+struct Objects {
+  std::vector<ObjectPtr> objects;
+};
+
+using ObjectsPtr = std::shared_ptr<Objects>;
+
+using ObjectsConstPtr = std::shared_ptr<const Objects>;
+
+}  // namespace lm
 }  // namespace mp
 }  // namespace hozon

@@ -16,11 +16,11 @@ input:
     - topic: running_mode 
       capacity: 5
 
-output:
-    - topic: /perception/fsd/transportelement_1
+# output:
+#     - topic: /perception/fsd/transportelement_1
 
 trigger:
-  - name: recv_detection
+  - name: recv_perception
     type: EVENT
     timeWindow: 1000
     mainSources:

@@ -9,21 +9,18 @@
 #include <memory>
 #include <vector>
 
-#include "depend/perception-base/base/point/point.h"
+#include "Eigen/Core"
 
 namespace hozon {
 namespace mp {
-namespace lm2 {
-
-namespace perception_base = hozon::perception::base;
+namespace lm {
 
 struct SlowDown {
   uint8_t id;
   float heading;  // 弧度值
   float confidence;
-  std::vector<perception_base::Point2DF>
-      point_set_2d;  // 图像系点（左上角为起点， 逆时针顺序）
-  std::vector<perception_base::Point3DF> point_set_3d;  // 车身系点
+
+  std::vector<Eigen::Vector3d> vehicle_points;  // 车身系点
 };
 
 using SlowDownPtr = std::shared_ptr<SlowDown>;
@@ -35,6 +32,6 @@ struct SlowDowns {
 
 using SlowDownsPtr = std::shared_ptr<SlowDowns>;
 
-}  // namespace lm2
+}  // namespace lm
 }  // namespace mp
 }  // namespace hozon

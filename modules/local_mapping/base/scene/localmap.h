@@ -11,44 +11,58 @@
 
 #include "boost/circular_buffer.hpp"
 #include "boost/circular_buffer/base.hpp"
+#include "modules/local_mapping/base/object/object.h"
 #include "modules/local_mapping/base/scene/arrow.h"
 #include "modules/local_mapping/base/scene/laneline.h"
 #include "modules/local_mapping/base/scene/noparking.h"
-#include "modules/local_mapping/base/scene/roadedges.h"
+#include "modules/local_mapping/base/scene/roadedge.h"
 #include "modules/local_mapping/base/scene/slowdown.h"
 #include "modules/local_mapping/base/scene/stopline.h"
 #include "modules/local_mapping/base/scene/waitzone.h"
-#include "modules/local_mapping/base/scene/zebra_crossing.h"
+#include "modules/local_mapping/base/scene/zebracrossing.h"
+#include "perception-base/base/frame/frame.h"
 namespace hozon {
 namespace mp {
-namespace lm2 {
+namespace lm {
 
-class LocalMap {
- public:
-  LocalMap() = default;
-  ~LocalMap() = default;
-  LaneLinesPtr lane_lines{};
-  RoadEdgesPtr road_edges{};
-  ZebraCrossingsPtr zebra_crossings{};
-  StopLinesPtr stop_lines{};
-  ArrowsPtr road_arrows{};
-  WaitZonesPtr wait_zones{};
-  NoParkingsPtr no_parkings{};
-  SlowDownsPtr slow_downs{};
-
-  std::vector<boost::circular_buffer<StopLinesPtr>>
-      history_per_stop_lines_;  // 保存10帧感知停止线
-  std::vector<boost::circular_buffer<ArrowsPtr>>
-      history_per_arrows_;  // 保存10帧感知箭头
-  std::vector<boost::circular_buffer<ZebraCrossingsPtr>>
-      history_per_zebra_crossings_;  // 保存10帧感知斑马线
-
-  double timestamp;
+struct Header {
+  double timestamp = 0.0;
+  uint32_t sequence_num = 0;
 };
 
-using LocalMapPtr = std::shared_ptr<LocalMap>;
-using LocalMapConstPtr = std::shared_ptr<const LocalMap>;
+struct Frame {
+  Header header;
+};
 
-}  // namespace lm2
+struct MeasurementFrame : public Frame {
+  LaneLinesPtr lane_lines_ptr{};
+  RoadEdgesPtr road_edges_ptr{};
+  ZebraCrossingsPtr zebra_crossings_ptr{};
+  StopLinesPtr stop_lines_ptr{};
+  ArrowsPtr road_arrows_ptr{};
+  WaitZonesPtr wait_zones_ptr{};
+  NoParkingsPtr no_parkings_ptr{};
+  SlowDownsPtr slow_downs_ptr{};
+  ObjectsPtr objects_ptr{};
+};
+
+struct LocalMapFrame : public Frame {
+  LaneLinesPtr lane_lines_ptr{};
+  RoadEdgesPtr road_edges_ptr{};
+  ZebraCrossingsPtr zebra_crossings_ptr{};
+  StopLinesPtr stop_lines_ptr{};
+  ArrowsPtr road_arrows_ptr{};
+  WaitZonesPtr wait_zones_ptr{};
+  NoParkingsPtr no_parkings_ptr{};
+  SlowDownsPtr slow_downs_ptr{};
+};
+
+using MeasurementFramePtr = std::shared_ptr<MeasurementFrame>;
+using MeasurementFrameConstPtr = std::shared_ptr<const MeasurementFrame>;
+
+using LocalMapFramePtr = std::shared_ptr<LocalMapFrame>;
+using LocalMapFrameConstPtr = std::shared_ptr<const LocalMapFrame>;
+
+}  // namespace lm
 }  // namespace mp
 }  // namespace hozon

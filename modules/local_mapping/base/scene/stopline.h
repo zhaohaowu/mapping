@@ -9,26 +9,24 @@
 #include <memory>
 #include <vector>
 
-#include "depend/perception-base/base/point/point.h"
-
+#include "Eigen/Core"
+#include "modules/local_mapping/base/scene/base.h"
 namespace hozon {
 namespace mp {
-namespace lm2 {
+namespace lm {
 
-namespace perception_base = hozon::perception::base;
-
-struct StopLine {
+struct StopLine : public BaseData {
   uint8_t id{};
   float confidence = 0.0;
-  perception_base::Point3DF left_point;
-  perception_base::Point3DF right_point;
-  perception_base::Point3DF mid_point;
-  double length_{};
-  double heading_{};
-  bool has_matched = false;
-  bool ismature = false;
-  bool isstable = false;
-  int tracked_count = 0;
+  Eigen::Vector3d left_point{};
+  Eigen::Vector3d right_point{};
+  Eigen::Vector3d center_point{};
+  double heading{};
+  double length{};
+  // @brief age of the tracked stop line
+  double tracking_time = 0.0;
+  // @brief timestamp of latest measurement
+  double latest_tracked_time = 0.0;
 };
 
 using StopLinePtr = std::shared_ptr<StopLine>;
@@ -40,6 +38,6 @@ struct StopLines {
 
 using StopLinesPtr = std::shared_ptr<StopLines>;
 
-}  // namespace lm2
+}  // namespace lm
 }  // namespace mp
 }  // namespace hozon

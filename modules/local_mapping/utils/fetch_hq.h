@@ -15,7 +15,6 @@
 
 #include <Sophus/se3.hpp>
 
-#include "modules/local_mapping/types/types.h"
 #include "modules/util/include/util/mapping_log.h"
 namespace hozon {
 namespace mp {
@@ -26,7 +25,7 @@ class PriorProvider {
   PriorProvider() = default;
   ~PriorProvider() = default;
 
-  int Init(const std::string& mapping_path, const std::string& conf);
+  int Init(const std::string& map_file_path);
 
   std::shared_ptr<hozon::hdmap::Map> GetPrior();
 

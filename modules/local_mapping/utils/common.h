@@ -20,7 +20,9 @@
 #include "depend/map/hdmap/hdmap.h"
 #include "depend/proto/soc/sensor_image.pb.h"
 #include "interface/adsfi_proto/viz/sensor_msgs.pb.h"
-#include "modules/local_mapping/types/types.h"
+#include "modules/local_mapping/base/location/dr.h"
+#include "modules/local_mapping/base/scene/laneline.h"
+#include "modules/local_mapping/base/scene/roadedge.h"
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
@@ -79,15 +81,11 @@ class CommonUtil {
     c->at(3) = x[3];
   }
 
-  static double CalCubicCurveY(const LaneLine& laneline, const double& x) {
-    double y = laneline.c0_ + laneline.c1_ * x + laneline.c2_ * x * x +
-               laneline.c3_ * x * x * x;
-    return y;
-  }
-
-  static double CalCubicCurveY(const RoadEdge& laneline, const double& x) {
-    double y = laneline.c0_ + laneline.c1_ * x + laneline.c2_ * x * x +
-               laneline.c3_ * x * x * x;
+  static double CalCubicCurveY(const LaneLineCurve& vehicle_curve,
+                               const double& x) {
+    double y = vehicle_curve.coeffs[0] + vehicle_curve.coeffs[1] * x +
+               vehicle_curve.coeffs[2] * x * x +
+               vehicle_curve.coeffs[3] * x * x * x;
     return y;
   }
 
@@ -157,7 +155,7 @@ class CommonUtil {
   }
 
   static void CatmullRom(const std::vector<Eigen::Vector3d>& pts,
-                         std::vector<Eigen::Vector3d>* fit_points) {
+                         std::vector<Eigen::Vector3d>* fit_points, int num) {
     auto func = [](double p0, double p1, double p2, double p3, double t) {
       double s = 0.5;
       double a = -s * p0 + (2 - s) * p1 + (s - 2) * p2 + s * p3;
@@ -168,120 +166,140 @@ class CommonUtil {
       double t3 = t2 * t;
       return (a * t3 + b * t2 + c * t + d);
     };
-    for (size_t i = 1; i < pts.size() - 2; ++i) {
-      for (int t = 0; t < 10; t++) {
-        double px = func(pts[i - 1].x(), pts[i].x(), pts[i + 1].x(),
-                         pts[i + 2].x(), t * 0.1);
-        double py = func(pts[i - 1].y(), pts[i].y(), pts[i + 1].y(),
-                         pts[i + 2].y(), t * 0.1);
+    for (size_t i = 0; i < pts.size() - 3; ++i) {
+      double t = 0;
+      while (t < 1) {
+        double px =
+            func(pts[i].x(), pts[i + 1].x(), pts[i + 2].x(), pts[i + 3].x(), t);
+        double py =
+            func(pts[i].y(), pts[i + 1].y(), pts[i + 2].y(), pts[i + 3].y(), t);
         Eigen::Vector3d point = {px, py, 0.0};
         fit_points->emplace_back(point);
+        t += 1.0 / num;
       }
     }
   }
 
-  static void FitLaneLines(std::vector<LaneLine>* map_lane_lines) {
-    for (auto& lane_line : *map_lane_lines) {
-      lane_line.fit_points_.clear();
-      lane_line.control_points_.clear();
-      int n = static_cast<int>(lane_line.points_.size());
-      if (n < 21) {
-        continue;
-      }
-      std::vector<Eigen::Vector3d> pts;
-      std::vector<Eigen::Vector3d> back_pts;
-      for (int i = 0; i < n; i++) {
-        if (i == 1 || i % 10 == 0 || i == n - 1) {
-          pts.push_back(lane_line.points_[i]);
-        }
-        if (((n - 1) % 10 == 0 && i >= ((n - 1) / 10 - 1) * 10) ||
-            ((n - 1) % 10 != 0 && i >= (n - 1) / 10 * 10)) {
-          back_pts.push_back(lane_line.points_[i]);
-        }
-      }
-      // CommonUtil::EraseErrorPts(&pts);
-      if (pts.size() < 4) {
-        continue;
-      }
-      lane_line.control_points_ = pts;
-      CatmullRom(pts, &lane_line.fit_points_);
-      std::vector<double> c(4);
-      CommonUtil::FitLaneLine(pts, &c);
-      lane_line.c0_ = c[0];
-      lane_line.c1_ = c[1];
-      lane_line.c2_ = c[2];
-      lane_line.c3_ = c[3];
-      for (const auto& point : back_pts) {
-        lane_line.fit_points_.push_back(point);
-      }
+  //   static void FitLaneLines(std::vector<LaneLine>* map_lane_lines) {
+  // for (auto& lane_line : *map_lane_lines) {
+  //   lane_line.fit_points_.clear();
+  //   lane_line.control_points_.clear();
+  //   int n = static_cast<int>(lane_line.points_.size());
+  //   if (n < 21) {
+  //     continue;
+  //   }
+  //   std::vector<Eigen::Vector3d> pts;
+  //   std::vector<Eigen::Vector3d> back_pts;
+  //   for (int i = 0; i < n; i++) {
+  //     if (i == 1 || i % 10 == 0 || i == n - 1) {
+  //       pts.push_back(lane_line.points_[i]);
+  //     }
+  //     if (((n - 1) % 10 == 0 && i >= ((n - 1) / 10 - 1) * 10) ||
+  //         ((n - 1) % 10 != 0 && i >= (n - 1) / 10 * 10)) {
+  //       back_pts.push_back(lane_line.points_[i]);
+  //     }
+  //   }
+  //   CommonUtil::EraseErrorPts(&pts);
+  //   if (pts.size() < 4) {
+  //     continue;
+  //   }
+  //   lane_line.control_points_ = pts;
+  //   CatmullRom(pts, &lane_line.fit_points_);
+  //   std::vector<double> c(4);
+  //   CommonUtil::FitLaneLine(pts, &c);
+  //   lane_line.c0_ = c[0];
+  //   lane_line.c1_ = c[1];
+  //   lane_line.c2_ = c[2];
+  //   lane_line.c3_ = c[3];
+  //   for (const auto& point : back_pts) {
+  //     lane_line.fit_points_.push_back(point);
+  //   }
+  // }
+  // map_lane_lines->erase(
+  //     std::remove_if(map_lane_lines->begin(), map_lane_lines->end(),
+  //                    [&](const LaneLine& lane_line) {
+  //                      return lane_line.fit_points_.empty();
+  //                    }),
+  //     map_lane_lines->end());
+  //   }
+
+  //   static void FitRoadEdges(std::vector<RoadEdge>* map_road_edges) {
+  // for (auto& road_edge : *map_road_edges) {
+  //   if (!road_edge.ismature_) {
+  //     continue;
+  //   }
+  //   road_edge.fit_points_.clear();
+  //   road_edge.control_points_.clear();
+  //   int n = static_cast<int>(road_edge.points_.size());
+  //   if (n < 21) {
+  //     continue;
+  //   }
+  //   std::vector<Eigen::Vector3d> pts;
+  //   std::vector<Eigen::Vector3d> back_pts;
+  //   for (int i = 0; i < n; i++) {
+  //     if (i == 1 || i % 10 == 0 || i == n - 1) {
+  //       pts.push_back(road_edge.points_[i]);
+  //     }
+  //     if (((n - 1) % 10 == 0 && i >= ((n - 1) / 10 - 1) * 10) ||
+  //         ((n - 1) % 10 != 0 && i >= (n - 1) / 10 * 10)) {
+  //       back_pts.push_back(road_edge.points_[i]);
+  //     }
+  //   }
+  //   CommonUtil::EraseErrorPts(&pts);
+  //   if (pts.size() < 4) {
+  //     continue;
+  //   }
+  //   road_edge.control_points_ = pts;
+  //   CatmullRom(pts, &road_edge.fit_points_);
+  //   std::vector<double> c(4);
+  //   CommonUtil::FitLaneLine(pts, &c);
+  //   road_edge.c0_ = c[0];
+  //   road_edge.c1_ = c[1];
+  //   road_edge.c2_ = c[2];
+  //   road_edge.c3_ = c[3];
+  //   for (const auto& point : back_pts) {
+  //     road_edge.fit_points_.push_back(point);
+  //   }
+  // }
+  //   }
+
+  // static DrData Interpolate(const double& scale, const DrData& start,
+  //                           const DrData& end, const double& timestamp) {
+  //   DrData res;
+  //   res.timestamp = timestamp;
+  //   res.pose = start.pose + (end.pose - start.pose) * scale;
+  //   res.quaternion = start.quaternion.slerp(scale, end.quaternion);
+
+  //   if (scale >= 0.5) {
+  //     res.local_vel = end.local_vel;
+  //     res.local_omg = end.local_omg;
+  //   } else {
+  //     res.local_vel = start.local_vel;
+  //     res.local_omg = start.local_omg;
+  //   }
+
+  //   return res;
+  // }
+
+  static void TransVehiclePoint2Local(
+      const std::vector<Eigen::Vector3d>& vehicle_points,
+      std::vector<Eigen::Vector3d>* world_points,
+      const Eigen::Affine3d& trans_pose) {
+    world_points->clear();
+    for (const auto& vehicle_pt : vehicle_points) {
+      world_points->emplace_back(trans_pose * vehicle_pt);
     }
-    map_lane_lines->erase(
-        std::remove_if(map_lane_lines->begin(), map_lane_lines->end(),
-                       [&](const LaneLine& lane_line) {
-                         return lane_line.fit_points_.empty();
-                       }),
-        map_lane_lines->end());
   }
 
-  static void FitRoadEdges(std::vector<RoadEdge>* map_road_edges) {
-    for (auto& road_edge : *map_road_edges) {
-      road_edge.fit_points_.clear();
-      road_edge.control_points_.clear();
-      int n = static_cast<int>(road_edge.points_.size());
-      if (n < 21) {
-        continue;
-      }
-      std::vector<Eigen::Vector3d> pts;
-      std::vector<Eigen::Vector3d> back_pts;
-      for (int i = 0; i < n; i++) {
-        if (i == 1 || i % 10 == 0 || i == n - 1) {
-          pts.push_back(road_edge.points_[i]);
-        }
-        if (((n - 1) % 10 == 0 && i >= ((n - 1) / 10 - 1) * 10) ||
-            ((n - 1) % 10 != 0 && i >= (n - 1) / 10 * 10)) {
-          back_pts.push_back(road_edge.points_[i]);
-        }
-      }
-      // CommonUtil::EraseErrorPts(&pts);
-      if (pts.size() < 4) {
-        continue;
-      }
-      road_edge.control_points_ = pts;
-      CatmullRom(pts, &road_edge.fit_points_);
-      std::vector<double> c(4);
-      CommonUtil::FitLaneLine(pts, &c);
-      road_edge.c0_ = c[0];
-      road_edge.c1_ = c[1];
-      road_edge.c2_ = c[2];
-      road_edge.c3_ = c[3];
-      for (const auto& point : back_pts) {
-        road_edge.fit_points_.push_back(point);
-      }
+  static void TransLocalPoint2Vehicle(
+      const std::vector<Eigen::Vector3d>& world_points,
+      std::vector<Eigen::Vector3d>* vehicle_points,
+      const Eigen::Affine3d& trans_pose) {
+    vehicle_points->clear();
+    for (const auto& world_pt : world_points) {
+      auto vehicle_pt = trans_pose.inverse() * world_pt;
+      vehicle_points->emplace_back(vehicle_pt);
     }
-    map_road_edges->erase(
-        std::remove_if(map_road_edges->begin(), map_road_edges->end(),
-                       [&](const RoadEdge& road_edge) {
-                         return road_edge.fit_points_.empty();
-                       }),
-        map_road_edges->end());
-  }
-
-  static DrData Interpolate(const double& scale, const DrData& start,
-                            const DrData& end, const double& timestamp) {
-    DrData res;
-    res.timestamp = timestamp;
-    res.pose = start.pose + (end.pose - start.pose) * scale;
-    res.quaternion = start.quaternion.slerp(scale, end.quaternion);
-
-    if (scale >= 0.5) {
-      res.local_vel = end.local_vel;
-      res.local_omg = end.local_omg;
-    } else {
-      res.local_vel = start.local_vel;
-      res.local_omg = start.local_omg;
-    }
-
-    return res;
   }
 
   static void Gcj02ToUtm(const Sophus::SE3d& T_G_V, Sophus::SE3d* T_U_V) {

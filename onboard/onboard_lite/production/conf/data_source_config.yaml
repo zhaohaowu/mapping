@@ -61,6 +61,12 @@ dataSourcesOut:
     cmTopic: /perception/fsd/transportelement_1
     cmDomainId: 0
     capacity: 5
+  - topic: percep_transport_lm
+    capacity: 5
+    type: proto_skeleton
+    cmTopic: /perception/fsd/transportelement_lm
+    cmDomainId: 0
+    capacity: 5
   - topic: local_map
     capacity: 5
     type: proto_skeleton

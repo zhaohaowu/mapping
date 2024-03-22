@@ -9,20 +9,16 @@
 #include <memory>
 #include <vector>
 
+#include "Eigen/Core"
 #include "depend/perception-base/base/point/point.h"
 
 namespace hozon {
 namespace mp {
-namespace lm2 {
-
-namespace perception_base = hozon::perception::base;
-
+namespace lm {
 struct NoParking {
   uint8_t id;
   float confidence;
-  std::vector<perception_base::Point2DF>
-      point_set_2d;  // 图像系点（左上角为起点， 逆时针顺序）
-  std::vector<perception_base::Point3DF> point_set_3d;  // 车身系点
+  std::vector<Eigen::Vector3d> vehicle_points;  // 车身系点
 };
 
 using NoParkingPtr = std::shared_ptr<NoParking>;
@@ -34,6 +30,6 @@ struct NoParkings {
 
 using NoParkingsPtr = std::shared_ptr<NoParkings>;
 
-}  // namespace lm2
+}  // namespace lm
 }  // namespace mp
 }  // namespace hozon

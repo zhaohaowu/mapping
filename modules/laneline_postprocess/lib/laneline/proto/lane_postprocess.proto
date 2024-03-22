@@ -1,0 +1,147 @@
+syntax = "proto2";
+package hozon.mp.environment;
+
+
+message LaneCurveFitter {
+  optional float avg_dist_thresh = 1 [default = 1.0];
+  optional float max_dist_thresh = 2 [default = 1.0];
+  optional float ransac_select_ratio = 3 [default = 0.2];
+  optional int32 ransac_max_select_pt_num = 4 [default = 20];
+  optional int32 ransac_epoch_num = 5 [default = 5];
+  optional bool do_normalization = 6 [default=false];
+  optional bool do_extend_point = 7 [default=true];
+
+  optional float fix_param_xmin = 8 [default = 5.0];
+  optional float linear_select_ratio = 9 [default = 0.8];
+  optional float linear_xmin = 10 [default = 0.0];
+  optional float linear_xmax = 11 [default = 10.0];
+  optional float linear_len = 12 [default = 15.0];
+  optional float quadratic_len = 13 [default = 40.0];
+  optional string curve_function = 14 [default = ''];
+}
+
+
+message StaticStrategyParam {
+  optional bool test = 1 [default = true];
+  optional bool use_idle_strategy = 2 [default = false];
+  optional bool debug_option = 3 [default = false];
+  optional float radial_velocity_limit = 4;
+  optional float angular_velocity_limit = 5;
+  optional float dist_limit = 6;
+  optional float angle_limit = 7;
+  optional float u_turn_angle_velocity_limit = 8;
+}
+
+
+message LanePostMeasurementFilterParam {
+  optional float short_lane_length_thresh = 1;
+  optional float same_pos_distance_thresh = 2;
+  optional float hight_overlay_length_ratio_thresh = 3;
+  optional float low_overlay_length_ratio_thresh = 4;
+  optional float length_ratio_thresh = 5;
+  optional float far_distance_thresh = 6;
+  optional float interval_diff_ratio_thresh = 7;
+  optional float min_interval_thresh = 8;
+  optional float anomaly_inter_ratio_thresh = 9;
+}
+
+
+message LaneTargetParam {
+  optional int32 reserve_age = 1 [default = 5];
+  optional int32 tracked_init_life = 2 [default = 3];
+}
+
+message LanePointFilterParam {
+  optional int32 max_history_window = 1 [default = 5];
+  optional int32 max_history_points_num = 2 [default = 1000];
+  optional int32 curve_fitting_order = 3 [default = 3];
+  optional float max_far_distance = 4 [default = 200.0];
+  optional float min_near_distance = 5 [default = -10.0];
+  optional float middle_near_distance = 6 [default = 10.0];
+  optional float far_sample_bin_width = 7 [default = 10.0];
+  optional float near_sample_bin_width = 8 [default = 0.5];
+  optional int32 min_point_num_each_bin = 9 [default = 1];
+  optional LaneCurveFitter lane_curve_fitter_param = 10;
+  optional float max_delta_change_for_pose_angle = 11 [default = 5.0];
+  optional float max_delta_change_for_pose_position = 12 [default = 2.0];
+  optional float max_distance_between_cur_and_history = 13 [default = 2.0];
+  optional float min_distance_between_cur_and_history = 14 [default = 0.5];
+  optional int32 update_point_max_num = 17;
+}
+message LaneTypeFilterParam {
+  optional int32 max_history_window = 1 [default = 10];
+  optional float type_keep_weight = 2 [default = 1.0];
+  optional int32 type_count_threshold = 3 [default = 3];
+}
+
+message LaneColorFilterParam {
+  optional int32 max_history_window = 1 [default = 10];
+  optional float color_keep_weight = 2 [default = 1.0];
+  optional int32 color_count_threshold = 3 [default = 3];
+}
+
+
+message LaneMatchParam {
+  optional float same_group_max_dist = 1 [default = 2.5];
+  optional int32 min_match_group_point_num = 2 [default = 10];
+  optional int32 min_init_track_point_num = 3 [default = 4];
+  optional float max_match_distance = 4 [default = 1.5];
+  optional float length_score_weight = 5 [default = 0.01];
+  optional float point_match_score_weight = 6 [default = 0.5];
+  optional float match_dis_for_no_in_range = 7 [default = 3];
+}
+
+message LaneLineQualityParam {
+  optional int32 low_quality_for_point_num = 2 [default = 5];
+  optional float low_quality_for_length = 3 [default = 10.0];
+  optional float low_quality_for_curvature_radius = 4 [default = 80.0];
+  optional float low_quality_for_jump_distance = 5 [default = 0.5];
+  optional float quality_evaluate_interval_start = 6 [default = 0];
+  optional float quality_evaluate_interval_end = 7 [default = 40];
+  optional float low_quality_for_yaw_jump = 8 [default = 1];
+  optional float min_confidence_thresh = 9 [default = 0.45];
+}
+
+message LaneLineQualityFilterParam {
+  optional int32 max_history_window = 1 [default = 5];
+  optional LaneLineQualityParam alarm_quality_param = 2;
+}
+
+
+message LaneTrackFilterParam {
+  optional LanePointFilterParam lane_point_filter_param = 1;
+  optional LaneLineQualityFilterParam lane_line_quality_filter_param = 2;
+  optional LaneTypeFilterParam lane_type_filter_param = 11;
+  optional LaneColorFilterParam lane_color_filter_param = 13;
+}
+
+message LaneGateKeepeParam {
+  optional bool output_lost_lanes = 1;
+  optional float output_nms_distance = 2;
+  optional float output_nms_length_ratio = 3;
+  optional float output_blind_start = 4 [default = 1.0];
+  optional float output_lane_length = 5 [default = 15.0];
+  optional float output_lane_longitudinal_overlap_iou = 6 [default = 0.7];
+}
+
+message LanePoseSetterParam {
+  optional float ref_min = 1 [default=10.0];
+  optional float ref_length = 2 [default=10.0];
+  optional int32 sample_point_num = 3 [default=3];
+}
+
+message LaneTrackerPipelineParam {
+  optional LaneTrackFilterParam lane_track_filter_param = 1;
+  optional LaneTargetParam lane_target_param = 2;
+  optional LaneMatchParam lane_match_param = 3;
+  optional LaneGateKeepeParam lane_gate_keeper_param = 5;
+  optional LanePoseSetterParam lane_pose_setter_param = 6;
+  optional LaneLineQualityParam main_lane_quality_param = 7;
+}
+
+
+message LanePostProcessParam {
+  optional LanePostMeasurementFilterParam lane_measurement_filter_param = 1;
+  optional LaneTrackerPipelineParam lane_tracker_pipeline_param = 2;
+  optional StaticStrategyParam static_strategy_param = 3;
+}

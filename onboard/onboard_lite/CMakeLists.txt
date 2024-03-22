@@ -14,24 +14,35 @@ add_subdirectory(phm_comment_lite)
 add_subdirectory(map_fusion)
 add_subdirectory(dr)
 add_subdirectory(location)
+add_subdirectory(laneline_postprocess) # add by wenhai.zhang
 add_subdirectory(local_mapping)
 add_subdirectory(viz_converter)
 
 install(
-  DIRECTORY production/conf/phm_config
-  DESTINATION ${CMAKE_INSTALL_PREFIX}/conf/mapping
+  DIRECTORY production/conf/
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/conf/lite
+  PATTERN "production/conf/phm_config/phm_params" EXCLUDE
+  PATTERN "production/conf/config_manager.config" EXCLUDE
+  PATTERN "production/conf/phm_params_config.prototxt" EXCLUDE
 )
-
 install(
   FILES production/conf/config_manager.config
   DESTINATION ${CMAKE_INSTALL_PREFIX}/conf/mapping
 )
+install(
+  DIRECTORY production/conf/phm_config
+  DESTINATION ${CMAKE_INSTALL_PREFIX}/conf/mapping
+  PATTERN "production/conf/phm_config/phm_common_onboard_config.yaml" EXCLUDE
+)
 
 install(
-  DIRECTORY production/conf/
-  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/conf/lite
-  PATTERN "production/conf/phm_config" EXCLUDE
-  PATTERN "production/conf/config_manager.config" EXCLUDE
+  FILES production/conf/config_manager.config
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/conf/mapping
+)
+install(
+  DIRECTORY production/conf/phm_config
+  DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/conf/mapping
+  PATTERN "production/conf/phm_config/phm_common_onboard_config.yaml" EXCLUDE
 )
 
 if(${LOCAL_TARGET_PLATFORM} MATCHES orin)

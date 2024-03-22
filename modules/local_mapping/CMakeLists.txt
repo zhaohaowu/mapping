@@ -9,12 +9,6 @@ include_directories(
 
 file(GLOB_RECURSE LM_SRCS "*.cc" "*.h")
 
-file(GLOB_RECURSE PROTO_FILES
-    "lib/laneline/proto/*.proto"
-)
-PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HEADERS ${PROTO_FILES})
-
-
 #add_mapping_library 加前缀mapping_
 add_mapping_library(lmap_core SHARED ${LM_SRCS} ${PROTO_SRCS})
 

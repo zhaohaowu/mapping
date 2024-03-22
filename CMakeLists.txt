@@ -160,13 +160,16 @@ install(FILES version.json DESTINATION ${CMAKE_INSTALL_PREFIX} RENAME version.js
 install(
     DIRECTORY conf
     DESTINATION ${CMAKE_INSTALL_PREFIX_RS}
-    PATTERN "mapping/laneline_postprocess" EXCLUDE
 )
 
 install(
+    DIRECTORY conf/mapping/local_mapping
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/conf/mapping)
+
+
+install(
     DIRECTORY conf/mapping/laneline_postprocess
-    DESTINATION ${CMAKE_INSTALL_PREFIX}/conf/mapping
-)
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/conf/mapping)
 
 # 打包third party环境
 if(IND)

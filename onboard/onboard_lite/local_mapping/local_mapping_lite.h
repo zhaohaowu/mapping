@@ -2,6 +2,7 @@
  Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved
  *Author: Hozon
  *Date: 2023-09-09
+ 用于localmap的onboard板端对外接口实现。包含上游数据输入和对外数据发送。
  *****************************************************************************/
 
 #pragma once
@@ -11,22 +12,12 @@
 #include "adf-lite/include/base.h"
 #include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
 #include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
-#include "depend/perception-base/base/state_machine/state_machine_info.h"
-#include "depend/perception-lib/lib/fault_manager/fault_manager.h"
-#include "modules/local_mapping/lib/laneline/tracker/bev_lane_tracker/datalogger/load_data_singleton.h"
-#include "modules/local_mapping/local_mapping.h"
-// #include
-// "perception-common-onboard/common_onboard/adapter/onboard_lite/onboard_lite.h"
-#include "depend/perception-base/base/frame/measurement_frame.h"
-#include "onboard/onboard_lite/local_mapping/measurement_message.h"
-
+#include "modules/local_mapping/app/local_mapping.h"
 namespace hozon {
 namespace mp {
 namespace lm {
 
 using adf_lite_Bundle = hozon::netaos::adf_lite::Bundle;
-namespace perception_base = hozon::perception::base;
-namespace perception_lib = hozon::perception::lib;
 
 class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
  public:
@@ -36,30 +27,32 @@ class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
   int32_t AlgInit() override;
   void AlgRelease() override;
 
+  // 接收running_mode通道，用于行泊切换
   int32_t OnRunningMode(adf_lite_Bundle* input);
 
-  int32_t OnDr(adf_lite_Bundle* input);
-
+  // 获取dr局部定位信息
   int32_t Onlocalization(adf_lite_Bundle* input);
 
+  // 获取Ins全局定位信息，仅用于可视化
   int32_t OnIns(adf_lite_Bundle* input);
 
+  // 获取相机图像信息，仅用于可视化
   int32_t OnImage(adf_lite_Bundle* input);
 
+  // 获取上游感知模型数据（包含障碍物、静态元素等）
   int32_t OnPerception(adf_lite_Bundle* input);
 
-  int32_t PublishPostLaneLine(
-      std::shared_ptr<const hozon::perception::measurement::MeasurementPb>
-          pbdata,
-      std::shared_ptr<const perception_base::FusionFrame> fusion_msg);
+  // 发送车道线后处理结果给到第三方(如果需要)
+  int32_t PublishLaneLine();
 
+  // 发送建图结果给到下游模块
   int32_t PublishLocalMap();
 
  private:
-  std::shared_ptr<LMapApp> lmap_ = nullptr;
+  std::shared_ptr<LocalMapApp> app_ptr_ = nullptr;  // 整个localmap逻辑处理类
 };
 
-// REGISTER_ADF_CLASS(LocalMappingOnboard, LocalMappingOnboard);
+REGISTER_ADF_CLASS(LocalMappingOnboard, LocalMappingOnboard);
 
 }  // namespace lm
 }  // namespace mp

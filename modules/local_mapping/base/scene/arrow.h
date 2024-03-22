@@ -9,31 +9,56 @@
 #include <memory>
 #include <vector>
 
+#include "Eigen/Core"
 #include "depend/perception-base/base/measurement/arrow_measurement.h"
 #include "depend/perception-base/base/point/point.h"
+#include "modules/local_mapping/base/scene/base.h"
 
 namespace hozon {
 namespace mp {
-namespace lm2 {
+namespace lm {
 
-namespace perception_base = hozon::perception::base;
+enum class ArrowType {
+  STRAIGHT_FORWARD = 0,                              // 直行箭头
+  STRAIGHT_FORWARD_OR_TURN_LEFT = 1,                 // 直行或左转
+  STRAIGHT_FORWARD_OR_TURN_RIGHT = 2,                // 直行或右转
+  STRAIGHT_FORWARD_OR_TURN_LEFT_OR_TURN_RIGHT = 3,   // 直行或左转或右转
+  STRAIGHT_FORWARD_OR_TURN_AROUND = 4,               // 直行或掉头
+  STRAIGHT_FORWARD_OR_TURN_AROUND_OR_TURN_LEFT = 5,  // 直行或掉头或左转
 
-struct Arrow {
+  TURN_LEFT = 6,                   // 左转
+  TURN_LEFT_OR_MERGE_LEFT = 7,     // 左转或向左合流
+  TURN_LEFT_OR_TURN_AROUND = 8,    // 左转或掉头
+  TURN_LEFT_OR_TURN_RIGHT = 9,     // 左转或右转
+  TURN_RIGHT = 10,                 // 右转
+  TURN_RIGHT_OR_MERGE_RIGHT = 11,  // 右转或向右合流
+  TURN_RIGHT_OR_TURN_AROUND = 12,  // 右转或掉头
+  TURN_AROUND = 13,                // 掉头
+
+  FORBID_TURN_LEFT = 14,      // 禁止左转
+  FORBID_TURN_RIGHT = 15,     // 禁止右转
+  FORBID_TURN_AROUND = 16,    // 禁止掉头
+  FRONT_NEAR_CROSSWALK = 17,  // 前向斑马线
+  UNKNOWN = 18,
+};
+
+struct Arrow : public BaseData {
   uint8_t id;
-  perception_base::ArrowType type;
+  ArrowType type;
   float confidence;
-  float heading;  // 弧度值
-  std::vector<perception_base::Point2DF>
-      point_set_2d;  // 图像系点（左上角为起点， 逆时针顺序）
-  std::vector<perception_base::Point3DF> point_set_3d;  // 车身系点
+  double heading;                               // 弧度值
+  std::vector<Eigen::Vector3d> vehicle_points;  // 车身系点
+  Eigen::Vector3d center_point;
 
-  double length = 1000.0;
-  double width = 1000.0;
-  perception_base::Point3DF mid_point;
-  bool has_matched = false;
-  bool ismature = false;
-  int tracked_count = -1;
-  int lost_age = -1;
+  // @brief age of the tracked lane line
+  double tracking_time = 0.0;
+
+  // @brief timestamp of latest measurement
+  double latest_tracked_time = 0.0;
+
+  // 考虑废弃
+  double length;
+  double width;
 };
 
 using ArrowPtr = std::shared_ptr<Arrow>;
@@ -45,6 +70,8 @@ struct Arrows {
 
 using ArrowsPtr = std::shared_ptr<Arrows>;
 
-}  // namespace lm2
+using ArrowsConstPtr = std::shared_ptr<const Arrows>;
+
+}  // namespace lm
 }  // namespace mp
 }  // namespace hozon

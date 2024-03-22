@@ -9,22 +9,22 @@
 #include <memory>
 #include <vector>
 
-#include "depend/perception-base/base/measurement/waitzone_measurement.h"
-#include "depend/perception-base/base/point/point.h"
+#include "Eigen/Core"
 
 namespace hozon {
 namespace mp {
-namespace lm2 {
+namespace lm {
 
-namespace perception_base = hozon::perception::base;
-
+enum class ZoneType {
+  LEFTWAIT_ZONE = 0,
+  STRAIGHTWAIT_ZONE = 1,
+  UNKNOWN = 2,  // unknown
+};
 struct WaitZone {
   uint8_t id;
-  perception_base::ZoneType type;
+  ZoneType type;
   float confidence;
-  std::vector<perception_base::Point2DF>
-      point_set_2d;  // 图像系点（左上角为起点， 逆时针顺序）
-  std::vector<perception_base::Point3DF> point_set_3d;  // 车身系点
+  std::vector<Eigen::Vector3d> vehicle_points;  // 车身系点
 };
 
 using WaitZonePtr = std::shared_ptr<WaitZone>;
@@ -36,6 +36,6 @@ struct WaitZones {
 
 using WaitZonesPtr = std::shared_ptr<WaitZones>;
 
-}  // namespace lm2
+}  // namespace lm
 }  // namespace mp
 }  // namespace hozon

@@ -9,28 +9,10 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
-int PriorProvider::Init(const std::string& mapping_path,
-                        const std::string& conf) {
-  YAML::Node root;
-  try {
-    root = YAML::LoadFile(conf);
-  } catch (YAML::BadFile& ex) {
-    HLOG_ERROR << "load yaml " << conf << " failed: " << ex.what();
-    return -1;
-  } catch (YAML::ParserException& ex) {
-    HLOG_ERROR << "parse yaml " << conf << " failed: " << ex.what();
-    return -1;
-  }
-  std::string key = "map_file";
-  if (!root[key]) {
-    HLOG_ERROR << key << " not exist in " << conf;
-    return -1;
-  }
-
-  const auto map_file = mapping_path + root[key].as<std::string>();
-  std::ifstream map_stream(map_file, std::ios::in | std::ios::binary);
+int PriorProvider::Init(const std::string& map_file_path) {
+  std::ifstream map_stream(map_file_path, std::ios::in | std::ios::binary);
   if (!map_stream) {
-    HLOG_ERROR << "Failed to open " << map_file;
+    HLOG_ERROR << "Failed to open " << map_file_path;
     map_stream.close();
     return -1;
   }

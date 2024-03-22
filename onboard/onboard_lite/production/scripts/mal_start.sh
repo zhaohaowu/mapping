@@ -6,7 +6,7 @@ echo ${CURR_DIR}
 OUTPUT_ROOT="$(builtin cd ${CURR_DIR}/.. && pwd -P)"
 echo ${OUTPUT_ROOT}
 
-export PERCEPTION_ROOT_PATH=${CURR_DIR}/../
+export PERCEPTION_ROOT_PATH=${CURR_DIR}/../runtime_service/mapping/
 
 WORKSPACE="$(builtin cd ${OUTPUT_ROOT}/../.. && pwd -P)"
 echo ${WORKSPACE}

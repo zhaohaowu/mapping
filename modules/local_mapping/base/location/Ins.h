@@ -14,18 +14,19 @@
 
 namespace hozon {
 namespace mp {
-namespace lm2 {
+namespace lm {
 
 struct InsData {
  public:
-  double timestamp_;
-  Eigen::Vector3d position_;
-  Eigen::Quaterniond quaternion_;
+  double timestamp;
+  Eigen::Vector3d position;
+  Eigen::Quaterniond quaternion;
+  Eigen::Affine3d pose = Eigen::Affine3d::Identity();
 };
 
 using InsDataPtr = std::shared_ptr<InsData>;
 using InsDataConstPtr = std::shared_ptr<const InsData>;
 
-}  // namespace lm2
+}  // namespace lm
 }  // namespace mp
 }  // namespace hozon

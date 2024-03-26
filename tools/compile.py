@@ -330,6 +330,36 @@ def all_build(workspace, platform, build_directory, release_directory, **kwargs)
     orin_build(workspace, platform, build_directory, release_directory, **kwargs)
     # start_copy_head('orin')
 
+def process_submodules(output_file):
+    # 获取当前模块的最新提交日志
+    git_log = sp.check_output(['git', 'log', '-1'], cwd=os.getcwd(), text=True)
+    # 将信息写入文件
+    with open(output_file, 'a') as file:
+        file.write(f"Repository mapping :\n")
+        file.write(git_log)
+        file.write("\n")
+
+    # 获取所有子模块的列表
+    submodule_output = sp.check_output(['git', 'submodule', 'foreach', '--quiet', 'echo $name'], text=True)
+    # 使用换行符分割字符串，得到包含所有子模块名称的列表
+    submodules = submodule_output.split('\n')
+    # 打印子模块列表
+    print(submodules)
+
+    # 遍历每个子模块
+    for submodule in submodules:
+        repo_name = os.path.basename(os.path.dirname(submodule))
+        submodule_path = os.path.join(os.getcwd(), submodule)
+
+        # 获取子模块的最新提交日志
+        git_log = sp.check_output(['git', 'log', '-1'], cwd=submodule_path, text=True)
+
+        # 将信息写入文件
+        with open(output_file, 'a') as file:
+            file.write(f"Repository submodule: {submodule}\n")
+            file.write(git_log)
+            file.write("\n")
+
 if __name__ == '__main__':
     # 解析编译选项为dict
     kwargs = vars(parse_args())
@@ -340,6 +370,12 @@ if __name__ == '__main__':
     release_directory = osp.join(workspace, 'release')
     platform = kwargs.pop('platform')
     sp.run('git submodule update --init', shell=True)
+
+    output_file = "conf/mapping/mal_all_submodules_version"
+    # 清空或创建文件
+    open(output_file, 'w').close()
+    # 处理所有子模块
+    process_submodules(output_file)
 
     # 清理cmake编译缓存
     if kwargs['clean']:

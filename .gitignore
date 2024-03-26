@@ -12,3 +12,4 @@ depend/perception-base/release/*
 *.pb.cc
 *.pb.h
 plugin_env.txt
+mal_all_submodules_version

@@ -80,8 +80,8 @@ bool FusionCenter::Init(const std::string& configfile,
     mm_ins_diff_file_.open("./mm_ins_diff.txt", std::ios::trunc);
   }
 
-  th_fusion_ = std::make_shared<std::thread>(&FusionCenter::RunFusion, this);
   fusion_run_ = true;
+  th_fusion_ = std::make_shared<std::thread>(&FusionCenter::RunFusion, this);
 
   return true;
 }

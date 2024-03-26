@@ -34,7 +34,7 @@ bool MapMatch::CheckLaneWidth(const SE3 &T) {
 
 void MapMatch::Match(const HdMap &hd_map,
                      const std::shared_ptr<Perception> &perception,
-                     const SE3 &T02_W_V, const SE3 &T_fc) {
+                     const SE3 &T02_W_V, const ValidPose &T_fc) {
   lane_line_->set_ins_ts(ins_timestamp_);
   lane_line_->Match(hd_map, perception, T02_W_V, T_fc);
   lane_line_->GetError(&has_err_, &err_type_);

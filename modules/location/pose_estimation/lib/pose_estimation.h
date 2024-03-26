@@ -54,7 +54,7 @@ struct SensorSync {
 };
 
 struct InsMsg {
-  InsMsg(const Sophus::SE3d &pose, double stamp) : pose(pose), stamp(stamp) {}
+  InsMsg(const Sophus::SE3d& pose, double stamp) : pose(pose), stamp(stamp) {}
   InsMsg() {
     pose = Sophus::SE3d(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
     stamp = 0;
@@ -64,7 +64,7 @@ struct InsMsg {
 };
 
 struct MmOptMsg {
-  MmOptMsg(const Sophus::SE3d &pose, double stamp) : pose(pose), stamp(stamp) {}
+  MmOptMsg(const Sophus::SE3d& pose, double stamp) : pose(pose), stamp(stamp) {}
   MmOptMsg() {
     pose = Sophus::SE3d(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
     stamp = 0;
@@ -108,7 +108,7 @@ struct MMFault {
 
 class MapMatchingFrameRateRecord {
  public:
-  void CalFrameRate(const double &ts, const std::string &prefix) {
+  void CalFrameRate(const double& ts, const std::string& prefix) {
     static double last_ts = ts;
     static int cnt = 0;
     static int fps = 0;
@@ -139,11 +139,11 @@ class MapMatching {
   }
   ~MapMatching();
 
-  bool Init(const std::string &config_file, const std::string &cfg_cam_path);
+  bool Init(const std::string& config_file, const std::string& cfg_cam_path);
   void OnIns(
-      const std::shared_ptr<const ::hozon::localization::HafNodeInfo> &msg);
+      const std::shared_ptr<const ::hozon::localization::HafNodeInfo>& msg);
   void OnPerception(
-      const std::shared_ptr<const ::hozon::perception::TransportElement> &msg);
+      const std::shared_ptr<const ::hozon::perception::TransportElement>& msg);
   // void OnLocation(const std::shared_ptr<const ::location::HafLocation> &msg);
   // void OnMarkPole(
   //     const std::shared_ptr<const
@@ -155,22 +155,22 @@ class MapMatching {
   std::tuple<bool, SensorSync> sensorFront(void);
   void eraseFront(bool is_erase_buf);
   void sensorPush(
-      const ::hozon::perception::TransportElement &transport_element,
+      const ::hozon::perception::TransportElement& transport_element,
       bool is_roadmark);
   // void sensorPush(const ::perception::ObjectList &object);
   unsigned int sensorSize();
 
-  void setSubMap(const Eigen::Vector3d &vehicle_position,
-                 const Eigen::Matrix3d &vehicle_rotation,
-                 const Eigen::Vector3d &ref_point);
-  void setFrontRoadMark(const ::hozon::perception::TransportElement &roadmark,
+  void setSubMap(const Eigen::Vector3d& vehicle_position,
+                 const Eigen::Matrix3d& vehicle_rotation,
+                 const Eigen::Vector3d& ref_point);
+  void setFrontRoadMark(const ::hozon::perception::TransportElement& roadmark,
                         bool is_roadmark);
-  void setLocation(const ::hozon::localization::Localization &info);
+  void setLocation(const ::hozon::localization::Localization& info);
   void OnLocation(
-      const std::shared_ptr<const ::hozon::localization::Localization> &msg);
+      const std::shared_ptr<const ::hozon::localization::Localization>& msg);
 
   // void setObject(const ::perception::ObjectList &object);
-  void setIns(const ::hozon::localization::HafNodeInfo &ins);
+  void setIns(const ::hozon::localization::HafNodeInfo& ins);
   void interpolateOptimizeResult();
   void mmProcCallBack(void);
   // void mmInterpCallBack(void);
@@ -178,8 +178,8 @@ class MapMatching {
   void start(void);
   void reset(void);
   PtrNodeInfo getMmNodeInfo();
-  PtrNodeInfo generateNodeInfo(const Sophus::SE3d &T_W_V, uint64_t sec,
-                               uint64_t nsec, const bool &has_err,
+  PtrNodeInfo generateNodeInfo(const Sophus::SE3d& T_W_V, uint64_t sec,
+                               uint64_t nsec, const bool& has_err,
                                Eigen::Vector3d ref_point);
   inline double normalizeAngle(double z) { return atan2(sin(z), cos(z)); }
   inline double transAngleValue2ZeroToTwoPi(double z) {
@@ -216,7 +216,7 @@ class MapMatching {
   SE3 T02_W_V_last_;
   SE3 T84_W_V_;
   SE3 T_fine_;
-  SE3 T_fc_;
+  ValidPose T_fc_;
   SE3 T_output_;
   SE3 T02_W_VF_last_;
 
@@ -245,49 +245,49 @@ class MapMatching {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  private:
-  void setPoints(const PerceptionLaneLineList &line_list, const SE3 &T_W_V,
-                 VP *points);
-  void pubPoints(const VP &points, const uint64_t &sec, const uint64_t &nsec,
-                 const std::string &krviz_topic);
-  void pubOdomPoints(const std::string &topic, const Eigen::Vector3d &trans,
-                     const Eigen::Quaterniond &q, uint64_t sec, uint64_t nsec);
-  void pubVehicle(const SE3 &T, const double &sec, const double &nsec);
-  void pubTimeAndInsStatus(const SE3 &T, double stamp);
-  void pubMatchPoints(const VP &points);
-  void PubMatchPoints(const VP &points, const uint64_t &sec,
-                      const uint64_t &nsec, const std::string &topic_name);
-  void setConnectPercepPoints(const Connect &connect, const SE3 &T_W_V,
-                              VP &points);  // NOLINT
-  void pubConnectPercepPoints(const VP &points, uint64_t sec, uint64_t nsec);
-  void setOriginConnectPercepPoints(const Connect &connect, const SE3 &T_W_V,
-                                    VP &points);  // NOLINT
-  void pubOriginConnectPercepPoints(const VP &points, uint64_t sec,
+  void setPoints(const PerceptionLaneLineList& line_list, const SE3& T_W_V,
+                 VP* points);
+  void pubPoints(const VP& points, const uint64_t& sec, const uint64_t& nsec,
+                 const std::string& krviz_topic);
+  void pubOdomPoints(const std::string& topic, const Eigen::Vector3d& trans,
+                     const Eigen::Quaterniond& q, uint64_t sec, uint64_t nsec);
+  void pubVehicle(const SE3& T, const double& sec, const double& nsec);
+  void pubTimeAndInsStatus(const SE3& T, double stamp);
+  void pubMatchPoints(const VP& points);
+  void PubMatchPoints(const VP& points, const uint64_t& sec,
+                      const uint64_t& nsec, const std::string& topic_name);
+  void setConnectPercepPoints(const Connect& connect, const SE3& T_W_V,
+                              VP& points);  // NOLINT
+  void pubConnectPercepPoints(const VP& points, uint64_t sec, uint64_t nsec);
+  void setOriginConnectPercepPoints(const Connect& connect, const SE3& T_W_V,
+                                    VP& points);  // NOLINT
+  void pubOriginConnectPercepPoints(const VP& points, uint64_t sec,
                                     uint64_t nsec);
-  void setOriginConnectMapPoints(const Connect &connect, const SE3 &T_W_V,
-                                 VP &points);  // NOLINT
-  void pubOriginConnectMapPoints(const VP &points, uint64_t sec, uint64_t nsec);
-  void setConnectMapPoints(const Connect &connect, const SE3 &T_W_V,
-                           VP &points);  // NOLINT
-  void pubConnectMapPoints(const VP &points, uint64_t sec, uint64_t nsec);
+  void setOriginConnectMapPoints(const Connect& connect, const SE3& T_W_V,
+                                 VP& points);  // NOLINT
+  void pubOriginConnectMapPoints(const VP& points, uint64_t sec, uint64_t nsec);
+  void setConnectMapPoints(const Connect& connect, const SE3& T_W_V,
+                           VP& points);  // NOLINT
+  void pubConnectMapPoints(const VP& points, uint64_t sec, uint64_t nsec);
   template <typename T>
-  void ShrinkQueue(T *const deque, uint32_t maxsize);
+  void ShrinkQueue(T* const deque, uint32_t maxsize);
 
-  adsfi_proto::viz::Marker laneToMarker(const VP &points, std::string id,
+  adsfi_proto::viz::Marker laneToMarker(const VP& points, std::string id,
                                         bool is_points, bool is_center,
                                         float point_size = 1,
                                         bool is_boundary = false);
   adsfi_proto::viz::Marker lineIdToMarker(const V3 point, std::string id);
-  adsfi_proto::viz::Marker poleToMarker(const VP &points, int id);
-  adsfi_proto::viz::Marker trafficsignToMarker(const std::vector<VP> &vpoints,
+  adsfi_proto::viz::Marker poleToMarker(const VP& points, int id);
+  adsfi_proto::viz::Marker trafficsignToMarker(const std::vector<VP>& vpoints,
                                                int id);
-  adsfi_proto::viz::Marker roadmarkingToMarker(const std::vector<VP> &vpoints,
+  adsfi_proto::viz::Marker roadmarkingToMarker(const std::vector<VP>& vpoints,
                                                int id);
-  bool CheckLaneMatch(const SE3 &T_delta_cur);
-  bool GetHdCurrLaneType(const Eigen::Vector3d &utm);
-  bool FindPecepINS(HafNodeInfo *now_ins);
-  bool FindPecepFC(hozon::localization::Localization *cur_fc);
-  bool ExtractInsMsg(HafNodeInfo *now_ins, SE3 *T02_W_V_ins,
-                     const Eigen::Vector3d &ref_point);
+  bool CheckLaneMatch(const SE3& T_delta_cur);
+  bool GetHdCurrLaneType(const Eigen::Vector3d& utm);
+  bool FindPecepINS(HafNodeInfo* now_ins);
+  bool FindPecepFC(hozon::localization::Localization* cur_fc);
+  bool ExtractInsMsg(HafNodeInfo* now_ins, SE3* T02_W_V_ins,
+                     const Eigen::Vector3d& ref_point);
 
  private:
   int mm_err_type_;  // 用于接收map_match_lane_line中的故障

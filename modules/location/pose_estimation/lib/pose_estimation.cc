@@ -687,7 +687,7 @@ void MapMatching::procData() {
   hozon::localization::Localization cur_fc;
   if (!FindPecepFC(&cur_fc)) {
     HLOG_ERROR << "Dont find fc when use perception line to find fc deque";
-    return;
+    T_fc_.valid = false;
   }
   Eigen::Quaterniond q_W_V(
       cur_fc.pose().quaternion().w(), cur_fc.pose().quaternion().x(),
@@ -697,7 +697,7 @@ void MapMatching::procData() {
   ref_point_mutex_.lock();
   Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, esti_ref_point);
   ref_point_mutex_.unlock();
-  T_fc_ = SE3(q_W_V, enu);
+  T_fc_.pose = SE3(q_W_V, enu);
 
   time_.evaluate(
       [&, this] {

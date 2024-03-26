@@ -44,7 +44,7 @@ void MatchLaneLine::set_ins_ts(const double& ins_ts) {
 
 void MatchLaneLine::Match(const HdMap& hd_map,
                           const std::shared_ptr<Perception>& perception,
-                          const SE3& T_W_V, const SE3& T_fc) {
+                          const SE3& T_W_V, const ValidPose &T_fc) {
   percep_ = perception;
   has_err_ = false;
   err_type_ = ERROR_TYPE::NO_ERROR;
@@ -128,8 +128,9 @@ void MatchLaneLine::Match(const HdMap& hd_map,
   invalid_map_duration = 0;
   LaneLineConnect(percep_lanelines_, merged_map_lines_);
   // 130 fault
-  if (mm_params.use_map_lane_match_fault) {
-    CheckIsGoodMatchFCbyLine(T_fc);
+  if (mm_params.use_map_lane_match_fault && T_fc.valid) {
+    SE3 FC_pose = T_fc.pose;
+    CheckIsGoodMatchFCbyLine(FC_pose);
   }
   FilterPointPair(&match_pairs_, T_W_V_);
   HLOG_DEBUG << "after filter match_pairs size: " << match_pairs_.size();
@@ -162,7 +163,7 @@ void MatchLaneLine::Match(const HdMap& hd_map,
   }
 }
 
-void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& T_fc) {
+void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose) {
   if (percep_lanelines_.empty()) {
     return;
   }
@@ -182,7 +183,7 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& T_fc) {
       } else {
         far_dis = mm_params.straight_far_dis;
       }
-      CalLinesMinDist(line, T_fc, &left_dist_near_v, &left_dist_far_v, far_dis);
+      CalLinesMinDist(line, FC_pose, &left_dist_near_v, &left_dist_far_v, far_dis);
     }
     if (line->lane_position_type() == 1) {
       if (big_curvature_) {
@@ -190,7 +191,7 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& T_fc) {
       } else {
         far_dis = mm_params.straight_far_dis;
       }
-      CalLinesMinDist(line, T_fc, &right_dist_near_v, &right_dist_far_v,
+      CalLinesMinDist(line, FC_pose, &right_dist_near_v, &right_dist_far_v,
                       far_dis);
     }
   }
@@ -249,7 +250,7 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& T_fc) {
 }
 
 void MatchLaneLine::CalLinesMinDist(const LaneLinePerceptionPtr& percep,
-                                    const SE3& T_fc, double* const near,
+                                    const SE3& FC_pose, double* const near,
                                     double* const far, const double& far_dis) {
   if (!percep || !near || !far) {
     return;
@@ -274,12 +275,12 @@ void MatchLaneLine::CalLinesMinDist(const LaneLinePerceptionPtr& percep,
     V3 v_p_far(0, 0, 0);
     bool flag_fit0 = GetFcFitPoints(
         map_points, std::max(2.0, static_cast<double>(percep->Min())),
-        &anchor_pt0, T_fc);
+        &anchor_pt0, FC_pose);
     if (flag_fit0) {
       v_p_near = anchor_pt0;
     }
     bool flag_fit1 =
-        GetFcFitPoints(map_points, anchor_pt1.x(), &anchor_pt1, T_fc);
+        GetFcFitPoints(map_points, anchor_pt1.x(), &anchor_pt1, FC_pose);
     if (flag_fit1) {
       v_p_far = anchor_pt1;
     }
@@ -659,6 +660,10 @@ void MatchLaneLine::Traversal(
   int size = static_cast<int>(successor_segments_info.size());
   if (size > 0) {
     for (int i = 0; i < size; ++i) {
+      if (visited_id_.find(successor_segments_info[i].first) != visited_id_.end()) {
+        linked_lines_id->emplace_back(line_ids);
+        return; 
+      }
       line_ids.emplace_back(successor_segments_info[i].first);
       visited_id_.insert(successor_segments_info[i].first);
       Traversal(lines, successor_segments_info[i].second, linked_lines_id,

@@ -30,6 +30,11 @@ namespace loc {
 using hozon::mp::loc::ControlPoint;
 using hozon::mp::loc::MapBoundaryLine;
 
+struct ValidPose {
+  bool valid = true;
+  SE3 pose;
+};
+
 class MatchLaneLine {
  public:
   MatchLaneLine();
@@ -42,7 +47,7 @@ class MatchLaneLine {
    * @return
    */
   void Match(const HdMap& hd_map, const std::shared_ptr<Perception>& perception,
-             const SE3& T_W_V, const SE3& T_fc);
+             const SE3& T_W_V, const ValidPose &T_fc);
 
   /**
    * @brief check the solve result

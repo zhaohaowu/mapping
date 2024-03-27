@@ -165,7 +165,7 @@ void FusionCenter::OnDR(const HafNodeInfo& dr) {
   std::unique_lock<std::mutex> lock(dr_deque_mutex_);
   dr_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&dr_deque_, params_.dr_deque_max_size);
-  if (dr_deque_.size() >= 3) {
+  if (init_dr_== false && dr_deque_.size() >= 3) {
     OnInitDR(*(dr_deque_.front()));
     init_dr_ = true;
   }

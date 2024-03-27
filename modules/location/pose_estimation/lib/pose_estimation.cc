@@ -688,16 +688,21 @@ void MapMatching::procData() {
   if (!FindPecepFC(&cur_fc)) {
     HLOG_ERROR << "Dont find fc when use perception line to find fc deque";
     T_fc_.valid = false;
+  } else {
+    T_fc_.valid = true;
+    Eigen::Quaterniond q_W_V(
+        cur_fc.pose().quaternion().w(), cur_fc.pose().quaternion().x(),
+        cur_fc.pose().quaternion().y(), cur_fc.pose().quaternion().z());
+    if (fabs(q_W_V.norm() - 1) < 1e-3) {
+      q_W_V.normalize();
+      Eigen::Vector3d pose(cur_fc.pose().gcj02().x(), cur_fc.pose().gcj02().y(),
+                          cur_fc.pose().gcj02().z());
+      ref_point_mutex_.lock();
+      Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, esti_ref_point);
+      ref_point_mutex_.unlock();
+      T_fc_.pose = SE3(q_W_V, enu);
+    }
   }
-  Eigen::Quaterniond q_W_V(
-      cur_fc.pose().quaternion().w(), cur_fc.pose().quaternion().x(),
-      cur_fc.pose().quaternion().y(), cur_fc.pose().quaternion().z());
-  Eigen::Vector3d pose(cur_fc.pose().gcj02().x(), cur_fc.pose().gcj02().y(),
-                       cur_fc.pose().gcj02().z());
-  ref_point_mutex_.lock();
-  Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, esti_ref_point);
-  ref_point_mutex_.unlock();
-  T_fc_.pose = SE3(q_W_V, enu);
 
   time_.evaluate(
       [&, this] {

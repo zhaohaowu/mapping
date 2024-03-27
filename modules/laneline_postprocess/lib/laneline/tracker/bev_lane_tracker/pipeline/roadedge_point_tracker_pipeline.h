@@ -68,6 +68,7 @@ class RoadEdgePointFilterTrackerPipeline : public BaseTrackerPipeline {
   void RemoveLostTracks();
 
   std::vector<RoadEdgeTargetConstPtr> GetAllLaneTarget();
+  void SetPoseAttribute();
 
  private:
   LanePostProcessParam lane_post_process_param_;

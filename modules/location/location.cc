@@ -30,13 +30,6 @@ const char* const kFcMonitorConf =
 bool Localization::Init() {
   const std::string ws = hozon::perception::lib::GetEnv(
       "DEBUG_MAPPING_WORK_ROOT", "/opt/app/1") + "/";
-
-  const std::string coord_adapter_conf(ws + kCoordAdapterConf);
-  coord_adapter_ = std::make_unique<CoordAdapter>();
-  if (!coord_adapter_->Init(coord_adapter_conf)) {
-    return false;
-  }
-
   const std::string dr_fusion_conf(ws + kDrFusionConf);
   dr_fusion_ = std::make_unique<DrFusion>();
   if (dr_fusion_->Init(dr_fusion_conf) != DrInitStatus::OK) {
@@ -88,16 +81,11 @@ void Localization::OnImu(const hozon::soc::ImuIns& imuins) {
 }
 
 void Localization::OnLocalMap(const hozon::mapping::LocalMap& local_map) {
-  coord_adapter_->OnLocalMap(local_map);
-  if (!coord_adapter_->IsCoordInitSucc()) {
-    return;
-  }
-
-  const auto& init_dr = coord_adapter_->GetSysInitDrFusion();
-  fc_->OnInitDR(init_dr);
+  // wait udpate
 }
 
 void Localization::DrFusionPoseProcess(int dr_state) {
+  // wait udpate
 }
 
 bool Localization::GetCurrentLocalization(

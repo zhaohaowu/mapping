@@ -121,9 +121,14 @@ bool ESKF::Predict(const Node& cur_pre_data) {
     return false;
   }
 
+  X_.b_a = cur_pre_data.b_a * 9.8 / 1000;
+  X_.b_g = cur_pre_data.b_g / 57.6;
+  X_.b_a = Eigen::Vector3d::Zero();
+  X_.b_g = Eigen::Vector3d::Zero();
+
   // 2.predict nominal state
   const auto cur_acc = cur_pre_data.linear_accel * 9.8;
-  const auto cur_ang_v = cur_pre_data.angular_velocity;
+  const auto cur_ang_v = cur_pre_data.angular_velocity / 57.6;
 
   X_.type = StateType::PREDICT;
   X_.meas_type = NodeType::NONE;
@@ -137,10 +142,10 @@ bool ESKF::Predict(const Node& cur_pre_data) {
   Fx_.template block<3, 3>(0, 3) = Mat3T::Identity() * dt;
   Fx_.template block<3, 3>(3, 6) =
       -X_.R.matrix() * SO3::hat(cur_acc - X_.b_a) * dt;
-  Fx_.template block<3, 3>(3, 12) = -X_.R.matrix() * dt;
+  // Fx_.template block<3, 3>(3, 12) = -X_.R.matrix() * dt;
   Fx_.template block<3, 3>(6, 6) =
       SO3::exp(-(cur_ang_v - X_.b_g) * dt).matrix();
-  Fx_.template block<3, 3>(6, 9) = -Mat3T::Identity() * dt;
+  // Fx_.template block<3, 3>(6, 9) = -Mat3T::Identity() * dt;
 
   // 4.predict cov (err_state, dX_ = 0)  P = Fx*P*Fx + Fi*Qi*Fi
   P_ = Fx_ * P_.eval() * Fx_.transpose() + Q_;
@@ -179,7 +184,8 @@ void ESKF::Correct(const Node& cur_meas_data) {
 
   // 2.计算H
   H_.template block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();  // p部分
-  H_.template block<3, 3>(3, 6) = Eigen::Matrix3d::Identity();  // q部分
+  Mat3T yacobi_rot = JrSO3(cur_meas_data.orientation);
+  H_.template block<3, 3>(3, 6) = yacobi_rot;  // q部分
 
   // 3.计算y_diff(观测-nominal)(INS需要更新速度、位姿，MM更新位姿即可)(c此处需要进行if判断)
   Vec6d y_diff;
@@ -188,11 +194,14 @@ void ESKF::Correct(const Node& cur_meas_data) {
   SO3 X_rot = SO3::exp(X_.ori);
   y_diff.template block<3, 1>(0, 0) = cur_meas_data.enu - X_.p;
   y_diff.template block<3, 1>(3, 0) = ((X_rot.inverse() * meas_rot)).log();
+  // std::cout << "cur_meas_data.enu:" << cur_meas_data.enu << std::endl;
+  // std::cout << "X_.p:" << X_.p << std::endl;
+  // std::cout << "y_diff:" << y_diff << std::endl;
   // 速度观测待更新---------------------
 
   // 4.update dx、conv（err_state）K =
   // P*H'*inv(H*P*H'+R)-----后期要根据不同测量源选择R矩阵
-  K_ = P_ * H_.transpose() * (H_ * P_ * H_.transpose() + R).inverse();
+  K_ = P_ * H_.transpose() * ((H_ * P_ * H_.transpose() + R).inverse());
   X_dx_ = K_ * y_diff;
   P_ = (Mat15T::Identity() - K_ * H_) * P_;
 
@@ -210,18 +219,42 @@ void ESKF::UpdateAndReset() {
   X_.R = X_.R * SO3::exp(X_dx_.template block<3, 1>(6, 0));
   X_.ori = X_.R.log();
   if (options_.update_b_g) {
-    X_.b_g = X_dx_.template block<3, 1>(9, 0);
+    X_.b_g += X_dx_.template block<3, 1>(9, 0);
   }
   if (options_.update_b_a) {
-    X_.b_a = X_dx_.template block<3, 1>(12, 0);
+    X_.b_a += X_dx_.template block<3, 1>(12, 0);
   }
-
+  // std::cout << "X_.p2:" << X_.p << std::endl;
   // 2.重置误差状态
   Mat15T J = Mat15T::Identity();
   J.template block<3, 3>(6, 6) =
       Mat3T::Identity() - 0.5 * SO3::hat(X_dx_.template block<3, 1>(6, 0));
   P_ = J * P_ * J.transpose();
   X_dx_.setZero();
+}
+
+Eigen::Matrix<double, 3, 3> ESKF::JlSO3(const Eigen::Matrix<double, 3, 1>& w) {
+  double theta = w.norm();
+  if (theta < 1e-6) {
+    return Eigen::MatrixXd::Identity(3, 3);
+  } else {
+    Eigen::Matrix<double, 3, 1> a = w / theta;
+    Eigen::Matrix<double, 3, 3> J =
+        sin(theta) / theta * Eigen::MatrixXd::Identity(3, 3) +
+        (1 - sin(theta) / theta) * a * a.transpose() +
+        ((1 - cos(theta)) / theta) * SkewMatrix(a);
+    return J;
+  }
+}
+
+Eigen::Matrix<double, 3, 3> ESKF::JrSO3(const Eigen::Matrix<double, 3, 1>& w) {
+  return JlSO3(-w);
+}
+
+Eigen::Matrix<double, 3, 3> ESKF::SkewMatrix(Eigen::Vector3d v) {
+  Eigen::Matrix<double, 3, 3> m;
+  m << 0, -v(2), v(1), v(2), 0, -v(0), -v(1), v(0), 0;
+  return m;
 }
 
 }  // namespace fc

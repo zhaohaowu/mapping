@@ -509,7 +509,6 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
       !mm_params.use_rviz_bridge) {
     return;
   }
-
   static double time = -1;
   uint64_t fc_sec = uint64_t(info.header().data_stamp());
   uint64_t fc_nsec = uint64_t((info.header().data_stamp() - fc_sec) * 1e9);

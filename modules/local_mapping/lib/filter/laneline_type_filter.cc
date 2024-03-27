@@ -13,7 +13,7 @@ namespace lm {
 namespace perception_lib = hozon::perception::lib;
 LaneLineTypeFilter::LaneLineTypeFilter(LaneTargetPtr lane_target)
     : BaseLaneLineTypeFilter(lane_target) {
-  
+
   auto* config_manager = perception_lib::ConfigManager::Instance();
   const perception_lib::ModelConfig* model_config = nullptr;
   if (!config_manager->GetModelConfig("LanelineTypeFilterParam", &model_config)) {

@@ -8,11 +8,11 @@
 #pragma once
 
 #include <deque>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <thread>
 #include <utility>
-#include <fstream>
 
 #include "modules/location/fusion_center/lib/eskf.h"
 #include "modules/location/fusion_center/lib/kalman_filter.h"
@@ -40,11 +40,10 @@ class FusionCenter {
   void OnImu(const ImuIns& imuins);
   void OnIns(const HafNodeInfo& ins);
   void OnDR(const HafNodeInfo& dr);
-  void OnInitDR(const HafNodeInfo& initdr);
+  void OnInitDR(const Node& initdr);
   void OnPoseEstimate(const HafNodeInfo& pe);
   void SetEhpCounter(int32_t counter);
   int32_t GetEhpCounter() const;
-  void SetCoordInitTimestamp(double t);
   bool GetCurrentOutput(Localization* const location);
 
  private:
@@ -98,8 +97,6 @@ class FusionCenter {
   Params params_;
   int32_t seq_ = 0;
   int32_t ehp_counter_ = 0;
-  double coord_init_timestamp_ = -1;
-  HafNodeInfo init_raw_dr_;
   Node init_dr_node_;
 
   std::atomic<bool> fusion_run_{false};
@@ -144,7 +141,7 @@ class FusionCenter {
   std::atomic<bool> prev_global_valid_{false};
   std::mutex prev_global_node_mutex_;
   Node prev_global_node_;
-  bool init_dr_ = true;
+  std::atomic<bool> init_dr_{false};
 
   std::deque<std::shared_ptr<Node>> pre_deque_;
   std::deque<std::shared_ptr<Node>> meas_deque_;

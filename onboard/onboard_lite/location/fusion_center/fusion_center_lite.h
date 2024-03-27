@@ -48,7 +48,6 @@ class FusionCenterLite : public hozon::netaos::adf_lite::Executor {
 
  private:
   std::unique_ptr<FusionCenter> fusion_center_ = nullptr;
-  std::unique_ptr<CoordAdapter> coord_adapter_ = nullptr;
   bool init_dr_ = false;
 };
 

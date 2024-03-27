@@ -56,13 +56,11 @@ int32_t LocalMappingOnboard::AlgInit() {
   RegistAlgProcessFunc("recv_running_mode",
                        std::bind(&LocalMappingOnboard::OnRunningMode, this,
                                  std::placeholders::_1));
-  if (RVIZ_AGENT.Ok()) {
-    RegistAlgProcessFunc("recv_ins", std::bind(&LocalMappingOnboard::OnIns,
+  RegistAlgProcessFunc("recv_ins", std::bind(&LocalMappingOnboard::OnIns, this,
+                                             std::placeholders::_1));
+  RegistAlgProcessFunc("recv_image", std::bind(&LocalMappingOnboard::OnImage,
                                                this, std::placeholders::_1));
-    RVIZ_AGENT.Register<adsfi_proto::viz::CompressedImage>("/localmap/image");
-    RegistAlgProcessFunc("recv_image", std::bind(&LocalMappingOnboard::OnImage,
-                                                 this, std::placeholders::_1));
-  }
+
   return 0;
 }
 
@@ -361,15 +359,22 @@ std::shared_ptr<adsfi_proto::viz::CompressedImage> YUVNV12ImageToVizImage(
 }
 
 int32_t LocalMappingOnboard::OnImage(adf_lite_Bundle* input) {
-  auto image_msg = input->GetOne("lm_image");
-  HLOG_DEBUG << "image_msg->proto_msg " << image_msg.get();
-  if (image_msg.get() == nullptr) {
-    return -1;
-  }
-  auto msg = std::static_pointer_cast<hozon::soc::Image>(image_msg->proto_msg);
-  auto viz_image = YUVNV12ImageToVizImage(msg, 50, 0.25);
   if (RVIZ_AGENT.Ok()) {
-    RVIZ_AGENT.Publish("/localmap/image", viz_image);
+    auto image_msg = input->GetOne("lm_image");
+    HLOG_DEBUG << "image_msg->proto_msg " << image_msg.get();
+    if (image_msg.get() == nullptr) {
+      return -1;
+    }
+    auto msg =
+        std::static_pointer_cast<hozon::soc::Image>(image_msg->proto_msg);
+    auto viz_image = YUVNV12ImageToVizImage(msg, 50, 0.25);
+    static bool register_flag = true;
+
+    if (register_flag) {
+      register_flag = false;
+      RVIZ_AGENT.Register<adsfi_proto::viz::CompressedImage>("/camera_0");
+    }
+    RVIZ_AGENT.Publish("/camera_0", viz_image);
   }
   return 0;
 }

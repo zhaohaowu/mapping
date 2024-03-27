@@ -48,7 +48,6 @@ class Localization {
   void DrFusionPoseProcess(int dr_state);
 
  private:
-  std::unique_ptr<CoordAdapter> coord_adapter_ = nullptr;
   std::unique_ptr<DrFusion> dr_fusion_ = nullptr;
   std::unique_ptr<InsFusion> ins_fusion_ = nullptr;
   std::unique_ptr<FusionCenter> fc_ = nullptr;

@@ -165,23 +165,13 @@ void FusionCenter::OnDR(const HafNodeInfo& dr) {
   std::unique_lock<std::mutex> lock(dr_deque_mutex_);
   dr_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&dr_deque_, params_.dr_deque_max_size);
+  if (dr_deque_.size() >= 3) {
+    OnInitDR(*(dr_deque_.front()));
+    init_dr_ = true;
+  }
 }
 
-void FusionCenter::OnInitDR(const HafNodeInfo& initdr) {
-  if (!cm::HasValidHeader(initdr)) {
-    return;
-  }
-  if (coord_init_timestamp_ > 0) {
-    return;
-  }
-  init_raw_dr_ = initdr;
-  if (!ExtractBasicInfo(initdr, &init_dr_node_)) {
-    HLOG_ERROR << "fc extract init dr info error";
-    return;
-  }
-  coord_init_timestamp_ = init_dr_node_.ticktime;
-  init_dr_ = true;
-}
+void FusionCenter::OnInitDR(const Node& initdr) { init_dr_node_ = initdr; }
 
 void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   if (!ref_init_ || !params_.recv_pe) {
@@ -251,10 +241,6 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
 void FusionCenter::SetEhpCounter(int32_t counter) { ehp_counter_ = counter; }
 
 int32_t FusionCenter::GetEhpCounter() const { return ehp_counter_; }
-
-void FusionCenter::SetCoordInitTimestamp(double t) {
-  coord_init_timestamp_ = t;
-}
 
 bool FusionCenter::GetCurrentOutput(Localization* const location) {
   if (location == nullptr) {
@@ -548,8 +534,10 @@ void FusionCenter::Node2Localization(const Context& ctx,
   header->set_seq(seq_++);
   header->set_frame_id("location");
   header->set_data_stamp(ticktime);
-  HLOG_ERROR << "location global node.ticktime:" << global_node.ticktime
-             << ", local node.ticktime:" << local_node.ticktime;
+  if (abs(global_node.ticktime - local_node.ticktime) > 0.001) {
+    HLOG_INFO << "location global node.ticktime:" << global_node.ticktime
+              << ", local node.ticktime:" << local_node.ticktime;
+  }
   std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
       tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
           std::chrono::system_clock::now());
@@ -1333,8 +1321,10 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
   }
 
   const double ins_fusion_diff = ctx->ins_node.ticktime - fusion_node.ticktime;
-  if (ins_fusion_diff < 0) {
-    HLOG_ERROR << "ins time behind newest fusion time, something wrong";
+  const double diff_dr_fc = ctx->dr_node.ticktime - fusion_node.ticktime;
+  if (ins_fusion_diff < 0 || diff_dr_fc < 0) {
+    HLOG_ERROR << "ins  or time behind newest fusion time,ins_fusion_diff"
+               << ins_fusion_diff << ",diff_dr_fc:" << diff_dr_fc;
     return false;
   }
 
@@ -1347,29 +1337,49 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     loc_state = FaultCodeAssign(loc_state);
   }
 
-  if (ins_fusion_diff < 1e-3) {
+  if (diff_dr_fc < 1e-3) {
     ctx->global_node = fusion_node;
     ctx->global_node.location_state = loc_state;
-    return true;
-  }
-
-  // INS实时补帧至最新
-  Node refer_node = fusion_node;
-  Node ni;
-  {
-    std::lock_guard<std::mutex> lock(ins_deque_mutex_);
-    if (!Interpolate(refer_node.ticktime, ins_deque_, &ni)) {
-      HLOG_ERROR << "interpolate ins output failed";
-      return false;
+  } else {
+    // DR实时补帧至最新
+    Node refer_node = fusion_node;
+    Node ni;
+    {
+      std::lock_guard<std::mutex> lock(dr_deque_mutex_);
+      if (!Interpolate(refer_node.ticktime, dr_deque_, &ni)) {
+        HLOG_ERROR << "interpolate dr output failed";
+        return false;
+      }
     }
+    // todo此处后期改成dr_node
+    ctx->global_node = ctx->ins_node;
+    ctx->global_node.location_state = loc_state;
+    const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(ctx->dr_node);
+    const auto& pose = Node2SE3(refer_node) * T_delta;
+    ctx->global_node.enu = pose.translation();
+    ctx->global_node.orientation = pose.so3().log();
   }
 
-  ctx->global_node = ctx->ins_node;
-  ctx->global_node.location_state = loc_state;
-  const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(ctx->ins_node);
-  const auto& pose = Node2SE3(refer_node) * T_delta;
-  ctx->global_node.enu = pose.translation();
-  ctx->global_node.orientation = pose.so3().log();
+  // kf 使用dr 替换ins
+  HLOG_DEBUG << "ctx->global_node.velocity_old:"
+             << ctx->global_node.velocity.x() << ","
+             << ctx->global_node.velocity.y() << ","
+             << ctx->global_node.velocity.z();
+  HLOG_DEBUG << "ctx->global_node.angular_velocity_old:"
+             << ctx->global_node.angular_velocity.z();
+
+  Eigen::Vector3d Vgb = ctx->global_node.quaternion * ctx->dr_node.velocity;
+  ctx->global_node.velocity = Vgb;
+  ctx->global_node.angular_velocity =
+      (ctx->dr_node.angular_velocity) * 180 / M_PI;
+  ctx->global_node.ticktime = ctx->dr_node.ticktime;
+
+  HLOG_DEBUG << "ctx->global_node.velocity_new:"
+             << ctx->global_node.velocity.x() << ","
+             << ctx->global_node.velocity.y() << ","
+             << ctx->global_node.velocity.z();
+  HLOG_DEBUG << "ctx->global_node.angular_velocity_new:"
+             << ctx->global_node.angular_velocity.z();
 
   // KF滤波
   if (params_.smooth_outputs) {
@@ -1445,10 +1455,6 @@ uint32_t FusionCenter::GetGlobalLocationState() {
 
 bool FusionCenter::GetLocalPose(Context* const ctx) {
   if (!ctx) {
-    return false;
-  }
-  if (coord_init_timestamp_ < 0) {
-    HLOG_ERROR << "local coordinate does not init yet";
     return false;
   }
   if (!init_dr_) {

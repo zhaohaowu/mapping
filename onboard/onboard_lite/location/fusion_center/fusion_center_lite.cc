@@ -50,12 +50,6 @@ int32_t FusionCenterLite::AlgInit() {
                             fc_monitor_config)) {
     return -1;
   }
-  const std::string coord_adapter_conf =
-      adflite_root_path + "/" + kCoordAdapterConf;
-  coord_adapter_ = std::make_unique<CoordAdapter>();
-  if (!coord_adapter_->Init(coord_adapter_conf)) {
-    return -1;
-  }
   RegistMessageType();
   RegistProcessFunc();
 
@@ -149,10 +143,6 @@ int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
           p_dr_fusion->proto_msg);
   if (!dr_fusion) {
     return -1;
-  }
-  if (!coord_adapter_->IsCoordInitSucc()) {
-    fusion_center_->OnInitDR(*dr_fusion);
-    coord_adapter_->OnDrFusion(*dr_fusion);
   }
   fusion_center_->OnDR(*dr_fusion);
 
@@ -248,18 +238,6 @@ int32_t FusionCenterLite::OnLocalMap(Bundle* input) {
     }
   }
   last_lm_time = cur_lm_time;
-  // coord_adapter_->OnLocalMap(*local_map);
-  // if (!coord_adapter_->IsCoordInitSucc()) {
-  //   return -1;
-  // }
-  // const auto& init_dr = coord_adapter_->GetSysInitDrFusion();
-  // fusion_center_->OnInitDR(init_dr);
-  // if (coord_adapter_->IsCoordInitSucc()) {
-  //   init_dr_ = true;
-  // } else {
-  //   HLOG_ERROR << "OnInitDR Failed";
-  // }
-
   return 0;
 }
 

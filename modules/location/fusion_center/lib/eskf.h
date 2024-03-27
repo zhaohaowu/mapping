@@ -83,6 +83,9 @@ class ESKF {
   void Correct(const Node &cur_meas_data);
   void StateInit(const std::shared_ptr<Node>& node);
   State GetState() { return X_; }
+  Eigen::Matrix<double, 3, 3> JlSO3(const Eigen::Matrix<double, 3, 1>& w);
+  Eigen::Matrix<double, 3, 3> JrSO3(const Eigen::Matrix<double, 3, 1>& w);
+  Eigen::Matrix<double, 3, 3> SkewMatrix(Eigen::Vector3d v);
 
  private:
   void UpdateAndReset();

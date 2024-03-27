@@ -662,7 +662,7 @@ void MatchLaneLine::Traversal(
     for (int i = 0; i < size; ++i) {
       if (visited_id_.find(successor_segments_info[i].first) != visited_id_.end()) {
         linked_lines_id->emplace_back(line_ids);
-        return; 
+        return;
       }
       line_ids.emplace_back(successor_segments_info[i].first);
       visited_id_.insert(successor_segments_info[i].first);

@@ -15,10 +15,10 @@ ins_init_status:    # INS初始化的正常状态
   - sys_status: 2
     gps_status: 4
 
-search_state_cnt: 30  # 在该帧数内有mm测量，loc = 2
+search_state_cnt: 45  # 在该帧数内有mm测量，loc = 2
 # 使用INS对MM进行补帧
-use_ins_predict_mm: true
-no_mm_min_time: 0.4  # 超过min_time无mm测量，使用ins进行补帧
+use_ins_predict_mm: false
+no_mm_min_time: 0.5  # 超过min_time无mm测量，使用ins进行补帧
 no_mm_max_time: 1    # 超过max_time无mm测量，直接使用ins测量
 # ESKF时加入DR测量
 use_dr_measurement: false
@@ -31,4 +31,4 @@ use_smooth_yaw: true
 use_debug_txt: false
 
 require_local_pose: false
-lateral_error_compensation: true
+lateral_error_compensation: false

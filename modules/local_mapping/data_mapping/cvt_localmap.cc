@@ -38,7 +38,7 @@ bool DataMapping::CvtLocalMap2Pb(
 
   if (localmap_frame_ptr->road_edges_ptr != nullptr) {
     for (auto& item : localmap_frame_ptr->road_edges_ptr->road_edges) {
-      auto pb_roadedge_ptr = localmap_pb->add_edge_lines();
+      auto pb_roadedge_ptr = localmap_pb->add_road_edges();
       CvtRoadEdge2Pb(item, pb_roadedge_ptr);
     }
   }

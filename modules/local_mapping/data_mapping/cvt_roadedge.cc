@@ -122,7 +122,7 @@ bool DataMapping::CvtRoadEdge2TePb(const RoadEdgePtr& roadedge_msg,
 }
 
 bool DataMapping::CvtRoadEdge2Pb(const RoadEdgePtr& roadedge_msg,
-                                 hozon::mapping::LaneLine* pb_roadedge) {
+                                 hozon::mapping::RoadEdge* pb_roadedge) {
   if (nullptr == roadedge_msg || nullptr == pb_roadedge) {
     HLOG_ERROR << "arrow msg  or pb_arrow is nullptr.";
     return false;

@@ -110,7 +110,7 @@ class DataMapping {
                              hozon::mapping::LaneLine* pb_lane);
 
   static bool CvtRoadEdge2Pb(const RoadEdgePtr& roadedge_msg,
-                             hozon::mapping::LaneLine* pb_roadedge);
+                             hozon::mapping::RoadEdge* pb_roadedge);
 
   static bool CvtArrow2Pb(const ArrowPtr& arrow_msg,
                           hozon::mapping::Arrow* pb_arrow);

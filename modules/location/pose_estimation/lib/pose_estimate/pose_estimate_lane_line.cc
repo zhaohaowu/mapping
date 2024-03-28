@@ -567,9 +567,6 @@ void MatchLaneLine::MergeMapLines(
     if (start_point.norm() == end_point.norm()) {
       continue;
     }
-    if (start_point_v.y() > 30.f || start_point_v.y() < -30.f) {
-      continue;
-    }
     LineSegment line_segment{id, end_point_v};
     lines[start_point_v].emplace_back(std::move(line_segment));
   }
@@ -641,7 +638,7 @@ void MatchLaneLine::Traversal(
     return;
   }
   ++loop;
-  if (loop > 10000) {
+  if (loop > 30) {
     return;
   }
   V3 cur_start_point = root_start_point;

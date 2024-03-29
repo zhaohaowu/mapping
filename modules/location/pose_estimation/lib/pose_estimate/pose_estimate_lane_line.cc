@@ -44,7 +44,7 @@ void MatchLaneLine::set_ins_ts(const double& ins_ts) {
 
 void MatchLaneLine::Match(const HdMap& hd_map,
                           const std::shared_ptr<Perception>& perception,
-                          const SE3& T_W_V, const ValidPose &T_fc) {
+                          const SE3& T_W_V, const ValidPose& T_fc) {
   percep_ = perception;
   has_err_ = false;
   err_type_ = ERROR_TYPE::NO_ERROR;
@@ -183,7 +183,8 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose) {
       } else {
         far_dis = mm_params.straight_far_dis;
       }
-      CalLinesMinDist(line, FC_pose, &left_dist_near_v, &left_dist_far_v, far_dis);
+      CalLinesMinDist(line, FC_pose, &left_dist_near_v, &left_dist_far_v,
+                      far_dis);
     }
     if (line->lane_position_type() == 1) {
       if (big_curvature_) {
@@ -661,7 +662,8 @@ void MatchLaneLine::Traversal(
   int size = static_cast<int>(successor_segments_info.size());
   if (size > 0) {
     for (int i = 0; i < size; ++i) {
-      if (visited_id_.find(successor_segments_info[i].first) != visited_id_.end()) {
+      if (visited_id_.find(successor_segments_info[i].first) !=
+          visited_id_.end()) {
         linked_lines_id->emplace_back(line_ids);
         return;
       }

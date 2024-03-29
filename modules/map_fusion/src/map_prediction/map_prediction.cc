@@ -479,6 +479,11 @@ void MapPrediction::OnTopoMap(
 
 std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
     bool need_update_global_hd, hozon::routing::RoutingResponse* routing) {
+  if (need_update_global_hd) {
+    current_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
+    current_routing_->CopyFrom(*routing);
+  }
+
   if (!need_update_global_hd) {
     HDMapLaneToLocal();
     RoutingPointToLocal(need_update_global_hd, routing, routing_lane_id_);
@@ -508,6 +513,16 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
     return hq_map_;
   }
 
+  if (!hq_map_ids_.empty()) {
+    if (std::find(hq_map_ids_.begin(), hq_map_ids_.end(),
+                  lane_ptr->lane().id().id()) == hq_map_ids_.end()) {
+      HDMapLaneToLocal();
+      RoutingPointToLocal(need_update_global_hd, routing, routing_lane_id_);
+      return hq_map_;
+    }
+  }
+
+  hq_map_ids_.clear();
   hq_map_ = std::make_shared<hozon::hdmap::Map>();
 
   std::vector<std::vector<std::string>> routing_lanes;
@@ -586,6 +601,7 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
     for (int j = 0; j < routing_lanes[i].size(); ++j) {
       hozon::hdmap::Id lane_id;
       lane_id.set_id(routing_lanes[i][j]);
+      hq_map_ids_.emplace_back(routing_lanes[i][j]);
       auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
       if (lane_ptr != nullptr) {
         hq_map_->add_lane()->CopyFrom(lane_ptr->lane());
@@ -624,11 +640,10 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
     HLOG_ERROR << "init_pose_ not inited";
     return nullptr;
   }
-  HDMapLaneToLocal();
 
   routing_lane_id_ = routing_lanes[row_max].back();
-  current_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
-  current_routing_->CopyFrom(*routing);
+
+  HDMapLaneToLocal();
   RoutingPointToLocal(need_update_global_hd, routing, routing_lane_id_);
 
   return hq_map_;

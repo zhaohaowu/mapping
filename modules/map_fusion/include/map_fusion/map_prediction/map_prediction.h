@@ -233,6 +233,7 @@ class MapPrediction {
 
   std::string routing_lane_id_;
   std::shared_ptr<hozon::routing::RoutingResponse> current_routing_ = nullptr;
+  std::vector<std::string> hq_map_ids_;
 };
 
 }  // namespace mf

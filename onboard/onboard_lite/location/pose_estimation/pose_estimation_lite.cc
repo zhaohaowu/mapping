@@ -4,14 +4,15 @@
  *   author     ： ouyanghailin
  *   date       ： 2023.09
  ******************************************************************************/
+#include "onboard/onboard_lite/location/pose_estimation/pose_estimation_lite.h"
+
 #include <base/utils/log.h>
 #include <gflags/gflags.h>
 #include <perception-lib/lib/environment/environment.h>
 
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
-#include "onboard/onboard_lite/location/pose_estimation/pose_estimation_lite.h"
-#include "yaml-cpp/yaml.h"
 #include "perception-base/base/state_machine/state_machine_info.h"
+#include "yaml-cpp/yaml.h"
 
 DEFINE_string(config_yaml,
               "runtime_service/mapping/conf/mapping/location/"
@@ -26,17 +27,18 @@ DEFINE_string(pose_estimation_lite_config_yaml,
               "pose_estimation/pose_estimation_lite_config.yaml",
               "path to pose estimation camera config yaml");
 
+DEFINE_string(mapping_location_pose_estimation_config_yaml,
+              "runtime_service/mapping/conf/lite/location/"
+              "mapping_location_pose_estimation_config.yaml",
+              "path to mapping_location_pose_estimation_config_yaml yaml");
+
 using hozon::netaos::adf_lite::Bundle;
 
 namespace hozon {
 namespace perception {
 namespace common_onboard {
 
-constexpr char* const kInsFusionTopic = "/location/ins_fusion";
-constexpr char* const kFcTopic = "localization";
-constexpr char* const kPerceptionTopic = "percep_transport";
 constexpr char* const kPoseEstimationTopic = "/location/pose_estimation";
-constexpr char* const kRunningModeTopic = "running_mode";
 int32_t PoseEstimationLite::AlgInit() {
   pose_estimation_ = std::make_unique<MapMatching>();
   const std::string adflite_root_path =
@@ -44,6 +46,9 @@ int32_t PoseEstimationLite::AlgInit() {
   const std::string config_yaml = adflite_root_path + "/" + FLAGS_config_yaml;
   const std::string config_cam_yaml =
       adflite_root_path + "/" + FLAGS_config_cam_yaml;
+  const std::string mapping_location_pose_estimation_config_yaml =
+      adflite_root_path + "/" +
+      FLAGS_mapping_location_pose_estimation_config_yaml;
   const std::string pose_estimation_lite_config_yaml =
       adflite_root_path + "/" + FLAGS_pose_estimation_lite_config_yaml;
   if (!pose_estimation_->Init(config_yaml, config_cam_yaml)) {
@@ -63,9 +68,9 @@ int32_t PoseEstimationLite::AlgInit() {
   RegistAlgProcessFunc("send_pose_estimation_result",
                        std::bind(&PoseEstimationLite::OnPoseEstimation, this,
                                  std::placeholders::_1));
-  RegistAlgProcessFunc(
-      "recv_running_mode",
-      std::bind(&PoseEstimationLite::OnRunningMode, this, std::placeholders::_1));
+  RegistAlgProcessFunc("recv_running_mode",
+                       std::bind(&PoseEstimationLite::OnRunningMode, this,
+                                 std::placeholders::_1));
   YAML::Node config = YAML::LoadFile(pose_estimation_lite_config_yaml);
   auto use_rviz_bridge = config["use_rviz_bridge"].as<bool>();
   if (use_rviz_bridge) {
@@ -75,8 +80,43 @@ int32_t PoseEstimationLite::AlgInit() {
       HLOG_WARN << "RvizAgent init failed:" << viz_addr;
     }
   }
-
+  ExtractCmParameter(mapping_location_pose_estimation_config_yaml);
   return 0;
+}
+
+void PoseEstimationLite::ExtractCmParameter(const std::string& yamlpath) {
+  YAML::Node cm_yaml_config =
+      YAML::LoadFile(yamlpath);
+  for (const auto& triggerNode : cm_yaml_config["trigger"]) {
+    auto triggername = triggerNode["name"].as<std::string>();
+    std::string typeStr = triggerNode["type"].as<std::string>();
+    if (typeStr == "EVENT") {
+      for (const auto& sourceNode : triggerNode["mainSources"]) {
+        if (triggername == "recv_perception") {
+          kPerceptionTopic_ = sourceNode["name"].as<std::string>();
+        }
+        if (triggername == "recv_ins_fusion") {
+          kinsFusionTopic_ = sourceNode["name"].as<std::string>();
+        }
+        if (triggername == "recv_running_mode") {
+          kRunningModeTopic_ = sourceNode["name"].as<std::string>();
+        }
+        if (triggername == "recv_localization") {
+          kFcTopic_ = sourceNode["name"].as<std::string>();
+        }
+      }
+    } else if (typeStr == "PERIOD") {
+    } else {
+      HLOG_ERROR << "Invalid trigger type";
+      continue;
+    }
+  }
+
+  HLOG_INFO << " kPerceptionTopic_: " << kPerceptionTopic_
+            << " kPerceptionTopic_ " << kPerceptionTopic_
+            << " kinsFusionTopic_ " << kinsFusionTopic_
+            << " kRunningModeTopic_ " << kRunningModeTopic_ << " kFcTopic_ "
+            << kFcTopic_;
 }
 
 void PoseEstimationLite::AlgRelease() {
@@ -86,14 +126,14 @@ void PoseEstimationLite::AlgRelease() {
 }
 
 void PoseEstimationLite::RegistMessageType() const {
-  REGISTER_PROTO_MESSAGE_TYPE(kInsFusionTopic,
+  REGISTER_PROTO_MESSAGE_TYPE(kinsFusionTopic_,
                               hozon::localization::HafNodeInfo);
-  REGISTER_PROTO_MESSAGE_TYPE(kFcTopic, hozon::localization::Localization);
-  REGISTER_PROTO_MESSAGE_TYPE(kPerceptionTopic,
+  REGISTER_PROTO_MESSAGE_TYPE(kFcTopic_, hozon::localization::Localization);
+  REGISTER_PROTO_MESSAGE_TYPE(kPerceptionTopic_,
                               hozon::perception::TransportElement);
   REGISTER_PROTO_MESSAGE_TYPE(kPoseEstimationTopic,
                               hozon::localization::HafNodeInfo);
-  REGISTER_PROTO_MESSAGE_TYPE(kRunningModeTopic,
+  REGISTER_PROTO_MESSAGE_TYPE(kRunningModeTopic_,
                               hozon::perception::common_onboard::running_mode);
 }
 
@@ -102,7 +142,7 @@ int32_t PoseEstimationLite::OnIns(Bundle* input) {
     return -1;
   }
 
-  auto p_ins_fusion = input->GetOne(kInsFusionTopic);
+  auto p_ins_fusion = input->GetOne(kinsFusionTopic_);
   if (!p_ins_fusion) {
     return -1;
   }
@@ -122,7 +162,7 @@ int32_t PoseEstimationLite::OnLocation(Bundle* input) {
   if (!input) {
     return -1;
   }
-  auto p_fc_fusion = input->GetOne(kFcTopic);
+  auto p_fc_fusion = input->GetOne(kFcTopic_);
   if (!p_fc_fusion) {
     return -1;
   }
@@ -142,7 +182,7 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
   }
   static double last_percep_time = -1.0;
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
-  auto p_perception = input->GetOne(kPerceptionTopic);
+  auto p_perception = input->GetOne(kPerceptionTopic_);
   if (p_perception == nullptr) {
     phm_fault->Report(MAKE_FM_TUPLE(
         hozon::perception::base::FmModuleId::MAPPING,
@@ -210,7 +250,7 @@ int32_t PoseEstimationLite::OnPoseEstimation(Bundle* input) {
 }
 
 int32_t PoseEstimationLite::OnRunningMode(Bundle* input) {
-  auto rm_msg = input->GetOne("running_mode");
+  auto rm_msg = input->GetOne(kRunningModeTopic_);
   if (rm_msg == nullptr) {
     HLOG_ERROR << "nullptr rm_msg plugin";
     return -1;

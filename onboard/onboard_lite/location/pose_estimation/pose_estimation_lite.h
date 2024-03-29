@@ -8,7 +8,6 @@
 #pragma once
 
 #include <adf-lite/include/base.h>
-
 #include <memory>
 #include <string>
 
@@ -35,6 +34,7 @@ class PoseEstimationLite : public hozon::netaos::adf_lite::Executor {
   void AlgRelease() override;
 
  private:
+  void ExtractCmParameter(const std::string& yamlpath);
   void RegistMessageType() const;
   void RegistProcessFunc();
 
@@ -45,6 +45,10 @@ class PoseEstimationLite : public hozon::netaos::adf_lite::Executor {
   int32_t OnRunningMode(Bundle* input);
  private:
   std::unique_ptr<MapMatching> pose_estimation_ = nullptr;
+  std::string kPerceptionTopic_;
+  std::string kinsFusionTopic_;
+  std::string kFcTopic_;
+  std::string kRunningModeTopic_;
 };
 
 REGISTER_ADF_CLASS(PoseEstimationLite, PoseEstimationLite);

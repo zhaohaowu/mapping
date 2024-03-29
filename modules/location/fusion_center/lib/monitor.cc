@@ -71,7 +71,7 @@ bool Monitor::MonitorFault() {
     return false;
   }
 
-  // pe传输过来的故障----fault 123,124,128
+  // pe传输过来的故障----fault 123,124,130
   if (params_.pe_fault) {
     uint32_t pe_fault_state = 0;
 
@@ -92,7 +92,7 @@ bool Monitor::MonitorFault() {
 
     if (pe_fault_state == 130) {
       fault_state.fc_map_lane_match_error = true;
-      HLOG_ERROR << "fc fault(130):PE No Peception lane";
+      HLOG_ERROR << "fc fault(130):Map and Peception Lane Mismatch With FC";
     } else {
       fault_state.fc_map_lane_match_error = false;
     }

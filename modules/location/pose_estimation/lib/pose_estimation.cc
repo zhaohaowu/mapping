@@ -37,6 +37,7 @@ bool MapMatching::Init(const std::string& config_file,
   // global fault
   mm_params.use_map_lane_match_fault =
       config["use_map_lane_match_fault"].as<bool>();
+  mm_params.map_lane_match_near = config["map_lane_match_near"].as<double>();
   mm_params.map_lane_match_max = config["map_lane_match_max"].as<double>();
   mm_params.map_lane_match_buff = config["map_lane_match_buff"].as<int>();
   mm_params.map_lane_match_ser_max =

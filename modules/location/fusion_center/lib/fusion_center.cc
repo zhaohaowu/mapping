@@ -1332,7 +1332,6 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
   uint32_t loc_state = 0;
   loc_state = GetGlobalLocationState();
   ctx->global_node.location_state = loc_state;
-  monitor_->OnFc(ctx->global_node);
   if (monitor_->MonitorFault()) {
     loc_state = FaultCodeAssign(loc_state);
   }
@@ -1388,7 +1387,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
   ctx->global_node.blh =
       hmu::Geo::EnuToBlh(ctx->global_node.enu, ctx->global_node.refpoint);
   ctx->global_node.rtk_status = ctx->ins_node.rtk_status;
-
+  monitor_->OnFc(ctx->global_node);
   prev_global_node_mutex_.lock();
   prev_global_node_ = ctx->global_node;
   prev_global_node_mutex_.unlock();

@@ -129,7 +129,8 @@ class MatchLaneLine {
                       const double& min_match_x, const double& max_match_x,
                       const double& sample_interval, const bool& is_good_check);
   void CheckIsGoodMatchFCbyLine(const SE3& T_fc);
-  void CalLinesMinDist(const LaneLinePerceptionPtr& percep, const SE3& T_fc,
+  void CalLinesMinDist(const LaneLinePerceptionPtr& percep,
+                       const std::vector<std::vector<V3>>& map_lines_point,
                        double* const near, double* const far,
                        const double& far_dis);
 
@@ -202,8 +203,7 @@ class MatchLaneLine {
    * @return true : get the fit pints; false : do not get the fit points
    */
   bool GetFitPoints(const VP& control_poins, const double x, V3* pt);
-  bool GetFcFitPoints(const VP& control_poins, const double x, V3* pt,
-                      const SE3& T_W_V);
+  bool GetFcFitPoints(const VP& control_poins, const double x, V3* pt);
   bool GetPerceFitPoints(const VP& points, const double x, V3* pt);
   bool GetFitMapPoints(const std::vector<ControlPoint>& control_poins,
                        const double x, V3* pt);

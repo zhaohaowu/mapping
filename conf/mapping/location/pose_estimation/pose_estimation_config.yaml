@@ -29,12 +29,13 @@ use_map_lane_match_fault: true        #fault-130
 ##no valid fault
 use_valid_estimate_last_fault: false  #已关闭(old fault-125)
 ##map_lane_match_fault
-map_lane_match_max: 0.3         # 最大y_error(m)--阈值1
+map_lane_match_near: 0.15       # 近段点的阈值
+map_lane_match_max: 0.4         # 最大y_error(m)--阈值0.4
 map_lane_match_buff: 20         # 超过buff次就上报故障
-map_lane_match_ser_max: 0.8     # 阈值2
+map_lane_match_ser_max: 0.8     # 阈值0.8
 map_lane_match_ser_buff: 5
 near_dis: 2                     # 近段点距离
-straight_far_dis: 25           # 直道远段点距离
+straight_far_dis: 25            # 直道远段点距离
 curve_far_dis: 12               # 匝道远段点距离
 curvature_thr: 0.0005           # 感知车道线曲率阈值
 ##valid_estimate_last_fault
@@ -85,7 +86,7 @@ rviz_show_pceplane_oriT: false
 # about debug
 debug_plot_info: false
 
-line_error_normal_thr: 0.06
+line_error_normal_thr: 0.15
 
 use_rviz_bridge: false
 

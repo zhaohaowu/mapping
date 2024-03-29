@@ -40,15 +40,19 @@ class AdaptorPointManager {
   AdaptorPointManager(const AdaptorPointManager&) = delete;
   AdaptorPointManager& operator=(const AdaptorPointManager&) = delete;
 
-  void CalThreshold(Eigen::Matrix<double, 40, 1>* XPtr,
-                    Eigen::Matrix<double, 40, 40>* PPtr);
+  void GetVertialIntervalOfDPs();
+
+  void UturnsStateCorrection(Eigen::Matrix<double, 40, 1>* XPtr,
+                             Eigen::Matrix<double, 40, 40>* PPtr);
 
   void CopyMatrix(Eigen::Matrix<double, 40, 1>* XPtr,
                   Eigen::Matrix<double, 40, 40>* PPtr);
   template <typename Element>
-  void AddObservePoints(const std::shared_ptr<Element>& measurement);
+  void AddCurrentObservePoints(const std::shared_ptr<Element>& measurement);
 
-  void Process(Eigen::Matrix<double, 40, 1>* X,
+  template <typename Element>
+  void Process(const std::shared_ptr<Element>& measurement,
+               Eigen::Matrix<double, 40, 1>* X,
                Eigen::Matrix<double, 40, 40>* P);
 
  private:
@@ -80,14 +84,27 @@ class AdaptorPointManager {
 };
 
 template <typename Element>
-void AdaptorPointManager::AddObservePoints(
+void AdaptorPointManager::Process(const std::shared_ptr<Element>& measurement,
+                                  Eigen::Matrix<double, 40, 1>* XPtr,
+                                  Eigen::Matrix<double, 40, 40>* PPtr) {
+  AddCurrentObservePoints(measurement);
+  // 获取检测点的纵向平均间隔
+  GetVertialIntervalOfDPs();
+  // 掉头场景时的修正
+  UturnsStateCorrection(XPtr, PPtr);
+  // 1. 跟踪近处没有点, 替换跟踪点
+  UpdatePointsNear(latest_measurement_lines_.back());
+  // 2. 检测点超过跟踪点，对跟踪点进行远处添加检测点
+  UpdatePointsFar(latest_measurement_lines_.back());
+  // 3. 跟踪远端多次超过检测点，进行删除
+  DelPointsFar(latest_measurement_lines_.back());
+  CopyMatrix(XPtr, PPtr);
+}
+
+template <typename Element>
+void AdaptorPointManager::AddCurrentObservePoints(
     const std::shared_ptr<Element>& measurement) {
-  std::vector<InnerPoint> vec_pts;
-  for (int64_t i = 0; i < measurement->vehicle_points.size(); ++i) {
-    vec_pts.push_back(
-        {measurement->vehicle_points[i], measurement->world_points[i]});
-  }
-  latest_measurement_lines_.push_back(vec_pts);
+  // 历史观测数据更新到当前车系，倒序则reverse
   const auto& delta_pose = PoseManager::Instance()->GetDeltaPose();
   for (auto& lane_line : latest_measurement_lines_) {
     for (auto& inner_pt : lane_line) {
@@ -98,6 +115,13 @@ void AdaptorPointManager::AddObservePoints(
       std::reverse(lane_line.begin(), lane_line.end());
     }
   }
+  // 将当前车系坐标加入历史观测队列
+  std::vector<InnerPoint> vec_pts;
+  for (int64_t i = 0; i < measurement->vehicle_points.size(); ++i) {
+    vec_pts.push_back(
+        {measurement->vehicle_points[i], measurement->world_points[i]});
+  }
+  latest_measurement_lines_.push_back(vec_pts);
 }
 
 using AdaptorPointManagerPtr = std::shared_ptr<AdaptorPointManager>;

@@ -10,10 +10,12 @@
 #include "modules/laneline_postprocess/lib/laneline/interface/base_roadedge_process.h"
 #include "onboard/onboard_lite/laneline_postprocess/data_mapping/data_mapping.h"
 #include "onboard/onboard_lite/laneline_postprocess/measurement_message.h"
+#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 #include "perception-lib/lib/environment/environment.h"
 #include "perception-lib/lib/fault_manager/fault_manager.h"
 #include "perception-lib/lib/health_manager/health_manager.h"
 #include "perception-lib/lib/state_manager/state_manager.h"
+
 namespace hozon {
 namespace mp {
 namespace environment_onboard {
@@ -35,7 +37,8 @@ int32_t EnvBevfusionOnboard::AlgInit() {
                               hozon::dead_reckoning::DeadReckoning);
 
   REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
-
+  REGISTER_PROTO_MESSAGE_TYPE("running_mode",
+                              hozon::perception::common_onboard::running_mode);
   RegistAlgProcessFunc("recv_detection_bevfusion_lane_proto",
                        std::bind(&EnvBevfusionOnboard::ReceiveDetectLaneLine,
                                  this, std::placeholders::_1));
@@ -47,7 +50,9 @@ int32_t EnvBevfusionOnboard::AlgInit() {
 
   RegistAlgProcessFunc("recv_dr", std::bind(&EnvBevfusionOnboard::ReceiveDr,
                                             this, std::placeholders::_1));
-
+  RegistAlgProcessFunc("recv_running_mode",
+                       std::bind(&EnvBevfusionOnboard::OnRunningMode, this,
+                                 std::placeholders::_1));
   // std::string default_work_root = "/app/";
   // std::string work_root = lib::GetEnv("ADFLITE_ROOT_PATH",
   // default_work_root); if (work_root == "") {
@@ -72,7 +77,34 @@ int32_t EnvBevfusionOnboard::AlgInit() {
 }
 
 void EnvBevfusionOnboard::AlgRelease() {}
+// // 状态机行泊信号
+int32_t EnvBevfusionOnboard::OnRunningMode(adf_lite_Bundle* input) {
+  auto rm_msg = input->GetOne("running_mode");
+  if (rm_msg == nullptr) {
+    HLOG_ERROR << "nullptr rm_msg plugin";
+    return -1;
+  }
+  auto msg =
+      std::static_pointer_cast<hozon::perception::common_onboard::running_mode>(
+          rm_msg->proto_msg);
+  int runmode = msg->mode();
+  HLOG_DEBUG << " *** get run mode : *** " << runmode;
+  if (runmode ==
+      static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
+    PauseTrigger("recv_detection_bevfusion_lane_proto");
+    PauseTrigger("recv_dr");
 
+    HLOG_DEBUG << "!!!!!!!!!!get run mode PARKING";
+  } else if (runmode == static_cast<int>(
+                            hozon::perception::base::RunningMode::DRIVING) ||
+             runmode ==
+                 static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
+    ResumeTrigger("recv_detection_bevfusion_lane_proto");
+    ResumeTrigger("recv_dr");
+    // HLOG_DEBUG << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
+  }
+  return 0;
+}
 int32_t EnvBevfusionOnboard::ReceiveDr(adf_lite_Bundle* input) {
   HLOG_DEBUG << "*** RECEIVE DR DATA ***";
 
@@ -98,26 +130,6 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
     HLOG_ERROR << "input is nullptr.";
     return -1;
   }
-
-  // 状态机行泊信号
-  // auto sm_msg = lib::StateManager::Instance()->get_state_machine_info();
-  // static int32_t last_running_mode = -1;
-  // if (sm_msg.running_mode == perception_base::RunningMode::PARKING) {
-  //   if (last_running_mode !=
-  //   static_cast<int32_t>(perception_base::RunningMode::PARKING)) {
-  //     HLOG_DEBUG << "running mode is parking";
-  //     last_running_mode =
-  //     static_cast<int32_t>(perception_base::RunningMode::PARKING);
-  //   }
-  //   return 0;
-  // } else if (sm_msg.running_mode == perception_base::RunningMode::DRIVING) {
-  //   if (last_running_mode !=
-  //   static_cast<int32_t>(perception_base::RunningMode::DRIVING)) {
-  //     HLOG_DEBUG << "running mode is driving";
-  //     last_running_mode =
-  //     static_cast<int32_t>(perception_base::RunningMode::DRIVING);
-  //   }
-  // }
 
   auto percept_detection = input->GetOne("percep_detection");
   if (!percept_detection) {

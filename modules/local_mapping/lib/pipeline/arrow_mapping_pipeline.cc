@@ -313,6 +313,10 @@ void ArrowMappingPipeline::LimitTracksNum() {
   if (arrow_trackers_.size() > limit_max_tracker_nums_) {
     arrow_trackers_.resize(limit_max_tracker_nums_);
   }
+  std::sort(arrow_trackers_.begin(), arrow_trackers_.end(),
+            [](const ArrowTrackerPtr& d1, const ArrowTrackerPtr& d2) {
+              return d1->GetConstTarget()->Id() < d2->GetConstTarget()->Id();
+            });
 }
 
 void ArrowMappingPipeline::CollectOutputObjects(

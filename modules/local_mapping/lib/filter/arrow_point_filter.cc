@@ -143,7 +143,7 @@ void ArrowPointFilter::UpdateHeading(const ArrowPtr& measurement) {
   LaneLinePtr left_lane_line = std::make_shared<LaneLine>();
   LaneLinePtr right_lane_line = std::make_shared<LaneLine>();
   // 按路口前后主车道线的距离大小，选择左右主车道
-  if (before_dis < after_dis) {
+  if (before_dis <= after_dis) {
     left_lane_line = before_left_lane_line;
     right_lane_line = before_right_lane_line;
   } else if (before_dis > after_dis) {

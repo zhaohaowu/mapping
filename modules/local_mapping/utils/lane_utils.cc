@@ -13,6 +13,7 @@
 // #include "camera/common/laneline_quality_evaluator.h"
 // #include "camera/lib/lane/common/common_functions.h"
 #include "modules/local_mapping/utils/lane_utils.h"
+#include <sys/param.h>
 
 #include <algorithm>
 #include <cfloat>
@@ -589,16 +590,19 @@ std::pair<float, float> GetEndY(
   return std::make_pair(pt_min_y, pt_max_y);
 }
 
-float GetDistPointLane(const Eigen::Vector3d& x, const Eigen::Vector3d& x1,
-                       const Eigen::Vector3d& x2) {
-  Eigen::Vector2f A(x.x(), x.y()), B(x1.x(), x1.y()), C(x2.x(), x2.y());
+float GetDistPointLane(const Eigen::Vector3d& point_a,
+                       const Eigen::Vector3d& point_b,
+                       const Eigen::Vector3d& point_c) {
+  Eigen::Vector2f A(point_a.x(), point_a.y()), B(point_b.x(), point_b.y()),
+      C(point_c.x(), point_c.y());
   // 以B为起点计算向量BA 在向量BC上的投影
   Eigen::Vector2f BC = C - B;
-  float dist_proj = (A - B).dot(BC) / BC.norm();
-  // A到BC的垂心为P
-  Eigen::Vector2f BP = dist_proj * BC.normalized();
-  Eigen::Vector2f AP = (B - A) + BP;
-  return AP.norm();
+  Eigen::Vector2f BA = A - B;
+  float dist_proj = BA.dot(BC) / BC.norm();
+  // 计算点到直线的距离
+  double point_dist = sqrt(pow(BA.norm(), 2) - pow(dist_proj, 2));
+
+  return point_dist;
 }
 
 float GetDistBetweenTwoLane(const std::vector<Eigen::Vector3d>& point_set1,
@@ -634,7 +638,61 @@ float GetDistBetweenTwoLane(const std::vector<Eigen::Vector3d>& point_set1,
   }
   return dist_sum / (lane_short.size());
 }
+float GetOverLayLengthBetweenTwoLane(
+    const std::vector<Eigen::Vector3d>& point_set1,
+    const std::vector<Eigen::Vector3d>& point_set2, float thresh_length) {
+  // 求重叠区域
+  double min_x = MAX(point_set1.front().x(), point_set2.front().x());
+  double max_x = MIN(point_set1.back().x(), point_set2.back().x());
+  std::vector<std::pair<int, double>> point_dist;
+  double length_ovelay = 0;
+  std::vector<double> x_list;
+  std::vector<std::vector<double>> all_x_list;
+  x_list.clear();
+  all_x_list.clear();
+  // 求重叠区内的最近距离满足阈值的距离之和
+  for (int i = 0; i < point_set1.size(); ++i) {
+    point_dist.clear();
+    if (point_set1[i].x() < min_x || point_set1[i].x() > max_x) {
+      continue;
+    }
+    for (int j = 0; j < point_set2.size(); ++j) {
+      if (point_set2[j].x() < min_x || point_set2[j].x() > max_x) {
+        continue;
+      }
+      double dist = sqrt(pow((point_set1[i].x() - point_set2[j].x()), 2) +
+                         pow((point_set1[i].y() - point_set2[j].y()), 2));
+      point_dist.emplace_back(std::make_pair(j, dist));
+    }
+    if (point_dist.size() < 2) {
+      continue;
+    }
+    // 排序寻找距离最近的两个点，求垂线距离
+    std::sort(
+        point_dist.begin(), point_dist.end(),
+        [](const std::pair<int, double>& a, const std::pair<int, double>& b) {
+          return a.second < b.second;
+        });
+    int index_b = point_dist[0].first;
+    int index_c = point_dist[1].first;
+    double dist = GetDistPointLane(point_set1[i], point_set2[index_b],
+                                   point_set2[index_c]);
 
+    if (dist < thresh_length) {
+      x_list.emplace_back(point_set1[i].x());
+    } else {
+      all_x_list.emplace_back(x_list);
+      x_list.clear();
+    }
+  }
+  for (auto& x_list : all_x_list) {
+    if (x_list.size() <= 1) {
+      continue;
+    }
+    length_ovelay += abs(x_list.end() - x_list.begin());
+  }
+  return length_ovelay;
+}
 float GetLengthRatioBetweenTwoLane(const LaneLineConstPtr& curve1,
                                    const LaneLineConstPtr& curve2) {
   auto length1 = GetLength(curve1->vehicle_points);

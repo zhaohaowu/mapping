@@ -21,6 +21,8 @@ class LaneLineMergeTrack {
                         const LaneTargetConstPtr& right_target);
   bool MergeOverlayStrategy(const LaneTargetConstPtr& left_target,
                             const LaneTargetConstPtr& right_target);
+  bool MergeOverlayCrossStrategy(const LaneTargetConstPtr& left_line,
+                                 const LaneTargetConstPtr& right_line);
   // 需要删除的tracker标记
   std::unordered_set<int> remove_index_;
 };

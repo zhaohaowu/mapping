@@ -27,7 +27,7 @@ bool MappingPositionManager::IsUnknownLaneline(
   if (laneline_ptr->vehicle_points.back().x() -
               laneline_ptr->vehicle_points.front().x() <
           10 ||
-      laneline_ptr->vehicle_points.back().x() < -50 ||
+      laneline_ptr->vehicle_points.back().x() < -10 ||
       laneline_ptr->vehicle_points.front().x() > 50) {
     return true;
   }

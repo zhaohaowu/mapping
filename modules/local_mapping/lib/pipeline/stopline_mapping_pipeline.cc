@@ -107,9 +107,10 @@ std::vector<StopLinePtr> StopLineMappingPipeline::CleanMeasureData(
   output_measurement_datas.clear();
 
   for (const auto& measure_data : *measurement_datas) {
-    if (measure_data->left_point.y() - measure_data->right_point.y() < 3 ||
+    if (fabs(measure_data->left_point.y() - measure_data->right_point.y()) <
+            3 ||
         fabs(measure_data->left_point.x() - measure_data->right_point.x()) >
-            1) {
+            2) {
       continue;
     }
     output_measurement_datas.push_back(measure_data);
@@ -217,6 +218,11 @@ void StopLineMappingPipeline::LimitTracksNum() {
   if (stopline_trackers_.size() > limit_max_tracker_nums_) {
     stopline_trackers_.resize(limit_max_tracker_nums_);
   }
+  std::sort(
+      stopline_trackers_.begin(), stopline_trackers_.end(),
+      [](const StopLineTrackerPtr& d1, const StopLineTrackerPtr& d2) {
+        return d1->GetConstTarget()->Id() < d2->GetConstTarget()->Id();
+      });
 }
 
 void StopLineMappingPipeline::MergeTracks() {

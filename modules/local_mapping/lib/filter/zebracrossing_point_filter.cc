@@ -116,39 +116,51 @@ void ZebraCrossingPointFilter::UpdateHeading(
   if (before_left_lane_line->vehicle_points.empty() &&
       !before_right_lane_line->vehicle_points.empty()) {
     before_dis = fabs(track_zebracrossing_ptr->center_point.x() -
-                      before_right_lane_line->vehicle_points.back().x());
+                      (before_right_lane_line->vehicle_points.back().x() +
+                       before_right_lane_line->vehicle_points.front().x()) /
+                          2);
   } else if (!before_left_lane_line->vehicle_points.empty() &&
              before_right_lane_line->vehicle_points.empty()) {
     before_dis = fabs(track_zebracrossing_ptr->center_point.x() -
-                      before_left_lane_line->vehicle_points.back().x());
+                      (before_left_lane_line->vehicle_points.back().x() +
+                       before_left_lane_line->vehicle_points.front().x()) /
+                          2);
   } else if (!before_left_lane_line->vehicle_points.empty() &&
              !before_right_lane_line->vehicle_points.empty()) {
     before_dis = fabs(track_zebracrossing_ptr->center_point.x() -
                       (before_left_lane_line->vehicle_points.back().x() +
-                       before_right_lane_line->vehicle_points.back().x()) /
-                          2);
+                       before_right_lane_line->vehicle_points.back().x() +
+                       before_left_lane_line->vehicle_points.front().x() +
+                       before_right_lane_line->vehicle_points.front().x()) /
+                          4);
   }
   if (after_left_lane_line->vehicle_points.empty() &&
       !after_right_lane_line->vehicle_points.empty()) {
     after_dis = fabs(track_zebracrossing_ptr->center_point.x() -
-                     after_right_lane_line->vehicle_points.front().x());
+                     (after_right_lane_line->vehicle_points.back().x() +
+                      after_right_lane_line->vehicle_points.front().x()) /
+                         2);
   } else if (!after_left_lane_line->vehicle_points.empty() &&
              after_right_lane_line->vehicle_points.empty()) {
     after_dis = fabs(track_zebracrossing_ptr->center_point.x() -
-                     after_left_lane_line->vehicle_points.front().x());
+                     (after_left_lane_line->vehicle_points.back().x() +
+                      after_left_lane_line->vehicle_points.front().x()) /
+                         2);
   } else if (!after_left_lane_line->vehicle_points.empty() &&
              !after_right_lane_line->vehicle_points.empty()) {
     after_dis = fabs(track_zebracrossing_ptr->center_point.x() -
                      (after_left_lane_line->vehicle_points.front().x() +
-                      after_right_lane_line->vehicle_points.front().x()) /
-                         2);
+                      after_right_lane_line->vehicle_points.front().x() +
+                      after_left_lane_line->vehicle_points.back().x() +
+                      after_right_lane_line->vehicle_points.back().x()) /
+                         4);
   }
   LaneLinePtr left_lane_line = std::make_shared<LaneLine>();
   LaneLinePtr right_lane_line = std::make_shared<LaneLine>();
-  if (before_dis < 10 && after_dis > 10) {
+  if (before_dis <= after_dis) {
     left_lane_line = before_left_lane_line;
     right_lane_line = before_right_lane_line;
-  } else if (before_dis > 10 && after_dis < 10) {
+  } else if (before_dis > after_dis) {
     left_lane_line = after_left_lane_line;
     right_lane_line = after_right_lane_line;
   }
@@ -160,20 +172,53 @@ void ZebraCrossingPointFilter::UpdateHeading(
   } else {
     std::vector<Eigen::Vector3d> left_points;
     std::vector<Eigen::Vector3d> right_points;
-    left_points.emplace_back(left_lane_line->vehicle_points[left_size - 2].x(),
-                             left_lane_line->vehicle_points[left_size - 2].y(),
-                             0);
-    left_points.emplace_back(left_lane_line->vehicle_points[left_size - 1].x(),
-                             left_lane_line->vehicle_points[left_size - 1].y(),
-                             0);
-    right_points.emplace_back(
-        right_lane_line->vehicle_points[right_size - 2].x(),
-        right_lane_line->vehicle_points[right_size - 2].y(), 0);
-    right_points.emplace_back(
-        right_lane_line->vehicle_points[right_size - 1].x(),
-        right_lane_line->vehicle_points[right_size - 1].y(), 0);
-    track_zebracrossing_ptr->heading =
+    // 给主车道左右点数组赋值，用来计算heading
+    if (left_lane_line->vehicle_points.front().x() >=
+        track_zebracrossing_ptr->center_point.x()) {
+      left_points.emplace_back(left_lane_line->vehicle_points[0]);
+      left_points.emplace_back(left_lane_line->vehicle_points[1]);
+    } else if (left_lane_line->vehicle_points.back().x() <
+               track_zebracrossing_ptr->center_point.x()) {
+      left_points.emplace_back(left_lane_line->vehicle_points[left_size - 2]);
+      left_points.emplace_back(left_lane_line->vehicle_points[left_size - 1]);
+    } else {
+      int left_idnex = 0;
+      for (; left_idnex < left_size; left_idnex++) {
+        if (left_lane_line->vehicle_points[left_idnex].x() >
+            track_zebracrossing_ptr->center_point.x()) {
+          break;
+        }
+      }
+      left_points.emplace_back(left_lane_line->vehicle_points[left_idnex - 1]);
+      left_points.emplace_back(left_lane_line->vehicle_points[left_idnex]);
+    }
+
+    if (right_lane_line->vehicle_points.front().x() >=
+        track_zebracrossing_ptr->center_point.x()) {
+      right_points.emplace_back(right_lane_line->vehicle_points[0]);
+      right_points.emplace_back(right_lane_line->vehicle_points[1]);
+    } else if (right_lane_line->vehicle_points.back().x() <
+               track_zebracrossing_ptr->center_point.x()) {
+      right_points.emplace_back(right_lane_line->vehicle_points[left_size - 2]);
+      right_points.emplace_back(right_lane_line->vehicle_points[left_size - 1]);
+    } else {
+      int right_idnex = 0;
+      for (; right_idnex < right_size; right_idnex++) {
+        if (right_lane_line->vehicle_points[right_idnex].x() >
+            track_zebracrossing_ptr->center_point.x()) {
+          break;
+        }
+      }
+      right_points.emplace_back(
+          right_lane_line->vehicle_points[right_idnex - 1]);
+      right_points.emplace_back(right_lane_line->vehicle_points[right_idnex]);
+    }
+    auto main_lane_heading =
         CommonUtil::CalMainLaneHeading(left_points, right_points);
+    track_zebracrossing_ptr->heading =
+        fabs(main_lane_heading - track_zebracrossing_ptr->heading) < 1.047
+            ? main_lane_heading
+            : 0.5 * (measurement->heading + track_zebracrossing_ptr->heading);
   }
 }
 

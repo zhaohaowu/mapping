@@ -11,7 +11,8 @@ input:
       capacity: 5
     - topic: /localization/deadreckoning 
       capacity: 5
-
+    - topic: running_mode 
+      capacity: 5
 output:
     - topic: /perception/fsd/transportelement_1
 
@@ -31,4 +32,9 @@ trigger:
     type: EVENT
     mainSources:
       - name: /localization/deadreckoning
+        timeout: 1000
+  - name: recv_running_mode
+    type: EVENT
+    mainSources:
+      - name: running_mode
         timeout: 1000

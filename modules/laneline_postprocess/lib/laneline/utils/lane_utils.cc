@@ -529,16 +529,18 @@ float GetLength(const std::vector<LaneLinePoint>& point_sets) {
   return total_length;
 }
 
-float GetDistPointLane(const Point3DF& x, const Point3DF& x1,
-                       const Point3DF& x2) {
-  Eigen::Vector2f A(x.x, x.y), B(x1.x, x1.y), C(x2.x, x2.y);
+float GetDistPointLane(const Point3DF& point_a, const Point3DF& point_b,
+                       const Point3DF& point_c) {
+  Eigen::Vector2f A(point_a.x, point_a.y), B(point_b.x, point_b.y),
+      C(point_c.x, point_c.y);
   // 以B为起点计算向量BA 在向量BC上的投影
   Eigen::Vector2f BC = C - B;
-  float dist_proj = (A - B).dot(BC) / BC.norm();
-  // A到BC的垂心为P
-  Eigen::Vector2f BP = dist_proj * BC.normalized();
-  Eigen::Vector2f AP = (B - A) + BP;
-  return AP.norm();
+  Eigen::Vector2f BA = A - B;
+  float dist_proj = BA.dot(BC) / BC.norm();
+  // 计算点到直线的距离
+  double point_dist = sqrt(pow(BA.norm(), 2) - pow(dist_proj, 2));
+
+  return point_dist;
 }
 
 float GetDistBetweenTwoLane(const std::vector<LaneLinePoint>& point_set1,

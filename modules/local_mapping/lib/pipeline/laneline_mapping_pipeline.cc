@@ -139,7 +139,8 @@ bool LaneLineMappingPipeline::Process(
   laneline_merge_tracker_->MergeTracks(&lane_trackers_);
   HLOG_DEBUG << "after mergeTracks lane tracker size:" << lane_trackers_.size();
   LimitTracksNum();
-  // todo 端点优化
+  // 端点优化
+  SmoothEndPt();
   // todo 曲线平滑，检查每个点的导数，突变点，用周围的点拟合点填充该点
   CollectOutputObjects(tracked_lanes);
   HLOG_DEBUG << "output track laneline size ============"
@@ -374,6 +375,27 @@ void LaneLineMappingPipeline::CollectOutputObjects(
     HLOG_DEBUG << "send_postline:" << output_lane_object->send_postlane
                << "id_:" << output_lane_object->id;
     tracked_lanelines->lanelines.push_back(output_lane_object);
+  }
+}
+
+void LaneLineMappingPipeline::SmoothEndPt() {
+  // 用二次曲线来做点的拟合和平滑
+  CurveFitter curve_fitter(2);
+  for (const auto& lane_tracker : lane_trackers_) {
+    auto lane = lane_tracker->GetTarget()->GetTrackedObject();
+    auto& pts = lane->vehicle_points;
+    // 只对处于图中间线的端点做平滑
+    if (pts.front().x() > -50 && pts.size() > 10) {
+      std::vector<Eigen::Vector3d> points(pts.begin(), pts.begin() + 6);
+      curve_fitter.PolyFitProcess(points);
+      for (int i = 0; i < 3 && i < pts.size(); ++i) {
+        double y = curve_fitter.evalueValue(pts[i].x());
+        double abs_error = std::abs(y - pts[i].y());
+        if (abs_error < 1.5) {
+          pts[i][1] = y;
+        }
+      }
+    }
   }
 }
 

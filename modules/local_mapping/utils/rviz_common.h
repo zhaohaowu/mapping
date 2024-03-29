@@ -1062,7 +1062,8 @@ class RvizUtil {
       txt_marker.mutable_color()->set_g(0.50);
       txt_marker.mutable_color()->set_b(0.66);
       txt_marker.mutable_color()->set_a(1);
-      txt_marker.set_text(std::to_string(stop_line.tracked_count));
+      txt_marker.set_text(std::to_string(stop_line.tracked_count) + ", " +
+                          std::to_string(stop_line.id));
       txt_marker.mutable_scale()->set_x(2);
       txt_marker.mutable_scale()->set_y(2);
       txt_marker.mutable_scale()->set_z(2);
@@ -1449,7 +1450,8 @@ class RvizUtil {
       txt_marker.mutable_color()->set_r(1);
       txt_marker.mutable_color()->set_g(1);
       txt_marker.mutable_color()->set_b(1);
-      txt_marker.set_text("zebra_crossing");
+      txt_marker.set_text("zebra_crossing, " +
+                          std::to_string(zebra_crossing.id));
       txt_marker.mutable_scale()->set_x(1);
       txt_marker.mutable_scale()->set_y(1);
       txt_marker.mutable_scale()->set_z(0.5);

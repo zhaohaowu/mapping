@@ -59,6 +59,7 @@ void LaneLineMergeTrack::MergeTrackPoints(
 // 两条Tracker重合度很高
 bool LaneLineMergeTrack::MergeOverlayStrategy(
     const LaneTargetConstPtr& left_line, const LaneTargetConstPtr& right_line) {
+  // 如果其中之一是分流和合流线，则不进行merge（待加）；
   double over_lay_ratio = GetOverLayRatioBetweenTwoLane(
       left_line->GetConstTrackedObject(), right_line->GetConstTrackedObject());
   float avg_dist = GetDistBetweenTwoLane(
@@ -70,7 +71,8 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(
              << right_line->Id() << ", over_lay_ratio: " << over_lay_ratio
              << ", avg_dist: " << avg_dist << ", time_diff: " << time_diff;
   // 根据线的质量来做删除,需要根据case专门抽一个评估函数
-  if (over_lay_ratio > 0.7 && avg_dist < 1.0) {
+  if (over_lay_ratio > 0.7 && avg_dist < 1.0 ||
+      over_lay_ratio > 0.2 && avg_dist < 0.5) {
     // 两条tracker时间差超过2帧保存最新的
     if (std::abs(time_diff) > 0.2) {
       if (time_diff > 0) {
@@ -95,8 +97,49 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(
 
 // tracker 交叉合并策略
 
-// tracker 重叠区域很近合并策略
-
+// tracker 重叠区域很近及分叉线的合并策略
+bool LaneLineMergeTrack::MergeOverlayCrossStrategy(
+    const LaneTargetConstPtr& left_line, const LaneTargetConstPtr& right_line) {
+  // 如果其中之一是分流和合流线，则不进行merge（待加）；
+  double thresh_width = 1.0;
+  double over_lay_ratio = GetOverLayRatioBetweenTwoLane(
+      left_line->GetConstTrackedObject(), right_line->GetConstTrackedObject());
+  float avg_dist = GetDistBetweenTwoLane(
+      left_line->GetConstTrackedObject()->vehicle_points,
+      right_line->GetConstTrackedObject()->vehicle_points);
+  double overlay_min_length = GetOverLayLengthBetweenTwoLane(
+      left_line->GetConstTrackedObject()->vehicle_points,
+      right_line->GetConstTrackedObject()->vehicle_points, thresh_width);
+  double time_diff = left_line->GetLastestTrackedTimestamp() -
+                     right_line->GetLastestTrackedTimestamp();
+  HLOG_DEBUG << "laneline MergeTracks: id " << left_line->Id() << ", id "
+             << right_line->Id() << ", over_lay_ratio: " << over_lay_ratio
+             << ", avg_dist: " << avg_dist << ", time_diff: " << time_diff
+             << ", overlay_min_length:" << overlay_min_length;
+  // 根据线的质量来做删除,需要根据case专门抽一个评估函数
+  // 如果两条线有超过10m的重叠区域（需要过滤合流分流），则认为要合并为一条
+  if (overlay_min_length > 10 && over_lay_ratio > 0) {
+    // 两条tracker时间差超过2帧保存最新的
+    if (std::abs(time_diff) > 0.2) {
+      if (time_diff > 0) {
+        remove_index_.insert(right_line->Id());
+        MergeTrackPoints(left_line, right_line);
+      } else {
+        remove_index_.insert(left_line->Id());
+        MergeTrackPoints(right_line, left_line);
+      }
+    } else {
+      // 时间差不超过2帧保存跟踪时间长的
+      if (left_line->Count() > right_line->Count()) {
+        remove_index_.insert(right_line->Id());
+      } else {
+        remove_index_.insert(left_line->Id());
+      }
+    }
+    return true;
+  }
+  return false;
+}
 // tracker 合并策略
 void LaneLineMergeTrack::MergeTracks(std::vector<LaneTrackerPtr>* trackers) {
   if (trackers->size() < 2) {
@@ -114,6 +157,7 @@ void LaneLineMergeTrack::MergeTracks(std::vector<LaneTrackerPtr>* trackers) {
         continue;
       }
       MergeOverlayStrategy(left_line, right_line);
+      MergeOverlayCrossStrategy(left_line, right_line);
     }
   }
   trackers->erase(std::remove_if(trackers->begin(), trackers->end(),

@@ -38,7 +38,8 @@ class EnvBevfusionOnboard : public hozon::netaos::adf_lite::Executor {
 
   int32_t AlgInit() override;
   void AlgRelease() override;
-
+  // 接收running_mode通道，用于行泊切换
+  int32_t OnRunningMode(adf_lite_Bundle* input);
   int32_t ReceiveDetectLaneLine(adf_lite_Bundle* input);
 
   int32_t ReceiveDr(adf_lite_Bundle* input);

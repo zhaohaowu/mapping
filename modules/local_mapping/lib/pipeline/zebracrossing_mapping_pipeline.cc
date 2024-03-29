@@ -246,6 +246,11 @@ void ZebraCrossingMappingPipeline::LimitTracksNum() {
   if (zebracrossing_trackers_.size() > limit_max_tracker_nums_) {
     zebracrossing_trackers_.resize(limit_max_tracker_nums_);
   }
+  std::sort(
+      zebracrossing_trackers_.begin(), zebracrossing_trackers_.end(),
+      [](const ZebraCrossingTrackerPtr& d1, const ZebraCrossingTrackerPtr& d2) {
+        return d1->GetConstTarget()->Id() < d2->GetConstTarget()->Id();
+      });
 }
 
 void ZebraCrossingMappingPipeline::MergeTracks() {

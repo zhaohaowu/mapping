@@ -32,9 +32,9 @@ void AdaptorPointManager::init(Eigen::Matrix<double, 40, 1>* XPtr,
   P_ = *PPtr;
   pt_size_ = X_.size() / 2;
   pose_ = InputDataSingleton::Instance()->dr_data_buffer_.back()->pose;
-  Eigen::Vector3d fastest_track_pt(X_[(pt_size_ - 1) * 2],
-                                   X_[(pt_size_ - 1) * 2 + 1], 0.0);
-  fastest_track_pt_ = pose_.inverse() * fastest_track_pt;
+  Eigen::Vector3d farthest_track_pt(X_[(pt_size_ - 1) * 2],
+                                    X_[(pt_size_ - 1) * 2 + 1], 0.0);
+  fastest_track_pt_ = pose_.inverse() * farthest_track_pt;
   Eigen::Vector3d near_track_pt(X_[0], X_[1], 0.0);
   near_track_pt_ = pose_.inverse() * near_track_pt;
   auto& measurement_points = (latest_measurement_lines_.back());

@@ -121,19 +121,25 @@ std::map<std::string, LaneLinePtr> StopLinePointFilter::SelectEgolines(
       (all_ego_lines.count("before_right") != 0U)) {
     before_dis =
         fabs(track_stopline->center_point.x() -
-             all_ego_lines.at("before_right")->vehicle_points.back().x());
+             (all_ego_lines.at("before_right")->vehicle_points.back().x() +
+              all_ego_lines.at("before_right")->vehicle_points.front().x()) /
+                 2);
   } else if ((all_ego_lines.count("before_left") != 0U) &&
              (all_ego_lines.count("before_right") == 0U)) {
     before_dis =
         fabs(track_stopline->center_point.x() -
-             all_ego_lines.at("before_left")->vehicle_points.back().x());
+             (all_ego_lines.at("before_left")->vehicle_points.back().x() +
+              all_ego_lines.at("before_left")->vehicle_points.front().x()) /
+                 2);
   } else if ((all_ego_lines.count("before_left") != 0U) &&
              (all_ego_lines.count("before_right") != 0U)) {
     before_dis =
         fabs(track_stopline->center_point.x() -
              (all_ego_lines.at("before_left")->vehicle_points.back().x() +
-              all_ego_lines.at("before_right")->vehicle_points.back().x()) /
-                 2);
+              all_ego_lines.at("before_left")->vehicle_points.front().x() +
+              all_ego_lines.at("before_right")->vehicle_points.back().x() +
+              all_ego_lines.at("before_left")->vehicle_points.front().x()) /
+                 4);
   } else {
     before_dis = FLT_MAX;
   }
@@ -143,30 +149,35 @@ std::map<std::string, LaneLinePtr> StopLinePointFilter::SelectEgolines(
       (all_ego_lines.count("after_right") != 0U)) {
     after_dis =
         fabs(track_stopline->center_point.x() -
-             all_ego_lines.at("after_right")->vehicle_points.back().x());
+             (all_ego_lines.at("after_right")->vehicle_points.front().x() +
+              all_ego_lines.at("after_right")->vehicle_points.back().x()) /
+                 2);
   } else if ((all_ego_lines.count("after_left") != 0U) &&
              (all_ego_lines.count("after_right") == 0U)) {
-    after_dis = fabs(track_stopline->center_point.x() -
-                     all_ego_lines.at("after_left")->vehicle_points.back().x());
+    after_dis =
+        fabs(track_stopline->center_point.x() -
+             (all_ego_lines.at("after_left")->vehicle_points.front().x() +
+              all_ego_lines.at("after_left")->vehicle_points.back().x()) /
+                 2);
   } else if ((all_ego_lines.count("after_left") != 0U) &&
              (all_ego_lines.count("after_right") != 0U)) {
     after_dis =
         fabs(track_stopline->center_point.x() -
-             (all_ego_lines.at("after_left")->vehicle_points.back().x() +
+             (all_ego_lines.at("after_left")->vehicle_points.front().x() +
+              all_ego_lines.at("after_right")->vehicle_points.front().x() +
+              all_ego_lines.at("after_left")->vehicle_points.back().x() +
               all_ego_lines.at("after_right")->vehicle_points.back().x()) /
-                 2);
+                 4);
   } else {
     after_dis = FLT_MAX;
   }
-
   std::map<std::string, LaneLinePtr> select_egolines;
   select_egolines.clear();
-  if (before_dis < 10 && after_dis > 10 &&
-      all_ego_lines.count("before_left") != 0U &&
+  if (before_dis <= after_dis && all_ego_lines.count("before_left") != 0U &&
       all_ego_lines.count("before_right") != 0U) {
     select_egolines["ego_left"] = all_ego_lines.at("before_left");
     select_egolines["ego_right"] = all_ego_lines.at("before_right");
-  } else if (before_dis > 10 && after_dis < 10 &&
+  } else if (before_dis > after_dis &&
              all_ego_lines.count("after_left") != 0U &&
              all_ego_lines.count("after_right") != 0U) {
     select_egolines["ego_left"] = all_ego_lines.at("after_left");
@@ -301,8 +312,6 @@ void StopLinePointFilter::UpdateHeading(const StopLinePtr& measurement) {
   auto all_ego_lines = GetAllEgolines();
   auto sel_ego_lines = SelectEgolines(all_ego_lines);
   if (!sel_ego_lines.empty()) {
-    std::vector<Eigen::Vector3d> left_points;
-    std::vector<Eigen::Vector3d> right_points;
     int left_size = 0;
     int right_size = 0;
     left_size = sel_ego_lines.at("ego_left")->vehicle_points.size();
@@ -311,20 +320,65 @@ void StopLinePointFilter::UpdateHeading(const StopLinePtr& measurement) {
       track_stopline->heading =
           0.5 * measurement->heading + 0.5 * track_stopline->heading;
     } else {
-      left_points.emplace_back(
-          sel_ego_lines.at("ego_left")->vehicle_points[left_size - 2].x(),
-          sel_ego_lines.at("ego_left")->vehicle_points[left_size - 2].y(), 0);
-      left_points.emplace_back(
-          sel_ego_lines.at("ego_left")->vehicle_points[left_size - 1].x(),
-          sel_ego_lines.at("ego_left")->vehicle_points[left_size - 1].y(), 0);
-      right_points.emplace_back(
-          sel_ego_lines.at("ego_right")->vehicle_points[right_size - 2].x(),
-          sel_ego_lines.at("ego_right")->vehicle_points[right_size - 2].y(), 0);
-      right_points.emplace_back(
-          sel_ego_lines.at("ego_right")->vehicle_points[right_size - 1].x(),
-          sel_ego_lines.at("ego_right")->vehicle_points[right_size - 1].y(), 0);
-      track_stopline->heading =
+      std::vector<Eigen::Vector3d> left_points;
+      std::vector<Eigen::Vector3d> right_points;
+      if (sel_ego_lines.at("ego_left")->vehicle_points.front().x() >=
+          track_stopline->center_point.x()) {
+        left_points.emplace_back(
+            sel_ego_lines.at("ego_left")->vehicle_points[0]);
+        left_points.emplace_back(
+            sel_ego_lines.at("ego_left")->vehicle_points[1]);
+      } else if (sel_ego_lines.at("ego_left")->vehicle_points.back().x() <
+                 track_stopline->center_point.x()) {
+        left_points.emplace_back(
+            sel_ego_lines.at("ego_left")->vehicle_points[left_size - 2]);
+        left_points.emplace_back(
+            sel_ego_lines.at("ego_left")->vehicle_points[left_size - 1]);
+      } else {
+        int left_idnex = 0;
+        for (; left_idnex < left_size; left_idnex++) {
+          if (sel_ego_lines.at("ego_left")->vehicle_points[left_idnex].x() >
+              track_stopline->center_point.x()) {
+            break;
+          }
+        }
+        left_points.emplace_back(
+            sel_ego_lines.at("ego_left")->vehicle_points[left_idnex - 1]);
+        left_points.emplace_back(
+            sel_ego_lines.at("ego_left")->vehicle_points[left_idnex]);
+      }
+
+      if (sel_ego_lines.at("ego_right")->vehicle_points.front().x() >=
+          track_stopline->center_point.x()) {
+        right_points.emplace_back(
+            sel_ego_lines.at("ego_right")->vehicle_points[0]);
+        right_points.emplace_back(
+            sel_ego_lines.at("ego_right")->vehicle_points[1]);
+      } else if (sel_ego_lines.at("ego_right")->vehicle_points.back().x() <
+                 track_stopline->center_point.x()) {
+        right_points.emplace_back(
+            sel_ego_lines.at("ego_right")->vehicle_points[left_size - 2]);
+        right_points.emplace_back(
+            sel_ego_lines.at("ego_right")->vehicle_points[left_size - 1]);
+      } else {
+        int right_idnex = 0;
+        for (; right_idnex < right_size; right_idnex++) {
+          if (sel_ego_lines.at("ego_right")->vehicle_points[right_idnex].x() >
+              track_stopline->center_point.x()) {
+            break;
+          }
+        }
+        right_points.emplace_back(
+            sel_ego_lines.at("ego_right")->vehicle_points[right_idnex - 1]);
+        right_points.emplace_back(
+            sel_ego_lines.at("ego_right")->vehicle_points[right_idnex]);
+      }
+      auto main_lane_heading =
           CommonUtil::CalMainLaneHeading(left_points, right_points) + 1.57;
+      track_stopline->heading =
+          fabs(main_lane_heading - track_stopline->heading) < 1.047
+              ? main_lane_heading
+              : 0.5 * (measurement->heading + track_stopline->heading);
     }
   } else {
     track_stopline->heading =

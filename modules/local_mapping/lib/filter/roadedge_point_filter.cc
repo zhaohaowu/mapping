@@ -153,13 +153,21 @@ void RoadEdgePointFilter::RevisePredictFit() {
     float wp_x = XT[i * 2], wp_y = XT[i * 2 + 1];
     Eigen::Vector3d weight_local_pt(wp_x, wp_y, 0.0);
     auto vehicle_pt = current_pose.inverse() * weight_local_pt;
-    float vehicle_y = curve_fitter.evalueValue(vehicle_pt.x());
+    double vehicle_y = curve_fitter.evalueValue(vehicle_pt.x());
+    // 异常情况兜底
+    if (std::abs(vehicle_y - vehicle_pt.y()) > 1.0) {
+      vehicle_y = vehicle_pt.y();
+    }
     auto local_pt =
         current_pose * Eigen::Vector3d(vehicle_pt.x(), vehicle_y, 0.0);
-    float wp_y_t = local_pt.y();
+    auto wp_x_t = static_cast<float>(local_pt.x());
+    auto wp_y_t = static_cast<float>(local_pt.y());
+    XT[i * 2] = wp_x_t;
     XT[i * 2 + 1] = wp_y_t;
-    float ratio = wp_y_t / wp_y;
-    B_(i * 2 + 1, i * 2 + 1) = ratio;
+    float ratio_x = wp_x_t / wp_x;
+    B_(i * 2, i * 2) = ratio_x;
+    float ratio_y = wp_y_t / wp_y;
+    B_(i * 2 + 1, i * 2 + 1) = ratio_y;
   }
   return;
 }
@@ -245,7 +253,6 @@ bool RoadEdgePointFilter::IsAbnormalPose(
 
 void RoadEdgePointFilter::UpdateWithMeasurement(
     const FilterOption& filter_options, const RoadEdgePtr& measurement) {
-  point_manager_->AddObservePoints(measurement);
   PERF_FUNCTION();
   PERF_BLOCK_START();
   // 如果前后帧姿态异常，则不做任何处理。
@@ -409,8 +416,7 @@ void RoadEdgePointFilter::UpdateStage(const RoadEdgePtr& measurement_line) {
   PERF_FUNCTION();
   PERF_BLOCK_START();
   // 删除车身后的点， 并同步更新到X_和P_。
-
-  point_manager_->Process(&X_, &P_);
+  point_manager_->Process(measurement_line, &X_, &P_);
 
   PERF_BLOCK_END("UpdatePoints Used Time");
 
@@ -422,20 +428,27 @@ void RoadEdgePointFilter::PredictStage() {
   RevisePredictFit();
   A_update_ = B_ * A_;
   X_ = A_update_ * X_;
-  P_ = A_update_ * P_ * A_update_.transpose() + Q_;
+  P_ = A_ * P_ * A_.transpose() + Q_;
 }
 
 void RoadEdgePointFilter::UpdateResult(bool match_flag) {
   auto tracked_lane = target_ref_->GetTrackedObject();
+  const auto& pts = tracked_lane->vehicle_points;
   // 保存临时点
   if (match_flag) {
     // 将X_点存入跟踪线数据结构中进行发送
-    target_vehicle_pts_ = tracked_lane->vehicle_points;
+    target_vehicle_pts_ = pts;
     ConvertEigen2PointSet(X_, tracked_lane);
   }
   // 拿车身坐标系下的点进行三次方程拟合
   auto& track_polynomial = target_ref_->GetTrackedObject()->vehicle_curve;
-  curve_fit_.PolyFitProcess(tracked_lane->vehicle_points);
+  std::vector<Eigen::Vector3d> fit_points;
+  if (pts.size() > 20) {
+    fit_points.assign(pts.end() - 20, pts.end());
+  } else {
+    fit_points.assign(pts.begin(), pts.end());
+  }
+  curve_fit_.PolyFitProcess(fit_points);
 
   track_polynomial.min = curve_fit_.x_min;
   track_polynomial.max = curve_fit_.x_max;

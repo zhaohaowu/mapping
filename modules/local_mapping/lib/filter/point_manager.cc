@@ -21,29 +21,35 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
-void AdaptorPointManager::CalThreshold(Eigen::Matrix<double, 40, 1>* XPtr,
-                                       Eigen::Matrix<double, 40, 40>* PPtr) {
+void AdaptorPointManager::UturnsStateCorrection(
+    Eigen::Matrix<double, 40, 1>* XPtr, Eigen::Matrix<double, 40, 40>* PPtr) {
   X_ = *XPtr;
   P_ = *PPtr;
   pt_size_ = X_.size() / 2;
   pose_ = PoseManager::Instance()->GetCurrentPose();
-  Eigen::Vector3d fastest_track_pt(X_[(pt_size_ - 1) * 2],
-                                   X_[(pt_size_ - 1) * 2 + 1], 0.0);
-  fastest_track_pt_ = pose_.inverse() * fastest_track_pt;
+  Eigen::Vector3d farthest_track_pt(X_[(pt_size_ - 1) * 2],
+                                    X_[(pt_size_ - 1) * 2 + 1], 0.0);
+  fastest_track_pt_ = pose_.inverse() * farthest_track_pt;
   Eigen::Vector3d near_track_pt(X_[0], X_[1], 0.0);
   near_track_pt_ = pose_.inverse() * near_track_pt;
+  // 判定是否处于掉头的状态下（若是，则将车道线点翻转为此时车系下从小到大的顺序。）
   if (near_track_pt_.x() > fastest_track_pt_.x()) {
     for (int i = 0; i < pt_size_ / 2; ++i) {
       int64_t j = pt_size_ - i - 1;
       std::swap(X_[i * 2], X_[j * 2]);
       std::swap(X_[i * 2 + 1], X_[j * 2 + 1]);
     }
-    P_.setIdentity();
+    P_.setIdentity();  // 重置协方差矩阵
   }
+  return;
+}
+
+void AdaptorPointManager::GetVertialIntervalOfDPs() {
   auto& measurement_points = (latest_measurement_lines_.back());
-  near_measure_pt_ = measurement_points[0].vehicle_point;
+  near_measure_pt_ = measurement_points.front().vehicle_point;
   far_measure_pt_ = measurement_points.back().vehicle_point;
   // 选取阈值, 取检测点的平均点间隔
+  threshold_ = 0;
   for (int i = 1; i < measurement_points.size(); ++i) {
     threshold_ += measurement_points[i].vehicle_point.x() -
                   measurement_points[i - 1].vehicle_point.x();
@@ -216,20 +222,6 @@ void AdaptorPointManager::DelPointsFar(
     X_ = X_SWAP_;
     P_ = P_SWAP_;
   }
-  return;
-}
-
-void AdaptorPointManager::Process(Eigen::Matrix<double, 40, 1>* XPtr,
-                                  Eigen::Matrix<double, 40, 40>* PPtr) {
-  // 计算公共变量和赋值操作
-  CalThreshold(XPtr, PPtr);
-  // 1. 跟踪近处没有点, 替换跟踪点
-  UpdatePointsNear(latest_measurement_lines_.back());
-  // 2. 检测点超过跟踪点，对跟踪点进行远处添加检测点
-  UpdatePointsFar(latest_measurement_lines_.back());
-  // 3. 跟踪远端多次超过检测点，进行删除
-  DelPointsFar(latest_measurement_lines_.back());
-  CopyMatrix(XPtr, PPtr);
   return;
 }
 

@@ -155,13 +155,20 @@ void LaneLinePointFilter::RevisePredictFit() {
     Eigen::Vector3d weight_local_pt(wp_x, wp_y, 0.0);
     auto vehicle_pt = current_pose.inverse() * weight_local_pt;
     double vehicle_y = curve_fitter.evalueValue(vehicle_pt.x());
+    // 异常情况兜底
+    if (std::abs(vehicle_y - vehicle_pt.y()) > 1.0) {
+      vehicle_y = vehicle_pt.y();
+    }
     auto local_pt =
         current_pose * Eigen::Vector3d(vehicle_pt.x(), vehicle_y, 0.0);
-    float wp_y_t = static_cast<float>(local_pt.y());
-    // todo 限制拟合后的wp_y_t做兜底，应对异常情况，先查根因，后续补充
+    auto wp_x_t = static_cast<float>(local_pt.x());
+    auto wp_y_t = static_cast<float>(local_pt.y());
+    XT[i * 2] = wp_x_t;
     XT[i * 2 + 1] = wp_y_t;
-    float ratio = wp_y_t / wp_y;
-    B_(i * 2 + 1, i * 2 + 1) = ratio;
+    float ratio_x = wp_x_t / wp_x;
+    B_(i * 2, i * 2) = ratio_x;
+    float ratio_y = wp_y_t / wp_y;
+    B_(i * 2 + 1, i * 2 + 1) = ratio_y;
   }
   return;
 }
@@ -247,7 +254,6 @@ bool LaneLinePointFilter::IsAbnormalPose(
 
 void LaneLinePointFilter::UpdateWithMeasurement(
     const FilterOption& filter_options, const LaneLinePtr& measurement) {
-  point_manager_->AddObservePoints(measurement);
   PERF_FUNCTION();
   PERF_BLOCK_START();
   // 如果前后帧姿态异常，则不做任何处理。
@@ -339,7 +345,6 @@ void LaneLinePointFilter::KalmanUpdate(
   H_.setZero();
   HZ_.setZero();
 
-  int match_idxs = 0;
   // 观测点和跟踪点进行匹配操作
   for (int64_t m_p_idx = 0; m_p_idx < measurement_points.size(); ++m_p_idx) {
     for (int64_t t_p_idx = 0; t_p_idx < pt_size_ - 1; ++t_p_idx) {
@@ -362,7 +367,6 @@ void LaneLinePointFilter::KalmanUpdate(
         HZ_[m_p_idx] =
             (m_point[0] - X_[t_p_idx * 2 + 0]) * X_NORMAL_[t_p_idx * 2 + 0] +
             (m_point[1] - X_[t_p_idx * 2 + 1]) * X_NORMAL_[t_p_idx * 2 + 1];
-        match_idxs++;
         break;
       }
     }
@@ -380,15 +384,12 @@ void LaneLinePointFilter::KalmanUpdate(
 }
 
 void LaneLinePointFilter::UpdateStage(const LaneLinePtr& measurement_line) {
-  const auto& measurement_points = measurement_line->world_points;
-
   PERF_FUNCTION();
   PERF_BLOCK_START();
-  // 删除车身后的点， 并同步更新到X_和P_。
-  point_manager_->Process(&X_, &P_);
-
+  // 跟踪点的自适应更新维护。
+  point_manager_->Process(measurement_line, &X_, &P_);
   PERF_BLOCK_END("UpdatePoints Used Time");
-
+  const auto& measurement_points = measurement_line->world_points;
   KalmanUpdate(measurement_points);
   PERF_BLOCK_END("KalmanUpdate Used Time");
 }
@@ -397,7 +398,7 @@ void LaneLinePointFilter::PredictStage() {
   RevisePredictFit();
   A_update_ = B_ * A_;
   X_ = A_update_ * X_;
-  P_ = A_update_ * P_ * A_update_.transpose() + Q_;
+  P_ = A_ * P_ * A_.transpose() + Q_;
 }
 
 void LaneLinePointFilter::MergeMapTrackLanePoints() {
@@ -426,16 +427,23 @@ void LaneLinePointFilter::MergeMapTrackLanePoints() {
 
 void LaneLinePointFilter::UpdateResult(bool match_flag) {
   auto tracked_lane = target_ref_->GetTrackedObject();
+  const auto& pts = tracked_lane->vehicle_points;
   if (match_flag) {
-    // 保存临时点
-    target_vehicle_pts_ = tracked_lane->vehicle_points;
+    // 保存上一帧的点
+    target_vehicle_pts_ = pts;
     // 将X_点存入跟踪线数据结构中进行发送
     ConvertEigen2PointSet(X_, tracked_lane);
   }
 
   // 拿车身坐标系下的点进行三次方程拟合
   auto& track_polynomial = tracked_lane->vehicle_curve;
-  curve_fit_.PolyFitProcess(tracked_lane->vehicle_points);
+  std::vector<Eigen::Vector3d> fit_points;
+  if (pts.size() > 20) {
+    fit_points.assign(pts.end() - 20, pts.end());
+  } else {
+    fit_points.assign(pts.begin(), pts.end());
+  }
+  curve_fit_.PolyFitProcess(fit_points);
 
   track_polynomial.min = curve_fit_.x_min;
   track_polynomial.max = curve_fit_.x_max;

@@ -54,6 +54,7 @@ class LaneLineMappingPipeline : public BaseMappingPipeline {
   void SetIntersectionThreshold();
   void AssginPosition(LaneLinesPtr localmap_frame_ptr);
   void LimitTracksNum();
+  void SmoothEndPt();
   static bool CompareTrackTime(const LaneTrackerPtr& d1,
                                const LaneTrackerPtr& d2);
   std::vector<LaneTargetConstPtr> GetAllConstTarget();

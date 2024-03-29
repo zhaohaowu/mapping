@@ -23,7 +23,7 @@ fi
 
 lib_folder="${WORKSPACE}/release/mal_orin/lib/"
 conf_folder="${WORKSPACE}/release/mal_orin/conf/"
-rm $conf_folder/global_flagfile.txt
+find "${WORKSPACE}/release" -name "global_flagfile.txt" -exec rm -f {} \;
 
 WITH_MAL_PLUGIN_FLAG=$(cat plugin_env.txt)
 if [ "${WITH_MAL_PLUGIN_FLAG}" = "true" ]; then

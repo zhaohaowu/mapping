@@ -558,6 +558,7 @@ void MatchLaneLine::MergeMapLines(
     auto id = line.first;
     const auto& control_points = line.second.control_point;
     if (control_points.size() <= 1) {
+      HLOG_ERROR << "control_points size <= 1";
       continue;
     }
     auto start_point = control_points.front().point;
@@ -565,6 +566,7 @@ void MatchLaneLine::MergeMapLines(
     auto end_point = control_points.back().point;
     auto end_point_v = T_V_W * end_point;
     if (start_point.norm() == end_point.norm()) {
+      HLOG_ERROR << "start_point.norm() == end_point.norm()";
       continue;
     }
     LineSegment line_segment{id, end_point_v};
@@ -638,7 +640,9 @@ void MatchLaneLine::Traversal(
     return;
   }
   ++loop;
-  if (loop > 30) {
+  if (loop > 40) {
+    linked_lines_id->emplace_back(line_ids);
+    HLOG_ERROR << "loop > 40, loop: " << loop;
     return;
   }
   V3 cur_start_point = root_start_point;

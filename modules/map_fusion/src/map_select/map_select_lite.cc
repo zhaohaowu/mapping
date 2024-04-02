@@ -123,7 +123,8 @@ MapSelectResult MapSelectLite::Process(
     return {MapMsg::INVALID, false, 0};
   }
 
-  bool fusion_available = FusionMapAvailable(fusion_map, localization, localization);
+  bool fusion_available =
+      FusionMapAvailable(fusion_map, localization, localization);
   if (fusion_available) {
     HLOG_INFO << "fct valid, nnp on, fusion available";
     //! TBD：当前默认都是FUSION_NNP，不考虑FUSION_NCP
@@ -1530,11 +1531,13 @@ hozon::navigation_hdmap::MapMsg_MapType MapSelectLite::GetMapTypeByRoadType() {
   return hozon::navigation_hdmap::MapMsg_MapType_FUSION_NCP_MAP;
 }
 
-bool MapSelectLite::NnpSwitchOn(const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in) {
+bool MapSelectLite::NnpSwitchOn(
+    const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in) {
   return GetU32BitByIndex(fct_in->fct_2_soc_tbd_u32_03(), 28);
 }
 
-bool MapSelectLite::CheckFctIn(const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in) {
+bool MapSelectLite::CheckFctIn(
+    const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in) {
   if (nullptr == fct_in) {
     HLOG_ERROR << "fct msg is null";
     return false;
@@ -1560,16 +1563,15 @@ bool MapSelectLite::CheckMapMsg(const std::shared_ptr<hozon::hdmap::Map>& map) {
   return true;
 }
 
-bool MapSelectLite::CheckGlobalLoc(const std::shared_ptr<hozon::localization::Localization>& loc) {
+bool MapSelectLite::CheckGlobalLoc(
+    const std::shared_ptr<hozon::localization::Localization>& loc) {
   if (loc == nullptr) {
     return false;
   }
-  if (!loc->has_pose() ||
-  !ValidQuaternion(loc->pose().quaternion())) {
+  if (!loc->has_pose() || !ValidQuaternion(loc->pose().quaternion())) {
     return false;
   }
-  if (!loc->pose().has_gcj02() ||
-  !ValidLla(loc->pose().gcj02())) {
+  if (!loc->pose().has_gcj02() || !ValidLla(loc->pose().gcj02())) {
     return false;
   }
   if (!loc->pose().has_heading()) {
@@ -1591,7 +1593,8 @@ bool MapSelectLite::CheckGlobalLoc(const std::shared_ptr<hozon::localization::Lo
   return true;
 }
 
-bool MapSelectLite::CheckLocalLoc(const std::shared_ptr<hozon::localization::Localization>& loc) {
+bool MapSelectLite::CheckLocalLoc(
+    const std::shared_ptr<hozon::localization::Localization>& loc) {
   if (loc == nullptr) {
     return false;
   }
@@ -1608,8 +1611,9 @@ bool MapSelectLite::CheckLocalLoc(const std::shared_ptr<hozon::localization::Loc
   return true;
 }
 
-bool MapSelectLite::PercepMapAvailable(const std::shared_ptr<hozon::hdmap::Map>& map,
-                                       const std::shared_ptr<hozon::localization::Localization>& local_loc) {
+bool MapSelectLite::PercepMapAvailable(
+    const std::shared_ptr<hozon::hdmap::Map>& map,
+    const std::shared_ptr<hozon::localization::Localization>& local_loc) {
   bool valid_local_loc = CheckLocalLoc(local_loc);
   bool valid_percep_map = CheckMapMsg(map);
   bool available = valid_local_loc && valid_percep_map;
@@ -1619,9 +1623,10 @@ bool MapSelectLite::PercepMapAvailable(const std::shared_ptr<hozon::hdmap::Map>&
   return available;
 }
 
-bool MapSelectLite::FusionMapAvailable(const std::shared_ptr<hozon::hdmap::Map>& map,
-                                       const std::shared_ptr<hozon::localization::Localization>& global_loc,
-                                       const std::shared_ptr<hozon::localization::Localization>& local_loc) {
+bool MapSelectLite::FusionMapAvailable(
+    const std::shared_ptr<hozon::hdmap::Map>& map,
+    const std::shared_ptr<hozon::localization::Localization>& global_loc,
+    const std::shared_ptr<hozon::localization::Localization>& local_loc) {
   bool valid_local_loc = CheckLocalLoc(local_loc);
   bool valid_global_loc = CheckGlobalLoc(global_loc);
   bool valid_fusion_map = CheckMapMsg(map);
@@ -1638,10 +1643,12 @@ bool ValidQuaternion(const hozon::common::Quaternion& quat) {
     return false;
   }
 
-  if (std::isnan(quat.w()) || std::isnan(quat.x()) || std::isnan(quat.y()) || std::isnan(quat.z())) {
+  if (std::isnan(quat.w()) || std::isnan(quat.x()) || std::isnan(quat.y()) ||
+      std::isnan(quat.z())) {
     return false;
   }
-  if (std::isinf(quat.w()) || std::isinf(quat.x()) || std::isinf(quat.y()) || std::isinf(quat.z())) {
+  if (std::isinf(quat.w()) || std::isinf(quat.x()) || std::isinf(quat.y()) ||
+      std::isinf(quat.z())) {
     return false;
   }
   Eigen::Quaternionf q(quat.w(), quat.x(), quat.y(), quat.z());
@@ -1664,8 +1671,8 @@ bool ValidLla(const hozon::common::PointENU& lla) {
   if (std::isinf(lla.x()) || std::isinf(lla.y()) || std::isinf(lla.z())) {
     return false;
   }
-  if (lla.x() < -85.0 || lla.x() > 85.0 ||
-  lla.y() < -180.0 || lla.y() > 180.0) {
+  if (lla.x() < -85.0 || lla.x() > 85.0 || lla.y() < -180.0 ||
+      lla.y() > 180.0) {
     return false;
   }
   return true;

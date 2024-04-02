@@ -153,16 +153,22 @@ class MapSelectLite {
   bool CheckFusionMapMsg(const std::shared_ptr<hozon::hdmap::Map>& fusion_map);
   bool CheckPercepMapMsg(const std::shared_ptr<hozon::hdmap::Map>& percep_map);
 
-  bool NnpSwitchOn(const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in);
-  bool CheckFctIn(const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in);
+  bool NnpSwitchOn(
+      const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in);
+  bool CheckFctIn(
+      const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in);
   bool CheckMapMsg(const std::shared_ptr<hozon::hdmap::Map>& map);
-  bool CheckGlobalLoc(const std::shared_ptr<hozon::localization::Localization>& loc);
-  bool CheckLocalLoc(const std::shared_ptr<hozon::localization::Localization>& loc);
-  bool PercepMapAvailable(const std::shared_ptr<hozon::hdmap::Map>& map,
-                          const std::shared_ptr<hozon::localization::Localization>& local_loc);
-  bool FusionMapAvailable(const std::shared_ptr<hozon::hdmap::Map>& map,
-                          const std::shared_ptr<hozon::localization::Localization>& global_loc,
-                          const std::shared_ptr<hozon::localization::Localization>& local_loc);
+  bool CheckGlobalLoc(
+      const std::shared_ptr<hozon::localization::Localization>& loc);
+  bool CheckLocalLoc(
+      const std::shared_ptr<hozon::localization::Localization>& loc);
+  bool PercepMapAvailable(
+      const std::shared_ptr<hozon::hdmap::Map>& map,
+      const std::shared_ptr<hozon::localization::Localization>& local_loc);
+  bool FusionMapAvailable(
+      const std::shared_ptr<hozon::hdmap::Map>& map,
+      const std::shared_ptr<hozon::localization::Localization>& global_loc,
+      const std::shared_ptr<hozon::localization::Localization>& local_loc);
 
   double left_map_c0_ = kDfaultLaneWidth;
   double right_map_c0_ = -kDfaultLaneWidth;

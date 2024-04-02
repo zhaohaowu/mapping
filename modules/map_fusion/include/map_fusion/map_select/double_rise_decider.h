@@ -1,6 +1,9 @@
 /*
  * Copyright (c) hozon auto Co., Ltd. 2022-2023. All rights reserved.
  */
+
+#pragma once
+
 namespace hozon {
 namespace mp {
 namespace mf {

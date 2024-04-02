@@ -1,6 +1,6 @@
 %YAML:1.0
 
-smooth: true
+smooth: false
 smooth_window_size: 300
 smooth_gcj02_enu_east_diff_thr: 0.05
 smooth_gcj02_enu_north_diff_thr: 0.05
@@ -26,6 +26,6 @@ ins84_deque_max_size: 5
 fix_deflection_repeat: true
 
 use_rviz_bridge: false
-use_deflection: true
-use_inspva: false
+use_deflection: false
+use_inspva: true
 use_fixed_quat: false

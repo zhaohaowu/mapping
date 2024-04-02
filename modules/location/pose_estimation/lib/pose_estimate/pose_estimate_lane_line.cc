@@ -130,7 +130,8 @@ void MatchLaneLine::Match(const HdMap& hd_map,
   // 130 fault
   if (mm_params.use_map_lane_match_fault && T_fc.valid) {
     SE3 FC_pose = T_fc.pose;
-    CheckIsGoodMatchFCbyLine(FC_pose);
+    Eigen::Vector3d FC_vel = T_fc.velocity_vrf;
+    CheckIsGoodMatchFCbyLine(FC_pose, FC_vel);
   }
   FilterPointPair(&match_pairs_, T_W_V_);
   HLOG_DEBUG << "after filter match_pairs size: " << match_pairs_.size();
@@ -163,7 +164,7 @@ void MatchLaneLine::Match(const HdMap& hd_map,
   }
 }
 
-void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose) {
+void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose, const Eigen::Vector3d& FC_vel) {
   if (percep_lanelines_.empty()) {
     return;
   }
@@ -190,7 +191,7 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose) {
 
   for (auto& line : fil_line_list) {
     if (line->lane_position_type() == -1) {
-      if (big_curvature_) {
+      if (big_curvature_ || (FC_vel(0) < mm_params.min_vel && FC_vel(1) < mm_params.min_vel)) {
         far_dis = mm_params.curve_far_dis;
       } else {
         far_dis = mm_params.straight_far_dis;
@@ -199,7 +200,7 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose) {
                       &left_dist_far_v, far_dis);
     }
     if (line->lane_position_type() == 1) {
-      if (big_curvature_) {
+      if (big_curvature_ || (FC_vel(0) < mm_params.min_vel && FC_vel(1) < mm_params.min_vel)) {
         far_dis = mm_params.curve_far_dis;
       } else {
         far_dis = mm_params.straight_far_dis;

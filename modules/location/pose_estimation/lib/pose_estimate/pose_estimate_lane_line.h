@@ -33,6 +33,7 @@ using hozon::mp::loc::MapBoundaryLine;
 struct ValidPose {
   bool valid = true;
   SE3 pose;
+  Eigen::Vector3d velocity_vrf;
 };
 
 class MatchLaneLine {
@@ -128,7 +129,7 @@ class MatchLaneLine {
                       const LaneLinePerceptionPtr& pecep,
                       const double& min_match_x, const double& max_match_x,
                       const double& sample_interval, const bool& is_good_check);
-  void CheckIsGoodMatchFCbyLine(const SE3& T_fc);
+  void CheckIsGoodMatchFCbyLine(const SE3& FC_pose, const Eigen::Vector3d& FC_vel);
   void CalLinesMinDist(const LaneLinePerceptionPtr& percep,
                        const std::vector<std::vector<V3>>& map_lines_point,
                        double* const near, double* const far,

@@ -38,6 +38,7 @@ near_dis: 2                     # 近段点距离
 straight_far_dis: 25            # 直道远段点距离
 curve_far_dis: 12               # 匝道远段点距离
 curvature_thr: 0.0005           # 感知车道线曲率阈值
+min_vel: 7                      # 低速阈值 m/s
 ##valid_estimate_last_fault
 valid_estimate_last_buff: 100   # 持续valid_estimate_buff_* 0.033s
 invalid_estimate_last_buff: 3   # 失效invalid_estimate_buff_ * 0.033s

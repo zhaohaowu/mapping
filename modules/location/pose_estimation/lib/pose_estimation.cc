@@ -37,6 +37,7 @@ bool MapMatching::Init(const std::string& config_file,
   // global fault
   mm_params.use_map_lane_match_fault =
       config["use_map_lane_match_fault"].as<bool>();
+  mm_params.min_vel = config["min_vel"].as<double>();
   mm_params.map_lane_match_near = config["map_lane_match_near"].as<double>();
   mm_params.map_lane_match_max = config["map_lane_match_max"].as<double>();
   mm_params.map_lane_match_buff = config["map_lane_match_buff"].as<int>();
@@ -524,6 +525,9 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
       return;
     }
   }
+  Eigen::Vector3d velocity_vrf(info.pose().linear_velocity_vrf().x(),
+                               info.pose().linear_velocity_vrf().y(),
+                               info.pose().linear_velocity_vrf().z());
   Eigen::Vector3d pose(info.pose().gcj02().x(), info.pose().gcj02().y(),
                        info.pose().gcj02().z());
 
@@ -701,6 +705,10 @@ void MapMatching::procData() {
       Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, esti_ref_point);
       ref_point_mutex_.unlock();
       T_fc_.pose = SE3(q_W_V, enu);
+      Eigen::Vector3d velocity_vrf(cur_fc.pose().linear_velocity_vrf().x(),
+                                   cur_fc.pose().linear_velocity_vrf().y(),
+                                   cur_fc.pose().linear_velocity_vrf().z());
+      T_fc_.velocity_vrf = velocity_vrf;
     }
   }
 
@@ -1081,7 +1089,7 @@ PtrNodeInfo MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V,
   node_info->set_warn_info(0);
   if (mmfault_.pecep_lane_error == true) {
     node_info->set_warn_info(123);
-    HLOG_ERROR << "mmfault:123r";
+    HLOG_ERROR << "mmfault:123";
   }
   if (mmfault_.map_lane_error == true) {
     node_info->set_warn_info(124);

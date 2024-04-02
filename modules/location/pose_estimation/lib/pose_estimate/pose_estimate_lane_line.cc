@@ -195,7 +195,8 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose) {
       } else {
         far_dis = mm_params.straight_far_dis;
       }
-      CalLinesMinDist(line, map_lines_point, &left_dist_near_v, &left_dist_far_v, far_dis);
+      CalLinesMinDist(line, map_lines_point, &left_dist_near_v,
+                      &left_dist_far_v, far_dis);
     }
     if (line->lane_position_type() == 1) {
       if (big_curvature_) {
@@ -203,8 +204,8 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose) {
       } else {
         far_dis = mm_params.straight_far_dis;
       }
-      CalLinesMinDist(line, map_lines_point, &right_dist_near_v, &right_dist_far_v,
-                      far_dis);
+      CalLinesMinDist(line, map_lines_point, &right_dist_near_v,
+                      &right_dist_far_v, far_dis);
     }
   }
   HLOG_DEBUG << "left_dist_near_v = " << left_dist_near_v
@@ -265,10 +266,10 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose) {
   }
 }
 
-void MatchLaneLine::CalLinesMinDist(const LaneLinePerceptionPtr& percep,
-                                    const std::vector<std::vector<V3>>& map_lines_point,
-                                    double* const near,
-                                    double* const far, const double& far_dis) {
+void MatchLaneLine::CalLinesMinDist(
+    const LaneLinePerceptionPtr& percep,
+    const std::vector<std::vector<V3>>& map_lines_point, double* const near,
+    double* const far, const double& far_dis) {
   if (!percep || !near || !far) {
     return;
   }
@@ -291,8 +292,7 @@ void MatchLaneLine::CalLinesMinDist(const LaneLinePerceptionPtr& percep,
     if (flag_fit0) {
       v_p_near = anchor_pt0;
     }
-    bool flag_fit1 =
-        GetFcFitPoints(map_points, anchor_pt1.x(), &anchor_pt1);
+    bool flag_fit1 = GetFcFitPoints(map_points, anchor_pt1.x(), &anchor_pt1);
     if (flag_fit1) {
       v_p_far = anchor_pt1;
     }
@@ -304,8 +304,7 @@ void MatchLaneLine::CalLinesMinDist(const LaneLinePerceptionPtr& percep,
       w_p_near = anchor_pt2;
     }
     V3 w_p_far(0, 0, 0);
-    bool flag_fit3 =
-        GetFcFitPoints(perce_points, anchor_pt3.x(), &anchor_pt3);
+    bool flag_fit3 = GetFcFitPoints(perce_points, anchor_pt3.x(), &anchor_pt3);
     if (flag_fit3) {
       w_p_far = anchor_pt3;
     }
@@ -617,7 +616,7 @@ void MatchLaneLine::Traversal(
     return;
   }
   ++loop;
-  if (loop > 40) {
+  if (loop > 100) {
     linked_lines_id->emplace_back(line_ids);
     HLOG_ERROR << "loop > 40, loop: " << loop;
     return;
@@ -764,72 +763,97 @@ void MatchLaneLine::LaneLineConnect(
       int lanepose = tmp_match_mapline.first;  // perception line
       auto& candidate_match_lines = tmp_match_mapline.second;  // map lines
       if (candidate_match_lines.size() >= 2) {
-        int left = lanepose == 1 ? lanepose - 2 : lanepose - 1;
-        int right = lanepose == -1 ? lanepose + 2 : lanepose + 1;
-        if (match_mapline_cache.find(left) == match_mapline_cache.end() &&
-            match_mapline_cache.find(right) == match_mapline_cache.end()) {
-          HLOG_DEBUG << "mod == 1";
-          int best_map_id = -1;
-          double min_diff = std::numeric_limits<double>::max();
-          for (int i = 0; i < candidate_match_lines.size(); ++i) {
-            auto& candidate_match_line = candidate_match_lines[i];
-            auto& match_pairs = candidate_match_line.match_pairs;
-            double match_pair_diff = 0.f;
-            for (auto& match_pair : match_pairs) {
-              match_pair_diff +=
-                  match_pair.pecep_pv.y() - (T_V_W_ * match_pair.map_pw).y();
-            }
-            match_pair_diff /= match_pairs.size();
-            HLOG_DEBUG << "candidate_match_lines[" << i
-                       << "] match_pair_diff: " << match_pair_diff;
-            if (match_pair_diff < min_diff) {
-              best_map_id = i;
-              min_diff = match_pair_diff;
-            }
+        int best_map_id = -1;
+        double min_diff = std::numeric_limits<double>::max();
+        std::vector<std::pair<std::string, double>> point_diff_cache;
+        for (int i = 0; i < candidate_match_lines.size(); ++i) {
+          auto& candidate_match_line = candidate_match_lines[i];
+          auto& match_pairs = candidate_match_line.match_pairs;
+          double match_pair_diff = 0.f;
+          for (auto& match_pair : match_pairs) {
+            match_pair_diff +=
+                match_pair.pecep_pv.y() - (T_V_W_ * match_pair.map_pw).y();
           }
-          for (int i = 0; i < candidate_match_lines.size(); ++i) {
-            if (i != best_map_id) {
-              candidate_match_lines[i].flag = false;
+          match_pair_diff = fabs(match_pair_diff);
+          match_pair_diff /= match_pairs.size();
+          point_diff_cache.push_back(std::pair<std::string, double>(
+              candidate_match_line.map_id, match_pair_diff));
+        }
+        std::sort(point_diff_cache.begin(), point_diff_cache.end(),
+                  [](const std::pair<std::string, double>& l0,
+                     const std::pair<std::string, double>& l1) {
+                    return l0.second < l1.second;
+                  });
+        if (point_diff_cache.size() >= 2 &&
+            point_diff_cache[1].second - point_diff_cache[0].second > 2.0) {
+          // 差别很大，直接按距离过滤
+          HLOG_ERROR << "mod == 1";
+          for (int j = 0; j < candidate_match_lines.size(); ++j) {
+            if (candidate_match_lines[j].map_id != point_diff_cache[0].first) {
+              candidate_match_lines[j].flag = false;
             }
           }
         } else {
-          HLOG_DEBUG << "mod == 2";
+          // 差别不大,查找参考线按照宽度过滤
+          HLOG_ERROR << "mod == 2";
           int select_lanepose = -99;
-          if (match_mapline_cache.find(left) != match_mapline_cache.end() &&
-              match_mapline_cache.find(right) != match_mapline_cache.end()) {
-            select_lanepose = right;
-            if (lanepose == -1) {
-              select_lanepose = right;
-            } else if (lanepose == 1) {
-              select_lanepose = left;
+          std::vector<std::pair<int, double>> distance_ref_curline;
+          for (auto& line_match : match_mapline_cache) {
+            if (line_match.first == tmp_match_mapline.first ||
+                line_match.second.size() >= 2 || line_match.second.empty() ||
+                tmp_match_mapline.second.empty()) {
+              continue;
             }
-          } else if (match_mapline_cache.find(left) !=
-                     match_mapline_cache.end()) {
-            select_lanepose = left;
-          } else if (match_mapline_cache.find(right) !=
-                     match_mapline_cache.end()) {
-            select_lanepose = right;
-          }
-          auto select_match_line = match_mapline_cache[select_lanepose]
-                                       .front();  // 参考感知车道线一侧匹配对
-          double last_width_diff = std::numeric_limits<double>::max();
-          int best_index = -1;
-          for (int i = 0; i < candidate_match_lines.size(); ++i) {
-            auto& candidate_match_line = candidate_match_lines[i];
-            std::pair<double, double> result =
-                CmpWidth(candidate_match_line,
-                         select_match_line);  // first: percep; second: map
-            auto width_diff = fabs(result.first - result.second);
-            HLOG_DEBUG << "candidate_match_lines[" << i
-                       << "] width_diff: " << width_diff;
-            if (width_diff < last_width_diff) {
-              last_width_diff = width_diff;
-              best_index = i;
+            if (!line_match.second[0].match_pairs.empty() &&
+                !tmp_match_mapline.second[0].match_pairs.empty()) {
+              double distance =
+                  line_match.second[0].match_pairs[0].pecep_pv.y() -
+                  tmp_match_mapline.second[0].match_pairs[0].pecep_pv.y();
+              distance = fabs(distance);
+              distance_ref_curline.push_back(
+                  std::pair<int, double>(line_match.first, distance));
             }
           }
-          for (int i = 0; i < candidate_match_lines.size(); ++i) {
-            if (i != best_index) {
-              candidate_match_lines[i].flag = false;
+          if (distance_ref_curline.size() > 0) {
+            std::sort(distance_ref_curline.begin(), distance_ref_curline.end(),
+                      [](const std::pair<int, double>& l0,
+                         const std::pair<int, double>& l1) {
+                        return l0.second < l1.second;
+                      });
+            select_lanepose = distance_ref_curline[0].first;
+          }
+          if (select_lanepose != -99) {
+            // 找到参考线
+            auto select_match_line = match_mapline_cache[select_lanepose]
+                                         .front();  // 参考感知车道线一侧匹配对
+            double last_width_diff = std::numeric_limits<double>::max();
+            int best_index = -1;
+            for (int k = 0; k < candidate_match_lines.size(); ++k) {
+              auto& candidate_match_line = candidate_match_lines[k];
+              std::pair<double, double> result =
+                  CmpWidth(candidate_match_line,
+                           select_match_line);  // first: percep; second: map
+              auto width_diff = fabs(result.first - result.second);
+              HLOG_DEBUG << "candidate_match_lines[" << k
+                         << "] width_diff: " << width_diff;
+              if (width_diff < last_width_diff) {
+                last_width_diff = width_diff;
+                best_index = k;
+              }
+            }
+            for (int m = 0; m < candidate_match_lines.size(); ++m) {
+              if (m != best_index) {
+                candidate_match_lines[m].flag = false;
+              }
+            }
+          } else {
+            // 未找到参考线, 找最近的
+            HLOG_ERROR << "not find ref line";
+            for (int n = 0; n < candidate_match_lines.size(); ++n) {
+              if (candidate_match_lines[n].map_id !=
+                  point_diff_cache[0].first) {
+                candidate_match_lines[n].flag = false;
+              }
             }
           }
         }

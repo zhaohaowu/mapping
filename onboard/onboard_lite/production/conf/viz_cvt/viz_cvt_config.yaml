@@ -19,6 +19,7 @@ input:
   - topic: local_map
 #  - topic: /location/pose_estimation
 #  - topic: tlr_fusion
+  - topic: driving_status
 
 trigger:
   - name: recv_imu_ins
@@ -91,5 +92,10 @@ trigger:
 #    mainSources:
 #      - name: tlr_fusion
 #        timeout: 10000
+  - name: recv_driving_status
+    type: EVENT
+    mainSources:
+      - name: driving_status
+        timeout: 10000
 
 viz_addr: ipc:///tmp/rviz_agent_viz_cvt

@@ -115,7 +115,7 @@ class RvizAgent {
  private:
   std::unique_ptr<std::thread> ctrl_thread_ = nullptr;
   std::mutex ctrl_mtx_;
-  bool running_ = false;
+  std::atomic_bool running_ = {false};
   // <topic, type_alias>
   std::map<std::string, std::string> reg_msgs_;
   void CtrlLoop();

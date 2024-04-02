@@ -13,10 +13,17 @@ input:
       capacity: 5
     - topic: running_mode 
       capacity: 5
+    - topic: percep_transport 
+      capacity: 5
+    - topic: dr 
+      capacity: 5
+    - topic: function_manager_in 
+      capacity: 5
 
 output:
   - topic: map_fusion
   - topic: routing_response
+  - topic: map_select_dbg
 
 trigger:
     - name: recv_location
@@ -43,3 +50,18 @@ trigger:
       mainSources:
         - name: running_mode
           timeout: 1000
+    - name: recv_percep_transport
+      type: EVENT
+      mainSources:
+        - name: percep_transport
+          timeout: 100
+    - name: recv_dr
+      type: EVENT
+      mainSources:
+        - name: dr
+          timeout: 100
+    - name: recv_fct_in
+      type: EVENT
+      mainSources:
+        - name: function_manager_in
+          timeout: 100

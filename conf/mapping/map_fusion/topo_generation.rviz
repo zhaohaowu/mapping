@@ -1,0 +1,870 @@
+Panels:
+  - Class: rviz/Displays
+    Help Height: 93
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /Status1
+        - /roadr/local_map1
+        - /Axes-vehicle1
+        - /topo_gen/input_ele_map1
+        - /topo_gen/group1
+      Splitter Ratio: 0.5935613512992859
+    Tree Height: 432
+  - Class: rviz/Selection
+    Name: Selection
+  - Class: rviz/Tool Properties
+    Expanded:
+      - /2D Pose Estimate1
+      - /2D Nav Goal1
+      - /Publish Point1
+    Name: Tool Properties
+    Splitter Ratio: 0.5886790156364441
+  - Class: rviz/Views
+    Expanded:
+      - /Current View1
+    Name: Views
+    Splitter Ratio: 0.5
+  - Class: rviz/Time
+    Experimental: false
+    Name: Time
+    SyncMode: 0
+    SyncSource: camera_0
+Preferences:
+  PromptSaveOnExit: true
+Toolbars:
+  toolButtonStyle: 2
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.029999999329447746
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 10
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Class: rviz/Image
+      Enabled: false
+      Image Topic: /front_narrow_img
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Image
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: compressed
+      Unreliable: false
+      Value: false
+    - Class: rviz/MarkerArray
+      Enabled: false
+      Marker Topic: /roadr/local_map
+      Name: roadr/local_map
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Class: rviz/MarkerArray
+      Enabled: false
+      Marker Topic: /roadr/element_line
+      Name: roadr/element_line
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Alpha: 1
+      Class: rviz/Axes
+      Enabled: true
+      Length: 1
+      Name: Axes-vehicle
+      Radius: 0.30000001192092896
+      Reference Frame: vehicle
+      Show Trail: false
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: false
+      Marker Topic: /topo_gen/input_ele_map
+      Name: topo_gen/input_ele_map
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Alpha: 1
+      Class: rviz/Axes
+      Enabled: true
+      Length: 10
+      Name: Axes-map
+      Radius: 0.20000000298023224
+      Reference Frame: <Fixed Frame>
+      Show Trail: false
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 238; 238; 236
+      Enabled: false
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.029999999329447746
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Queue Size: 10
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic: /roadr/location
+      Unreliable: false
+      Value: false
+    - Class: rviz/MarkerArray
+      Enabled: false
+      Marker Topic: /topo_gen/group
+      Name: topo_gen/group
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Alpha: 1
+      Arrow Length: 0.30000001192092896
+      Axes Length: 0.30000001192092896
+      Axes Radius: 0.10000000149011612
+      Class: rviz/PoseArray
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.07000000029802322
+      Head Radius: 0.029999999329447746
+      Name: topo_gen/path
+      Queue Size: 10
+      Shaft Length: 0.23000000417232513
+      Shaft Radius: 0.009999999776482582
+      Shape: Axes
+      Topic: /topo_gen/path
+      Unreliable: false
+      Value: true
+    - Class: rviz/Image
+      Enabled: true
+      Image Topic: /camera_0
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: camera_0
+      Normalize Range: true
+      Queue Size: 2
+      Transport Hint: compressed
+      Unreliable: false
+      Value: true
+    - Class: rviz/MarkerArray
+      Enabled: true
+      Marker Topic: /local_map
+      Name: local_map
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Group
+      Displays:
+        - Class: rviz/MarkerArray
+          Enabled: true
+          Marker Topic: /map_fusion/status
+          Name: map_fusion/status
+          Namespaces:
+            {}
+          Queue Size: 100
+          Value: true
+        - Class: rviz/MarkerArray
+          Enabled: true
+          Marker Topic: /map_fusion/map
+          Name: map_fusion/map
+          Namespaces:
+            lane_0/center: true
+            lane_0/info: true
+            lane_0/left: true
+            lane_0/left/curve: true
+            lane_0/right: true
+            lane_0/right/curve: true
+            lane_1/center: true
+            lane_1/info: true
+            lane_1/left: true
+            lane_1/left/curve: true
+            lane_1/right: true
+            lane_1/right/curve: true
+            lane_10/center: true
+            lane_10/info: true
+            lane_10/left: true
+            lane_10/left/curve: true
+            lane_10/right: true
+            lane_10/right/curve: true
+            lane_11/center: true
+            lane_11/info: true
+            lane_11/left: true
+            lane_11/left/curve: true
+            lane_11/right: true
+            lane_11/right/curve: true
+            lane_1121502/center: true
+            lane_1121502/info: true
+            lane_1121502/left: true
+            lane_1121502/left/curve: true
+            lane_1121502/right: true
+            lane_1121502/right/curve: true
+            lane_1121503/center: true
+            lane_1121503/info: true
+            lane_1121503/left: true
+            lane_1121503/left/curve: true
+            lane_1121503/right: true
+            lane_1121503/right/curve: true
+            lane_1123602/center: true
+            lane_1123602/info: true
+            lane_1123602/left: true
+            lane_1123602/left/curve: true
+            lane_1123602/right: true
+            lane_1123602/right/curve: true
+            lane_1123603/center: true
+            lane_1123603/info: true
+            lane_1123603/left: true
+            lane_1123603/left/curve: true
+            lane_1123603/right: true
+            lane_1123603/right/curve: true
+            lane_1126202/center: true
+            lane_1126202/info: true
+            lane_1126202/left: true
+            lane_1126202/left/curve: true
+            lane_1126202/right: true
+            lane_1126202/right/curve: true
+            lane_1126203/center: true
+            lane_1126203/info: true
+            lane_1126203/left: true
+            lane_1126203/left/curve: true
+            lane_1126203/right: true
+            lane_1126203/right/curve: true
+            lane_1129402/center: true
+            lane_1129402/info: true
+            lane_1129402/left: true
+            lane_1129402/left/curve: true
+            lane_1129402/right: true
+            lane_1129402/right/curve: true
+            lane_1129403/center: true
+            lane_1129403/info: true
+            lane_1129403/left: true
+            lane_1129403/left/curve: true
+            lane_1129403/right: true
+            lane_1129403/right/curve: true
+            lane_12/center: true
+            lane_12/info: true
+            lane_12/left: true
+            lane_12/left/curve: true
+            lane_12/right: true
+            lane_12/right/curve: true
+            lane_13/center: true
+            lane_13/info: true
+            lane_13/left: true
+            lane_13/left/curve: true
+            lane_13/right: true
+            lane_13/right/curve: true
+            lane_1310002/center: true
+            lane_1310002/info: true
+            lane_1310002/left: true
+            lane_1310002/left/curve: true
+            lane_1310002/right: true
+            lane_1310002/right/curve: true
+            lane_1310003/center: true
+            lane_1310003/info: true
+            lane_1310003/left: true
+            lane_1310003/left/curve: true
+            lane_1310003/right: true
+            lane_1310003/right/curve: true
+            lane_1313302/center: true
+            lane_1313302/info: true
+            lane_1313302/left: true
+            lane_1313302/left/curve: true
+            lane_1313302/right: true
+            lane_1313302/right/curve: true
+            lane_1313303/center: true
+            lane_1313303/info: true
+            lane_1313303/left: true
+            lane_1313303/left/curve: true
+            lane_1313303/right: true
+            lane_1313303/right/curve: true
+            lane_1316302/center: true
+            lane_1316302/info: true
+            lane_1316302/left: true
+            lane_1316302/left/curve: true
+            lane_1316302/right: true
+            lane_1316302/right/curve: true
+            lane_1316303/center: true
+            lane_1316303/info: true
+            lane_1316303/left: true
+            lane_1316303/left/curve: true
+            lane_1316303/right: true
+            lane_1316303/right/curve: true
+            lane_14/center: true
+            lane_14/info: true
+            lane_14/left: true
+            lane_14/left/curve: true
+            lane_14/right: true
+            lane_14/right/curve: true
+            lane_15/center: true
+            lane_15/info: true
+            lane_15/left: true
+            lane_15/left/curve: true
+            lane_15/right: true
+            lane_15/right/curve: true
+            lane_2/center: true
+            lane_2/info: true
+            lane_2/left: true
+            lane_2/left/curve: true
+            lane_2/right: true
+            lane_2/right/curve: true
+            lane_3/center: true
+            lane_3/info: true
+            lane_3/left: true
+            lane_3/left/curve: true
+            lane_3/right: true
+            lane_3/right/curve: true
+            lane_4/center: true
+            lane_4/info: true
+            lane_4/left: true
+            lane_4/left/curve: true
+            lane_4/right: true
+            lane_4/right/curve: true
+            lane_5/center: true
+            lane_5/info: true
+            lane_5/left: true
+            lane_5/left/curve: true
+            lane_5/right: true
+            lane_5/right/curve: true
+            lane_6/center: true
+            lane_6/info: true
+            lane_6/left: true
+            lane_6/left/curve: true
+            lane_6/right: true
+            lane_6/right/curve: true
+            lane_7/center: true
+            lane_7/info: true
+            lane_7/left: true
+            lane_7/left/curve: true
+            lane_7/right: true
+            lane_7/right/curve: true
+            lane_8/center: true
+            lane_8/info: true
+            lane_8/left: true
+            lane_8/left/curve: true
+            lane_8/right: true
+            lane_8/right/curve: true
+            lane_887102/center: true
+            lane_887102/info: true
+            lane_887102/left: true
+            lane_887102/left/curve: true
+            lane_887102/right: true
+            lane_887102/right/curve: true
+            lane_887103/center: true
+            lane_887103/info: true
+            lane_887103/left: true
+            lane_887103/left/curve: true
+            lane_887103/right: true
+            lane_887103/right/curve: true
+            lane_887104/center: true
+            lane_887104/info: true
+            lane_887104/left: true
+            lane_887104/left/curve: true
+            lane_887104/right: true
+            lane_887104/right/curve: true
+            lane_887105/center: true
+            lane_887105/info: true
+            lane_887105/left: true
+            lane_887105/left/curve: true
+            lane_887105/right: true
+            lane_887105/right/curve: true
+            lane_890402/center: true
+            lane_890402/info: true
+            lane_890402/left: true
+            lane_890402/left/curve: true
+            lane_890402/right: true
+            lane_890402/right/curve: true
+            lane_890403/center: true
+            lane_890403/info: true
+            lane_890403/left: true
+            lane_890403/left/curve: true
+            lane_890403/right: true
+            lane_890403/right/curve: true
+            lane_890404/center: true
+            lane_890404/info: true
+            lane_890404/left: true
+            lane_890404/left/curve: true
+            lane_890404/right: true
+            lane_890404/right/curve: true
+            lane_890405/center: true
+            lane_890405/info: true
+            lane_890405/left: true
+            lane_890405/left/curve: true
+            lane_890405/right: true
+            lane_890405/right/curve: true
+            lane_894002/center: true
+            lane_894002/info: true
+            lane_894002/left: true
+            lane_894002/left/curve: true
+            lane_894002/right: true
+            lane_894002/right/curve: true
+            lane_894003/center: true
+            lane_894003/info: true
+            lane_894003/left: true
+            lane_894003/left/curve: true
+            lane_894003/right: true
+            lane_894003/right/curve: true
+            lane_894004/center: true
+            lane_894004/info: true
+            lane_894004/left: true
+            lane_894004/left/curve: true
+            lane_894004/right: true
+            lane_894004/right/curve: true
+            lane_894005/center: true
+            lane_894005/info: true
+            lane_894005/left: true
+            lane_894005/left/curve: true
+            lane_894005/right: true
+            lane_894005/right/curve: true
+            lane_896902/center: true
+            lane_896902/info: true
+            lane_896902/left: true
+            lane_896902/left/curve: true
+            lane_896902/right: true
+            lane_896902/right/curve: true
+            lane_896903/center: true
+            lane_896903/info: true
+            lane_896903/left: true
+            lane_896903/left/curve: true
+            lane_896903/right: true
+            lane_896903/right/curve: true
+            lane_896904/center: true
+            lane_896904/info: true
+            lane_896904/left: true
+            lane_896904/left/curve: true
+            lane_896904/right: true
+            lane_896904/right/curve: true
+            lane_896905/center: true
+            lane_896905/info: true
+            lane_896905/left: true
+            lane_896905/left/curve: true
+            lane_896905/right: true
+            lane_896905/right/curve: true
+            lane_9/center: true
+            lane_9/info: true
+            lane_9/left: true
+            lane_9/left/curve: true
+            lane_9/right: true
+            lane_9/right/curve: true
+            lane_900002/center: true
+            lane_900002/info: true
+            lane_900002/left: true
+            lane_900002/left/curve: true
+            lane_900002/right: true
+            lane_900002/right/curve: true
+            lane_900003/center: true
+            lane_900003/info: true
+            lane_900003/left: true
+            lane_900003/left/curve: true
+            lane_900003/right: true
+            lane_900003/right/curve: true
+            lane_900004/center: true
+            lane_900004/info: true
+            lane_900004/left: true
+            lane_900004/left/curve: true
+            lane_900004/right: true
+            lane_900004/right/curve: true
+            lane_900005/center: true
+            lane_900005/info: true
+            lane_900005/left: true
+            lane_900005/left/curve: true
+            lane_900005/right: true
+            lane_900005/right/curve: true
+            lane_903402/center: true
+            lane_903402/info: true
+            lane_903402/left: true
+            lane_903402/left/curve: true
+            lane_903402/right: true
+            lane_903402/right/curve: true
+            lane_903403/center: true
+            lane_903403/info: true
+            lane_903403/left: true
+            lane_903403/left/curve: true
+            lane_903403/right: true
+            lane_903403/right/curve: true
+            lane_903404/center: true
+            lane_903404/info: true
+            lane_903404/left: true
+            lane_903404/left/curve: true
+            lane_903404/right: true
+            lane_903404/right/curve: true
+            lane_906902/center: true
+            lane_906902/info: true
+            lane_906902/left: true
+            lane_906902/left/curve: true
+            lane_906902/right: true
+            lane_906902/right/curve: true
+            lane_906903/center: true
+            lane_906903/info: true
+            lane_906903/left: true
+            lane_906903/left/curve: true
+            lane_906903/right: true
+            lane_906903/right/curve: true
+            lane_906904/center: true
+            lane_906904/info: true
+            lane_906904/left: true
+            lane_906904/left/curve: true
+            lane_906904/right: true
+            lane_906904/right/curve: true
+            lane_909502/center: true
+            lane_909502/info: true
+            lane_909502/left: true
+            lane_909502/left/curve: true
+            lane_909502/right: true
+            lane_909502/right/curve: true
+            lane_909503/center: true
+            lane_909503/info: true
+            lane_909503/left: true
+            lane_909503/left/curve: true
+            lane_909503/right: true
+            lane_909503/right/curve: true
+            lane_909504/center: true
+            lane_909504/info: true
+            lane_909504/left: true
+            lane_909504/left/curve: true
+            lane_909504/right: true
+            lane_909504/right/curve: true
+            lane_912202/center: true
+            lane_912202/info: true
+            lane_912202/left: true
+            lane_912202/left/curve: true
+            lane_912202/right: true
+            lane_912202/right/curve: true
+            lane_912203/center: true
+            lane_912203/info: true
+            lane_912203/left: true
+            lane_912203/left/curve: true
+            lane_912203/right: true
+            lane_912203/right/curve: true
+            lane_912204/center: true
+            lane_912204/info: true
+            lane_912204/left: true
+            lane_912204/left/curve: true
+            lane_912204/right: true
+            lane_912204/right/curve: true
+            lane_914802/center: true
+            lane_914802/info: true
+            lane_914802/left: true
+            lane_914802/left/curve: true
+            lane_914802/right: true
+            lane_914802/right/curve: true
+            lane_914803/center: true
+            lane_914803/info: true
+            lane_914803/left: true
+            lane_914803/left/curve: true
+            lane_914803/right: true
+            lane_914803/right/curve: true
+            lane_914804/center: true
+            lane_914804/info: true
+            lane_914804/left: true
+            lane_914804/left/curve: true
+            lane_914804/right: true
+            lane_914804/right/curve: true
+            lane_917402/center: true
+            lane_917402/info: true
+            lane_917402/left: true
+            lane_917402/left/curve: true
+            lane_917402/right: true
+            lane_917402/right/curve: true
+            lane_917403/center: true
+            lane_917403/info: true
+            lane_917403/left: true
+            lane_917403/left/curve: true
+            lane_917403/right: true
+            lane_917403/right/curve: true
+            lane_917404/center: true
+            lane_917404/info: true
+            lane_917404/left: true
+            lane_917404/left/curve: true
+            lane_917404/right: true
+            lane_917404/right/curve: true
+            lane_920102/center: true
+            lane_920102/info: true
+            lane_920102/left: true
+            lane_920102/left/curve: true
+            lane_920102/right: true
+            lane_920102/right/curve: true
+            lane_920103/center: true
+            lane_920103/info: true
+            lane_920103/left: true
+            lane_920103/left/curve: true
+            lane_920103/right: true
+            lane_920103/right/curve: true
+            lane_920104/center: true
+            lane_920104/info: true
+            lane_920104/left: true
+            lane_920104/left/curve: true
+            lane_920104/right: true
+            lane_920104/right/curve: true
+            lane_922802/center: true
+            lane_922802/info: true
+            lane_922802/left: true
+            lane_922802/left/curve: true
+            lane_922802/right: true
+            lane_922802/right/curve: true
+            lane_922803/center: true
+            lane_922803/info: true
+            lane_922803/left: true
+            lane_922803/left/curve: true
+            lane_922803/right: true
+            lane_922803/right/curve: true
+            lane_924702/center: true
+            lane_924702/info: true
+            lane_924702/left: true
+            lane_924702/left/curve: true
+            lane_924702/right: true
+            lane_924702/right/curve: true
+            lane_924703/center: true
+            lane_924703/info: true
+            lane_924703/left: true
+            lane_924703/left/curve: true
+            lane_924703/right: true
+            lane_924703/right/curve: true
+            lane_926702/center: true
+            lane_926702/info: true
+            lane_926702/left: true
+            lane_926702/left/curve: true
+            lane_926702/right: true
+            lane_926702/right/curve: true
+            lane_926703/center: true
+            lane_926703/info: true
+            lane_926703/left: true
+            lane_926703/left/curve: true
+            lane_926703/right: true
+            lane_926703/right/curve: true
+          Queue Size: 100
+          Value: true
+        - Class: rviz/MarkerArray
+          Enabled: true
+          Marker Topic: /map_fusion/routing
+          Name: map_fusion/routing
+          Namespaces:
+            routing/lane_0: true
+            routing/lane_1: true
+            routing/lane_10: true
+            routing/lane_11: true
+            routing/lane_1121502: true
+            routing/lane_1121503: true
+            routing/lane_1123602: true
+            routing/lane_1123603: true
+            routing/lane_1126202: true
+            routing/lane_1126203: true
+            routing/lane_1129402: true
+            routing/lane_1129403: true
+            routing/lane_12: true
+            routing/lane_13: true
+            routing/lane_1310002: true
+            routing/lane_1310003: true
+            routing/lane_1313302: true
+            routing/lane_1313303: true
+            routing/lane_1316302: true
+            routing/lane_1316303: true
+            routing/lane_14: true
+            routing/lane_15: true
+            routing/lane_2: true
+            routing/lane_3: true
+            routing/lane_4: true
+            routing/lane_5: true
+            routing/lane_6: true
+            routing/lane_7: true
+            routing/lane_8: true
+            routing/lane_887102: true
+            routing/lane_887103: true
+            routing/lane_887104: true
+            routing/lane_887105: true
+            routing/lane_890402: true
+            routing/lane_890403: true
+            routing/lane_890404: true
+            routing/lane_890405: true
+            routing/lane_894002: true
+            routing/lane_894003: true
+            routing/lane_894004: true
+            routing/lane_894005: true
+            routing/lane_896902: true
+            routing/lane_896903: true
+            routing/lane_896904: true
+            routing/lane_896905: true
+            routing/lane_9: true
+            routing/lane_900002: true
+            routing/lane_900003: true
+            routing/lane_900004: true
+            routing/lane_900005: true
+            routing/lane_903402: true
+            routing/lane_903403: true
+            routing/lane_903404: true
+            routing/lane_906902: true
+            routing/lane_906903: true
+            routing/lane_906904: true
+            routing/lane_909502: true
+            routing/lane_909503: true
+            routing/lane_909504: true
+            routing/lane_912202: true
+            routing/lane_912203: true
+            routing/lane_912204: true
+            routing/lane_914802: true
+            routing/lane_914803: true
+            routing/lane_914804: true
+            routing/lane_917402: true
+            routing/lane_917403: true
+            routing/lane_917404: true
+            routing/lane_920102: true
+            routing/lane_920103: true
+            routing/lane_920104: true
+            routing/lane_922802: true
+            routing/lane_922803: true
+            routing/lane_924702: true
+            routing/lane_924703: true
+            routing/lane_926702: true
+            routing/lane_926703: true
+            routing/way_pts: true
+          Queue Size: 100
+          Value: true
+      Enabled: true
+      Name: map_fusion
+    - Class: rviz/MarkerArray
+      Enabled: false
+      Marker Topic: /percep_detection/transport_element
+      Name: percep_detection/transport_element
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Class: rviz/MarkerArray
+      Enabled: false
+      Marker Topic: /percep_transport/transport_element
+      Name: percep_transport/transport_element
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: false
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Keep: 100
+      Name: localization/local_pose
+      Position Tolerance: 0.10000000149011612
+      Queue Size: 10
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 255; 25; 0
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 0.05000000074505806
+        Value: Arrow
+      Topic: /localization/local_pose
+      Unreliable: false
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /localization/status
+      Name: localization/status
+      Namespaces:
+        {}
+      Queue Size: 100
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Default Light: true
+    Fixed Frame: local
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz/Interact
+      Hide Inactive Objects: true
+    - Class: rviz/MoveCamera
+    - Class: rviz/Select
+    - Class: rviz/FocusCamera
+    - Class: rviz/Measure
+    - Class: rviz/SetInitialPose
+      Theta std deviation: 0.2617993950843811
+      Topic: /initialpose
+      X std deviation: 0.5
+      Y std deviation: 0.5
+    - Class: rviz/SetGoal
+      Topic: /move_base_simple/goal
+    - Class: rviz/PublishPoint
+      Single click: true
+      Topic: /clicked_point
+  Value: true
+  Views:
+    Current:
+      Angle: -1.0950020551681519
+      Class: rviz/TopDownOrtho
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Scale: 4.798784255981445
+      Target Frame: vehicle
+      X: 373.4956359863281
+      Y: -29.50567054748535
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 1016
+  Hide Left Dock: false
+  Hide Right Dock: true
+  Image:
+    collapsed: false
+  QMainWindow State: 000000ff00000000fd0000000400000000000001900000035afc020000000cfb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d0000024a000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb00000030002f00730061006d0070006c0065005f0069006d006100670065002f0063006f006d007000720065007300730065006400000002d0000000c70000000000000000fb0000000a0049006d00610067006500000001fc000000e80000001600fffffffb0000002000660072006f006e0074005f006e006100720072006f0077005f0069006d006700000002ea000000c80000000000000000fb0000001000630061006d006500720061005f0030010000028d0000010a0000001600ffffff000000010000010f00000252fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d00000252000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000007580000003efc0100000002fb0000000800540069006d0065010000000000000758000002eb00fffffffb0000000800540069006d00650100000000000004500000000000000000000005c20000035a00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Selection:
+    collapsed: false
+  Time:
+    collapsed: false
+  Tool Properties:
+    collapsed: false
+  Views:
+    collapsed: true
+  Width: 1880
+  X: 40
+  Y: 27
+  camera_0:
+    collapsed: false

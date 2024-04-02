@@ -17,6 +17,7 @@ add_subdirectory(location)
 add_subdirectory(laneline_postprocess) # add by wenhai.zhang
 add_subdirectory(local_mapping)
 add_subdirectory(viz_converter)
+add_subdirectory(global_lite)
 
 install(
   DIRECTORY production/conf/

@@ -115,7 +115,7 @@ void MapCurveToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
 
   if (curve.segment().empty() ||
       curve.segment().begin()->line_segment().point().empty()) {
-    HLOG_WARN << "empty curve";
+    // HLOG_WARN << "empty curve";
     return;
   }
 
@@ -288,7 +288,7 @@ void MapLaneBoundaryToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
   const auto& curve = boundary.curve();
   if (curve.segment().empty() ||
       curve.segment().begin()->line_segment().point().empty()) {
-    HLOG_WARN << "empty curve";
+    // HLOG_WARN << "empty curve";
     return;
   }
 
@@ -630,9 +630,9 @@ void MapMsgStatusToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
   marker_txt->mutable_scale()->set_z(text_size);
   marker_txt->mutable_color()->CopyFrom(rgba);
 
-  std::string map_type;
+  std::string type_str;
   if (has_map_type) {
-    map_type = "map_type: " + type_txt;
+    type_str = "map_type: " + type_txt;
   }
   //! NOTE:
   //! routing包含三公里的lane，因此会有很多lane在map里找不到，因此这里不再关注.
@@ -651,8 +651,29 @@ void MapMsgStatusToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
       "way_points_num: " +
       std::to_string(routing.routing_request().waypoint().size());
 
+  std::string valid_str;
+  if (map_msg.has_is_valid()) {
+    valid_str = "valid: " + (map_msg.is_valid() ? std::string("TRUE") : std::string("FALSE"));
+  }
+
+  std::string level_str;
+  if (map_msg.has_fault_level()) {
+    level_str = "level: " + std::to_string(map_msg.fault_level());
+  }
+
   auto* text = marker_txt->mutable_text();
-  *text = (map_type + "\n" + way_pts);
+  if (!type_str.empty()) {
+    *text += (type_str + "\n");
+  }
+  if (!way_pts.empty()) {
+    *text += (way_pts + "\n");
+  }
+  if (!valid_str.empty()) {
+    *text += (valid_str + "\n");
+  }
+  if (!level_str.empty()) {
+    *text += (level_str + "\n");
+  }
 }
 
 void MapMsgToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,

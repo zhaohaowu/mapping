@@ -303,8 +303,8 @@ class RvizBridge {
     static tf2_ros::TransformBroadcaster tf_broad;
     tf_broad.sendTransform(ros);
     //! 这里为了方便，把tf来源的原始topic打出来
-    HLOG_INFO << "tf " << ros.header.frame_id << " to " << ros.child_frame_id
-              << " is from raw topic " << topic;
+    HLOG_INFO << "tf [" << ros.header.frame_id << "] to [" << ros.child_frame_id
+              << "] is from raw topic " << topic;
   }
 
   void OnMarker(const std::string& topic,

@@ -64,3 +64,7 @@ dataSourcesIn:
 #    type: proto_proxy
 #    cmTopic: /mapping/junction_passable
 #    cmDomainId: 0
+  - topic: driving_status
+    type: proto_proxy
+    cmTopic: /planning/ego_trajectory
+    cmDomainId: 0

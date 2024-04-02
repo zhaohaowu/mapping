@@ -19,7 +19,8 @@ using namespace std::chrono_literals; // NOLINT
 RvizAgent::~RvizAgent() noexcept { Term(); }
 
 int RvizAgent::Init(const std::string& addr) {
-  if (running_) {
+  HLOG_INFO << "RvizAgent init on " << addr;
+  if (running_.load()) {
     HLOG_WARN << "RvizAgent already started";
     return -1;
   }
@@ -37,7 +38,7 @@ int RvizAgent::Init(const std::string& addr) {
     return -1;
   }
 
-  running_ = true;
+  running_.store(true);
   ctrl_thread_ = std::make_unique<std::thread>(&RvizAgent::CtrlLoop, this);
 
   return 0;
@@ -73,7 +74,7 @@ int RvizAgent::Publish(const std::string& topic, const std::string& data_str) {
 }
 
 void RvizAgent::Term() {
-  running_ = false;
+  running_.store(false);
 
   if (ctrl_thread_ && ctrl_thread_->joinable()) {
     ctrl_thread_->join();
@@ -92,7 +93,7 @@ void RvizAgent::CtrlLoop() {
   pthread_setname_np(pthread_self(), "rviz_agent_ctrl_loop");
 
   std::string prefix = "CtrlLoop: ";
-  while (running_) {
+  while (running_.load()) {
     if (!pub_) {
       HLOG_ERROR << prefix << "PubWorker nullptr";
       std::this_thread::sleep_for(1s);
@@ -118,11 +119,11 @@ void RvizAgent::CtrlLoop() {
   }
 }
 
-bool RvizAgent::Ok() const { return running_; }
+bool RvizAgent::Ok() const { return running_.load(); }
 
 bool RvizAgent::CheckPub(const std::string& topic) {
   if (topic.empty() || !Registered(topic)) {
-    HLOG_ERROR << "topic is empty or unregistered";
+    HLOG_ERROR << "topic is empty or unregistered: " << topic;
     return false;
   }
 

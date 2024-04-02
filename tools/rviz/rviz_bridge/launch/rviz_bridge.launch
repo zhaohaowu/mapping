@@ -1,16 +1,16 @@
 <launch>
 <!-- 业务和rviz_bridge都在本机 -->
-    <!-- <arg name="viz_addrs" default="[
+    <arg name="viz_addrs" default="[
         ipc:///tmp/rviz_agent_dr,
         ipc:///tmp/rviz_agent_lm,
         ipc:///tmp/rviz_agent_lm_pv,
         ipc:///tmp/rviz_agent_loc,
         ipc:///tmp/rviz_agent_mf,
         ipc:///tmp/rviz_agent_local_map
-    ]"/> -->
+    ]"/>
  
 <!-- rviz_bridge在本机，业务在远端（上海MDC台架） -->
-    <arg name="viz_addrs" default="[tcp://10.6.74.153:9100]"/>
+    <!-- <arg name="viz_addrs" default="[tcp://10.6.74.153:9100]"/> -->
 
     <arg name="abs_rviz_conf" default="$(find rviz_bridge)/conf/default.rviz"/>
 

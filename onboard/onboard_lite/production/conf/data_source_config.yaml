@@ -28,13 +28,21 @@ dataSourcesIn:
     type: proto_proxy
     cmTopic: /perception/fsd/onboard/detection
     cmDomainId: 0
-  - topic: lm_image
+  - topic: camera_0
     type: idl_proxy
     cmTopic: /soc/zerocopy/camera_0   
     cmDomainId: 0
   - topic: tlr_percep
     type: proto_proxy
     cmTopic: /perception/fsd/environment/tlr_msg
+    cmDomainId: 0
+  - topic: function_manager_in
+    type: proto_proxy
+    cmTopic: /soc/mcu2ego 
+    cmDomainId: 0
+  - topic: driving_status
+    type: proto_proxy
+    cmTopic: /planning/ego_trajectory
     cmDomainId: 0
 
 dataSourcesOut:
@@ -43,7 +51,6 @@ dataSourcesOut:
     type: proto_skeleton
     cmTopic: /localization/location
     cmDomainId: 0
-    capacity: 5
   - topic: map_fusion
     capacity: 5
     type: proto_skeleton
@@ -54,34 +61,33 @@ dataSourcesOut:
     type: proto_skeleton
     cmTopic: /localization/deadreckoning
     cmDomainId: 0
-    capacity: 5
   - topic: percep_transport
     capacity: 5
     type: proto_skeleton
     cmTopic: /perception/fsd/transportelement_1
     cmDomainId: 0
-    capacity: 5
   - topic: percep_transport_lm
     capacity: 5
     type: proto_skeleton
     cmTopic: /perception/fsd/transportelement_lm
     cmDomainId: 0
-    capacity: 5
   - topic: local_map
     capacity: 5
     type: proto_skeleton
     cmTopic: /localization/local_map
     cmDomainId: 0
-    capacity: 5
   - topic: /location/pose_estimation
     capacity: 5
     type: proto_skeleton
     cmTopic: /localization/pe
     cmDomainId: 0
-    capacity: 5
   - topic: tlr_fusion
     capacity: 5
     type: proto_skeleton
     cmTopic: /mapping/junction_passable
     cmDomainId: 0
+  - topic: map_select_dbg
     capacity: 5
+    type: proto_skeleton
+    cmTopic: /mapping/map_select_dbg
+    cmDomainId: 0

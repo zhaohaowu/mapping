@@ -1,18 +1,47 @@
 %YAML:1.0
 orin_viz: false
-orin_viz_addr: tcp://10.6.74.153:9100
-#orin_viz_addr: ipc:///tmp/rviz_agent_mf
+# orin_viz_addr: tcp://10.6.74.153:9100
+orin_viz_addr: ipc:///tmp/rviz_agent_mf
 
 map_dir: /hd_map
-# map_dir: /data/map/changfeng_park
-#use_ehp: true
+#map_dir: /data/map/changfeng_park
+# use_ehp: true
 #use_ehp_odd_to_stop: false
 ehp_monitor: 1
 enable_ehp_routing: true
-#using_record_ehp_data: false
+# using_record_ehp_data: false
 ehp_log_root_dir: /hd_map/ehp_log
 map_service_mode: 1
 topo_rviz: false
+road_recognition_rviz: true
 viz_odom_map_in_local: false
 output_hd_map: true
 service_update_interval: 900
+work_mode: FusionMap+PercepMap # options: "FusionMap", "PercepMap", "FusionMap+PercepMap"
+
+RoadRecognition:
+  TopoGeneration:
+    viz: false
+    viz_topic_input_ele_map: /topo_gen/input_ele_map
+    viz_topic_output_ele_map: /topo_gen/output_ele_map
+    viz_topic_path: /topo_gen/path
+    viz_topic_group: /topo_gen/group
+    viz_lifetime: 0.1
+    path_predict_range: 80
+    ## PathManager
+    path_back_range: 80
+    path_interval: 1.0
+    ## GroupMap
+    lane_line_interp_dist: -1 # < 0, not interpolate
+    half_slice_length: 30
+    min_lane_width: 2.0
+    max_lane_width: 4.5
+    lane_speed_limit_kmph: 60 # km/h
+    road_min_max_speed_kmph: 60 # km/h
+    road_max_max_speed_kmph: 80 # km/h
+    # 远端车道线预测距离，小于等于robust_percep_dist时不预测
+    predict_farthest_dist: 200
+    robust_percep_dist: 70
+    max_heading_std_dev: 100
+    min_predict_interval: 0.2
+    max_heading_degree: 10

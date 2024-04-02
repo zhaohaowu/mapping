@@ -17,3 +17,9 @@ DECLARE_bool(topo_rviz);
 DECLARE_bool(viz_odom_map_in_local);
 DECLARE_bool(output_hd_map);
 DECLARE_double(service_update_interval);
+DECLARE_bool(road_recognition_rviz);
+
+static const std::string kWorkModeFusionMap = "FusionMap"; // NOLINT
+static const std::string kWorkModePercepMap = "PercepMap"; // NOLINT
+static const std::string kWorkModeFusionAndPercepMap = "FusionMap+PercepMap"; // NOLINT
+DECLARE_string(work_mode);

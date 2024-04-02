@@ -155,7 +155,7 @@ void RvizAgentClient::ProcCommonMsg(const std::string& topic, void* data,
 void RvizAgentClient::CallbackForAllTopics(const std::string& topic, void* data,
                                            size_t size) {
   if (topic.empty() || (data == nullptr) || (size == 0U)) {
-    HLOG_ERROR << "Invalid callback data";
+    HLOG_ERROR << "Invalid callback data, topic: " << topic << ", size: " << size;
     return;
   }
 

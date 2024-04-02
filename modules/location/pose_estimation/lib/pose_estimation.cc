@@ -7,6 +7,7 @@
 
 #include "modules/location/pose_estimation/lib/pose_estimation.h"
 
+#include <algorithm>
 #include <chrono>
 #include <list>
 #include <memory>

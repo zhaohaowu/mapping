@@ -12,6 +12,7 @@
 #include "map_fusion/map_prediction/map_prediction.h"
 #include "map_fusion/map_service/map_service.h"
 #include "map_fusion/map_service/map_table.h"
+#include "map_fusion/road_recognition/road_recognition.h"
 #include "map_fusion/topo_assignment/topo_assignment.h"
 #include "util/mapping_log.h"
 #include "util/rate.h"
@@ -23,8 +24,7 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
-int MapFusion::Init(const std::string& conf) {
-  (void)(conf);
+int MapFusion::Init(const YAML::Node& conf) {
   map_service_ = std::make_shared<MapService>();
   if (!map_service_->Init()) {
     HLOG_ERROR << "Init MapService failed";
@@ -45,6 +45,16 @@ int MapFusion::Init(const std::string& conf) {
     return -1;
   }
   map_table_ = std::make_shared<MapTable>();
+
+  if (!conf["RoadRecognition"].IsDefined()) {
+    HLOG_ERROR << "no config for RoadRecognition";
+    return -1;
+  }
+  recog_ = std::make_shared<RoadRecognition>();
+  if (!recog_->Init(conf["RoadRecognition"])) {
+    HLOG_ERROR << "Init RoadRecognition failed";
+    return -1;
+  }
 
   return 0;
 }
@@ -179,6 +189,43 @@ MapServiceFault MapFusion::GetMapServiceFault() {
     return map_service_->GetFault();
   }
   return MS_NO_ERROR;
+}
+
+int MapFusion::ProcPercep(
+    const std::shared_ptr<hozon::localization::Localization>& curr_loc,
+    const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
+    hozon::hdmap::Map* percep_map,
+    hozon::routing::RoutingResponse* percep_routing) {
+  if (curr_loc == nullptr || curr_local_map == nullptr ||
+      percep_map == nullptr || percep_routing == nullptr) {
+    HLOG_ERROR << "nullptr input input";
+    return -1;
+  }
+
+  if (recog_ == nullptr) {
+    HLOG_ERROR << "nullptr road recognition";
+    return -1;
+  }
+  HLOG_ERROR << "Proc Pilot start!";
+  recog_->OnLocalization(curr_loc);
+  recog_->OnLocalMap(curr_local_map);
+  HLOG_ERROR << "OnLocalMap!";
+  auto map = recog_->GetPercepMap();
+  if (map == nullptr) {
+    HLOG_ERROR << "get nullptr percep map";
+    return -1;
+  }
+  percep_map->CopyFrom(*map);
+  HLOG_ERROR << "get routingrespose!";
+  auto routing = recog_->GetRouting();
+
+  if (routing == nullptr) {
+    HLOG_ERROR << "get nullptr routing!";
+    return -1;
+  }
+  percep_routing->CopyFrom(*routing);
+
+  return 0;
 }
 
 }  // namespace mf

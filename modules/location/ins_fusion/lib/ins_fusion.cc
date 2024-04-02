@@ -136,6 +136,7 @@ bool InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins, hozon::localiz
   return true;
 }
 
+
 bool InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva,
                          hozon::localization::HafNodeInfo* const node_info) {
   if (!config_.use_inspva) {

@@ -1,6 +1,7 @@
 <launch>
 <!-- 业务和rviz_bridge都在本机 -->
     <arg name="viz_addrs" default="[
+        ipc:///tmp/rviz_agent_mp,
         ipc:///tmp/rviz_agent_dr,
         ipc:///tmp/rviz_agent_lm,
         ipc:///tmp/rviz_agent_lm_pv,
@@ -22,3 +23,4 @@
     </node>
     <node pkg="rviz" type="rviz" name="rviz" args="-d $(arg abs_rviz_conf)" required="true" />
 </launch>
+    

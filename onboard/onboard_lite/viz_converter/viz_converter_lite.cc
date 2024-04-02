@@ -12,6 +12,7 @@
 #include <proto/map/navigation.pb.h>
 #include <proto/perception/perception_measurement.pb.h>
 #include <proto/soc/sensor_image.pb.h>
+#include <proto/planning/planning.pb.h>
 #include <yaml-cpp/yaml.h>
 
 #include <memory>
@@ -103,6 +104,7 @@ int32_t VizConverterLite::AlgInit() {
   std::vector<std::string> marker_topics = {
       kVizTopicLocalizationStatus,
       kVizTopicInsPluginStatus,
+      kVizTopicDrivingStatus,
   };
   ret = RVIZ_AGENT.Register<adsfi_proto::viz::Marker>(marker_topics);
   if (ret < 0) {
@@ -156,6 +158,7 @@ int32_t VizConverterLite::AlgInit() {
   REGISTER_PROTO_MESSAGE_TYPE(kTopicPercepTransport,
                               hozon::perception::TransportElement);
   REGISTER_PROTO_MESSAGE_TYPE(kTopicLocalMap, hozon::mapping::LocalMap);
+  REGISTER_PROTO_MESSAGE_TYPE(kTopicDrivingStatus, hozon::planning::ADCTrajectory);
 
   RegistAlgProcessFunc("recv_localization",
                        std::bind(&VizConverterLite::OnLocalization, this,
@@ -182,6 +185,9 @@ int32_t VizConverterLite::AlgInit() {
   RegistAlgProcessFunc(
       "recv_local_map",
       std::bind(&VizConverterLite::OnLocalMap, this, std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_driving_status",
+      std::bind(&VizConverterLite::OnDrivingStatus, this, std::placeholders::_1));
   return 0;
 }
 
@@ -801,6 +807,100 @@ int32_t VizConverterLite::OnLocalMap(hozon::netaos::adf_lite::Bundle* input) {
   LocalMapToMarkers(viz_header, viz_lifetime, *proto_msg,
                     last_local_map_ma.get());
   RVIZ_AGENT.Publish(kVizTopicLocalMap, last_local_map_ma);
+
+  return 0;
+}
+
+int32_t VizConverterLite::OnDrivingStatus(hozon::netaos::adf_lite::Bundle* input) {
+  if (input == nullptr) {
+    HLOG_ERROR << "nullptr input Bundle";
+    return -1;
+  }
+
+  auto input_msg = input->GetOne(kTopicDrivingStatus);
+  if (input_msg == nullptr) {
+    HLOG_ERROR << "GetOne " << kTopicDrivingStatus << " nullptr";
+    return -1;
+  }
+
+  const auto proto_msg =
+      std::static_pointer_cast<hozon::planning::ADCTrajectory>(
+          input_msg->proto_msg);
+  if (proto_msg == nullptr) {
+    HLOG_ERROR << "proto_msg is nullptr in Bundle input";
+    return -1;
+  }
+
+  auto msg = std::make_shared<hozon::planning::ADCTrajectory>();
+  msg->CopyFrom(*proto_msg);
+
+  uint32_t sec = 0;
+  uint32_t nsec = 0;
+  SplitStamp(msg->header().data_stamp(), &sec, &nsec);
+
+  adsfi_proto::viz::Marker marker_status;
+  marker_status.mutable_header()->mutable_timestamp()->set_sec(sec);
+  marker_status.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+  marker_status.mutable_header()->set_frameid(mp::util::kFrameVehicle);
+  marker_status.set_ns("driving_status");
+  marker_status.set_id(0);
+  marker_status.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+  marker_status.set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+  const Eigen::Vector3d status_pos(0, -30, 10);
+  marker_status.mutable_pose()->mutable_position()->set_x(status_pos.x());
+  marker_status.mutable_pose()->mutable_position()->set_y(status_pos.y());
+  marker_status.mutable_pose()->mutable_position()->set_z(status_pos.z());
+  marker_status.mutable_pose()->mutable_orientation()->set_x(0.);
+  marker_status.mutable_pose()->mutable_orientation()->set_y(0.);
+  marker_status.mutable_pose()->mutable_orientation()->set_z(0.);
+  marker_status.mutable_pose()->mutable_orientation()->set_w(1.);
+  const double text_size = 1;
+  marker_status.mutable_scale()->set_z(text_size);
+  const double lifetime = 0;
+  uint32_t life_sec = 0;
+  uint32_t life_nsec = 0;
+  SplitStamp(lifetime, &life_sec, &life_nsec);
+  marker_status.mutable_lifetime()->set_sec(life_sec);
+  marker_status.mutable_lifetime()->set_nsec(life_nsec);
+
+  mp::util::Color color = mp::util::WHITE;
+
+  auto nnp_state = msg->function_manager_in().fct_nnp_in().nnp_sysstate();
+  auto pilot_state = msg->function_manager_in().fct_nnp_in().npilot_state();
+  auto acc_state = msg->function_manager_in().fct_nnp_in().acc_state();
+  if (nnp_state == hozon::functionmanager::NNPS_ACTIVE ||
+      pilot_state == hozon::functionmanager::FctToNnpInput::PILOT_ACTIVE ||
+      acc_state == hozon::functionmanager::FctToNnpInput::ACC_ACTIVE) {
+    color = mp::util::GREEN;
+  }
+
+  std::string try_activate_str = "";
+  if (msg->function_manager_in().nnp_switch_conditions().da_in_is_nnpswstsonswa_bl()) {
+    color = mp::util::YELLOW;
+    try_activate_str = "TRY ACTIVATE";
+  }
+
+  auto rgb = mp::util::ColorRgb(color);
+  marker_status.mutable_color()->set_a(1.0);
+  marker_status.mutable_color()->set_r(rgb.r);
+  marker_status.mutable_color()->set_g(rgb.g);
+  marker_status.mutable_color()->set_b(rgb.b);
+
+  auto nnp_state_str = hozon::functionmanager::NNPSysState_Name(nnp_state);
+  auto pilot_state_str = hozon::functionmanager::FctToNnpInput::NPILOT_State_Name(pilot_state);
+  auto acc_state_str = hozon::functionmanager::FctToNnpInput::ADCS8_ACCState_Name(acc_state);
+  auto fsm_state = msg->function_manager_out().fsm_state();
+  auto fsm_state_str = hozon::functionmanager::MachineStateType_Name(fsm_state);
+  auto hdmap_sub_state = msg->function_manager_out().hdmap_sub_state();
+  auto hdmap_sub_state_str = hozon::functionmanager::HdmapSubState_Name(hdmap_sub_state);
+
+  auto* text = marker_status.mutable_text();
+  *text = "nnp: " + nnp_state_str +
+      "\npilot: " + pilot_state_str +
+      "\nacc: " + acc_state_str +
+      "\npnc_used_map: " + fsm_state_str + ", " + hdmap_sub_state_str +
+      "\n" + try_activate_str;
+  RVIZ_AGENT.Publish(kVizTopicDrivingStatus, marker_status);
 
   return 0;
 }

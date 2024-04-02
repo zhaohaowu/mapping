@@ -29,6 +29,8 @@ set(UTIL_SRCS
     ${GEO_SRCS}
     src/rate.cc
     src/viz_helper.cc
+    src/global_data.cc
+    src/orin_trigger_manager.cc
 )
 
 add_mapping_library(util ${UTIL_SRCS})
@@ -44,6 +46,13 @@ target_link_libraries(util
     opencv_imgproc
     opencv_imgcodecs
 )
+
+if(${PLATFORM} STREQUAL "orin")
+  target_link_libraries(util
+      neta_dc
+  )
+endif()
+
 install(
     TARGETS util
     DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib

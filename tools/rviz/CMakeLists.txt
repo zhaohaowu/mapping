@@ -9,6 +9,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 # for switch in mapping_log.h
 add_definitions(-DNOT_USE_PCP_BASE_LOG)
 
+set(PLATFORM "x86")
 set(REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../..)
 get_filename_component(REPO_ROOT ${REPO_ROOT} ABSOLUTE)
 set(CMAKE_INSTALL_PREFIX ${REPO_ROOT}/release/ros)

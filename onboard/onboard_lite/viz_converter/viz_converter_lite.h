@@ -39,6 +39,7 @@ class VizConverterLite : public hozon::netaos::adf_lite::Executor {
   int32_t OnPercepDetection(hozon::netaos::adf_lite::Bundle* input);
   int32_t OnPercepTransport(hozon::netaos::adf_lite::Bundle* input);
   int32_t OnLocalMap(hozon::netaos::adf_lite::Bundle* input);
+  int32_t OnDrivingStatus(hozon::netaos::adf_lite::Bundle* input);
 
   const std::string kTopicLocalization = "localization";
   const std::string kVizTopicLocalization = "localization";
@@ -80,6 +81,9 @@ class VizConverterLite : public hozon::netaos::adf_lite::Executor {
 
   const std::string kTopicLocalMap = "local_map";
   const std::string kVizTopicLocalMap = kTopicLocalMap;
+
+  const std::string kTopicDrivingStatus = "driving_status";
+  const std::string kVizTopicDrivingStatus = kTopicDrivingStatus;
 
   const std::string kVizTopicTfVehicleToLocal = "veh_to_local";
   const std::string kVizTopicTfLocalEnuToLocal = "local_enu_to_local";

@@ -9,6 +9,7 @@
 #include <gflags/gflags.h>
 #include <perception-lib/lib/environment/environment.h>
 
+#include <set>
 #include <string>
 
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
@@ -16,6 +17,7 @@
 #include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 #include "onboard/onboard_lite/map_fusion/map_fusion_lite.h"
 #include "perception-base/base/state_machine/state_machine_info.h"
+// #include "proto/fsm/function_manager.pb.h"
 #include "yaml-cpp/yaml.h"
 
 namespace hozon {
@@ -23,6 +25,12 @@ namespace perception {
 namespace common_onboard {
 
 int32_t MapFusionLite::AlgInit() {
+#ifdef ISORIN
+  hozon::netaos::log::InitLogging(
+      "mapping", "mapping", hozon::netaos::log::LogLevel::kDebug,
+      hozon::netaos::log::HZ_LOG2FILE, "/opt/usr/log/soc_log/", 10,
+      (20 * 1024 * 1024), true);
+#endif
   std::string default_work_root = "/app/";
   std::string work_root = lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
   if (work_root == "") {
@@ -47,6 +55,7 @@ int32_t MapFusionLite::AlgInit() {
   FLAGS_output_hd_map = config["output_hd_map"].as<bool>();
   FLAGS_service_update_interval =
       config["service_update_interval"].as<double>();
+  FLAGS_work_mode = config["work_mode"].as<std::string>();
 
   if (FLAGS_orin_viz) {
     HLOG_ERROR << "Start RvizAgent on " << FLAGS_orin_viz_addr;
@@ -59,12 +68,16 @@ int32_t MapFusionLite::AlgInit() {
   curr_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
   curr_routing_->Clear();
   mf_ = std::make_unique<MapFusion>();
-  int ret = mf_->Init("");
+  int ret = mf_->Init(config);
   if (ret < 0) {
     HLOG_INFO << "Init map fusion failed";
     return -1;
   }
-
+  map_select_ = std::make_unique<MapSelectLite>();
+  if (!map_select_->Init()) {
+    HLOG_INFO << "Init map select failed";
+    return -1;
+  }
   RegistMessageType();
   RegistProcessFunc();
 
@@ -93,6 +106,11 @@ void MapFusionLite::RegistMessageType() {
   REGISTER_PROTO_MESSAGE_TYPE("map_fusion", hozon::navigation_hdmap::MapMsg);
   REGISTER_PROTO_MESSAGE_TYPE("running_mode",
                               hozon::perception::common_onboard::running_mode);
+  REGISTER_PROTO_MESSAGE_TYPE("percep_transport",
+                              hozon::perception::TransportElement);
+  REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
+  REGISTER_PROTO_MESSAGE_TYPE("function_manager_in",
+                              hozon::functionmanager::FunctionManagerIn);
 }
 
 void MapFusionLite::RegistProcessFunc() {
@@ -113,6 +131,13 @@ void MapFusionLite::RegistProcessFunc() {
   RegistAlgProcessFunc(
       "recv_running_mode",
       std::bind(&MapFusionLite::OnRunningMode, this, std::placeholders::_1));
+  RegistAlgProcessFunc("recv_percep_transport",
+                       std::bind(&MapFusionLite::OnPercepTransport, this,
+                                 std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_dr", std::bind(&MapFusionLite::OnDR, this, std::placeholders::_1));
+  RegistAlgProcessFunc("recv_fct_in", std::bind(&MapFusionLite::OnFCTIn, this,
+                                                std::placeholders::_1));
 }
 
 int32_t MapFusionLite::OnLocation(Bundle* input) {
@@ -303,6 +328,81 @@ int32_t MapFusionLite::OnLocPlugin(Bundle* input) {
   return 0;
 }
 
+int32_t MapFusionLite::OnFCTIn(Bundle* input) {
+  if (!input) {
+    return -1;
+  }
+  auto f_ct = input->GetOne("function_manager_in");
+  if (!f_ct) {
+    HLOG_ERROR << "nullptr function_manager_in message";
+    return -1;
+  }
+  const auto fct_res =
+      std::static_pointer_cast<hozon::functionmanager::FunctionManagerIn>(
+          f_ct->proto_msg);
+
+  if (!fct_res) {
+    HLOG_ERROR << "nullptr function_manager_in";
+    return -1;
+  }
+  {
+    std::lock_guard<std::mutex> lock(fct_mtx_);
+    curr_fct_in_ =
+        std::make_shared<hozon::functionmanager::FunctionManagerIn>(*fct_res);
+  }
+  return 0;
+}
+
+int32_t MapFusionLite::OnPercepTransport(Bundle* input) {
+  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+  if (!input) {
+    return -1;
+  }
+  auto p_per = input->GetOne("percep_transport");
+  if (!p_per) {
+    HLOG_ERROR << "nullptr percep_transport message";
+    return -1;
+  }
+  const auto percep_res =
+      std::static_pointer_cast<hozon::perception::TransportElement>(
+          p_per->proto_msg);
+
+  if (!percep_res) {
+    HLOG_ERROR << "nullptr percep_transport";
+    return -1;
+  }
+  {
+    std::lock_guard<std::mutex> lock(percep_map_mtx_);
+    curr_percep_ =
+        std::make_shared<hozon::perception::TransportElement>(*percep_res);
+  }
+  return 0;
+}
+
+int32_t MapFusionLite::OnDR(Bundle* input) {
+  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+  if (!input) {
+    return -1;
+  }
+  auto p_dr = input->GetOne("dr");
+  if (!p_dr) {
+    HLOG_ERROR << "nullptr dr message";
+    return -1;
+  }
+  const auto dr_res =
+      std::static_pointer_cast<hozon::dead_reckoning::DeadReckoning>(
+          p_dr->proto_msg);
+
+  if (!dr_res) {
+    HLOG_ERROR << "nullptr dr";
+    return -1;
+  }
+  {
+    std::lock_guard<std::mutex> lock(dr_mtx_);
+    curr_dr_ = std::make_shared<hozon::dead_reckoning::DeadReckoning>(*dr_res);
+  }
+  return 0;
+}
 int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   if (!mf_) {
     HLOG_ERROR << "nullptr map fusion";
@@ -323,7 +423,6 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     global_hd_updated = true;
     last = now;
   }
-
   std::shared_ptr<hozon::localization::Localization> latest_loc =
       GetLatestLoc();
   if (latest_loc == nullptr) {
@@ -332,27 +431,130 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   }
   std::shared_ptr<hozon::mapping::LocalMap> latest_local_map =
       GetLatestLocalMap();
-  if (latest_local_map == nullptr) {
-    HLOG_ERROR << "nullptr latest local map";
+  // if (latest_local_map == nullptr) {
+  //   HLOG_ERROR << "nullptr latest local map";
+  //   return -1;
+  // }
+
+  std::shared_ptr<hozon::perception::TransportElement> latest_percep =
+      GetLatestPercep();
+  // if (latest_percep == nullptr) {
+  //   HLOG_ERROR << "nullptr latest latest_percep";
+  //   return -1;
+  // }
+
+  std::shared_ptr<hozon::dead_reckoning::DeadReckoning> latest_dr =
+      GetLatestDR();
+  // if (latest_percep == nullptr) {
+  //   HLOG_ERROR << "nullptr latest latest_dr";
+  //   return -1;
+  // }
+
+  std::shared_ptr<hozon::functionmanager::FunctionManagerIn> latest_fct_in =
+      GetLatestFCTIn();
+  // if (curr_fct_in_ == nullptr) {
+  //   HLOG_ERROR << "nullptr latest curr_fct_in_";
+  //   return -1;
+  // }
+
+  if (!map_select_) {
+    HLOG_ERROR << "nullptr map select";
+    return -1;
+  }
+  std::set<std::string> legal_mode = {
+      kWorkModeFusionMap,
+      kWorkModePercepMap,
+      kWorkModeFusionAndPercepMap,
+  };
+  if (legal_mode.find(FLAGS_work_mode) == legal_mode.end()) {
+    HLOG_ERROR << "Invalid work mode: " << FLAGS_work_mode;
     return -1;
   }
 
-  std::shared_ptr<hozon::hdmap::Map> latest_map = nullptr;
-  int ret = mf_->ProcFusion(latest_loc, latest_local_map, global_hd_updated,
-                            latest_map, curr_routing_.get());
-  if (ret < 0 || latest_map == nullptr) {
-    latest_map = std::make_shared<hozon::hdmap::Map>();
-    latest_map->Clear();
-    HLOG_ERROR << "map fusion ProcFusion failed";
+  std::shared_ptr<hozon::hdmap::Map> latest_fusion_map = nullptr;
+  std::shared_ptr<hozon::hdmap::Map> latest_percep_map = nullptr;
+  std::shared_ptr<hozon::routing::RoutingResponse> latest_percep_routing =
+      nullptr;
+  // auto latest_map = std::make_shared<hozon::hdmap::Map>();
+  // auto percep_map = std::make_shared<hozon::hdmap::Map>();
+  if (FLAGS_work_mode == kWorkModeFusionMap ||
+      FLAGS_work_mode == kWorkModeFusionAndPercepMap) {
+    HLOG_INFO << "ProcFusion";
+    std::shared_ptr<hozon::hdmap::Map> fusion_map = nullptr;
+    int ret = mf_->ProcFusion(latest_loc, latest_local_map, global_hd_updated,
+                              fusion_map, curr_routing_.get());
+    if (ret < 0 || fusion_map == nullptr) {
+      HLOG_ERROR << "map fusion ProcFusion failed";
+    } else {
+      latest_fusion_map = fusion_map;
+    }
   }
 
-  ret = SendFusionResult(latest_loc, latest_map, curr_routing_.get());
-  if (ret < 0) {
-    HLOG_ERROR << "SendFusionResult failed";
-    return -1;
+  if (FLAGS_work_mode == kWorkModePercepMap ||
+      FLAGS_work_mode == kWorkModeFusionAndPercepMap) {
+    HLOG_INFO << "ProcPercep";
+    auto percep_map = std::make_shared<hozon::hdmap::Map>();
+    percep_map->Clear();
+    auto percep_routing = std::make_shared<hozon::routing::RoutingResponse>();
+    int ret = mf_->ProcPercep(latest_loc, latest_local_map, percep_map.get(),
+                              percep_routing.get());
+    if (ret < 0) {
+      HLOG_ERROR << "map fusion ProcPercep failed";
+      percep_map->Clear();
+    } else {
+      latest_percep_map = percep_map;
+      latest_percep_routing = percep_routing;
+    }
   }
-  auto fault = mf_->GetMapServiceFault();
-  MapServiceFaultOutput(fault);
+  {
+    std::lock_guard<std::mutex> lock(process_mtx_);
+    HLOG_ERROR << ">>>>>>>>>>>START<<<<<<<<<<<<<<<<";
+    curr_map_type_ = map_select_->Process(latest_loc, latest_fusion_map,
+                                          latest_percep_map, latest_fct_in);
+    if (select_debug_) {
+      DebugSelectMap();
+    }
+    HLOG_ERROR << "select map_type" << curr_map_type_.map_type << ", "
+               << curr_map_type_.valid;
+    if (curr_map_type_.map_type ==
+            hozon::navigation_hdmap::MapMsg_MapType_FUSION_NNP_MAP ||
+        curr_map_type_.map_type ==
+            hozon::navigation_hdmap::MapMsg_MapType_FUSION_NCP_MAP) {
+      int ret = SendFusionResult(latest_loc, latest_fusion_map, curr_map_type_,
+                                 curr_routing_.get());
+      if (ret < 0) {
+        HLOG_ERROR << "SendFusionResult failed";
+        latest_fusion_map->Clear();
+        return -1;
+      }
+    } else if (curr_map_type_.map_type ==
+               hozon::navigation_hdmap::MapMsg_MapType_PERCEP_MAP) {
+      int ret = SendPercepResult(latest_loc, latest_percep_map, curr_map_type_,
+                                 latest_percep_routing);
+      if (ret < 0) {
+        HLOG_ERROR << "SendPercepResult failed";
+        return -1;
+      }
+    } else if (curr_map_type_.map_type ==
+               hozon::navigation_hdmap::MapMsg_MapType_INVALID) {
+      if (latest_fusion_map == nullptr) {
+        latest_fusion_map = std::make_shared<hozon::hdmap::Map>();
+      }
+      int ret = SendFusionResult(latest_loc, latest_fusion_map, curr_map_type_,
+                                 curr_routing_.get());
+      if (ret < 0) {
+        HLOG_ERROR << "SendFusionResult failed during invalid map";
+        latest_fusion_map->Clear();
+        return -1;
+      }
+      auto fault = mf_->GetMapServiceFault();
+      MapServiceFaultOutput(fault);
+    } else {
+      HLOG_ERROR << "map select return wrong map type:"
+                 << curr_map_type_.map_type << ", " << curr_map_type_.valid
+                 << ", " << curr_map_type_.fault_level;
+    }
+  }
   return 0;
 }
 
@@ -380,6 +582,14 @@ std::shared_ptr<hozon::mapping::LocalMap> MapFusionLite::GetLatestLocalMap() {
   }
   return latest_local_map;
 }
+int MapFusionLite::DebugSelectMap() {
+  auto debug_result = std::make_shared<hozon::navigation_hdmap::MapMsg>();
+  debug_result->mutable_routing()->CopyFrom(map_select_->GetDebug());
+  auto msg = std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  msg->proto_msg = debug_result;
+  SendOutput("map_select_dbg", msg);
+  return 0;
+}
 
 std::shared_ptr<hozon::localization::HafNodeInfo>
 MapFusionLite::GetLatestLocPlugin() {
@@ -395,7 +605,7 @@ MapFusionLite::GetLatestLocPlugin() {
 int MapFusionLite::SendFusionResult(
     const std::shared_ptr<hozon::localization::Localization>& location,
     const std::shared_ptr<hozon::hdmap::Map>& map,
-    hozon::routing::RoutingResponse* routing) {
+    mp::mf::MapSelectResult select, hozon::routing::RoutingResponse* routing) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   static bool input_nullptr_map_or_routing_flags = false;
   if (map == nullptr || routing == nullptr) {
@@ -534,6 +744,9 @@ int MapFusionLite::SendFusionResult(
 
   map_fusion->mutable_routing()->mutable_header()->set_publish_stamp(
       location->header().publish_stamp());
+  map_fusion->set_map_type(select.map_type);
+  map_fusion->set_is_valid(select.valid);
+  map_fusion->set_fault_level(select.fault_level);
 
   MapFusionOutputEvaluation(map_fusion);
 
@@ -542,6 +755,37 @@ int MapFusionLite::SendFusionResult(
 
   SendOutput("map_fusion", map_res);
 
+  return 0;
+}
+
+int MapFusionLite::SendPercepResult(
+    const std::shared_ptr<hozon::localization::Localization>& location,
+    const std::shared_ptr<hozon::hdmap::Map>& map,
+    mp::mf::MapSelectResult select,
+    const std::shared_ptr<hozon::routing::RoutingResponse>& routing) {
+  auto percep_result = std::make_shared<hozon::navigation_hdmap::MapMsg>();
+  percep_result->mutable_header()->CopyFrom(location->header());
+  percep_result->mutable_header()->set_frame_id("percep_map");
+  percep_result->mutable_hdmap()->CopyFrom(*map);
+  percep_result->mutable_hdmap()->mutable_header()->mutable_header()->CopyFrom(
+      location->header());
+  percep_result->mutable_hdmap()
+      ->mutable_header()
+      ->mutable_header()
+      ->set_frame_id("percep_map");
+  percep_result->mutable_routing()->CopyFrom(*routing);
+  percep_result->mutable_routing()->mutable_header()->CopyFrom(
+      location->header());
+  percep_result->mutable_routing()->mutable_header()->set_frame_id(
+      "percep_map");
+  percep_result->set_map_type(select.map_type);
+  percep_result->set_is_valid(select.valid);
+  percep_result->set_fault_level(select.fault_level);
+
+  auto msg = std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  msg->proto_msg = percep_result;
+  // SendOutput("map_percep", msg);
+  SendOutput("map_fusion", msg);
   return 0;
 }
 
@@ -578,6 +822,38 @@ int32_t MapFusionLite::OnRunningMode(hozon::netaos::adf_lite::Bundle* input) {
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
   }
   return 0;
+}
+
+std::shared_ptr<hozon::perception::TransportElement>
+MapFusionLite::GetLatestPercep() {
+  std::shared_ptr<hozon::perception::TransportElement> latest_percep = nullptr;
+  std::lock_guard<std::mutex> lock(percep_map_mtx_);
+  if (curr_percep_ != nullptr) {
+    latest_percep =
+        std::make_shared<hozon::perception::TransportElement>(*curr_percep_);
+  }
+  return latest_percep;
+}
+std::shared_ptr<hozon::dead_reckoning::DeadReckoning>
+MapFusionLite::GetLatestDR() {
+  std::shared_ptr<hozon::dead_reckoning::DeadReckoning> latest_dr = nullptr;
+  std::lock_guard<std::mutex> lock(dr_mtx_);
+  if (curr_dr_ != nullptr) {
+    latest_dr =
+        std::make_shared<hozon::dead_reckoning::DeadReckoning>(*curr_dr_);
+  }
+  return latest_dr;
+}
+std::shared_ptr<hozon::functionmanager::FunctionManagerIn>
+MapFusionLite::GetLatestFCTIn() {
+  std::shared_ptr<hozon::functionmanager::FunctionManagerIn> latest_fct_in =
+      nullptr;
+  std::lock_guard<std::mutex> lock(fct_mtx_);
+  if (curr_fct_in_ != nullptr) {
+    latest_fct_in = std::make_shared<hozon::functionmanager::FunctionManagerIn>(
+        *curr_fct_in_);
+  }
+  return latest_fct_in;
 }
 
 int MapFusionLite::MapFusionOutputEvaluation(

@@ -1,0 +1,6 @@
+%YAML:1.0
+
+enable_viz: false
+# viz_addr: tcp://10.6.74.153:9100
+viz_addr: ipc:///tmp/rviz_agent_mp
+viz_img: false

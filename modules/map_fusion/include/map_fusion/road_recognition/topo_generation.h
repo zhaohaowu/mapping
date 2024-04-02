@@ -1,0 +1,63 @@
+/******************************************************************************
+ *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： topo_generation.h
+ *   author     ： taoshaoyuan
+ *   date       ： 2023.12
+ ******************************************************************************/
+
+#pragma once
+
+#include <proto/localization/localization.pb.h>
+#include <proto/map/map.pb.h>
+#include <yaml-cpp/yaml.h>
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "map_fusion/fusion_common/common_data.h"
+#include "map_fusion/fusion_common/element_map.h"
+#include "map_fusion/road_recognition/group_map.h"
+
+namespace hozon {
+namespace mp {
+namespace mf {
+
+class PathManager;
+
+class TopoGeneration {
+ public:
+  TopoGeneration() = default;
+  ~TopoGeneration() = default;
+  bool Init(const YAML::Node& conf);
+  void OnLocalization(
+      const std::shared_ptr<hozon::localization::Localization>& msg);
+  void OnElementMap(
+      const std::shared_ptr<hozon::mp::mf::em::ElementMap>& ele_map);
+  std::shared_ptr<hozon::hdmap::Map> GetPercepMap();
+  std::shared_ptr<hozon::mp::mf::em::ElementMapOut> GetEleMap();
+
+ private:
+  void VizEleMap(const std::shared_ptr<hozon::mp::mf::em::ElementMap>& ele_map);
+  void VizPath(const std::vector<KinePose::Ptr>& path,
+               const KinePose& curr_pose);
+  void VizGroup(const std::vector<gm::Group::Ptr>& groups, double stamp);
+  bool viz_ = false;
+  std::string viz_topic_input_ele_map_;
+  std::string viz_topic_output_ele_map_;
+  std::string viz_topic_path_;
+  std::string viz_topic_group_;
+  double viz_lifetime_ = 0;
+  double path_predict_range_ = 0.;
+  gm::GroupMapConf gm_conf_;
+
+  std::shared_ptr<PathManager> path_ = nullptr;
+  std::shared_ptr<hozon::mp::mf::em::ElementMap> ele_map_ = nullptr;
+  std::shared_ptr<hozon::mp::mf::em::ElementMapOut> ele_map_output_ = nullptr;
+  bool ego_exist_ = false;
+  std::vector<double> line_params_;
+};
+
+}  // namespace mf
+}  // namespace mp
+}  // namespace hozon

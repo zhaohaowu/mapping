@@ -13,6 +13,7 @@
 #include <depend/proto/map/map.pb.h>
 #include <depend/proto/planning/planning.pb.h>
 #include <depend/proto/routing/routing.pb.h>
+#include <yaml-cpp/yaml.h>
 
 #include <memory>
 #include <string>
@@ -28,12 +29,13 @@ class TopoAssignment;
 class MapPrediction;
 class MapService;
 class MapTable;
+class RoadRecognition;
 
 class MapFusion {
  public:
   MapFusion() = default;
   ~MapFusion() = default;
-  int Init(const std::string& conf);
+  int Init(const YAML::Node& conf);
   void Stop();
 
   int ProcService(
@@ -47,12 +49,17 @@ class MapFusion {
       std::shared_ptr<hozon::hdmap::Map>& fusion_map,  // NOLINT
       hozon::routing::RoutingResponse* routing);
   MapServiceFault GetMapServiceFault();
+  int ProcPercep(
+      const std::shared_ptr<hozon::localization::Localization>& curr_loc,
+      const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
+      hozon::hdmap::Map* fusion_map, hozon::routing::RoutingResponse* routing);
 
  private:
   std::shared_ptr<MapService> map_service_ = nullptr;
   std::shared_ptr<TopoAssignment> topo_ = nullptr;
   std::shared_ptr<MapPrediction> pred_ = nullptr;
   std::shared_ptr<MapTable> map_table_ = nullptr;
+  std::shared_ptr<RoadRecognition> recog_ = nullptr;
 };
 
 }  // namespace mf

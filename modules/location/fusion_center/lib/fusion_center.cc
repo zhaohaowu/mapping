@@ -717,6 +717,18 @@ void FusionCenter::Node2Localization(const Context& ctx,
 
   pose_local->set_local_heading(local_heading);
 
+  pose_local->mutable_linear_velocity()->set_x(local_node.velocity(0));
+  pose_local->mutable_linear_velocity()->set_y(local_node.velocity(1));
+  pose_local->mutable_linear_velocity()->set_z(local_node.velocity(2));
+
+  pose_local->mutable_linear_acceleration()->set_x(local_node.linear_accel(0));
+  pose_local->mutable_linear_acceleration()->set_y(local_node.linear_accel(1));
+  pose_local->mutable_linear_acceleration()->set_z(local_node.linear_accel(2));
+
+  pose_local->mutable_angular_velocity()->set_x(local_node.angular_velocity(0));
+  pose_local->mutable_angular_velocity()->set_y(local_node.angular_velocity(1));
+  pose_local->mutable_angular_velocity()->set_z(local_node.angular_velocity(2));
+
   Eigen::Matrix<float, 6, 1> diag;
   diag << static_cast<float>(ins.sd_position().x()),
       static_cast<float>(ins.sd_position().y()),

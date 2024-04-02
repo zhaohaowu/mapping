@@ -17,6 +17,7 @@
 #include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
 #include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 #include "modules/map_fusion/include/map_fusion/map_fusion.h"
+#include "modules/map_fusion/include/map_fusion/map_select/map_select_lite.h"
 #include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 
 namespace hozon {
@@ -24,6 +25,7 @@ namespace perception {
 namespace common_onboard {
 
 using hozon::mp::mf::MapFusion;
+using hozon::mp::mf::MapSelectLite;
 using hozon::netaos::adf_lite::Bundle;
 
 class MapFusionLite : public hozon::netaos::adf_lite::Executor {
@@ -42,17 +44,29 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   int32_t OnLocation(Bundle* input);
   int32_t OnLocalMap(Bundle* input);
   int32_t OnLocPlugin(Bundle* input);
-
+  int32_t OnPercepTransport(Bundle* input);
+  int32_t OnDR(Bundle* input);
+  int32_t OnFCTIn(Bundle* input);
+  int DebugSelectMap();
   int32_t MapFusionOutput(Bundle* output);
 
  private:
   std::shared_ptr<hozon::localization::Localization> GetLatestLoc();
   std::shared_ptr<hozon::mapping::LocalMap> GetLatestLocalMap();
   std::shared_ptr<hozon::localization::HafNodeInfo> GetLatestLocPlugin();
+  std::shared_ptr<hozon::perception::TransportElement> GetLatestPercep();
+  std::shared_ptr<hozon::dead_reckoning::DeadReckoning> GetLatestDR();
+  std::shared_ptr<hozon::functionmanager::FunctionManagerIn> GetLatestFCTIn();
   int SendFusionResult(
       const std::shared_ptr<hozon::localization::Localization>& location,
       const std::shared_ptr<hozon::hdmap::Map>& map,
+      mp::mf::MapSelectResult select,
       hozon::routing::RoutingResponse* routing);
+  int SendPercepResult(
+      const std::shared_ptr<hozon::localization::Localization>& location,
+      const std::shared_ptr<hozon::hdmap::Map>& map,
+      mp::mf::MapSelectResult select,
+      const std::shared_ptr<hozon::routing::RoutingResponse>& routing);
 
   int MapFusionOutputEvaluation(
       const std::shared_ptr<hozon::navigation_hdmap::MapMsg>& map_fusion);
@@ -61,6 +75,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
  private:
   std::shared_ptr<hozon::routing::RoutingResponse> curr_routing_ = nullptr;
   std::unique_ptr<MapFusion> mf_ = nullptr;
+  std::unique_ptr<MapSelectLite> map_select_ = nullptr;
 
   std::mutex plugin_mtx_;
   std::shared_ptr<hozon::localization::HafNodeInfo> curr_plugin_ = nullptr;
@@ -69,6 +84,16 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   std::mutex local_map_mtx_;
   std::shared_ptr<hozon::mapping::LocalMap> curr_local_map_ = nullptr;
   int pre_fault_value_ = -1;
+  std::mutex percep_map_mtx_;
+  std::shared_ptr<hozon::perception::TransportElement> curr_percep_ = nullptr;
+  std::mutex dr_mtx_;
+  std::shared_ptr<hozon::dead_reckoning::DeadReckoning> curr_dr_ = nullptr;
+  std::mutex fct_mtx_;
+  std::shared_ptr<hozon::functionmanager::FunctionManagerIn> curr_fct_in_ =
+      nullptr;
+  std::mutex process_mtx_;
+  mp::mf::MapSelectResult curr_map_type_ = {hozon::navigation_hdmap::MapMsg_MapType_INVALID, false, 2};
+  bool select_debug_ = true;
 };
 
 REGISTER_ADF_CLASS(MapFusionLite, MapFusionLite);

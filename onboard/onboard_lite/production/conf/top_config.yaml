@@ -5,7 +5,7 @@ processName: mapping
 appLog:
   name: mapping
   description: mapping
-  file: /opt/usr/log/soc_log
+  file: ./
   mode: 3
   level: 4
 
@@ -25,6 +25,9 @@ executors:
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/phm_config/phm_common_onboard_config.yaml
     order: 2
     quit_order: 11
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/global_lite/global_lite_config.yaml
+    order: 3
+    quit_order: 10
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_ins_fusion_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_fc_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_dr_fusion_config.yaml
@@ -34,3 +37,4 @@ executors:
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/local_mapping/lm_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/map_fusion/mf_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/map_fusion/tlr_config.yaml
+#  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/viz_cvt/viz_cvt_config.yaml

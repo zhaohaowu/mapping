@@ -164,7 +164,8 @@ void MatchLaneLine::Match(const HdMap& hd_map,
   }
 }
 
-void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose, const Eigen::Vector3d& FC_vel) {
+void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
+                                             const Eigen::Vector3d& FC_vel) {
   if (percep_lanelines_.empty()) {
     return;
   }
@@ -191,7 +192,8 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose, const Eigen::Ve
 
   for (auto& line : fil_line_list) {
     if (line->lane_position_type() == -1) {
-      if (big_curvature_ || (FC_vel(0) < mm_params.min_vel && FC_vel(1) < mm_params.min_vel)) {
+      if (big_curvature_ ||
+          (FC_vel(0) < mm_params.min_vel && FC_vel(1) < mm_params.min_vel)) {
         far_dis = mm_params.curve_far_dis;
       } else {
         far_dis = mm_params.straight_far_dis;
@@ -200,7 +202,8 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose, const Eigen::Ve
                       &left_dist_far_v, far_dis);
     }
     if (line->lane_position_type() == 1) {
-      if (big_curvature_ || (FC_vel(0) < mm_params.min_vel && FC_vel(1) < mm_params.min_vel)) {
+      if (big_curvature_ ||
+          (FC_vel(0) < mm_params.min_vel && FC_vel(1) < mm_params.min_vel)) {
         far_dis = mm_params.curve_far_dis;
       } else {
         far_dis = mm_params.straight_far_dis;
@@ -525,9 +528,10 @@ bool MatchLaneLine::GetNeighboringMapLines(
 
 void MatchLaneLine::MergeMapLines(
     const std::shared_ptr<MapBoundaryLine>& boundary_lines, const SE3& T) {
+  if (!lines_map_.empty()) {
+    lines_map_.clear();
+  }
   auto T_V_W = T.inverse();
-  std::map<V3, std::vector<LineSegment>, PointV3Comp<V3>>
-      lines;  // map: {{start_point, LineSegment}}
   for (const auto& line : boundary_lines->boundary_line_) {
     if (line.second.line_type == MapLineType::LaneChangeVirtualLine) {
       continue;
@@ -547,22 +551,23 @@ void MatchLaneLine::MergeMapLines(
       continue;
     }
     LineSegment line_segment{id, end_point_v};
-    lines[start_point_v].emplace_back(std::move(line_segment));
+    lines_map_[start_point_v].emplace_back(std::move(line_segment));
   }
   if (!visited_id_.empty()) {
     visited_id_.clear();
   }
-  for (auto& line : lines) {
+  for (auto& line : lines_map_) {
     auto root_segment_start_point = line.first;
-    std::vector<std::vector<std::string>> linked_lines_id;  // 一组车道线
     std::vector<std::string> line_ids;
     if (visited_id_.count(line.second.front().first) > 0) {
       continue;
     }
     int loop = 0;
-    Traversal(lines, root_segment_start_point, &linked_lines_id, line_ids,
-              loop);
-    multi_linked_lines_.emplace_back(linked_lines_id);
+    if (!linked_lines_id_.empty()) {
+      linked_lines_id_.clear();
+    }
+    Traversal(root_segment_start_point, line_ids, loop);
+    multi_linked_lines_.emplace_back(linked_lines_id_);
   }
   if (multi_linked_lines_.empty()) {
     return;
@@ -607,30 +612,26 @@ void MatchLaneLine::MergeMapLines(
   return;
 }
 
-void MatchLaneLine::Traversal(
-    const std::map<V3, std::vector<std::pair<std::string, V3>>,
-                   PointV3Comp<V3>>& lines,
-    const V3& root_start_point,
-    std::vector<std::vector<std::string>>* linked_lines_id,
-    std::vector<std::string> line_ids, int loop) {
-  if (linked_lines_id == nullptr || lines.empty()) {
+void MatchLaneLine::Traversal(const V3& root_start_point,
+                              std::vector<std::string> line_ids, int loop) {
+  if (lines_map_.empty()) {
     return;
   }
   ++loop;
   if (loop > 100) {
-    linked_lines_id->emplace_back(line_ids);
+    linked_lines_id_.emplace_back(line_ids);
     HLOG_ERROR << "loop > 40, loop: " << loop;
     return;
   }
   V3 cur_start_point = root_start_point;
-  auto cur_line_infos_iter = lines.find(cur_start_point);
+  auto cur_line_infos_iter = lines_map_.find(cur_start_point);
 
-  if (cur_line_infos_iter == lines.end()) {
+  if (cur_line_infos_iter == lines_map_.end()) {
     if (line_ids.empty()) {
       HLOG_ERROR << "traversal loop failed " << loop;
       return;
     }
-    linked_lines_id->emplace_back(
+    linked_lines_id_.emplace_back(
         line_ids);  // 一侧车道线可能会有两根链接后车道线
     return;
   }
@@ -640,13 +641,12 @@ void MatchLaneLine::Traversal(
     for (int i = 0; i < size; ++i) {
       if (visited_id_.find(successor_segments_info[i].first) !=
           visited_id_.end()) {
-        linked_lines_id->emplace_back(line_ids);
+        linked_lines_id_.emplace_back(line_ids);
         return;
       }
       line_ids.emplace_back(successor_segments_info[i].first);
       visited_id_.insert(successor_segments_info[i].first);
-      Traversal(lines, successor_segments_info[i].second, linked_lines_id,
-                line_ids, loop);
+      Traversal(successor_segments_info[i].second, line_ids, loop);
       line_ids.pop_back();
     }
   } else {

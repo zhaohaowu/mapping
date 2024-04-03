@@ -218,10 +218,7 @@ class MatchLaneLine {
   void MergeMapLines(const std::shared_ptr<MapBoundaryLine>& boundary_lines,
                      const SE3& T);
 
-  void Traversal(const std::map<V3, std::vector<std::pair<std::string, V3>>,
-                                PointV3Comp<V3>>& lines,
-                 const V3& root_start_point,
-                 std::vector<std::vector<std::string>>* linked_lines_id,
+  void Traversal(const V3& root_start_point,
                  std::vector<std::string> line_ids, int loop);
   void AdjustWeightByLaneWidth(const std::vector<PointMatchPair>& match_pairs,
                                const SE3& T, size_t* left_pairs_count,
@@ -267,11 +264,13 @@ class MatchLaneLine {
 
  private:
   bool big_curvature_ = false;
+  
   std::unordered_set<std::string> visited_id_;
+  std::map<V3, std::vector<LineSegment>, PointV3Comp<V3>> lines_map_;  // map: {{start_point, LineSegment}}
+  std::vector<std::vector<std::string>> linked_lines_id_;
   std::vector<std::vector<std::vector<std::string>>>
       multi_linked_lines_;  // 内层vector是一组前后继链接的车道线
-  std::vector<std::string> linked_line_;
-  std::vector<std::string> copy_linked_line_;
+ 
   std::unordered_map<std::string, std::vector<ControlPoint>> merged_map_lines_;
   std::unordered_map<std::string, std::vector<ControlPoint>>
       merged_fcmap_lines_;

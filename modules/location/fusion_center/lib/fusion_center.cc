@@ -1608,7 +1608,7 @@ bool FusionCenter::FilterPoseEstimation(const Node& node) {
     }
     for (const auto& fusion : fusion_deque_) {
       if (fabs(fusion->ticktime - (*it)->ticktime) > 0.01 ||
-          fusion->state != 2) {
+          fusion->sys_status != 2) {
         continue;
       }
       auto last_pe_fusion_node = Node2SE3(*fusion).inverse() * Node2SE3((*it));

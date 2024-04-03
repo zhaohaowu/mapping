@@ -355,6 +355,7 @@ class MapMatching {
       "/mm/merged_map_lane_line_points";
   const std::string kTopicInsOdom = "/mm/ins_odom";
   const std::string kTopicMmOdom = "/mm/mm_odom";
+  const std::string kTopicDrOdom = "/mm/dr_odom";
   const std::string kTopicFcOdom = "/mm/fc_odom";
   const std::string kTopicInputOdom = "/mm/input_odom";
   const std::string kTopicMmMatchPoints = "/mm/link";

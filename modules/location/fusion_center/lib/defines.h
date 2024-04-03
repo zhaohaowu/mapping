@@ -41,6 +41,9 @@ struct Params {
   bool require_local_pose = false;
   bool use_debug_txt = false;
   bool lateral_error_compensation = false;
+  double max_dr_pe_horizontal_dist_error = 1.0;
+  double max_dr_pe_heading_error = 2.5;
+  double max_fc_pe_horizontal_dist_error = 0.1;
 
 
   std::vector<std::pair<uint32_t, uint32_t>> ins_init_status;
@@ -67,6 +70,7 @@ struct Node {
   uint32_t rtk_status = 0;
   uint32_t location_state = 0;
   double heading = 0;
+  bool state = false;
 };
 
 struct Context {

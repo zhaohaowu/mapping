@@ -32,3 +32,6 @@ use_debug_txt: false
 
 require_local_pose: false
 lateral_error_compensation: false
+max_dr_pe_horizontal_dist_error: 1.0
+max_dr_pe_heading_error: 5
+max_fc_pe_horizontal_dist_error: 0.5

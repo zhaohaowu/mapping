@@ -92,6 +92,8 @@ class FusionCenter {
   uint32_t FaultCodeAssign(uint32_t state);
   void DebugDiffTxt(std::ofstream& diff_file, const Node& compare_node,
                     const Node& ins_node);
+  double OrientationToHeading(const Eigen::Vector3d& orientation);
+  bool FilterPoseEstimation(const Node& node);
 
  private:
   Params params_;
@@ -148,6 +150,11 @@ class FusionCenter {
   std::ofstream fc_ins_diff_file_;
   std::ofstream mm_ins_diff_file_;
   std::deque<std::pair<double, double>> lateral_error_compensation_;
+  bool lateral_error_compensation_state_ = false;
+  double x_lateral_error_ = 0;
+  double y_lateral_error_ = 0;
+  bool init_dr_ins_ = false;
+  Node init_ins_node_;
 };
 
 }  // namespace fc

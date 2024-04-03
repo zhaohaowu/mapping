@@ -160,6 +160,11 @@ bool MapMatching::Init(const std::string& config_file,
       HLOG_WARN << "RvizAgent register " << kTopicMmOdom << " failed";
     }
     ret = hozon::mp::util::RvizAgent::Instance()
+              .Register<adsfi_proto::viz::Odometry>(kTopicDrOdom);
+    if (ret < 0) {
+      HLOG_WARN << "RvizAgent register " << kTopicMmOdom << " failed";
+    }
+    ret = hozon::mp::util::RvizAgent::Instance()
               .Register<adsfi_proto::viz::Odometry>(kTopicFcOdom);
     if (ret < 0) {
       HLOG_WARN << "RvizAgent register " << kTopicFcOdom << " failed";
@@ -545,10 +550,15 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
     return;
   }
 
+  Eigen::Vector3d dr_pose(info.pose_dr().position().x(), info.pose_dr().position().y(),
+                       info.pose_dr().position().z());
+
   ref_point_mutex_.lock();
   Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, ref_point_);
+  Eigen::Vector3d dr_enu = util::Geo::Gcj02ToEnu(dr_pose, ref_point_);
   ref_point_mutex_.unlock();
   pubOdomPoints(kTopicFcOdom, enu, q_W_V, fc_sec, fc_nsec);
+  pubOdomPoints(kTopicDrOdom, dr_enu, q_W_V, fc_sec, fc_nsec);
 
   adsfi_proto::viz::Marker text_marker;
   text_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);

@@ -6,7 +6,10 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /PointCloud1
+        - /Odometry1/Shape1
+        - /Odometry4/Shape1
+        - /Odometry5
+        - /Odometry5/Shape1
       Splitter Ratio: 0.5
     Tree Height: 719
   - Class: rviz/Selection
@@ -115,7 +118,7 @@ Visualization Manager:
       Queue Size: 10
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.15000000596046448
+      Size (m): 0.5
       Style: Flat Squares
       Topic: /mm/front_point
       Unreliable: false
@@ -127,9 +130,7 @@ Visualization Manager:
       Marker Topic: /mm/hd_map
       Name: MarkerArray
       Namespaces:
-        "": true
-        lane: true
-        lane_center: true
+        {}
       Queue Size: 100
       Value: true
     - Angle Tolerance: 0.10000000149011612
@@ -158,7 +159,7 @@ Visualization Manager:
         Alpha: 1
         Axes Length: 1
         Axes Radius: 0.10000000149011612
-        Color: 255; 25; 0
+        Color: 0; 0; 255
         Head Length: 0.30000001192092896
         Head Radius: 0.10000000149011612
         Shaft Length: 1
@@ -184,7 +185,7 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: false
+      Enabled: true
       Keep: 100
       Name: Odometry
       Position Tolerance: 0.10000000149011612
@@ -201,7 +202,7 @@ Visualization Manager:
         Value: Arrow
       Topic: /mm/mm_odom
       Unreliable: false
-      Value: false
+      Value: true
     - Angle Tolerance: 0.10000000149011612
       Class: rviz/Odometry
       Covariance:
@@ -263,7 +264,7 @@ Visualization Manager:
         Alpha: 1
         Axes Length: 1
         Axes Radius: 0.10000000149011612
-        Color: 255; 25; 0
+        Color: 0; 255; 0
         Head Length: 0.30000001192092896
         Head Radius: 0.10000000149011612
         Shaft Length: 1
@@ -279,6 +280,41 @@ Visualization Manager:
       Namespaces:
         "": true
       Queue Size: 100
+      Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Keep: 100
+      Name: Odometry
+      Position Tolerance: 0.10000000149011612
+      Queue Size: 10
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 125; 125; 125
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 0.05000000074505806
+        Value: Arrow
+      Topic: /mm/dr_odom
+      Unreliable: false
       Value: true
   Enabled: true
   Global Options:
@@ -308,7 +344,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 105.01808166503906
+      Distance: 85.95085906982422
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -344,5 +380,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1848
-  X: 72
-  Y: 27
+  X: 868
+  Y: 59

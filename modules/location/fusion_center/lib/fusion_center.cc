@@ -140,6 +140,12 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
   std::unique_lock<std::mutex> lock(ins_deque_mutex_);
   ins_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&ins_deque_, params_.ins_deque_max_size);
+  if (init_dr_) {
+    if (!init_dr_ins_) {
+      init_dr_ins_ = true;
+      init_ins_node_ = node;
+    }
+  }
 }
 
 void FusionCenter::OnDR(const HafNodeInfo& dr) {
@@ -165,7 +171,7 @@ void FusionCenter::OnDR(const HafNodeInfo& dr) {
   std::unique_lock<std::mutex> lock(dr_deque_mutex_);
   dr_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&dr_deque_, params_.dr_deque_max_size);
-  if (init_dr_== false && dr_deque_.size() >= 3) {
+  if (init_dr_ == false && dr_deque_.size() >= 3) {
     OnInitDR(*(dr_deque_.front()));
     init_dr_ = true;
   }
@@ -219,6 +225,7 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
     }
   }
 
+  node.state = FilterPoseEstimation(node);
   std::unique_lock<std::mutex> lock(pe_deque_mutex_);
   pe_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&pe_deque_, params_.pe_deque_max_size);
@@ -334,6 +341,12 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
   }
   params_.lateral_error_compensation =
       node["lateral_error_compensation"].as<bool>();
+  params_.max_dr_pe_horizontal_dist_error =
+      node["max_dr_pe_horizontal_dist_error"].as<double>();
+  params_.max_dr_pe_heading_error =
+      node["max_dr_pe_heading_error"].as<double>();
+  params_.max_fc_pe_horizontal_dist_error =
+      node["max_fc_pe_horizontal_dist_error"].as<double>();
   return true;
 }
 
@@ -744,6 +757,22 @@ void FusionCenter::Node2Localization(const Context& ctx,
     location->add_covariance(cov(i));
   }
 
+  const auto local_to_global_pose = Node2SE3(init_ins_node_) *
+                                    Node2SE3(init_dr_node_).inverse() *
+                                    Node2SE3(ctx.dr_node);
+
+  auto* const pose_dr = location->mutable_pose_dr();
+  auto enu = local_to_global_pose.translation();
+  pose_dr->mutable_position()->set_x(enu(0));
+  pose_dr->mutable_position()->set_y(enu(1));
+  pose_dr->mutable_position()->set_z(enu(2));
+
+  auto q_dr = Eigen::Quaterniond(local_to_global_pose.rotationMatrix());
+  pose_dr->mutable_quaternion()->set_w(q_dr.w());
+  pose_dr->mutable_quaternion()->set_x(q_dr.x());
+  pose_dr->mutable_quaternion()->set_y(q_dr.y());
+  pose_dr->mutable_quaternion()->set_z(q_dr.z());
+
   // debug
   if (global_node.rtk_status == 0) {
     HLOG_ERROR << "ins_seq:" << ins.header().seq()
@@ -912,7 +941,8 @@ bool FusionCenter::GenerateNewESKFMeas() {
     std::unique_lock<std::mutex> lock(pe_deque_mutex_);
     for (const auto& mm_node : pe_deque_) {
       auto ticktime_diff = mm_node->ticktime - cur_fusion_ticktime;
-      if (ticktime_diff && mm_node->ticktime > last_meas_time_) {
+      if (ticktime_diff > 0 && mm_node->ticktime > last_meas_time_ &&
+          mm_node->state) {
         meas_deque_.emplace_back(std::make_shared<Node>(*mm_node));
         meas_flag = true;
       }
@@ -967,29 +997,35 @@ bool FusionCenter::GenerateNewESKFMeas() {
 
       // (2)INS测量加入
     } else if (mm_size == 0 || time_diff >= params_.no_mm_max_time) {
-      double x_lateral_error = 0;
-      double y_lateral_error = 0;
       if (params_.lateral_error_compensation) {
         auto cnt = 0;
-        for (auto it = lateral_error_compensation_.begin();
-             it != lateral_error_compensation_.end(); ++it) {
-          ++cnt;
-          x_lateral_error += (*it).first / (1 << cnt);
-          y_lateral_error += (*it).second / (1 << cnt);
+        if (!lateral_error_compensation_state_) {
+          x_lateral_error_ = 0;
+          y_lateral_error_ = 0;
+          for (auto it = lateral_error_compensation_.begin();
+               it != lateral_error_compensation_.end(); ++it) {
+            ++cnt;
+            x_lateral_error_ += (*it).first / (1 << cnt);
+            y_lateral_error_ += (*it).second / (1 << cnt);
+          }
+          lateral_error_compensation_state_ = true;
         }
-        lateral_error_compensation_.emplace_back(
-            std::pair<double, double>{x_lateral_error, y_lateral_error});
       }
       std::unique_lock<std::mutex> lock(ins_deque_mutex_);
       for (const auto& ins_node : ins_deque_) {
         if (ins_node->ticktime > cur_fusion_ticktime &&
             ins_node->ticktime > last_meas_time_ &&
             AllowInsMeas(ins_node->sys_status, ins_node->rtk_status)) {
+          std::shared_ptr<Node> new_ins_node =
+              std::make_shared<Node>(*ins_node);
           if (params_.lateral_error_compensation) {
-            ins_node->enu(0) += x_lateral_error;
-            ins_node->enu(1) += y_lateral_error;
+            auto lateral_error = std::sqrt(std::pow(x_lateral_error_, 2) +
+                                           std::pow(y_lateral_error_, 2));
+            auto heading = new_ins_node->heading / 180 * M_PI;
+            new_ins_node->enu(0) += lateral_error * std::cos(heading);
+            new_ins_node->enu(1) += lateral_error * std::sin(heading);
           }
-          meas_deque_.emplace_back(std::make_shared<Node>(*ins_node));
+          meas_deque_.emplace_back(std::make_shared<Node>(*new_ins_node));
           meas_flag = true;
         }
       }
@@ -1546,6 +1582,86 @@ void FusionCenter::DebugDiffTxt(std::ofstream& diff_file,
             << euler_diff.z() << std::endl;
 }
 
+double FusionCenter::OrientationToHeading(const Eigen::Vector3d& orientation) {
+  const Sophus::SO3d& rot = Sophus::SO3d::exp(orientation);
+  Eigen::Vector3d euler = Rot2Euler312(rot.matrix());
+  euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
+
+  return 90.0 - euler.z() / M_PI * 180;
+}
+
+bool FusionCenter::FilterPoseEstimation(const Node& node) {
+  std::unique_lock<std::mutex> lock_pe(pe_deque_mutex_);
+  if (pe_deque_.empty() || dr_deque_.empty()) {
+    return true;
+  }
+
+  bool flag = false;
+  auto pe = pe_deque_.back();
+  auto pe_dist = 0.0;
+  std::unique_lock<std::mutex> lock_fusion(fusion_deque_mutex_);
+  double pe_back_time = pe_deque_.back()->ticktime;
+  for (auto it = pe_deque_.rbegin(); it != pe_deque_.rend(); ++it) {
+    auto pe_diff = pe_back_time - (*it)->ticktime;
+    if (pe_diff < -1.0e-3 || pe_diff > 1) {
+      continue;
+    }
+    for (const auto& fusion : fusion_deque_) {
+      if (fabs(fusion->ticktime - (*it)->ticktime) > 0.01 ||
+          fusion->state != 2) {
+        continue;
+      }
+      auto last_pe_fusion_node = Node2SE3(*fusion).inverse() * Node2SE3((*it));
+      auto curr_pe_fusion_enu = last_pe_fusion_node.translation();
+      flag = std::fabs(curr_pe_fusion_enu(0)) <=
+             params_.max_fc_pe_horizontal_dist_error;
+      break;
+    }
+    if (flag) {
+      pe = (*it);
+      auto last_cur_rel_pose = Node2SE3(*pe).inverse() * Node2SE3(node);
+      auto last_pe_enu = last_cur_rel_pose.translation();
+      pe_dist = last_pe_enu(0);
+      break;
+    }
+  }
+
+  std::shared_ptr<Node> last_dr = nullptr, curr_dr = nullptr;
+  if (flag) {
+    std::unique_lock<std::mutex> lock_dr(dr_deque_mutex_);
+    for (const auto& dr_deque : dr_deque_) {
+      if (fabs(dr_deque->ticktime - pe->ticktime) < 0.01) {
+        last_dr = std::make_shared<Node>(*dr_deque);
+      }
+      if (fabs(dr_deque->ticktime - node.ticktime) < 0.01) {
+        curr_dr = std::make_shared<Node>(*dr_deque);
+      }
+    }
+  }
+
+  if (!last_dr || !curr_dr || !flag) {
+    return false;
+  }
+  flag = curr_dr->ticktime > last_dr->ticktime;
+  if (!flag) {
+    return false;
+  }
+  auto last_pe_heading = OrientationToHeading(pe->orientation);
+  auto curr_pe_heading = OrientationToHeading(node.orientation);
+
+  auto last_dr_heading = OrientationToHeading(last_dr->orientation);
+  auto curr_dr_heading = OrientationToHeading(curr_dr->orientation);
+
+  auto last_dr_node = Node2SE3(*last_dr).inverse() * Node2SE3(*curr_dr);
+  auto last_dr_enu = last_dr_node.translation();
+
+  auto dr_dist = last_dr_enu(0);
+  auto diff_heading = std::fabs(std::fabs(last_pe_heading - curr_pe_heading) -
+                                std::fabs(last_dr_heading - curr_dr_heading));
+  auto diff_dist = std::fabs(dr_dist - pe_dist);
+  return diff_heading > 0 && diff_heading < params_.max_dr_pe_heading_error &&
+         diff_dist > 0 && diff_dist < params_.max_dr_pe_horizontal_dist_error;
+}
 }  // namespace fc
 }  // namespace loc
 }  // namespace mp

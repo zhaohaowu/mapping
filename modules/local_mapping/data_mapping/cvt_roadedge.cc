@@ -94,7 +94,7 @@ bool DataMapping::CvtRoadEdge2TePb(const RoadEdgePtr& roadedge_msg,
     return false;
   }
   pb_roadedge->set_id(roadedge_msg->id);
-  pb_roadedge->set_confidence(roadedge_msg->geo_confidence);
+  pb_roadedge->set_confidence(1.0);
   hozon::perception::LanePositionType send_pos_type =
       CvtRoadEdgePosType2TePb(roadedge_msg->te_position);
   for (auto& item_pt : roadedge_msg->vehicle_points) {
@@ -142,7 +142,7 @@ bool DataMapping::CvtRoadEdge2Pb(const RoadEdgePtr& roadedge_msg,
   //           << static_cast<int>(send_pos_type);
   auto* curve_lane = pb_roadedge->mutable_lane_param()->add_cubic_curve_set();
   pb_roadedge->set_lanepos(send_pos_type);
-
+  pb_roadedge->set_confidence(1.0);
   if (roadedge_msg->vehicle_curve.coeffs.size() == 4) {
     // 车道线三次方程系数跟踪方案发送字段
     curve_lane->set_c0(roadedge_msg->vehicle_curve.coeffs[0]);

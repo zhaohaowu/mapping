@@ -15,7 +15,8 @@ void PrintMeasurementStopLine(StopLinePtr stopline_ptr) {
   std::cout << "stopline-leftpoint:" << stopline_ptr->left_point << std::endl;
   std::cout << "stopline-right_point:" << stopline_ptr->right_point
             << std::endl;
-  std::cout << "stopline-center_point:" << stopline_ptr->center_point << std::endl;
+  std::cout << "stopline-center_point:" << stopline_ptr->center_point
+            << std::endl;
   std::cout << "stopline-heading:" << stopline_ptr->heading << std::endl;
   std::cout << "stopline-length:" << stopline_ptr->length << std::endl;
 }
@@ -39,6 +40,9 @@ bool DataMapping::CvtPb2Measurement(
   HLOG_DEBUG << "TEST pb lane_lines nums:"
              << measurepb->transport_element().lane().size();
   for (const auto& item : measurepb->transport_element().lane()) {
+    if (item.points_size() <= 0) {
+      continue;
+    }
     LaneLinePtr laneptr = std::make_shared<LaneLine>();
     CvtPb2LaneLineMeasurement(item, laneptr);
     measure_frame->lane_lines_ptr->lanelines.push_back(laneptr);
@@ -47,6 +51,9 @@ bool DataMapping::CvtPb2Measurement(
   HLOG_DEBUG << "TEST pb road_edges nums:"
              << measurepb->transport_element().road_edges().size();
   for (const auto& item : measurepb->transport_element().road_edges()) {
+    if (item.points_size() <= 0) {
+      continue;
+    }
     RoadEdgePtr roadedgeptr = std::make_shared<RoadEdge>();
     CvtPb2RoadEdgeMeasurement(item, roadedgeptr);
     measure_frame->road_edges_ptr->road_edges.push_back(roadedgeptr);

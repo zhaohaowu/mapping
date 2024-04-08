@@ -77,6 +77,7 @@ void LaneLineMatcher::SetTrackKDTree(
         lane_trackers[i]->GetConstTarget()->GetConstTrackedObject();
     if (lane_line->vehicle_points.empty()) {
       track_kdtrees_[i] = nullptr;
+      continue;
     }
     std::vector<cv::Point2f> cv_points;
     double last_y = 0.0;

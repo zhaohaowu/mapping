@@ -332,7 +332,8 @@ bool DataMapping::CvtLaneLine2Pb(const LaneLinePtr& lane_msg,
 
   hozon::mapping::Color send_color = CvtLaneColor2Pb(lane_msg->color);
   pb_lane->set_color(send_color);
-  pb_lane->set_confidence(lane_msg->geo_confidence);
+  pb_lane->set_confidence(1.0);
+  // pb_lane->set_confidence(lane_msg->geo_confidence);
   return true;
 }
 

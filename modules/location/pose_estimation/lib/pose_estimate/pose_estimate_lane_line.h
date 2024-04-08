@@ -48,7 +48,7 @@ class MatchLaneLine {
    * @return
    */
   void Match(const HdMap& hd_map, const std::shared_ptr<Perception>& perception,
-             const SE3& T_W_V, const ValidPose &T_fc);
+             const SE3& T_W_V, const ValidPose& T_fc);
 
   /**
    * @brief check the solve result
@@ -129,7 +129,8 @@ class MatchLaneLine {
                       const LaneLinePerceptionPtr& pecep,
                       const double& min_match_x, const double& max_match_x,
                       const double& sample_interval, const bool& is_good_check);
-  void CheckIsGoodMatchFCbyLine(const SE3& FC_pose, const Eigen::Vector3d& FC_vel);
+  void CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
+                                const Eigen::Vector3d& FC_vel);
   void CalLinesMinDist(const LaneLinePerceptionPtr& percep,
                        const std::vector<std::vector<V3>>& map_lines_point,
                        double* const near, double* const far,
@@ -218,8 +219,8 @@ class MatchLaneLine {
   void MergeMapLines(const std::shared_ptr<MapBoundaryLine>& boundary_lines,
                      const SE3& T);
 
-  void Traversal(const V3& root_start_point,
-                 std::vector<std::string> line_ids, int loop);
+  void Traversal(const V3& root_start_point, std::vector<std::string> line_ids,
+                 int loop);
   void AdjustWeightByLaneWidth(const std::vector<PointMatchPair>& match_pairs,
                                const SE3& T, size_t* left_pairs_count,
                                size_t* right_pairs_count,
@@ -264,13 +265,14 @@ class MatchLaneLine {
 
  private:
   bool big_curvature_ = false;
-  
+
   std::unordered_set<std::string> visited_id_;
-  std::map<V3, std::vector<LineSegment>, PointV3Comp<V3>> lines_map_;  // map: {{start_point, LineSegment}}
+  std::map<V3, std::vector<LineSegment>, PointV3Comp<V3>>
+      lines_map_;  // map: {{start_point, LineSegment}}
   std::vector<std::vector<std::string>> linked_lines_id_;
   std::vector<std::vector<std::vector<std::string>>>
       multi_linked_lines_;  // 内层vector是一组前后继链接的车道线
- 
+
   std::unordered_map<std::string, std::vector<ControlPoint>> merged_map_lines_;
   std::unordered_map<std::string, std::vector<ControlPoint>>
       merged_fcmap_lines_;

@@ -106,10 +106,16 @@ int MapFusion::ProcService(
 }
 
 int MapFusion::ProcFusion(
+    const std::shared_ptr<hozon::localization::HafNodeInfo>& curr_node_info,
     const std::shared_ptr<hozon::localization::Localization>& curr_loc,
     const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
     bool need_update_global_hd, std::shared_ptr<hozon::hdmap::Map>& fusion_map,
     hozon::routing::RoutingResponse* routing) {
+  if (!curr_node_info) {
+    HLOG_ERROR << "input nullptr current node info";
+    return -1;
+  }
+
   if (!curr_loc) {
     HLOG_ERROR << "input nullptr current localization";
     return -1;
@@ -163,6 +169,7 @@ int MapFusion::ProcFusion(
     //! 不会存在两次调用得到的ptr指向同一片空间;
     map = pred_->GetPredictionMap();
   } else {
+    pred_->OnInsNodeInfo(curr_node_info);
     pred_->OnLocalization(curr_loc);
     if (FLAGS_map_service_mode == 1) {
       map = pred_->GetHdMapNNP(need_update_global_hd, routing);

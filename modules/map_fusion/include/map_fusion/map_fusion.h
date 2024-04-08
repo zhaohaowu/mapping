@@ -43,6 +43,7 @@ class MapFusion {
       const std::shared_ptr<hozon::planning::ADCTrajectory>& curr_planning,
       hozon::routing::RoutingResponse* routing);
   int ProcFusion(
+      const std::shared_ptr<hozon::localization::HafNodeInfo>& curr_node_info,
       const std::shared_ptr<hozon::localization::Localization>& curr_loc,
       const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
       bool need_update_global_hd,

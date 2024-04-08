@@ -25,12 +25,12 @@ namespace perception {
 namespace common_onboard {
 
 int32_t MapFusionLite::AlgInit() {
-// #ifdef ISORIN
-//  hozon::netaos::log::InitLogging(
-//      "mapping", "mapping", hozon::netaos::log::LogLevel::kDebug,
-//      hozon::netaos::log::HZ_LOG2FILE, "/opt/usr/log/soc_log/", 10,
-//      (20 * 1024 * 1024), true);
-// #endif
+  // #ifdef ISORIN
+  //  hozon::netaos::log::InitLogging(
+  //      "mapping", "mapping", hozon::netaos::log::LogLevel::kDebug,
+  //      hozon::netaos::log::HZ_LOG2FILE, "/opt/usr/log/soc_log/", 10,
+  //      (20 * 1024 * 1024), true);
+  // #endif
   std::string default_work_root = "/app/";
   std::string work_root = lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
   if (work_root == "") {

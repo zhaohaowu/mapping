@@ -193,6 +193,7 @@ class MapPrediction {
   //   std::shared_ptr<LocalMap> local_msg;
   Eigen::Vector2d location_utm_;
   int utm_zone_ = 0;
+  double ins_heading_ = 0.;
   std::shared_ptr<hozon::hdmap::Map> local_msg_ = nullptr;
   std::shared_ptr<hozon::hdmap::Map> hq_map_ = nullptr;
   uint32_t id = -1;

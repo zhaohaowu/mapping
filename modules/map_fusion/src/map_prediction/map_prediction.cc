@@ -107,16 +107,21 @@ int MapPrediction::Init() {
 
 void MapPrediction::Stop() {}
 
+// 范围：[0-360)，北零顺时针 转到
+// 范围：[-180-180)，东零逆时针(最后都转为弧度)
+double ConvertHeading(double heading) {
+  double cal_heading = -heading * M_PI / 180.0 + M_PI * 3 / 2;
+  if (cal_heading >= 0) {
+    cal_heading -= M_PI;
+  } else if (cal_heading < 0) {
+    cal_heading += M_PI;
+  }
+  return cal_heading;
+}
+
 void MapPrediction::OnInsNodeInfo(
     const std::shared_ptr<hozon::localization::HafNodeInfo>& msg) {
-  Eigen::Vector3d gcj02(msg->pos_gcj02().x(), msg->pos_gcj02().y(),
-                        msg->pos_gcj02().z());
-  uint32_t zone_u = std::floor(msg->pos_gcj02().y() / 6.0 + 31);
-  int zone = static_cast<int>(zone_u);
-  double x = msg->pos_gcj02().x();
-  double y = msg->pos_gcj02().y();
-  hozon::common::coordinate_convertor::GCS2UTM(zone, &y, &x);
-  OnLocationInGlobal(zone, y, x);
+  ins_heading_ = static_cast<double>(msg->heading());
 }
 
 void MapPrediction::OnLocalization(
@@ -479,6 +484,11 @@ void MapPrediction::OnTopoMap(
 
 std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
     bool need_update_global_hd, hozon::routing::RoutingResponse* routing) {
+  if (need_update_global_hd) {
+    current_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
+    current_routing_->CopyFrom(*routing);
+  }
+
   if (!need_update_global_hd) {
     HDMapLaneToLocal();
     RoutingPointToLocal(need_update_global_hd, routing, routing_lane_id_);
@@ -499,8 +509,10 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
   double nearest_l = 0.;
   hozon::hdmap::LaneInfoConstPtr lane_ptr = nullptr;
 
-  int ret =
-      GLOBAL_HD_MAP->GetNearestLane(utm_pos, &lane_ptr, &nearest_s, &nearest_l);
+  // 目前搜索半径为20m，角度偏差为18度
+  int ret = GLOBAL_HD_MAP->GetNearestLaneWithHeading(
+      utm_pos, 50, ConvertHeading(ins_heading_), M_PI / 10, &lane_ptr,
+      &nearest_s, &nearest_l);
 
   if (ret != 0 || lane_ptr == nullptr) {
     HLOG_ERROR << "get nearest lane failed";
@@ -624,12 +636,10 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
     HLOG_ERROR << "init_pose_ not inited";
     return nullptr;
   }
-  HDMapLaneToLocal();
 
   routing_lane_id_ = routing_lanes[row_max].back();
-  current_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
-  current_routing_->CopyFrom(*routing);
 
+  HDMapLaneToLocal();
   RoutingPointToLocal(need_update_global_hd, routing, routing_lane_id_);
 
   return hq_map_;

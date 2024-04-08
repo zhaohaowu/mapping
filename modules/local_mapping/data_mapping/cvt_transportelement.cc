@@ -32,19 +32,19 @@ bool DataMapping::CvtLocalMap2TePb(
 
   if (localmap_frame_ptr->lane_lines_ptr != nullptr) {
     for (auto& item : localmap_frame_ptr->lane_lines_ptr->lanelines) {
-      if (item->send_postlane) {
-        auto pb_laneline_ptr = transport_element_pb->add_lane();
-        CvtLaneLine2TePb(item, pb_laneline_ptr);
-      }
+      // if (item->send_postlane) {
+      auto pb_laneline_ptr = transport_element_pb->add_lane();
+      CvtLaneLine2TePb(item, pb_laneline_ptr);
+      // }
     }
   }
 
   if (localmap_frame_ptr->road_edges_ptr != nullptr) {
     for (auto& item : localmap_frame_ptr->road_edges_ptr->road_edges) {
-      if (item->send_postlane) {
-        auto pb_roadedge_ptr = transport_element_pb->add_road_edges();
-        CvtRoadEdge2TePb(item, pb_roadedge_ptr);
-      }
+      // if (item->send_postlane) {
+      auto pb_roadedge_ptr = transport_element_pb->add_road_edges();
+      CvtRoadEdge2TePb(item, pb_roadedge_ptr);
+      // }
     }
   }
 

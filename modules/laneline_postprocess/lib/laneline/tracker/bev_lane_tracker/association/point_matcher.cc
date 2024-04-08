@@ -108,6 +108,7 @@ void PointMatcher::SetTrackKDTree(
         lane_trackers[i]->GetConstLaneTarget()->GetConstTrackedLaneLine();
     if (lane_line->point_set.size() == 0) {
       track_kdtrees_[i] = nullptr;
+      continue;
     }
     std::vector<cv::Point2f> cv_points;
     double last_y = 0.0, std_y = 0.0;
@@ -146,6 +147,7 @@ void PointMatcher::SetTrackKDTree(
         lane_trackers[i]->GetConstLaneTarget()->GetConstTrackedLaneLine();
     if (lane_line->point_set.size() == 0) {
       track_kdtrees_[i] = nullptr;
+      continue;
     }
     std::vector<cv::Point2f> cv_points;
     for (size_t j = 0; j < lane_line->point_set.size(); ++j) {

@@ -550,8 +550,9 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
     return;
   }
 
-  Eigen::Vector3d dr_pose(info.pose_dr().position().x(), info.pose_dr().position().y(),
-                       info.pose_dr().position().z());
+  Eigen::Vector3d dr_pose(info.pose_dr().position().x(),
+                          info.pose_dr().position().y(),
+                          info.pose_dr().position().z());
 
   ref_point_mutex_.lock();
   Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, ref_point_);
@@ -711,7 +712,7 @@ void MapMatching::procData() {
     if (fabs(q_W_V.norm() - 1) < 1e-3) {
       q_W_V.normalize();
       Eigen::Vector3d pose(cur_fc.pose().gcj02().x(), cur_fc.pose().gcj02().y(),
-                          cur_fc.pose().gcj02().z());
+                           cur_fc.pose().gcj02().z());
       ref_point_mutex_.lock();
       Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, esti_ref_point);
       ref_point_mutex_.unlock();
@@ -864,24 +865,24 @@ void MapMatching::procData() {
           mm_params.use_rviz_bridge) {
         if (!_T_W_V_fine.translation().isZero()) {
           HLOG_DEBUG << "optimize_finish_, " << Precusion(proc_stamp_, 16);
-          setPoints(*lane, T_output_, &front_points_);
+          setPoints(*lane, T02_W_V, &front_points_);
           pubOdomPoints(kTopicMmOdom, T_output_.translation(),
                         T_output_.unit_quaternion(), time_sec_, time_nsec_);
         } else {
-          setPoints(*lane, T02_W_V_INPUT, &front_points_);
+          setPoints(*lane, T02_W_V, &front_points_);
         }
         pubPoints(front_points_, time_sec_, time_nsec_, kTopicMmFrontPoints);
         front_points_.clear();
-        setConnectPercepPoints(connect, T_output_, front_points_);
+        setConnectPercepPoints(connect, T02_W_V, front_points_);
         pubConnectPercepPoints(front_points_, time_sec_, time_nsec_);
         front_points_.clear();
-        setConnectMapPoints(connect, T_output_, front_points_);
+        setConnectMapPoints(connect, T02_W_V, front_points_);
         pubConnectMapPoints(front_points_, time_sec_, time_nsec_);
         front_points_.clear();
-        setOriginConnectMapPoints(origin_connect, T_output_, front_points_);
+        setOriginConnectMapPoints(origin_connect, T02_W_V, front_points_);
         pubOriginConnectMapPoints(front_points_, time_sec_, time_nsec_);
         front_points_.clear();
-        setOriginConnectPercepPoints(origin_connect, T_output_, front_points_);
+        setOriginConnectPercepPoints(origin_connect, T02_W_V, front_points_);
         pubOriginConnectPercepPoints(front_points_, time_sec_, time_nsec_);
       }
     }

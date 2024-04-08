@@ -17,8 +17,7 @@ MapMatchSolver::MapMatchSolver() {}
 
 Sophus::SE3d MapMatchSolver::solve2D(const Connect &connect,
                                      const Sophus::SE3d &pose,
-                                     const Sophus::SE3d &pre_pose,
-                                     bool *is_ok,
+                                     const Sophus::SE3d &pre_pose, bool *is_ok,
                                      const double &ins_timestamp) {
   if (is_ok == nullptr) {
     return pose;

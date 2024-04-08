@@ -74,7 +74,14 @@ class MatchLaneLine {
    *
    * @return match pairs
    */
-  inline std::vector<PointMatchPair> get_match_pairs() { return match_pairs_; }
+  inline std::vector<PointMatchPair> get_match_pairs() {
+    std::vector<PointMatchPair> match_pairs;
+    for (const auto& line_match_pair : match_pairs_) {
+      for (const auto& point_pair : line_match_pair)
+        match_pairs.push_back(point_pair);
+    }
+    return match_pairs;
+  }
 
   /**
    * @brief get match lane line size
@@ -111,7 +118,12 @@ class MatchLaneLine {
   }
   VP SetRvizMergeMapLines();
   inline std::vector<PointMatchPair> get_origin_pairs() {
-    return origin_match_pairs_;
+    std::vector<PointMatchPair> match_pairs;
+    for (const auto& line_match_pair : origin_match_pairs_) {
+      for (const auto& point_pair : line_match_pair)
+        match_pairs.push_back(point_pair);
+    }
+    return match_pairs;
   }
 
  private:
@@ -221,11 +233,10 @@ class MatchLaneLine {
 
   void Traversal(const V3& root_start_point, std::vector<std::string> line_ids,
                  int loop);
-  void AdjustWeightByLaneWidth(const std::vector<PointMatchPair>& match_pairs,
-                               const SE3& T, size_t* left_pairs_count,
-                               size_t* right_pairs_count,
-                               bool* adjust_left_pairs_weight,
-                               bool* adjust_right_pairs_weight);
+  void AdjustWeightByLaneWidth(
+      const std::vector<std::vector<PointMatchPair>>& match_pairs, const SE3& T,
+      size_t* left_pairs_count, size_t* right_pairs_count,
+      bool* adjust_left_pairs_weight, bool* adjust_right_pairs_weight);
   void ComputeCurvature(const std::vector<double>& coeffs, const double x,
                         double* curvature);
 
@@ -233,8 +244,8 @@ class MatchLaneLine {
   double ts_;
   double last_ins_timestamp_ = 0.f;
   double ins_timestamp_ = 0.f;
-  std::vector<PointMatchPair> origin_match_pairs_;
-  std::vector<PointMatchPair> match_pairs_;
+  std::vector<std::vector<PointMatchPair>> origin_match_pairs_;
+  std::vector<std::vector<PointMatchPair>> match_pairs_;
   std::list<LineMatchPair> line_match_pairs_;
   std::shared_ptr<Perception> percep_;
   std::list<std::list<LaneLinePerceptionPtr>> percep_lanelines_;

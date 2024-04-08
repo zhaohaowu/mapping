@@ -13,8 +13,8 @@ input:
     capacity: 2
   - topic: /location/pose_estimation
     capacity: 2
-  - topic: local_map
-    capacity: 2
+  # - topic: local_map
+  #   capacity: 2
   - topic: running_mode 
     capacity: 2
 
@@ -43,8 +43,8 @@ trigger:
     mainSources:
       - name: running_mode
         timeout: 1000
-  - name: recv_local_map
-    type: EVENT
-    mainSources:
-      - name: local_map
-        timeout: 1000
+  # - name: recv_local_map
+  #   type: EVENT
+  #   mainSources:
+  #     - name: local_map
+  #       timeout: 1000

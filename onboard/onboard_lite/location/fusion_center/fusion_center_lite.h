@@ -42,7 +42,7 @@ class FusionCenterLite : public hozon::netaos::adf_lite::Executor {
   void RegistProcessFunc();
   int32_t OnInsFusion(Bundle* input);
   int32_t OnDrFusion(Bundle* input);
-  int32_t OnLocalMap(Bundle* input);
+  // int32_t OnLocalMap(Bundle* input);
   int32_t OnPoseEstimation(Bundle* input);
   int32_t OnRunningMode(Bundle* input);
 

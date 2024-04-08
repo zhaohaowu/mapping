@@ -183,10 +183,10 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   if (!ref_init_ || !params_.recv_pe) {
     return;
   }
-  // seq not used on orin
-  // if (pe.header().seq() == prev_raw_pe_.header().seq()) {
-  //   return;
-  // }
+  if (pe.header().data_stamp() == prev_raw_pe_.header().data_stamp()) {
+    HLOG_ERROR << "error OnPE,data_stamp:" << pe.header().data_stamp();
+    return;
+  }
   monitor_->OnPeFault(pe);
 
   if (!pe.valid_estimate()) {
@@ -226,6 +226,12 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   }
 
   node.state = FilterPoseEstimation(node);
+  // 最新的有效的MM测量，用于判断是否加入INS测量
+  if (node.state) {
+    lastest_valid_pe_mutex_.lock();
+    lastest_valid_pe_ = node;
+    lastest_valid_pe_mutex_.unlock();
+  }
   std::unique_lock<std::mutex> lock(pe_deque_mutex_);
   pe_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&pe_deque_, params_.pe_deque_max_size);
@@ -976,7 +982,9 @@ bool FusionCenter::GenerateNewESKFMeas() {
     pe_deque_mutex_.lock();
     int mm_size = pe_deque_.size();
     if (mm_size != 0) {
-      double cur_mm_ticktime = pe_deque_.back()->ticktime;
+      lastest_valid_pe_mutex_.lock();
+      double cur_mm_ticktime = lastest_valid_pe_.ticktime;
+      lastest_valid_pe_mutex_.unlock();
       time_diff = ins_ticktime - cur_mm_ticktime;
     }
     pe_deque_mutex_.unlock();

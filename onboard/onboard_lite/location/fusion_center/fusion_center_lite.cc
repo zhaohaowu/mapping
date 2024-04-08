@@ -186,60 +186,60 @@ int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
 
   return 0;
 }
-
-int32_t FusionCenterLite::OnLocalMap(Bundle* input) {
-  if (!input) {
-    return -1;
-  }
-  if (init_dr_) {
-    return 0;
-  }
-  static double last_lm_time = -1.0;
-  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
-  auto p_local_map = input->GetOne(kLocalMapTopic);
-  if (!p_local_map) {
-    phm_fault->Report(MAKE_FM_TUPLE(
-        hozon::perception::base::FmModuleId::MAPPING,
-        hozon::perception::base::FaultType::
-            MULTI_FRAME_LOCALMAPPING_INPUT_DATA_LOSS,
-        hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
-    HLOG_ERROR << "Location:localmap input data loss";
-    return -1;
-  }
-  phm_fault->Report(
-      MAKE_FM_TUPLE(hozon::perception::base::FmModuleId::MAPPING,
-                    hozon::perception::base::FaultType::
-                        MULTI_FRAME_LOCALMAPPING_INPUT_DATA_LOSS,
-                    hozon::perception::base::FaultStatus::RESET,
-                    hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
-  const auto local_map = std::static_pointer_cast<hozon::mapping::LocalMap>(
-      p_local_map->proto_msg);
-  if (!local_map) {
-    return -1;
-  }
-  double cur_lm_time = local_map->header().data_stamp();
-  if (last_lm_time > 0) {
-    if (last_lm_time - cur_lm_time > 0) {
-      phm_fault->Report(MAKE_FM_TUPLE(
-          hozon::perception::base::FmModuleId::MAPPING,
-          hozon::perception::base::FaultType::
-              MULTI_FRAME_LOCALMAPPING_INPUT_TIME_ERROR,
-          hozon::perception::base::FaultStatus::OCCUR,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
-      HLOG_ERROR << "Location:receieve localmap time error";
-    } else {
-      phm_fault->Report(MAKE_FM_TUPLE(
-          hozon::perception::base::FmModuleId::MAPPING,
-          hozon::perception::base::FaultType::
-              MULTI_FRAME_LOCALMAPPING_INPUT_TIME_ERROR,
-          hozon::perception::base::FaultStatus::RESET,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
-    }
-  }
-  last_lm_time = cur_lm_time;
-  return 0;
-}
+// 目前fc没有用到local_map，当前放开会上报无效故障，暂时注释，后续接入时放开
+// int32_t FusionCenterLite::OnLocalMap(Bundle* input) {
+//   if (!input) {
+//     return -1;
+//   }
+//   if (init_dr_) {
+//     return 0;
+//   }
+//   static double last_lm_time = -1.0;
+//   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+//   auto p_local_map = input->GetOne(kLocalMapTopic);
+//   if (!p_local_map) {
+//     phm_fault->Report(MAKE_FM_TUPLE(
+//         hozon::perception::base::FmModuleId::MAPPING,
+//         hozon::perception::base::FaultType::
+//             MULTI_FRAME_LOCALMAPPING_INPUT_DATA_LOSS,
+//         hozon::perception::base::FaultStatus::OCCUR,
+//         hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
+//     HLOG_ERROR << "Location:localmap input data loss";
+//     return -1;
+//   }
+//   phm_fault->Report(
+//       MAKE_FM_TUPLE(hozon::perception::base::FmModuleId::MAPPING,
+//                     hozon::perception::base::FaultType::
+//                         MULTI_FRAME_LOCALMAPPING_INPUT_DATA_LOSS,
+//                     hozon::perception::base::FaultStatus::RESET,
+//                     hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+//   const auto local_map = std::static_pointer_cast<hozon::mapping::LocalMap>(
+//       p_local_map->proto_msg);
+//   if (!local_map) {
+//     return -1;
+//   }
+//   double cur_lm_time = local_map->header().data_stamp();
+//   if (last_lm_time > 0) {
+//     if (last_lm_time - cur_lm_time > 0) {
+//       phm_fault->Report(MAKE_FM_TUPLE(
+//           hozon::perception::base::FmModuleId::MAPPING,
+//           hozon::perception::base::FaultType::
+//               MULTI_FRAME_LOCALMAPPING_INPUT_TIME_ERROR,
+//           hozon::perception::base::FaultStatus::OCCUR,
+//           hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
+//       HLOG_ERROR << "Location:receieve localmap time error";
+//     } else {
+//       phm_fault->Report(MAKE_FM_TUPLE(
+//           hozon::perception::base::FmModuleId::MAPPING,
+//           hozon::perception::base::FaultType::
+//               MULTI_FRAME_LOCALMAPPING_INPUT_TIME_ERROR,
+//           hozon::perception::base::FaultStatus::RESET,
+//           hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+//     }
+//   }
+//   last_lm_time = cur_lm_time;
+//   return 0;
+// }
 
 int32_t FusionCenterLite::OnPoseEstimation(Bundle* input) {
   if (!input) {

@@ -124,6 +124,9 @@ class FusionCenter {
   std::mutex fusion_deque_mutex_;
   std::deque<std::shared_ptr<Node>> fusion_deque_;
 
+  std::mutex lastest_valid_pe_mutex_;
+  Node lastest_valid_pe_;
+
   std::mutex latest_ins_mutex_;
   HafNodeInfo latest_ins_data_;
 

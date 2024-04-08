@@ -481,8 +481,9 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
       FLAGS_work_mode == kWorkModeFusionAndPercepMap) {
     HLOG_INFO << "ProcFusion";
     std::shared_ptr<hozon::hdmap::Map> fusion_map = nullptr;
-    int ret = mf_->ProcFusion(latest_loc, latest_local_map, global_hd_updated,
-                              fusion_map, curr_routing_.get());
+    int ret =
+        mf_->ProcFusion(latest_plugin, latest_loc, latest_local_map,
+                        global_hd_updated, fusion_map, curr_routing_.get());
     if (ret < 0 || fusion_map == nullptr) {
       HLOG_ERROR << "map fusion ProcFusion failed";
     } else {

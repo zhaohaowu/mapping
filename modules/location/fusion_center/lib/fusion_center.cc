@@ -606,9 +606,9 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose->set_heading(static_cast<float>(heading));
 
   Eigen::Vector3d vehicle_vel = rot.inverse() * global_node.velocity;
-  pose->mutable_linear_velocity_vrf()->set_x(vehicle_vel.x());
-  pose->mutable_linear_velocity_vrf()->set_y(vehicle_vel.y());
-  pose->mutable_linear_velocity_vrf()->set_z(vehicle_vel.z());
+  pose->mutable_linear_velocity_vrf()->set_x(local_node.velocity(0));
+  pose->mutable_linear_velocity_vrf()->set_y(local_node.velocity(1));
+  pose->mutable_linear_velocity_vrf()->set_z(local_node.velocity(2));
 
   pose->mutable_linear_acceleration_vrf()->set_x(ins.linear_acceleration().x());
   pose->mutable_linear_acceleration_vrf()->set_y(ins.linear_acceleration().y());
@@ -729,10 +729,6 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose_local->mutable_angular_velocity()->set_z(local_node.angular_velocity(2));
 
   pose_local->set_local_heading(local_heading);
-
-  pose_local->mutable_linear_velocity()->set_x(local_node.velocity(0));
-  pose_local->mutable_linear_velocity()->set_y(local_node.velocity(1));
-  pose_local->mutable_linear_velocity()->set_z(local_node.velocity(2));
 
   pose_local->mutable_linear_acceleration()->set_x(local_node.linear_accel(0));
   pose_local->mutable_linear_acceleration()->set_y(local_node.linear_accel(1));

@@ -4,7 +4,7 @@
             "SDK": "20231121",
             "ORIN_X_SDK" : "orin-x_sdk_20231122",
             "ADF": {"name":"EP40_ADC_ADF_05.29.19_0430_1206_20231206","extractPath":"./depend/ap-release"},
-            "middleWare": {"name":"EP41_ORIN_NOS_02.19.01_20240319_0320_20240320","extractPath":"./depend/nos"},
+            "middleWare": {"name":"EP41_ORIN_NOS_02.19.11_20240319_0320_20240409","extractPath":"./depend/nos"},
             "third_party": {"name":"v5.2.17_x86_2004_20240319","extractPath":"./depend"},
             "CUDA": {"name":"cuda_11.4.327_20231011","extractPath":"./depend/third_party/x86"},
             "release": {

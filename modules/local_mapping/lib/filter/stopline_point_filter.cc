@@ -314,8 +314,12 @@ void StopLinePointFilter::UpdateHeading(const StopLinePtr& measurement) {
   if (!sel_ego_lines.empty()) {
     int left_size = 0;
     int right_size = 0;
-    left_size = sel_ego_lines.at("ego_left")->vehicle_points.size();
-    right_size = sel_ego_lines.at("ego_right")->vehicle_points.size();
+    if (sel_ego_lines.count("ego_left") != 0) {
+      left_size = sel_ego_lines.at("ego_left")->vehicle_points.size();
+    }
+    if (sel_ego_lines.count("ego_right") != 0) {
+      right_size = sel_ego_lines.at("ego_right")->vehicle_points.size();
+    }
     if (left_size < 2 || right_size < 2) {
       track_stopline->heading =
           0.5 * measurement->heading + 0.5 * track_stopline->heading;

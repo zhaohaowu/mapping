@@ -301,11 +301,11 @@ void LanePointFilterTrackerPipeline::SetPoseAttribute(
   // SetLanePosition(ref_min, ref_length, sample_num, *tracked_lanelines);
 
   std::vector<bool> far_lanes_flag = CheckLanesDistance(tracked_lanelines);
-  bool disappear_flag =
+  bool main_road_disappear_flag =
       IsMainRoadAboutDisappear(tracked_lanelines, far_lanes_flag);
   // 解决既有近处又有远处车道线但是都在一端赋值错误的case
   revise_lanes_flag(tracked_lanelines, far_lanes_flag);
-  if (disappear_flag) {
+  if (main_road_disappear_flag) {
     // 如果主车道线较短，即将消失，则针对远处车道线进行位置赋值,
     // 近端赋值为OTHER.
     SetLanePosition(ref_min, ref_length, sample_num, *tracked_lanelines,
@@ -315,10 +315,8 @@ void LanePointFilterTrackerPipeline::SetPoseAttribute(
     SetLanePosition(ref_min, ref_length, sample_num, *tracked_lanelines,
                     far_lanes_flag, &lane_d_map, false);
   }
-  // 判断是否稳定，稳定时再判断当pos改变时是否要修改pos
-  bool stable_flag = CheckStableFlag(tracked_lanelines, disappear_flag);
-  bool stable_pos_flag = CheckStablePosFlag(tracked_lanelines);
-  RevisePose(tracked_lanelines, stable_flag, stable_pos_flag);
+  // pos保持策略：判断是否稳定，稳定时再判断当pos改变时是否要修改pos
+  // RevisePose(tracked_lanelines, main_road_disappear_flag);
 }
 
 void LanePointFilterTrackerPipeline::revise_lanes_flag(
@@ -431,7 +429,10 @@ bool LanePointFilterTrackerPipeline::CheckStablePosFlag(
 // todo: 若外侧新建线会出现-2, -2的情况；
 void LanePointFilterTrackerPipeline::RevisePose(
     const std::vector<perception_base::LaneLinePtr>* tracked_lanelines,
-    bool stable_flag, bool stable_pos_flag) {
+    bool main_road_disappear_flag) {
+  bool stable_flag =
+      CheckStableFlag(tracked_lanelines, main_road_disappear_flag);
+  bool stable_pos_flag = CheckStablePosFlag(tracked_lanelines);
   for (int i = 0; i < tracked_lanelines->size(); ++i) {
     LaneLinePtr lane_target = (*tracked_lanelines)[i];
     auto iter_pos = lane_pos_map.find(lane_target->id);

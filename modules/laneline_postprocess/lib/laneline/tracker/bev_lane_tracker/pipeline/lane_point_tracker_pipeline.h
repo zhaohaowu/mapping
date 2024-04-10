@@ -98,7 +98,7 @@ class LanePointFilterTrackerPipeline : public BaseTrackerPipeline {
       const std::vector<perception_base::LaneLinePtr>* tracked_lanelines);
   void RevisePose(
       const std::vector<perception_base::LaneLinePtr>* tracked_lanelines,
-      bool stable_flag, bool stable_pos_flag);
+      bool main_road_disappear_flag);
   bool CheckEgoPose(perception_base::LaneLinePosition pose);
   void print_debug_info();
 

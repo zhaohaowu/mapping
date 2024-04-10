@@ -29,7 +29,7 @@ use_map_lane_match_fault: true        #fault-130
 ##no valid fault
 use_valid_estimate_last_fault: false  #已关闭(old fault-125)
 ##map_lane_match_fault
-map_lane_match_near: 0.15       # 近段点的阈值
+map_lane_match_diver: 1.5       # 一分二改道的阈值
 map_lane_match_max: 0.4         # 最大y_error(m)--阈值0.4
 map_lane_match_buff: 20         # 超过buff次就上报故障
 map_lane_match_ser_max: 0.8     # 阈值0.8

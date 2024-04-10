@@ -11,7 +11,7 @@ input:
       capacity: 5
     - topic: localization 
       capacity: 5
-    - topic: lm_image 
+    - topic: camera_0 
       capacity: 5
     - topic: running_mode 
       capacity: 5
@@ -39,7 +39,7 @@ trigger:
   - name: recv_image
     type: EVENT
     mainSources:
-      - name: lm_image
+      - name: camera_0
         timeout: 1000
   - name: recv_running_mode
     type: EVENT

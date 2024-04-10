@@ -39,7 +39,7 @@ namespace lm {
 int32_t LocalMappingOnboard::AlgInit() {
   REGISTER_PROTO_MESSAGE_TYPE("percep_detection",
                               hozon::perception::measurement::MeasurementPb);
-  REGISTER_PROTO_MESSAGE_TYPE("lm_image", hozon::soc::Image);
+  REGISTER_PROTO_MESSAGE_TYPE("camera_0", hozon::soc::Image);
   REGISTER_PROTO_MESSAGE_TYPE("running_mode",
                               hozon::perception::common_onboard::running_mode);
 
@@ -360,7 +360,7 @@ std::shared_ptr<adsfi_proto::viz::CompressedImage> YUVNV12ImageToVizImage(
 
 int32_t LocalMappingOnboard::OnImage(adf_lite_Bundle* input) {
   if (RVIZ_AGENT.Ok()) {
-    auto image_msg = input->GetOne("lm_image");
+    auto image_msg = input->GetOne("camera_0");
     HLOG_DEBUG << "image_msg->proto_msg " << image_msg.get();
     if (image_msg.get() == nullptr) {
       return -1;

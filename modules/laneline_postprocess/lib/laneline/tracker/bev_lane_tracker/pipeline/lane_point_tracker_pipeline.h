@@ -80,7 +80,9 @@ class LanePointFilterTrackerPipeline : public BaseTrackerPipeline {
 
   std::vector<bool> CheckLanesDistance(
       const std::vector<perception_base::LaneLinePtr>* tracked_lanelines);
-
+  bool IsMainRoadDisappear(
+      const std::vector<perception_base::LaneLinePtr>* tracked_lanelines);
+  bool TimeIntervalExceeding(double start, double end);
   bool IsMainRoadAboutDisappear(
       const std::vector<perception_base::LaneLinePtr>* tracked_lanelines,
       const std::vector<bool>& near_lanelines);
@@ -126,6 +128,7 @@ class LanePointFilterTrackerPipeline : public BaseTrackerPipeline {
   float d_change_threshold_ = 0.4;
   // <track_id, <lane_pose, count(lane_pose != current_pose)>>
   std::unordered_map<int, perception_base::LaneLinePosition> lane_pos_map;
+  std::vector<double> stable_timestamps_;
   // <track_id, <last_d, d_error>> 横向位置变化
   std::unordered_map<int, std::tuple<float, float>> lane_d_map;
 };

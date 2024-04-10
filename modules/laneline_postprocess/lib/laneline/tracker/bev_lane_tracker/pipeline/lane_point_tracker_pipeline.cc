@@ -400,13 +400,30 @@ bool LanePointFilterTrackerPipeline::CheckStablePosFlag(
         break;
       } else if (std::abs(static_cast<int>(lane_target->position)) <
                  std::abs(static_cast<int>(last_pos))) {
-        if (CheckEgoPose(lane_target->position)) {
+        if (CheckEgoPose(lane_target->position) &&
+            IsMainRoadDisappear(tracked_lanelines)) {
+          for (int i = 0; i < lane_targets_.size(); ++i) {
+            auto& laneline = lane_targets_[i]->GetConstTrackedLaneLine();
+            if (laneline->id == lane_target->id) {
+              stable_timestamps_.emplace_back(
+                  lane_targets_[i]->GetLastestTrackedTimestamp());
+              break;
+            }
+          }
+          // 主车道线丢失要保持
           // 维持上一帧pos不变
           stable_pos_flag = true;
         }
       } else {
         continue;
       }
+    }
+  }
+  if (stable_timestamps_.size() > 0 && lane_targets_.size() > 0) {
+    // 如果超过1s的保持时间，退出保持策略
+    if (TimeIntervalExceeding(stable_timestamps_[0],
+                              lane_targets_[0]->GetLastestTrackedTimestamp())) {
+      stable_pos_flag = false;
     }
   }
   return stable_pos_flag;
@@ -435,7 +452,39 @@ void LanePointFilterTrackerPipeline::RevisePose(
     pos_stable_count_ = 0;
   }
 }
+// 主车道线是否丢失
+bool LanePointFilterTrackerPipeline::IsMainRoadDisappear(
+    const std::vector<perception_base::LaneLinePtr>* tracked_lanelines) {
+  int mainroad_flag = 0;
+  double left_d = 0;
+  double right_d = 0;
+  for (auto& laneline : *tracked_lanelines) {
+    if (laneline->position == LaneLinePosition::EGO_LEFT) {
+      left_d = laneline->vehicle_curve.coeffs[0];
+      mainroad_flag += 1;
+    } else if (laneline->position == LaneLinePosition::EGO_RIGHT) {
+      right_d = laneline->vehicle_curve.coeffs[0];
+      mainroad_flag += 1;
+    }
+  }
+  // 如果存在主车道线，并且宽度在4m范围内，则认为是主车道线未丢失。
+  if (mainroad_flag == 2 && (abs(left_d - right_d) < 4)) {
+    return false;
+  }
 
+  return true;
+}
+
+// 判断最近5帧是否有大的偏差(TODO)
+// 判断时间间隔是否大于1s
+bool LanePointFilterTrackerPipeline::TimeIntervalExceeding(double start,
+                                                           double end) {
+  double time_diff = end - start;
+  if (time_diff > 1) {
+    return true;
+  }
+  return false;
+}
 bool LanePointFilterTrackerPipeline::IsMainRoadAboutDisappear(
     const std::vector<perception_base::LaneLinePtr>* tracked_lanelines,
     const std::vector<bool>& far_line_index) {

@@ -60,6 +60,8 @@ bool MapWorker::Process(const MeasurementFrameConstPtr& measurement_frame_ptr) {
     }
     last_localmap_data->header.timestamp =
         measurement_frame_ptr->header.timestamp;
+    last_localmap_data->header.sequence_num =
+        measurement_frame_ptr->header.sequence_num;
     MAP_MANAGER->SwapLocalMap();
     return true;
   }

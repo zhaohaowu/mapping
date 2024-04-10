@@ -521,6 +521,10 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
             hozon::navigation_hdmap::MapMsg_MapType_FUSION_NNP_MAP ||
         curr_map_type_.map_type ==
             hozon::navigation_hdmap::MapMsg_MapType_FUSION_NCP_MAP) {
+      if (0 == FLAGS_map_service_mode) {
+        curr_map_type_.map_type =
+            hozon::navigation_hdmap::MapMsg_MapType_FUSION_NCP_MAP;
+      }
       int ret = SendFusionResult(latest_loc, latest_fusion_map, curr_map_type_,
                                  curr_routing_.get());
       if (ret < 0) {
@@ -779,6 +783,12 @@ int MapFusionLite::SendPercepResult(
       location->header());
   percep_result->mutable_routing()->mutable_header()->set_frame_id(
       "percep_map");
+  if (curr_routing_.get() != nullptr) {
+    if (curr_routing_.get()->has_ehp_reason()) {
+      percep_result->mutable_routing()->set_ehp_reason(
+          curr_routing_.get()->ehp_reason());
+    }
+  }
   percep_result->set_map_type(select.map_type);
   percep_result->set_is_valid(select.valid);
   percep_result->set_fault_level(select.fault_level);

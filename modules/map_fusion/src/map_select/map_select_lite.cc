@@ -134,7 +134,7 @@ MapSelectResult MapSelectLite::Process(
   bool percep_available = PercepMapAvailable(perc_map, localization);
   if (percep_available) {
     HLOG_INFO << "fct valid, nnp on, fusion unavailable, percep available";
-    return {MapMsg::PERCEP_MAP, true, 2};
+    return {MapMsg::PERCEP_MAP, true, 1};
   }
   HLOG_INFO << "fct valid, nnp on, fusion unavailable, percep unavailable";
   return {MapMsg::INVALID, false, 2};

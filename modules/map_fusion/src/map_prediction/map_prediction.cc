@@ -659,7 +659,7 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
 
   hq_map_ = std::make_shared<hozon::hdmap::Map>();
 
-  auto ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {500, 500}, hq_map_.get());
+  auto ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_.get());
   if (ret != 0) {
     HLOG_ERROR << "GetLocalMap failed";
     return nullptr;

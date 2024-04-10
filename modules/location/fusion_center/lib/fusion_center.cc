@@ -1644,11 +1644,11 @@ bool FusionCenter::FilterPoseEstimation(const Node& node) {
   }
 
   if (!last_dr || !curr_dr || !flag) {
-    return false;
+    return true;
   }
   flag = curr_dr->ticktime > last_dr->ticktime;
   if (!flag) {
-    return false;
+    return true;
   }
   auto last_pe_heading = OrientationToHeading(pe->orientation);
   auto curr_pe_heading = OrientationToHeading(node.orientation);

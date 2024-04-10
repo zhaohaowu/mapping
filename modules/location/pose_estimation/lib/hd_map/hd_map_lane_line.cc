@@ -61,7 +61,7 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
     }
   }
   HLOG_DEBUG << "l_count = " << l_count << " , r_count = " << r_count
-            << ", boundary_line_ size: " << boundary_line_.size();
+             << ", boundary_line_ size: " << boundary_line_.size();
   // Print(boundary_line_);
   this->type_ = HD_MAP_LANE_BOUNDARY_LINE;
 }
@@ -69,6 +69,9 @@ void MapBoundaryLine::Set(const hozon::common::PointENU& position,
 bool MapBoundaryLine::AddMapLine(
     const hozon::hdmap::LaneBoundary& lane_boundary, const V3& ref_point) {
   if (lane_boundary.id().empty()) {
+    return false;
+  }
+  if (lane_boundary.virtual_()) {
     return false;
   }
   auto lane_boundary_id = lane_boundary.id(0).id();

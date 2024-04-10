@@ -239,6 +239,7 @@ class MatchLaneLine {
       bool* adjust_left_pairs_weight, bool* adjust_right_pairs_weight);
   void ComputeCurvature(const std::vector<double>& coeffs, const double x,
                         double* curvature);
+  void CheckTriggerBigCurv(double cur_time);
 
  public:
   double ts_;

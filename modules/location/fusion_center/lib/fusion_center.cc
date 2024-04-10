@@ -17,6 +17,7 @@
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
+#include "modules/util/include/util/orin_trigger_manager.h"
 
 namespace hozon {
 namespace mp {
@@ -310,8 +311,81 @@ bool FusionCenter::GetCurrentContext(Context* const ctx) {
   if (!GetGlobalPose(ctx)) {
     HLOG_WARN << "get global pose failed";
   }
-
+  #ifdef ISORIN
+    // mapping trigger ins 状态或定位结果跳变
+    std::shared_ptr<Node> last_ins;
+    ins_deque_mutex_.lock();
+    if (!ins_deque_.empty()) {
+      last_ins = ins_deque_.back();
+    }
+    ins_deque_mutex_.unlock();
+    CheckTriggerInsStatePose(*last_ins);
+  #endif
   return true;
+}
+
+bool FusionCenter::IsInsDrift(const Node& ins_node) {
+  int i_size = ins_trig_deque_.size();
+  if (i_size < 20) {
+    ins_trig_deque_.push_back(ins_node);
+    return false;
+  }
+  if (i_size >= 20) {
+    ins_trig_deque_.pop_front();
+    ins_trig_deque_.push_back(ins_node);
+  }
+  Node curr_i_node, prev_i_node;
+  curr_i_node = ins_trig_deque_.at(i_size - 1);
+  prev_i_node = ins_trig_deque_.at(i_size - 2);
+  // rtk状态正常时判断，异常直接返回
+  if (curr_i_node.rtk_status != 4 || curr_i_node.sys_status!= 2) return false;
+  const auto pose_diff = Node2SE3(prev_i_node).inverse() * Node2SE3(curr_i_node);
+  if (fabs(pose_diff.translation().y()) > 0.5) {
+    HLOG_ERROR << "Vehicle y diff:" << fabs(pose_diff.translation().y())
+              << " larger than thr:" << 0.5;
+    return true;
+  }
+  return false;
+}
+
+bool FusionCenter::IsInsStateChange(const Node& node) {
+  static uint32_t last_sys, last_rtk;
+  static bool first_flag = true;
+  HLOG_INFO << "node.rtk_status: " << node.rtk_status << " node.sys_status: " << node.sys_status;
+  HLOG_INFO << "last_rtk: " << last_rtk << " last_sys: " << last_sys;
+  if (first_flag) {
+    last_sys = node.sys_status;
+    last_rtk = node.rtk_status;
+    first_flag = false;
+    return false;
+  } else if ((last_rtk == 4 && node.rtk_status != last_rtk)
+          || (last_sys == 2 && node.sys_status != last_sys)) {
+    return true;
+  }
+  last_sys = node.sys_status;
+  last_rtk = node.rtk_status;
+  return false;
+}
+
+void FusionCenter::CheckTriggerInsStatePose(const Node& i_node) {
+  static double last_time = -1;
+  static bool enable_02 = true;
+  if (IsInsStateChange(i_node)) {
+    if (enable_02) {
+      HLOG_ERROR << "Start to trigger dc 1002 state";
+      GLOBAL_DC_TRIGGER.TriggerCollect(1002);
+      enable_02 = false;
+      last_time = i_node.ticktime;
+    }
+  } else if (IsInsDrift(i_node)) {
+    if (enable_02) {
+      HLOG_ERROR << "Start to trigger dc 1002 drift";
+      GLOBAL_DC_TRIGGER.TriggerCollect(1002);
+      enable_02 = false;
+      last_time = i_node.ticktime;
+    }
+  }
+  enable_02 = (i_node.ticktime - last_time) > 600;
 }
 
 bool FusionCenter::LoadParams(const std::string& configfile) {
@@ -1405,6 +1479,9 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     // todo此处后期改成dr_node
     ctx->global_node = ctx->ins_node;
     ctx->global_node.location_state = loc_state;
+    #ifdef ISORIN
+      CheckTriggerLocState(ctx);
+    #endif
     const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(ctx->dr_node);
     const auto& pose = Node2SE3(refer_node) * T_delta;
     ctx->global_node.enu = pose.translation();
@@ -1484,6 +1561,37 @@ uint32_t FusionCenter::FaultCodeAssign(uint32_t state) {
     loc_state = 130;
   }
   return loc_state;
+}
+
+void FusionCenter::CheckTriggerLocState(Context* const ctx) {
+  HLOG_INFO << "ctx->global_node.location_state: " << ctx->global_node.location_state;
+  static bool enable_05 = true, enable_10 = true, enable_03 = true;
+  static uint32_t last_state = 2;
+  static double last_time_05 = -1, last_time_10 = -1, last_time_03 = -1;
+  auto curr_state = ctx->global_node.location_state;
+  auto curr_time = ctx->global_node.ticktime;
+  if (curr_state != last_state && curr_state == 123 && enable_05) {
+      // mapping trigger 无车道线
+      HLOG_ERROR << "Start to trigger dc 1005";
+      GLOBAL_DC_TRIGGER.TriggerCollect(1005);
+      enable_05 = false;
+      last_time_05 = curr_time;
+  } else if (curr_state != last_state && curr_state == 128 && enable_10) {
+      // mapping trigger 定位结果跳变
+      HLOG_ERROR << "Start to trigger dc 1010";
+      GLOBAL_DC_TRIGGER.TriggerCollect(1010);
+      enable_10 = false;
+      last_time_10 = curr_time;
+  } else if (curr_state != last_state && curr_state == 130 && enable_03) {
+      HLOG_ERROR << "Start to trigger dc 1003";
+      GLOBAL_DC_TRIGGER.TriggerCollect(1003);
+      enable_03 = false;
+      last_time_03 = curr_time;
+  }
+  last_state = curr_state;
+  enable_05 = (curr_time - last_time_05) > 600;
+  enable_10 = (curr_time - last_time_10) > 600;
+  enable_03 = (curr_time - last_time_03) > 600;
 }
 
 uint32_t FusionCenter::GetGlobalLocationState() {

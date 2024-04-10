@@ -15,6 +15,7 @@
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
 #include "util/rviz_agent/rviz_agent.h"
+#include "modules/util/include/util/orin_trigger_manager.h"
 
 
 namespace hozon {
@@ -133,9 +134,26 @@ bool InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins, hozon::localiz
     PublishTopic();
   }
   Convert(origin_ins, node_info);
+
+  #ifdef ISORIN
+    // mapping trigger imu/ins帧率异常 帧间差 > 30ms
+    CheckTriggerInsTime(latest_origin_ins_);
+  #endif
   return true;
 }
 
+void InsFusion::CheckTriggerInsTime(const hozon::soc::ImuIns& cur_ins) {
+  HLOG_INFO << "CheckTriggerInsTime";
+  double curr_imu_time = cur_ins.header().sensor_stamp().imuins_stamp();
+  static double last_imu_time = curr_imu_time;
+  HLOG_INFO << "last_imu_time:" << last_imu_time;
+  HLOG_INFO << "curr_imu_time:" << curr_imu_time;
+  if (curr_imu_time - last_imu_time > 0.03) {
+    HLOG_ERROR << "Start to trigger dc 1008";
+    GLOBAL_DC_TRIGGER.TriggerCollect(1008);
+  }
+  last_imu_time = curr_imu_time;
+}
 
 bool InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva,
                          hozon::localization::HafNodeInfo* const node_info) {

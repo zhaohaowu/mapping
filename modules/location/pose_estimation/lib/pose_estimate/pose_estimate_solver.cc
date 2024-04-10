@@ -15,10 +15,10 @@ namespace loc {
 
 MapMatchSolver::MapMatchSolver() {}
 
-Sophus::SE3d MapMatchSolver::solve2D(const Connect &connect,
-                                     const Sophus::SE3d &pose,
-                                     const Sophus::SE3d &pre_pose, bool *is_ok,
-                                     const double &ins_timestamp) {
+Sophus::SE3d MapMatchSolver::solve2D(const Connect& connect,
+                                     const Sophus::SE3d& pose,
+                                     const Sophus::SE3d& pre_pose, bool* is_ok,
+                                     const double& ins_timestamp) {
   if (is_ok == nullptr) {
     return pose;
   }
@@ -40,7 +40,7 @@ Sophus::SE3d MapMatchSolver::solve2D(const Connect &connect,
   options.logging_type = ceres::SILENT;
   ceres::Problem problem;
   for (int i = 0; i < n_lane_line_match; i++) {
-    const auto &mp_i = connect.lane_line_match_pairs[i];
+    const auto& mp_i = connect.lane_line_match_pairs[i];
     Eigen::Vector2d p_v(mp_i.pecep_pv.x(), mp_i.pecep_pv.y());
     Eigen::Vector2d p_w(mp_i.map_pw.x(), mp_i.map_pw.y());
     double weight = mp_i.weight;

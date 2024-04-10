@@ -51,6 +51,7 @@ class InsFusion {
 
   bool SmoothProc(InsNode* const node);
   bool PublishTopic();
+  void CheckTriggerInsTime(const hozon::soc::ImuIns& cur_ins);
 
  private:
   Config config_;

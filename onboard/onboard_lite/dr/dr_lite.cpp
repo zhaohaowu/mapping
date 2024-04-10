@@ -18,6 +18,7 @@
 #include "proto/soc/chassis.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
 #include "yaml-cpp/yaml.h"
+#include "modules/util/include/util/orin_trigger_manager.h"
 
 namespace hozon {
 namespace perception {
@@ -69,9 +70,12 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
   int32_t receive_imu(Bundle* input);
 
   void AlgRelease() override {}
+  void CheckTriggerDrDrift(double p_x, double p_y, double cur_time);
+  bool IsDrDrift(double p_x, double p_y);
 
  private:
   std::shared_ptr<hozon::mp::dr::DRInterface> dr_interface_ = nullptr;
+  std::deque<std::pair<double, double>> pose_que_;
 };
 
 REGISTER_ADF_CLASS(DeadReckoning, DeadReckoning);
@@ -180,6 +184,52 @@ int32_t DeadReckoning::receive_chassis(Bundle* input) {
   dr_interface_->Process();
   last_chassis_time = cur_chassis_time;
   return 0;
+}
+
+bool DeadReckoning::IsDrDrift(double p_x, double p_y) {
+  static double pose_diff_avg = 0.0, d_p = 0.0;
+  if (pose_que_.empty()) {
+    pose_que_.push_back(std::make_pair(p_x, p_y));
+    return false;
+  }
+  if (!pose_que_.empty() && pose_que_.size() < 21) {
+    pose_diff_avg += 0.05 * std::sqrt(((p_x - pose_que_.back().first) * (p_x - pose_que_.back().first))
+                                  + ((p_y - pose_que_.back().second) * (p_y - pose_que_.back().second)));
+    pose_que_.push_back(std::make_pair(p_x, p_y));
+    return false;
+  } else {
+    d_p = std::sqrt(((p_x - pose_que_.back().first) * (p_x - pose_que_.back().first))
+                  + ((p_y - pose_que_.back().second)) * (p_y - pose_que_.back().second));
+    pose_diff_avg += 0.05 * d_p;
+    pose_diff_avg -=
+        0.05 * std::sqrt(((pose_que_[0].first - pose_que_[1].first) * (pose_que_[0].first - pose_que_[1].first))
+                      + ((pose_que_[0].second - pose_que_[1].second) * (pose_que_[0].second - pose_que_[1].second)));
+    HLOG_INFO << "pose_diff_avg * 1.5: " << pose_diff_avg * 1.5;
+    HLOG_INFO << "d_p: " << d_p;
+    if (pose_diff_avg < 0.001 || d_p < 0.001) return false;
+    if (d_p < pose_diff_avg * 1.5) {
+      pose_que_.pop_front();
+      pose_que_.push_back(std::make_pair(p_x, p_y));
+      return false;
+    } else {
+      pose_que_.clear();
+      return true;
+    }
+  }
+}
+
+void DeadReckoning::CheckTriggerDrDrift(double p_x, double p_y, double cur_time) {
+  static bool enable_12 = true;
+  static double last_time_12 = -1;
+  if (IsDrDrift(p_x, p_y)) {
+    if (enable_12) {
+      HLOG_ERROR << "Start to trigger dc 1012";
+      GLOBAL_DC_TRIGGER.TriggerCollect(1012);
+      enable_12 = false;
+      last_time_12 = cur_time;
+    }
+  }
+  enable_12 = (cur_time - last_time_12) > 600;
 }
 
 int32_t DeadReckoning::receive_imu(Bundle* input) {
@@ -294,6 +344,7 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
     SendOutput(&bundle);
 
     double pose_x = msg->pose().pose_local().position().x();
+    double pose_y = msg->pose().pose_local().position().y();
     double qua_w = msg->pose().pose_local().quaternion().w();
     double qua_x = msg->pose().pose_local().quaternion().x();
     double qua_y = msg->pose().pose_local().quaternion().y();
@@ -318,6 +369,10 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
         output_data_nan_flag = false;
       }
     }
+    #ifdef ISORIN
+      // mapping trigger 轮速计跳变
+      CheckTriggerDrDrift(pose_x, pose_y, cur_imu_time);
+    #endif
 
   } else {
     HLOG_WARN << "DR: is not init";

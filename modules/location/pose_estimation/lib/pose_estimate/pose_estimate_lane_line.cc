@@ -5,8 +5,6 @@
  *   date       ： 2023.09
  ******************************************************************************/
 
-#include "modules/location/pose_estimation/lib/pose_estimate/pose_estimate_lane_line.h"
-
 #include <algorithm>
 #include <limits>
 #include <list>
@@ -18,6 +16,9 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include "modules/location/pose_estimation/lib/pose_estimate/pose_estimate_lane_line.h"
+#include "modules/util/include/util/orin_trigger_manager.h"
+
 namespace hozon {
 namespace mp {
 namespace loc {
@@ -769,6 +770,10 @@ void MatchLaneLine::LaneLineConnect(
             max_match_x -= mm_params.max_length_offset;
             HLOG_INFO << "timestamp: " << ins_timestamp_
                       << ", big curvature!!!, max_match_x: " << max_match_x;
+            #ifdef ISORIN
+              // mapping trigger 大曲率弯道
+              CheckTriggerBigCurv(ins_timestamp_);
+            #endif
           }
           for (int i = 0; i < perception_points_size; ++i) {
             V3 pt{0, 0, 0};
@@ -946,6 +951,18 @@ void MatchLaneLine::ComputeCurvature(const std::vector<double>& coeffs,
   auto first_derivative = c_1 + 2 * c_2 * x + 3 * c_3 * x * x;
   double a = 1 + std::pow(first_derivative, 2);
   *curvature = fabs(second_derivative) / std::pow(a, (3.0 / 2.0));
+}
+
+void MatchLaneLine::CheckTriggerBigCurv(double cur_time) {
+  static bool enable_11 = true;
+  static double last_time_11 = ins_timestamp_;
+  if (enable_11) {
+    HLOG_ERROR << "Start to trigger dc 1011";
+    GLOBAL_DC_TRIGGER.TriggerCollect(1011);
+    enable_11 = false;
+    last_time_11 = ins_timestamp_;
+  }
+  enable_11 = (ins_timestamp_ - last_time_11) > 600;
 }
 
 std::pair<double, double> MatchLaneLine::CmpWidth(

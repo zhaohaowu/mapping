@@ -205,8 +205,10 @@ static hozon::perception::LaneType CvtLaneType2TePb(LaneLineType shape) {
       return hozon::perception::LaneType::RightSolidLeftDashed;
     case LaneLineType::OTHER:  // 其他
       return hozon::perception::LaneType::Other;
-    case LaneLineType::FISHBONE:  // 鱼骨线（localmap未定义
+    case LaneLineType::FISHBONE:  // 鱼骨线
       return hozon::perception::LaneType::FishBoneLine;
+    case LaneLineType::FISHBONE_DASHED_LINE:  // 鱼骨虚线
+      return hozon::perception::LaneType::FishBoneDashedLine;
     case LaneLineType::UNKNOWN:  // 未知
       return hozon::perception::LaneType::Unknown;
     default:
@@ -249,6 +251,8 @@ static LaneLineType CvtPb2LaneType(hozon::perception::LaneType type) {
       return LaneLineType::OTHER;  // 其他
     case hozon::perception::LaneType::FishBoneLine:
       return LaneLineType::FISHBONE;
+    case hozon::perception::LaneType::FishBoneDashedLine:
+      return LaneLineType::FISHBONE_DASHED_LINE;
     case hozon::perception::LaneType::Unknown:
       return LaneLineType::UNKNOWN;  // 未知
     default:

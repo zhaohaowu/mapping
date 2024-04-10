@@ -45,7 +45,8 @@ enum class LaneLineType {
   LEFT_SOLID_RIGHT_DASHED = 6,  // 左实右虚
   RIGHT_SOLID_LEFT_DASHED = 7,  // 右实左虚
   FISHBONE = 16,                // 鱼骨线
-  CROSSGUIDE_LINE = 17,         // 引导线
+  FISHBONE_DASHED_LINE = 17,    // 鱼骨虚线
+  CROSSGUIDE_LINE = 18,         // 引导线
   OTHER = 99,                   // 其他 UNKNOWN
 };
 

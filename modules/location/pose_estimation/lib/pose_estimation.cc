@@ -847,6 +847,11 @@ void MapMatching::procData() {
         if (!match_inited) {
           match_inited = true;
         }
+        if (hozon::mp::util::RvizAgent::Instance().Ok() &&
+            mm_params.use_rviz_bridge) {
+          pubOdomPoints(kTopicMmOdom, T_output_.translation(),
+                        T_output_.unit_quaternion(), time_sec_, time_nsec_);
+        }
         mm_node_info_ = generateNodeInfo(T_output_, curr_sec, curr_nsec, false,
                                          esti_ref_point);
       }
@@ -865,9 +870,7 @@ void MapMatching::procData() {
           mm_params.use_rviz_bridge) {
         if (!_T_W_V_fine.translation().isZero()) {
           HLOG_DEBUG << "optimize_finish_, " << Precusion(proc_stamp_, 16);
-          setPoints(*lane, T02_W_V, &front_points_);
-          pubOdomPoints(kTopicMmOdom, T_output_.translation(),
-                        T_output_.unit_quaternion(), time_sec_, time_nsec_);
+          setPoints(*lane, T_fc_.pose, &front_points_);
         } else {
           setPoints(*lane, T02_W_V, &front_points_);
         }
@@ -882,7 +885,7 @@ void MapMatching::procData() {
         setOriginConnectMapPoints(origin_connect, T02_W_V, front_points_);
         pubOriginConnectMapPoints(front_points_, time_sec_, time_nsec_);
         front_points_.clear();
-        setOriginConnectPercepPoints(origin_connect, T02_W_V, front_points_);
+        setOriginConnectPercepPoints(origin_connect, T_output_, front_points_);
         pubOriginConnectPercepPoints(front_points_, time_sec_, time_nsec_);
       }
     }

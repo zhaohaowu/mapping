@@ -122,13 +122,13 @@ bool ESKF::Predict(const Node& cur_pre_data) {
   }
 
   X_.b_a = cur_pre_data.b_a * 9.8 / 1000;
-  X_.b_g = cur_pre_data.b_g / 57.6;
+  X_.b_g = cur_pre_data.b_g / 57.3;
   X_.b_a = Eigen::Vector3d::Zero();
   X_.b_g = Eigen::Vector3d::Zero();
 
   // 2.predict nominal state
   const auto cur_acc = cur_pre_data.linear_accel * 9.8;
-  const auto cur_ang_v = cur_pre_data.angular_velocity / 57.6;
+  const auto cur_ang_v = cur_pre_data.angular_velocity / 57.3;
 
   X_.type = StateType::PREDICT;
   X_.meas_type = NodeType::NONE;
@@ -185,7 +185,7 @@ void ESKF::Correct(const Node& cur_meas_data) {
   // 2.计算H
   H_.template block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();  // p部分
   Mat3T yacobi_rot = JrSO3(cur_meas_data.orientation);
-  H_.template block<3, 3>(3, 6) = yacobi_rot;  // q部分
+  H_.template block<3, 3>(3, 6) = yacobi_rot.inverse();  // q部分
 
   // 3.计算y_diff(观测-nominal)(INS需要更新速度、位姿，MM更新位姿即可)(c此处需要进行if判断)
   Vec6d y_diff;

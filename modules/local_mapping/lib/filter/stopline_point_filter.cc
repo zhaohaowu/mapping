@@ -361,9 +361,9 @@ void StopLinePointFilter::UpdateHeading(const StopLinePtr& measurement) {
       } else if (sel_ego_lines.at("ego_right")->vehicle_points.back().x() <
                  track_stopline->center_point.x()) {
         right_points.emplace_back(
-            sel_ego_lines.at("ego_right")->vehicle_points[left_size - 2]);
+            sel_ego_lines.at("ego_right")->vehicle_points[right_size - 2]);
         right_points.emplace_back(
-            sel_ego_lines.at("ego_right")->vehicle_points[left_size - 1]);
+            sel_ego_lines.at("ego_right")->vehicle_points[right_size - 1]);
       } else {
         int right_idnex = 0;
         for (; right_idnex < right_size; right_idnex++) {

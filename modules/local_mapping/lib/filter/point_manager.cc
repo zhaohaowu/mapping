@@ -39,6 +39,7 @@ void AdaptorPointManager::UturnsStateCorrection(
       std::swap(X_[i * 2], X_[j * 2]);
       std::swap(X_[i * 2 + 1], X_[j * 2 + 1]);
     }
+    std::swap(fastest_track_pt_, near_track_pt_);
     P_.setIdentity();  // 重置协方差矩阵
   }
   return;

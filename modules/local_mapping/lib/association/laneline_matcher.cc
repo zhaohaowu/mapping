@@ -11,6 +11,7 @@
 #include "modules/local_mapping/lib/datalogger/pose_manager.h"
 #include "perception-base/base/utils/log.h"
 #include "perception-lib/lib/config_manager/config_manager.h"
+#include "utils/lane_utils.h"
 
 namespace hozon {
 namespace mp {
@@ -202,7 +203,7 @@ void LaneLineMatcher::AssociationKnn(
 
       for (size_t k = 0; k < det_point_set.size(); ++k) {
         // 找最近的一个点
-        const int dim = 1;
+        const int dim = 2;
         std::vector<int> nearest_index(dim);
         std::vector<float> nearest_dist(dim);
         auto find_pt_x = static_cast<float>(det_point_set[k].x());
@@ -221,8 +222,9 @@ void LaneLineMatcher::AssociationKnn(
         track_kdtrees_[j]->knnSearch(query_point, nearest_index, nearest_dist,
                                      dim, cv::flann::SearchParams(-1));
         // 根据阈值筛选点
-        float y_dist = std::abs(track_point_set[nearest_index[0]].y() -
-                                det_point_set[k].y());
+        float y_dist = GetDistPointLane(det_point_set[k],
+                                        track_point_set[nearest_index[0]],
+                                        track_point_set[nearest_index[1]]);
         if (y_dist < point_match_dis_thresh_) {
           if (find_pt_x > overlay_min && find_pt_x < near_max) {
             near_dist_match_sum += y_dist;

@@ -40,7 +40,7 @@ bool DataMapping::CvtPb2Measurement(
   HLOG_DEBUG << "TEST pb lane_lines nums:"
              << measurepb->transport_element().lane().size();
   for (const auto& item : measurepb->transport_element().lane()) {
-    if (item.points_size() <= 0) {
+    if (item.points_size() != 20) {
       continue;
     }
     LaneLinePtr laneptr = std::make_shared<LaneLine>();
@@ -51,7 +51,7 @@ bool DataMapping::CvtPb2Measurement(
   HLOG_DEBUG << "TEST pb road_edges nums:"
              << measurepb->transport_element().road_edges().size();
   for (const auto& item : measurepb->transport_element().road_edges()) {
-    if (item.points_size() <= 0) {
+    if (item.points_size() != 20) {
       continue;
     }
     RoadEdgePtr roadedgeptr = std::make_shared<RoadEdge>();

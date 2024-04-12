@@ -206,7 +206,7 @@ bool DeadReckoning::IsDrDrift(double p_x, double p_y) {
                       + ((pose_que_[0].second - pose_que_[1].second) * (pose_que_[0].second - pose_que_[1].second)));
     HLOG_INFO << "pose_diff_avg * 1.5: " << pose_diff_avg * 1.5;
     HLOG_INFO << "d_p: " << d_p;
-    if (pose_diff_avg < 0.001 || d_p < 0.001) return false;
+    if (pose_diff_avg < 0.01 || d_p < 0.01) return false;
     if (d_p < pose_diff_avg * 1.5) {
       pose_que_.pop_front();
       pose_que_.push_back(std::make_pair(p_x, p_y));
@@ -351,6 +351,7 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
     double qua_z = msg->pose().pose_local().quaternion().z();
     double magnitude = std::sqrt(qua_w * qua_w + qua_x * qua_x + qua_y * qua_y +
                                  qua_z * qua_z);
+    double vel_x = msg->velocity().twist_vrf().linear_vrf().x();
     if (std::isnan(pose_x) || (abs(magnitude) < 1e-7)) {
       dr_fault->Report(MAKE_FM_TUPLE(
           hozon::perception::base::FmModuleId::MAPPING,
@@ -371,7 +372,10 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
     }
     #ifdef ISORIN
       // mapping trigger 轮速计跳变
-      CheckTriggerDrDrift(pose_x, pose_y, cur_imu_time);
+      if (vel_x > 3.0) {
+        HLOG_INFO << "DR: vel_x = " << vel_x;
+        CheckTriggerDrDrift(pose_x, pose_y, cur_imu_time);
+      }
     #endif
 
   } else {

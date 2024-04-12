@@ -246,15 +246,17 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
     }
 
     // 针对一分二改道场景
-    if (fabs(left_dist_near_v) >= mm_params.map_lane_match_diver ||
-        fabs(right_dist_near_v) >= mm_params.map_lane_match_diver) {
-      HLOG_ERROR << "130 : diversion near distance exceed thr";
-      fc_good_match_diversion_check = false;
-    }
-    if (fabs(left_error) >= mm_params.map_lane_match_diver ||
-        fabs(right_error) >= mm_params.map_lane_match_diver) {
-      HLOG_ERROR << "130 : diversion both sides distance exceed thr";
-      fc_good_match_diversion_check = false;
+    if (FLAGS_map_service_mode == 1) {
+      if (fabs(left_dist_near_v) >= mm_params.map_lane_match_diver ||
+          fabs(right_dist_near_v) >= mm_params.map_lane_match_diver) {
+        HLOG_ERROR << "130 : diversion near distance exceed thr";
+        fc_good_match_diversion_check = false;
+      }
+      if (fabs(left_error) >= mm_params.map_lane_match_diver ||
+          fabs(right_error) >= mm_params.map_lane_match_diver) {
+        HLOG_ERROR << "130 : diversion both sides distance exceed thr";
+        fc_good_match_diversion_check = false;
+      }
     }
   }
 

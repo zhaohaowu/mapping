@@ -29,6 +29,7 @@ void PointMatcher::Clear() {
   for (size_t i = 0; i < track_kdtrees_.size(); ++i) {
     if (track_kdtrees_[i] != nullptr) {
       delete track_kdtrees_[i];
+      track_kdtrees_[i] = nullptr;
     }
   }
 }

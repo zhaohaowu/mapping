@@ -3,6 +3,8 @@
  * Licensed Hozon
  * Author: Hozon
  *******************************************************/
+#include <cmath>
+
 #include "base/scene/roadedge.h"
 #include "modules/local_mapping/data_mapping/data_mapping.h"
 #include "proto/local_mapping/local_map.pb.h"
@@ -163,6 +165,9 @@ bool DataMapping::CvtPb2RoadEdgeMeasurement(
   roadedge_ptr->type_confidence = roadedge.confidence();
 
   for (auto& item : roadedge.points()) {
+    if (std::isnan(item.x()) || std::isnan(item.y()) || std::isnan(item.z())) {
+      return false;
+    }
     Eigen::Vector3d llpt;
     llpt.x() = item.x();
     llpt.y() = item.y();

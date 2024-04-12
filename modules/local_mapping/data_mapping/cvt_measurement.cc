@@ -44,8 +44,9 @@ bool DataMapping::CvtPb2Measurement(
       continue;
     }
     LaneLinePtr laneptr = std::make_shared<LaneLine>();
-    CvtPb2LaneLineMeasurement(item, laneptr);
-    measure_frame->lane_lines_ptr->lanelines.push_back(laneptr);
+    if (CvtPb2LaneLineMeasurement(item, laneptr)) {
+      measure_frame->lane_lines_ptr->lanelines.push_back(laneptr);
+    }
   }
   measure_frame->road_edges_ptr = std::make_shared<RoadEdges>();
   HLOG_DEBUG << "TEST pb road_edges nums:"
@@ -55,8 +56,9 @@ bool DataMapping::CvtPb2Measurement(
       continue;
     }
     RoadEdgePtr roadedgeptr = std::make_shared<RoadEdge>();
-    CvtPb2RoadEdgeMeasurement(item, roadedgeptr);
-    measure_frame->road_edges_ptr->road_edges.push_back(roadedgeptr);
+    if (CvtPb2RoadEdgeMeasurement(item, roadedgeptr)) {
+      measure_frame->road_edges_ptr->road_edges.push_back(roadedgeptr);
+    }
   }
   measure_frame->road_arrows_ptr = std::make_shared<Arrows>();
   HLOG_DEBUG << "TEST pb road_arrows nums:"

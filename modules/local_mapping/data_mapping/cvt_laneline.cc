@@ -350,6 +350,9 @@ bool DataMapping::CvtPb2LaneLineMeasurement(
   laneptr->position = CvtPbLanePosType(laneinfo.lanepos());
 
   for (auto& item : laneinfo.points()) {
+    if (std::isnan(item.x()) || std::isnan(item.y()) || std::isnan(item.z())) {
+      return false;
+    }
     Eigen::Vector3d llpt;
     llpt.x() = item.x();
     llpt.y() = item.y();

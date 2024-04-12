@@ -128,7 +128,7 @@ bool DataMapping::CvtRoadEdge2Pb(const RoadEdgePtr& roadedge_msg,
     return false;
   }
   pb_roadedge->set_track_id(roadedge_msg->id);
-  pb_roadedge->set_confidence(roadedge_msg->score);
+  pb_roadedge->set_confidence(roadedge_msg->type_confidence);
 
   for (auto& item_pt : roadedge_msg->vehicle_points) {
     auto pb_pt = pb_roadedge->add_points();
@@ -160,7 +160,7 @@ bool DataMapping::CvtPb2RoadEdgeMeasurement(
     const hozon::perception::RoadEdge& roadedge, RoadEdgePtr roadedge_ptr) {
   roadedge_ptr->id = roadedge.id();
   roadedge_ptr->type = CvtPb2RoadEdgeType(roadedge.type());
-  roadedge_ptr->score = roadedge.confidence();
+  roadedge_ptr->type_confidence = roadedge.confidence();
 
   for (auto& item : roadedge.points()) {
     Eigen::Vector3d llpt;

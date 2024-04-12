@@ -40,9 +40,9 @@ bool LaneTypeFilter::countTypeProbability(
   const perception_base::LaneLineType& detect_type = measurement->type;
   max_count_type_ = lane_target_ref_->GetConstTrackedLaneLine()->type;
   if (!(type_probability_.find(detect_type) == type_probability_.end())) {
-    type_probability_[detect_type] += measurement->score;
+    type_probability_[detect_type] += measurement->type_confidence;
   } else {
-    type_probability_[detect_type] = measurement->score;
+    type_probability_[detect_type] = measurement->type_confidence;
   }
   double type_score = -1.0;
   for (const auto& pair : type_probability_) {

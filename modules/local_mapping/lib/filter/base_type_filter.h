@@ -74,17 +74,17 @@ bool BaseLaneLineTypeFilter<LineType, MeasureType, TargetType>::Init(const Filte
   return true;
 }
 
-// 统计不同颜色出现的概率和最大概率类型
-// 返回不同颜色的统计概率值
+// 统计不同类型出现的概率和最大概率类型
+// 返回不同类型的统计概率值
 template<typename LineType, typename MeasureType, typename TargetType>
 bool BaseLaneLineTypeFilter<LineType, MeasureType, TargetType>::countTypeProbability(
     const MeasurementPtr& measurement) {
   const LineType& detect_type = measurement->type;
   max_count_type_ = target_ref_->GetConstTrackedObject()->type;
-  if (!(type_probability_.find(detect_type) == type_probability_.end())) {
-    type_probability_[detect_type] += measurement->score;
+  if (type_probability_.find(detect_type) != type_probability_.end()) {
+    type_probability_[detect_type] += measurement->type_confidence;
   } else {
-    type_probability_[detect_type] = measurement->score;
+    type_probability_[detect_type] = measurement->type_confidence;
   }
   double type_score = -1.0;
   for (const auto& pair : type_probability_) {

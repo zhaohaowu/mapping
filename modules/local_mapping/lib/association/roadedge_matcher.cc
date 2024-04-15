@@ -160,12 +160,17 @@ void RoadEdgeMatcher::AssociationKnn(
 
       int dist_match_cnt = 0;
       double dist_match_sum = 0;
+      // 加入近处匹配判断
+      int near_dist_match_cnt = 0;
+      double near_dist_match_sum = 0;
       // 遍历检测点
-
       float overlay_min =
           std::max(det_point_set.front().x(), track_point_set.front().x());
       float overlay_max =
           std::min(det_point_set.back().x(), track_point_set.back().x());
+      float near_max = overlay_min + 0.25F * (overlay_max - overlay_min);
+      // overlay_min 到 near_max总共的点数(2作为初值兜底)
+      int near_count_point = 2;
 
       for (size_t k = 0; k < det_point_set.size(); ++k) {
         // 找最近的一个点
@@ -177,6 +182,9 @@ void RoadEdgeMatcher::AssociationKnn(
         std::vector<float> query_point =
             std::vector<float>({find_pt_x, find_pt_y});
 
+        if (find_pt_x > overlay_min && find_pt_x < near_max) {
+          near_count_point++;
+        }
         // 用检测和跟踪公共部分的点来计算距离
         if ((find_pt_x < overlay_min) || (find_pt_x > overlay_max)) {
           continue;
@@ -191,8 +199,18 @@ void RoadEdgeMatcher::AssociationKnn(
         if (y_dist < point_match_dis_thresh_) {
           dist_match_sum += y_dist;
           dist_match_cnt++;
+          // 近处匹配统计
+          if (find_pt_x > overlay_min && find_pt_x < near_max) {
+            near_dist_match_sum += y_dist;
+            near_dist_match_cnt++;
+          }
         }
       }
+      near_dist_match_cnt = near_dist_match_cnt > 0 ? near_dist_match_cnt : 1;
+      dist_match_cnt = dist_match_cnt > 0 ? dist_match_cnt : 1;
+      double score = dist_match_sum / dist_match_cnt;
+      double near_score = near_dist_match_sum / near_dist_match_cnt;
+
       HLOG_DEBUG << "roadedge point_match_debug timestamp: " << debug_timestamp_
                  << ", track index: " << j << ", trackId: "
                  << roadedge_trackers[j]->GetConstTarget()->Id()
@@ -200,15 +218,24 @@ void RoadEdgeMatcher::AssociationKnn(
                  << ", detectId: " << detected_roadedges[i]->id
                  << ", match_point_num: " << dist_match_cnt
                  << ", dist_match_sum: " << dist_match_sum
-                 << ", average distance: " << dist_match_sum / dist_match_cnt
+                 << ", average distance: " << score
+                 << ", near_match_point_num: " << near_dist_match_cnt
+                 << ", near_dist_match_sum: " << near_dist_match_sum
+                 << ", near_average distance: " << near_score
                  << ", overlay_min: " << overlay_min
                  << ", overlay_max: " << overlay_max;
-      double score = dist_match_sum / dist_match_cnt;
-      float total_score = 5.0 / score;
+      // 设置近处匹配阈值
+      int near_match_cnt_threshold =
+          std::min(static_cast<int>(near_count_point * 0.5),
+                   3);  // 存在近处不足3个点的情况
+      bool near_threshold_flag =
+          near_dist_match_cnt < near_match_cnt_threshold || near_score > 0.6;
+      bool threshold_flag = dist_match_cnt < 6 || score > 1.0;
 
-      if (dist_match_cnt < point_match_num_thresh_ ||
-          total_score < match_score_thresh_)
+      if (near_threshold_flag || threshold_flag) {
         continue;
+      }
+      float total_score = 5.0 / (near_score + score);
 
       // 0: track_index, 1: detect_index
       std::get<0>(match_score_tuple_) = j;

@@ -237,6 +237,11 @@ void LaneLineMatcher::AssociationKnn(
           }
         }
       }
+      near_dist_match_cnt = near_dist_match_cnt > 0 ? near_dist_match_cnt : 1;
+      far_dist_match_cnt = far_dist_match_cnt > 0 ? far_dist_match_cnt : 1;
+      double near_score = near_dist_match_sum / near_dist_match_cnt;
+      double far_score = far_dist_match_sum / far_dist_match_cnt;
+
       HLOG_DEBUG << "laneline point_match_debug timestamp: " << debug_timestamp_
                  << ", track index: " << j
                  << ", trackId: " << lane_trackers[j]->GetConstTarget()->Id()
@@ -244,20 +249,14 @@ void LaneLineMatcher::AssociationKnn(
                  << ", detectId: " << detected_lanelines[i]->id
                  << ", near_match_point_num: " << near_dist_match_cnt
                  << ", near_dist_match_sum: " << near_dist_match_sum
-                 << ", near_average distance: "
-                 << near_dist_match_sum / near_dist_match_cnt
+                 << ", near_average distance: " << near_score
                  << ", far_match_point_num: " << far_dist_match_cnt
                  << ", far_dist_match_sum: " << far_dist_match_sum
-                 << ", far_average distance: "
-                 << far_dist_match_sum / far_dist_match_cnt
+                 << ", far_average distance: " << far_score
                  << ", y err: " << track_lanes_y_err_[j]
                  << ", close_near_match: " << close_near_match
                  << ", overlay_min: " << overlay_min
                  << ", near_max: " << near_max;
-      near_dist_match_cnt = near_dist_match_cnt > 0 ? near_dist_match_cnt : 1;
-      far_dist_match_cnt = far_dist_match_cnt > 0 ? far_dist_match_cnt : 1;
-      double near_score = near_dist_match_sum / near_dist_match_cnt;
-      double far_score = far_dist_match_sum / far_dist_match_cnt;
       int near_match_cnt_threshold =
           std::min(static_cast<int>(near_count_point * 0.5),
                    3);  // 存在近处不足3个点的情况

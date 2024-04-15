@@ -164,9 +164,9 @@ void RoadEdgePointFilter::RevisePredictFit() {
     auto wp_y_t = static_cast<float>(local_pt.y());
     XT[i * 2] = wp_x_t;
     XT[i * 2 + 1] = wp_y_t;
-    float ratio_x = wp_x_t / wp_x;
+    float ratio_x = std::abs(wp_x) < 1e-3 ? 1.0 : wp_x_t / wp_x;
     B_(i * 2, i * 2) = ratio_x;
-    float ratio_y = wp_y_t / wp_y;
+    float ratio_y = std::abs(wp_y) < 1e-3 ? 1.0 : wp_y_t / wp_y;
     B_(i * 2 + 1, i * 2 + 1) = ratio_y;
   }
   return;
@@ -198,8 +198,8 @@ void RoadEdgePointFilter::CalculateNormalV2() {
       float normal_x = centerX - X_[j * 2];
       float normal_y = centerY - X_[j * 2 + 1];
       float mag = sqrt(normal_y * normal_y + normal_x * normal_x);
-      normal_x = normal_x / mag;
-      normal_y = normal_y / mag;
+      normal_x = mag < 1e-4 ? 0.0 : normal_x / mag;
+      normal_y = mag < 1e-4 ? 0.0 : normal_y / mag;
       X_NORMAL_[2 * j + 0] = normal_x;
       X_NORMAL_[2 * j + 1] = normal_y;
     }
@@ -346,8 +346,8 @@ void RoadEdgePointFilter::CalculateNormal() {
     float normal_x = bottom_y - top_y;
     float normal_y = top_x - bottom_x;
     float mag = sqrt(normal_y * normal_y + normal_x * normal_x);
-    normal_x = normal_x / mag;
-    normal_y = normal_y / mag;
+    normal_x = mag < 1e-4 ? 0.0 : normal_x / mag;
+    normal_y = mag < 1e-4 ? 0.0 : normal_y / mag;
     X_NORMAL_[2 * idx + 0] = normal_x;
     X_NORMAL_[2 * idx + 1] = normal_y;
   }
@@ -436,19 +436,26 @@ void RoadEdgePointFilter::UpdateResult(bool match_flag) {
   const auto& pts = tracked_lane->vehicle_points;
   // 保存临时点
   if (match_flag) {
-    // 将X_点存入跟踪线数据结构中进行发送
+    // 保存上一帧的点
     target_vehicle_pts_ = pts;
+    // 将X_点存入跟踪线数据结构中进行发送
     ConvertEigen2PointSet(X_, tracked_lane);
+    // 点处理完后和保存的车道线元素融合，直接append到地图车道线
+    MergeMapTrackLanePoints();
   }
+
   // 拿车身坐标系下的点进行三次方程拟合
-  auto& track_polynomial = target_ref_->GetTrackedObject()->vehicle_curve;
+  auto& track_polynomial = tracked_lane->vehicle_curve;
   std::vector<Eigen::Vector3d> fit_points;
   if (pts.size() > 20) {
     fit_points.assign(pts.end() - 20, pts.end());
   } else {
     fit_points.assign(pts.begin(), pts.end());
   }
-  curve_fit_.PolyFitProcess(fit_points);
+  if (!curve_fit_.PolyFitProcess(fit_points)) {
+    HLOG_ERROR << "curve_fit error !!!";
+    return;
+  }
 
   track_polynomial.min = curve_fit_.x_min;
   track_polynomial.max = curve_fit_.x_max;
@@ -457,10 +464,6 @@ void RoadEdgePointFilter::UpdateResult(bool match_flag) {
   track_polynomial.coeffs[1] = curve_fit_.params[1];
   track_polynomial.coeffs[2] = curve_fit_.params[2];
   track_polynomial.coeffs[3] = curve_fit_.params[3];
-  // 点处理完后和保存的路沿线元素融合，直接append到地图车道线
-  if (match_flag) {
-    MergeMapTrackLanePoints();
-  }
 }
 
 void RoadEdgePointFilter::Reset() { return; }

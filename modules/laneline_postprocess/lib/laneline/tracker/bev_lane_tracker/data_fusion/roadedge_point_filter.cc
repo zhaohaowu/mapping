@@ -178,8 +178,7 @@ void RoadEdgePointFilter::RevisePredictFit() {
   for (int i = 0; i < pt_size_; ++i) {
     Eigen::Vector3d local_point(X_[i * 2], X_[i * 2 + 1], 0.0);
     auto vehicle_pt = current_pose.inverse() * local_point;
-    vec_vehicle_pt.emplace_back(
-        Eigen::Vector2d(vehicle_pt.x(), vehicle_pt.y()));
+    vec_vehicle_pt.emplace_back(vehicle_pt.x(), vehicle_pt.y());
   }
   for (int i = 1; i < pt_size_ - 2; ++i) {
     // 取四个跟踪点求二次曲线方程
@@ -201,7 +200,7 @@ void RoadEdgePointFilter::RevisePredictFit() {
         current_pose * Eigen::Vector3d(vehicle_pt.x(), vehicle_y, 0.0);
     float wp_y_t = local_pt.y();
     XT[i * 2 + 1] = wp_y_t;
-    float ratio = wp_y_t / wp_y;
+    float ratio = std::abs(wp_y) < 1e-3 ? 1.0 : wp_y_t / wp_y;
     B_(i * 2 + 1, i * 2 + 1) = ratio;
   }
   return;
@@ -233,8 +232,8 @@ void RoadEdgePointFilter::CalculateNormalV2() {
       float normal_x = centerX - X_[j * 2];
       float normal_y = centerY - X_[j * 2 + 1];
       float mag = sqrt(normal_y * normal_y + normal_x * normal_x);
-      normal_x = normal_x / mag;
-      normal_y = normal_y / mag;
+      normal_x = mag < 1e-4 ? 0.0 : normal_x / mag;
+      normal_y = mag < 1e-4 ? 0.0 : normal_y / mag;
       X_NORMAL_[2 * j + 0] = normal_x;
       X_NORMAL_[2 * j + 1] = normal_y;
     }
@@ -368,8 +367,8 @@ void RoadEdgePointFilter::CalculateNormal() {
     float normal_x = bottom_y - top_y;
     float normal_y = top_x - bottom_x;
     float mag = sqrt(normal_y * normal_y + normal_x * normal_x);
-    normal_x = normal_x / mag;
-    normal_y = normal_y / mag;
+    normal_x = mag < 1e-4 ? 0.0 : normal_x / mag;
+    normal_y = mag < 1e-4 ? 0.0 : normal_y / mag;
     X_NORMAL_[2 * idx + 0] = normal_x;
     X_NORMAL_[2 * idx + 1] = normal_y;
   }

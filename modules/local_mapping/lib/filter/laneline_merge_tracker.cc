@@ -40,7 +40,9 @@ void LaneLineMergeTrack::MergeTrackPoints(
       count++;
     }
   }
-  curve_fitter.PolyFitProcess(points);
+  if (!curve_fitter.PolyFitProcess(points)) {
+    return;
+  }
   std::vector<Eigen::Vector3d> insert_pts;
   insert_pts.reserve(right_pts.size());
   Eigen::Vector3d end_pt;

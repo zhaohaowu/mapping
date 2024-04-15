@@ -392,7 +392,9 @@ void LaneLineMappingPipeline::SmoothEndPt() {
     // 只对处于图中间线的端点做平滑
     if (pts.front().x() > -50 && pts.size() > 10) {
       std::vector<Eigen::Vector3d> points(pts.begin(), pts.begin() + 6);
-      curve_fitter.PolyFitProcess(points);
+      if (!curve_fitter.PolyFitProcess(points)) {
+        continue;
+      }
       for (int i = 0; i < 3 && i < pts.size(); ++i) {
         double y = curve_fitter.evalueValue(pts[i].x());
         double abs_error = std::abs(y - pts[i].y());

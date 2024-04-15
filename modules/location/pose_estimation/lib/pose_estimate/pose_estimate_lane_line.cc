@@ -222,6 +222,30 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
   if (fabs(global_error) >= mm_params.line_error_normal_thr ||
       fabs(global_near_error) >= mm_params.line_error_normal_thr) {
     // normal
+    if (FC_vel(0) < mm_params.min_vel && FC_vel(1) < mm_params.min_vel) {
+      if (fabs(left_dist_near_v) >= mm_params.map_lane_match_max &&
+          fabs(right_dist_near_v) >= mm_params.map_lane_match_max) {
+        HLOG_ERROR << "130 : slow near distance exceed thr";
+        fc_good_match_check = false;
+      }
+      if (fabs(left_error) >= mm_params.map_lane_match_max &&
+          fabs(right_error) >= mm_params.map_lane_match_max) {
+        HLOG_ERROR << "130 : slow both sides distance exceed thr";
+        fc_good_match_check = false;
+      }
+    } else {
+      if (fabs(left_dist_near_v) >= mm_params.line_error_normal_thr &&
+          fabs(right_dist_near_v) >= mm_params.line_error_normal_thr) {
+        HLOG_ERROR << "130 : near distance exceed thr";
+        fc_good_match_check = false;
+      }
+      if (fabs(left_error) >= mm_params.map_lane_match_max &&
+          fabs(right_error) >= mm_params.map_lane_match_max) {
+        HLOG_ERROR << "130 : both sides distance exceed thr";
+        fc_good_match_check = false;
+      }
+    }
+
     if (fabs(left_dist_near_v) >= mm_params.line_error_normal_thr &&
         fabs(right_dist_near_v) >= mm_params.line_error_normal_thr) {
       HLOG_ERROR << "130 : near distance exceed thr";
@@ -343,7 +367,7 @@ void MatchLaneLine::CalLinesMinDist(
       }
     }
   }
-  if (fabs(fabs(min_y_near) - DOUBLE_MAX) < 1e-8) {
+  if (fabs(fabs(min_y_near) - DOUBLE_MAX) < 1e-8 || percep->Min() > 5) {
     min_y_near = 0.0;
   }
   if (fabs(fabs(min_y_far) - DOUBLE_MAX) < 1e-8) {

@@ -246,17 +246,6 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
       }
     }
 
-    if (fabs(left_dist_near_v) >= mm_params.line_error_normal_thr &&
-        fabs(right_dist_near_v) >= mm_params.line_error_normal_thr) {
-      HLOG_ERROR << "130 : near distance exceed thr";
-      fc_good_match_check = false;
-    }
-    if (fabs(left_error) >= mm_params.map_lane_match_max &&
-        fabs(right_error) >= mm_params.map_lane_match_max) {
-      HLOG_ERROR << "130 : both sides distance exceed thr";
-      fc_good_match_check = false;
-    }
-
     // serious
     if (fabs(left_dist_near_v) >= mm_params.map_lane_match_ser_max &&
         fabs(right_dist_near_v) >= mm_params.map_lane_match_ser_max) {

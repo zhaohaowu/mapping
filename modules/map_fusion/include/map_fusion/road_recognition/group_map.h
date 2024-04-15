@@ -120,6 +120,7 @@ struct Lane {
   std::vector<std::string> prev_lane_str_id_with_group;
   std::vector<std::string> next_lane_str_id_with_group;
   em::TurnType turn_type;
+  em::DirectionType direction_type;
   std::string str_id;
   std::string str_id_with_group;
   std::string lanepos_id;
@@ -266,6 +267,10 @@ class GroupMap {
   void PredictLaneLine(double heading, std::vector<Point>* line,
                        double mean_end_interval);
   void RelateGroups(std::vector<Group::Ptr>* groups, double stamp);
+  bool MatchLanePtAndStopLine(const em::Point& left_pt,
+                              const em::Point& right_pt, const Stpl& stop_line);
+  bool MatchLaneAndStopLine(const Lane::Ptr& lane, const Stpl::Ptr& stop_line);
+  Stpl::Ptr MatchedStopLine(const std::string& lane_id);
 };
 
 }  // namespace gm

@@ -267,6 +267,12 @@ enum LaneType {
   NON_MOTOR_WAY,
 };
 
+enum DirectionType {
+  DIRECTION_FORWARD = 0,
+  DIRECTION_BACKWARD,
+  BIDIRECTION,
+};
+
 enum TurnType {
   UNKNOWN_TURN_TYPE = 0,
   FORWARD,

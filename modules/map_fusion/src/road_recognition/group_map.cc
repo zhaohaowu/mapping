@@ -671,6 +671,36 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
             .norm();
     if (group_distance > 10) {
       // 小路口及以上
+      // 当前在路口，仅对同向的车道进行关联，生成虚拟车道
+      std::vector<Lane::Ptr> forward_lanes_curr_group;
+      for (auto it : curr_group->lanes) {
+        if (it->direction_type == em::DIRECTION_FORWARD) {
+          forward_lanes_curr_group.emplace_back(it);
+        }
+      }
+      std::vector<Lane::Ptr> forward_lanes_next_group_reverse;
+      // 从右往左遍历，如果遍历到关联了停止线的道就终止，即认为此道左侧所有道也关联了停止线
+      for (auto it = next_group->lanes.rbegin(); it != next_group->lanes.rend();
+           ++it) {
+        auto matched_stop = MatchedStopLine((*it)->str_id);
+        if (matched_stop != nullptr) {
+          break;
+        }
+        if ((*it)->direction_type == em::DIRECTION_FORWARD) {
+          forward_lanes_next_group_reverse.emplace_back(*it);
+        }
+      }
+      std::vector<Lane::Ptr> forward_lanes_next_group;
+      for (auto it = forward_lanes_next_group_reverse.rbegin();
+           it != forward_lanes_next_group_reverse.rend(); ++it) {
+        forward_lanes_next_group.emplace_back(*it);
+      }
+
+      if (forward_lanes_curr_group.empty() ||
+          forward_lanes_next_group.empty()) {
+        continue;
+      }
+
       auto cur_group_v =
           (curr_group->group_segments[curr_group_size - 1]->end_slice.po -
            curr_group->group_segments[curr_group_size - 2]->end_slice.po)
@@ -680,22 +710,25 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
                               .normalized();
       if (cur_group_v.dot(next_group_v) > 0.8) {
         // 角度差别不大的情况下
-        if (curr_group->lanes.size() == next_group->lanes.size()) {
-          for (size_t i = 0; i < curr_group->lanes.size(); ++i) {
-            if (curr_group->lanes[i]->next_lane_str_id_with_group.empty()) {
-              BuildVirtualProSucLane(&lane_virtual, curr_group->lanes[i],
-                                     next_group->lanes[i], 101.0);
+        if (forward_lanes_curr_group.size() ==
+            forward_lanes_next_group.size()) {
+          for (size_t i = 0; i < forward_lanes_curr_group.size(); ++i) {
+            if (forward_lanes_curr_group[i]
+                    ->next_lane_str_id_with_group.empty()) {
+              BuildVirtualProSucLane(&lane_virtual, forward_lanes_curr_group[i],
+                                     forward_lanes_next_group[i], 101.0);
             }
           }
         } else {
           size_t next_group_lane_min_index = 0,
-                 next_group_lane_max_index = next_group->lanes.size() - 1;
-          for (size_t i = 0; i < curr_group->lanes.size(); ++i) {
-            auto& lane_in_curr = curr_group->lanes[i];
+                 next_group_lane_max_index =
+                     forward_lanes_next_group.size() - 1;
+          for (size_t i = 0; i < forward_lanes_curr_group.size(); ++i) {
+            auto& lane_in_curr = forward_lanes_curr_group[i];
             if (!lane_in_curr->next_lane_str_id_with_group.empty()) {
               for (size_t j = 0; j < next_group_lane_max_index; ++j) {
                 if (lane_in_curr->next_lane_str_id_with_group[0] ==
-                    next_group->lanes[j]->str_id_with_group) {
+                    forward_lanes_next_group[j]->str_id_with_group) {
                   next_group_lane_min_index = j;
                   break;
                 }
@@ -703,25 +736,25 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
             } else {
               if (i == 0) {
                 BuildVirtualProSucLane(&lane_virtual, lane_in_curr,
-                                       next_group->lanes[0], 101.0);
-              } else if (i == curr_group->lanes.size() - 1 ||
+                                       forward_lanes_next_group[0], 101.0);
+              } else if (i == forward_lanes_curr_group.size() - 1 ||
                          next_group_lane_min_index ==
                              next_group_lane_max_index) {
                 BuildVirtualProSucLane(
                     &lane_virtual, lane_in_curr,
-                    next_group->lanes[next_group_lane_max_index], 101.0);
+                    forward_lanes_next_group[next_group_lane_max_index], 101.0);
               } else if (curr_group->lanes.size() - 1 - i ==
                          next_group_lane_max_index -
                              next_group_lane_min_index) {
                 BuildVirtualProSucLane(
                     &lane_virtual, lane_in_curr,
-                    next_group->lanes[next_group_lane_min_index], 101.0);
+                    forward_lanes_next_group[next_group_lane_min_index], 101.0);
                 next_group_lane_min_index += 1;
               } else {
                 if (lane_in_curr->center_line_param.size() > 0) {
                   size_t sizet = lane_in_curr->center_line_pts.size();
                   auto lane_in_next =
-                      next_group->lanes[next_group_lane_min_index];
+                      forward_lanes_next_group[next_group_lane_min_index];
                   float angle1 =
                       atan((lane_in_next->center_line_pts[0].pt.y() -
                             lane_in_curr->center_line_pts[sizet - 1].pt.y()) /
@@ -729,7 +762,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
                             lane_in_curr->center_line_pts[sizet - 1].pt.x())) -
                       atan(lane_in_curr->center_line_param[1]);
                   auto lane_in_next2 =
-                      next_group->lanes[next_group_lane_min_index + 1];
+                      forward_lanes_next_group[next_group_lane_min_index + 1];
                   float angle2 =
                       atan((lane_in_next2->center_line_pts[0].pt.y() -
                             lane_in_curr->center_line_pts[sizet - 1].pt.y()) /
@@ -742,7 +775,8 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
                   }
                   BuildVirtualProSucLane(
                       &lane_virtual, lane_in_curr,
-                      next_group->lanes[next_group_lane_min_index], 101.0);
+                      forward_lanes_next_group[next_group_lane_min_index],
+                      101.0);
                 } else {
                   if (curr_group->lanes.size() > next_group->lanes.size()) {
                     size_t mod = i % (next_group_lane_max_index + 1);
@@ -768,7 +802,8 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
 
                   BuildVirtualProSucLane(
                       &lane_virtual, lane_in_curr,
-                      next_group->lanes[next_group_lane_min_index], 101.0);
+                      forward_lanes_next_group[next_group_lane_min_index],
+                      101.0);
                 }
               }
             }
@@ -850,6 +885,77 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
   }
 }
 
+bool GroupMap::MatchLanePtAndStopLine(const em::Point& left_pt,
+                                      const em::Point& right_pt,
+                                      const Stpl& stop_line) {
+  if (stop_line.points.size() < 2) {
+    return false;
+  }
+
+  const double kLaneStopLineDistThresh = 5.;
+  Eigen::Vector2f p0(stop_line.points.front().x(),
+                     stop_line.points.front().y());
+  Eigen::Vector2f p1(stop_line.points.back().x(), stop_line.points.back().y());
+  Eigen::Vector2f left(left_pt.x(), left_pt.y());
+  Eigen::Vector2f right(right_pt.x(), right_pt.y());
+  bool left_in_range =
+      (ProjectedInSegment(p0, p1, left) &&
+       PointToVectorDist(p0, p1, left) < kLaneStopLineDistThresh);
+  bool right_in_range =
+      (ProjectedInSegment(p0, p1, right) &&
+       PointToVectorDist(p0, p1, right) < kLaneStopLineDistThresh);
+  // 左右点都在停止线范围内，认为关联
+  if (left_in_range && right_in_range) {
+    return true;
+  }
+
+  Eigen::Vector2f center = (left + right) * 0.5;
+  bool center_in_range =
+      (ProjectedInSegment(p0, p1, center) &&
+       PointToVectorDist(p0, p1, center) < kLaneStopLineDistThresh);
+  // 左边点在范围内且中心点也在范围内，认为关联
+  if (left_in_range && center_in_range) {
+    return true;
+  }
+
+  // 右边点在范围内且中心点也在范围内，认为关联
+  if (right_in_range && center_in_range) {
+    return true;
+  }
+
+  return false;
+}
+
+bool GroupMap::MatchLaneAndStopLine(const Lane::Ptr& lane,
+                                    const Stpl::Ptr& stop_line) {
+  if (lane == nullptr || stop_line == nullptr) {
+    return false;
+  }
+
+  if (lane->left_boundary->pts.empty() || lane->right_boundary->pts.empty() ||
+      stop_line->points.size() < 2) {
+    return false;
+  }
+
+  auto start_left = lane->left_boundary->pts.front().pt;
+  auto start_right = lane->right_boundary->pts.front().pt;
+  auto end_left = lane->left_boundary->pts.back().pt;
+  auto end_right = lane->right_boundary->pts.back().pt;
+
+  return MatchLanePtAndStopLine(start_left, start_right, *stop_line) ||
+         MatchLanePtAndStopLine(end_left, end_right, *stop_line);
+}
+
+Stpl::Ptr GroupMap::MatchedStopLine(const std::string& lane_id) {
+  for (const auto& stop : stopline_) {
+    if (std::find(stop.second->lane_id.begin(), stop.second->lane_id.end(),
+                  lane_id) != stop.second->lane_id.end()) {
+      return stop.second;
+    }
+  }
+  return nullptr;
+}
+
 // 把Group里一个个GroupSegment中包含的小的LaneSegment，纵向上聚合成一个个大的Lane，
 // 并且生成出：左右关联、前后关联、远端预测线、中心线
 void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
@@ -927,6 +1033,65 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
           lane->right_boundary != nullptr &&
           lane->right_boundary->pts.size() > 1) {
         grp->lanes.emplace_back(lane);
+      }
+    }
+
+    // 区分出同向、反向车道
+    //! 注意：当前同向、反向车道仅用于路口处排除关联到反向车道，普通路段不考虑同向、反向.
+    // 同向、反向可能有多种隔离场景：单/双黄线、隔离带（路沿）、隔离栅栏等；
+    // 当前仅考虑使用黄线隔离的场景，并且假设只有一根隔离（即仅考虑一根黄线）；当前不考虑双向车道.
+    // 找到隔离线（当前只用黄线），判断每个车道的中心线在隔离线的左侧还是右侧，
+    // 右侧为同向车道，左侧为反向车道.
+    //! TBD：综合考虑黄线、路沿、栅栏等作为隔离线.
+    std::vector<em::Point> separate;
+    for (auto it = grp->lanes.rbegin(); it != grp->lanes.rend(); ++it) {
+      LineSegment::Ptr yellow_bound = nullptr;
+      if ((*it)->right_boundary->color == em::YELLOW &&
+          (*it)->right_boundary->pts.size() > 1) {
+        yellow_bound = (*it)->right_boundary;
+      } else if ((*it)->left_boundary->color == em::YELLOW &&
+                 (*it)->left_boundary->pts.size() > 1) {
+        yellow_bound = (*it)->left_boundary;
+      }
+      if (yellow_bound != nullptr) {
+        auto start = yellow_bound->pts.front().pt;
+        auto end = yellow_bound->pts.back().pt;
+        separate.emplace_back(start);
+        separate.emplace_back(end);
+        break;
+      }
+    }
+    // 没有隔离线，就默认所有车道都是同向
+    if (separate.size() < 2) {
+      for (auto& lane : grp->lanes) {
+        lane->direction_type = em::DIRECTION_FORWARD;
+      }
+    } else {
+      for (auto& lane : grp->lanes) {
+        auto start_center = (lane->left_boundary->pts.front().pt +
+                             lane->right_boundary->pts.front().pt) *
+                            0.5;
+        auto end_center = (lane->left_boundary->pts.back().pt +
+                           lane->right_boundary->pts.back().pt) *
+                          0.5;
+        auto center = (start_center + end_center) * 0.5;
+        Eigen::Vector2f p0(separate.front().x(), separate.front().y());
+        Eigen::Vector2f p1(separate.back().x(), separate.back().y());
+        Eigen::Vector2f pt(center.x(), center.y());
+        if (PointInVectorSide(p0, p1, pt) > 0) {
+          lane->direction_type = em::DIRECTION_FORWARD;
+        } else {
+          lane->direction_type = em::DIRECTION_BACKWARD;
+        }
+      }
+    }
+
+    // 将车道关联到停止线
+    for (const auto& lane : grp->lanes) {
+      for (auto& stop_line : stopline_) {
+        if (MatchLaneAndStopLine(lane, stop_line.second)) {
+          stop_line.second->lane_id.emplace_back(lane->str_id);
+        }
       }
     }
 

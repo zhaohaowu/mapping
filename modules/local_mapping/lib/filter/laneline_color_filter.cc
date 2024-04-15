@@ -36,7 +36,8 @@ bool LaneLineColorFilter::Init(const FilterInitOption& init_options) {
 
 // 统计不同颜色出现的概率和最大概率类型
 // 返回不同颜色的统计概率值
-bool LaneLineColorFilter::countColorProbability(const LaneLinePtr& measurement) {
+bool LaneLineColorFilter::countColorProbability(
+    const LaneLinePtr& measurement) {
   const LaneLineColor& detect_color = measurement->color;
   max_count_color_ = target_ref_->GetConstTrackedObject()->color;
   if (!(color_probability_.find(detect_color) == color_probability_.end())) {
@@ -54,8 +55,7 @@ bool LaneLineColorFilter::countColorProbability(const LaneLinePtr& measurement) 
   return true;
 }
 // 统计连续多帧的检测类型count数
-int LaneLineColorFilter::countContinueColorNum(
-    const LaneLinePtr& measurement) {
+int LaneLineColorFilter::countContinueColorNum(const LaneLinePtr& measurement) {
   int count = 1, size_color = lastest_n_measures_color_.size();
   const LaneLineColor& detect_color = measurement->color;
   // 判断连续多帧的检测结果
@@ -73,8 +73,7 @@ int LaneLineColorFilter::countContinueColorNum(
 
 LaneLineColor LaneLineColorFilter::getTrackColor(
     const LaneLinePtr& measurement) {
-  LaneLineColor track_color =
-      target_ref_->GetConstTrackedObject()->color;
+  LaneLineColor track_color = target_ref_->GetConstTrackedObject()->color;
   const LaneLineColor& detect_color = measurement->color;
 
   int color_count_threshold = color_count_threshold_;
@@ -94,8 +93,7 @@ LaneLineColor LaneLineColorFilter::getTrackColor(
   HLOG_DEBUG << " [LaneColorCount]: "
              << ", trackID: " << target_ref_->GetConstTrackedObject()->id
              << ", original_color: "
-             << static_cast<int>(
-                    target_ref_->GetConstTrackedObject()->color)
+             << static_cast<int>(target_ref_->GetConstTrackedObject()->color)
              << ", detect_color: " << static_cast<int>(detect_color)
              << ", track_color: " << static_cast<int>(track_color)
              << ", continue_count: " << count;
@@ -104,14 +102,13 @@ LaneLineColor LaneLineColorFilter::getTrackColor(
 }
 
 void LaneLineColorFilter::UpdateWithMeasurement(
-    const FilterOption& filter_options,
-    const LaneLinePtr& measurement) {
-  PERF_BLOCK_START();
+    const FilterOption& filter_options, const LaneLinePtr& measurement) {
+  // PERF_BLOCK_START();
 
   lastest_n_measures_color_.push_back(measurement->color);
   final_track_color_ = getTrackColor(measurement);
   UpdateResult();
-  PERF_BLOCK_END("LaneLineColorFilter UpdateWithMeasurement Used Time");
+  // PERF_BLOCK_END("LaneLineColorFilter UpdateWithMeasurement Used Time");
 }
 
 void LaneLineColorFilter::UpdateWithoutMeasurement(

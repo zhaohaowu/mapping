@@ -124,7 +124,7 @@ int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
             LOCALMAPPING_MUL_FRAM_PERCEPTION_INPUT_DATA_LOSS,
         hozon::perception::base::FaultStatus::OCCUR,
         hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
-    HLOG_ERROR << "nullptr detect lane plugin";
+    HLOG_ERROR << "nullptr detect laneline plugin";
     return -1;
   }
 

@@ -4,6 +4,7 @@
  *Date: 2023-10-16
  *****************************************************************************/
 
+#include "base/utils/log.h"
 #include "modules/local_mapping/data_mapping/data_mapping.h"
 
 namespace hozon {
@@ -46,6 +47,8 @@ bool DataMapping::CvtPb2Measurement(
     LaneLinePtr laneptr = std::make_shared<LaneLine>();
     if (CvtPb2LaneLineMeasurement(item, laneptr)) {
       measure_frame->lane_lines_ptr->lanelines.push_back(laneptr);
+    } else {
+      HLOG_ERROR << "laneline measurement data has nan value...";
     }
   }
   measure_frame->road_edges_ptr = std::make_shared<RoadEdges>();
@@ -58,6 +61,8 @@ bool DataMapping::CvtPb2Measurement(
     RoadEdgePtr roadedgeptr = std::make_shared<RoadEdge>();
     if (CvtPb2RoadEdgeMeasurement(item, roadedgeptr)) {
       measure_frame->road_edges_ptr->road_edges.push_back(roadedgeptr);
+    } else {
+      HLOG_ERROR << "roadedge measurement data has nan value...";
     }
   }
   measure_frame->road_arrows_ptr = std::make_shared<Arrows>();

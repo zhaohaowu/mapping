@@ -296,6 +296,11 @@ void RoadEdgeMappingPipeline::RemoveLostTracks() {
             ->vehicle_points.size() < 5) {
       continue;
     }
+
+    if (CheckBadTrack(roadedge_trackers_[i])) {
+      continue;
+    }
+
     if (track_count == i) {
       track_count++;
       continue;
@@ -413,6 +418,21 @@ std::vector<RoadEdgeTargetPtr> RoadEdgeMappingPipeline::GetAllTarget() {
     roadedge_targets.push_back(roadedge_target);
   }
   return roadedge_targets;
+}
+
+bool RoadEdgeMappingPipeline::CheckBadTrack(
+    const RoadEdgeTrackerPtr& roadedge_track) {
+  auto roadedge_data =
+      roadedge_track->GetConstTarget()->GetConstTrackedObject();
+  for (auto& point : roadedge_data->vehicle_points) {
+    if (std::isnan(point.x()) || std::isnan(point.y()) ||
+        std::isnan(point.z())) {
+      HLOG_ERROR << "track_id:" << roadedge_data->id
+                 << ", nan data in roadedge tracker...";
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace lm

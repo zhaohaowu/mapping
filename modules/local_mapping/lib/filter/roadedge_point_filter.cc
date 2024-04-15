@@ -253,18 +253,18 @@ bool RoadEdgePointFilter::IsAbnormalPose(
 
 void RoadEdgePointFilter::UpdateWithMeasurement(
     const FilterOption& filter_options, const RoadEdgePtr& measurement) {
-  PERF_FUNCTION();
-  PERF_BLOCK_START();
+  // PERF_FUNCTION();
+  // PERF_BLOCK_START();
   // 如果前后帧姿态异常，则不做任何处理。
   if (IsAbnormalPose(PoseManager::Instance()->GetCurrentPose())) {
     return;
   }
   PredictStage();
-  PERF_BLOCK_END("PredictStage Used Time");
+  // PERF_BLOCK_END("PredictStage Used Time");
   UpdateStage(measurement);
-  PERF_BLOCK_END("UpdateStage Used Time");
+  // PERF_BLOCK_END("UpdateStage Used Time");
   UpdateResult(true);
-  PERF_BLOCK_END("UpdateResult Used Time");
+  // PERF_BLOCK_END("UpdateResult Used Time");
   return;
 }
 
@@ -413,15 +413,15 @@ void RoadEdgePointFilter::KalmanUpdate(
 void RoadEdgePointFilter::UpdateStage(const RoadEdgePtr& measurement_line) {
   const auto& measurement_points = measurement_line->world_points;
 
-  PERF_FUNCTION();
-  PERF_BLOCK_START();
+  // PERF_FUNCTION();
+  // PERF_BLOCK_START();
   // 删除车身后的点， 并同步更新到X_和P_。
   point_manager_->Process(measurement_line, &X_, &P_);
 
-  PERF_BLOCK_END("UpdatePoints Used Time");
+  // PERF_BLOCK_END("UpdatePoints Used Time");
 
   KalmanUpdate(measurement_points);
-  PERF_BLOCK_END("KalmanUpdate Used Time");
+  // PERF_BLOCK_END("KalmanUpdate Used Time");
 }
 
 void RoadEdgePointFilter::PredictStage() {

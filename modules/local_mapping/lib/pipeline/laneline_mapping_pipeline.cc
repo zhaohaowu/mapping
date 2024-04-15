@@ -251,6 +251,11 @@ void LaneLineMappingPipeline::RemoveLostTracks() {
             ->vehicle_points.size() < 5) {
       continue;
     }
+
+    if (CheckBadTrack(lane_trackers_[i])) {
+      continue;
+    }
+
     // 判断前面是否存在track应被过滤的情况
     if (track_count == i) {
       track_count++;
@@ -399,6 +404,20 @@ void LaneLineMappingPipeline::SmoothEndPt() {
   }
 }
 
+bool LaneLineMappingPipeline::CheckBadTrack(
+    const LaneTrackerPtr& laneline_track) {
+  auto laneline_data =
+      laneline_track->GetConstTarget()->GetConstTrackedObject();
+  for (auto& point : laneline_data->vehicle_points) {
+    if (std::isnan(point.x()) || std::isnan(point.y()) ||
+        std::isnan(point.z())) {
+      HLOG_ERROR << "track_id:" << laneline_data->id
+                 << ", nan data in laneline tracker...";
+      return true;
+    }
+  }
+  return false;
+}
 // Register plugin.
 // REGISTER_LANE_TRACKER(LaneLineMappingPipeline);
 

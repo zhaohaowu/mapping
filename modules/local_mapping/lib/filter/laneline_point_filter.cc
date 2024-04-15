@@ -254,18 +254,18 @@ bool LaneLinePointFilter::IsAbnormalPose(
 
 void LaneLinePointFilter::UpdateWithMeasurement(
     const FilterOption& filter_options, const LaneLinePtr& measurement) {
-  PERF_FUNCTION();
-  PERF_BLOCK_START();
+  // PERF_FUNCTION();
+  // PERF_BLOCK_START();
   // 如果前后帧姿态异常，则不做任何处理。
   if (IsAbnormalPose(PoseManager::Instance()->GetCurrentPose())) {
     return;
   }
   PredictStage();
-  PERF_BLOCK_END("PredictStage Used Time");
+  // PERF_BLOCK_END("PredictStage Used Time");
   UpdateStage(measurement);
-  PERF_BLOCK_END("UpdateStage Used Time");
+  // PERF_BLOCK_END("UpdateStage Used Time");
   UpdateResult(true);
-  PERF_BLOCK_END("UpdateResult Used Time");
+  // PERF_BLOCK_END("UpdateResult Used Time");
   return;
 }
 
@@ -384,14 +384,14 @@ void LaneLinePointFilter::KalmanUpdate(
 }
 
 void LaneLinePointFilter::UpdateStage(const LaneLinePtr& measurement_line) {
-  PERF_FUNCTION();
-  PERF_BLOCK_START();
+  // PERF_FUNCTION();
+  // PERF_BLOCK_START();
   // 跟踪点的自适应更新维护。
   point_manager_->Process(measurement_line, &X_, &P_);
-  PERF_BLOCK_END("UpdatePoints Used Time");
+  // PERF_BLOCK_END("UpdatePoints Used Time");
   const auto& measurement_points = measurement_line->world_points;
   KalmanUpdate(measurement_points);
-  PERF_BLOCK_END("KalmanUpdate Used Time");
+  // PERF_BLOCK_END("KalmanUpdate Used Time");
 }
 
 void LaneLinePointFilter::PredictStage() {

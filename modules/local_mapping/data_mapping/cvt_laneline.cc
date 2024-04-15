@@ -269,8 +269,10 @@ bool DataMapping::CvtLaneLine2TePb(const LaneLinePtr& lane_msg,
   pb_lane->set_track_id(lane_msg->id);
   hozon::perception::LaneType send_type = CvtLaneType2TePb(lane_msg->type);
   pb_lane->set_lanetype(send_type);
+  // hozon::perception::LanePositionType send_pos_type =
+  //     CvtLanePosType2TePb(lane_msg->te_position);
   hozon::perception::LanePositionType send_pos_type =
-      CvtLanePosType2TePb(lane_msg->te_position);
+      CvtLanePosType2TePb(lane_msg->position);
   pb_lane->set_lanepos(send_pos_type);
   auto curve_lane = pb_lane->mutable_lane_param()->add_cubic_curve_set();
   if (lane_msg->vehicle_curve.coeffs.size() == 4) {

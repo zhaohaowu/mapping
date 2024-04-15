@@ -102,7 +102,7 @@ bool MapWorker::Process(const MeasurementFrameConstPtr& measurement_frame_ptr) {
   HLOG_DEBUG << "finish do arrow mapping process...";
   CutLocalMap(local_map_ptr_, 80, 80);
 
-  // 7. 将历史数据存放到单例司数据管理器中（方便去拿历史数据）。
+  // 7. 将历史数据存放到单例数据管理器中（方便去拿历史数据）。
   MAP_MANAGER->SwapLocalMap();
   return true;
 }

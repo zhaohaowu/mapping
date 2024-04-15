@@ -53,13 +53,15 @@ class RoadEdgeMappingPipeline : public BaseMappingPipeline {
   void LimitTracksNum();
   static bool CompareTrackTime(const RoadEdgeTrackerPtr& d1,
                                const RoadEdgeTrackerPtr& d2);
-  void PostProcess(RoadEdgesPtr tracked_lanelines);
+  void PostProcess(RoadEdgesPtr tracked_roadedges);
   std::vector<RoadEdgePtr> CleanMeasureData(
       const std::vector<RoadEdgePtr>* measurement_data);
 
   std::vector<RoadEdgeTargetConstPtr> GetAllConstTarget();
 
   std::vector<RoadEdgeTargetPtr> GetAllTarget();
+
+  bool CheckBadTrack(const RoadEdgeTrackerPtr& roadedge_track);
 
  private:
   std::unique_ptr<RoadEdgeMatcher> roadedge_matcher_ = nullptr;

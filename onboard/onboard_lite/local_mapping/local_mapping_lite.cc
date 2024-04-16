@@ -248,6 +248,7 @@ int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
         hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
     input_data_value_error_flag = true;
     HLOG_ERROR << "localmapping input localization value error";
+    return -1;
   } else {
     if (input_data_value_error_flag) {
       phm_fault->Report(MAKE_FM_TUPLE(

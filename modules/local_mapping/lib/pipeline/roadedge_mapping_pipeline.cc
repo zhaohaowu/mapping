@@ -96,6 +96,9 @@ bool RoadEdgeMappingPipeline::Process(
   // 9. catmallrom拟合路边沿
   CatmullRomFit(tracked_roadedges);
 
+  // 当tracker中存在nan值时进行触发
+  // roadedge_nanvalue_trigger();
+
   return true;
 }
 
@@ -317,6 +320,11 @@ bool RoadEdgeMappingPipeline::CompareTrackTime(const RoadEdgeTrackerPtr& d1,
 }
 
 void RoadEdgeMappingPipeline::LimitTracksNum() {
+  roadedge_trackers_.erase(
+      std::remove_if(
+          roadedge_trackers_.begin(), roadedge_trackers_.end(),
+          [&](const auto& tracker) { return CheckBadTrack(tracker); }),
+      roadedge_trackers_.end());
   std::sort(roadedge_trackers_.begin(), roadedge_trackers_.end(),
             CompareTrackTime);
   if (roadedge_trackers_.size() > limit_max_tracker_nums_) {
@@ -430,6 +438,20 @@ bool RoadEdgeMappingPipeline::CheckBadTrack(
       HLOG_ERROR << "track_id:" << roadedge_data->id
                  << ", nan data in roadedge tracker...";
       return true;
+    }
+  }
+  return false;
+}
+
+bool RoadEdgeMappingPipeline::roadedge_nanvalue_trigger() {
+  for (const auto& tracker : roadedge_trackers_) {
+    const auto& object_data =
+        tracker->GetConstTarget()->GetConstTrackedObject();
+    for (const auto& point : object_data->vehicle_points) {
+      if (std::isnan(point.x()) || std::isnan(point.y()) ||
+          std::isnan(point.z())) {
+        return true;
+      }
     }
   }
   return false;

@@ -107,7 +107,7 @@ void PointMatcher::SetTrackKDTree(
   for (size_t i = 0; i < track_lanes_size_; ++i) {
     const auto& lane_line =
         lane_trackers[i]->GetConstLaneTarget()->GetConstTrackedLaneLine();
-    if (lane_line->point_set.size() == 0) {
+    if (lane_line->point_set.empty()) {
       track_kdtrees_[i] = nullptr;
       continue;
     }
@@ -116,11 +116,18 @@ void PointMatcher::SetTrackKDTree(
     int pt_num = lane_line->point_set.size();
     for (size_t j = 0; j < pt_num; ++j) {
       const auto& point = lane_line->point_set[j].local_point;
-      cv_points.push_back(cv::Point2f(point.x, point.y));
+      if (std::isnan(point.x) || std::isnan(point.y) || std::isnan(point.z)) {
+        break;
+      }
+      cv_points.emplace_back(point.x, point.y);
       if (j > 0) {
         std_y += std::abs(lane_line->point_set[j].vehicle_point.y - last_y);
       }
       last_y = lane_line->point_set[j].vehicle_point.y;
+    }
+    if (cv_points.size() < 5) {
+      track_kdtrees_[i] = nullptr;
+      continue;
     }
     std_y /= pt_num - 1;
     track_lanes_y_err_[i] = std::min(std_y * vehicle_y_error_ratio_ + 1.0, 3.0);
@@ -146,14 +153,21 @@ void PointMatcher::SetTrackKDTree(
   for (size_t i = 0; i < track_lanes_size_; ++i) {
     const auto& lane_line =
         lane_trackers[i]->GetConstLaneTarget()->GetConstTrackedLaneLine();
-    if (lane_line->point_set.size() == 0) {
+    if (lane_line->point_set.empty()) {
       track_kdtrees_[i] = nullptr;
       continue;
     }
     std::vector<cv::Point2f> cv_points;
     for (size_t j = 0; j < lane_line->point_set.size(); ++j) {
       const auto& point = lane_line->point_set[j].local_point;
-      cv_points.push_back(cv::Point2f(point.x, point.y));
+      if (std::isnan(point.x) || std::isnan(point.y) || std::isnan(point.z)) {
+        break;
+      }
+      cv_points.emplace_back(point.x, point.y);
+    }
+    if (cv_points.size() < 5) {
+      track_kdtrees_[i] = nullptr;
+      continue;
     }
     cv::flann::KDTreeIndexParams index_params(1);
     cv::flann::Index* kdtree =
@@ -299,7 +313,9 @@ void PointMatcher::AssociationKnn(
         std::vector<float> nearest_dist(dim);
         std::vector<float> query_point = std::vector<float>(
             {det_point_set[k].local_point.x, det_point_set[k].local_point.y});
-
+        if (std::isnan(query_point[0]) || std::isnan(query_point[1])) {
+          continue;
+        }
         // 用检测和跟踪公共部分的点来计算距离
         if ((det_point_set[k].vehicle_point.x < overlay_min) ||
             (det_point_set[k].vehicle_point.x > overlay_max))
@@ -404,7 +420,9 @@ void PointMatcher::AssociationKnn(
         std::vector<float> nearest_dist(dim);
         std::vector<float> query_point = std::vector<float>(
             {det_point_set[k].local_point.x, det_point_set[k].local_point.y});
-
+        if (std::isnan(query_point[0]) || std::isnan(query_point[1])) {
+          continue;
+        }
         // 用检测和跟踪公共部分的点来计算距离
         if ((det_point_set[k].vehicle_point.x < overlay_min) ||
             (det_point_set[k].vehicle_point.x > overlay_max))

@@ -63,6 +63,8 @@ class RoadEdgeMappingPipeline : public BaseMappingPipeline {
 
   bool CheckBadTrack(const RoadEdgeTrackerPtr& roadedge_track);
 
+  bool roadedge_nanvalue_trigger();
+
  private:
   std::unique_ptr<RoadEdgeMatcher> roadedge_matcher_ = nullptr;
   std::unique_ptr<RoadEdgeGatekeeper> roadedge_gate_keeper_ = nullptr;

@@ -63,6 +63,8 @@ class LaneLineMappingPipeline : public BaseMappingPipeline {
 
   bool CheckBadTrack(const LaneTrackerPtr& laneline_track);
 
+  bool laneline_nanvalue_trigger();
+
  private:
   std::unique_ptr<LaneLineMatcher> laneline_matcher_ = nullptr;  // 车道线匹配器
   std::unique_ptr<LaneLineMergeTrack> laneline_merge_tracker_ = nullptr;

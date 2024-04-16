@@ -50,7 +50,11 @@ class StopLinePointFilter {
 
   void Reset();
 
-  bool CheckStableMeasureState();
+  bool CheckCenterPointStableMeasureState();
+
+  bool CheckLengthStableMeasureState();
+
+  bool CheckHeadingStableMeasureState();
 
  private:
   std::map<std::string, LaneLinePtr> GetAllEgolines();
@@ -62,7 +66,11 @@ class StopLinePointFilter {
 
   void MoveOutsideBox(Point* point, const ZebraCrossing& box);
 
-  bool is_stable_state_ = false;
+  bool center_point_is_stable_state_ = false;
+
+  bool length_is_stable_state_ = false;
+
+  bool heading_is_stable_state_ = false;
 
   StopLineTargetPtr target_ref_;
 

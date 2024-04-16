@@ -87,11 +87,19 @@ void LaneLineMatcher::SetTrackKDTree(
     size_t pt_num = lane_line->vehicle_points.size();
     for (size_t j = 0; j < pt_num; ++j) {
       const auto& v_point = lane_line->vehicle_points[j];
+      if (std::isnan(v_point.x()) || std::isnan(v_point.y()) ||
+          std::isnan(v_point.z())) {
+        break;
+      }
       cv_points.emplace_back(v_point.x(), v_point.y());
       if (j > 0) {
         std_y += std::abs(lane_line->vehicle_points[j].y() - last_y);
       }
       last_y = lane_line->vehicle_points[j].y();
+    }
+    if (cv_points.size() < 5) {
+      track_kdtrees_[i] = nullptr;
+      continue;
     }
 
     std_y /= (pt_num - 1 + 0.001);
@@ -209,6 +217,9 @@ void LaneLineMatcher::AssociationKnn(
         std::vector<float> nearest_dist(dim);
         auto find_pt_x = static_cast<float>(det_point_set[k].x());
         auto find_pt_y = static_cast<float>(det_point_set[k].y());
+        if (std::isnan(find_pt_x) || std::isnan(find_pt_y)) {
+          continue;
+        }
         std::vector<float> query_point =
             std::vector<float>({find_pt_x, find_pt_y});
 

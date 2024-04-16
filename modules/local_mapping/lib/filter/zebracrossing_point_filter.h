@@ -45,13 +45,25 @@ class ZebraCrossingPointFilter {
 
   void Reset();
 
-  bool CheckStableMeasureState();
+  bool CheckCenterPointStableMeasureState();
+
+  bool CheckLengthStableMeasureState();
+
+  bool CheckWidthStableMeasureState();
+
+  bool CheckHeadingStableMeasureState();
 
  private:
   void UpdateResult();
 
  private:
-  bool is_stable_state_ = false;
+  bool center_point_is_stable_state_ = false;
+
+  bool length_is_stable_state_ = false;
+
+  bool width_is_stable_state_ = false;
+
+  bool heading_is_stable_state_ = false;
 
   ZebraCrossingTargetPtr target_ref_;
 

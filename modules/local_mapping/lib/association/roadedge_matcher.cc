@@ -83,7 +83,15 @@ void RoadEdgeMatcher::SetTrackKDTree(
     std::vector<cv::Point2f> cv_points;
     for (size_t j = 0; j < lane_line->vehicle_points.size(); ++j) {
       const auto& point = lane_line->vehicle_points[j];
+      if (std::isnan(point.x()) || std::isnan(point.y()) ||
+          std::isnan(point.z())) {
+        break;
+      }
       cv_points.emplace_back(point.x(), point.y());
+    }
+    if (cv_points.size() < 5) {
+      track_kdtrees_[i] = nullptr;
+      continue;
     }
     cv::flann::KDTreeIndexParams index_params(1);
     auto* kdtree =
@@ -181,7 +189,9 @@ void RoadEdgeMatcher::AssociationKnn(
         auto find_pt_y = static_cast<float>(det_point_set[k].y());
         std::vector<float> query_point =
             std::vector<float>({find_pt_x, find_pt_y});
-
+        if (std::isnan(find_pt_x) || std::isnan(find_pt_y)) {
+          continue;
+        }
         if (find_pt_x > overlay_min && find_pt_x < near_max) {
           near_count_point++;
         }

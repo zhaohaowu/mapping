@@ -157,6 +157,9 @@ bool LaneLineMappingPipeline::Process(
   // 10. 输出点插值到1米一个
   CatmullRomFit(tracked_lanes);
 
+  // 当tracker中存在nan值时进行触发
+  // laneline_nanvalue_trigger();
+
   return true;
 }
 
@@ -273,6 +276,11 @@ bool LaneLineMappingPipeline::CompareTrackTime(const LaneTrackerPtr& d1,
 }
 
 void LaneLineMappingPipeline::LimitTracksNum() {
+  lane_trackers_.erase(
+      std::remove_if(
+          lane_trackers_.begin(), lane_trackers_.end(),
+          [&](const auto& tracker) { return CheckBadTrack(tracker); }),
+      lane_trackers_.end());
   std::sort(lane_trackers_.begin(), lane_trackers_.end(), CompareTrackTime);
   if (lane_trackers_.size() > limit_max_tracker_nums_) {
     lane_trackers_.resize(limit_max_tracker_nums_);
@@ -420,6 +428,21 @@ bool LaneLineMappingPipeline::CheckBadTrack(
   }
   return false;
 }
+
+bool LaneLineMappingPipeline::laneline_nanvalue_trigger() {
+  for (const auto& tracker : lane_trackers_) {
+    const auto& object_data =
+        tracker->GetConstTarget()->GetConstTrackedObject();
+    for (const auto& point : object_data->vehicle_points) {
+      if (std::isnan(point.x()) || std::isnan(point.y()) ||
+          std::isnan(point.z())) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 // Register plugin.
 // REGISTER_LANE_TRACKER(LaneLineMappingPipeline);
 

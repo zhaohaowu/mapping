@@ -32,6 +32,15 @@ bool PointLaneGatekeeper::AbleToOutput(const LaneTargetConstPtr& target) const {
     return false;
   }
 
+  // check nan point
+  for (const auto& point : laneline->point_set) {
+    const auto& vehilce_pt = point.vehicle_point;
+    if (std::isnan(vehilce_pt.x) || std::isnan(vehilce_pt.y) ||
+        std::isnan(vehilce_pt.z)) {
+      return false;
+    }
+  }
+
   if (target->IsTracked()) {
     return true;
   }
@@ -51,6 +60,14 @@ bool PointLaneGatekeeper::AbleToOutput(
     const RoadEdgeTargetConstPtr& target) const {
   auto& laneline = target->GetConstTrackedLaneLine();
   // 1. donot output short laneline which is not in the blind area
+  // check nan point
+  for (const auto& point : laneline->point_set) {
+    const auto& vehilce_pt = point.vehicle_point;
+    if (std::isnan(vehilce_pt.x) || std::isnan(vehilce_pt.y) ||
+        std::isnan(vehilce_pt.z)) {
+      return false;
+    }
+  }
   if (target->IsTracked()) {
     return true;
   }

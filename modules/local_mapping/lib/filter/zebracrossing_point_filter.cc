@@ -35,25 +35,201 @@ bool ZebraCrossingPointFilter::IsAbnormalPose(
   return true;
 }
 
-bool ZebraCrossingPointFilter::CheckStableMeasureState() {
-  if (is_stable_state_) {
-    return true;
-  }
-
+bool ZebraCrossingPointFilter::CheckCenterPointStableMeasureState() {
+  // 观测数据量小于10帧时，直接认为状态不稳定
   if (history_measure_zebracrossings_.size() < history_measure_size_) {
     return false;
   }
+
+  // 如果状态稳定，跟踪结果等于10帧观测结果的平均值，且"拍死"不再更新。
+  if (center_point_is_stable_state_) {
+    return true;
+  }
+
+  // 默认状态不稳定
+  // return false;
+
+  std::vector<float> measurement_xs;
+  std::vector<float> measurement_ys;
+  measurement_xs.clear();
+  measurement_ys.clear();
+
+  for (const auto& measure_zebracrossing_ptr :
+       history_measure_zebracrossings_) {
+    measurement_xs.push_back(measure_zebracrossing_ptr->center_point.x());
+    measurement_ys.push_back(measure_zebracrossing_ptr->center_point.y());
+  }
+
+  float max_x = *max_element(measurement_xs.begin(), measurement_xs.end());
+  float min_x = *min_element(measurement_xs.begin(), measurement_xs.end());
+  float max_y = *max_element(measurement_ys.begin(), measurement_ys.end());
+  float min_y = *min_element(measurement_ys.begin(), measurement_ys.end());
+
+  if (max_x - min_x < 0.3 && max_y - min_y < 0.1) {
+    auto& track_zebracrossing = target_ref_->GetTrackedObject();
+    float sum_x = 0.0;
+    float sum_y = 0.0;
+    for (const auto& measurement_x : measurement_xs) {
+      sum_x += measurement_x;
+    }
+    for (const auto& measurement_y : measurement_ys) {
+      sum_y += measurement_y;
+    }
+    track_zebracrossing->center_point =
+        Eigen::Vector3d{sum_x / static_cast<float>(history_measure_size_),
+                        sum_y / static_cast<float>(history_measure_size_), 0};
+    center_point_is_stable_state_ = true;
+    return true;
+  }
+
+  return false;
+}
+
+bool ZebraCrossingPointFilter::CheckLengthStableMeasureState() {
+  // 观测数据量小于10帧时，直接认为状态不稳定
+  if (history_measure_zebracrossings_.size() < history_measure_size_) {
+    return false;
+  }
+
+  // 如果状态稳定，跟踪结果等于10帧观测结果的平均值，且"拍死"不再更新。
+  if (length_is_stable_state_) {
+    return true;
+  }
+
+  // 默认状态不稳定
+  // return false;
+
+  std::vector<float> measurement_lengths;
+  measurement_lengths.clear();
+
+  for (const auto& measure_zebracrossing_ptr :
+       history_measure_zebracrossings_) {
+    measurement_lengths.push_back(measure_zebracrossing_ptr->length);
+  }
+
+  float max_length =
+      *max_element(measurement_lengths.begin(), measurement_lengths.end());
+  float min_length =
+      *min_element(measurement_lengths.begin(), measurement_lengths.end());
+  // HLOG_ERROR << "max_length - min_length: " << max_length - min_length;
+  if (max_length - min_length < 0.3) {
+    float sum_length = 0.0;
+    for (const auto& measurement_length : measurement_lengths) {
+      sum_length += measurement_length;
+    }
+    auto& track_zebracrossing = target_ref_->GetTrackedObject();
+    track_zebracrossing->length =
+        sum_length / static_cast<float>(history_measure_size_);
+    length_is_stable_state_ = true;
+    return true;
+  }
+
+  return false;
+}
+
+bool ZebraCrossingPointFilter::CheckWidthStableMeasureState() {
+  // 观测数据量小于10帧时，直接认为状态不稳定
+  if (history_measure_zebracrossings_.size() < history_measure_size_) {
+    return false;
+  }
+
+  // 如果状态稳定，跟踪结果等于10帧观测结果的平均值，且"拍死"不再更新。
+  if (width_is_stable_state_) {
+    return true;
+  }
+
+  // 默认状态不稳定
+  // return false;
+
+  std::vector<float> measurement_widths;
+  measurement_widths.clear();
+
+  for (const auto& measure_zebracrossing_ptr :
+       history_measure_zebracrossings_) {
+    measurement_widths.push_back(measure_zebracrossing_ptr->width);
+  }
+
+  float max_width =
+      *max_element(measurement_widths.begin(), measurement_widths.end());
+  float min_width =
+      *min_element(measurement_widths.begin(), measurement_widths.end());
+  // HLOG_ERROR << "max_width - min_width: " << max_width - min_width;
+  if (max_width - min_width < 0.3) {
+    float sum_width = 0.0;
+    for (const auto& measurement_width : measurement_widths) {
+      sum_width += measurement_width;
+    }
+    auto& track_zebracrossing = target_ref_->GetTrackedObject();
+    track_zebracrossing->length =
+        sum_width / static_cast<float>(history_measure_size_);
+    width_is_stable_state_ = true;
+    return true;
+  }
+
+  return false;
+}
+
+bool ZebraCrossingPointFilter::CheckHeadingStableMeasureState() {
+  // 观测数据量小于10帧时，直接认为状态不稳定
+  if (history_measure_zebracrossings_.size() < history_measure_size_) {
+    return false;
+  }
+
+  // 如果状态稳定，跟踪结果等于10帧观测结果的平均值，且"拍死"不再更新。
+  if (heading_is_stable_state_) {
+    return true;
+  }
+
+  // 默认状态不稳定
+  // return false;
+
+  std::vector<float> measurement_headings;
+  measurement_headings.clear();
+
+  for (const auto& measure_zebracrossing_ptr :
+       history_measure_zebracrossings_) {
+    measurement_headings.push_back(measure_zebracrossing_ptr->heading);
+  }
+
+  float max_heading =
+      *max_element(measurement_headings.begin(), measurement_headings.end());
+  float min_heading =
+      *min_element(measurement_headings.begin(), measurement_headings.end());
+  // // HLOG_ERROR << "斑马线max_heading - min_heading: "
+  // << max_heading - min_heading;
+  if (max_heading - min_heading < 0.17) {
+    float sum_heading = 0.0;
+    for (const auto& measurement_heading : measurement_headings) {
+      sum_heading += measurement_heading;
+    }
+    auto& track_zebracrossing = target_ref_->GetTrackedObject();
+    track_zebracrossing->heading =
+        sum_heading / static_cast<float>(history_measure_size_);
+    heading_is_stable_state_ = true;
+    return true;
+  }
+
   return false;
 }
 
 void ZebraCrossingPointFilter::UpdateWithMeasurement(
     const ZebraCrossingPtr& measurement) {
   history_measure_zebracrossings_.push_back(measurement);
-  if (!CheckStableMeasureState()) {
+
+  if (!CheckCenterPointStableMeasureState()) {
     UpdateCenterPoint(measurement);
+  }
+  if (!CheckLengthStableMeasureState()) {
     UpdateLength(measurement);
+  }
+  if (!CheckWidthStableMeasureState()) {
     UpdateWidth(measurement);
+  }
+  if (!CheckHeadingStableMeasureState()) {
     UpdateHeading(measurement);
+  }
+  if (!length_is_stable_state_ || !width_is_stable_state_ ||
+      !heading_is_stable_state_ || !center_point_is_stable_state_) {
     UpdateVehiclePoints();
   }
 }
@@ -221,6 +397,7 @@ void ZebraCrossingPointFilter::UpdateHeading(
         fabs(main_lane_heading - track_zebracrossing_ptr->heading) < 1.047
             ? main_lane_heading
             : 0.5 * (measurement->heading + track_zebracrossing_ptr->heading);
+    // HLOG_ERROR << "更新斑马线heading" << track_zebracrossing_ptr->heading;
   }
 }
 

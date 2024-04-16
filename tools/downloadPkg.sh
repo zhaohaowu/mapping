@@ -7,6 +7,10 @@ url='http://10.6.133.99:8082/artifactory'
 
 depend='./depend'
 
+
+ENABLE_SINGLE_COMPILE_PROTO=$2
+echo "ENABLE_SINGLE_COMPILE_PROTO : $ENABLE_SINGLE_COMPILE_PROTO"
+
 if [ ! -d ~/.jfrog ]; then
     mkdir -p ~/.jfrog && cp ./tools/jfrog/jfrog-cli.conf.v5 ~/.jfrog/
 fi
@@ -88,6 +92,20 @@ with open('$depend/${dependRelDir}/version.json','r') as f: print(json.load(f)['
         tar -xf $currPkg.tar.gz -C $dest && rm -f $currPkg.tar.gz
     fi
 done
+
+thirdPartyPath='./depend'
+if [ -f $thirdPartyPath/nos/orin/version.json ]; then
+    ProtoVersion=$(python3 -c "import sys, json;
+with open('$thirdPartyPath/nos/orin/version.json','r') as f: print(json.load(f)['ORIN']['EP41']['proto'])")
+fi
+
+if [ "$ENABLE_SINGLE_COMPILE_PROTO" = "OFF" ]; then
+    pushd $thirdPartyPath/proto
+    git fetch --all
+    git reset ${ProtoVersion} --hard
+    echo "Submodule path 'proto': checked out :" ${ProtoVersion}
+    popd
+fi
 }
 
 downloadPkg "$@"

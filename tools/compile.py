@@ -34,6 +34,8 @@ def parse_args():
     p.add_argument('--cyber', action='store_true', help='enable cyber')
     p.add_argument('--ind', action='store_true', help='copy third party libs')
     p.add_argument('--plugin', action='store_true', help='build with mal_plugin')
+    p.add_argument('--ccache', action='store_true', help='enable ccache, file compiled will not compiled again.')
+    p.add_argument('--proto', action='store_true', help='build personal proto, false: hardhard using nos proto hash ')
     # 默认值类型
     p.add_argument('--workspace', default=None, help='root of code repository')
     p.add_argument('-j', default=6, dest="jobs", type=int, help='make -j')
@@ -126,7 +128,9 @@ def cmake_build(workspace, platform, build_directory, cmake_args, jobs, verbose=
 
 def mdc_build(workspace, platform, build_directory, release_directory, **kwargs):
     # download release package
-    sp.run('bash tools/downloadPkg.sh mdc', shell=1)
+    dlplg_args = '{}'.format("ON" if kwargs['proto'] else "OFF")
+    cmd = 'bash tools/downloadPkg.sh mdc ' + dlplg_args
+    sp.run(cmd, shell=1)
 
     # 设置环境变量
     if kwargs['gcc']:
@@ -154,11 +158,14 @@ def mdc_build(workspace, platform, build_directory, release_directory, **kwargs)
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
     # args['-DENABLE_UT'] = 'FLASE' if not kwargs['ut'] else 'TRUE'
+    args['-DENABLE_SINGLE_COMPILE_PROTO'] = "ON" if kwargs['proto'] else "OFF"
     cmake_build(workspace, platform, build_directory, args, kwargs['jobs'], kwargs['verbose'])
 
 def x86_build(workspace, platform, build_directory, release_directory, **kwargs):
     """x86 编译流程"""
-    sp.run('bash tools/downloadPkg.sh x86', shell=1)
+    dlplg_args = '{}'.format("ON" if kwargs['proto'] else "OFF")
+    cmd = 'bash tools/downloadPkg.sh x86 ' + dlplg_args
+    sp.run(cmd, shell=1)
     set_env('PATH', '/usr/bin')
     set_env('CC', '/usr/bin/x86_64-linux-gnu-gcc')
     set_env('CXX', '/usr/bin/x86_64-linux-gnu-g++')
@@ -185,6 +192,13 @@ def x86_build(workspace, platform, build_directory, release_directory, **kwargs)
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
 
+    if kwargs['ccache']:
+        args['-DCMAKE_C_COMPILER_LAUNCHER'] = 'ccache'
+        args['-DCMAKE_CXX_COMPILER_LAUNCHER'] = 'ccache'
+        shutil.copy2("tools/cmake/FindProtobuf.cmake", "depend/third_party/cmake/")
+
+    args['-DENABLE_SINGLE_COMPILE_PROTO'] = "ON" if kwargs['proto'] else "OFF"  
+
     cmake_build(workspace, platform, build_directory, args, kwargs['jobs'], kwargs['verbose'])
 
 def orin_build(workspace, platform, build_directory, release_directory, **kwargs):
@@ -196,7 +210,9 @@ def orin_build(workspace, platform, build_directory, release_directory, **kwargs
     # sync submodule version
     execute_shell("git submodule update --init")
     # download release package
-    execute_shell('bash tools/downloadPkg.sh orin')
+    dlplg_args = '{}'.format("ON" if kwargs['proto'] else "OFF")
+    cmd = 'bash tools/downloadPkg.sh orin ' + dlplg_args
+    sp.run(cmd, shell=1)
     # cmake param set
     args = dict()
     args['-DCMAKE_INSTALL_PREFIX'] = release_directory+"/mal_orin"
@@ -219,6 +235,12 @@ def orin_build(workspace, platform, build_directory, release_directory, **kwargs
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
+
+    if kwargs['ccache']:
+        args['-DCMAKE_C_COMPILER_LAUNCHER'] = 'ccache'
+        args['-DCMAKE_CXX_COMPILER_LAUNCHER'] = 'ccache'
+        shutil.copy2("tools/cmake/FindProtobuf.cmake", "depend/third_party/cmake/")
+    args['-DENABLE_SINGLE_COMPILE_PROTO'] = "ON" if kwargs['proto'] else "OFF"
     cmake_build(workspace, platform, build_directory, args, kwargs['jobs'], kwargs['verbose'])
 
 def copy_header_files_by_path(src_path, dst_path):

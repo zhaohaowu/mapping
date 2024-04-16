@@ -193,27 +193,31 @@ std::map<std::string, LaneLinePtr> StopLinePointFilter::SelectEgolines(
   auto& track_stopline = target_ref_->GetTrackedObject();
   double before_dis = FLT_MAX;
   if ((all_ego_lines.count("before_left") == 0U) &&
-      (all_ego_lines.count("before_right") != 0U)) {
+      (all_ego_lines.count("before_right") != 0U) &&
+      all_ego_lines.at("before_right")->vehicle_points.size() >= 2) {
     before_dis =
         fabs(track_stopline->center_point.x() -
              (all_ego_lines.at("before_right")->vehicle_points.back().x() +
               all_ego_lines.at("before_right")->vehicle_points.front().x()) /
                  2);
   } else if ((all_ego_lines.count("before_left") != 0U) &&
-             (all_ego_lines.count("before_right") == 0U)) {
+             (all_ego_lines.count("before_right") == 0U) &&
+             all_ego_lines.at("before_left")->vehicle_points.size() >= 2) {
     before_dis =
         fabs(track_stopline->center_point.x() -
              (all_ego_lines.at("before_left")->vehicle_points.back().x() +
               all_ego_lines.at("before_left")->vehicle_points.front().x()) /
                  2);
   } else if ((all_ego_lines.count("before_left") != 0U) &&
-             (all_ego_lines.count("before_right") != 0U)) {
+             (all_ego_lines.count("before_right") != 0U) &&
+             all_ego_lines.at("before_right")->vehicle_points.size() >= 2 &&
+             all_ego_lines.at("before_left")->vehicle_points.size() >= 2) {
     before_dis =
         fabs(track_stopline->center_point.x() -
              (all_ego_lines.at("before_left")->vehicle_points.back().x() +
               all_ego_lines.at("before_left")->vehicle_points.front().x() +
               all_ego_lines.at("before_right")->vehicle_points.back().x() +
-              all_ego_lines.at("before_left")->vehicle_points.front().x()) /
+              all_ego_lines.at("before_right")->vehicle_points.front().x()) /
                  4);
   } else {
     before_dis = FLT_MAX;
@@ -221,21 +225,25 @@ std::map<std::string, LaneLinePtr> StopLinePointFilter::SelectEgolines(
 
   double after_dis = FLT_MAX;
   if ((all_ego_lines.count("after_left") == 0U) &&
-      (all_ego_lines.count("after_right") != 0U)) {
+      (all_ego_lines.count("after_right") != 0U) &&
+      all_ego_lines.at("after_right")->vehicle_points.size() >= 2) {
     after_dis =
         fabs(track_stopline->center_point.x() -
              (all_ego_lines.at("after_right")->vehicle_points.front().x() +
               all_ego_lines.at("after_right")->vehicle_points.back().x()) /
                  2);
   } else if ((all_ego_lines.count("after_left") != 0U) &&
-             (all_ego_lines.count("after_right") == 0U)) {
+             (all_ego_lines.count("after_right") == 0U) &&
+             all_ego_lines.at("after_left")->vehicle_points.size() >= 2) {
     after_dis =
         fabs(track_stopline->center_point.x() -
              (all_ego_lines.at("after_left")->vehicle_points.front().x() +
               all_ego_lines.at("after_left")->vehicle_points.back().x()) /
                  2);
   } else if ((all_ego_lines.count("after_left") != 0U) &&
-             (all_ego_lines.count("after_right") != 0U)) {
+             (all_ego_lines.count("after_right") != 0U) &&
+             all_ego_lines.at("after_right")->vehicle_points.size() >= 2 &&
+             all_ego_lines.at("after_left")->vehicle_points.size() >= 2) {
     after_dis =
         fabs(track_stopline->center_point.x() -
              (all_ego_lines.at("after_left")->vehicle_points.front().x() +

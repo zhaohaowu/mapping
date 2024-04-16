@@ -408,7 +408,7 @@ int32_t LocalMappingOnboard::PublishLocalMap() {
 
   double cur_localmap_publish_time = localmap_pb->header().data_stamp();
   if (last_localmap_publish_time > 0) {
-    if (last_localmap_publish_time - cur_localmap_publish_time < 0) {
+    if (cur_localmap_publish_time - last_localmap_publish_time <= 0) {
       phm_fault->Report(MAKE_FM_TUPLE(
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::

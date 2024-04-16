@@ -68,7 +68,7 @@ void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
     for (const auto& stop_line_ptr :
          last_local_map->stop_lines_ptr->stoplines) {
       if (stop_line_ptr->center_point.x() < min_intersection_x &&
-          (stop_line_ptr->center_point.x() >= 0)) {
+          (stop_line_ptr->center_point.x() >= -10)) {
         min_intersection_x = stop_line_ptr->center_point.x();
       }
     }
@@ -77,7 +77,7 @@ void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
     for (const auto& zebra_crossing_ptr :
          last_local_map->zebra_crossings_ptr->zebra_crossings) {
       if (zebra_crossing_ptr->center_point.x() < min_intersection_x &&
-          (zebra_crossing_ptr->center_point.x() >= 0)) {
+          (zebra_crossing_ptr->center_point.x() >= -10)) {
         min_intersection_x = zebra_crossing_ptr->center_point.x();
       }
     }

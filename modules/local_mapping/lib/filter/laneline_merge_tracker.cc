@@ -158,8 +158,12 @@ void LaneLineMergeTrack::MergeTracks(std::vector<LaneTrackerPtr>* trackers) {
       if (!right_line->IsTracked()) {
         continue;
       }
-      MergeOverlayStrategy(left_line, right_line);
-      MergeOverlayCrossStrategy(left_line, right_line);
+      if (MergeOverlayStrategy(left_line, right_line)) {
+        continue;
+      };
+      if (MergeOverlayCrossStrategy(left_line, right_line)) {
+        continue;
+      };
     }
   }
   trackers->erase(std::remove_if(trackers->begin(), trackers->end(),

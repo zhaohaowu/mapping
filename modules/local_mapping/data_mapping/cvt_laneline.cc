@@ -274,6 +274,7 @@ bool DataMapping::CvtLaneLine2TePb(const LaneLinePtr& lane_msg,
   hozon::perception::LanePositionType send_pos_type =
       CvtLanePosType2TePb(lane_msg->position);
   pb_lane->set_lanepos(send_pos_type);
+  pb_lane->set_is_stable(lane_msg->send_postlane);
   auto curve_lane = pb_lane->mutable_lane_param()->add_cubic_curve_set();
   if (lane_msg->vehicle_curve.coeffs.size() == 4) {
     // 车道线三次方程系数跟踪方案发送字段

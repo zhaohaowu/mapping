@@ -70,7 +70,7 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
   int32_t receive_imu(Bundle* input);
 
   void AlgRelease() override {}
-  void CheckTriggerDrDrift(double p_x, double p_y, double cur_time);
+  void CheckTriggerDrDrift(double vel_x, double p_x, double p_y, double cur_time);
   bool IsDrDrift(double p_x, double p_y);
 
  private:
@@ -217,18 +217,21 @@ bool DeadReckoning::IsDrDrift(double p_x, double p_y) {
   }
 }
 
-void DeadReckoning::CheckTriggerDrDrift(double p_x, double p_y, double cur_time) {
-  static bool enable_12 = true;
-  static double last_time_12 = -1;
-  if (IsDrDrift(p_x, p_y)) {
-    if (enable_12) {
-      HLOG_ERROR << "Start to trigger dc 1012";
-      GLOBAL_DC_TRIGGER.TriggerCollect(1012);
-      enable_12 = false;
-      last_time_12 = cur_time;
+void DeadReckoning::CheckTriggerDrDrift(double vel_x, double p_x, double p_y, double cur_time) {
+  if (vel_x > 3.0) {
+    static bool enable_12 = true;
+    static double last_time_12 = -1;
+    if (IsDrDrift(p_x, p_y)) {
+      if (enable_12) {
+        HLOG_INFO << "DR: vel_x = " << vel_x;
+        HLOG_ERROR << "Start to trigger dc 1012";
+        GLOBAL_DC_TRIGGER.TriggerCollect(1012);
+        enable_12 = false;
+        last_time_12 = cur_time;
+      }
     }
+    enable_12 = (cur_time - last_time_12) > 600;
   }
-  enable_12 = (cur_time - last_time_12) > 600;
 }
 
 int32_t DeadReckoning::receive_imu(Bundle* input) {
@@ -371,10 +374,7 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
     }
     #ifdef ISORIN
       // mapping trigger 轮速计跳变
-      if (vel_x > 3.0) {
-        HLOG_INFO << "DR: vel_x = " << vel_x;
-        CheckTriggerDrDrift(pose_x, pose_y, cur_imu_time);
-      }
+      CheckTriggerDrDrift(vel_x, pose_x, pose_y, cur_imu_time);
     #endif
 
   } else {

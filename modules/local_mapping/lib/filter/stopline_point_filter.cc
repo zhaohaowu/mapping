@@ -383,7 +383,7 @@ void StopLinePointFilter::OptiCenterPoint() {
 
     if (IsPointInsideBox(cp, zebracross_data)) {
       MoveOutsideBox(&cp, zebracross_data);
-      HLOG_INFO << "find stopline in zebracrossing...";
+      HLOG_DEBUG << "find stopline in zebracrossing...";
       break;
     }
   }

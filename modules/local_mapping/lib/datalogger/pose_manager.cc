@@ -136,8 +136,8 @@ DrDataConstPtr PoseManager::GetDrPoseByTimeStamp(double timestamp) {
 }
 
 bool PoseManager::PushDrData(const LocationConstPtr& latest_localization) {
-  HLOG_INFO << "latest_localization timestamp: " << SET_PRECISION(20)
-            << latest_localization->timestamp;
+  HLOG_DEBUG << "latest_localization timestamp: " << SET_PRECISION(20)
+             << latest_localization->timestamp;
   if (origin_dr_buffer_.is_empty() ||
       origin_dr_buffer_.back()->timestamp < latest_localization->timestamp) {
     DrDataPtr dr_data_ptr = std::make_shared<DrData>();

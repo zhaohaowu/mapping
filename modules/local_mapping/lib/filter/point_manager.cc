@@ -127,7 +127,7 @@ void AdaptorPointManager::UpdatePointsFar(
         measurement_points[append_index[i]].local_point.y();
   }
   int64_t rest_size = pt_size_ - append_size;
-  HLOG_INFO << "append_size: " << append_size << ", rest_size: " << rest_size;
+  HLOG_DEBUG << "append_size: " << append_size << ", rest_size: " << rest_size;
   // 在最远处插值跟踪点, 更新集合里面的 X_ 和 P_
   if (append_size > 0) {
     X_SWAP_.setZero();

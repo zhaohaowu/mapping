@@ -10,11 +10,11 @@
 #include "modules/local_mapping/lib/datalogger/pose_manager.h"
 #include "modules/local_mapping/lib/pipeline/roadedge_mapping_pipeline.h"
 #include "modules/local_mapping/utils/lane_utils.h"
+#include "modules/util/include/util/orin_trigger_manager.h"
 #include "perception-lib/lib/config_manager/config_manager.h"
 #include "perception-lib/lib/io/file_util.h"
 #include "perception-lib/lib/io/protobuf_util.h"
 #include "perception-lib/lib/location_manager/location_manager.h"
-#include "modules/util/include/util/orin_trigger_manager.h"
 
 namespace hozon {
 namespace mp {
@@ -355,8 +355,8 @@ void RoadEdgeMappingPipeline::CollectOutputObjects(
     output_roadedge_object->send_postlane = roadedge_target->SendPostLane();
     tracked_roadedges->road_edges.push_back(output_roadedge_object);
   }
-  HLOG_INFO << "RoadedgeTrack output size: "
-            << tracked_roadedges->road_edges.size();
+  HLOG_DEBUG << "RoadedgeTrack output size: "
+             << tracked_roadedges->road_edges.size();
 }
 
 void RoadEdgeMappingPipeline::CatmullRomFit(RoadEdgesPtr tracked_roadedges) {

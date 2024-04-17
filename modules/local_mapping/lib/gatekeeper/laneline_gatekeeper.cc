@@ -65,7 +65,7 @@ bool LaneGatekeeper::AbleToOutput(
     return false;
   }
   if (!AbleToOutput(target)) {
-    HLOG_INFO << "NOT AbleToOutput return false ";
+    HLOG_DEBUG << "NOT AbleToOutput return false ";
     return false;
   }
 

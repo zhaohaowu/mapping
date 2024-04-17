@@ -22,6 +22,8 @@
 #include "perception-lib/lib/io/file_util.h"
 #include "perception-lib/lib/io/protobuf_util.h"
 #include "perception-lib/lib/location_manager/location_manager.h"
+#include "modules/util/include/util/orin_trigger_manager.h"
+
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -157,8 +159,12 @@ bool LaneLineMappingPipeline::Process(
   // 10. 输出点插值到1米一个
   CatmullRomFit(tracked_lanes);
 
-  // 当tracker中存在nan值时进行触发
-  // laneline_nanvalue_trigger();
+// 当tracker中存在nan值时进行触发
+#ifdef ISORIN
+  if (laneline_nanvalue_trigger()) {
+    CheckTriggerLanelineNan();
+  }
+#endif
 
   return true;
 }
@@ -441,6 +447,24 @@ bool LaneLineMappingPipeline::laneline_nanvalue_trigger() {
     }
   }
   return false;
+}
+
+void LaneLineMappingPipeline::CheckTriggerLanelineNan() {
+  static bool enable_16 = true;
+  static double last_time_16 = -1;
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      tc = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now());
+  double curr_time =
+      static_cast<double>(tc.time_since_epoch().count()) * 1.0e-9;
+  if (enable_16) {
+    // mapping trigger 车道线nan值
+    HLOG_ERROR << "Start to trigger dc 1016";
+    GLOBAL_DC_TRIGGER.TriggerCollect(1016);
+    enable_16 = false;
+    last_time_16 = curr_time;
+  }
+  enable_16 = (curr_time - last_time_16) > 600;
 }
 
 // Register plugin.

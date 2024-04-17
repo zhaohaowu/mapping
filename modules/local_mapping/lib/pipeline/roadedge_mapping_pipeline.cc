@@ -14,6 +14,8 @@
 #include "perception-lib/lib/io/file_util.h"
 #include "perception-lib/lib/io/protobuf_util.h"
 #include "perception-lib/lib/location_manager/location_manager.h"
+#include "modules/util/include/util/orin_trigger_manager.h"
+
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -96,8 +98,12 @@ bool RoadEdgeMappingPipeline::Process(
   // 9. catmallrom拟合路边沿
   CatmullRomFit(tracked_roadedges);
 
-  // 当tracker中存在nan值时进行触发
-  // roadedge_nanvalue_trigger();
+// 当tracker中存在nan值时进行触发
+#ifdef ISORIN
+  if (roadedge_nanvalue_trigger()) {
+    CheckTriggerRoadedgeNan();
+  }
+#endif
 
   return true;
 }
@@ -455,6 +461,24 @@ bool RoadEdgeMappingPipeline::roadedge_nanvalue_trigger() {
     }
   }
   return false;
+}
+
+void RoadEdgeMappingPipeline::CheckTriggerRoadedgeNan() {
+  static bool enable_15 = true;
+  static double last_time_15 = -1;
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      tc = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now());
+  double curr_time =
+      static_cast<double>(tc.time_since_epoch().count()) * 1.0e-9;
+  if (enable_15) {
+    // mapping trigger 路沿线nan值
+    HLOG_ERROR << "Start to trigger dc 1015";
+    GLOBAL_DC_TRIGGER.TriggerCollect(1015);
+    enable_15 = false;
+    last_time_15 = curr_time;
+  }
+  enable_15 = (curr_time - last_time_15) > 600;
 }
 
 }  // namespace lm

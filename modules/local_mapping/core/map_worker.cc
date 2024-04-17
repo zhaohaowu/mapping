@@ -144,6 +144,15 @@ void MapWorker::CutLocalMap(std::shared_ptr<LocalMapFrame> local_map_ptr,
         vehicle_points.end());
   }
 
+  // 删除目标范围内点数为0的车道线
+  local_map_ptr->lane_lines_ptr->lanelines.erase(
+      std::remove_if(local_map_ptr->lane_lines_ptr->lanelines.begin(),
+                     local_map_ptr->lane_lines_ptr->lanelines.end(),
+                     [&](const LaneLinePtr& lane_line) {
+                       return lane_line->vehicle_points.empty();
+                     }),
+      local_map_ptr->lane_lines_ptr->lanelines.end());
+
   // 路沿目标范围裁剪
   for (auto& roadedge_ptr : local_map_ptr->road_edges_ptr->road_edges) {
     auto& vehicle_points = roadedge_ptr->vehicle_points;
@@ -156,6 +165,15 @@ void MapWorker::CutLocalMap(std::shared_ptr<LocalMapFrame> local_map_ptr,
                        }),
         vehicle_points.end());
   }
+
+  // 删除目标范围内点数为0的路沿
+  local_map_ptr->road_edges_ptr->road_edges.erase(
+      std::remove_if(local_map_ptr->road_edges_ptr->road_edges.begin(),
+                     local_map_ptr->road_edges_ptr->road_edges.end(),
+                     [&](const RoadEdgePtr& road_edge) {
+                       return road_edge->vehicle_points.empty();
+                     }),
+      local_map_ptr->road_edges_ptr->road_edges.end());
 
   // 删除目标区域外停止线
   auto& stoplines_ptr = local_map_ptr->stop_lines_ptr->stoplines;

@@ -178,8 +178,10 @@ static hozon::mapping::LaneType CvtLaneType2Pb(LaneLineType shape) {
       return hozon::mapping::LaneType::LaneType_RIGHT_SOLID_LEFT_DASHED;
     case LaneLineType::OTHER:  // 其他
       return hozon::mapping::LaneType::LaneType_OTHER;
-      // case LaneLineType::FishBone: // 鱼骨线（localmap未定义
-      //   return hozon::mapping::LaneType::FishBoneLine;
+    case LaneLineType::FISHBONE:  // 鱼骨实线
+      return hozon::mapping::LaneType::LaneType_FISHBONE_SOLID;
+    case LaneLineType::FISHBONE_DASHED_LINE:  // 鱼骨虚线
+      return hozon::mapping::LaneType::LaneType_FISHBONE_DASHED;
     case LaneLineType::UNKNOWN:  // 未知
       return hozon::mapping::LaneType::LaneType_UNKNOWN;
     default:

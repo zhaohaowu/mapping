@@ -351,8 +351,6 @@ bool FusionCenter::IsInsDrift(const Node& ins_node) {
 bool FusionCenter::IsInsStateChange(const Node& node) {
   static uint32_t last_sys, last_rtk;
   static bool first_flag = true;
-  HLOG_INFO << "node.rtk_status: " << node.rtk_status << " node.sys_status: " << node.sys_status;
-  HLOG_INFO << "last_rtk: " << last_rtk << " last_sys: " << last_sys;
   if (first_flag) {
     last_sys = node.sys_status;
     last_rtk = node.rtk_status;
@@ -360,6 +358,7 @@ bool FusionCenter::IsInsStateChange(const Node& node) {
     return false;
   } else if ((last_rtk == 4 && node.rtk_status != last_rtk)
           || (last_sys == 2 && node.sys_status != last_sys)) {
+    HLOG_ERROR << "node.rtk_status: " << node.rtk_status << " node.sys_status: " << node.sys_status;
     return true;
   }
   last_sys = node.sys_status;
@@ -1564,7 +1563,6 @@ uint32_t FusionCenter::FaultCodeAssign(uint32_t state) {
 }
 
 void FusionCenter::CheckTriggerLocState(Context* const ctx) {
-  HLOG_INFO << "ctx->global_node.location_state: " << ctx->global_node.location_state;
   static bool enable_05 = true, enable_10 = true, enable_03 = true;
   static uint32_t last_state = 2;
   static double last_time_05 = -1, last_time_10 = -1, last_time_03 = -1;
@@ -1572,17 +1570,20 @@ void FusionCenter::CheckTriggerLocState(Context* const ctx) {
   auto curr_time = ctx->global_node.ticktime;
   if (curr_state != last_state && curr_state == 123 && enable_05) {
       // mapping trigger 无车道线
+      HLOG_ERROR << "curr_loc_state: " << curr_state;
       HLOG_ERROR << "Start to trigger dc 1005";
       GLOBAL_DC_TRIGGER.TriggerCollect(1005);
       enable_05 = false;
       last_time_05 = curr_time;
   } else if (curr_state != last_state && curr_state == 128 && enable_10) {
       // mapping trigger 定位结果跳变
+      HLOG_ERROR << "curr_loc_state: " << curr_state;
       HLOG_ERROR << "Start to trigger dc 1010";
       GLOBAL_DC_TRIGGER.TriggerCollect(1010);
       enable_10 = false;
       last_time_10 = curr_time;
   } else if (curr_state != last_state && curr_state == 130 && enable_03) {
+      HLOG_ERROR << "curr_loc_state: " << curr_state;
       HLOG_ERROR << "Start to trigger dc 1003";
       GLOBAL_DC_TRIGGER.TriggerCollect(1003);
       enable_03 = false;

@@ -10,7 +10,7 @@ use_smooth: false
 use_interpolate: false
 map_crop_front: 1550.0
 map_crop_width: 300.0
-map_distance: 250
+map_distance: 150
 # cyber_topic
 lane_line_topic: "/perception/fsd/transportelement_1"
 node_info_topic: "/mapping/location/pose_estimate"

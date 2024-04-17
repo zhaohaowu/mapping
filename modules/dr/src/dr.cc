@@ -50,7 +50,9 @@ bool DRInterface::GetLatestPose(
   if (dr_estimator_->initialized_) {
     OdometryData latest_odom = dr_estimator_->get_latest_odom_data();
     double time_diff = timestamp - latest_odom.timestamp;
-    HLOG_ERROR << "ins_time - dr_time:" << time_diff;
+    if (time_diff > 0.015) {
+        HLOG_ERROR << "ins_time - dr_time:" << time_diff;
+    }
 
     // 预测
     latest_odom.timestamp = timestamp;

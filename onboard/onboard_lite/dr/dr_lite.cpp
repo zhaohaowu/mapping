@@ -204,14 +204,13 @@ bool DeadReckoning::IsDrDrift(double p_x, double p_y) {
     pose_diff_avg -=
         0.05 * std::sqrt(((pose_que_[0].first - pose_que_[1].first) * (pose_que_[0].first - pose_que_[1].first))
                       + ((pose_que_[0].second - pose_que_[1].second) * (pose_que_[0].second - pose_que_[1].second)));
-    HLOG_INFO << "pose_diff_avg * 1.5: " << pose_diff_avg * 1.5;
-    HLOG_INFO << "d_p: " << d_p;
     if (pose_diff_avg < 0.01 || d_p < 0.01) return false;
     if (d_p < pose_diff_avg * 1.5) {
       pose_que_.pop_front();
       pose_que_.push_back(std::make_pair(p_x, p_y));
       return false;
     } else {
+      HLOG_ERROR << "d_p: " << d_p << " is larger than pose_diff_avg * 1.5: " << pose_diff_avg * 1.5;
       pose_que_.clear();
       return true;
     }

@@ -85,7 +85,16 @@ int32_t DrFusionLite::receive_dr(Bundle* input) {
   std::shared_ptr<hozon::dead_reckoning::DeadReckoning> dr_proto =
       std::static_pointer_cast<hozon::dead_reckoning::DeadReckoning>(
           ptr_rec_dr->proto_msg);
-  HLOG_ERROR << "============================================";
+
+  {
+    static double last_log_time = -1.0;
+    double curr_log_time = dr_proto->header().data_stamp();
+    if (curr_log_time - last_log_time >= 1) {
+      HLOG_INFO << "Location: receiving dr normaly";
+      last_log_time = curr_log_time;
+    }
+  }
+
   if (!dr_proto) {
     return -1;
   }

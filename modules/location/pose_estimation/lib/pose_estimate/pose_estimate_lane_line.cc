@@ -825,7 +825,7 @@ void MatchLaneLine::LaneLineConnect(
     for (auto& tmp_match_mapline : match_mapline_cache) {
       int lanepose = tmp_match_mapline.first;  // perception line
       auto& candidate_match_lines = tmp_match_mapline.second;  // map lines
-      HLOG_ERROR << "lanepose: " << lanepose << " ,candidate_match_lines size: "
+      HLOG_DEBUG << "lanepose: " << lanepose << " ,candidate_match_lines size: "
                  << candidate_match_lines.size();
       if (candidate_match_lines.size() >= 2) {
         int best_map_id = -1;
@@ -852,7 +852,7 @@ void MatchLaneLine::LaneLineConnect(
         if (point_diff_cache.size() >= 2 &&
             point_diff_cache[1].second - point_diff_cache[0].second > 2.0) {
           // 差别很大，直接按距离过滤
-          HLOG_ERROR << "mod == 1";
+          HLOG_DEBUG << "mod == 1";
           for (int j = 0; j < candidate_match_lines.size(); ++j) {
             if (candidate_match_lines[j].map_id != point_diff_cache[0].first) {
               candidate_match_lines[j].flag = false;
@@ -860,7 +860,7 @@ void MatchLaneLine::LaneLineConnect(
           }
         } else {
           // 差别不大,查找参考线按照宽度过滤
-          HLOG_ERROR << "mod == 2";
+          HLOG_DEBUG << "mod == 2";
           int select_lanepose = -99;
           std::vector<std::pair<int, double>> distance_ref_curline;
           for (auto& line_match : match_mapline_cache) {
@@ -913,7 +913,7 @@ void MatchLaneLine::LaneLineConnect(
             }
           } else {
             // 未找到参考线, 找最近的
-            HLOG_ERROR << "not find ref line";
+            HLOG_DEBUG << "not find ref line";
             for (int n = 0; n < candidate_match_lines.size(); ++n) {
               if (candidate_match_lines[n].map_id !=
                   point_diff_cache[0].first) {
@@ -943,7 +943,7 @@ void MatchLaneLine::LaneLineConnect(
           line_pair_points.emplace_back(match_pair);
         }
         match_pairs_.push_back(line_pair_points);
-        HLOG_ERROR << "LaneLineConnect | percep line: " << lanepose
+        HLOG_DEBUG << "LaneLineConnect | percep line: " << lanepose
                    << ", map line: " << candidate_match_lines[i].map_id;
       }
     }
@@ -1022,7 +1022,7 @@ bool MatchLaneLine::GetFitPoints(const VP& points, const double x, V3* pt) {
       points.begin(), points.end(), V3({x, 0, 0}),
       [](const V3& p0, const V3& p1) { return p0(0, 0) < p1(0, 0); });
   if (iter == points.end() || iter == points.begin()) {
-    HLOG_ERROR << "can not find percep point";
+    HLOG_ERROR << "can not find fit point";
     return false;
   }
   auto iter_pre = std::prev(iter);
@@ -1049,7 +1049,7 @@ bool MatchLaneLine::GetFitMapPoints(const std::vector<ControlPoint>& points,
                          return p0.point(0, 0) < p1.point(0, 0);
                        });
   if (iter == points.end() || iter == points.begin()) {
-    HLOG_ERROR << "can not find map point";
+    HLOG_DEBUG << "can not find map point";
     return false;
   }
   auto iter_pre = std::prev(iter);

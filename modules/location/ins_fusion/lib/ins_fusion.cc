@@ -143,12 +143,10 @@ bool InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins, hozon::localiz
 }
 
 void InsFusion::CheckTriggerInsTime(const hozon::soc::ImuIns& cur_ins) {
-  HLOG_INFO << "CheckTriggerInsTime";
   double curr_imu_time = cur_ins.header().sensor_stamp().imuins_stamp();
   static double last_imu_time = curr_imu_time;
-  HLOG_INFO << "last_imu_time:" << last_imu_time;
-  HLOG_INFO << "curr_imu_time:" << curr_imu_time;
   if (curr_imu_time - last_imu_time > 0.03) {
+    HLOG_ERROR << "last_imu_time: " << last_imu_time << " curr_imu_time: " << curr_imu_time;
     HLOG_ERROR << "Start to trigger dc 1008";
     GLOBAL_DC_TRIGGER.TriggerCollect(1008);
   }

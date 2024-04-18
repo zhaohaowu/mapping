@@ -23,6 +23,7 @@
 #include <thread>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -181,6 +182,15 @@ class MapPrediction {
   void AddCrossWalk();
   void AddRoadEdge();
 
+  void GetCurrentLane(
+      const hozon::common::PointENU& utm_pos,
+      const std::unordered_set<std::string>& routing_lanes_set,
+      const std::vector<std::vector<std::string>>& routing_lanes,
+      std::string* current_lane, double* nearest_s);
+  int GetRoutingLaneIndex(
+      const std::string& lane_id,
+      const std::vector<std::vector<std::string>>& routing_lanes);
+
   std::mutex mtx_;
   std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>
       hqmap_road_edge;
@@ -232,7 +242,8 @@ class MapPrediction {
   std::unordered_map<std::string, uint32_t> end_prev_ids_;
   std::vector<std::string> all_section_ids_;
 
-  std::string routing_lane_id_;
+  std::string end_routing_lane_id_;
+  std::string last_routing_lane_id_;
   std::shared_ptr<hozon::routing::RoutingResponse> current_routing_ = nullptr;
 };
 

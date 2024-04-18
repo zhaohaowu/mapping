@@ -491,7 +491,7 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
 
   if (!need_update_global_hd) {
     HDMapLaneToLocal();
-    RoutingPointToLocal(need_update_global_hd, routing, routing_lane_id_);
+    RoutingPointToLocal(need_update_global_hd, routing, end_routing_lane_id_);
     return hq_map_;
   }
 
@@ -505,29 +505,14 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
   utm_pos.set_y(location_utm_.y());
   utm_pos.set_z(0);
 
-  double nearest_s = 0.;
-  double nearest_l = 0.;
-  hozon::hdmap::LaneInfoConstPtr lane_ptr = nullptr;
-
-  // 目前搜索半径为20m，角度偏差为18度
-  int ret = GLOBAL_HD_MAP->GetNearestLaneWithHeading(
-      utm_pos, 50, ConvertHeading(ins_heading_), M_PI / 10, &lane_ptr,
-      &nearest_s, &nearest_l);
-
-  if (ret != 0 || lane_ptr == nullptr) {
-    HLOG_ERROR << "get nearest lane failed";
-    hq_map_ = nullptr;
-    return hq_map_;
-  }
-
-  hq_map_ = std::make_shared<hozon::hdmap::Map>();
-
   std::vector<std::vector<std::string>> routing_lanes;
+  std::unordered_set<std::string> routing_lanes_set;
   for (const auto& road_it : routing->road()) {
     std::vector<std::string> routing_lane;
     for (const auto& passage_it : road_it.passage()) {
       for (const auto& lane_it : passage_it.segment()) {
         routing_lane.emplace_back(lane_it.id());
+        routing_lanes_set.insert(lane_it.id());
       }
     }
     routing_lanes.emplace_back(routing_lane);
@@ -537,20 +522,22 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
     HLOG_ERROR << "get rouitng message failed";
     return nullptr;
   }
-  int row = -1;
-  // 查找车辆所在lane的位置
-  for (int i = 0; i < routing_lanes.size(); ++i) {
-    for (int j = 0; j < routing_lanes[i].size(); ++j) {
-      if (routing_lanes[i][j] == lane_ptr->lane().id().id()) {
-        row = i;
-        break;
-      }
-    }
-    if (row != -1) {
-      break;
-    }
+
+  double nearest_s = 0.;
+  std::string current_lane_id;
+  GetCurrentLane(utm_pos, routing_lanes_set, routing_lanes, &current_lane_id,
+                 &nearest_s);
+  if (current_lane_id.empty()) {
+    HLOG_ERROR << "get current lane failed";
+    return nullptr;
   }
 
+  last_routing_lane_id_ = current_lane_id;
+
+  hq_map_ = std::make_shared<hozon::hdmap::Map>();
+
+  // 查找车辆所在lane的位置
+  int row = GetRoutingLaneIndex(current_lane_id, routing_lanes);
   if (row == -1) {
     HLOG_ERROR << "find vehicle lane failed";
     return nullptr;
@@ -628,19 +615,15 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
     }
   }
 
-  if (!hq_map_) {
-    HLOG_ERROR << "nullptr hq_map_";
-    return nullptr;
-  }
   if (local_enu_center_flag_) {
     HLOG_ERROR << "init_pose_ not inited";
     return nullptr;
   }
 
-  routing_lane_id_ = routing_lanes[row_max].back();
+  end_routing_lane_id_ = routing_lanes[row_max].back();
 
   HDMapLaneToLocal();
-  RoutingPointToLocal(need_update_global_hd, routing, routing_lane_id_);
+  RoutingPointToLocal(need_update_global_hd, routing, end_routing_lane_id_);
 
   return hq_map_;
 }
@@ -1632,6 +1615,81 @@ void MapPrediction::AddRoadEdge() {
       road->CopyFrom(local_msg_->road(0));
     }
   }
+}
+
+void MapPrediction::GetCurrentLane(
+    const hozon::common::PointENU& utm_pos,
+    const std::unordered_set<std::string>& routing_lanes_set,
+    const std::vector<std::vector<std::string>>& routing_lanes,
+    std::string* current_lane, double* nearest_s) {
+  double s(0.0);
+  double l(0.0);
+  current_lane->clear();
+  // 获取自车所在车道
+  if (!routing_lanes.empty()) {
+    common::math::Vec2d point(utm_pos.x(), utm_pos.y());
+    std::vector<hdmap::LaneInfoConstPtr> lanes;
+    GLOBAL_HD_MAP->GetLanes(utm_pos, 5.0, &lanes);
+    if (!lanes.empty()) {
+      std::sort(lanes.begin(), lanes.end(), [&](const auto& u, const auto& v) {
+        return u->DistanceTo(point) < v->DistanceTo(point);
+      });
+      int minIndex = INT_MAX;
+      int lastIndex = GetRoutingLaneIndex(last_routing_lane_id_, routing_lanes);
+      if (lastIndex == -1) {
+        for (const auto& lane : lanes) {
+          if (routing_lanes_set.count(lane->id().id()) != 0) {
+            int index = GetRoutingLaneIndex(lane->id().id(), routing_lanes);
+            if (index <= minIndex) {
+              minIndex = index;
+              *current_lane = lane->id().id();
+            }
+          }
+        }
+      } else {
+        for (const auto& lane : lanes) {
+          if (routing_lanes_set.count(lane->id().id()) != 0) {
+            // 找到距离上一帧lane间隔最小的
+            int index = GetRoutingLaneIndex(lane->id().id(), routing_lanes);
+            if (index >= lastIndex) {
+              if (index - lastIndex <= minIndex) {
+                minIndex = index - lastIndex;
+                *current_lane = lane->id().id();
+              }
+            }
+          }
+        }
+      }
+    }
+    // 获取车辆距离所在车道起始点距离
+    if (!current_lane->empty()) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(*current_lane);
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        lane_ptr->GetProjection(point, &s, &l);
+        *nearest_s = s;
+      }
+    }
+  }
+}
+
+int MapPrediction::GetRoutingLaneIndex(
+    const std::string& lane_id,
+    const std::vector<std::vector<std::string>>& routing_lanes) {
+  int index = -1;
+  for (int i = 0; i < routing_lanes.size(); ++i) {
+    for (int j = 0; j < routing_lanes[i].size(); ++j) {
+      if (routing_lanes[i][j] == lane_id) {
+        index = i;
+        break;
+      }
+    }
+    if (index != -1) {
+      break;
+    }
+  }
+  return index;
 }
 
 void MapPrediction::ConvertToLocal() {

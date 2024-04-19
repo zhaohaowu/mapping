@@ -1,0 +1,91 @@
+/*
+ * Copyright (C) 2017-2019 by SenseTime Group Limited. All rights reserved.
+ * YU Chendi <yuchendi@sensetime.com>
+ */
+
+#pragma once
+
+namespace senseAD {
+
+/**
+ * @brief Error Code
+ **
+ **/
+typedef enum {
+    SCM_SUCCESS = 0,
+    SCM_INVALID_PARAM = -1,
+    // SCM_INVALID_DESC = -2,
+    // memory allocation failed
+    // SCM_ALLOC_MEMORY_FAILED = -3,
+    // SCM_INTERNAL_ERROR = -4,
+    // doesn't support the image format
+    // SCM_INVALID_PIXEL_FORMAT = -5,
+    // the model file is not exist or has no read permission
+    // SCM_FILE_NOT_FOUND = -6,
+    // invalid model file format
+    // SCM_INVALID_FILE_FORMAT = -7,
+    // SCM_NOT_IMPLEMENTED = -8,
+    // SCM_INVALID_BLOB_NAMES = -9,
+    // SCM_INVALID_INPUT_BLOBS = -10,
+    // SCM_SELECTOR_INIT_FAILD = -11,
+    // SCM_TRANSFORMER_INIT_FAILD = -12,
+    // SCM_CURVEFITTER_INIT_FAILD = -13,
+    // SCM_INVALID_HEIGHT = -14,
+    // SCM_INVALID_WIDTH = -15,
+    SCM_NULL_PTR = -16,
+    // SCM_INVALID_SELECTOR_TYPE = -17,
+    // SCM_INVALID_TRANSFORMER_TYPE = -18,
+    // SCM_INVALID_CURVEFITTER_TYPE = -19,
+    // SCM_HERMITE_CUBIC_SPLINE_TO_PP_ERROR = -20,
+    // SCM_HERMITE_CUBIC_SPLINE_GET_KNOTS_ERROR = -21,
+    // SCM_HERMITE_CUBIC_SPLINE_GET_REG_ERROR = -22,
+    // SCM_HERMITE_CUBIC_SPLINE_MAT_L1_NORM_ERROR = -23,
+    // SCM_SAMPLING_INTERVAL_OUT_OF_RANGE = -24,
+    // SCM_BGR_MEANS_ERROR = -25,
+    // SCM_BGR_MEANS_NOT_INIT = -26,
+    // SCM_INPUT_BLOB_NOT_INIT = -27,
+    // SCM_OUTPUT_BLOB_NOT_INIT = -28,
+    // SCM_LOAD_MODEL_ERROR = -29,
+    // SCM_LOAD_LICENSE_ERROR = -30,
+    // SCM_LOAD_MODEL_PARAMETERS_JSON_ERROR = -31,
+    // SCM_LOAD_MODEL_ENCRYPTION_MODEL_ERROR = -32,
+    // SCM_GET_UUID_FAILED = -33,
+    // SCM_PREDICTOR_INIT_FAILED = -34,
+    // SCM_READ_RECTIFY_PARAM_ERROR = -35,
+    // SCM_GET_HOMOGRAPHY_ERROR = -36,
+    // SCM_CREATE_HANDLE_ERROR = -37,
+    // SCM_TRACK_FAILED = -38,
+    // SCM_CANBUS_ERROR = -39,
+    // SCM_CANBUS_VEHICLE_ERROR = -40,
+    // SCM_CANBUS_CAN_CLIENT_ERROR = -41,
+    // SCM_END_OF_FILE = -42,
+    // SCM_DW_INIT_FAILED = -43,
+    // SCM_VIDEO_OPEN_ERROR = -44,
+    // SCM_VIDEO_CLOSE_ERROR = -45,
+    // SCM_CAMERA_OPEN_ERROR = -46,
+    // SCM_CAMERA_CLOSE_ERROR = -47,
+    // SCM_CAMERA_READ_ERROR = -48,
+    // SCM_CAMERA_RECORD_START_ERROR = -49,
+    // SCM_CAMERA_RECORD_STOP_ERROR = -50,
+    // SCM_INS_ERROR = -51,
+    // SCM_INS_PARSER_ERROR = -52,
+    // SCM_GNSS_TRANSFORMER_ERROR = -53,
+    // SCM_ROUTING_ERROR = -54,
+    // SCM_ROUTING_LOCALIZATION_MISS = -55,
+    // SCM_ROUTING_TARGET_REACH = -56,
+    // SCM_CANBUS_TIME_OUT_ERROR = -57,
+    // SCM_HDMAP_ERROR = -58,
+    // SCM_CALIB_CONFIG_ERROR = -59,
+    SCM_TF_TREE_INIT_ERROR = -60,
+    // SCM_LOCALIZATION_ERROR = -61,
+    // SCM_TIME_OUT_ERROR = -62,
+    // SCM_DATA_NO_UPDATE_ERROR = -63,
+    // SCM_NO_INIT_ERROR = -64,
+    // SCM_DM_SCENARIO_FAILED = -65,
+    // SCM_DM_TASK_FAILED = -66,
+    // SCM_DM_SCENARIO_CORE_FAILED = -67,
+    // SCM_NO_NEED_REROUTE = -68,
+    // SCM_V2X_PARSER_ERROR = -69,
+} scmStatus_t;
+
+}  // namespace senseAD

@@ -8,14 +8,14 @@
             "third_party": {"name":"v5.2.23_x86_2004_20240412","extractPath":"./depend"},
             "CUDA": {"name":"cuda_11.4.327_20231011","extractPath":"./depend/third_party/x86"},
             "release": {
-                    "compileCmd": "bash build.sh orin --release --clean --plugin -j16",
+                    "compileCmd": "bash build.sh orin --release --clean --plugin -j32",
                     "outputPath": ["release", "mal_orin"]
             },
             "debug": {
-                    "compileCmd": "bash build.sh orin --release --clean --plugin -j16",
+                    "compileCmd": "bash build.sh orin --release --clean --plugin -j32",
                     "outputPath": ["release", "mal_orin"]
             },
-            "releaseVersion": "ORIN_EP41_MAL_05.03.01_20240319_0410b_20240419"
+            "releaseVersion": "ORIN_EP41_MAL_05.03.02_20240319_0410b_20240420"
         }
     }
 }

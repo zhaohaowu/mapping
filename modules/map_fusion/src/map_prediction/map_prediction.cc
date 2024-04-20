@@ -497,6 +497,7 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
 
   if (!GLOBAL_HD_MAP) {
     HLOG_ERROR << "nullptr hq_map_server_";
+    hq_map_ = nullptr;
     return nullptr;
   }
 
@@ -520,6 +521,7 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
 
   if (routing_lanes.empty()) {
     HLOG_ERROR << "get rouitng message failed";
+    hq_map_ = nullptr;
     return nullptr;
   }
 
@@ -529,6 +531,7 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
                  &nearest_s);
   if (current_lane_id.empty()) {
     HLOG_ERROR << "get current lane failed";
+    hq_map_ = nullptr;
     return nullptr;
   }
 

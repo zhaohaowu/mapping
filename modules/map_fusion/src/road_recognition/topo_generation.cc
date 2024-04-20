@@ -7,6 +7,7 @@
 
 #include "map_fusion/road_recognition/topo_generation.h"
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -104,7 +105,12 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
   gm_conf_.min_predict_interval = conf["min_predict_interval"].as<float>();
   gm_conf_.max_heading_rad =
       static_cast<float>(DegToRad(conf["max_heading_degree"].as<double>()));
-
+  is_cross_.cross_after_lane_ = 0;
+  is_cross_.cross_before_lane_ = 0;
+  is_cross_.is_crossing_ = 0;
+  is_cross_.along_path_dis_.x() = 0.0;
+  is_cross_.along_path_dis_.y() = 0.0;
+  is_cross_.along_path_dis_.z() = 0.0;
   path_ = std::make_shared<PathManager>(pm_conf);
 
   return true;
@@ -166,7 +172,7 @@ std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap() {
   std::shared_ptr<hozon::hdmap::Map> proto_map = nullptr;
 
   gm::GroupMap group_map(gm_conf_);
-  auto ret = group_map.Build(path, curr_pose, ele_map_);
+  auto ret = group_map.Build(path, curr_pose, ele_map_, is_cross_);
   if (!ret) {
     HLOG_ERROR << "Build group map failed";
     return nullptr;
@@ -181,6 +187,7 @@ std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap() {
   }
   std::vector<gm::Group::Ptr> groups;
   group_map.GetGroups(&groups);
+  IsInCrossing(groups, &is_cross_);
   VizGroup(groups, ele_map_->map_info.stamp);
 
   proto_map = group_map.Export(ele_map_);
@@ -573,7 +580,9 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
         marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
             lane->center_line_pts[lane->center_line_pts.size() - 3].pt.z());
         text = marker_str_id_with_group->mutable_text();
-        *text = lane->next_lane_str_id_with_group[0];
+        for (int i = 0; i < lane->next_lane_str_id_with_group.size(); ++i) {
+          *text = *text + lane->next_lane_str_id_with_group[i] + "  ";
+        }
       }
     }
   }
@@ -582,6 +591,92 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
   }
 }
 
+bool TopoGeneration::IsValid(const std::vector<gm::Group::Ptr>& groups) {
+  int is_in_group = 0;  // 是否在所构建的group里
+  for (size_t i = 0; i < groups.size(); ++i) {
+    auto group = groups[i];
+    size_t group_segments_size = group->group_segments.size();
+    if (group_segments_size < 2) {
+      continue;
+    }
+    if (group->group_segments[0]->start_slice.po.x() < 0 &&
+        group->group_segments[group_segments_size - 1]->end_slice.po.x() > 0) {
+      is_in_group = 1;
+      if (group->str_id.back() == 'V') {
+        return false;
+      }
+      if (i == groups.size() - 1) {
+        // 判断路口前还是路口后
+        if (group->group_segments[group_segments_size - 1]->end_slice.po.x() <
+            10) {
+          return false;
+        }
+      }
+      // if(i > 0 && groups[i-1]->str_id.back() =='V' &&
+      // group->group_segments[0]->start_slice.po.x()<){
+
+      // }
+      break;
+    }
+  }
+  if (is_in_group == 0) {
+    return false;
+  }
+  return true;
+}
+
+void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
+                                  gm::IsCross* iscross) {
+  if (groups.size() < 1) {
+    return;
+  }
+  size_t index = groups.size() - 1;
+  while (index >= 0 && groups[index]->group_segments.size() < 2) {
+    index--;
+  }
+  if (index >= 0) {
+    if (groups[index]->group_segments.back()->end_slice.po.x() < -5.0) {
+      iscross->is_crossing_ = 1;
+      iscross->along_path_dis_ =
+          groups[index]->group_segments.back()->end_slice.po;
+    } else if (groups[index]->group_segments.back()->end_slice.po.x() > 5.0) {
+      for (size_t i = index; i > 0; i--) {
+        if (groups[i]->group_segments.size() < 2) {
+          // 因为虚拟group没有group_segments
+          int curr_group_v = 0;
+          if (groups[i]->str_id.back() == 'V' && i > 0 && i < index) {
+            for (const auto& lane : groups[i]->lanes) {
+              if (lane->center_line_pts.size() > 0 &&
+                  lane->center_line_pts[0].pt.x() < 0.0) {
+                size_t crs_before = groups[i - 1]->lanes.size();
+                size_t crs_after = groups[i + 1]->lanes.size();
+                if ((crs_before != iscross->cross_before_lane_ ||
+                     crs_after != iscross->cross_after_lane_) &&
+                    (groups[i + 1]->group_segments.front()->start_slice.po.x() >
+                     10.0)) {
+                  iscross->along_path_dis_ =
+                      groups[i - 1]->group_segments.back()->end_slice.po;
+                  iscross->cross_before_lane_ = crs_before;
+                  iscross->cross_after_lane_ = crs_after;
+                }
+                curr_group_v = 1;
+                break;
+              }
+            }
+          }
+          if (curr_group_v) {
+            break;
+          }
+        } else if (groups[i]->group_segments[0]->start_slice.po.x() < 0.0) {
+          //  如果找到车所在的group
+          HLOG_ERROR << "groups[i]->str_id = " << groups[i]->str_id;
+          iscross->is_crossing_ = 0;
+          break;
+        }
+      }
+    }
+  }
+}
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon

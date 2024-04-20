@@ -50,12 +50,16 @@ class TopoGeneration {
   double viz_lifetime_ = 0;
   double path_predict_range_ = 0.;
   gm::GroupMapConf gm_conf_;
+  gm::IsCross is_cross_;
 
   std::shared_ptr<PathManager> path_ = nullptr;
   std::shared_ptr<hozon::mp::mf::em::ElementMap> ele_map_ = nullptr;
   std::shared_ptr<hozon::mp::mf::em::ElementMapOut> ele_map_output_ = nullptr;
   bool ego_exist_ = false;
   std::vector<double> line_params_;
+  bool IsValid(const std::vector<gm::Group::Ptr>& groups);
+  void IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
+                    gm::IsCross* iscross);
 };
 
 }  // namespace mf

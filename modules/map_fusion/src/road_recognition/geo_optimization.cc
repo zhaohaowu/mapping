@@ -11,6 +11,7 @@
 
 #include <limits>
 
+#include "base/utils/log.h"
 #include "depend/common/utm_projection/coordinate_convertor.h"
 #include "map_fusion/fusion_common/calc_util.h"
 #include "map_fusion/map_service/global_hd_map.h"
@@ -1816,10 +1817,12 @@ void GeoOptimization::ContinueLocalMapUseLine() {
 void GeoOptimization::OnLocalMap(
     const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
   if (msg->lane_lines().empty()) {
+    HLOG_ERROR << "lane lines empty!";
     return;
   }
   if (cur_timestamp_ > 0 &&
       msg->header().data_stamp() - cur_timestamp_ < 0.001) {
+    HLOG_ERROR << "cur_timestamp_ is near last time stamp!";
     return;
   }
   // 更新时间信息

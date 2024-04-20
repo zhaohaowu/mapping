@@ -23,8 +23,8 @@ namespace gm {
 enum PointType {
   RAW = 0,
   INTERPOLATED = 1,
-  PREDICTED = 2,
-  VIRTUAL = 3,
+  PREDICTED = 2,  // 预测车道的点
+  VIRTUAL = 3,    // 虚拟车道的点
 };
 struct Point {
   PointType type = RAW;
@@ -161,6 +161,7 @@ struct Group {
   std::string str_id;
   std::string seg_str_id;
   double stamp = 0;
+  bool is_last_after_erased = false;
 
   DEFINE_PTR(Group)
 };
@@ -190,14 +191,21 @@ struct GroupMapConf {
   float min_predict_interval = 0;
 };
 
+struct IsCross {
+  int is_crossing_ = 0;
+  em::Point along_path_dis_;
+  size_t cross_before_lane_ = 0;
+  size_t cross_after_lane_ = 0;
+};
+
 class GroupMap {
  public:
   explicit GroupMap(const GroupMapConf& conf) : conf_(conf) {}
   ~GroupMap() = default;
 
   bool Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
-             const KinePose::Ptr& curr_pose,
-             const em::ElementMap::Ptr& ele_map);
+             const KinePose::Ptr& curr_pose, const em::ElementMap::Ptr& ele_map,
+             IsCross is_cross);
   void GetGroups(std::vector<Group::Ptr>* groups);
   std::shared_ptr<hozon::hdmap::Map> Export(const em::ElementMap::Ptr& ele_map);
   std::shared_ptr<hozon::mp::mf::em::ElementMapOut> AddElementMap(
@@ -212,6 +220,9 @@ class GroupMap {
   std::map<em::Id, Stpl::Ptr> stopline_;
   std::map<em::Id, Overlaps::Ptr> overlaps_;
   GroupMapConf conf_;
+  IsCross is_cross_;
+  const double kMergeLengthThreshold = 10.;
+  const double kSplitLengthThreshold = 10.;
   void RetrieveBoundaries(const em::ElementMap::Ptr& ele_map, float interp_dist,
                           std::deque<Line::Ptr>* lines);
   void BuildGroupSegments(
@@ -231,7 +242,7 @@ class GroupMap {
                                   std::vector<GroupSegment::Ptr> group_segments,
                                   std::vector<Group::Ptr>* groups);
   void GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp);
-  bool LaneLineNeedToPredict(const LineSegment& line);
+  bool LaneLineNeedToPredict(const LineSegment& line, bool check_back = true);
   void PredictLaneLine(double heading, LineSegment* line);
   std::shared_ptr<hozon::hdmap::Map> ConvertToProtoMap(
       const std::vector<Group::Ptr>& groups, const KinePose::Ptr& curr_pose,
@@ -253,8 +264,7 @@ class GroupMap {
   void BuildVirtualLaneBefore(Group::Ptr curr_group, Group::Ptr next_group);
   void BuildVirtualMergeLane(Group::Ptr curr_group, Group::Ptr next_group,
                              size_t curr_lane, size_t curr_lane_next);
-  void BuildVirtualProSucLane(std::vector<Lane::Ptr>* lane_virtual,
-                              Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next,
+  void BuildVirtualProSucLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next,
                               float dis_pt);
   void BuildVirtualGroup(std::vector<Lane::Ptr> lane_virtual,
                          std::vector<Group::Ptr>* group_virtual, double stamp);
@@ -271,6 +281,24 @@ class GroupMap {
                               const em::Point& right_pt, const Stpl& stop_line);
   bool MatchLaneAndStopLine(const Lane::Ptr& lane, const Stpl::Ptr& stop_line);
   Stpl::Ptr MatchedStopLine(const std::string& lane_id);
+  void FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group);
+  void BuildCrossingLane(std::vector<Lane::Ptr>* lane_virtual,
+                         Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next);
+  float CalculateDistPt(Lane::Ptr lane_in_next, Lane::Ptr lane_in_curr,
+                        size_t sizet);
+  float CalculatePoint2CenterLine(Lane::Ptr lane_in_next,
+                                  Lane::Ptr lane_in_curr);
+  float Calculate2CenterlineAngle(Lane::Ptr lane_in_next,
+                                  Lane::Ptr lane_in_curr, size_t sizet);
+  bool IsLaneConnet(Group::Ptr curr_group, Group::Ptr next_group, int i, int j,
+                    std::map<int, std::vector<int>>* curr_group_next_lane,
+                    std::map<int, std::vector<int>>* next_group_prev_lane);
+  void NextGroupLaneConnect(
+      Group::Ptr curr_group, Group::Ptr next_group,
+      const std::map<int, std::vector<int>>& curr_group_next_lane);
+  bool IsLaneShrink(Lane::Ptr lane);
+  double CalcLaneLength(Lane::Ptr lane);
+  bool IsAccessLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next);
 };
 
 }  // namespace gm

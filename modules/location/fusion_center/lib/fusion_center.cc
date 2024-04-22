@@ -838,9 +838,10 @@ void FusionCenter::Node2Localization(const Context& ctx,
 
   auto* const pose_dr = location->mutable_pose_dr();
   auto enu = local_to_global_pose.translation();
-  pose_dr->mutable_position()->set_x(enu(0));
-  pose_dr->mutable_position()->set_y(enu(1));
-  pose_dr->mutable_position()->set_z(enu(2));
+  auto global_dr_pos = hmu::Geo::EnuToBlh(enu, ctx.ins_node.refpoint);
+  pose_dr->mutable_position()->set_x(global_dr_pos(0));
+  pose_dr->mutable_position()->set_y(global_dr_pos(1));
+  pose_dr->mutable_position()->set_z(global_dr_pos(2));
 
   auto q_dr = Eigen::Quaterniond(local_to_global_pose.rotationMatrix());
   pose_dr->mutable_quaternion()->set_w(q_dr.w());

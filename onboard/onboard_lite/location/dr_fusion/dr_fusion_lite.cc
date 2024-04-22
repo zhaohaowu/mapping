@@ -57,6 +57,7 @@ void DrFusionLite::AlgRelease() {
 // recieve in-process data and interprocess data
 int32_t DrFusionLite::receive_dr(Bundle* input) {
   static double last_dr_time = -1.0;
+  static int dr_count = 0;
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   auto ptr_rec_dr = input->GetOne("dr");
   static bool input_data_loss_error_flag = false;
@@ -96,6 +97,7 @@ int32_t DrFusionLite::receive_dr(Bundle* input) {
   }
 
   if (!dr_proto) {
+    HLOG_INFO << "Not receive dr";
     return -1;
   }
   double cur_dr_time = dr_proto->header().data_stamp();
@@ -173,7 +175,11 @@ int32_t DrFusionLite::receive_dr(Bundle* input) {
   }
   dr_workflow->proto_msg = msg;
   SendOutput("/location/dr_fusion", dr_workflow);
-
+  ++dr_count;
+  if (dr_count >= 100) {
+    dr_count = 0;
+    HLOG_ERROR << "rev dr lite heartbeat";
+  }
   return 0;
 }
 

@@ -282,8 +282,10 @@ int32_t InsFusionLite::receive_gnss(Bundle* input) {
   return 0;
 }
 int32_t InsFusionLite::receive_inspva(Bundle* input) {
+  static int inspva_count = 0;
   auto ptr_rec_inspva = input->GetOne("inspva");
   if (!ptr_rec_inspva) {
+    HLOG_INFO << "Not receive inspva";
     return -1;
   }
 
@@ -297,6 +299,11 @@ int32_t InsFusionLite::receive_inspva(Bundle* input) {
   if (flag) {
     ins_workflow->proto_msg = msg;
     SendOutput("/location/ins_fusion", ins_workflow);
+  }
+  ++inspva_count;
+  if (inspva_count >= 100) {
+    inspva_count = 0;
+    HLOG_ERROR << "rev plugin ins lite heartbeat";
   }
   return 0;
 }

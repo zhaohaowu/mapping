@@ -94,10 +94,12 @@ void InsFusion::LoadConfigParams(const std::string& configfile) {
 
 bool InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins, hozon::localization::HafNodeInfo* const node_info) {
   InsNode ins84_node;
+  static int ins_count = 0;
 
   if (origin_ins.header().seq() <= latest_origin_ins_.header().seq() ||
       origin_ins.header().sensor_stamp().imuins_stamp() <=
           latest_origin_ins_.header().sensor_stamp().imuins_stamp()) {
+    HLOG_INFO << "origin ins has the same seq or stamp";
     return false;
   }
 
@@ -139,6 +141,11 @@ bool InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins, hozon::localiz
     // mapping trigger imu/ins帧率异常 帧间差 > 30ms
     CheckTriggerInsTime(latest_origin_ins_);
   #endif
+  ++ins_count;
+  if (ins_count >= 100) {
+    ins_count = 0;
+    HLOG_ERROR << "rev origin ins heartbeat";
+  }
   return true;
 }
 
@@ -155,10 +162,14 @@ void InsFusion::CheckTriggerInsTime(const hozon::soc::ImuIns& cur_ins) {
 
 bool InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva,
                          hozon::localization::HafNodeInfo* const node_info) {
+  static int inspva_count = 0;
   if (!config_.use_inspva) {
     return false;
   }
-  if (inspva.header().seq() <= latest_inspva_data_.header().seq()) {
+  if (inspva.header().seq() <= latest_inspva_data_.header().seq() ||
+      inspva.header().data_stamp() <=
+          latest_inspva_data_.header().data_stamp()) {
+    HLOG_INFO << "plugin ins has the same seq or stamp";
     return false;
   }
   if (!ref_init_) {
@@ -196,6 +207,11 @@ bool InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva,
   *node_info = latest_inspva_data_;
   node_info->set_type(hozon::localization::HafNodeInfo_NodeType_INS);
   node_info->mutable_header()->set_frame_id("ins_fusion");
+  ++inspva_count;
+  if (inspva_count >= 100) {
+    inspva_count = 0;
+    HLOG_ERROR << "rev plugin ins heartbeat";
+  }
   return true;
 }
 

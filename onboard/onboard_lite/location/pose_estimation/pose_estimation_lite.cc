@@ -5,7 +5,6 @@
  *   date       ： 2023.09
  ******************************************************************************/
 #include "onboard/onboard_lite/location/pose_estimation/pose_estimation_lite.h"
-
 #include <base/utils/log.h>
 #include <gflags/gflags.h>
 #include <perception-lib/lib/environment/environment.h>
@@ -85,8 +84,7 @@ int32_t PoseEstimationLite::AlgInit() {
 }
 
 void PoseEstimationLite::ExtractCmParameter(const std::string& yamlpath) {
-  YAML::Node cm_yaml_config =
-      YAML::LoadFile(yamlpath);
+  YAML::Node cm_yaml_config = YAML::LoadFile(yamlpath);
   for (const auto& triggerNode : cm_yaml_config["trigger"]) {
     auto triggername = triggerNode["name"].as<std::string>();
     std::string typeStr = triggerNode["type"].as<std::string>();
@@ -138,6 +136,7 @@ void PoseEstimationLite::RegistMessageType() const {
 }
 
 int32_t PoseEstimationLite::OnIns(Bundle* input) {
+  static int ins_count = 0;
   if (!input) {
     return -1;
   }
@@ -153,7 +152,11 @@ int32_t PoseEstimationLite::OnIns(Bundle* input) {
   if (!ins_fusion) {
     return -1;
   }
-
+  ins_count++;
+  if (ins_count >= 100) {
+    ins_count = 0;
+    HLOG_ERROR << "rev ins heartbeat";
+  }
   pose_estimation_->OnIns(ins_fusion);
 
   return 0;
@@ -177,6 +180,7 @@ int32_t PoseEstimationLite::OnLocation(Bundle* input) {
 }
 
 int32_t PoseEstimationLite::OnPerception(Bundle* input) {
+  static int perception_count = 0;
   if (!input) {
     return -1;
   }
@@ -226,6 +230,11 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
     }
   }
   last_percep_time = cur_percep_time;
+  perception_count++;
+  if (perception_count >= 10) {
+    perception_count = 0;
+    HLOG_INFO << "rev perception heartbeat";
+  }
 
   pose_estimation_->OnPerception(perception);
 

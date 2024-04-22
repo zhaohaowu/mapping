@@ -319,13 +319,13 @@ void MatchLaneLine::CalLinesMinDist(
     }
     V3 v_p_near(0, 0, 0);
     V3 v_p_far(0, 0, 0);
-    bool flag_fit0 = GetFcFitPoints(
+    bool flag_fit0 = GetFitPoints(
         map_points, std::max(2.0, static_cast<double>(percep->Min())),
         &anchor_pt0);
     if (flag_fit0) {
       v_p_near = anchor_pt0;
     }
-    bool flag_fit1 = GetFcFitPoints(map_points, anchor_pt1.x(), &anchor_pt1);
+    bool flag_fit1 = GetFitPoints(map_points, anchor_pt1.x(), &anchor_pt1);
     if (flag_fit1) {
       v_p_far = anchor_pt1;
     }

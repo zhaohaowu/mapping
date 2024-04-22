@@ -30,10 +30,12 @@ if [ "${WITH_MAL_PLUGIN_FLAG}" = "true" ]; then
   cd ${WORKSPACE}/depend/mapping_plugin
   mapping_plugin_workspace=$(pwd)
 
-  # 过滤掉--plugin参数
+  # 过滤掉--plugin参数，并将--plugin替换为--quick
   filtered_params=""
   for param in "$@"; do
-    if [ "$param" != "--plugin" ]; then
+    if [ "$param" = "--plugin" ]; then
+      filtered_params="$filtered_params --quick"
+    else
       filtered_params="$filtered_params $param"
     fi
   done
@@ -43,8 +45,8 @@ if [ "${WITH_MAL_PLUGIN_FLAG}" = "true" ]; then
   dest_folder="${WORKSPACE}/release/mal_orin/runtime_service/"
   cp $src_folder $dest_folder -rf
   rm $dest_folder/mapping_plugin/lib/* -rf
-  cp $src_folder/../../lib/libmapping_europa_common.so $dest_folder/mapping_plugin/lib/
-  cp $src_folder/../../lib/libmapping_europa_hdmap.so $dest_folder/mapping_plugin/lib/
+  cp $lib_folder/libeuropa_common.so $dest_folder/mapping_plugin/lib/libmapping_europa_common.so
+  cp $lib_folder/libeuropa_hdmap.so $dest_folder/mapping_plugin/lib/libmapping_europa_hdmap.so
   cp $src_folder/../../scripts/* $dest_folder/../scripts/
   rm ${WORKSPACE}/plugin_env.txt -rf
 fi

@@ -51,6 +51,12 @@ dataSourcesOut:
     type: proto_skeleton
     cmTopic: /localization/location
     cmDomainId: 0
+    capacity: 5
+  - topic: /location/st_location
+    capacity: 5
+    type: proto_skeleton
+    cmTopic: /localization/st_location
+    cmDomainId: 0
   - topic: map_fusion
     capacity: 5
     type: proto_skeleton

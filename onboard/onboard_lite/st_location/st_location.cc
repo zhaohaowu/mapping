@@ -30,10 +30,10 @@ constexpr char* const kRunningModeTopic = "running_mode";
 constexpr char* const kStOutputTopic = "/location/st_location";
 
 int32_t STLocation::AlgInit() {
-  std::cout << " >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>st loc init0" << std::endl;
-  std::cout << " >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>st loc init1" << std::endl;
-  std::cout << " >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>st loc init2" << std::endl;
-  std::cout << " >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>st loc init3" << std::endl;
+  std::cout << " =====================================wangmeng init0" << std::endl;
+  std::cout << " =====================================wangmeng init1" << std::endl;
+  std::cout << " =====================================wangmeng init2" << std::endl;
+  std::cout << " =====================================wangmeng init3" << std::endl;
   //  pose_estimation_ = std::make_unique<MapMatching>();
   //  const std::string adflite_root_path =
   //      hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", ".");
@@ -79,7 +79,7 @@ int32_t STLocation::AlgInit() {
   return 0;
 }
 
-void STLocation::AlgRelease() {  //==提问：这个有什么用？
+void STLocation::AlgRelease() {
   if (mp::util::RvizAgent::Instance().Ok()) {
     mp::util::RvizAgent::Instance().Term();
   }
@@ -484,7 +484,8 @@ void STLocation::AlgRelease() {  //==提问：这个有什么用？
 //   raw_gnss.position.lon = gnss_proto->gnss_pos().longitude();
 //   raw_gnss.position.lat = gnss_proto->gnss_pos().latitude();
 //   raw_gnss.position.height = gnss_proto->gnss_pos().altitude();
-//   // todo:不确认lon，lat,hight和x标准差是否对应；st是东北天顺序，需要把经纬高转成东北天，在msf_factor_imu_gnss.hpp中，
+//   // todo:不确认lon，lat,hight和x标准差是否对应；st是东北天顺序，需要把经纬高转成东北
+//   // 天，在msf_factor_imu_gnss.hpp中，
 //   // Tpr_是东北天转经纬高(弧度转m)的雅可比
 //   raw_gnss.position_std_dev.x = gnss_proto->gnss_pos().lon_std();
 //   raw_gnss.position_std_dev.y = gnss_proto->gnss_pos().lat_std();
@@ -673,10 +674,11 @@ void STLocation::AlgRelease() {  //==提问：这个有什么用？
 //       lane_line.poly_coef.emplace_back(param.c1());
 //       lane_line.poly_coef.emplace_back(param.c0());
 //     }
+//      // st内部如果用图像就用img_pts字段，如果用bev就用三次曲线计算点
 //     for (auto& pt : one_line.points()) {
 //       senseAD::localization::Point2D_t st_pt{pt.x(), pt.y()};
 //       lane_line.img_pts.emplace_back(
-//           st_pt);  // todo:这个字段到底填写img点还是bev的3d点？st内部如果用图像就用img_pts字段，如果用bev就用三次曲线计算点
+//           st_pt);
 //     }
 //     int color = static_cast<int>(one_line.color());
 //     switch (color) {

@@ -1,0 +1,49 @@
+%YAML:1.0
+
+library: "${ADFLITE_ROOT_PATH}/runtime_service/mapping/lib/libmapping_st_location.so"
+depLibPath: ["${ADFLITE_ROOT_PATH}/lib", "${ADFLITE_ROOT_PATH}/runtime_service/mapping/lib"]
+executorName: STLocation
+
+input:
+  - topic: imu_ins
+    capacity: 5
+  - topic: chassis
+    capacity: 5
+  - topic: gnssinfo
+    capacity: 2
+  - topic: percep_transport
+    capacity: 2
+  - topic: running_mode 
+    capacity: 2
+output:
+  - topic: localization
+
+trigger:
+  - name: send_st_location_result
+    type: PERIOD
+    period: 100
+  - name: receive_chassis
+    type: EVENT
+    mainSources:
+      - name: chassis
+        timeout: 1000
+  - name: receive_imu_ins
+    type: EVENT
+    mainSources:
+      - name: imu_ins
+        timeout: 1000
+  - name: receive_gnss
+    type: EVENT
+    mainSources:
+      - name: gnssinfo
+        timeout: 1000
+  - name: recv_perception
+    type: EVENT
+    mainSources:
+      - name: percep_transport
+        timeout: 1000
+  - name: receive_running_mode
+    type: EVENT
+    mainSources:
+      - name: running_mode
+        timeout: 1000

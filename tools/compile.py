@@ -191,10 +191,14 @@ def x86_build(workspace, platform, build_directory, release_directory, **kwargs)
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
+    if kwargs['proto']:
+        execute_shell("rm depend/third_party/cmake/FindProtobuf.cmake")
+        execute_shell("mv depend/third_party/cmake/FindProtobuf.cmakebk depend/third_party/cmake/FindProtobuf.cmake depend")
 
     if kwargs['ccache']:
         args['-DCMAKE_C_COMPILER_LAUNCHER'] = 'ccache'
         args['-DCMAKE_CXX_COMPILER_LAUNCHER'] = 'ccache'
+        execute_shell("mv depend/third_party/cmake/FindProtobuf.cmake depend/third_party/cmake/FindProtobuf.cmakebk")
         shutil.copy2("tools/cmake/FindProtobuf.cmake", "depend/third_party/cmake/")
 
     args['-DENABLE_SINGLE_COMPILE_PROTO'] = "ON" if kwargs['proto'] else "OFF"  
@@ -235,10 +239,14 @@ def orin_build(workspace, platform, build_directory, release_directory, **kwargs
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
+    if kwargs['proto']:
+        execute_shell("rm depend/third_party/cmake/FindProtobuf.cmake")
+        execute_shell("mv depend/third_party/cmake/FindProtobuf.cmakebk depend/third_party/cmake/FindProtobuf.cmake")
 
     if kwargs['ccache']:
         args['-DCMAKE_C_COMPILER_LAUNCHER'] = 'ccache'
         args['-DCMAKE_CXX_COMPILER_LAUNCHER'] = 'ccache'
+        execute_shell("mv depend/third_party/cmake/FindProtobuf.cmake depend/third_party/cmake/FindProtobuf.cmakebk")
         shutil.copy2("tools/cmake/FindProtobuf.cmake", "depend/third_party/cmake/")
     args['-DENABLE_SINGLE_COMPILE_PROTO'] = "ON" if kwargs['proto'] else "OFF"
     cmake_build(workspace, platform, build_directory, args, kwargs['jobs'], kwargs['verbose'])

@@ -166,6 +166,7 @@ template <typename Element>
 void BaseTarget<Element>::UpdateWithoutDetectedObject(
     const ProcessOption& options) {
   ++lost_age_;
+  tracked_element_->lost_age = lost_age_;
   UpdateTrackStatus(true);
   if (track_status_ == TrackStatus::TRACKED) {
     tracked_element_->state = TrackState::MATURED;
@@ -173,11 +174,8 @@ void BaseTarget<Element>::UpdateWithoutDetectedObject(
     tracked_element_->state = TrackState::NOTMATURED;
   }
   HLOG_DEBUG << "lane_id:" << id_ << ",lastest_tracked_timestamp_"
-             << lastest_tracked_timestamp_;
-
-  HLOG_DEBUG << "lane_id:" << id_ << ", options.timestamp" << options.timestamp;
-
-  HLOG_DEBUG << "lane_id:" << id_ << ",lost_age_" << lost_age_;
+             << lastest_tracked_timestamp_ << ", options.timestamp"
+             << options.timestamp << ", lost_age_" << lost_age_;
 }
 
 template <typename Element>
@@ -185,7 +183,8 @@ void BaseTarget<Element>::UpdateWithDetectedObject(
     const ProcessOption& options, const ElementPtr& detected_element_ptr) {
   lost_age_ = 0;
   tracked_count_++;
-  tracked_element_->tracked_count++;
+  tracked_element_->tracked_count = tracked_count_;
+  tracked_element_->lost_age = lost_age_;
 
   UpdateTrackStatus(false);
   if (track_status_ == TrackStatus::TRACKED) {
@@ -195,6 +194,8 @@ void BaseTarget<Element>::UpdateWithDetectedObject(
   }
   SetLastestTrackedTimestamp(options.timestamp);
   tracking_time_ = lastest_tracked_timestamp_ - start_tracked_timestamp_;
+  tracked_element_->tracking_time = tracking_time_;
+  tracked_element_->latest_tracked_time = lastest_tracked_timestamp_;
 }
 
 // LaneTarget 定义

@@ -19,12 +19,6 @@ struct ZebraCrossing : public BaseData {
   double heading;
   std::vector<Eigen::Vector3d> vehicle_points;  // 车身系点
   Eigen::Vector3d center_point;
-
-  // @brief age of the tracked lane line
-  double tracking_time = 0.0;
-
-  // @brief timestamp of latest measurement
-  double latest_tracked_time = 0.0;
   double length{};
   double width{};
 };

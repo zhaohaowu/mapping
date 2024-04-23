@@ -121,14 +121,6 @@ struct LaneLine : public BaseData {
   // @brief lane line track id
   int id = -1;
 
-  int lost_age = -1;
-
-  // @brief age of the tracked lane line
-  double tracking_time = 0.0;
-
-  // @brief timestamp of latest measurement
-  double latest_tracked_time = 0.0;
-
   float score = 0.0;
 
   float type_confidence = 0.0;

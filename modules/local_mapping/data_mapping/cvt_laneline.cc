@@ -3,6 +3,8 @@
  * Licensed Hozon
  * Author: Hozon
  *******************************************************/
+#include <string>
+
 #include "modules/local_mapping/data_mapping/data_mapping.h"
 #include "proto/local_mapping/local_map.pb.h"
 #include "proto/perception/transport_element.pb.h"
@@ -343,6 +345,14 @@ bool DataMapping::CvtLaneLine2Pb(const LaneLinePtr& lane_msg,
   pb_lane->set_color(send_color);
   pb_lane->set_confidence(1.0);
   // pb_lane->set_confidence(lane_msg->geo_confidence);
+  pb_lane->set_lost_age(lane_msg->lost_age);
+  HLOG_INFO << "DEBUG:"
+            << "id, " << lane_msg->id << ", lost_age, " << lane_msg->lost_age
+            << ", tracked_age: " << lane_msg->tracked_count
+            << ", latest_tracked_age, "
+            << std::to_string(lane_msg->latest_tracked_time);
+  pb_lane->set_tracked_age(lane_msg->tracked_count);
+  pb_lane->set_latest_tracked_time(lane_msg->latest_tracked_time);
   return true;
 }
 

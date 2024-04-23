@@ -31,11 +31,6 @@ struct RoadEdge : public BaseData {
 
   LaneLinePosition position;
   LaneLinePosition te_position;
-  // @brief age of the tracked lane line
-  double tracking_time = 0.0;
-
-  // @brief timestamp of latest measurement
-  double latest_tracked_time = 0.0;
 
   std::vector<Eigen::Vector3d> vehicle_points;
 

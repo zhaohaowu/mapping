@@ -23,10 +23,6 @@ struct StopLine : public BaseData {
   Eigen::Vector3d center_point{};
   double heading{};
   double length{};
-  // @brief age of the tracked stop line
-  double tracking_time = 0.0;
-  // @brief timestamp of latest measurement
-  double latest_tracked_time = 0.0;
 };
 
 using StopLinePtr = std::shared_ptr<StopLine>;

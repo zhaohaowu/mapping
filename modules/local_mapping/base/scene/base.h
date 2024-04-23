@@ -23,7 +23,16 @@ enum class TrackState {
 };
 
 struct BaseData {
+  // @brief tracked measurement frame nums
   int tracked_count = 0;
+
+  // @brief age of the tracked lane line
+  double tracking_time = 0.0;
+
+  // @brief timestamp of latest measurement
+  double latest_tracked_time = 0.0;
+  // @brief lost measurement frame nums
+  int lost_age = -1;
 
   TrackState state = TrackState::NOTMATURED;
 };

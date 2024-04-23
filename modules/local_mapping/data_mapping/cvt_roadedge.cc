@@ -149,6 +149,9 @@ bool DataMapping::CvtRoadEdge2Pb(const RoadEdgePtr& roadedge_msg,
   auto* curve_lane = pb_roadedge->mutable_lane_param()->add_cubic_curve_set();
   pb_roadedge->set_lanepos(send_pos_type);
   pb_roadedge->set_confidence(1.0);
+  pb_roadedge->set_lost_age(roadedge_msg->lost_age);
+  pb_roadedge->set_tracked_age(roadedge_msg->tracked_count);
+  pb_roadedge->set_latest_tracked_time(roadedge_msg->latest_tracked_time);
   if (roadedge_msg->vehicle_curve.coeffs.size() == 4) {
     // 车道线三次方程系数跟踪方案发送字段
     curve_lane->set_c0(roadedge_msg->vehicle_curve.coeffs[0]);

@@ -193,7 +193,7 @@ def x86_build(workspace, platform, build_directory, release_directory, **kwargs)
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"
     if kwargs['proto']:
         execute_shell("rm depend/third_party/cmake/FindProtobuf.cmake")
-        execute_shell("mv depend/third_party/cmake/FindProtobuf.cmakebk depend/third_party/cmake/FindProtobuf.cmake depend")
+        execute_shell("mv depend/third_party/cmake/FindProtobuf.cmakebk depend/third_party/cmake/FindProtobuf.cmake")
 
     if kwargs['ccache']:
         args['-DCMAKE_C_COMPILER_LAUNCHER'] = 'ccache'

@@ -644,12 +644,12 @@ void FusionCenter::Node2Localization(const Context& ctx,
   location->set_rtk_status(global_node.rtk_status);
   location->set_location_state(global_node.location_state);
 
-  location->mutable_mounting_error()->set_x(
-      static_cast<float>(ins.mounting_error().x()));
-  location->mutable_mounting_error()->set_y(
-      static_cast<float>(ins.mounting_error().y()));
-  location->mutable_mounting_error()->set_z(
-      static_cast<float>(ins.mounting_error().z()));
+  // location->mutable_mounting_error()->set_x(
+  //     static_cast<float>(ins.mounting_error().x()));
+  // location->mutable_mounting_error()->set_y(
+  //     static_cast<float>(ins.mounting_error().y()));
+  // location->mutable_mounting_error()->set_z(
+  //     static_cast<float>(ins.mounting_error().z()));
 
   auto* const pose = location->mutable_pose();
 
@@ -817,16 +817,41 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose_local->mutable_angular_velocity()->set_y(local_node.angular_velocity(1));
   pose_local->mutable_angular_velocity()->set_z(local_node.angular_velocity(2));
 
+  // 协方差改为使用FC的ESKF结果，目前由于非实时架构，中间会有0
+  static int count = 0;
   Eigen::Matrix<float, 6, 1> diag;
-  diag << static_cast<float>(ins.sd_position().x()),
-      static_cast<float>(ins.sd_position().y()),
-      static_cast<float>(ins.sd_position().z()),
-      static_cast<float>(ins.sd_attitude().x()),
-      static_cast<float>(ins.sd_attitude().y()),
-      static_cast<float>(ins.sd_attitude().z());
-  Eigen::Matrix<float, 6, 6, Eigen::RowMajor> sd = diag.asDiagonal();
-  Eigen::Matrix<float, 6, 6, Eigen::RowMajor> cov = sd * sd;
-
+  // diag << static_cast<float>(ins.sd_position().x()),
+  //     static_cast<float>(ins.sd_position().y()),
+  //     static_cast<float>(ins.sd_position().z()),
+  //     static_cast<float>(ins.sd_attitude().x()),
+  //     static_cast<float>(ins.sd_attitude().y()),
+  //     static_cast<float>(ins.sd_attitude().z());
+  // Eigen::Matrix<float, 6, 6, Eigen::RowMajor> sd = diag.asDiagonal();
+  // Eigen::Matrix<float, 6, 6, Eigen::RowMajor> cov = sd * sd;
+  diag << (float)(global_node.cov(0, 0) * 1e10),
+      (float)(global_node.cov(1, 1) * 1e10),
+      (float)(global_node.cov(2, 2) * 1e10),
+      (float)(global_node.cov(6, 6) * 1e10),
+      (float)(global_node.cov(7, 7) * 1e10),
+      (float)(global_node.cov(8, 8) * 1e10);
+  Eigen::Matrix<float, 6, 6, Eigen::RowMajor> cov = diag.asDiagonal();
+  location->mutable_mounting_error()->set_x(
+      static_cast<float>(global_node.cov(0, 0) * 1e10));
+  location->mutable_mounting_error()->set_y(
+      static_cast<float>(global_node.cov(1, 1) * 1e10));
+  location->mutable_mounting_error()->set_z(
+      static_cast<float>(global_node.cov(8, 8) * 1e10));
+  ++count;
+  if (count >= 50) {
+    count = 0;
+    HLOG_ERROR << "dr_ticktime:" << ticktime
+               << ",ESKF_Cov:" << global_node.cov(0, 0) * 1e10 << ", "
+               << global_node.cov(1, 1) * 1e10 << ", "
+               << global_node.cov(2, 2) * 1e10 << ", "
+               << global_node.cov(6, 6) * 1e10 << ", "
+               << global_node.cov(7, 7) * 1e10 << ", "
+               << global_node.cov(8, 8) * 1e10;
+  }
   location->clear_covariance();
   for (int i = 0; i < 36; ++i) {
     location->add_covariance(cov(i));
@@ -1287,6 +1312,14 @@ Node FusionCenter::State2Node(const State& state) {
   node.quaternion = state.R.unit_quaternion();
   node.orientation = state.R.log();
   node.blh = hmu::Geo::EnuToBlh(node.enu, node.refpoint);
+  // 位置
+  node.cov(0, 0) = state.cov(0, 0);
+  node.cov(1, 1) = state.cov(1, 1);
+  node.cov(2, 2) = state.cov(2, 2);
+  // 姿态
+  node.cov(6, 6) = state.cov(6, 6);
+  node.cov(7, 7) = state.cov(7, 7);
+  node.cov(8, 8) = state.cov(8, 8);
 
   node.sys_status = state.sys_status;
   node.rtk_status = state.rtk_status;
@@ -1479,6 +1512,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     // todo此处后期改成dr_node
     ctx->global_node = ctx->ins_node;
     ctx->global_node.location_state = loc_state;
+    ctx->global_node.cov = fusion_node.cov;
     #ifdef ISORIN
       CheckTriggerLocState(ctx);
     #endif

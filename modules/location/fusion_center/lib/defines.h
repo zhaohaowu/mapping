@@ -65,7 +65,7 @@ struct Node {
   Eigen::Vector3d b_a = Eigen::Vector3d::Zero();
   Eigen::Vector3d b_g = Eigen::Vector3d::Zero();
   Eigen::Quaterniond quaternion;
-  Eigen::Matrix<double, 6, 6> cov = Eigen::Matrix<double, 6, 6>::Identity();
+  Eigen::Matrix<double, 15, 15> cov = Eigen::Matrix<double, 15, 15>::Zero();
   uint32_t sys_status = 0;
   uint32_t rtk_status = 0;
   uint32_t location_state = 0;

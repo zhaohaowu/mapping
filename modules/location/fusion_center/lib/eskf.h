@@ -30,6 +30,7 @@ struct State {
   Eigen::Vector3d b_a = Eigen::Vector3d::Zero();
   Eigen::Quaterniond q;  // 四元数
   Sophus::SO3<double> R;
+  Eigen::Matrix<double, 15, 15> cov = Eigen::Matrix<double, 15, 15>::Zero();
 
   uint32_t sys_status = 0;
   uint32_t rtk_status = 0;

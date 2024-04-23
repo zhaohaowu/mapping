@@ -231,6 +231,7 @@ void ESKF::UpdateAndReset() {
       Mat3T::Identity() - 0.5 * SO3::hat(X_dx_.template block<3, 1>(6, 0));
   P_ = J * P_ * J.transpose();
   X_dx_.setZero();
+  X_.cov = P_;
 }
 
 Eigen::Matrix<double, 3, 3> ESKF::JlSO3(const Eigen::Matrix<double, 3, 1>& w) {

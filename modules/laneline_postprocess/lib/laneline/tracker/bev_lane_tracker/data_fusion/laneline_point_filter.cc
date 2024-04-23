@@ -244,6 +244,9 @@ void LanePointFilter::CalculateNormalV2() {
 
 bool LanePointFilter::IsAbnormalPose(
     const Eigen::Affine3d& novatel2world_pose) {
+  if (InputDataSingleton::Instance()->dr_data_buffer_.buffer_size() < 2) {
+    return false;
+  }
   const auto& current_pose =
       InputDataSingleton::Instance()->dr_data_buffer_.back()->pose;
   const auto& last_pose =

@@ -299,6 +299,7 @@ class GroupMap {
   bool IsLaneShrink(Lane::Ptr lane);
   double CalcLaneLength(Lane::Ptr lane);
   bool IsAccessLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next);
+  float LaneDist(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next);
 };
 
 }  // namespace gm

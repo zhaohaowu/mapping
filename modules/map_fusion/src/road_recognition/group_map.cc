@@ -718,7 +718,7 @@ bool GroupMap::IsAccessLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
         lane_in_curr->center_line_pts[sizet - 1].pt -
         lane_in_next->center_line_pts[0].pt;
     lane_in_next_norm = lane_in_next_norm.normalized();
-    if ((lane_in_next_norm.cross(lane_curr2next_vec)).norm() > 2.5) {
+    if ((lane_in_next_norm.cross(lane_curr2next_vec)).norm() > 2.0) {
       // curr点是否在next_lane的右侧
       float is_right = lane_in_next_norm.y() * lane_curr2next_vec.x() -
                        lane_in_next_norm.x() * lane_curr2next_vec.y();
@@ -821,22 +821,25 @@ void GroupMap::NextGroupLaneConnect(
           lane_in_curr->str_id_with_group);
       if (lane_in_next->center_line_pts.size() > 2 &&
           lane_in_curr->center_line_pts.size() > 4) {
-        size_t cur_num = lane_in_curr->center_line_pts.size();
-        std::vector<Eigen::Vector3f> tmp_vec;
-        tmp_vec.emplace_back(lane_in_curr->center_line_pts[cur_num - 5].pt);
-        tmp_vec.emplace_back(lane_in_curr->center_line_pts[cur_num - 4].pt);
-        tmp_vec.emplace_back(lane_in_next->center_line_pts[0].pt);
-        tmp_vec.emplace_back(lane_in_next->center_line_pts[1].pt);
-        std::vector<Eigen::Vector3f> center_fit;
-        CatmullRom(tmp_vec, &center_fit, 4);
-        Point pt_center;
-        pt_center.type = gm::VIRTUAL;
-        pt_center.pt = center_fit[0];
-        lane_in_curr->center_line_pts[cur_num - 3] = pt_center;
-        pt_center.pt = center_fit[1];
-        lane_in_curr->center_line_pts[cur_num - 2] = pt_center;
-        pt_center.pt = center_fit[2];
-        lane_in_curr->center_line_pts[cur_num - 1] = pt_center;
+        // size_t cur_num = lane_in_curr->center_line_pts.size();
+        // std::vector<Eigen::Vector3f> tmp_vec;
+        // tmp_vec.emplace_back(lane_in_curr->center_line_pts[cur_num - 5].pt);
+        // tmp_vec.emplace_back(lane_in_curr->center_line_pts[cur_num - 4].pt);
+        // tmp_vec.emplace_back(lane_in_next->center_line_pts[0].pt);
+        // tmp_vec.emplace_back(lane_in_next->center_line_pts[1].pt);
+        // std::vector<Eigen::Vector3f> center_fit;
+        // CatmullRom(tmp_vec, &center_fit, 4);
+        // Point pt_center;
+        // pt_center.type = gm::VIRTUAL;
+        // pt_center.pt = center_fit[0];
+        // lane_in_curr->center_line_pts[cur_num - 3] = pt_center;
+        // pt_center.pt = center_fit[1];
+        // lane_in_curr->center_line_pts[cur_num - 2] = pt_center;
+        // pt_center.pt = center_fit[2];
+        // lane_in_curr->center_line_pts[cur_num - 1] = pt_center;
+        lane_in_curr->center_line_pts.erase(
+            lane_in_curr->center_line_pts.end() - 3,
+            lane_in_curr->center_line_pts.end());
         lane_in_curr->center_line_pts.emplace_back(
             lane_in_next->center_line_pts.front());
       } else if (!lane_in_next->center_line_pts.empty()) {
@@ -852,32 +855,60 @@ void GroupMap::NextGroupLaneConnect(
             lane_in_curr->str_id_with_group);
         if (lane_in_next->center_line_pts.size() > 4 &&
             lane_in_curr->center_line_pts.size() > 2) {
-          size_t cur_num = lane_in_curr->center_line_pts.size();
-          std::vector<Eigen::Vector3f> tmp_vec;
-          tmp_vec.emplace_back(lane_in_curr->center_line_pts[cur_num - 2].pt);
-          tmp_vec.emplace_back(lane_in_curr->center_line_pts[cur_num - 1].pt);
-          tmp_vec.emplace_back(lane_in_next->center_line_pts[3].pt);
-          tmp_vec.emplace_back(lane_in_next->center_line_pts[4].pt);
-          std::vector<Eigen::Vector3f> center_fit;
-          CatmullRom(tmp_vec, &center_fit, 4);
-          Point pt_center;
-          pt_center.type = gm::VIRTUAL;
-          pt_center.pt = center_fit[0];
-          lane_in_next->center_line_pts[0] = pt_center;
-          pt_center.pt = center_fit[1];
-          lane_in_next->center_line_pts[1] = pt_center;
-          pt_center.pt = center_fit[2];
-          lane_in_next->center_line_pts[2] = pt_center;
+          // size_t cur_num = lane_in_curr->center_line_pts.size();
+          // std::vector<Eigen::Vector3f> tmp_vec;
+          // tmp_vec.emplace_back(lane_in_curr->center_line_pts[cur_num -
+          // 2].pt); tmp_vec.emplace_back(lane_in_curr->center_line_pts[cur_num
+          // - 1].pt);
+          // tmp_vec.emplace_back(lane_in_next->center_line_pts[3].pt);
+          // tmp_vec.emplace_back(lane_in_next->center_line_pts[4].pt);
+          // std::vector<Eigen::Vector3f> center_fit;
+          // CatmullRom(tmp_vec, &center_fit, 4);
+          // Point pt_center;
+          // pt_center.type = gm::VIRTUAL;
+          // pt_center.pt = center_fit[0];
+          // lane_in_next->center_line_pts[0] = pt_center;
+          // pt_center.pt = center_fit[1];
+          // lane_in_next->center_line_pts[1] = pt_center;
+          // pt_center.pt = center_fit[2];
+          // lane_in_next->center_line_pts[2] = pt_center;
+          // lane_in_next->center_line_pts.insert(
+          //     lane_in_next->center_line_pts.begin(),
+          //     lane_in_curr->center_line_pts.back());
+          lane_in_next->center_line_pts.erase(
+              lane_in_next->center_line_pts.begin(),
+              lane_in_next->center_line_pts.begin() + 2);
+          lane_in_next->center_line_pts[0] =
+              lane_in_curr->center_line_pts.back();
+        } else if (!lane_in_curr->center_line_pts.empty()) {
           lane_in_next->center_line_pts.insert(
               lane_in_next->center_line_pts.begin(),
               lane_in_curr->center_line_pts.back());
-        } else if (!lane_in_next->center_line_pts.empty()) {
-          lane_in_curr->center_line_pts.emplace_back(
-              lane_in_next->center_line_pts.front());
         }
       }
     }
   }
+}
+
+float GroupMap::LaneDist(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
+  size_t sizet = lane_in_curr->center_line_pts.size();
+  Eigen::Vector3f lane_in_next_norm(0.0, 0.0, 0.0);
+  size_t next_lane_cp_idx = 1;
+  while (next_lane_cp_idx < lane_in_next->center_line_pts.size() &&
+         lane_in_next_norm.norm() < 2.0) {
+    lane_in_next_norm = lane_in_next->center_line_pts[next_lane_cp_idx].pt -
+                        lane_in_next->center_line_pts[0].pt;
+    next_lane_cp_idx++;
+  }
+  if (lane_in_next_norm.norm() > 2.0) {
+    lane_in_next_norm = lane_in_next_norm.normalized();
+    Eigen::Vector3f lane_curr_next_vec =
+        lane_in_curr->center_line_pts[sizet - 1].pt -
+        lane_in_next->center_line_pts[0].pt;
+    float dis = (lane_curr_next_vec.cross(lane_in_next_norm)).norm();
+    return dis;
+  }
+  return 10.0;
 }
 
 void GroupMap::FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group) {
@@ -920,15 +951,17 @@ void GroupMap::FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group) {
             // 这里仅增加收缩的lane，目的是为了排除正常宽度的lane也被认为是merge的lane
             double curr_len = CalcLaneLength(lane_in_curr);
             bool shrink = IsLaneShrink(lane_in_curr);
+            const float dis_thresh = 4.5;
             if (i == 0 && curr_len > kMergeLengthThreshold && shrink &&
-                IsAccessLane(lane_in_curr, next_group->lanes[0])) {
+                IsAccessLane(lane_in_curr, next_group->lanes[0]) &&
+                LaneDist(lane_in_curr, next_group->lanes[0]) < dis_thresh) {
               curr_group_next_lane[i].emplace_back(0);
               next_group_prev_lane[0].emplace_back(i);
             } else if (i == curr_group->lanes.size() - 1 &&
                        curr_len > kMergeLengthThreshold && shrink &&
-                       IsAccessLane(
-                           lane_in_curr,
-                           next_group->lanes[next_group->lanes.size() - 1])) {
+                       IsAccessLane(lane_in_curr, next_group->lanes.back()) &&
+                       LaneDist(lane_in_curr, next_group->lanes.back()) <
+                           dis_thresh) {
               curr_group_next_lane[i].emplace_back(next_group->lanes.size() -
                                                    1);
 
@@ -2190,16 +2223,15 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
       if (next_pts_size < 3) {
         continue;
       }
-      Eigen::Vector2f n0(
-          next_lane->center_line_pts.at(0).pt.x(),
-          next_lane->center_line_pts.at(0).pt.y());
-      Eigen::Vector2f n1(
-          next_lane->center_line_pts.at(1).pt.x(),
-          next_lane->center_line_pts.at(1).pt.y());
+      Eigen::Vector2f n0(next_lane->center_line_pts.at(0).pt.x(),
+                         next_lane->center_line_pts.at(0).pt.y());
+      Eigen::Vector2f n1(next_lane->center_line_pts.at(1).pt.x(),
+                         next_lane->center_line_pts.at(1).pt.y());
       Eigen::Vector2f n = n1 - n0;
       if (n.norm() < 0.01) {
         n0 = n1;
-        n1 << next_lane->center_line_pts.at(2).pt.x(), next_lane->center_line_pts.at(2).pt.y();
+        n1 << next_lane->center_line_pts.at(2).pt.x(),
+            next_lane->center_line_pts.at(2).pt.y();
         n = n1 - n0;
       }
       n.normalize();
@@ -2282,6 +2314,17 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
       }
     }
   }
+  // // 打印点
+  // for (auto& grp : *groups) {
+  //   for (auto& lane_grp : grp->lanes) {
+  //     HLOG_ERROR << "lane_grp->str_id_with_group ="
+  //                << lane_grp->str_id_with_group;
+  //     for (auto& ct_p : lane_grp->center_line_pts) {
+  //       HLOG_ERROR << "ct_p.pt.x() = " << ct_p.pt.x()
+  //                  << "  ct_p.pt.y() = " << ct_p.pt.y();
+  //     }
+  //   }
+  // }
 }
 void GroupMap::SetAllOverlaps(std::map<em::Id, Zebra::Ptr>* zebra,
                               std::map<em::Id, Arrow::Ptr>* arrow,
@@ -2622,7 +2665,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
         double b_left = left_pt_pre.pt.y() -
                         lane_in_curr->center_line_param[1] * left_pt_pre.pt.x();
         while (left_pt_pre.pt.x() <
-               next_group->group_segments.back()->end_slice.po.x()) {
+               next_group->group_segments.back()->end_slice.po.x() - 2.0) {
           lane_in_curr->left_boundary->pts.emplace_back(left_pt_pre);
           float pre_x = left_pt_pre.pt.x() + 1.0;
           float pre_y = b_left + lane_in_curr->center_line_param[1] * pre_x;
@@ -2637,7 +2680,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
             right_pt_pre.pt.y() -
             lane_in_curr->center_line_param[1] * right_pt_pre.pt.x();
         while (right_pt_pre.pt.x() <
-               next_group->group_segments.back()->end_slice.po.x()) {
+               next_group->group_segments.back()->end_slice.po.x() - 2.0) {
           lane_in_curr->right_boundary->pts.emplace_back(right_pt_pre);
           float pre_x = right_pt_pre.pt.x() + 1.0;
           float pre_y = b_right + lane_in_curr->center_line_param[1] * pre_x;
@@ -2649,7 +2692,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
             lane_in_curr->center_line_pts[index_center - 1].pt.y(),
             lane_in_curr->center_line_pts[index_center - 1].pt.z());
         while (center_pt_pre.pt.x() <
-               next_group->group_segments.back()->end_slice.po.x()) {
+               next_group->group_segments.back()->end_slice.po.x() - 2.0) {
           lane_in_curr->center_line_pts.emplace_back(center_pt_pre);
           float pre_x = center_pt_pre.pt.x() + 1.0;
           float pre_y = lane_in_curr->center_line_param[0] +
@@ -2813,7 +2856,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
             left_pt_pre.pt.y() -
             lane_in_next->center_line_param_front[1] * left_pt_pre.pt.x();
         while (left_pt_pre.pt.x() >
-               curr_group->group_segments[0]->start_slice.po.x()) {
+               curr_group->group_segments[0]->start_slice.po.x() + 2.0) {
           lane_in_next->left_boundary->pts.insert(
               lane_in_next->left_boundary->pts.begin(), left_pt_pre);
           float pre_x = left_pt_pre.pt.x() - 1.0;
@@ -2830,7 +2873,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
             right_pt_pre.pt.y() -
             lane_in_next->center_line_param_front[1] * right_pt_pre.pt.x();
         while (right_pt_pre.pt.x() >
-               curr_group->group_segments[0]->start_slice.po.x()) {
+               curr_group->group_segments[0]->start_slice.po.x() + 2.0) {
           lane_in_next->right_boundary->pts.insert(
               lane_in_next->right_boundary->pts.begin(), right_pt_pre);
           float pre_x = right_pt_pre.pt.x() - 1.0;
@@ -2843,7 +2886,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
                             lane_in_next->center_line_pts[0].pt.y(),
                             lane_in_next->center_line_pts[0].pt.z());
         while (center_pt_pre.pt.x() >
-               curr_group->group_segments[0]->start_slice.po.x()) {
+               curr_group->group_segments[0]->start_slice.po.x() + 2.0) {
           lane_in_next->center_line_pts.insert(
               lane_in_next->center_line_pts.begin(), center_pt_pre);
           float pre_x = center_pt_pre.pt.x() - 1.0;

@@ -45,3 +45,4 @@ RoadRecognition:
     max_heading_std_dev: 100
     min_predict_interval: 0.2
     max_heading_degree: 10
+    junction_heading_diff: 5 # degree

@@ -44,6 +44,7 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
       "max_heading_std_dev",
       "min_predict_interval",
       "max_heading_degree",
+      "junction_heading_diff",
   };
   for (const auto& it : required) {
     if (!conf[it].IsDefined()) {
@@ -105,6 +106,8 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
   gm_conf_.min_predict_interval = conf["min_predict_interval"].as<float>();
   gm_conf_.max_heading_rad =
       static_cast<float>(DegToRad(conf["max_heading_degree"].as<double>()));
+  gm_conf_.junction_heading_diff =
+      static_cast<float>(DegToRad(conf["junction_heading_diff"].as<double>()));
   is_cross_.cross_after_lane_ = 0;
   is_cross_.cross_before_lane_ = 0;
   is_cross_.is_crossing_ = 0;

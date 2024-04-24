@@ -1459,6 +1459,10 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
             }
           }
 
+          Eigen::Vector2f thresh_v(std::cos(conf_.junction_heading_diff),
+                                   std::sin(conf_.junction_heading_diff));
+          float thresh_len = std::abs(thresh_v.transpose() * n);
+
           Lane::Ptr best_next_lane = nullptr;
           max_len = 0;
           for (auto& next_lane : next_group->lanes) {
@@ -1468,7 +1472,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
             Eigen::Vector2f v = p1 - p0;
             v.normalize();
             float len = std::abs(v.transpose() * n);
-            if (len > max_len) {
+            if (len > max_len && len >= thresh_len) {
               max_len = len;
               best_next_lane = next_lane;
             }

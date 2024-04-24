@@ -189,6 +189,7 @@ struct GroupMapConf {
   float max_heading_std_dev = 0;
   // 车道线末端点间距阈值
   float min_predict_interval = 0;
+  float junction_heading_diff = 0;
 };
 
 struct IsCross {

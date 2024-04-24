@@ -630,7 +630,7 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
   if (groups.size() < 1) {
     return;
   }
-  size_t index = groups.size() - 1;
+  int index = groups.size() - 1;
   while (index >= 0 && groups[index]->group_segments.size() < 2) {
     index--;
   }
@@ -640,7 +640,7 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
       iscross->along_path_dis_ =
           groups[index]->group_segments.back()->end_slice.po;
     } else if (groups[index]->group_segments.back()->end_slice.po.x() > 5.0) {
-      for (size_t i = index; i > 0; i--) {
+      for (int i = index; i > 0; i--) {
         if (groups[i]->group_segments.size() < 2) {
           // 因为虚拟group没有group_segments
           int curr_group_v = 0;

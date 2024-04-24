@@ -1497,7 +1497,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
     }
   }
 
-  for (size_t i = groups->size() - 1; i >= 0; --i) {
+  for (int i = groups->size() - 1; i >= 0; --i) {
     if (group_virtual.empty()) {
       break;
     }

@@ -36,7 +36,7 @@ trigger:
       type: EVENT
       mainSources:
         - name: local_map
-          timeout: 100
+          timeout: 1000
     - name: recv_loc_plugin
       type: EVENT
       mainSources:
@@ -54,7 +54,7 @@ trigger:
       type: EVENT
       mainSources:
         - name: percep_transport
-          timeout: 100
+          timeout: 1000
     - name: recv_dr
       type: EVENT
       mainSources:

@@ -43,7 +43,8 @@ namespace loc {
 
 using hozon::localization::HafNodeInfo;
 using PtrNodeInfo = std::shared_ptr<::hozon::localization::HafNodeInfo>;
-
+#define INS_HEARTBEAT_TIMEOUT 10
+#define PERCEPTION_HEART_TIMEOUT 50
 struct SensorSync {
   int status = 0;
   int32_t frame_id = 0;
@@ -171,7 +172,6 @@ class MapMatching {
 
   // void setObject(const ::perception::ObjectList &object);
   void setIns(const ::hozon::localization::HafNodeInfo& ins);
-  void interpolateOptimizeResult();
   void mmProcCallBack(void);
   // void mmInterpCallBack(void);
   void procData();
@@ -271,7 +271,10 @@ class MapMatching {
   void pubConnectMapPoints(const VP& points, uint64_t sec, uint64_t nsec);
   template <typename T>
   void ShrinkQueue(T* const deque, uint32_t maxsize);
-
+  adsfi_proto::viz::Marker RoadEdgeToMarker(const VP& points, std::string id,
+                                            bool is_points, bool is_center,
+                                            float point_size = 1,
+                                            bool is_edge = false);
   adsfi_proto::viz::Marker laneToMarker(const VP& points, std::string id,
                                         bool is_points, bool is_center,
                                         float point_size = 1,
@@ -288,6 +291,7 @@ class MapMatching {
   bool FindPecepFC(hozon::localization::Localization* cur_fc);
   bool ExtractInsMsg(HafNodeInfo* now_ins, SE3* T02_W_V_ins,
                      const Eigen::Vector3d& ref_point);
+  double GetCurrentTime();
 
  private:
   int mm_err_type_;  // 用于接收map_match_lane_line中的故障
@@ -301,7 +305,6 @@ class MapMatching {
   bool ins_input_ready_;
   bool use_inter_;
   bool use_smooth_ = false;
-  bool use_extrapolate_ = false;
 
   double map_crop_front_ = 1550.0;
   double map_crop_width_ = 300.0;
@@ -341,8 +344,6 @@ class MapMatching {
   SE3 T_delta_last_;
   int bad_lane_match_count_;
   bool match_inited;
-  bool is_chging_ins_ref_ = false;
-  bool is_chging_map_ref_ = false;
   bool is_toll_lane_ = false;
   bool is_ramp_road_ = false;
   bool is_main_road_ = false;

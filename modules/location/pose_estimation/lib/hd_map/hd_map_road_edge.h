@@ -7,15 +7,17 @@
 
 #pragma once
 
-#include <interface/adsfi_proto/internal/slam_hd_submap.pb.h>
-
 #include <Eigen/Core>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "depend/common/utm_projection/coordinate_convertor.h"
+#include "depend/proto/common/types.pb.h"
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_base.h"
+#include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 
 namespace hozon {
@@ -23,7 +25,8 @@ namespace mp {
 namespace loc {
 
 struct RoadEdge {
-  size_t id_edge;
+  size_t edge_type;
+  std::string id_edge;
   std::vector<ControlPoint> control_point;
 };
 
@@ -37,7 +40,7 @@ class MapRoadEdge : public MapElement {
    * @param width : range in side of the vehicle
    * @return
    */
-  void Crop(const SE3& T_W_V, double front, double width);
+  void Crop(const SE3 &T_W_V, double front, double width);
 
   /**
    * @brief add road edge lines
@@ -46,9 +49,13 @@ class MapRoadEdge : public MapElement {
    * @param ref_point : reference point
    * @return
    */
-  void Set(const adsfi_proto::internal::SubMap& hd_map, const V3& ref_point);
+  void Set(const hozon::common::PointENU &position,
+           const Eigen::Matrix3d &rotation, const double &distance,
+           const V3 &ref_point);
+  bool AddMapRoadEdge(const hozon::hdmap::LineBoundary &road_edge,
+                      const V3 &ref_point, const std::string road_edge_id);
   using Ptr = std::shared_ptr<MapRoadEdge>;
-  std::unordered_map<size_t, RoadEdge> edge_line_;
+  std::unordered_map<std::string, RoadEdge> edge_line_;
 };
 
 }  // namespace loc

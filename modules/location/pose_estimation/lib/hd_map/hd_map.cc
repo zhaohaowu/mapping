@@ -20,7 +20,7 @@ void Map<Map_Type>::set_ref_point(const V3& ref_point) {
 template <typename Map_Type>
 V3 Map<Map_Type>::get_ref_point(void) {
   HLOG_DEBUG << "get_ref_point_ = [" << ref_point_.x() << ", " << ref_point_.y()
-            << ", " << ref_point_.z() << "]";
+             << ", " << ref_point_.z() << "]";
   return ref_point_;
 }
 template <typename Map_Type>
@@ -57,9 +57,15 @@ void Map<Map_Type>::SetMap(const hozon::common::PointENU& position,
                            const double& distance,
                            const Eigen::Vector3d& ref_point) {
   MapBoundaryLine::Ptr map_boundary_line = std::make_shared<MapBoundaryLine>();
+  MapRoadEdge::Ptr map_road_edge = std::make_shared<MapRoadEdge>();
   if (!map_boundary_line) {
     return;
   }
+  if (!map_road_edge) {
+    return;
+  }
+  // map_road_edge->Set(position, rotation, distance, ref_point_);
+  // elment_.emplace_back(map_road_edge);
   map_boundary_line->Set(position, rotation, distance, ref_point_);
   elment_.emplace_back(map_boundary_line);
 }

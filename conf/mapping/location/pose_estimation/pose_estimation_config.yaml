@@ -98,7 +98,7 @@ recur_input_in_ins_rtk_smooth: true
 recur_input_x_thr: 3
 
 # lane width check
-lane_width_diff_thre: 0.35
+lane_width_diff_thre: 0.8
 lane_width_diff_thre_offset: 0.07
 lane_width_check_switch: true
 max_pair_count_thre: 10
@@ -106,7 +106,7 @@ min_pair_count_thre: 3
 
 # filter point pairs
 avg_diff_offset: 0.25
-window_size: 10
+window_size: 4
 
 # adjust left or right pairs weight
 adjust_weight_by_lane_width_check: true

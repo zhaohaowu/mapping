@@ -13,11 +13,11 @@ namespace hozon {
 namespace mp {
 namespace loc {
 
-Eigen::Matrix<double, 3, 1> RotToEuler312(
+inline Eigen::Matrix<double, 3, 1> RotToEuler312(
     const Eigen::Matrix<double, 3, 3>& mat);
-double CalHeading(double heading);
+inline double CalHeading(double heading);
 
-Eigen::Matrix<double, 3, 1> RotToEuler312(
+inline Eigen::Matrix<double, 3, 1> RotToEuler312(
     const Eigen::Matrix<double, 3, 3>& mat) {
   Eigen::Matrix<double, 3, 1> v;
   v(0) = asinf(mat(2, 1));
@@ -26,7 +26,7 @@ Eigen::Matrix<double, 3, 1> RotToEuler312(
   return v;
 }
 
-double CalHeading(double heading) {
+inline double CalHeading(double heading) {
   double cal_heading = -heading * M_PI / 180.0 + M_PI / 2;
   if (cal_heading > M_PI) {
     cal_heading -= 2 * M_PI;

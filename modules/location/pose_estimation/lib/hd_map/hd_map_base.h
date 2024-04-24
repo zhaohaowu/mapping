@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <interface/adsfi_proto/internal/slam_hd_submap.pb.h>
+// #include <interface/adsfi_proto/internal/slam_hd_submap.pb.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <iostream>
@@ -51,16 +51,16 @@ class MapElement {
 };
 
 // double type
-enum DoubleLineType {
-  DoubleSolidLine =
-      adsfi_proto::internal::SubMap_LineType_LineType_DoubleSolidLine,
-  DoubleDashedLine =
-      adsfi_proto::internal::SubMap_LineType_LineType_DoubleSolidLine,
-  LeftSolidRightDashed =
-      adsfi_proto::internal::SubMap_LineType_LineType_LeftSolidRightDashed,
-  RightSolidLeftDashed =
-      adsfi_proto::internal::SubMap_LineType_LineType_RightSolidLeftDashed
-};
+// enum DoubleLineType {
+//   DoubleSolidLine =
+//       adsfi_proto::internal::SubMap_LineType_LineType_DoubleSolidLine,
+//   DoubleDashedLine =
+//       adsfi_proto::internal::SubMap_LineType_LineType_DoubleSolidLine,
+//   LeftSolidRightDashed =
+//       adsfi_proto::internal::SubMap_LineType_LineType_LeftSolidRightDashed,
+//   RightSolidLeftDashed =
+//       adsfi_proto::internal::SubMap_LineType_LineType_RightSolidLeftDashed
+// };
 
 }  // namespace loc
 }  // namespace mp

@@ -157,11 +157,17 @@ class MatchLaneLine {
                                 const ControlPoint& cpt2) {
     return cpt1.point.x() < cpt2.point.x();
   }
-
-  void ComputeLaneWidth(const std::vector<PointMatchPair>& left_match_pairs,
-                        const std::vector<PointMatchPair>& right_match_pairs,
-                        const SE3& T, double* percep_lane_width,
-                        double* map_lane_width);
+  double CalCulatePointToLineDistance(const V3& selected_point,
+                                      const V3& line_point1,
+                                      const V3& line_point2);
+  bool CalCulatePercepAndMapLaneWidth(const std::vector<PointMatchPair>& match_pairs,
+                        const PointMatchPair& ref_pair, const SE3& T_inv,
+                        PointMatchPair* pair_v, double* sum_percep_lane_width,
+                        double* sum_map_lane_width, size_t* count);
+  void ComputeLaneWidthDiff(
+      const std::vector<PointMatchPair>& left_match_pairs,
+      const std::vector<PointMatchPair>& right_match_pairs, const SE3& T_inv,
+      double* lane_width_diff);
   void GetAverageDiffY(const std::vector<PointMatchPair>& match_pairs,
                        const SE3& T, double* avg_diff_y);
   bool GetNeighboringMapLines(
@@ -233,10 +239,13 @@ class MatchLaneLine {
 
   void Traversal(const V3& root_start_point, std::vector<std::string> line_ids,
                  int loop);
+  void NormalizeWeight(
+      std::vector<std::vector<PointMatchPair>>& match_pairs);  // NOLINT
   void AdjustWeightByLaneWidth(
-      const std::vector<std::vector<PointMatchPair>>& match_pairs, const SE3& T,
-      size_t* left_pairs_count, size_t* right_pairs_count,
-      bool* adjust_left_pairs_weight, bool* adjust_right_pairs_weight);
+      const std::vector<std::vector<PointMatchPair>>& match_pairs,
+      const SE3& T);
+  void AdjustWeightByPairDiff(
+      std::vector<std::vector<PointMatchPair>>& match_pairs);  // NOLINT
   void ComputeCurvature(const std::vector<double>& coeffs, const double x,
                         double* curvature);
   void CheckTriggerBigCurv(double cur_time);

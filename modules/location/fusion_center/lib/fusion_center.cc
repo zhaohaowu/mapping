@@ -828,12 +828,12 @@ void FusionCenter::Node2Localization(const Context& ctx,
   //     static_cast<float>(ins.sd_attitude().z());
   // Eigen::Matrix<float, 6, 6, Eigen::RowMajor> sd = diag.asDiagonal();
   // Eigen::Matrix<float, 6, 6, Eigen::RowMajor> cov = sd * sd;
-  diag << (float)(global_node.cov(0, 0) * 1e10),
-      (float)(global_node.cov(1, 1) * 1e10),
-      (float)(global_node.cov(2, 2) * 1e10),
-      (float)(global_node.cov(6, 6) * 1e10),
-      (float)(global_node.cov(7, 7) * 1e10),
-      (float)(global_node.cov(8, 8) * 1e10);
+  diag << static_cast<float>(global_node.cov(0, 0) * 1e10),
+      static_cast<float>(global_node.cov(1, 1) * 1e10),
+      static_cast<float>(global_node.cov(2, 2) * 1e10),
+      static_cast<float>(global_node.cov(6, 6) * 1e10),
+      static_cast<float>(global_node.cov(7, 7) * 1e10),
+      static_cast<float>(global_node.cov(8, 8) * 1e10);
   Eigen::Matrix<float, 6, 6, Eigen::RowMajor> cov = diag.asDiagonal();
   location->mutable_mounting_error()->set_x(
       static_cast<float>(global_node.cov(0, 0) * 1e10));

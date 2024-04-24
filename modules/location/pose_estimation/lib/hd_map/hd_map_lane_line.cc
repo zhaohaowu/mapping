@@ -89,12 +89,12 @@ bool MapBoundaryLine::AddMapLine(
       Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
       Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
       ControlPoint cpoint(0, {0, 0, 0});
-      if (bl.line_type == DoubleLineType::DoubleSolidLine ||
-          bl.line_type == DoubleLineType::DoubleDashedLine ||
-          bl.line_type == DoubleLineType::LeftSolidRightDashed ||
-          bl.line_type == DoubleLineType::RightSolidLeftDashed) {
-        cpoint.line_type = 1;
-      }
+      // if (bl.line_type == DoubleLineType::DoubleSolidLine ||
+      //     bl.line_type == DoubleLineType::DoubleDashedLine ||
+      //     bl.line_type == DoubleLineType::LeftSolidRightDashed ||
+      //     bl.line_type == DoubleLineType::RightSolidLeftDashed) {
+      //   cpoint.line_type = 1;
+      // }
       cpoint.point = p_enu;
       bl.control_point.emplace_back(cpoint);
     }

@@ -5,7 +5,7 @@ orin_viz_addr: ipc:///tmp/rviz_agent_mf
 
 map_dir: /hd_map
 #map_dir: /data/map/changfeng_park
-# use_ehp: true
+#use_ehp: true
 #use_ehp_odd_to_stop: false
 ehp_monitor: 1
 enable_ehp_routing: true

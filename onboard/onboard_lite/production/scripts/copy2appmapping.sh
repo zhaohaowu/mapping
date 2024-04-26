@@ -4,7 +4,7 @@ TOP_DIR="$(builtin cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P)"
 
 function copy() {
   pushd ${TOP_DIR}/../runtime_service/
-  cp -rf * /app/runtime_service/
+  cp -rf mapping /app/runtime_service/
   chown nvidia:nvidia -R /app/runtime_service/mapping
   chmod 755 -R /app/runtime_service/mapping
   popd
@@ -20,6 +20,15 @@ function copy() {
   cp -rf ${TOP_DIR}/../data/* /app/data
 
   cp -rf ${TOP_DIR}/../scripts/* /app/scripts
+  mapping_file="/app/runtime_service/mapping/bin/mapping"
+  if [ -f "$mapping_file" ]; then
+      cur_mapping_bin_md5=$(md5sum "$mapping_file")
+      echo "cur runtime_service/mapping/bin/mapping md5: $cur_mapping_bin_md5"
+      echo "succ deploy mapping!!!"
+  else
+      echo "Error: File '$mapping_file' does not exist."
+      echo "fail deploy mapping!!!"
+  fi
 }
 function remove() {
   rm -rf /app/runtime_service/mapping
@@ -57,7 +66,11 @@ function main() {
     if [ $# -lt 1 ]; then
         usage && return 1
     fi
-    RUN_MODE="cp"
+    mapping_file="/app/runtime_service/mapping/bin/mapping"
+    if [ -f "$mapping_file" ]; then
+        cur_mapping_bin_md5=$(md5sum "$mapping_file")
+        echo "cur runtime_service/mapping/bin/mapping md5: $cur_mapping_bin_md5"
+    fi
     if [ $# -ge 1 ]; then
         case "$1" in
         "cp") RUN_MODE="cp" ;;

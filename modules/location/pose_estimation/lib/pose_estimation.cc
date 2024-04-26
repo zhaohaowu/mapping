@@ -201,6 +201,11 @@ bool MapMatching::Init(const std::string& config_file,
       HLOG_WARN << "RvizAgent register " << kTopicMmOriginConnectMapPoints
                 << " failed";
     }
+    ret = hozon::mp::util::RvizAgent::Instance()
+              .Register<adsfi_proto::viz::Odometry>(kTopicInputOdom);
+    if (ret < 0) {
+      HLOG_WARN << "RvizAgent register " << kTopicInputOdom << " failed";
+    }
   }
   optimize_success_ = false;
 
@@ -671,7 +676,12 @@ void MapMatching::procData() {
   bool use_extrapolate = static_cast<bool>(
       cur_ins.gps_status() != static_cast<int>(InsStatus::RTK_STABLE));
   if (use_extrapolate && proc_stamp_last_ > 0.0) {
-    T02_W_V_INPUT = T02_W_VF_last_ * (T02_W_V_last_.inverse() * T02_W_V);
+    // T02_W_V_INPUT = T02_W_VF_last_ * (T02_W_V_last_.inverse() * T02_W_V);
+    if (T_fc_.valid) {
+      T02_W_V_INPUT = T_fc_.pose * (T02_W_V_last_.inverse() * T02_W_V);
+    }
+    pubOdomPoints(kTopicInputOdom, T02_W_V_INPUT.translation(),
+                        T02_W_V_INPUT.unit_quaternion(), time_sec_, time_nsec_);
   }
 
   // 感知数据处理

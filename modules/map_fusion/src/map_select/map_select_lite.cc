@@ -1584,7 +1584,6 @@ bool MapSelectLite::CheckGlobalLoc(
 
   std::set<uint32_t> normal_loc_states = {
       2,  // 组合导航+MM+DR
-      5,  // 组合导航+DR
   };
   if (normal_loc_states.find(loc_state) == normal_loc_states.end()) {
     return false;

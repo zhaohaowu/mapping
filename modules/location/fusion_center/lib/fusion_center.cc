@@ -996,7 +996,7 @@ bool FusionCenter::PoseInit() {
     } else {
       // 2.2 备选使用INS测量进行初始化，防止上一次定位有效输出无法在INS队列插值
       for (auto iter = ins_deque_.rbegin(); iter != ins_deque_.rend(); ++iter) {
-        if (AllowInsMeas((*iter)->sys_status, (*iter)->rtk_status)) {
+        if (AllowInit((*iter)->sys_status, (*iter)->rtk_status)) {
           (*iter)->enu = hmu::Geo::BlhToEnu((*iter)->blh, (*iter)->refpoint);
           InsertESKFFusionNode(**iter);
           HLOG_ERROR << "FusionDeque use ins meas reinit";
@@ -1338,10 +1338,10 @@ bool FusionCenter::AllowInsMeas(uint32_t sys_status, uint32_t rtk_status) {
 }
 
 bool FusionCenter::AllowInit(uint32_t sys_status, uint32_t rtk_status) {
-  for (const auto& status : params_.ins_init_status) {
-    if (sys_status == status.first && rtk_status == status.second) {
-      return true;
-    }
+  if ((sys_status == 1 || sys_status == 2 || sys_status == 3) &&
+      (rtk_status == 1 || rtk_status == 2 || rtk_status == 3 ||
+       rtk_status == 4 || rtk_status == 5)) {
+    return true;
   }
   return false;
 }

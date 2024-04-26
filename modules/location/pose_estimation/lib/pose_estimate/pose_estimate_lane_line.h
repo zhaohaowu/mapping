@@ -10,6 +10,7 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -160,10 +161,10 @@ class MatchLaneLine {
   double CalCulatePointToLineDistance(const V3& selected_point,
                                       const V3& line_point1,
                                       const V3& line_point2);
-  bool CalCulatePercepAndMapLaneWidth(const std::vector<PointMatchPair>& match_pairs,
-                        const PointMatchPair& ref_pair, const SE3& T_inv,
-                        PointMatchPair* pair_v, double* sum_percep_lane_width,
-                        double* sum_map_lane_width, size_t* count);
+  bool CalCulatePercepAndMapLaneWidth(
+      const std::vector<PointMatchPair>& match_pairs,
+      const PointMatchPair& ref_pair, const SE3& T_inv, PointMatchPair* pair_v,
+      double* sum_percep_lane_width, double* sum_map_lane_width, size_t* count);
   void ComputeLaneWidthDiff(
       const std::vector<PointMatchPair>& left_match_pairs,
       const std::vector<PointMatchPair>& right_match_pairs, const SE3& T_inv,
@@ -205,7 +206,15 @@ class MatchLaneLine {
       const std::list<std::list<LaneLinePerceptionPtr>>& percep_lanelines,
       const std::unordered_map<std::string, std::vector<ControlPoint>>&
           boundary_lines);
-
+  void GetMatchMapLineCache(
+      const std::set<std::string>& line_match_pairs_map_line_id,
+      const std::unordered_map<std::string, std::vector<ControlPoint>>&
+          boundary_lines,
+      const VP& perception_points, const int& percep_line_type,
+      const double& max_range_x, const double& min_range_x,
+      std::unordered_map<int, std::vector<MatchMapLine>>* match_mapline_cache);
+  void SelectBestMatchPairs(
+      std::unordered_map<int, std::vector<MatchMapLine>>* match_mapline_cache);
   /**
    * @brief get the matched pairs
    *
@@ -241,13 +250,9 @@ class MatchLaneLine {
                  int loop);
   void NormalizeWeight(
       std::vector<std::vector<PointMatchPair>>& match_pairs);  // NOLINT
-  void AdjustWeightByLaneWidth(
-      const std::vector<std::vector<PointMatchPair>>& match_pairs,
-      const SE3& T);
-  void AdjustWeightByPairDiff(
-      std::vector<std::vector<PointMatchPair>>& match_pairs);  // NOLINT
   void ComputeCurvature(const std::vector<double>& coeffs, const double x,
                         double* curvature);
+  bool IsBigCurvaturePercepLine(VP perception_points);
   void CheckTriggerBigCurv(double cur_time);
 
  public:

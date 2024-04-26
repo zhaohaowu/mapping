@@ -359,6 +359,8 @@ bool FusionCenter::IsInsStateChange(const Node& node) {
   } else if ((last_rtk == 4 && node.rtk_status != last_rtk)
           || (last_sys == 2 && node.sys_status != last_sys)) {
     HLOG_ERROR << "node.rtk_status: " << node.rtk_status << " node.sys_status: " << node.sys_status;
+    last_sys = node.sys_status;
+    last_rtk = node.rtk_status;
     return true;
   }
   last_sys = node.sys_status;

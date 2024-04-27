@@ -35,7 +35,7 @@ RoadRecognition:
     lane_line_interp_dist: -1 # < 0, not interpolate
     half_slice_length: 30
     min_lane_width: 2.0
-    max_lane_width: 5.0
+    max_lane_width: 5.5
     lane_speed_limit_kmph: 60 # km/h
     road_min_max_speed_kmph: 60 # km/h
     road_max_max_speed_kmph: 80 # km/h

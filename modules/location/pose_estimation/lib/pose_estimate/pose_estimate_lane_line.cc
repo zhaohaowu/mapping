@@ -207,7 +207,6 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
 
   bool fc_good_match_check = true;
   bool fc_good_match_ser_check = true;
-  bool fc_good_match_diversion_check = true;
   // 针对内外八场景加的global--if判断
   if (fabs(global_error) >= mm_params.line_error_normal_thr ||
       fabs(global_near_error) >= mm_params.line_error_normal_thr) {
@@ -247,25 +246,10 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
       HLOG_ERROR << "130 : both sides distance serious exceed thr";
       fc_good_match_ser_check = false;
     }
-
-    // 针对一分二改道场景
-    if (FLAGS_map_service_mode == 1) {
-      if (fabs(left_dist_near_v) >= mm_params.map_lane_match_diver ||
-          fabs(right_dist_near_v) >= mm_params.map_lane_match_diver) {
-        HLOG_ERROR << "130 : diversion near distance exceed thr";
-        fc_good_match_diversion_check = false;
-      }
-      if (fabs(left_error) >= mm_params.map_lane_match_diver ||
-          fabs(right_error) >= mm_params.map_lane_match_diver) {
-        HLOG_ERROR << "130 : diversion both sides distance exceed thr";
-        fc_good_match_diversion_check = false;
-      }
-    }
   }
 
   static uint32_t match_err_cnt = 0;
   static uint32_t match_err_ser_cnt = 0;
-  static uint32_t match_err_diver_cnt = 0;
   if (!fc_good_match_check) {
     ++match_err_cnt;
   } else {
@@ -276,15 +260,9 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
   } else {
     match_err_ser_cnt = 0;
   }
-  if (!fc_good_match_diversion_check) {
-    ++match_err_diver_cnt;
-  } else {
-    match_err_diver_cnt = 0;
-  }
 
   if (match_err_cnt > mm_params.map_lane_match_buff ||
-      match_err_ser_cnt > mm_params.map_lane_match_ser_buff ||
-      match_err_diver_cnt > mm_params.map_lane_match_ser_buff) {
+      match_err_ser_cnt > mm_params.map_lane_match_ser_buff) {
     err_type_ = ERROR_TYPE::MAP_LANE_MATCH_FAIL;
   }
 }

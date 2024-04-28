@@ -294,6 +294,7 @@ class GroupMap {
   bool IsLaneConnet(Group::Ptr curr_group, Group::Ptr next_group, int i, int j,
                     std::map<int, std::vector<int>>* curr_group_next_lane,
                     std::map<int, std::vector<int>>* next_group_prev_lane);
+  bool IsLaneConnet(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next);
   void NextGroupLaneConnect(
       Group::Ptr curr_group, Group::Ptr next_group,
       const std::map<int, std::vector<int>>& curr_group_next_lane);
@@ -301,6 +302,10 @@ class GroupMap {
   double CalcLaneLength(Lane::Ptr lane);
   bool IsAccessLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next);
   float LaneDist(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next);
+  void BuildConnectLane(Lane::Ptr lane_in_curr, Group::Ptr next_group,
+                        Lane::Ptr lane_in_next_next);
+  void FitCenterLine(Lane::Ptr lane);
+  void FillLineSegment(LineSegment::Ptr line, LineSegment* line_set);
 };
 
 }  // namespace gm

@@ -10,6 +10,7 @@
 #include <cfloat>
 #include <cstddef>
 #include <memory>
+#include <string>
 
 #include "Eigen/src/Core/Matrix.h"
 #include "base/utils/log.h"
@@ -704,6 +705,10 @@ float GroupMap::Calculate2CenterlineAngle(Lane::Ptr lane_in_next,
 }
 
 bool GroupMap::IsAccessLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
+  if (lane_in_curr->center_line_pts.empty() ||
+      lane_in_next->center_line_pts.empty()) {
+    return false;
+  }
   size_t sizet = lane_in_curr->center_line_pts.size();
   Eigen::Vector3f lane_in_next_norm(0.0, 0.0, 0.0);
   size_t next_lane_cp_idx = 1;
@@ -739,8 +744,45 @@ bool GroupMap::IsAccessLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
         return false;
       }
     }
+  } else {
+    return false;
   }
   return true;
+}
+
+bool GroupMap::IsLaneConnet(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
+  if (!IsAccessLane(lane_in_curr, lane_in_next)) {
+    HLOG_ERROR << "764 lane_in_curr=" << lane_in_curr->str_id_with_group
+               << "   lane_in_next" << lane_in_next->str_id_with_group;
+    return false;
+  }
+  size_t sizet = lane_in_curr->center_line_pts.size();
+  float dis_pt = CalculateDistPt(lane_in_next, lane_in_curr, sizet);
+  float angel_thresh{0.0};
+  float dis_thresh{0.0};
+  if (dis_pt < 9 || lane_in_curr->lanepos_id == lane_in_next->lanepos_id) {
+    return true;
+  } else if (!lane_in_curr->center_line_param.empty() &&
+             !lane_in_next->center_line_pts.empty()) {
+    if (dis_pt > 10000) {
+      // 差的太远不计算
+      return false;
+    }
+    if (dis_pt > 100) {
+      angel_thresh = 4;
+      dis_thresh = 3;
+    } else {
+      angel_thresh = 10;
+      dis_thresh = 1.5;
+    }
+    float dis = CalculatePoint2CenterLine(lane_in_next, lane_in_curr);
+    float angle = Calculate2CenterlineAngle(lane_in_next, lane_in_curr, sizet);
+    // HLOG_ERROR << "angle = "<<angle*180/pi_;
+    if ((dis < dis_thresh && abs(angle) * 180 / pi_ < angel_thresh)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool GroupMap::IsLaneConnet(
@@ -1778,7 +1820,29 @@ Stpl::Ptr GroupMap::MatchedStopLine(const std::string& lane_id) {
   }
   return nullptr;
 }
-
+void GroupMap::FitCenterLine(Lane::Ptr lane) {
+  std::vector<Vec2d> left_pts;
+  std::vector<Vec2d> right_pts;
+  left_pts.reserve(lane->left_boundary->pts.size());
+  right_pts.reserve(lane->right_boundary->pts.size());
+  for (const auto& pt : lane->left_boundary->pts) {
+    left_pts.emplace_back(Vec2d(pt.pt.x(), pt.pt.y()));
+  }
+  for (const auto& pt : lane->right_boundary->pts) {
+    right_pts.emplace_back(Vec2d(pt.pt.x(), pt.pt.y()));
+  }
+  std::vector<Vec2d> cent_pts;
+  math::GenerateCenterPoint(left_pts, right_pts, &cent_pts);
+  for (const auto& pt : cent_pts) {
+    Point cpt(gm::RAW, static_cast<float>(pt.x()), static_cast<float>(pt.y()),
+              0);
+    lane->center_line_pts.emplace_back(cpt);
+  }
+  if (lane->center_line_pts.size() > 3) {
+    lane->center_line_param = FitLaneline(lane->center_line_pts);
+    lane->center_line_param_front = FitLanelinefront(lane->center_line_pts);
+  }
+}
 // 把Group里一个个GroupSegment中包含的小的LaneSegment，纵向上聚合成一个个大的Lane，
 // 并且生成出：左右关联、前后关联、远端预测线、中心线
 void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
@@ -1996,27 +2060,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
   // 中心线
   for (auto& grp : *groups) {
     for (auto& lane : grp->lanes) {
-      std::vector<Vec2d> left_pts;
-      std::vector<Vec2d> right_pts;
-      left_pts.reserve(lane->left_boundary->pts.size());
-      right_pts.reserve(lane->right_boundary->pts.size());
-      for (const auto& pt : lane->left_boundary->pts) {
-        left_pts.emplace_back(Vec2d(pt.pt.x(), pt.pt.y()));
-      }
-      for (const auto& pt : lane->right_boundary->pts) {
-        right_pts.emplace_back(Vec2d(pt.pt.x(), pt.pt.y()));
-      }
-      std::vector<Vec2d> cent_pts;
-      math::GenerateCenterPoint(left_pts, right_pts, &cent_pts);
-      for (const auto& pt : cent_pts) {
-        Point cpt(gm::RAW, static_cast<float>(pt.x()),
-                  static_cast<float>(pt.y()), 0);
-        lane->center_line_pts.emplace_back(cpt);
-      }
-      if (lane->center_line_pts.size() > 3) {
-        lane->center_line_param = FitLaneline(lane->center_line_pts);
-        lane->center_line_param_front = FitLanelinefront(lane->center_line_pts);
-      }
+      FitCenterLine(lane);
     }
   }
 
@@ -2033,11 +2077,17 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
       for (auto& lane_in_curr : curr_group->lanes) {
         int next_lane_exit = 0;  // currlane是否有后继
         for (auto& lane_in_next : next_group->lanes) {
-          if (lane_in_curr->str_id == lane_in_next->str_id) {
-            // lane_in_curr->next_lane_str_id_with_group.emplace_back(
-            //     lane_in_next->str_id_with_group);
+          if (lane_in_curr->str_id == lane_in_next->str_id ||
+              lane_in_curr->left_boundary->id ==
+                  lane_in_next->left_boundary->id ||
+              lane_in_curr->right_boundary->id ==
+                  lane_in_next->right_boundary->id) {
+            // 目前这个是否有next是为了记录是否需要补道，如果有后继就不用补道
+            lane_in_curr->next_lane_str_id_with_group.emplace_back(
+                lane_in_next->str_id_with_group);
             // lane_in_next->prev_lane_str_id_with_group.emplace_back(
             //     lane_in_curr->str_id_with_group);
+
             //! TBD:
             //! 这里直接把后一个lane中心线的第一个点加到前一个lane中心线的末尾，
             //! 后续需要考虑某些异常情况，比如后一个lane中心线的第一个点在前一个lane中心线最后
@@ -2058,6 +2108,20 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
             }
             break;
           }
+          if (IsLaneConnet(lane_in_curr, lane_in_next)) {
+            lane_in_curr->next_lane_str_id_with_group.emplace_back(
+                lane_in_next->str_id_with_group);
+            flag = 1;
+            next_lane_exit = 1;
+            if (lane_in_next->center_line_param.empty()) {
+              lane_in_next->center_line_param = lane_in_curr->center_line_param;
+            }
+            if (lane_in_next->center_line_param_front.empty()) {
+              lane_in_next->center_line_param_front =
+                  lane_in_next->center_line_param;
+            }
+            break;
+          }
         }
         if (next_lane_exit == 0) {
           flag_lane = 0;
@@ -2066,49 +2130,33 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
       if (flag == 1) {
         // 查看trackid一致但是groupsize不一致的情况
         // 如果是线段长短不一致
-        float max_length_lane = 0.0;
-        for (auto& lane : next_group->lanes) {
-          size_t size_lane = lane->center_line_pts.size();
-          float len = (lane->center_line_pts[size_lane - 1].pt -
-                       lane->center_line_pts[0].pt)
-                          .norm();
-          if (len > max_length_lane) {
-            max_length_lane = len;
-          }
-        }
-
-        if (max_length_lane <= 5.0 && flag_lane == 0) {
-          BuildVirtualLaneAfter(curr_group, next_group);
-          groups->erase(groups->begin() + i + 1);
-          i--;
-        }
-
-        // 最外侧线合流
-
-        // if (flag_lane == 0) {
-        //   size_t curr_lane_size = curr_group->lanes.size();
-        //   if (curr_group->lanes[0]->next_lane_str_id_with_group.empty() &&
-        //       !curr_group->lanes[0]->center_line_param.empty() &&
-        //       !curr_group->lanes[1]->next_lane_str_id_with_group.empty() &&
-        //       !curr_group->lanes[1]->center_line_param.empty() &&
-        //       curr_group->group_segments.size() > 3) {
-        //     BuildVirtualMergeLane(curr_group, next_group, 0, 1);
-        //   }
-        //   if (curr_group->lanes[curr_lane_size - 1]
-        //           ->next_lane_str_id_with_group.empty() &&
-        //       !curr_group->lanes[curr_lane_size - 1]
-        //            ->center_line_param.empty() &&
-        //       !curr_group->lanes[curr_lane_size - 2]
-        //            ->next_lane_str_id_with_group.empty() &&
-        //       !curr_group->lanes[curr_lane_size - 2]
-        //            ->center_line_param.empty() &&
-        //       curr_group->group_segments.size() > 3) {
-        //     BuildVirtualMergeLane(curr_group, next_group, curr_lane_size - 1,
-        //                           curr_lane_size - 2);
+        // float max_length_lane = 0.0;
+        // for (auto& lane : next_group->lanes) {
+        //   size_t size_lane = lane->center_line_pts.size();
+        //   float len = (lane->center_line_pts[size_lane - 1].pt -
+        //                lane->center_line_pts[0].pt)
+        //                   .norm();
+        //   if (len > max_length_lane) {
+        //     max_length_lane = len;
         //   }
         // }
 
-        // 没考虑到的情况
+        // if (max_length_lane <= 10.0 && flag_lane == 0) {
+        //   BuildVirtualLaneAfter(curr_group, next_group);
+        //   // groups->erase(groups->begin() + i + 1);
+        //   // i--;
+        // }
+        double group_distance =
+            (curr_group->group_segments.back()->end_slice.po -
+             next_group->group_segments.front()->start_slice.po)
+                .norm();
+        if (flag_lane == 0 && group_distance < 10.0) {
+          // HLOG_ERROR << "lane_number = "<<;
+          BuildVirtualLaneAfter(curr_group, next_group);
+        }
+        for (auto& lane_in_curr : curr_group->lanes) {
+          lane_in_curr->next_lane_str_id_with_group.clear();
+        }
       }
     }
   }
@@ -2123,9 +2171,15 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
       for (auto& lane_in_next : next_group->lanes) {
         int next_lane_exit = 0;  // next_group是否有前驱
         for (auto& lane_in_curr : curr_group->lanes) {
-          if (lane_in_curr->str_id == lane_in_next->str_id) {
+          if (lane_in_curr->str_id == lane_in_next->str_id ||
+              lane_in_curr->left_boundary->id ==
+                  lane_in_next->left_boundary->id ||
+              lane_in_curr->right_boundary->id ==
+                  lane_in_next->right_boundary->id) {
             flag = 1;
             next_lane_exit = 1;
+            lane_in_next->prev_lane_str_id_with_group.emplace_back(
+                lane_in_curr->str_id_with_group);
             if (lane_in_curr->center_line_param.empty()) {
               lane_in_curr->center_line_param =
                   lane_in_next->center_line_param_front;
@@ -2154,14 +2208,18 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
             max_length_lane = len;
           }
         }
-        if (max_length_lane <= 5.0 && flag_lane == 0) {
+        double group_distance =
+            (curr_group->group_segments.back()->end_slice.po -
+             next_group->group_segments.front()->start_slice.po)
+                .norm();
+        if (max_length_lane <= 10.0 && flag_lane == 0 &&
+            group_distance < 10.0) {
           BuildVirtualLaneBefore(curr_group, next_group);
-          groups->erase(groups->begin() + i - 1);
+          // groups->erase(groups->begin() + i - 1);
         }
-
-        // 如果是分合流
-
-        // 没考虑到的情况
+        for (auto& lane : next_group->lanes) {
+          lane->prev_lane_str_id_with_group.clear();
+        }
       }
     }
   }
@@ -2550,347 +2608,562 @@ std::vector<double> GroupMap::FitLanelinefront(
   }
   return {k, kk};
 }
+void GroupMap::BuildConnectLane(Lane::Ptr lane_in_curr, Group::Ptr next_group,
+                                Lane::Ptr lane_in_next_next) {
+  if (lane_in_curr->next_lane_str_id_with_group.empty()) {
+    Lane lane_pre;
+    LineSegment left_bound;
+    left_bound.id = lane_in_curr->left_boundary->id;
+    left_bound.lanepos = lane_in_curr->left_boundary->lanepos;
+    left_bound.type = lane_in_curr->left_boundary->type;
+    left_bound.color = lane_in_curr->left_boundary->color;
+    left_bound.mean_end_heading = lane_in_curr->left_boundary->mean_end_heading;
+    left_bound.mean_end_heading_std_dev =
+        lane_in_curr->left_boundary->mean_end_heading_std_dev;
+    left_bound.mean_end_interval =
+        lane_in_curr->left_boundary->mean_end_interval;
+    size_t index_left = lane_in_curr->left_boundary->pts.size();
+    Point left_pt_pre(PREDICTED,
+                      lane_in_curr->left_boundary->pts[index_left - 1].pt.x(),
+                      lane_in_curr->left_boundary->pts[index_left - 1].pt.y(),
+                      lane_in_curr->left_boundary->pts[index_left - 1].pt.z());
+    Eigen::Vector3f left_vec_norm;
+    left_vec_norm = (lane_in_next_next->left_boundary->pts[0].pt -
+                     lane_in_curr->left_boundary->pts[index_left - 1].pt)
+                        .normalized();
+    while (left_pt_pre.pt.x() <
+           lane_in_next_next->left_boundary->pts[0].pt.x() - 1.0) {
+      left_bound.pts.emplace_back(left_pt_pre);
+      float pre_x = left_pt_pre.pt.x() + left_vec_norm.x();
+      float pre_y = left_pt_pre.pt.y() + left_vec_norm.y();
+      left_pt_pre = Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
+    }
+    if (left_bound.pts.empty()) {
+      return;
+    }
+    LineSegment right_bound;
+    right_bound.id = lane_in_curr->right_boundary->id;
+    right_bound.lanepos = lane_in_curr->right_boundary->lanepos;
+    right_bound.type = lane_in_curr->right_boundary->type;
+    right_bound.color = lane_in_curr->right_boundary->color;
+    right_bound.mean_end_heading =
+        lane_in_curr->right_boundary->mean_end_heading;
+    right_bound.mean_end_heading_std_dev =
+        lane_in_curr->right_boundary->mean_end_heading_std_dev;
+    right_bound.mean_end_interval =
+        lane_in_curr->right_boundary->mean_end_interval;
+    size_t index_right = lane_in_curr->right_boundary->pts.size();
+    Point right_pt_pre(
+        PREDICTED, lane_in_curr->right_boundary->pts[index_right - 1].pt.x(),
+        lane_in_curr->right_boundary->pts[index_right - 1].pt.y(),
+        lane_in_curr->right_boundary->pts[index_right - 1].pt.z());
+    Eigen::Vector3f right_vec_norm;
+    right_vec_norm = (lane_in_next_next->right_boundary->pts[0].pt -
+                      lane_in_curr->right_boundary->pts[index_right - 1].pt)
+                         .normalized();
+    while (right_pt_pre.pt.x() <
+           lane_in_next_next->right_boundary->pts[0].pt.x() - 1.0) {
+      right_bound.pts.emplace_back(right_pt_pre);
+      float pre_x = right_pt_pre.pt.x() + right_vec_norm.x();
+      float pre_y = right_pt_pre.pt.y() + right_vec_norm.y();
+      right_pt_pre = Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
+    }
+    if (right_bound.pts.empty()) {
+      return;
+    }
+    std::vector<Point> ctl_pt;
+    size_t index_center = lane_in_curr->center_line_pts.size();
+    Point center_pt_pre(PREDICTED,
+                        lane_in_curr->center_line_pts[index_center - 1].pt.x(),
+                        lane_in_curr->center_line_pts[index_center - 1].pt.y(),
+                        lane_in_curr->center_line_pts[index_center - 1].pt.z());
+    Eigen::Vector3f cent_vec_norm;
+    cent_vec_norm = (lane_in_next_next->center_line_pts[0].pt -
+                     lane_in_curr->center_line_pts[index_center - 1].pt)
+                        .normalized();
+    while (center_pt_pre.pt.x() <
+           lane_in_next_next->center_line_pts[0].pt.x() - 1.0) {
+      ctl_pt.emplace_back(center_pt_pre);
+      float pre_x = center_pt_pre.pt.x() + cent_vec_norm.x();
+      float pre_y = center_pt_pre.pt.y() + cent_vec_norm.y();
+      center_pt_pre = Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
+    }
+    if (ctl_pt.empty()) {
+      return;
+    }
+    lane_pre.str_id = lane_in_curr->str_id;
+    lane_pre.lanepos_id = lane_in_curr->lanepos_id;
+    lane_pre.str_id_with_group = next_group->str_id + ":" + lane_pre.str_id;
+    lane_pre.left_boundary = std::make_shared<LineSegment>(left_bound);
+    lane_pre.right_boundary = std::make_shared<LineSegment>(right_bound);
+    lane_pre.center_line_param = lane_in_curr->center_line_param;
+    lane_pre.center_line_param_front = lane_in_curr->center_line_param;
+    lane_pre.center_line_pts = ctl_pt;
+    if (lane_pre.center_line_pts.size() > 1) {
+      next_group->lanes.emplace_back(std::make_shared<Lane>(lane_pre));
+    }
+  }
+}
+
+void GroupMap::FillLineSegment(LineSegment::Ptr line, LineSegment* line_set) {
+  for (auto& line_pt : line->pts) {
+    line_set->pts.emplace_back(line_pt);
+  }
+}
 
 void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
                                      Group::Ptr next_group) {
-  // for (auto& lane_in_curr : curr_group->lanes) {
-  //   if (lane_in_curr->next_lane_str_id_with_group.empty() &&
-  //       !lane_in_curr->center_line_param.empty()) {
-  //     Lane lane_pre;
-  //     LineSegment left_bound;
-  //     left_bound.id = lane_in_curr->left_boundary->id;
-  //     left_bound.lanepos = lane_in_curr->left_boundary->lanepos;
-  //     left_bound.type = lane_in_curr->left_boundary->type;
-  //     left_bound.color = lane_in_curr->left_boundary->color;
-  //     left_bound.mean_end_heading =
-  //         lane_in_curr->left_boundary->mean_end_heading;
-  //     left_bound.mean_end_heading_std_dev =
-  //         lane_in_curr->left_boundary->mean_end_heading_std_dev;
-  //     left_bound.mean_end_interval =
-  //         lane_in_curr->left_boundary->mean_end_interval;
-  //     size_t index_left = lane_in_curr->left_boundary->pts.size();
-  //     Point left_pt_pre(
-  //         PREDICTED, lane_in_curr->left_boundary->pts[index_left - 1].pt.x(),
-  //         lane_in_curr->left_boundary->pts[index_left - 1].pt.y(),
-  //         lane_in_curr->left_boundary->pts[index_left - 1].pt.z());
-  //     double b_left = left_pt_pre.pt.y() -
-  //                     lane_in_curr->center_line_param[1] *
-  //                     left_pt_pre.pt.x();
-  //     while (left_pt_pre.pt.x() <
-  //            next_group->group_segments.back()->end_slice.po.x()) {
-  //       left_bound.pts.emplace_back(left_pt_pre);
-  //       float pre_x = left_pt_pre.pt.x() + 1.0;
-  //       float pre_y = b_left + lane_in_curr->center_line_param[1] * pre_x;
-  //       left_pt_pre = Point(PREDICTED, pre_x, pre_y, float(0.0));
-  //     }
-  //     if (left_bound.pts.empty()) {
-  //       return;
-  //     }
-  //     LineSegment right_bound;
-  //     right_bound.id = lane_in_curr->right_boundary->id;
-  //     right_bound.lanepos = lane_in_curr->right_boundary->lanepos;
-  //     right_bound.type = lane_in_curr->right_boundary->type;
-  //     right_bound.color = lane_in_curr->right_boundary->color;
-  //     right_bound.mean_end_heading =
-  //         lane_in_curr->right_boundary->mean_end_heading;
-  //     right_bound.mean_end_heading_std_dev =
-  //         lane_in_curr->right_boundary->mean_end_heading_std_dev;
-  //     right_bound.mean_end_interval =
-  //         lane_in_curr->right_boundary->mean_end_interval;
-  //     size_t index_right = lane_in_curr->right_boundary->pts.size();
-  //     Point right_pt_pre(
-  //         PREDICTED, lane_in_curr->right_boundary->pts[index_right -
-  //         1].pt.x(), lane_in_curr->right_boundary->pts[index_right -
-  //         1].pt.y(), lane_in_curr->right_boundary->pts[index_right -
-  //         1].pt.z());
-  //     double b_right = right_pt_pre.pt.y() -
-  //                      lane_in_curr->center_line_param[1] *
-  //                      right_pt_pre.pt.x();
-  //     while (right_pt_pre.pt.x() <
-  //            next_group->group_segments.back()->end_slice.po.x()) {
-  //       right_bound.pts.emplace_back(right_pt_pre);
-  //       float pre_x = right_pt_pre.pt.x() + 1.0;
-  //       float pre_y = b_right + lane_in_curr->center_line_param[1] * pre_x;
-  //       right_pt_pre = Point(PREDICTED, pre_x, pre_y, float(0.0));
-  //     }
-  //     if (right_bound.pts.empty()) {
-  //       return;
-  //     }
-  //     std::vector<Point> ctl_pt;
-  //     size_t index_center = lane_in_curr->center_line_pts.size();
-  //     Point center_pt_pre(
-  //         PREDICTED, lane_in_curr->center_line_pts[index_center - 1].pt.x(),
-  //         lane_in_curr->center_line_pts[index_center - 1].pt.y(),
-  //         lane_in_curr->center_line_pts[index_center - 1].pt.z());
-  //     while (center_pt_pre.pt.x() <
-  //            next_group->group_segments.back()->end_slice.po.x()) {
-  //       ctl_pt.emplace_back(center_pt_pre);
-  //       float pre_x = center_pt_pre.pt.x() + 1.0;
-  //       float pre_y = lane_in_curr->center_line_param[0] +
-  //                     lane_in_curr->center_line_param[1] * pre_x;
-  //       center_pt_pre = Point(PREDICTED, pre_x, pre_y, float(0.0));
-  //     }
-  //     if (ctl_pt.empty()) {
-  //       return;
-  //     }
-
-  //     lane_pre.str_id = lane_in_curr->str_id;
-  //     lane_pre.lanepos_id = lane_in_curr->lanepos_id;
-  //     lane_pre.str_id_with_group = next_group->str_id + ":" +
-  //     lane_pre.str_id; lane_pre.left_boundary =
-  //     std::make_shared<LineSegment>(left_bound); lane_pre.right_boundary =
-  //     std::make_shared<LineSegment>(right_bound); lane_pre.center_line_param
-  //     = lane_in_curr->center_line_param; lane_pre.center_line_param_front =
-  //     lane_in_curr->center_line_param; lane_pre.center_line_pts = ctl_pt;
-  //     lane_pre.prev_lane_str_id_with_group.emplace_back(
-  //         lane_in_curr->str_id_with_group);
-  //     lane_in_curr->next_lane_str_id_with_group.emplace_back(
-  //         lane_pre.str_id_with_group);
-  //     for (const auto& lane_right :
-  //          lane_in_curr->right_lane_str_id_with_group) {
-  //       size_t index = lane_right.find(":");
-  //       std::string right_str =
-  //           next_group->str_id +
-  //           lane_right.substr(index, lane_right.size() - index);
-  //       lane_pre.right_lane_str_id_with_group.emplace_back(right_str);
-  //     }
-  //     for (const auto& lane_left : lane_in_curr->left_lane_str_id_with_group)
-  //     {
-  //       size_t index = lane_left.find(":");
-  //       std::string left_str =
-  //           next_group->str_id +
-  //           lane_left.substr(index, lane_left.size() - index);
-  //       lane_pre.left_lane_str_id_with_group.emplace_back(left_str);
-  //     }
-  //     if (lane_pre.left_boundary->pts.size() > 1 &&
-  //         lane_pre.right_boundary->pts.size() > 1) {
-  //       // size_t i = 0;  // 插入哪个车道
-  //       // for(auto& lane_tmp : curr_group->lanes){
-  //       //   if(lane_tmp->str_id == lane_in_curr->str_id){
-  //       //     break;
-  //       //   }
-  //       //   if (!lane_tmp->next_lane_str_id_with_group.empty()){
-  //       //     i++;
-  //       //   }
-  //       // }
-  //       next_group->lanes.emplace_back(std::make_shared<Lane>(lane_pre));
-  //       // next_group->lanes.insert(next_group->lanes.begin()+i,
-  //       std::make_shared<Lane>(lane_pre));
-  //     }
-  //   }
-  // }
   for (auto& lane_in_curr : curr_group->lanes) {
     if (lane_in_curr->next_lane_str_id_with_group.empty()) {
-      if (!lane_in_curr->center_line_param.empty()) {
+      // && !lane_in_curr->center_line_param.empty()
+      Lane lane_pre;
+      LineSegment left_bound;
+      LineSegment right_bound;
+      left_bound.id = lane_in_curr->left_boundary->id;
+      left_bound.lanepos = lane_in_curr->left_boundary->lanepos;
+      left_bound.type = lane_in_curr->left_boundary->type;
+      left_bound.color = lane_in_curr->left_boundary->color;
+      left_bound.mean_end_heading =
+          lane_in_curr->left_boundary->mean_end_heading;
+      left_bound.mean_end_heading_std_dev =
+          lane_in_curr->left_boundary->mean_end_heading_std_dev;
+      left_bound.mean_end_interval =
+          lane_in_curr->left_boundary->mean_end_interval;
+      right_bound.id = lane_in_curr->right_boundary->id;
+      right_bound.lanepos = lane_in_curr->right_boundary->lanepos;
+      right_bound.type = lane_in_curr->right_boundary->type;
+      right_bound.color = lane_in_curr->right_boundary->color;
+      right_bound.mean_end_heading =
+          lane_in_curr->right_boundary->mean_end_heading;
+      right_bound.mean_end_heading_std_dev =
+          lane_in_curr->right_boundary->mean_end_heading_std_dev;
+      right_bound.mean_end_interval =
+          lane_in_curr->right_boundary->mean_end_interval;
+      // 判断现有的line是否已经存在
+      int left_bound_exist = 0, right_bound_exist = 0;
+      for (auto& lane_in_next : next_group->lanes) {
+        if (lane_in_next->left_boundary->id ==
+            lane_in_curr->left_boundary->id) {
+          // left_bound = *(lane_in_next->left_boundary);
+          // FillLineSegment(lane_in_next->left_boundary, &left_bound);
+          for (auto& line_pt : lane_in_next->left_boundary->pts) {
+            Point pt_pre(PREDICTED, line_pt.pt.x(), line_pt.pt.y(),
+                         line_pt.pt.z());
+            left_bound.pts.emplace_back(pt_pre);
+          }
+          left_bound_exist = 1;
+        } else if (lane_in_next->right_boundary->id ==
+                   lane_in_curr->left_boundary->id) {
+          // left_bound = *(lane_in_next->right_boundary);
+          // FillLineSegment(lane_in_next->right_boundary, &left_bound);
+          for (auto& line_pt : lane_in_next->right_boundary->pts) {
+            Point pt_pre(PREDICTED, line_pt.pt.x(), line_pt.pt.y(),
+                         line_pt.pt.z());
+            left_bound.pts.emplace_back(pt_pre);
+          }
+          left_bound_exist = 1;
+        } else if (lane_in_next->left_boundary->id ==
+                   lane_in_curr->right_boundary->id) {
+          // right_bound = *(lane_in_next->left_boundary);
+          // FillLineSegment(lane_in_next->left_boundary, &right_bound);
+          for (auto& line_pt : lane_in_next->left_boundary->pts) {
+            Point pt_pre(PREDICTED, line_pt.pt.x(), line_pt.pt.y(),
+                         line_pt.pt.z());
+            right_bound.pts.emplace_back(pt_pre);
+          }
+          right_bound_exist = 1;
+        } else if (lane_in_next->right_boundary->id ==
+                   lane_in_curr->right_boundary->id) {
+          // right_bound = *(lane_in_next->right_boundary);
+          // FillLineSegment(lane_in_next->right_boundary, &right_bound);
+          for (auto& line_pt : lane_in_next->right_boundary->pts) {
+            Point pt_pre(PREDICTED, line_pt.pt.x(), line_pt.pt.y(),
+                         line_pt.pt.z());
+            right_bound.pts.emplace_back(pt_pre);
+          }
+          right_bound_exist = 1;
+        }
+      }
+
+      if (left_bound_exist == 1 && right_bound_exist == 0) {
+        size_t index_right = lane_in_curr->right_boundary->pts.size();
+        Point right_pt_pre(
+            PREDICTED,
+            lane_in_curr->right_boundary->pts[index_right - 1].pt.x(),
+            lane_in_curr->right_boundary->pts[index_right - 1].pt.y(),
+            lane_in_curr->right_boundary->pts[index_right - 1].pt.z());
+        right_bound.pts.emplace_back(right_pt_pre);
+        size_t left_index = 1;
+        size_t left_bound_size = left_bound.pts.size();
+        while (right_pt_pre.pt.x() <
+                   next_group->group_segments.back()->end_slice.po.x() &&
+               left_index < left_bound_size) {
+          float pre_x = right_pt_pre.pt.x() +
+                        left_bound.pts[left_index].pt.x() -
+                        left_bound.pts[left_index - 1].pt.x();
+          float pre_y = right_pt_pre.pt.y() +
+                        left_bound.pts[left_index].pt.y() -
+                        left_bound.pts[left_index - 1].pt.y();
+          right_pt_pre =
+              Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
+          right_bound.pts.emplace_back(right_pt_pre);
+          left_index++;
+        }
+        if (right_bound.pts.empty()) {
+          return;
+        }
+      } else if (left_bound_exist == 0 && right_bound_exist == 1) {
         size_t index_left = lane_in_curr->left_boundary->pts.size();
         Point left_pt_pre(
-            VIRTUAL, lane_in_curr->left_boundary->pts[index_left - 1].pt.x(),
+            PREDICTED, lane_in_curr->left_boundary->pts[index_left - 1].pt.x(),
+            lane_in_curr->left_boundary->pts[index_left - 1].pt.y(),
+            lane_in_curr->left_boundary->pts[index_left - 1].pt.z());
+        size_t right_index = 1;
+        size_t right_bound_size = right_bound.pts.size();
+        left_bound.pts.emplace_back(left_pt_pre);
+        while (left_pt_pre.pt.x() <
+                   next_group->group_segments.back()->end_slice.po.x() &&
+               right_index < right_bound_size) {
+          float pre_x = left_pt_pre.pt.x() +
+                        right_bound.pts[right_index].pt.x() -
+                        right_bound.pts[right_index - 1].pt.x();
+
+          float pre_y = left_pt_pre.pt.y() +
+                        right_bound.pts[right_index].pt.y() -
+                        right_bound.pts[right_index - 1].pt.y();
+          left_pt_pre = Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
+          left_bound.pts.emplace_back(left_pt_pre);
+          right_index++;
+        }
+        if (left_bound.pts.empty()) {
+          return;
+        }
+      } else if (left_bound_exist == 0 && right_bound_exist == 0) {
+        if (lane_in_curr->center_line_param.empty()) {
+          return;
+        }
+        size_t index_left = lane_in_curr->left_boundary->pts.size();
+        Point left_pt_pre(
+            PREDICTED, lane_in_curr->left_boundary->pts[index_left - 1].pt.x(),
             lane_in_curr->left_boundary->pts[index_left - 1].pt.y(),
             lane_in_curr->left_boundary->pts[index_left - 1].pt.z());
         double b_left = left_pt_pre.pt.y() -
                         lane_in_curr->center_line_param[1] * left_pt_pre.pt.x();
+        left_bound.pts.emplace_back(left_pt_pre);
         while (left_pt_pre.pt.x() <
-               next_group->group_segments.back()->end_slice.po.x() - 2.0) {
-          lane_in_curr->left_boundary->pts.emplace_back(left_pt_pre);
+               next_group->group_segments.back()->end_slice.po.x()) {
           float pre_x = left_pt_pre.pt.x() + 1.0;
           float pre_y = b_left + lane_in_curr->center_line_param[1] * pre_x;
-          left_pt_pre = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+          left_pt_pre = Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
+          left_bound.pts.emplace_back(left_pt_pre);
+        }
+        if (left_bound.pts.empty()) {
+          return;
         }
         size_t index_right = lane_in_curr->right_boundary->pts.size();
         Point right_pt_pre(
-            VIRTUAL, lane_in_curr->right_boundary->pts[index_right - 1].pt.x(),
+            PREDICTED,
+            lane_in_curr->right_boundary->pts[index_right - 1].pt.x(),
             lane_in_curr->right_boundary->pts[index_right - 1].pt.y(),
             lane_in_curr->right_boundary->pts[index_right - 1].pt.z());
         double b_right =
             right_pt_pre.pt.y() -
             lane_in_curr->center_line_param[1] * right_pt_pre.pt.x();
+        right_bound.pts.emplace_back(right_pt_pre);
         while (right_pt_pre.pt.x() <
-               next_group->group_segments.back()->end_slice.po.x() - 2.0) {
-          lane_in_curr->right_boundary->pts.emplace_back(right_pt_pre);
+               next_group->group_segments.back()->end_slice.po.x()) {
           float pre_x = right_pt_pre.pt.x() + 1.0;
           float pre_y = b_right + lane_in_curr->center_line_param[1] * pre_x;
-          right_pt_pre = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+          right_pt_pre =
+              Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
+          right_bound.pts.emplace_back(right_pt_pre);
         }
-        size_t index_center = lane_in_curr->center_line_pts.size();
-        Point center_pt_pre(
-            VIRTUAL, lane_in_curr->center_line_pts[index_center - 1].pt.x(),
-            lane_in_curr->center_line_pts[index_center - 1].pt.y(),
-            lane_in_curr->center_line_pts[index_center - 1].pt.z());
-        while (center_pt_pre.pt.x() <
-               next_group->group_segments.back()->end_slice.po.x() - 2.0) {
-          lane_in_curr->center_line_pts.emplace_back(center_pt_pre);
-          float pre_x = center_pt_pre.pt.x() + 1.0;
-          float pre_y = lane_in_curr->center_line_param[0] +
-                        lane_in_curr->center_line_param[1] * pre_x;
-          center_pt_pre = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+        if (right_bound.pts.empty()) {
+          return;
         }
       }
+
+      // std::vector<Point> ctl_pt;
+      // size_t index_center = lane_in_curr->center_line_pts.size();
+      // Point center_pt_pre(
+      //     PREDICTED, lane_in_curr->center_line_pts[index_center - 1].pt.x(),
+      //     lane_in_curr->center_line_pts[index_center - 1].pt.y(),
+      //     lane_in_curr->center_line_pts[index_center - 1].pt.z());
+      // while (center_pt_pre.pt.x() <
+      //        next_group->group_segments.back()->end_slice.po.x() - 2.0) {
+      //   ctl_pt.emplace_back(center_pt_pre);
+      //   float pre_x = center_pt_pre.pt.x() + 1.0;
+      //   float pre_y = lane_in_curr->center_line_param[0] +
+      //                 lane_in_curr->center_line_param[1] * pre_x;
+      //   center_pt_pre = Point(PREDICTED, pre_x, pre_y, float(0.0));
+      // }
+      // if (ctl_pt.empty()) {
+      //   return;
+      // }
+
+      lane_pre.str_id = lane_in_curr->str_id;
+      lane_pre.lanepos_id = lane_in_curr->lanepos_id;
+      lane_pre.str_id_with_group = next_group->str_id + ":" + lane_pre.str_id;
+      lane_pre.left_boundary = std::make_shared<LineSegment>(left_bound);
+      lane_pre.right_boundary = std::make_shared<LineSegment>(right_bound);
+      Lane::Ptr lane_ptr = std::make_shared<Lane>(lane_pre);
+      FitCenterLine(lane_ptr);
+      HLOG_ERROR << "lane_pre.center_line_pts.size() = "
+                 << lane_pre.center_line_pts.size() << "   "
+                 << lane_ptr->center_line_pts.size()
+                 << "  lane_pre.left_boundary = "
+                 << lane_pre.left_boundary->pts.size()
+                 << "  lane_pre.right_boundary = "
+                 << lane_pre.right_boundary->pts.size();
+
+      if (lane_ptr->center_line_pts.empty()) {
+        return;
+      }
+      // lane_pre.center_line_param = lane_in_curr->center_line_param;
+      // lane_pre.center_line_param_front = lane_in_curr->center_line_param;
+      // lane_pre.center_line_pts = ctl_pt;
+      // lane_pre.prev_lane_str_id_with_group.emplace_back(
+      //     lane_in_curr->str_id_with_group);
+      // lane_in_curr->next_lane_str_id_with_group.emplace_back(
+      //     lane_pre.str_id_with_group);
+
+      for (const auto& lane_right :
+           lane_in_curr->right_lane_str_id_with_group) {
+        size_t index = lane_right.find(":");
+        std::string right_str =
+            next_group->str_id +
+            lane_right.substr(index, lane_right.size() - index);
+        lane_pre.right_lane_str_id_with_group.emplace_back(right_str);
+      }
+      for (const auto& lane_left : lane_in_curr->left_lane_str_id_with_group) {
+        size_t index = lane_left.find(":");
+        std::string left_str =
+            next_group->str_id +
+            lane_left.substr(index, lane_left.size() - index);
+        lane_pre.left_lane_str_id_with_group.emplace_back(left_str);
+      }
+
+      // next_group->lanes.emplace_back(std::make_shared<Lane>(lane_pre));
+      next_group->lanes.emplace_back(lane_ptr);
     } else {
-      for (auto& lane_in_next : next_group->lanes) {
-        if (lane_in_curr->next_lane_str_id_with_group[0] ==
-            lane_in_next->str_id_with_group) {
-          lane_in_curr->left_boundary->pts.insert(
-              lane_in_curr->left_boundary->pts.end(),
-              lane_in_next->left_boundary->pts.begin(),
-              lane_in_next->left_boundary->pts.end());
-          lane_in_curr->right_boundary->pts.insert(
-              lane_in_curr->right_boundary->pts.end(),
-              lane_in_next->right_boundary->pts.begin(),
-              lane_in_next->right_boundary->pts.end());
-          lane_in_curr->center_line_pts.insert(
-              lane_in_curr->center_line_pts.end(),
-              lane_in_next->center_line_pts.begin(),
-              lane_in_next->center_line_pts.end());
-          lane_in_curr->center_line_param =
-              FitLaneline(lane_in_curr->center_line_pts);
-          break;
-        }
-      }
       lane_in_curr->next_lane_str_id_with_group.clear();
     }
   }
+  // for (auto& lane_in_curr : curr_group->lanes) {
+  //   if (lane_in_curr->next_lane_str_id_with_group.empty()) {
+  //     if (!lane_in_curr->center_line_param.empty()) {
+  //       size_t index_left = lane_in_curr->left_boundary->pts.size();
+  //       Point left_pt_pre(
+  //           VIRTUAL, lane_in_curr->left_boundary->pts[index_left -
+  //           1].pt.x(), lane_in_curr->left_boundary->pts[index_left -
+  //           1].pt.y(), lane_in_curr->left_boundary->pts[index_left -
+  //           1].pt.z());
+  //       double b_left = left_pt_pre.pt.y() -
+  //                       lane_in_curr->center_line_param[1] *
+  //                       left_pt_pre.pt.x();
+  //       while (left_pt_pre.pt.x() <
+  //              next_group->group_segments.back()->end_slice.po.x() - 2.0) {
+  //         lane_in_curr->left_boundary->pts.emplace_back(left_pt_pre);
+  //         float pre_x = left_pt_pre.pt.x() + 1.0;
+  //         float pre_y = b_left + lane_in_curr->center_line_param[1] *
+  //         pre_x; left_pt_pre = Point(VIRTUAL, pre_x, pre_y,
+  //         static_cast<float>(0.0));
+  //       }
+  //       size_t index_right = lane_in_curr->right_boundary->pts.size();
+  //       Point right_pt_pre(
+  //           VIRTUAL, lane_in_curr->right_boundary->pts[index_right -
+  //           1].pt.x(), lane_in_curr->right_boundary->pts[index_right -
+  //           1].pt.y(), lane_in_curr->right_boundary->pts[index_right -
+  //           1].pt.z());
+  //       double b_right =
+  //           right_pt_pre.pt.y() -
+  //           lane_in_curr->center_line_param[1] * right_pt_pre.pt.x();
+  //       while (right_pt_pre.pt.x() <
+  //              next_group->group_segments.back()->end_slice.po.x() - 2.0) {
+  //         lane_in_curr->right_boundary->pts.emplace_back(right_pt_pre);
+  //         float pre_x = right_pt_pre.pt.x() + 1.0;
+  //         float pre_y = b_right + lane_in_curr->center_line_param[1] *
+  //         pre_x; right_pt_pre = Point(VIRTUAL, pre_x, pre_y,
+  //         static_cast<float>(0.0));
+  //       }
+  //       size_t index_center = lane_in_curr->center_line_pts.size();
+  //       Point center_pt_pre(
+  //           VIRTUAL, lane_in_curr->center_line_pts[index_center -
+  //           1].pt.x(), lane_in_curr->center_line_pts[index_center -
+  //           1].pt.y(), lane_in_curr->center_line_pts[index_center -
+  //           1].pt.z());
+  //       while (center_pt_pre.pt.x() <
+  //              next_group->group_segments.back()->end_slice.po.x() - 2.0) {
+  //         lane_in_curr->center_line_pts.emplace_back(center_pt_pre);
+  //         float pre_x = center_pt_pre.pt.x() + 1.0;
+  //         float pre_y = lane_in_curr->center_line_param[0] +
+  //                       lane_in_curr->center_line_param[1] * pre_x;
+  //         center_pt_pre = Point(VIRTUAL, pre_x, pre_y,
+  //         static_cast<float>(0.0));
+  //       }
+  //     }
+  //   } else {
+  //     for (auto& lane_in_next : next_group->lanes) {
+  //       if (lane_in_curr->next_lane_str_id_with_group[0] ==
+  //           lane_in_next->str_id_with_group) {
+  //         lane_in_curr->left_boundary->pts.insert(
+  //             lane_in_curr->left_boundary->pts.end(),
+  //             lane_in_next->left_boundary->pts.begin(),
+  //             lane_in_next->left_boundary->pts.end());
+  //         lane_in_curr->right_boundary->pts.insert(
+  //             lane_in_curr->right_boundary->pts.end(),
+  //             lane_in_next->right_boundary->pts.begin(),
+  //             lane_in_next->right_boundary->pts.end());
+  //         lane_in_curr->center_line_pts.insert(
+  //             lane_in_curr->center_line_pts.end(),
+  //             lane_in_next->center_line_pts.begin(),
+  //             lane_in_next->center_line_pts.end());
+  //         lane_in_curr->center_line_param =
+  //             FitLaneline(lane_in_curr->center_line_pts);
+  //         break;
+  //       }
+  //     }
+  //     lane_in_curr->next_lane_str_id_with_group.clear();
+  //   }
+  // }
 }
 
 void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
                                       Group::Ptr next_group) {
-  // for (auto& lane_in_next : next_group->lanes) {
-  //   if (lane_in_next->prev_lane_str_id_with_group.empty() &&
-  //       !lane_in_next->center_line_param_front.empty()) {
-  //     Lane lane_pre;
-  //     LineSegment left_bound;
-  //     left_bound.id = lane_in_next->left_boundary->id;
-  //     left_bound.lanepos = lane_in_next->left_boundary->lanepos;
-  //     left_bound.type = lane_in_next->left_boundary->type;
-  //     left_bound.color = lane_in_next->left_boundary->color;
-  //     left_bound.mean_end_heading =
-  //         lane_in_next->left_boundary->mean_end_heading;
-  //     left_bound.mean_end_heading_std_dev =
-  //         lane_in_next->left_boundary->mean_end_heading_std_dev;
-  //     left_bound.mean_end_interval =
-  //         lane_in_next->left_boundary->mean_end_interval;
-  //     Point left_pt_pre(PREDICTED,
-  //     lane_in_next->left_boundary->pts[0].pt.x(),
-  //                       lane_in_next->left_boundary->pts[0].pt.y(),
-  //                       lane_in_next->left_boundary->pts[0].pt.z());
-  //     double b_left =
-  //         left_pt_pre.pt.y() -
-  //         lane_in_next->center_line_param_front[1] * left_pt_pre.pt.x();
-  //     while (left_pt_pre.pt.x() >
-  //            curr_group->group_segments[0]->end_slice.po.x()) {
-  //       left_bound.pts.insert(left_bound.pts.begin(), left_pt_pre);
-  //       float pre_x = left_pt_pre.pt.x() - 1.0;
-  //       float pre_y = b_left + lane_in_next->center_line_param_front[1] *
-  //       pre_x; left_pt_pre = Point(PREDICTED, pre_x, pre_y, float(0.0));
-  //     }
-  //     if (left_bound.pts.empty()) {
-  //       return;
-  //     }
-  //     LineSegment right_bound;
-  //     right_bound.id = lane_in_next->right_boundary->id;
-  //     right_bound.lanepos = lane_in_next->right_boundary->lanepos;
-  //     right_bound.type = lane_in_next->right_boundary->type;
-  //     right_bound.color = lane_in_next->right_boundary->color;
-  //     right_bound.mean_end_heading =
-  //         lane_in_next->right_boundary->mean_end_heading;
-  //     right_bound.mean_end_heading_std_dev =
-  //         lane_in_next->right_boundary->mean_end_heading_std_dev;
-  //     right_bound.mean_end_interval =
-  //         lane_in_next->right_boundary->mean_end_interval;
-  //     Point right_pt_pre(PREDICTED,
-  //     lane_in_next->right_boundary->pts[0].pt.x(),
-  //                        lane_in_next->right_boundary->pts[0].pt.y(),
-  //                        lane_in_next->right_boundary->pts[0].pt.z());
-  //     double b_right =
-  //         right_pt_pre.pt.y() -
-  //         lane_in_next->center_line_param_front[1] * right_pt_pre.pt.x();
-  //     while (right_pt_pre.pt.x() >
-  //            curr_group->group_segments[0]->end_slice.po.x()) {
-  //       right_bound.pts.insert(right_bound.pts.begin(), right_pt_pre);
-  //       float pre_x = right_pt_pre.pt.x() - 1.0;
-  //       float pre_y =
-  //           b_right + lane_in_next->center_line_param_front[1] * pre_x;
-  //       right_pt_pre = Point(PREDICTED, pre_x, pre_y, float(0.0));
-  //     }
-  //     if (right_bound.pts.empty()) {
-  //       return;
-  //     }
-  //     std::vector<Point> ctl_pt;
-  //     size_t index_center = lane_in_next->center_line_pts.size();
-  //     Point center_pt_pre(PREDICTED, lane_in_next->center_line_pts[0].pt.x(),
-  //                         lane_in_next->center_line_pts[0].pt.y(),
-  //                         lane_in_next->center_line_pts[0].pt.z());
-  //     while (center_pt_pre.pt.x() >
-  //            curr_group->group_segments[0]->end_slice.po.x()) {
-  //       ctl_pt.insert(ctl_pt.begin(), center_pt_pre);
-  //       float pre_x = center_pt_pre.pt.x() - 1.0;
-  //       float pre_y = lane_in_next->center_line_param_front[0] +
-  //                     lane_in_next->center_line_param_front[1] * pre_x;
-  //       center_pt_pre = Point(PREDICTED, pre_x, pre_y, float(0.0));
-  //     }
-  //     if (ctl_pt.empty()) {
-  //       return;
-  //     }
-  //     lane_pre.str_id = lane_in_next->str_id;
-  //     lane_pre.lanepos_id = lane_in_next->lanepos_id;
-  //     lane_pre.str_id_with_group = curr_group->str_id + ":" +
-  //     lane_pre.str_id; lane_pre.left_boundary =
-  //     std::make_shared<LineSegment>(left_bound); lane_pre.right_boundary =
-  //     std::make_shared<LineSegment>(right_bound); lane_pre.center_line_param
-  //     = lane_in_next->center_line_param_front;
-  //     lane_pre.center_line_param_front =
-  //     lane_in_next->center_line_param_front; lane_pre.center_line_pts =
-  //     ctl_pt; lane_pre.next_lane_str_id_with_group.emplace_back(
-  //         lane_in_next->str_id_with_group);
-  //     lane_in_next->prev_lane_str_id_with_group.emplace_back(
-  //         lane_pre.str_id_with_group);
-  //     for (const auto& lane_right :
-  //          lane_in_next->right_lane_str_id_with_group) {
-  //       size_t index = lane_right.find(":");
-  //       std::string right_str =
-  //           curr_group->str_id +
-  //           lane_right.substr(index, lane_right.size() - index);
-  //       lane_pre.right_lane_str_id_with_group.emplace_back(right_str);
-  //     }
-  //     for (const auto& lane_left :
-  //     llane_in_currth_group.emplace_back(left_str);
-  //     }
-  //     if (lane_pre.left_boundary->pts.size() > 1 &&
-  //         lane_pre.right_boundary->pts.size() > 1) {
-  //       // size_t i = 0;  // 插入哪个车道
-  //       // for(auto& lane_tmp : next_group->lanes){
-  //       //   if(lane_tmp->str_id == lane_in_next->str_id){
-  //       //     break;
-  //       //   }
-  //       //   if (!lane_tmp->prev_lane_str_id_with_group.empty()){
-  //       //     i++;
-  //       //   }
-  //       // }
-  //       curr_group->lanes.emplace_back(std::make_shared<Lane>(lane_pre));
-  //       // curr_group->lanes.insert(curr_group->lanes.begin()+i,
-  //       std::make_shared<Lane>(lane_pre));
-  //     }
-  //   }
-  // }
   for (auto& lane_in_next : next_group->lanes) {
     if (lane_in_next->prev_lane_str_id_with_group.empty()) {
-      if (!lane_in_next->center_line_param_front.empty()) {
-        Point left_pt_pre(VIRTUAL, lane_in_next->left_boundary->pts[0].pt.x(),
+      //  && !lane_in_next->center_line_param_front.empty()
+      Lane lane_pre;
+      LineSegment left_bound;
+      LineSegment right_bound;
+      left_bound.id = lane_in_next->left_boundary->id;
+      left_bound.lanepos = lane_in_next->left_boundary->lanepos;
+      left_bound.type = lane_in_next->left_boundary->type;
+      left_bound.color = lane_in_next->left_boundary->color;
+      left_bound.mean_end_heading =
+          lane_in_next->left_boundary->mean_end_heading;
+      left_bound.mean_end_heading_std_dev =
+          lane_in_next->left_boundary->mean_end_heading_std_dev;
+      left_bound.mean_end_interval =
+          lane_in_next->left_boundary->mean_end_interval;
+      right_bound.id = lane_in_next->right_boundary->id;
+      right_bound.lanepos = lane_in_next->right_boundary->lanepos;
+      right_bound.type = lane_in_next->right_boundary->type;
+      right_bound.color = lane_in_next->right_boundary->color;
+      right_bound.mean_end_heading =
+          lane_in_next->right_boundary->mean_end_heading;
+      right_bound.mean_end_heading_std_dev =
+          lane_in_next->right_boundary->mean_end_heading_std_dev;
+      right_bound.mean_end_interval =
+          lane_in_next->right_boundary->mean_end_interval;
+      // 判断左右line是否已经存在
+      int left_bound_exist = 0, right_bound_exist = 0;
+      for (auto& lane_in_curr : curr_group->lanes) {
+        if (lane_in_curr->left_boundary->id ==
+            lane_in_next->left_boundary->id) {
+          // left_bound = *(lane_in_curr->left_boundary);
+          for (auto& line_pt : lane_in_curr->left_boundary->pts) {
+            Point pt_pre(PREDICTED, line_pt.pt.x(), line_pt.pt.y(),
+                         line_pt.pt.z());
+            left_bound.pts.emplace_back(pt_pre);
+          }
+          left_bound_exist = 1;
+        } else if (lane_in_curr->left_boundary->id ==
+                   lane_in_next->right_boundary->id) {
+          // right_bound = *(lane_in_curr->left_boundary);
+          for (auto& line_pt : lane_in_curr->left_boundary->pts) {
+            Point pt_pre(PREDICTED, line_pt.pt.x(), line_pt.pt.y(),
+                         line_pt.pt.z());
+            right_bound.pts.emplace_back(pt_pre);
+          }
+          right_bound_exist = 1;
+        } else if (lane_in_curr->right_boundary->id ==
+                   lane_in_next->left_boundary->id) {
+          // left_bound = *(lane_in_curr->right_boundary);
+          for (auto& line_pt : lane_in_curr->right_boundary->pts) {
+            Point pt_pre(PREDICTED, line_pt.pt.x(), line_pt.pt.y(),
+                         line_pt.pt.z());
+            left_bound.pts.emplace_back(pt_pre);
+          }
+          left_bound_exist = 1;
+        } else if (lane_in_curr->right_boundary->id ==
+                   lane_in_next->right_boundary->id) {
+          // right_bound = *(lane_in_curr->right_boundary);
+          for (auto& line_pt : lane_in_curr->right_boundary->pts) {
+            Point pt_pre(PREDICTED, line_pt.pt.x(), line_pt.pt.y(),
+                         line_pt.pt.z());
+            right_bound.pts.emplace_back(pt_pre);
+          }
+          right_bound_exist = 1;
+        }
+      }
+      if (left_bound_exist == 1 && right_bound_exist == 0) {
+        Point right_pt_pre(PREDICTED,
+                           lane_in_next->right_boundary->pts[0].pt.x(),
+                           lane_in_next->right_boundary->pts[0].pt.y(),
+                           lane_in_next->right_boundary->pts[0].pt.z());
+        size_t left_index = left_bound.pts.size() - 1;
+        right_bound.pts.insert(right_bound.pts.begin(), right_pt_pre);
+        while (right_pt_pre.pt.x() >
+                   curr_group->group_segments[0]->end_slice.po.x() &&
+               left_index > 0) {
+          float pre_x = right_pt_pre.pt.x() -
+                        left_bound.pts[left_index].pt.x() +
+                        left_bound.pts[left_index - 1].pt.x();
+          float pre_y = right_pt_pre.pt.y() -
+                        left_bound.pts[left_index].pt.y() +
+                        left_bound.pts[left_index - 1].pt.y();
+          right_pt_pre =
+              Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
+          right_bound.pts.insert(right_bound.pts.begin(), right_pt_pre);
+        }
+        if (right_bound.pts.empty()) {
+          return;
+        }
+      } else if (left_bound_exist == 0 && right_bound_exist == 1) {
+        Point left_pt_pre(PREDICTED, lane_in_next->left_boundary->pts[0].pt.x(),
+                          lane_in_next->left_boundary->pts[0].pt.y(),
+                          lane_in_next->left_boundary->pts[0].pt.z());
+        size_t right_index = right_bound.pts.size() - 1;
+        left_bound.pts.insert(left_bound.pts.begin(), left_pt_pre);
+        while (left_pt_pre.pt.x() >
+                   curr_group->group_segments[0]->end_slice.po.x() &&
+               right_index > 0) {
+          float pre_x = left_pt_pre.pt.x() -
+                        right_bound.pts[right_index].pt.x() +
+                        right_bound.pts[right_index - 1].pt.x();
+
+          float pre_y = left_pt_pre.pt.y() -
+                        right_bound.pts[right_index].pt.y() +
+                        right_bound.pts[right_index - 1].pt.y();
+          left_pt_pre = Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
+          left_bound.pts.insert(left_bound.pts.begin(), left_pt_pre);
+        }
+        if (left_bound.pts.size() < 2) {
+          return;
+        }
+      } else if (left_bound_exist == 0 && right_bound_exist == 0) {
+        if (lane_in_next->center_line_param_front.empty()) {
+          return;
+        }
+        Point left_pt_pre(PREDICTED, lane_in_next->left_boundary->pts[0].pt.x(),
                           lane_in_next->left_boundary->pts[0].pt.y(),
                           lane_in_next->left_boundary->pts[0].pt.z());
         double b_left =
             left_pt_pre.pt.y() -
             lane_in_next->center_line_param_front[1] * left_pt_pre.pt.x();
         while (left_pt_pre.pt.x() >
-               curr_group->group_segments[0]->start_slice.po.x() + 2.0) {
-          lane_in_next->left_boundary->pts.insert(
-              lane_in_next->left_boundary->pts.begin(), left_pt_pre);
+               curr_group->group_segments[0]->end_slice.po.x()) {
+          left_bound.pts.insert(left_bound.pts.begin(), left_pt_pre);
           float pre_x = left_pt_pre.pt.x() - 1.0;
           float pre_y =
               b_left + lane_in_next->center_line_param_front[1] * pre_x;
-          left_pt_pre = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+          left_pt_pre = Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
         }
-
-        Point right_pt_pre(PointType::VIRTUAL,
+        if (left_bound.pts.size() < 2) {
+          return;
+        }
+        Point right_pt_pre(PREDICTED,
                            lane_in_next->right_boundary->pts[0].pt.x(),
                            lane_in_next->right_boundary->pts[0].pt.y(),
                            lane_in_next->right_boundary->pts[0].pt.z());
@@ -2898,52 +3171,160 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
             right_pt_pre.pt.y() -
             lane_in_next->center_line_param_front[1] * right_pt_pre.pt.x();
         while (right_pt_pre.pt.x() >
-               curr_group->group_segments[0]->start_slice.po.x() + 2.0) {
-          lane_in_next->right_boundary->pts.insert(
-              lane_in_next->right_boundary->pts.begin(), right_pt_pre);
+               curr_group->group_segments[0]->end_slice.po.x()) {
+          right_bound.pts.insert(right_bound.pts.begin(), right_pt_pre);
           float pre_x = right_pt_pre.pt.x() - 1.0;
           float pre_y =
               b_right + lane_in_next->center_line_param_front[1] * pre_x;
-          right_pt_pre = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+          right_pt_pre =
+              Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
         }
-        size_t index_center = lane_in_next->center_line_pts.size();
-        Point center_pt_pre(VIRTUAL, lane_in_next->center_line_pts[0].pt.x(),
-                            lane_in_next->center_line_pts[0].pt.y(),
-                            lane_in_next->center_line_pts[0].pt.z());
-        while (center_pt_pre.pt.x() >
-               curr_group->group_segments[0]->start_slice.po.x() + 2.0) {
-          lane_in_next->center_line_pts.insert(
-              lane_in_next->center_line_pts.begin(), center_pt_pre);
-          float pre_x = center_pt_pre.pt.x() - 1.0;
-          float pre_y = lane_in_next->center_line_param_front[0] +
-                        lane_in_next->center_line_param_front[1] * pre_x;
-          center_pt_pre = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+        if (right_bound.pts.size() < 2) {
+          return;
         }
       }
+
+      // std::vector<Point> ctl_pt;
+      // size_t index_center = lane_in_next->center_line_pts.size();
+      // Point center_pt_pre(PREDICTED, lane_in_next->center_line_pts[0].pt.x(),
+      //                     lane_in_next->center_line_pts[0].pt.y(),
+      //                     lane_in_next->center_line_pts[0].pt.z());
+      // while (center_pt_pre.pt.x() >
+      //        curr_group->group_segments[0]->end_slice.po.x() + 2.0) {
+      //   ctl_pt.insert(ctl_pt.begin(), center_pt_pre);
+      //   float pre_x = center_pt_pre.pt.x() - 1.0;
+      //   float pre_y = lane_in_next->center_line_param_front[0] +
+      //                 lane_in_next->center_line_param_front[1] * pre_x;
+      //   center_pt_pre = Point(PREDICTED, pre_x, pre_y, float(0.0));
+      // }
+      // if (ctl_pt.empty()) {
+      //   return;
+      // }
+      lane_pre.str_id = lane_in_next->str_id;
+      lane_pre.lanepos_id = lane_in_next->lanepos_id;
+      lane_pre.str_id_with_group = curr_group->str_id + ":" + lane_pre.str_id;
+      lane_pre.left_boundary = std::make_shared<LineSegment>(left_bound);
+      lane_pre.right_boundary = std::make_shared<LineSegment>(right_bound);
+      // lane_pre.center_line_param = lane_in_next->center_line_param_front;
+      // lane_pre.center_line_param_front =
+      // lane_in_next->center_line_param_front; lane_pre.center_line_pts =
+      // ctl_pt;
+      Lane::Ptr lane_ptr = std::make_shared<Lane>(lane_pre);
+      FitCenterLine(lane_ptr);
+      HLOG_ERROR << "lane_pre.center_line_pts.size() = "
+                 << lane_pre.center_line_pts.size() << "   "
+                 << lane_ptr->center_line_pts.size()
+                 << "  lane_pre.left_boundary = "
+                 << lane_pre.left_boundary->pts.size()
+                 << "  lane_pre.right_boundary = "
+                 << lane_pre.right_boundary->pts.size();
+
+      if (lane_ptr->center_line_pts.empty()) {
+        return;
+      }
+      // lane_pre.next_lane_str_id_with_group.emplace_back(
+      //     lane_in_next->str_id_with_group);
+      // lane_in_next->prev_lane_str_id_with_group.emplace_back(
+      //     lane_pre.str_id_with_group);
+      for (const auto& lane_right :
+           lane_in_next->right_lane_str_id_with_group) {
+        size_t index = lane_right.find(":");
+        std::string right_str =
+            curr_group->str_id +
+            lane_right.substr(index, lane_right.size() - index);
+        lane_pre.right_lane_str_id_with_group.emplace_back(right_str);
+      }
+      for (const auto& lane_left : lane_in_next->left_lane_str_id_with_group) {
+        size_t index = lane_left.find(":");
+        std::string left_str =
+            curr_group->str_id +
+            lane_left.substr(index, lane_left.size() - index);
+        lane_pre.left_lane_str_id_with_group.emplace_back(left_str);
+      }
+      curr_group->lanes.emplace_back(lane_ptr);
+
     } else {
-      for (auto& lane_in_curr : curr_group->lanes) {
-        if (lane_in_next->prev_lane_str_id_with_group[0] ==
-            lane_in_curr->str_id_with_group) {
-          lane_in_next->left_boundary->pts.insert(
-              lane_in_next->left_boundary->pts.begin(),
-              lane_in_curr->left_boundary->pts.begin(),
-              lane_in_curr->left_boundary->pts.end());
-          lane_in_next->right_boundary->pts.insert(
-              lane_in_next->right_boundary->pts.begin(),
-              lane_in_curr->right_boundary->pts.begin(),
-              lane_in_curr->right_boundary->pts.end());
-          lane_in_next->center_line_pts.insert(
-              lane_in_next->center_line_pts.begin(),
-              lane_in_curr->center_line_pts.begin(),
-              lane_in_curr->center_line_pts.end());
-          lane_in_next->center_line_param_front =
-              FitLanelinefront(lane_in_next->center_line_pts);
-          break;
-        }
-      }
       lane_in_next->prev_lane_str_id_with_group.clear();
     }
   }
+  // for (auto& lane_in_next : next_group->lanes) {
+  //   if (lane_in_next->prev_lane_str_id_with_group.empty()) {
+  //     if (!lane_in_next->center_line_param_front.empty()) {
+  //       Point left_pt_pre(VIRTUAL,
+  //       lane_in_next->left_boundary->pts[0].pt.x(),
+  //                         lane_in_next->left_boundary->pts[0].pt.y(),
+  //                         lane_in_next->left_boundary->pts[0].pt.z());
+  //       double b_left =
+  //           left_pt_pre.pt.y() -
+  //           lane_in_next->center_line_param_front[1] * left_pt_pre.pt.x();
+  //       while (left_pt_pre.pt.x() >
+  //              curr_group->group_segments[0]->start_slice.po.x() + 2.0) {
+  //         lane_in_next->left_boundary->pts.insert(
+  //             lane_in_next->left_boundary->pts.begin(), left_pt_pre);
+  //         float pre_x = left_pt_pre.pt.x() - 1.0;
+  //         float pre_y =
+  //             b_left + lane_in_next->center_line_param_front[1] * pre_x;
+  //         left_pt_pre = Point(VIRTUAL, pre_x, pre_y,
+  //         static_cast<float>(0.0));
+  //       }
+
+  //       Point right_pt_pre(PointType::VIRTUAL,
+  //                          lane_in_next->right_boundary->pts[0].pt.x(),
+  //                          lane_in_next->right_boundary->pts[0].pt.y(),
+  //                          lane_in_next->right_boundary->pts[0].pt.z());
+  //       double b_right =
+  //           right_pt_pre.pt.y() -
+  //           lane_in_next->center_line_param_front[1] * right_pt_pre.pt.x();
+  //       while (right_pt_pre.pt.x() >
+  //              curr_group->group_segments[0]->start_slice.po.x() + 2.0) {
+  //         lane_in_next->right_boundary->pts.insert(
+  //             lane_in_next->right_boundary->pts.begin(), right_pt_pre);
+  //         float pre_x = right_pt_pre.pt.x() - 1.0;
+  //         float pre_y =
+  //             b_right + lane_in_next->center_line_param_front[1] * pre_x;
+  //         right_pt_pre = Point(VIRTUAL, pre_x, pre_y,
+  //         static_cast<float>(0.0));
+  //       }
+  //       size_t index_center = lane_in_next->center_line_pts.size();
+  //       Point center_pt_pre(VIRTUAL,
+  //       lane_in_next->center_line_pts[0].pt.x(),
+  //                           lane_in_next->center_line_pts[0].pt.y(),
+  //                           lane_in_next->center_line_pts[0].pt.z());
+  //       while (center_pt_pre.pt.x() >
+  //              curr_group->group_segments[0]->start_slice.po.x() + 2.0) {
+  //         lane_in_next->center_line_pts.insert(
+  //             lane_in_next->center_line_pts.begin(), center_pt_pre);
+  //         float pre_x = center_pt_pre.pt.x() - 1.0;
+  //         float pre_y = lane_in_next->center_line_param_front[0] +
+  //                       lane_in_next->center_line_param_front[1] * pre_x;
+  //         center_pt_pre = Point(VIRTUAL, pre_x, pre_y,
+  //         static_cast<float>(0.0));
+  //       }
+  //     }
+  //   } else {
+  //     for (auto& lane_in_curr : curr_group->lanes) {
+  //       if (lane_in_next->prev_lane_str_id_with_group[0] ==
+  //           lane_in_curr->str_id_with_group) {
+  //         lane_in_next->left_boundary->pts.insert(
+  //             lane_in_next->left_boundary->pts.begin(),
+  //             lane_in_curr->left_boundary->pts.begin(),
+  //             lane_in_curr->left_boundary->pts.end());
+  //         lane_in_next->right_boundary->pts.insert(
+  //             lane_in_next->right_boundary->pts.begin(),
+  //             lane_in_curr->right_boundary->pts.begin(),
+  //             lane_in_curr->right_boundary->pts.end());
+  //         lane_in_next->center_line_pts.insert(
+  //             lane_in_next->center_line_pts.begin(),
+  //             lane_in_curr->center_line_pts.begin(),
+  //             lane_in_curr->center_line_pts.end());
+  //         lane_in_next->center_line_param_front =
+  //             FitLanelinefront(lane_in_next->center_line_pts);
+  //         break;
+  //       }
+  //     }
+  //     lane_in_next->prev_lane_str_id_with_group.clear();
+  //   }
+  // }
 }
 
 void GroupMap::BuildVirtualMergeLane(Group::Ptr curr_group,

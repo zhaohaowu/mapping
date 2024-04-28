@@ -81,7 +81,7 @@ trigger:
     type: EVENT
     mainSources:
       - name: local_map
-        timeout: 1000
+        timeout: 100
 #  - name: recv_pose_estimation
 #    type: EVENT
 #    mainSources:

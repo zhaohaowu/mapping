@@ -1478,6 +1478,27 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
             }
           }
 
+          float min_offset = FLT_MAX;
+          const float kOffsetThreshold = 3.5 * 0.5;  // 半个3.5米车道宽度
+          float check_offset_thresh = -10000;
+          if (conf_.junction_heading_diff > 0.001) {
+            check_offset_thresh =
+                kOffsetThreshold / std::tan(conf_.junction_heading_diff);
+          }
+          // 如果此时距离足够近，并且通过角度未找到合适的next
+          // lane，此时通过找最小的横向偏移来确定next lane
+          if (best_next_lane == nullptr &&
+              dist_to_slice <= check_offset_thresh) {
+            for (auto& next_lane : next_group->lanes) {
+              float offset =
+                  std::abs(next_lane->center_line_pts.front().pt.y());
+              if (offset < min_offset && offset <= kOffsetThreshold) {
+                min_offset = offset;
+                best_next_lane = next_lane;
+              }
+            }
+          }
+
           if (ego_curr_lane != nullptr && best_next_lane != nullptr) {
             BuildCrossingLane(&lane_virtual, ego_curr_lane, best_next_lane);
           }

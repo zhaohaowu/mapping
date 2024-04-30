@@ -224,6 +224,7 @@ class GroupMap {
   IsCross is_cross_;
   const double kMergeLengthThreshold = 10.;
   const double kSplitLengthThreshold = 10.;
+  std::vector<Pose> path_in_curr_pose_;
   void RetrieveBoundaries(const em::ElementMap::Ptr& ele_map, float interp_dist,
                           std::deque<Line::Ptr>* lines);
   void BuildGroupSegments(
@@ -306,6 +307,8 @@ class GroupMap {
                         Lane::Ptr lane_in_next_next);
   void FitCenterLine(Lane::Ptr lane);
   void FillLineSegment(LineSegment::Ptr line, LineSegment* line_set);
+  void UpdatePathInCurrPose(const std::vector<KinePose::Ptr>& path,
+                            const KinePose& curr_pose);
 };
 
 }  // namespace gm

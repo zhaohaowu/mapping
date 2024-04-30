@@ -20,7 +20,7 @@
 
 #define PI acos(-1)
 
-DEFINE_bool(road_recognition_rviz, true, "road recognition use rviz or not");
+DEFINE_bool(road_recognition_rviz, false, "road recognition use rviz or not");
 
 namespace hozon {
 namespace mp {
@@ -1866,7 +1866,7 @@ void GeoOptimization::OnLocalMap(
   FilterIntersectLine();
 
   // 过滤过短的线段且其斜率不是众数的线段
-  FilterShortLine();
+//  FilterShortLine();
 
   // 过滤感知长线交叉的问题
 

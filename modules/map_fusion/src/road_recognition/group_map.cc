@@ -128,6 +128,7 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
   std::deque<Line::Ptr> lines;
   // lane_line_interp_dist可以设为-1，当前上游点间隔已经是1m，这里不用插值出更细的点
   RetrieveBoundaries(ele_map, conf_.lane_line_interp_dist, &lines);
+  UpdatePathInCurrPose(*path, *curr_pose);
   BuildGroupSegments(path, curr_pose, &lines, &group_segments_, ele_map);
   BuildGroups(ele_map->map_info.stamp, group_segments_, &groups_);
   return true;
@@ -1351,8 +1352,18 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
       Eigen::Vector2f next_start_pr(next_grp_start_slice.pr.x(),
                                     next_grp_start_slice.pr.y());
       Eigen::Vector2f curr_pos(0, 0);
+      // 判断车是否在curr和next group范围内，如果是就认为在路口内
       if (PointInVectorSide(curr_start_pr, curr_start_pl, curr_pos) >= 0 &&
           PointInVectorSide(next_start_pr, next_start_pl, curr_pos) <= 0) {
+        veh_in_this_junction = true;
+      }
+      //! 注意： 这里判断车与curr
+      //! group的距离是否小于规控要求的长度，如果小于表示前方太短了，
+      //! 此时也认为是在路口内，这样就可以将next group里车道删除，正常的使用curr
+      //! group向前预测
+      if (PointInVectorSide(curr_end_pr, curr_end_pl, curr_pos) <= 0 &&
+          PointToVectorDist(curr_end_pr, curr_end_pl, curr_pos) <
+              conf_.predict_farthest_dist) {
         veh_in_this_junction = true;
       }
 
@@ -1501,33 +1512,60 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
 #else
         auto dist_to_slice =
             PointToVectorDist(next_start_pl, next_start_pr, curr_pos);
+        //! 注意：当前路口策略是：先使用预测的车道往前行驶一半路口长度，之后再使用前方车道进行关联.
+        //! 为了能使用curr group的车道向前预测，这里把next
+        //! group的索引标记出来，后面会将next group 里车道都删掉，这样curr
+        //! group就变成最后一个group了，后续就能正常使用其向前预测了.
         if (dist_to_slice > (group_distance * 0.5) && veh_in_this_junction) {
           erase_grp_idx = grp_idx + 1;
           break;
         }
 
         if (veh_in_this_junction) {
-          // 找到与当前朝向最接近的curr_lane作为当前所在lane
-          Lane::Ptr ego_curr_lane = nullptr;
+          // 找到与curr_group最近的历史车辆位置
+          Pose nearest;
+          nearest.stamp = -1;
+          float min_dist = FLT_MAX;
+          for (const auto& p : path_in_curr_pose_) {
+            Eigen::Vector2f pt(p.pos.x(), p.pos.y());
+            float dist = PointToVectorDist(curr_end_pl, curr_end_pr, pt);
+            if (dist < min_dist) {
+              min_dist = dist;
+              nearest = p;
+              nearest.stamp = 0;
+            }
+          }
+
+          // 找到与历史车辆位置最接近的curr_lane作为当前所在lane
           float max_len = 0;
-          Eigen::Vector2f n(1, 0);  // 车前向量
-          for (auto& curr_lane : curr_group->lanes) {
-            Eigen::Vector2f p0(curr_lane->center_line_pts.back().pt.x(),
-                               curr_lane->center_line_pts.back().pt.y());
-            Eigen::Vector2f p1(0, 0);  // 当前车辆位置
-            Eigen::Vector2f v =
-                p1 - p0;  // 每根curr_lane终点->当前车辆位置的向量
-            v.normalize();
-            // v在n上的投影，越长表示两个向量角度偏差越小
-            float len = std::abs(v.transpose() * n);
-            if (len > max_len) {
-              max_len = len;
-              ego_curr_lane = curr_lane;
+          Lane::Ptr ego_curr_lane = nullptr;
+          if (nearest.stamp >= 0) {
+            Eigen::Vector3f temp_pt(1, 0, 0);
+            Eigen::Vector3f temp_pt_curr_veh =
+                nearest.quat * temp_pt + nearest.pos;
+            Eigen::Vector3f temp_n = temp_pt_curr_veh - nearest.pos;
+            Eigen::Vector2f nearest_n(temp_n.x(), temp_n.y());
+            nearest_n.normalize();
+            Eigen::Vector2f p1(nearest.pos.x(),
+                               nearest.pos.y());  // 最近的历史车辆位置
+            for (auto& curr_lane : curr_group->lanes) {
+              Eigen::Vector2f p0(curr_lane->center_line_pts.back().pt.x(),
+                                 curr_lane->center_line_pts.back().pt.y());
+              Eigen::Vector2f v =
+                  p1 - p0;  // 每根curr_lane终点->最近历史车辆位置的向量
+              v.normalize();
+              // v在n上的投影，越长表示两个向量角度偏差越小
+              float len = std::abs(v.transpose() * nearest_n);
+              if (len > max_len) {
+                max_len = len;
+                ego_curr_lane = curr_lane;
+              }
             }
           }
 
           Eigen::Vector2f thresh_v(std::cos(conf_.junction_heading_diff),
                                    std::sin(conf_.junction_heading_diff));
+          Eigen::Vector2f n(1, 0);  // 车前向量
           float thresh_len = std::abs(thresh_v.transpose() * n);
 
           Lane::Ptr best_next_lane = nullptr;
@@ -4276,6 +4314,44 @@ std::shared_ptr<hozon::mp::mf::em::ElementMapOut> GroupMap::AddElementMap(
   }
   auto ele_m = ConvertToElementMap(groups_, curr_pose_, ele_map);
   return ele_m;
+}
+
+void GroupMap::UpdatePathInCurrPose(const std::vector<KinePose::Ptr>& path,
+                                    const KinePose& curr_pose) {
+  path_in_curr_pose_.clear();
+  for (const auto& p : path) {
+    if (p == nullptr) {
+      HLOG_ERROR << "found nullptr pose in path";
+      continue;
+    }
+    Eigen::Isometry3f T_local_v1;
+    T_local_v1.setIdentity();
+    T_local_v1.rotate(p->quat);
+    T_local_v1.pretranslate(p->pos);
+
+    Eigen::Isometry3f T_local_v2;
+    T_local_v2.setIdentity();
+    T_local_v2.rotate(curr_pose.quat);
+    T_local_v2.pretranslate(curr_pose.pos);
+
+    Eigen::Isometry3f T_v2_v1;
+    T_v2_v1.setIdentity();
+    T_v2_v1 = T_local_v2.inverse() * T_local_v1;
+    if (T_v2_v1.translation().x() < 0) {
+      Pose pose;
+      pose.stamp = p->stamp;
+      pose.pos << T_v2_v1.translation().x(), T_v2_v1.translation().y(),
+          T_v2_v1.translation().z();
+      pose.quat = T_v2_v1.rotation();
+      path_in_curr_pose_.emplace_back(pose);
+    }
+  }
+  // 自车原点也加进来
+  Pose pose;
+  pose.stamp = curr_pose.stamp;
+  pose.pos.setZero();
+  pose.quat.setIdentity();
+  path_in_curr_pose_.emplace_back(pose);
 }
 
 }  // namespace gm

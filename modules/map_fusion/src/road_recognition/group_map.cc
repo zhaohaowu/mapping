@@ -543,12 +543,15 @@ void GroupMap::GenLaneSegInGroupSeg(std::vector<GroupSegment::Ptr>* segments) {
           } else if (i == line_seg_num - 2 && line_seg_num > 2) {
             std::string index = std::to_string(seg->line_segments.at(i)->id);
             std::string index2 =
-                std::to_string(seg->line_segments.at(i + 1)->id);
+                index + "_" + std::to_string(seg->line_segments.at(i + 1)->id);
             auto& left_line_2 = seg->line_segments.at(i - 1);
             auto& left_center_2 = left_line_2->center;
-            if (last_seg_id.length() > index.length() &&
-                last_seg_id.substr(last_seg_id.length() - index.length(),
-                                   index.length()) == index) {
+            if ((last_seg_id.length() > index.length() &&
+                 last_seg_id.substr(last_seg_id.length() - index.length(),
+                                    index.length()) == index) ||
+                (last_seg_id.length() > index2.length() &&
+                 last_seg_id.substr(last_seg_id.length() - index2.length(),
+                                    index2.length()) == index2)) {
               continue;
             }
 
@@ -752,15 +755,20 @@ bool GroupMap::IsAccessLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
 
 bool GroupMap::IsLaneConnet(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
   if (!IsAccessLane(lane_in_curr, lane_in_next)) {
-    HLOG_ERROR << "764 lane_in_curr=" << lane_in_curr->str_id_with_group
-               << "   lane_in_next" << lane_in_next->str_id_with_group;
     return false;
   }
   size_t sizet = lane_in_curr->center_line_pts.size();
   float dis_pt = CalculateDistPt(lane_in_next, lane_in_curr, sizet);
   float angel_thresh{0.0};
   float dis_thresh{0.0};
-  if (dis_pt < 9 || lane_in_curr->lanepos_id == lane_in_next->lanepos_id) {
+  if (dis_pt < 5 || (lane_in_curr->lanepos_id == lane_in_next->lanepos_id &&
+                     lane_in_curr->lanepos_id != "99_99")) {
+    // HLOG_ERROR << "lane_in_curr=" << lane_in_curr->str_id_with_group
+    //            << "   lane_in_next" << lane_in_next->str_id_with_group
+    //            << "  dis_pt = " << dis_pt
+    //            << " lane_in_curr->lanepos_id =" << lane_in_curr->lanepos_id
+    //            << "  lane_in_next->lanepos_id = " <<
+    //            lane_in_next->lanepos_id;
     return true;
   } else if (!lane_in_curr->center_line_param.empty() &&
              !lane_in_next->center_line_pts.empty()) {
@@ -779,6 +787,11 @@ bool GroupMap::IsLaneConnet(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
     float angle = Calculate2CenterlineAngle(lane_in_next, lane_in_curr, sizet);
     // HLOG_ERROR << "angle = "<<angle*180/pi_;
     if ((dis < dis_thresh && abs(angle) * 180 / pi_ < angel_thresh)) {
+      // HLOG_ERROR << "lane_in_curr=" << lane_in_curr->str_id_with_group
+      //            << "   lane_in_next" << lane_in_next->str_id_with_group
+      //            << "  dis2l = " << dis << "  dis thresh = " << dis_thresh
+      //            << " angle = " << angle << "  angel_thresh = " <<
+      //            angel_thresh;
       return true;
     }
   }
@@ -792,15 +805,14 @@ bool GroupMap::IsLaneConnet(
   auto& lane_in_curr = curr_group->lanes[i];
   auto& lane_in_next = next_group->lanes[j];
   if (!IsAccessLane(lane_in_curr, lane_in_next)) {
-    HLOG_ERROR << "764 lane_in_curr=" << lane_in_curr->str_id_with_group
-               << "   lane_in_next" << lane_in_next->str_id_with_group;
     return false;
   }
   size_t sizet = lane_in_curr->center_line_pts.size();
   float dis_pt = CalculateDistPt(lane_in_next, lane_in_curr, sizet);
   float angel_thresh{0.0};
   float dis_thresh{0.0};
-  if (dis_pt < 9 || lane_in_curr->lanepos_id == lane_in_next->lanepos_id) {
+  if (dis_pt < 5 || (lane_in_curr->lanepos_id == lane_in_next->lanepos_id &&
+                     lane_in_curr->lanepos_id != "99_99")) {
     if (curr_group_next_lane->find(i) != curr_group_next_lane->end()) {
       curr_group_next_lane->at(i).emplace_back(j);
     } else {
@@ -811,6 +823,13 @@ bool GroupMap::IsLaneConnet(
     } else {
       next_group_prev_lane->insert({j, {i}});
     }
+    // HLOG_ERROR << "lane_in_curr=" << lane_in_curr->str_id_with_group
+    //            << "   lane_in_next" << lane_in_next->str_id_with_group
+    //            << "  dis_pt = " << dis_pt
+    //            << " lane_in_curr->lanepos_id =" << lane_in_curr->lanepos_id
+    //            << "  lane_in_next->lanepos_id = " <<
+    //            lane_in_next->lanepos_id;
+
     return true;
   } else if (!lane_in_curr->center_line_param.empty() &&
              !lane_in_next->center_line_pts.empty()) {
@@ -844,6 +863,12 @@ bool GroupMap::IsLaneConnet(
       } else {
         next_group_prev_lane->insert({j, {i}});
       }
+      // HLOG_ERROR << "lane_in_curr=" << lane_in_curr->str_id_with_group
+      //            << "   lane_in_next" << lane_in_next->str_id_with_group
+      //            << "  dis2l = " << dis << "  dis thresh = " << dis_thresh
+      //            << " angle = " << angle << "  angel_thresh = " <<
+      //            angel_thresh;
+
       return true;
     }
   }
@@ -2113,13 +2138,14 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
                 lane_in_next->str_id_with_group);
             flag = 1;
             next_lane_exit = 1;
-            if (lane_in_next->center_line_param.empty()) {
-              lane_in_next->center_line_param = lane_in_curr->center_line_param;
-            }
-            if (lane_in_next->center_line_param_front.empty()) {
-              lane_in_next->center_line_param_front =
-                  lane_in_next->center_line_param;
-            }
+            // if (lane_in_next->center_line_param.empty()) {
+            //   lane_in_next->center_line_param =
+            //   lane_in_curr->center_line_param;
+            // }
+            // if (lane_in_next->center_line_param_front.empty()) {
+            //   lane_in_next->center_line_param_front =
+            //       lane_in_next->center_line_param;
+            // }
             break;
           }
         }
@@ -2188,6 +2214,21 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
               lane_in_curr->center_line_param_front =
                   lane_in_curr->center_line_param;
             }
+            break;
+          }
+          if (IsLaneConnet(lane_in_curr, lane_in_next)) {
+            flag = 1;
+            next_lane_exit = 1;
+            lane_in_next->prev_lane_str_id_with_group.emplace_back(
+                lane_in_curr->str_id_with_group);
+            // if (lane_in_curr->center_line_param.empty()) {
+            //   lane_in_curr->center_line_param =
+            //       lane_in_next->center_line_param_front;
+            // }
+            // if (lane_in_curr->center_line_param_front.empty()) {
+            //   lane_in_curr->center_line_param_front =
+            //       lane_in_curr->center_line_param;
+            // }
             break;
           }
         }
@@ -3139,7 +3180,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
           left_pt_pre = Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
           left_bound.pts.insert(left_bound.pts.begin(), left_pt_pre);
         }
-        if (left_bound.pts.size() < 2) {
+        if (left_bound.pts.empty()) {
           return;
         }
       } else if (left_bound_exist == 0 && right_bound_exist == 0) {
@@ -4075,19 +4116,41 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
   }
 
   // stop lines
+  // for (const auto& stopline_it : ele_map->stop_lines) {
+  //   auto* stop_line = map->add_stop_line();
+  //   stop_line->set_id(std::to_string(stopline_it.first));
+  //   Eigen::Vector3f left_point =
+  //       curr_pose->TransformPoint(stopline_it.second->points[0]);
+  //   auto* point_left = stop_line->mutable_shape()->add_point();
+  //   point_left->set_x(static_cast<double>(left_point.x()));
+  //   point_left->set_y(static_cast<double>(left_point.y()));
+  //   point_left->set_z(static_cast<double>(left_point.z()));
+  //   Eigen::Vector3f right_point =
+  //       curr_pose->TransformPoint(stopline_it.second->points[1]);
+
+  //   auto* point_right = stop_line->mutable_shape()->add_point();
+  //   point_right->set_x(static_cast<double>(right_point.x()));
+  //   point_right->set_y(static_cast<double>(right_point.y()));
+  //   point_right->set_z(static_cast<double>(right_point.z()));
+  // }
   for (const auto& stopline_it : ele_map->stop_lines) {
-    auto* stop_line = map->add_stop_line();
-    stop_line->set_id(std::to_string(stopline_it.first));
+    auto* signal = map->add_signal();
+    signal->mutable_id()->set_id(std::to_string(stopline_it.first));
     Eigen::Vector3f left_point =
         curr_pose->TransformPoint(stopline_it.second->points[0]);
-    auto* point_left = stop_line->mutable_shape()->add_point();
+    auto* point_left = signal->add_stop_line()
+                           ->add_segment()
+                           ->mutable_line_segment()
+                           ->add_point();
     point_left->set_x(static_cast<double>(left_point.x()));
     point_left->set_y(static_cast<double>(left_point.y()));
     point_left->set_z(static_cast<double>(left_point.z()));
     Eigen::Vector3f right_point =
         curr_pose->TransformPoint(stopline_it.second->points[1]);
-
-    auto* point_right = stop_line->mutable_shape()->add_point();
+    auto* point_right = signal->add_stop_line()
+                            ->add_segment()
+                            ->mutable_line_segment()
+                            ->add_point();
     point_right->set_x(static_cast<double>(right_point.x()));
     point_right->set_y(static_cast<double>(right_point.y()));
     point_right->set_z(static_cast<double>(right_point.z()));

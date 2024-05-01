@@ -31,7 +31,7 @@ bool Odometry2D::update() {
     std::vector<ImuDataHozon> imu_datas;
     get_imu_before_and_pop(oldest_wheels[1].timestamp + 5e-3, imu_datas);
     if (imu_datas.empty()) {
-      // HLOG_INFO << "==== init ==== no time_matched imu data";
+      // HLOG_DEBUG << "==== init ==== no time_matched imu data";
       break;
     }
     update_cnt++;
@@ -209,6 +209,22 @@ bool Odometry2D::update() {
     cur_odom_data.gpsStatus = imu_itr->gpsStatus;
     cur_odom_data.imu_seq = imu_itr->seq;
 
+    // HLOG_DEBUG << "wsj_pos_veh_start" << cur_odom_data.odometry.x
+    //           << "," << cur_odom_data.odometry.y << ","
+    //           << cur_odom_data.odometry.z << "wsj_pos_veh_end";
+
+    // HLOG_DEBUG << "wsj_theta_q_start" << cur_odom_data.odometry.qw
+    //           << "," << cur_odom_data.odometry.qx << ","
+    //           << cur_odom_data.odometry.qy << ","
+    //           << cur_odom_data.odometry.qz << "wsj_theta_q_end";
+
+    HLOG_DEBUG << "wsj_wheel_time_start" << cur_odom_data.timestamp
+              << "wsj_wheel_time_end";
+
+    // HLOG_DEBUG << "wsj_filter_vel_start"
+    //           << (local_vel.x())
+    //           << "wsj_filter_vel_end";
+
     AddOdomData(cur_odom_data /*, delta_dis*/);
     last_local_vel = local_vel;
   }
@@ -250,7 +266,7 @@ bool Odometry2D::Initialize() {
 
   clear_imu_wheel_datas();
 
-  // HLOG_INFO << "wheel data size:" << get_wheel_data_size()
+  // HLOG_DEBUG << "wheel data size:" << get_wheel_data_size()
   //           << " imu data size:" << get_imu_data_size();
   OdometryData cur_odom_data;
   cur_odom_data.timestamp = get_front_wheel().timestamp;
@@ -267,7 +283,7 @@ bool Odometry2D::Initialize() {
   cur_odom_data.loc_acc = {0, 0, 0};
   cur_odom_data.gear = 0;
   AddOdomData(cur_odom_data /*, 0.0*/);
-  // HLOG_INFO << "DR initialize done";
+  // HLOG_DEBUG << "DR initialize done";
   std::cout << "DR initialize done" << std::endl;
   return true;
 }
@@ -275,6 +291,14 @@ bool Odometry2D::Initialize() {
 std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
     const WheelDataHozon& last, const WheelDataHozon& cur) {
   is_car_standstill_ = false;
+
+
+  HLOG_DEBUG << "wsj_rear_left_wheel_start" << cur.rear_left_wheel
+            << "wsj_rear_left_wheel_end";
+
+  double dt = cur.timestamp - last.timestamp;
+
+  double wheel_speed = (cur.rear_left_speed + cur.rear_right_speed) / 2.0;
 
   // double begin_wl_1 = last.front_left_wheel;
   // double begin_wr_1 = last.front_right_wheel;
@@ -301,6 +325,31 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
     right_diff += MAX_WHEEL_COUNT;
   }
 
+  int distance = (cur.rolling_counter - last.rolling_counter);
+  bool flag = false;
+  if (distance == 1 || distance == -15) {
+    HLOG_DEBUG << "the true counter";
+    flag = true;
+  } else {
+    HLOG_DEBUG << "the false counter";
+  }
+  if (!flag) {
+    left_diff /= 2;
+    right_diff /= 2;
+  }
+
+  static double last_left_diff = 0;
+  static double last_right_diff = 0;
+  if (left_diff < 1e-2 && right_diff < 1e-2 && wheel_speed > 5) {
+    left_diff += last_left_diff;
+    right_diff += last_right_diff;
+  }
+  last_left_diff = left_diff;
+  last_right_diff = right_diff;
+
+  HLOG_DEBUG << "wsj_diff_rear_left_wheel_start" << left_diff
+            << "wsj_diff_rear_left_wheel_end";
+
   double left_dist = left_diff * wheel_param_.kl_;
   /*
     GEAR_NEUTRAL = 0;
@@ -322,12 +371,24 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
     right_dist *= -1.0;
     // std::cout << "right back direction" << std::endl;
   }
+
   // double delta_yaw = (right_dist - left_dist) / wheel_param_.b_;
   double delta_dist = (right_dist + left_dist) * 0.5;
 
+  double wheel_vel_x = delta_dist / dt;
+  HLOG_DEBUG << "wsj_vel_start" << wheel_vel_x << "wsj_vel_end";
+  Eigen::Vector3d wheel_vel(wheel_vel_x, 0, 0);
+
+  // encode速度滤波并计算距离
+  ButterWorthFilter(wheel_vel);
+  double delta_dist_filter = wheel_vel.x() * dt;
+
+  // 左右后轮计算的距离滤波
+  // ButterWorthFilterX(delta_dist);
+
   // double wheel_speed = delta_dist / (cur.timestamp - last.timestamp);
   // 只求取了 X 方向得速度信息
-  double wheel_speed = (cur.rear_left_speed + cur.rear_right_speed) / 2.0;
+  // double wheel_speed = (cur.rear_left_speed + cur.rear_right_speed) / 2.0;
   is_car_standstill_ = fabs(wheel_speed) < 1.0e-6;
   if (wheel_vel_buffer_.size() > 10) {
     wheel_vel_buffer_.pop_front();
@@ -335,7 +396,9 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
   wheel_vel_buffer_.emplace_back(
       std::pair<double, double>(cur.timestamp, wheel_speed));
   Eigen::Vector3d vel(wheel_speed, 0, 0);
-  return std::make_tuple(vel, delta_dist);
+
+  // return std::make_tuple(vel, delta_dist);
+  return std::make_tuple(wheel_vel, delta_dist_filter);
 }
 
 void Odometry2D::UpdateOrientationByIMU(const ImuDataHozon& last_imu,
@@ -476,6 +539,90 @@ bool Odometry2D::EstimatedRollPitch() {
   Eigen::AngleAxisd yaw_aa(yaw_pre * M_PI / 180.0, Eigen::Vector3d::UnitZ());
   qat_3D_ = yaw_aa * pitch_aa * roll_aa;  // 完成转换
   return true;
+}
+
+void Odometry2D::ButterWorthFilter(Eigen::Vector3d& wheel) {
+  static double x1;
+  static double x2;
+  static double y1;
+  static double y2;
+  static double b0;
+  static double b1;
+  static double b2;
+  static double a1;
+  static double a2;
+  static bool init = false;
+  if (!init) {
+    x1 = x2 = y1 = y2 = wheel.x();
+    init = true;
+    return;
+  }
+
+  double sampling_freq = 100.0;
+  double cutoff_freq = 4;
+  // 计算滤波器系数
+  double wc = 2.0 * M_PI * cutoff_freq / sampling_freq;
+  double k = std::tan(wc / 2.0);
+  double k2 = k * k;
+  double sqrt2 = std::sqrt(2.0);
+
+  b0 = k2 / (1 + sqrt2 * k + k2);
+  b1 = 2 * b0;
+  b2 = b0;
+  a1 = 2 * (k2 - 1) / (1 + sqrt2 * k + k2);
+  a2 = (1 - sqrt2 * k + k2) / (1 + sqrt2 * k + k2);
+
+  double output = b0 * wheel.x() + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+
+  // 更新历史状态
+  x2 = x1;
+  x1 = wheel.x();
+  y2 = y1;
+  y1 = output;
+
+  wheel.x() = output;
+}
+
+void Odometry2D::ButterWorthFilterX(double& wheel) {
+  static double x1;
+  static double x2;
+  static double y1;
+  static double y2;
+  static double b0;
+  static double b1;
+  static double b2;
+  static double a1;
+  static double a2;
+  static bool init = false;
+  if (!init) {
+    x1 = x2 = y1 = y2 = wheel;
+    init = true;
+    return;
+  }
+
+  double sampling_freq = 100.0;
+  double cutoff_freq = 4;
+  // 计算滤波器系数
+  double wc = 2.0 * M_PI * cutoff_freq / sampling_freq;
+  double k = std::tan(wc / 2.0);
+  double k2 = k * k;
+  double sqrt2 = std::sqrt(2.0);
+
+  b0 = k2 / (1 + sqrt2 * k + k2);
+  b1 = 2 * b0;
+  b2 = b0;
+  a1 = 2 * (k2 - 1) / (1 + sqrt2 * k + k2);
+  a2 = (1 - sqrt2 * k + k2) / (1 + sqrt2 * k + k2);
+
+  double output = b0 * wheel + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+
+  // 更新历史状态
+  x2 = x1;
+  x1 = wheel;
+  y2 = y1;
+  y1 = output;
+
+  wheel = output;
 }
 
 }  // namespace dr

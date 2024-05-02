@@ -2874,15 +2874,15 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
         right_bound.pts.emplace_back(right_pt_pre);
         size_t left_index = 1;
         size_t left_bound_size = left_bound.pts.size();
+        float dx = left_bound.pts[left_index].pt.x() -
+                   left_bound.pts[left_index - 1].pt.x();
+        float dy = left_bound.pts[left_index].pt.y() -
+                   left_bound.pts[left_index - 1].pt.y();
         while (right_pt_pre.pt.x() <
                    next_group->group_segments.back()->end_slice.po.x() &&
-               left_index < left_bound_size) {
-          float pre_x = right_pt_pre.pt.x() +
-                        left_bound.pts[left_index].pt.x() -
-                        left_bound.pts[left_index - 1].pt.x();
-          float pre_y = right_pt_pre.pt.y() +
-                        left_bound.pts[left_index].pt.y() -
-                        left_bound.pts[left_index - 1].pt.y();
+               left_index < left_bound_size && dx > 0) {
+          float pre_x = right_pt_pre.pt.x() + dx;
+          float pre_y = right_pt_pre.pt.y() + dy;
           right_pt_pre =
               Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
           right_bound.pts.emplace_back(right_pt_pre);
@@ -2900,16 +2900,16 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
         size_t right_index = 1;
         size_t right_bound_size = right_bound.pts.size();
         left_bound.pts.emplace_back(left_pt_pre);
+        float dx = right_bound.pts[right_index].pt.x() -
+                   right_bound.pts[right_index - 1].pt.x();
+        float dy = right_bound.pts[right_index].pt.y() -
+                   right_bound.pts[right_index - 1].pt.y();
         while (left_pt_pre.pt.x() <
                    next_group->group_segments.back()->end_slice.po.x() &&
-               right_index < right_bound_size) {
-          float pre_x = left_pt_pre.pt.x() +
-                        right_bound.pts[right_index].pt.x() -
-                        right_bound.pts[right_index - 1].pt.x();
+               right_index < right_bound_size && dx > 0) {
+          float pre_x = left_pt_pre.pt.x() + dx;
 
-          float pre_y = left_pt_pre.pt.y() +
-                        right_bound.pts[right_index].pt.y() -
-                        right_bound.pts[right_index - 1].pt.y();
+          float pre_y = left_pt_pre.pt.y() + dy;
           left_pt_pre = Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
           left_bound.pts.emplace_back(left_pt_pre);
           right_index++;
@@ -3183,15 +3183,15 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
                            lane_in_next->right_boundary->pts[0].pt.z());
         size_t left_index = left_bound.pts.size() - 1;
         right_bound.pts.insert(right_bound.pts.begin(), right_pt_pre);
+        float dx = left_bound.pts[left_index].pt.x() -
+                   left_bound.pts[left_index - 1].pt.x();
+        float dy = left_bound.pts[left_index].pt.y() -
+                   left_bound.pts[left_index - 1].pt.y();
         while (right_pt_pre.pt.x() >
                    curr_group->group_segments[0]->end_slice.po.x() &&
-               left_index > 0) {
-          float pre_x = right_pt_pre.pt.x() -
-                        left_bound.pts[left_index].pt.x() +
-                        left_bound.pts[left_index - 1].pt.x();
-          float pre_y = right_pt_pre.pt.y() -
-                        left_bound.pts[left_index].pt.y() +
-                        left_bound.pts[left_index - 1].pt.y();
+               left_index > 0 && dx > 0) {
+          float pre_x = right_pt_pre.pt.x() - dx;
+          float pre_y = right_pt_pre.pt.y() - dy;
           right_pt_pre =
               Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
           right_bound.pts.insert(right_bound.pts.begin(), right_pt_pre);
@@ -3205,16 +3205,15 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
                           lane_in_next->left_boundary->pts[0].pt.z());
         size_t right_index = right_bound.pts.size() - 1;
         left_bound.pts.insert(left_bound.pts.begin(), left_pt_pre);
+        float dx = right_bound.pts[right_index].pt.x() -
+                   right_bound.pts[right_index - 1].pt.x();
+        float dy = right_bound.pts[right_index].pt.y() -
+                   right_bound.pts[right_index - 1].pt.y();
         while (left_pt_pre.pt.x() >
                    curr_group->group_segments[0]->end_slice.po.x() &&
-               right_index > 0) {
-          float pre_x = left_pt_pre.pt.x() -
-                        right_bound.pts[right_index].pt.x() +
-                        right_bound.pts[right_index - 1].pt.x();
-
-          float pre_y = left_pt_pre.pt.y() -
-                        right_bound.pts[right_index].pt.y() +
-                        right_bound.pts[right_index - 1].pt.y();
+               right_index > 0 && dx > 0) {
+          float pre_x = left_pt_pre.pt.x() - dx;
+          float pre_y = left_pt_pre.pt.y() - dy;
           left_pt_pre = Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
           left_bound.pts.insert(left_bound.pts.begin(), left_pt_pre);
         }

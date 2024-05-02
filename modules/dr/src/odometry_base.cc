@@ -66,14 +66,6 @@ Eigen::Vector3d OdometryBase::filter_vel(const Eigen::Vector3d& cur_vel) {
 
 bool OdometryBase::add_wheel_data(const WheelDataHozon& wheel_data) {
   DRWriteLockGuard lock(wheel_rw_lock_);
-
-  HLOG_DEBUG << "wsj_rolling_conter_start" << wheel_data.rolling_counter
-            << "wsj_rolling_conter_end";
-
-  HLOG_DEBUG << "wheel_data.timestamp:" << wheel_data.timestamp;
-
-  HLOG_DEBUG << "wheel_data.rear_left_wheel:" << wheel_data.rear_left_wheel;
-
   if (wheel_datas_.empty()) {
     wheel_datas_.push_back(wheel_data);
   } else {
@@ -82,25 +74,9 @@ bool OdometryBase::add_wheel_data(const WheelDataHozon& wheel_data) {
       if (fabs(wheel_data.rear_left_wheel - last_data.rear_left_wheel) < 1e-2 &&
           fabs(wheel_data.rear_right_wheel - last_data.rear_right_wheel) <
               1e-2 &&
-          fabs(wheel_data.timestamp - last_data.timestamp) < 1 * 1e-3) {
+          fabs(wheel_data.timestamp - last_data.timestamp - 0.01) < 1 * 1e-3) {
         return false;
       }
-
-      // // 15是因为rolling counter在0到15循环计数
-      // static int last_rolling_counter = 0;
-      // HLOG_DEBUG << "last_rolling_counter:" << last_rolling_counter;
-      // int distance = (wheel_data.rolling_counter - last_rolling_counter);
-      // bool flag = false;
-      // if (distance == 1 || distance == -15) {
-      //   HLOG_DEBUG << "the true counter";
-      //   flag = true;
-      // }
-      // last_rolling_counter = wheel_data.rolling_counter;
-      // if (!flag) {
-      //   HLOG_ERROR << "the false counter";
-      //   return false;
-      // }
-
       // TODO(zxl) 增加滤波器
       // auto filter_wheel = filter_wheel_data(wheel_data);
       // wheel_datas_.push_back(filter_wheel);
@@ -141,7 +117,7 @@ bool OdometryBase::get_imu_before_and_pop(
       if (itr->timestamp < time) {
         imu_datas.emplace_back(*itr);
       } else {
-        // HLOG_DEBUG << "==== init ====" << time << "   error time ";
+        // HLOG_INFO << "==== init ====" << time << "   error time ";
         break;
       }
     }

@@ -83,8 +83,6 @@ struct WheelDataHozon {
   int gear;
   // 方向盘信息
   double steer_info;
-  // rolling counter
-  int rolling_counter;
 };
 
 struct ImuDataHozon {

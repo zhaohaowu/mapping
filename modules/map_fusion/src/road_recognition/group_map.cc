@@ -1537,27 +1537,21 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
           }
 
           // 找到与历史车辆位置最接近的curr_lane作为当前所在lane
-          float max_len = 0;
+          min_dist = FLT_MAX;
           Lane::Ptr ego_curr_lane = nullptr;
           if (nearest.stamp >= 0) {
             Eigen::Vector3f temp_pt(1, 0, 0);
+            // 转到当前车体系下
             Eigen::Vector3f temp_pt_curr_veh =
                 nearest.quat * temp_pt + nearest.pos;
-            Eigen::Vector3f temp_n = temp_pt_curr_veh - nearest.pos;
-            Eigen::Vector2f nearest_n(temp_n.x(), temp_n.y());
-            nearest_n.normalize();
-            Eigen::Vector2f p1(nearest.pos.x(),
-                               nearest.pos.y());  // 最近的历史车辆位置
+            Eigen::Vector2f p1(nearest.pos.x(), nearest.pos.y());
+            Eigen::Vector2f p0(temp_pt_curr_veh.x(), temp_pt_curr_veh.y());
             for (auto& curr_lane : curr_group->lanes) {
-              Eigen::Vector2f p0(curr_lane->center_line_pts.back().pt.x(),
+              Eigen::Vector2f pt(curr_lane->center_line_pts.back().pt.x(),
                                  curr_lane->center_line_pts.back().pt.y());
-              Eigen::Vector2f v =
-                  p1 - p0;  // 每根curr_lane终点->最近历史车辆位置的向量
-              v.normalize();
-              // v在n上的投影，越长表示两个向量角度偏差越小
-              float len = std::abs(v.transpose() * nearest_n);
-              if (len > max_len) {
-                max_len = len;
+              float dist = PointToVectorDist(p0, p1, pt);
+              if (dist < min_dist) {
+                min_dist = dist;
                 ego_curr_lane = curr_lane;
               }
             }
@@ -1569,7 +1563,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
           float thresh_len = std::abs(thresh_v.transpose() * n);
 
           Lane::Ptr best_next_lane = nullptr;
-          max_len = 0;
+          float max_len = 0;
           for (auto& next_lane : next_group->lanes) {
             Eigen::Vector2f p0(0, 0);
             Eigen::Vector2f p1(next_lane->center_line_pts.front().pt.x(),

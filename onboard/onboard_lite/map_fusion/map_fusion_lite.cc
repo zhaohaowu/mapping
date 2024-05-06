@@ -199,10 +199,18 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
                                   std::pow(curr_loc_->pose().gcj02().z() -
                                                prev_loc_res->pose().gcj02().z(),
                                            2.0));
-    auto loc_yaw = std::abs(prev_loc_res->pose().euler_angles().z() -
-                            curr_loc_->pose().euler_angles().z());
-    // 前后帧定位距离大于 6m，或者yaw角大于0.04时候认为位置和姿态发生突变
-    if (loc_distance > 6 || loc_yaw > 0.04) {
+    auto pre_yaw = prev_loc_res->pose().euler_angles().z();
+    auto cur_yaw = curr_loc_->pose().euler_angles().z();
+    auto loc_yaw = pre_yaw - cur_yaw;
+    if (loc_yaw > M_PI) {
+      loc_yaw -= 2 * M_PI;
+    }
+    if (loc_yaw < -M_PI) {
+      loc_yaw += 2 * M_PI;
+    }
+    loc_yaw = std::abs(loc_yaw);
+    // 前后帧定位距离大于 1.2m，或者yaw角大于0.04时候认为位置和姿态发生突变
+    if (loc_distance > 1.2 || loc_yaw > 0.06) {
       phm_fault->Report(MAKE_FM_TUPLE(
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::LOCATION_POS_ATTITUDE_ERROR,

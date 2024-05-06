@@ -44,5 +44,5 @@ RoadRecognition:
     robust_percep_dist: 70
     max_heading_std_dev: 100
     min_predict_interval: 0.2
-    max_heading_degree: 20
+    max_heading_degree: 50
     junction_heading_diff: 5 # degree

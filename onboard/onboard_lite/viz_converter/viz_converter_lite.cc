@@ -11,8 +11,8 @@
 #include <proto/localization/localization.pb.h>
 #include <proto/map/navigation.pb.h>
 #include <proto/perception/perception_measurement.pb.h>
-#include <proto/soc/sensor_image.pb.h>
 #include <proto/planning/planning.pb.h>
+#include <proto/soc/sensor_image.pb.h>
 #include <yaml-cpp/yaml.h>
 
 #include <memory>
@@ -105,6 +105,7 @@ int32_t VizConverterLite::AlgInit() {
       kVizTopicLocalizationStatus,
       kVizTopicInsPluginStatus,
       kVizTopicDrivingStatus,
+      kVizTopicPlanningPath,
   };
   ret = RVIZ_AGENT.Register<adsfi_proto::viz::Marker>(marker_topics);
   if (ret < 0) {
@@ -158,7 +159,8 @@ int32_t VizConverterLite::AlgInit() {
   REGISTER_PROTO_MESSAGE_TYPE(kTopicPercepTransport,
                               hozon::perception::TransportElement);
   REGISTER_PROTO_MESSAGE_TYPE(kTopicLocalMap, hozon::mapping::LocalMap);
-  REGISTER_PROTO_MESSAGE_TYPE(kTopicDrivingStatus, hozon::planning::ADCTrajectory);
+  REGISTER_PROTO_MESSAGE_TYPE(kTopicDrivingStatus,
+                              hozon::planning::ADCTrajectory);
 
   RegistAlgProcessFunc("recv_localization",
                        std::bind(&VizConverterLite::OnLocalization, this,
@@ -185,9 +187,9 @@ int32_t VizConverterLite::AlgInit() {
   RegistAlgProcessFunc(
       "recv_local_map",
       std::bind(&VizConverterLite::OnLocalMap, this, std::placeholders::_1));
-  RegistAlgProcessFunc(
-      "recv_driving_status",
-      std::bind(&VizConverterLite::OnDrivingStatus, this, std::placeholders::_1));
+  RegistAlgProcessFunc("recv_driving_status",
+                       std::bind(&VizConverterLite::OnDrivingStatus, this,
+                                 std::placeholders::_1));
   return 0;
 }
 
@@ -811,7 +813,8 @@ int32_t VizConverterLite::OnLocalMap(hozon::netaos::adf_lite::Bundle* input) {
   return 0;
 }
 
-int32_t VizConverterLite::OnDrivingStatus(hozon::netaos::adf_lite::Bundle* input) {
+int32_t VizConverterLite::OnDrivingStatus(
+    hozon::netaos::adf_lite::Bundle* input) {
   if (input == nullptr) {
     HLOG_ERROR << "nullptr input Bundle";
     return -1;
@@ -875,7 +878,9 @@ int32_t VizConverterLite::OnDrivingStatus(hozon::netaos::adf_lite::Bundle* input
   }
 
   std::string try_activate_str = "";
-  if (msg->function_manager_in().nnp_switch_conditions().da_in_is_nnpswstsonswa_bl()) {
+  if (msg->function_manager_in()
+          .nnp_switch_conditions()
+          .da_in_is_nnpswstsonswa_bl()) {
     color = mp::util::YELLOW;
     try_activate_str = "TRY ACTIVATE";
   }
@@ -887,20 +892,54 @@ int32_t VizConverterLite::OnDrivingStatus(hozon::netaos::adf_lite::Bundle* input
   marker_status.mutable_color()->set_b(rgb.b);
 
   auto nnp_state_str = hozon::functionmanager::NNPSysState_Name(nnp_state);
-  auto pilot_state_str = hozon::functionmanager::FctToNnpInput::NPILOT_State_Name(pilot_state);
-  auto acc_state_str = hozon::functionmanager::FctToNnpInput::ADCS8_ACCState_Name(acc_state);
+  auto pilot_state_str =
+      hozon::functionmanager::FctToNnpInput::NPILOT_State_Name(pilot_state);
+  auto acc_state_str =
+      hozon::functionmanager::FctToNnpInput::ADCS8_ACCState_Name(acc_state);
   auto fsm_state = msg->function_manager_out().fsm_state();
   auto fsm_state_str = hozon::functionmanager::MachineStateType_Name(fsm_state);
   auto hdmap_sub_state = msg->function_manager_out().hdmap_sub_state();
-  auto hdmap_sub_state_str = hozon::functionmanager::HdmapSubState_Name(hdmap_sub_state);
+  auto hdmap_sub_state_str =
+      hozon::functionmanager::HdmapSubState_Name(hdmap_sub_state);
 
   auto* text = marker_status.mutable_text();
-  *text = "nnp: " + nnp_state_str +
-      "\npilot: " + pilot_state_str +
-      "\nacc: " + acc_state_str +
-      "\npnc_used_map: " + fsm_state_str + ", " + hdmap_sub_state_str +
-      "\n" + try_activate_str;
+  *text = "nnp: " + nnp_state_str + "\npilot: " + pilot_state_str +
+          "\nacc: " + acc_state_str + "\npnc_used_map: " + fsm_state_str +
+          ", " + hdmap_sub_state_str + "\n" + try_activate_str;
   RVIZ_AGENT.Publish(kVizTopicDrivingStatus, marker_status);
+
+  if (msg->debug().planning_data().path_size() >= 5 &&
+      msg->debug().planning_data().path(4).path_point_size() >= 2) {
+    const auto& path = msg->debug().planning_data().path(4);
+    adsfi_proto::viz::Marker marker_path;
+    marker_path.mutable_header()->mutable_timestamp()->set_sec(sec);
+    marker_path.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    marker_path.mutable_header()->set_frameid(mp::util::kFrameLocal);
+    marker_path.set_ns("planning_path");
+    marker_path.set_id(0);
+    marker_path.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+    marker_path.set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+    marker_status.mutable_lifetime()->set_sec(life_sec);
+    marker_status.mutable_lifetime()->set_nsec(life_nsec);
+    rgb = mp::util::ColorRgb(mp::util::BLUE);
+    marker_path.mutable_color()->set_a(0.3);
+    marker_path.mutable_color()->set_r(rgb.r);
+    marker_path.mutable_color()->set_g(rgb.g);
+    marker_path.mutable_color()->set_b(rgb.b);
+    double width = 1.5;
+    marker_path.mutable_scale()->set_x(width);
+    marker_path.mutable_pose()->mutable_orientation()->set_x(0.);
+    marker_path.mutable_pose()->mutable_orientation()->set_y(0.);
+    marker_path.mutable_pose()->mutable_orientation()->set_z(0.);
+    marker_path.mutable_pose()->mutable_orientation()->set_w(1.);
+    for (const auto& pt : path.path_point()) {
+      auto* mpt = marker_path.add_points();
+      mpt->set_x(pt.x());
+      mpt->set_y(pt.y());
+      mpt->set_z(0.);
+    }
+    RVIZ_AGENT.Publish(kVizTopicPlanningPath, marker_path);
+  }
 
   return 0;
 }

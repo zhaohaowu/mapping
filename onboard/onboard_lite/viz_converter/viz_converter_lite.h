@@ -84,6 +84,7 @@ class VizConverterLite : public hozon::netaos::adf_lite::Executor {
 
   const std::string kTopicDrivingStatus = "driving_status";
   const std::string kVizTopicDrivingStatus = kTopicDrivingStatus;
+  const std::string kVizTopicPlanningPath = "planning_path";
 
   const std::string kVizTopicTfVehicleToLocal = "veh_to_local";
   const std::string kVizTopicTfLocalEnuToLocal = "local_enu_to_local";

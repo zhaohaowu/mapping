@@ -427,10 +427,10 @@ void MatchLaneLine::FilterPercpLaneline(
   for (auto& line : lanelines) {
     per_lines[line->lane_position_type()].emplace_back(line);
     HLOG_INFO << "percep-laneinfo "
-               << line->curve_vehicle_coord_.lane_position_type_
-               << " confid|min|max: " << line->curve_vehicle_coord_.confidence_
-               << " " << line->Min() << " " << line->Max()
-               << " stamp: " << ins_timestamp_;
+              << line->curve_vehicle_coord_.lane_position_type_
+              << " confid|min|max: " << line->curve_vehicle_coord_.confidence_
+              << " " << line->Min() << " " << line->Max()
+              << " stamp: " << ins_timestamp_;
     if (per_lines[line->lane_position_type()].size() < 2) {
       continue;
     }
@@ -539,14 +539,7 @@ bool MatchLaneLine::GetNeighboringMapLines(
       }
     }
   }
-  if (nearest_line_match_pairs->empty()) {
-    HLOG_ERROR << "target_perception_line get nearest match map line failed!";
-    return false;
-  } else if (!(nearest_line_match_pairs->empty() &&
-               farest_line_match_pairs->empty())) {
-    return true;
-  }
-  return false;
+  return !(nearest_line_match_pairs->empty() && farest_line_match_pairs->empty());
 }
 
 void MatchLaneLine::MergeMapLines(

@@ -611,6 +611,10 @@ float GetDistBetweenTwoLane(const std::vector<LaneLinePoint>& point_set1,
     lane_long = point_set1;
   }
 
+  if (lane_short.empty()) {
+    return 0.0;
+  }
+
   if (lane_long.size() == 1) {
     HLOG_WARN << "GetDistBetweenTwoLane function Point Numbers ERROR";
   }

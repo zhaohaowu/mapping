@@ -4,6 +4,7 @@
 
 #include "modules/local_mapping/lib/filter/laneline_merge_tracker.h"
 
+#include <algorithm>
 #include <unordered_set>
 #include <vector>
 
@@ -142,6 +143,129 @@ bool LaneLineMergeTrack::MergeOverlayCrossStrategy(
   }
   return false;
 }
+
+bool LaneLineMergeTrack::IsForkConvergelike(
+    const LaneTargetConstPtr& left_line, const LaneTargetConstPtr& right_line) {
+  const std::vector<Eigen::Vector3d>& point_set1 =
+      left_line->GetConstTrackedObject()->vehicle_points;
+
+  const std::vector<Eigen::Vector3d>& point_set2 =
+      right_line->GetConstTrackedObject()->vehicle_points;
+
+  if (point_set1.empty() || point_set2.empty()) {
+    return false;
+  }
+
+  // 短线的长度必须小于40米， 否则不认为是分合流线场景
+  float line1_length = GetLength(point_set1);
+  float line2_length = GetLength(point_set2);
+  HLOG_ERROR << "line1_length:" << line1_length;
+  float short_line_length = std::min(line1_length, line2_length);
+  if (short_line_length >= 40) {
+    return false;
+  }
+
+  std::vector<double> dist_list;
+  std::vector<Eigen::Vector3d> point_list;
+  dist_list.clear();
+  point_list.clear();
+  // 前提两条线的车辆系下的点已经从近到远排好序
+  float overlay_min = std::max(point_set1.front().x(), point_set2.front().x());
+  float overlay_max = std::min(point_set1.back().x(), point_set2.back().x());
+
+  std::vector<Eigen::Vector3d> overlay_point_set1;
+  std::vector<Eigen::Vector3d> overlay_point_set2;
+  overlay_point_set1.clear();
+  overlay_point_set2.clear();
+
+  for (const auto& point : point_set1) {
+    if (point.x() < overlay_min || point.x() > overlay_max) {
+      continue;
+    }
+    overlay_point_set1.push_back(point);
+  }
+
+  for (const auto& point : point_set2) {
+    if (point.x() < overlay_min || point.x() > overlay_max) {
+      continue;
+    }
+    overlay_point_set2.push_back(point);
+  }
+
+  if (overlay_point_set1.size() < 2 || overlay_point_set2.size() < 2) {
+    return false;
+  }
+
+  Eigen::Vector3d A, B, C;
+  for (int i = 0, j = 0;
+       i < overlay_point_set1.size() && j < overlay_point_set2.size(); ++i) {
+    A = overlay_point_set1[i];
+    if (A.x() <= overlay_point_set2[0].x()) {
+      B = overlay_point_set2[0];
+      C = overlay_point_set2[1];
+    } else if (A.x() >= overlay_point_set2.back().x()) {
+      B = overlay_point_set2[overlay_point_set2.size() - 2];
+      C = overlay_point_set2[overlay_point_set2.size() - 1];
+    } else if (A.x() < overlay_point_set2[j].x()) {
+      B = overlay_point_set2[j - 1];
+      C = overlay_point_set2[j];
+    } else {
+      ++j;
+      --i;
+      continue;
+    }
+    double dist = GetDistPointLane(A, B, C);
+    dist_list.push_back(dist);
+    point_list.push_back(A);
+  }
+
+  int order_times = 0;
+  int reorder_times = 0;
+  int ambiguous_times = 0;
+  float equal_length = 0.0;
+  int bins = 0;
+  for (int i = 0, j = 0; i < point_list.size() && j < point_list.size();) {
+    double point_dis = (point_list[i].head(2) - point_list[j].head(2)).norm();
+    if (point_dis > 4.0) {
+      HLOG_INFO << "TEST i:" << i << ",j:" << j << ", point_dis:" << point_dis
+                << ",dis:" << dist_list[j] - dist_list[i];
+      bins++;
+      if (dist_list[j] - dist_list[i] > 0.15) {
+        order_times++;
+      } else if (dist_list[j] - dist_list[i] < -0.15) {
+        reorder_times++;
+      } else if (abs(dist_list[j] - dist_list[i]) < 0.03) {
+        ambiguous_times++;
+      } else if (abs(dist_list[j] - dist_list[i]) < 0.08) {
+        // 横向距离在8cm内认为是重叠区域
+        equal_length += point_dis;
+      }
+      i = j;
+      j++;
+    } else {
+      j++;
+    }
+  }
+
+  HLOG_DEBUG << "[IsForkConvergelike], bins:" << bins << "order_rate:"
+             << 1.0 * order_times / (bins - ambiguous_times + 0.001)
+             << "reorder_rate:"
+             << 1.0 * reorder_times / (bins - ambiguous_times + 0.001)
+             << "same pos length:" << equal_length;
+
+  if (bins <= 2) {
+    return false;
+  }
+
+  // 以下是判定两条线是否是分合流场景还是一条线存在误检的情况，重叠区域小于20m
+  if ((1.0 * order_times / (bins - ambiguous_times + 0.001) > 0.65 ||
+       1.0 * reorder_times / (bins - ambiguous_times + 0.001) > 0.65) &&
+      equal_length < 15) {
+    return true;
+  }
+
+  return false;
+}
 // tracker 合并策略
 void LaneLineMergeTrack::MergeTracks(std::vector<LaneTrackerPtr>* trackers) {
   if (trackers->size() < 2) {
@@ -156,6 +280,10 @@ void LaneLineMergeTrack::MergeTracks(std::vector<LaneTrackerPtr>* trackers) {
     for (int j = i + 1; j < trackers->size(); ++j) {
       const auto& right_line = trackers->at(j)->GetConstTarget();
       if (!right_line->IsTracked()) {
+        continue;
+      }
+
+      if (IsForkConvergelike(left_line, right_line)) {
         continue;
       }
       if (MergeOverlayStrategy(left_line, right_line)) {

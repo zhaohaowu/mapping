@@ -598,6 +598,11 @@ float GetDistPointLane(const Eigen::Vector3d& point_a,
   // 以B为起点计算向量BA 在向量BC上的投影
   Eigen::Vector2f BC = C - B;
   Eigen::Vector2f BA = A - B;
+
+  if (abs(BC.norm()) < 0.0001) {
+    return abs(BA.y());
+  }
+
   float dist_proj = BA.dot(BC) / BC.norm();
   // 计算点到直线的距离
   double point_dist = sqrt(pow(BA.norm(), 2) - pow(dist_proj, 2));
@@ -615,11 +620,19 @@ float GetDistBetweenTwoLane(const std::vector<Eigen::Vector3d>& point_set1,
     lane_short = point_set2;
     lane_long = point_set1;
   }
+
+  if (lane_long.size() == 1) {
+    HLOG_WARN << "GetDistBetweenTwoLane function Point Numbers ERROR";
+  }
+
   double dist_sum = 0.0;
   Eigen::Vector3d A, B, C;
   for (int i = 0, j = 0; i < lane_short.size() && j < lane_long.size(); ++i) {
     A = lane_short[i];
-    if (A.x() <= lane_long[0].x()) {
+    if (lane_long.size() == 1) {
+      B = lane_long[0];
+      C = lane_long[0];
+    } else if (A.x() <= lane_long[0].x()) {
       B = lane_long[0];
       C = lane_long[1];
     } else if (A.x() >= lane_long.back().x()) {

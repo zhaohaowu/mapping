@@ -106,7 +106,14 @@ void MatchLaneLine::Match(const HdMap& hd_map,
     }
     return;
   }
+  auto t1 = std::chrono::steady_clock::now();
+  auto t2 = std::chrono::steady_clock::now();
   MergeMapLines(map_boundary_lines, T_W_V);
+  t2 = std::chrono::steady_clock::now();
+  auto merge_map_lines_cost_time =
+      (t2.time_since_epoch() - t1.time_since_epoch()).count() / 1e9;
+  HLOG_INFO << "MatchLaneLine: merge_map_lines_cost_time: "
+            << merge_map_lines_cost_time << " ms";
   if (merged_map_lines_.empty()) {
     if (mm_params.use_valid_map_lane_fault && last_ins_timestamp_ != 0) {
       invalid_map_duration += fabs(ins_timestamp_ - last_ins_timestamp_);
@@ -539,11 +546,13 @@ bool MatchLaneLine::GetNeighboringMapLines(
       }
     }
   }
-  return !(nearest_line_match_pairs->empty() && farest_line_match_pairs->empty());
+  return !(nearest_line_match_pairs->empty() &&
+           farest_line_match_pairs->empty());
 }
 
 void MatchLaneLine::MergeMapLines(
     const std::shared_ptr<MapBoundaryLine>& boundary_lines, const SE3& T) {
+  HLOG_INFO << "MergeMapLines: start!";
   if (!lines_map_.empty()) {
     lines_map_.clear();
   }
@@ -555,7 +564,7 @@ void MatchLaneLine::MergeMapLines(
     auto id = line.first;
     const auto& control_points = line.second.control_point;
     if (control_points.size() <= 1) {
-      HLOG_ERROR << "control_points size <= 1";
+      HLOG_ERROR << "MergeMapLines: control_points size <= 1";
       continue;
     }
     auto start_point = control_points.front().point;
@@ -563,12 +572,13 @@ void MatchLaneLine::MergeMapLines(
     auto end_point = control_points.back().point;
     auto end_point_v = T_V_W * end_point;
     if (start_point.norm() == end_point.norm()) {
-      HLOG_ERROR << "start_point.norm() == end_point.norm()";
+      HLOG_ERROR << "MergeMapLines: start_point.norm() == end_point.norm()";
       continue;
     }
     LineSegment line_segment{id, end_point_v};
     lines_map_[start_point_v].emplace_back(std::move(line_segment));
   }
+  HLOG_INFO << "MergeMapLines: reconstruct map boundary lines end!";
   if (!visited_id_.empty()) {
     visited_id_.clear();
   }
@@ -582,11 +592,13 @@ void MatchLaneLine::MergeMapLines(
     if (!linked_lines_id_.empty()) {
       linked_lines_id_.clear();
     }
-    HLOG_DEBUG << "root_id: " << line.second.front().first;
+    HLOG_INFO << "MergeMapLines: traversal start, root_id: "
+              << line.second.front().first;
     Traversal(root_segment_start_point, line_ids, loop);
     multi_linked_lines_.emplace_back(linked_lines_id_);
   }
   if (multi_linked_lines_.empty()) {
+    HLOG_ERROR << "MergeMapLines: multi_linked_lines_ empty!";
     return;
   }
   if (!merged_map_lines_.empty()) {
@@ -619,6 +631,7 @@ void MatchLaneLine::MergeMapLines(
       merge_lane_ids[merge_lane_id] += 1;
     }
   }
+  HLOG_INFO << "MergeMapLines: add merge_lane_ids element end!";
   multi_linked_lines_.clear();
   return;
 }
@@ -631,14 +644,14 @@ void MatchLaneLine::Traversal(const V3& root_start_point,
   ++loop;
   if (loop > 100) {
     linked_lines_id_.emplace_back(line_ids);
-    HLOG_ERROR << "loop > 40, loop: " << loop;
+    HLOG_ERROR << "Traversal: loop > 40, loop: " << loop;
     return;
   }
   V3 cur_start_point = root_start_point;
   auto cur_line_infos_iter = lines_map_.find(cur_start_point);
   if (cur_line_infos_iter == lines_map_.end()) {
     if (line_ids.empty()) {
-      HLOG_ERROR << "traversal loop failed " << loop;
+      HLOG_ERROR << "Traversal: traversal loop failed " << loop;
       return;
     }
     linked_lines_id_.emplace_back(
@@ -661,7 +674,7 @@ void MatchLaneLine::Traversal(const V3& root_start_point,
       line_ids.pop_back();
     }
   } else {
-    HLOG_ERROR << "traversal loop: " << loop << " failed!";
+    HLOG_ERROR << "Traversal: traversal loop: " << loop << " failed!";
   }
 }
 
@@ -1059,7 +1072,6 @@ bool MatchLaneLine::GetFitPoints(const VP& points, const double x, V3* pt) {
       points.begin(), points.end(), V3({x, 0, 0}),
       [](const V3& p0, const V3& p1) { return p0(0, 0) < p1(0, 0); });
   if (iter == points.end() || iter == points.begin()) {
-    HLOG_ERROR << "can not find fit point";
     return false;
   }
   auto iter_pre = std::prev(iter);
@@ -1086,7 +1098,6 @@ bool MatchLaneLine::GetFitMapPoints(const std::vector<ControlPoint>& points,
                          return p0.point(0, 0) < p1.point(0, 0);
                        });
   if (iter == points.end() || iter == points.begin()) {
-    HLOG_ERROR << "can not find map point";
     return false;
   }
   auto iter_pre = std::prev(iter);

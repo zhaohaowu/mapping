@@ -646,6 +646,8 @@ void MapMatching::procData() {
         curr_roadmark_sensor.transport_element.header().data_stamp();
     percep_stamp_mutex_.unlock();
   }
+  HLOG_INFO << "ProcessData: get perception stamp end!"
+            << ", percep ts: " << percep_stamp_;
 
   // ins数据处理
   SE3 T02_W_V, T02_W_V_pre, T02_W_V_INPUT;
@@ -653,21 +655,23 @@ void MapMatching::procData() {
   HafNodeInfo cur_ins;
   ins_deque_mutex_.lock();
   if (ins_deque_.empty()) {
-    HLOG_ERROR << "INS deque is empty!";
+    HLOG_ERROR << "ProcessData: INS deque is empty!";
     return;
   }
   ins_deque_mutex_.unlock();
 
   if (!FindPecepINS(&cur_ins)) {
-    HLOG_ERROR << "Dont find ins when use perception line to find ins deque";
+    HLOG_ERROR << "ProcessData: Dont find ins when use perception line to find "
+                  "ins deque";
     std::unique_lock<std::mutex> lock(latest_ins_mutex_);
     cur_ins = latest_ins_;
   }
 
   if (!ExtractInsMsg(&cur_ins, &T02_W_V, esti_ref_point)) {
-    HLOG_ERROR << "ExtractInsMsg Fail!";
+    HLOG_ERROR << "ProcessData: ExtractInsMsg Fail!";
     return;
   }
+  HLOG_INFO << "ProcessData: extract ins msg end!";
 
   T02_W_V_pre = T02_W_V_pre_;
   T02_W_V_INPUT = T02_W_V;
@@ -681,7 +685,7 @@ void MapMatching::procData() {
       T02_W_V_INPUT = T_fc_.pose * (T02_W_V_last_.inverse() * T02_W_V);
     }
     pubOdomPoints(kTopicInputOdom, T02_W_V_INPUT.translation(),
-                        T02_W_V_INPUT.unit_quaternion(), time_sec_, time_nsec_);
+                  T02_W_V_INPUT.unit_quaternion(), time_sec_, time_nsec_);
   }
 
   // 感知数据处理
@@ -700,7 +704,8 @@ void MapMatching::procData() {
   hozon::mp::loc::Connect origin_connect;
   hozon::localization::Localization cur_fc;
   if (!FindPecepFC(&cur_fc)) {
-    HLOG_ERROR << "Dont find fc when use perception line to find fc deque";
+    HLOG_ERROR << "ProcessData: Dont find fc when use perception line to find "
+                  "fc deque";
     T_fc_.valid = false;
   } else {
     T_fc_.valid = true;
@@ -721,10 +726,13 @@ void MapMatching::procData() {
       T_fc_.velocity_vrf = velocity_vrf;
     }
   }
+  HLOG_INFO << "ProcessData: extract fc msg end!";
 
   time_.evaluate(
       [&, this] {
         map_match_->SetInsTs(input_stamp);
+        HLOG_INFO << "ProcessData: map matching start!"
+                  << ", intput ts: " << input_stamp;
         map_match_->Match(mhd_map_, all_perception, T02_W_V_INPUT, T_fc_);
       },
       "match lane :");
@@ -736,7 +744,7 @@ void MapMatching::procData() {
 
   matched_lane_pair_size_ = map_match_->GetMatchPairSize();
   if (matched_lane_pair_size_ < 2) {
-    HLOG_WARN << "matched_lane_pair_size stamp:" << ins_timestamp_
+    HLOG_WARN << "ProcessData: matched_lane_pair_size stamp:" << ins_timestamp_
               << " size:" << matched_lane_pair_size_;
   }
   ERROR_TYPE mm_err_type{static_cast<ERROR_TYPE>(map_match_->GetErrorType())};
@@ -790,14 +798,15 @@ void MapMatching::procData() {
     auto percep_point = pair.pecep_pv;
     auto diff_y = (T02_W_VF.inverse() * map_point).y() - percep_point.y();
     sum_diff_y += diff_y;
-    HLOG_DEBUG << "map_point.y: " << (T02_W_VF.inverse() * map_point).y()
+    HLOG_DEBUG << "ProcessData: map_point.y: "
+               << (T02_W_VF.inverse() * map_point).y()
                << ", percep_point.y: " << percep_point.y()
                << ", diff_y: " << diff_y;
   }
   avg_diff_y = sum_diff_y / connect.lane_line_match_pairs.size();
-  HLOG_DEBUG << "avg_diff_y: " << avg_diff_y;
+  HLOG_DEBUG << "ProcessData: avg_diff_y: " << avg_diff_y;
   if (!solve_is_ok) {
-    HLOG_ERROR << "solver is not ok stamp:" << ins_timestamp_;
+    HLOG_ERROR << "ProcessData: solver is not ok stamp:" << ins_timestamp_;
     output_valid_ = false;
   }
   {
@@ -809,7 +818,7 @@ void MapMatching::procData() {
       bad_lane_match_count_++;
     }
     if (output_valid_ && bad_lane_match_count_ > 5) {
-      HLOG_ERROR << "bad_lane_match";
+      HLOG_ERROR << "ProcessData: bad_lane_match";
       output_valid_ = false;
     }
     bad_lane_match_count_ = 0;
@@ -821,10 +830,9 @@ void MapMatching::procData() {
   bool lane_width_check = false;
   if (mm_params.lane_width_check_switch) {
     lane_width_check = map_match_->CheckLaneWidth(T02_W_VF);
-    HLOG_DEBUG << "lane_width_check = " << lane_width_check;
   }
   if (output_valid_ && lane_width_check) {
-    HLOG_ERROR << "lane width check failed!";
+    HLOG_ERROR << "ProcessData: lane width check failed!";
     output_valid_ = false;
   }
   {
@@ -867,7 +875,6 @@ void MapMatching::procData() {
       if (hozon::mp::util::RvizAgent::Instance().Ok() &&
           mm_params.use_rviz_bridge) {
         if (!_T_W_V_fine.translation().isZero()) {
-          HLOG_DEBUG << "optimize_finish_, " << Precusion(proc_stamp_, 16);
           setPoints(*lane, T02_W_V, &front_points_);
         } else {
           setPoints(*lane, T02_W_V, &front_points_);

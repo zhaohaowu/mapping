@@ -231,7 +231,7 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
   }
   last_percep_time = cur_percep_time;
   perception_count++;
-  if (perception_count >= 10) {
+  if (perception_count >= 1) {
     perception_count = 0;
     HLOG_INFO << "rev perception heartbeat";
   }

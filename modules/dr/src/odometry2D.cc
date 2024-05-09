@@ -31,7 +31,7 @@ bool Odometry2D::update() {
     std::vector<ImuDataHozon> imu_datas;
     get_imu_before_and_pop(oldest_wheels[1].timestamp + 5e-3, imu_datas);
     if (imu_datas.empty()) {
-      // HLOG_INFO << "==== init ==== no time_matched imu data";
+      // HLOG_DEBUG << "==== init ==== no time_matched imu data";
       break;
     }
     update_cnt++;
@@ -209,6 +209,9 @@ bool Odometry2D::update() {
     cur_odom_data.gpsStatus = imu_itr->gpsStatus;
     cur_odom_data.imu_seq = imu_itr->seq;
 
+    HLOG_DEBUG << "wsj_wheel_time_start" << cur_odom_data.timestamp
+               << "wsj_wheel_time_end";
+
     AddOdomData(cur_odom_data /*, delta_dis*/);
     last_local_vel = local_vel;
   }
@@ -250,7 +253,7 @@ bool Odometry2D::Initialize() {
 
   clear_imu_wheel_datas();
 
-  // HLOG_INFO << "wheel data size:" << get_wheel_data_size()
+  // HLOG_DEBUG << "wheel data size:" << get_wheel_data_size()
   //           << " imu data size:" << get_imu_data_size();
   OdometryData cur_odom_data;
   cur_odom_data.timestamp = get_front_wheel().timestamp;
@@ -267,7 +270,7 @@ bool Odometry2D::Initialize() {
   cur_odom_data.loc_acc = {0, 0, 0};
   cur_odom_data.gear = 0;
   AddOdomData(cur_odom_data /*, 0.0*/);
-  // HLOG_INFO << "DR initialize done";
+  // HLOG_DEBUG << "DR initialize done";
   std::cout << "DR initialize done" << std::endl;
   return true;
 }
@@ -275,6 +278,13 @@ bool Odometry2D::Initialize() {
 std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
     const WheelDataHozon& last, const WheelDataHozon& cur) {
   is_car_standstill_ = false;
+
+  HLOG_DEBUG << "wsj_rear_left_wheel_start" << cur.rear_left_wheel
+             << "wsj_rear_left_wheel_end";
+
+  double dt = cur.timestamp - last.timestamp;
+
+  double wheel_speed = (cur.rear_left_speed + cur.rear_right_speed) / 2.0;
 
   // double begin_wl_1 = last.front_left_wheel;
   // double begin_wr_1 = last.front_right_wheel;
@@ -325,9 +335,14 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
   // double delta_yaw = (right_dist - left_dist) / wheel_param_.b_;
   double delta_dist = (right_dist + left_dist) * 0.5;
 
+  // 底盘速度积分
+  double last_wheel_speed =
+      (last.rear_left_speed + last.rear_right_speed) / 2.0;
+  double delta_dist_filter = (wheel_speed + last_wheel_speed) / 2 * dt;
+
   // double wheel_speed = delta_dist / (cur.timestamp - last.timestamp);
   // 只求取了 X 方向得速度信息
-  double wheel_speed = (cur.rear_left_speed + cur.rear_right_speed) / 2.0;
+  // double wheel_speed = (cur.rear_left_speed + cur.rear_right_speed) / 2.0;
   is_car_standstill_ = fabs(wheel_speed) < 1.0e-6;
   if (wheel_vel_buffer_.size() > 10) {
     wheel_vel_buffer_.pop_front();
@@ -335,7 +350,8 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
   wheel_vel_buffer_.emplace_back(
       std::pair<double, double>(cur.timestamp, wheel_speed));
   Eigen::Vector3d vel(wheel_speed, 0, 0);
-  return std::make_tuple(vel, delta_dist);
+  // return std::make_tuple(vel, delta_dist);
+  return std::make_tuple(vel, delta_dist_filter);
 }
 
 void Odometry2D::UpdateOrientationByIMU(const ImuDataHozon& last_imu,

@@ -66,6 +66,14 @@ Eigen::Vector3d OdometryBase::filter_vel(const Eigen::Vector3d& cur_vel) {
 
 bool OdometryBase::add_wheel_data(const WheelDataHozon& wheel_data) {
   DRWriteLockGuard lock(wheel_rw_lock_);
+
+  HLOG_DEBUG << "wsj_rolling_conter_start" << wheel_data.rolling_counter
+             << "wsj_rolling_conter_end";
+
+  HLOG_DEBUG << "wheel_data.timestamp:" << wheel_data.timestamp;
+
+  HLOG_DEBUG << "wheel_data.rear_left_wheel:" << wheel_data.rear_left_wheel;
+
   if (wheel_datas_.empty()) {
     wheel_datas_.push_back(wheel_data);
   } else {
@@ -74,7 +82,7 @@ bool OdometryBase::add_wheel_data(const WheelDataHozon& wheel_data) {
       if (fabs(wheel_data.rear_left_wheel - last_data.rear_left_wheel) < 1e-2 &&
           fabs(wheel_data.rear_right_wheel - last_data.rear_right_wheel) <
               1e-2 &&
-          fabs(wheel_data.timestamp - last_data.timestamp - 0.01) < 1 * 1e-3) {
+          fabs(wheel_data.timestamp - last_data.timestamp) < 1 * 1e-3) {
         return false;
       }
       // TODO(zxl) 增加滤波器
@@ -117,7 +125,7 @@ bool OdometryBase::get_imu_before_and_pop(
       if (itr->timestamp < time) {
         imu_datas.emplace_back(*itr);
       } else {
-        // HLOG_INFO << "==== init ====" << time << "   error time ";
+        // HLOG_DEBUG << "==== init ====" << time << "   error time ";
         break;
       }
     }

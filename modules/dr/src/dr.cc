@@ -51,7 +51,7 @@ bool DRInterface::GetLatestPose(
     OdometryData latest_odom = dr_estimator_->get_latest_odom_data();
     double time_diff = timestamp - latest_odom.timestamp;
     if (time_diff > 0.015) {
-        HLOG_ERROR << "ins_time - dr_time:" << time_diff;
+      HLOG_ERROR << "ins_time - dr_time:" << time_diff;
     }
 
     // 预测
@@ -61,6 +61,13 @@ bool DRInterface::GetLatestPose(
     Eigen::Quaterniond latest_qua(
         latest_odom.odometry.qw, latest_odom.odometry.qx,
         latest_odom.odometry.qy, latest_odom.odometry.qz);
+
+    HLOG_DEBUG << "latest_pose:" << latest_pose.x() << "," << latest_pose.y()
+               << "," << latest_pose.z();
+    HLOG_DEBUG << "latest_odom.loc_vel:" << latest_odom.loc_vel.x() << ","
+               << latest_odom.loc_vel.y() << "," << latest_odom.loc_vel.z();
+    HLOG_DEBUG << "latest_qua:" << latest_qua.w() << "," << latest_qua.x()
+               << "," << latest_qua.y() << "," << latest_qua.z();
 
     Eigen::Vector3d predict_pos =
         latest_pose + latest_qua * (latest_odom.loc_vel * time_diff);
@@ -78,6 +85,21 @@ bool DRInterface::GetLatestPose(
     latest_odom.odometry.qy = predict_qat.y();
     latest_odom.odometry.qz = predict_qat.z();
     latest_odom.odometry.qw = predict_qat.w();
+
+    HLOG_DEBUG << "wsj_pos_veh_start" << latest_odom.odometry.x << ","
+               << latest_odom.odometry.y << "," << latest_odom.odometry.z
+               << "wsj_pos_veh_end";
+
+    HLOG_DEBUG << "wsj_theta_q_start" << latest_odom.odometry.qw << ","
+               << latest_odom.odometry.qx << "," << latest_odom.odometry.qy
+               << "," << latest_odom.odometry.qz << "wsj_theta_q_end";
+
+    HLOG_DEBUG << "wsj_dr_time_start" << latest_odom.timestamp
+               << "wsj_dr_time_end";
+
+    HLOG_DEBUG << "wsj_filter_vel_start" << (latest_odom.loc_vel.x())
+               << "wsj_filter_vel_end";
+
     SetLocationData(std::move(locationDataPtr), latest_odom);
     return true;
   } else {
@@ -357,9 +379,12 @@ void DRInterface::ConvertChassisData(
   // 档位信息(0-7:默认,park,reverse,neutral,drive,s,invalid)
   wheel_data.gear = chassis_proto->gear_location();
 
+  // rolling counter
+  wheel_data.rolling_counter = chassis_proto->idb4_msgcounter();
+
   // chassis_proto->vcu_info.VCU_ActGearPosition;
 
-  //   HLOG_INFO << "============== wheel gear: " << wheel_data.gear
+  //   HLOG_DEBUG << "============== wheel gear: " << wheel_data.gear
   //             << ",fr wheel:" << wheel_data.front_left_wheel
   //             << " ,fr: " <<
   //             chassis_proto->wheel_counter().wheel_counter_fl()

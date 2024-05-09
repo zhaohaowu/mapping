@@ -6,18 +6,24 @@
  ******************************************************************************/
 
 #include "map_fusion/map_select/map_select_lite.h"
+#include <math.h>
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <fstream>
+#include <iostream>
 #include <limits>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "map_fusion/fusion_common/calc_util.h"
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/orin_trigger_manager.h"
 #include "proto/perception/transport_element.pb.h"
+#include "third_party/x86_2004/opencv/include/opencv4/opencv2/core/types.hpp"
 
 namespace hozon {
 namespace mp {
@@ -62,6 +68,12 @@ using hozon::navigation_hdmap::MapMsg;
 
 bool ValidQuaternion(const hozon::common::Quaternion& quat);
 bool ValidLla(const hozon::common::PointENU& lla);
+bool SetProtoToBinaryFile(const google::protobuf::Message& message,
+                          const std::string& file_name) {
+  std::fstream output(file_name,
+                      std::ios::out | std::ios::trunc | std::ios::binary);
+  return message.SerializeToOstream(&output);
+}
 
 bool MapSelectLite::Init() {
   left_lanemarker_quality_debounce_.ResetTime(kRiseTime, kDownTime,
@@ -1550,7 +1562,10 @@ bool MapSelectLite::CheckFctIn(
   return true;
 }
 
-bool MapSelectLite::CheckMapMsg(const std::shared_ptr<hozon::hdmap::Map>& map) {
+bool MapSelectLite::CheckMapMsg(
+    const std::shared_ptr<hozon::hdmap::Map>& map,
+    const std::shared_ptr<hozon::localization::Localization>& localization,
+    bool loc_state, bool is_fusion_map) {
   if (map == nullptr) {
     return false;
   }
@@ -1558,7 +1573,17 @@ bool MapSelectLite::CheckMapMsg(const std::shared_ptr<hozon::hdmap::Map>& map) {
     return false;
   }
 
-  //! TBD: 自车处于有效的lane内
+  if (!is_fusion_map) {
+    return true;
+  }
+  // 目前只针对FusionMap起作用
+  if (loc_state) {
+    if (!IsCarInLanes(map, localization)) {
+      HLOG_ERROR << "Car is not in lanes scope"
+                 << "is_fusion_map: " << is_fusion_map;
+      return false;
+    }
+  }
 
   return true;
 }
@@ -1614,7 +1639,7 @@ bool MapSelectLite::PercepMapAvailable(
     const std::shared_ptr<hozon::hdmap::Map>& map,
     const std::shared_ptr<hozon::localization::Localization>& local_loc) {
   bool valid_local_loc = CheckLocalLoc(local_loc);
-  bool valid_percep_map = CheckMapMsg(map);
+  bool valid_percep_map = CheckMapMsg(map, local_loc, valid_local_loc, false);
   bool available = valid_local_loc && valid_percep_map;
   HLOG_INFO << "local_loc " << (valid_local_loc ? "valid" : "invalid")
             << ", percep_map " << (valid_percep_map ? "valid" : "invalid")
@@ -1628,7 +1653,8 @@ bool MapSelectLite::FusionMapAvailable(
     const std::shared_ptr<hozon::localization::Localization>& local_loc) {
   bool valid_local_loc = CheckLocalLoc(local_loc);
   bool valid_global_loc = CheckGlobalLoc(global_loc);
-  bool valid_fusion_map = CheckMapMsg(map);
+  bool valid_fusion_map =
+      CheckMapMsg(map, local_loc, valid_local_loc && valid_global_loc, true);
   bool available = valid_local_loc && valid_global_loc && valid_fusion_map;
   HLOG_INFO << "local_loc " << (valid_local_loc ? "valid" : "invalid")
             << ", global_loc " << (valid_global_loc ? "valid" : "invalid")
@@ -1675,6 +1701,313 @@ bool ValidLla(const hozon::common::PointENU& lla) {
     return false;
   }
   return true;
+}
+bool MapSelectLite::IsCarInLanes(
+    const std::shared_ptr<hozon::hdmap::Map>& map,
+    const std::shared_ptr<hozon::localization::Localization>& localization) {
+  lanes_lines_map_.clear();
+  min_dist_value_ = FLT_MAX;
+  for (const auto& lane : map->lane()) {
+    if (!CheckLane(lane)) {
+      HLOG_ERROR << "something is wrong when check lane ";
+      continue;
+    }
+    LaneLine lane_line;
+    lane_line.id = lane.id().id();
+    std::vector<cv::Point2f> kdtree_points;
+    std::vector<Eigen::Vector2d> line_points;
+
+    for (const auto& segment : lane.central_curve().segment()) {
+      for (const auto& point : segment.line_segment().point()) {
+        kdtree_points.emplace_back(static_cast<float>(point.x()),
+                                   static_cast<float>(point.y()));
+        line_points.emplace_back(point.x(), point.y());
+      }
+    }
+
+    // 构建当前lane的kdtree
+    cv::flann::KDTreeIndexParams index_params(1);
+    std::shared_ptr<cv::flann::Index> kdtree_ptr =
+        std::make_shared<cv::flann::Index>(cv::Mat(kdtree_points).reshape(1),
+                                           index_params);
+    lane_line.lane_line_kdtree = kdtree_ptr;
+    lane_line.lane_line_points = line_points;
+    lanes_lines_map_[lane.id().id()] = lane_line;
+  }
+
+  std::vector<float> local_car_pos = std::vector<float>{
+      static_cast<float>(localization->pose_local().position().x()),
+      static_cast<float>(localization->pose_local().position().y())};
+  Eigen::Vector2d car_pos = {localization->pose_local().position().x(),
+                             localization->pose_local().position().y()};
+
+  int dim = 1;
+  float curr_dist_value = max_half_lane_dis_;
+  for (const auto& lane_lines : lanes_lines_map_) {
+    std::vector<int> nearest_index(dim);
+    std::vector<float> nearest_dist(dim);
+    lane_lines.second.lane_line_kdtree->knnSearch(local_car_pos, nearest_index,
+                                                  nearest_dist, dim,
+                                                  cv::flann::SearchParams(-1));
+
+    auto nearest_dis_value = sqrt(nearest_dist[0]);
+
+    lanes_lines_map_[lane_lines.first].min_dist_value = nearest_dis_value;
+    lanes_lines_map_[lane_lines.first].nearest_index = nearest_index[0];
+  }
+
+  bool upate_lane_id = false;
+
+  for (const auto& lane_lines : lanes_lines_map_) {
+    auto lane_id = lane_lines.first;
+    auto lane_nearest_index = lane_lines.second.nearest_index;
+    int second_lane_index = 0;
+    auto line_points_size = lanes_lines_map_[lane_id].lane_line_points.size();
+    if (line_points_size < 2) {
+      continue;
+    }
+    if (lane_nearest_index <= line_points_size - 2) {
+      second_lane_index = lane_nearest_index + 1;
+    } else {
+      second_lane_index = lane_nearest_index - 1;
+    }
+    auto nearest_point =
+        lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index];
+    auto second_point =
+        lanes_lines_map_[lane_id].lane_line_points[second_lane_index];
+    auto line_dist_value =
+        PointToVectorDist(nearest_point, second_point, car_pos);
+    if (min_dist_value_ > line_dist_value) {
+      upate_lane_id = true;
+      min_dist_value_ = line_dist_value;
+      min_dist_id_ = lane_id;
+    }
+  }
+
+  if (upate_lane_id) {
+    UpdateThresholdValue(map, &curr_dist_value);
+  }
+
+  if (min_dist_value_ <= curr_dist_value) {
+    std::vector<Eigen::Vector2d> left_start_end_points;
+    std::vector<Eigen::Vector2d> right_start_end_points;
+    if (UpdateSelfBoundaryPoints(map, min_dist_id_, &left_start_end_points,
+                                 &right_start_end_points)) {
+      if ((2 == left_start_end_points.size()) &&
+          (2 == right_start_end_points.size())) {
+        if (PointInVectorSide(left_start_end_points.back(),
+                              right_start_end_points.back(), car_pos) < 0) {
+          HLOG_ERROR << "the car out the end point scope";
+          return false;
+        }
+        if (PointInVectorSide(left_start_end_points.front(),
+                              right_start_end_points.front(), car_pos) > 0) {
+          HLOG_ERROR << "the car out the start point scope";
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  HLOG_ERROR << "dis between car and the nearest cental line :"
+             << min_dist_value_
+             << "lanes_lines_  size:" << lanes_lines_map_.size()
+             << "location_state:  " << localization->location_state()
+             << "min dis lane id  " << min_dist_id_
+             << "curr_dist_value :" << curr_dist_value;
+  return false;
+}
+
+bool MapSelectLite::CheckLane(const hozon::hdmap::Lane& lane) {
+  // if (lane.successor_id().empty() && lane.predecessor_id().empty()) {
+  //   HLOG_ERROR << ">>>>1";
+  //   return false;
+  // }
+
+  if (!lane.has_central_curve() || !lane.has_left_boundary() ||
+      !lane.has_right_boundary() || !lane.has_id()) {
+    HLOG_ERROR << "lane has no boundary or id";
+    return false;
+  }
+  if (!lane.left_boundary().has_curve() || !lane.right_boundary().has_curve()) {
+    HLOG_ERROR << "lane has no curve";
+    return false;
+  }
+  if (lane.central_curve().segment().empty() ||
+      lane.left_boundary().curve().segment().empty() ||
+      lane.right_boundary().curve().segment().empty()) {
+    HLOG_ERROR << "the segment of lane is empty";
+    return false;
+  }
+  for (const auto& segment : lane.central_curve().segment()) {
+    if (!segment.has_line_segment()) {
+      HLOG_ERROR << "central line has no line segment";
+      return false;
+    }
+    if (segment.line_segment().point().empty()) {
+      HLOG_ERROR << "central line point vec is empty";
+      return false;
+    }
+    for (const auto& point : segment.line_segment().point()) {
+      if (!point.has_x() || !point.has_y()) {
+        HLOG_ERROR << "central line point has no x or y";
+        return false;
+      }
+    }
+  }
+  for (const auto& right_segment : lane.right_boundary().curve().segment()) {
+    if (!right_segment.has_line_segment()) {
+      HLOG_ERROR << "right boundary has no line segment";
+      return false;
+    }
+    if (right_segment.line_segment().point().empty()) {
+      HLOG_ERROR << "right boundary  point is empty";
+      return false;
+    }
+    for (const auto& point : right_segment.line_segment().point()) {
+      if (!point.has_x() || !point.has_y()) {
+        HLOG_ERROR << "the point of right boundary  has no x or y";
+        return false;
+      }
+    }
+  }
+  for (const auto& left_segment : lane.left_boundary().curve().segment()) {
+    if (!left_segment.has_line_segment()) {
+      HLOG_ERROR << "left boundary has no line segment";
+      return false;
+    }
+    if (left_segment.line_segment().point().empty()) {
+      HLOG_ERROR << "left boundary  point is empty";
+      return false;
+    }
+    for (const auto& point : left_segment.line_segment().point()) {
+      if (!point.has_x() || !point.has_y()) {
+        HLOG_ERROR << "the point of left boundary  has no x or y";
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool MapSelectLite::UpdateSelfBoundaryPoints(
+    const std::shared_ptr<hozon::hdmap::Map>& map, std::string lane_id,
+    std::vector<Eigen::Vector2d>* left_points,
+    std::vector<Eigen::Vector2d>* right_points) {
+  std::string suc_id;
+  while (IsLaneInMap(map, lane_id).is_lane_in_map) {
+    suc_id = lane_id;
+    lane_id = IsLaneInMap(map, lane_id).predecessor_id;
+  }
+
+  left_boundary_points_.clear();
+  right_boundary_points_.clear();
+  while (IsLaneInMap(map, suc_id).is_lane_in_map) {
+    auto suc_lane_info = IsLaneInMap(map, suc_id);
+    suc_id = suc_lane_info.successor_id;
+    if (CheckLane(suc_lane_info.lane)) {
+      for (const auto& left_segment :
+           suc_lane_info.lane.left_boundary().curve().segment()) {
+        for (const auto& point : left_segment.line_segment().point()) {
+          left_boundary_points_.emplace_back(point.x(), point.y());
+        }
+      }
+      for (const auto& right_segment :
+           suc_lane_info.lane.right_boundary().curve().segment()) {
+        for (const auto& point : right_segment.line_segment().point()) {
+          right_boundary_points_.emplace_back(point.x(), point.y());
+        }
+      }
+    }
+  }
+  RemoveDuplicates(&left_boundary_points_);
+  RemoveDuplicates(&right_boundary_points_);
+
+  if ((left_boundary_points_.size() < 2) ||
+      (right_boundary_points_.size() < 2)) {
+    return false;
+  }
+  left_points->emplace_back(left_boundary_points_.front().x(),
+                            left_boundary_points_.front().y());
+  left_points->emplace_back(left_boundary_points_.back().x(),
+                            left_boundary_points_.back().y());
+  right_points->emplace_back(right_boundary_points_.front().x(),
+                             right_boundary_points_.front().y());
+  right_points->emplace_back(right_boundary_points_.back().x(),
+                             right_boundary_points_.back().y());
+  return true;
+}
+
+bool MapSelectLite::UpdateThresholdValue(
+    const std::shared_ptr<hozon::hdmap::Map>& map, float* dis_value) {
+  for (const auto& lane : map->lane()) {
+    if ((min_dist_id_ == lane.id().id()) &&
+        (lanes_lines_map_.find(min_dist_id_) != lanes_lines_map_.end())) {
+      auto index = lanes_lines_map_[min_dist_id_].nearest_index;
+      auto points_size = lanes_lines_map_[min_dist_id_].lane_line_points.size();
+      if ((index > points_size - 1) || (index < 0)) {
+        break;
+      }
+      auto eigen_point = lanes_lines_map_[min_dist_id_].lane_line_points[index];
+      hozon::common::math::Vec2d nearest_point{eigen_point.x(),
+                                               eigen_point.y()};
+      std::vector<hozon::common::math::Vec2d> lbundary_points;
+      for (const auto& left_segment : lane.left_boundary().curve().segment()) {
+        for (const auto& point : left_segment.line_segment().point()) {
+          lbundary_points.emplace_back(point.x(), point.y());
+        }
+      }
+      if (lbundary_points.size() > 1) {
+        std::sort(lbundary_points.begin(), lbundary_points.end(),
+                  [&](const auto& a, const auto& b) {
+                    return a.DistanceTo(nearest_point) <
+                           b.DistanceTo(nearest_point);
+                  });
+        Eigen::Vector2d p0 = {lbundary_points.at(0).x(),
+                              lbundary_points.at(0).y()};
+        Eigen::Vector2d p1 = {lbundary_points.at(1).x(),
+                              lbundary_points.at(1).y()};
+        auto vertical_dist = PointToVectorDist(p0, p1, eigen_point);
+
+        // HLOG_ERROR << "vertical_dist: " << vertical_dist
+        //            << "p0 x :" << lbundary_points.at(0).x()
+        //            << "p0 y:" << lbundary_points.at(0).y()
+        //            << "   p1 x: " << lbundary_points.at(1).x()
+        //            << "   p1 y: " << lbundary_points.at(1).y()
+        //            << "  eigen_point x: " << eigen_point.x()
+        //            << "  eigen_point y: " << eigen_point.y();
+        float update_dist = (vertical_dist < max_half_lane_dis_)
+                                ? vertical_dist
+                                : max_half_lane_dis_;
+
+        *dis_value = (update_dist > min_half_lane_dis_) ? update_dist
+                                                        : min_half_lane_dis_;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+LaneInMapInfo MapSelectLite::IsLaneInMap(
+    const std::shared_ptr<hozon::hdmap::Map>& map, std::string lane_id) {
+  LaneInMapInfo lane_info;
+  lane_info.is_lane_in_map = false;
+  for (const auto& lane : map->lane()) {
+    if (lane_id == lane.id().id()) {
+      lane_info.is_lane_in_map = true;
+      if (!lane.predecessor_id().empty()) {
+        lane_info.predecessor_id = lane.predecessor_id()[0].id();
+      }
+      if (!lane.successor_id().empty()) {
+        lane_info.successor_id = lane.successor_id()[0].id();
+      }
+      lane_info.lane = lane;
+      break;
+    }
+  }
+  return lane_info;
 }
 
 }  // namespace mf

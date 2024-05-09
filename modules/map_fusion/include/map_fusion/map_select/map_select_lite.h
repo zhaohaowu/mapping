@@ -14,6 +14,9 @@
 // #include "Eigen/Dense"
 // #include "Eigen/Geometry"
 // #include "modules/map_fusion/include/map_fusion/map_fusion.h"
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d.hpp>
+
 #include "depend/map/hdmap/hdmap.h"
 #include "depend/proto/dead_reckoning/dr.pb.h"
 #include "depend/proto/localization/localization.pb.h"
@@ -34,6 +37,20 @@ namespace mf {
 struct Point2d {
   double x{0.0};
   double y{0.0};
+};
+struct LaneLine {
+  std::string id;
+  std::shared_ptr<cv::flann::Index> lane_line_kdtree;  // 中心线的Kdtree
+  std::vector<Eigen::Vector2d> lane_line_points;
+  float min_dist_value{FLT_MAX};
+  int nearest_index{0};
+};
+struct LaneInMapInfo {
+  bool is_lane_in_map;
+  std::string lane_id;
+  std::string predecessor_id;
+  std::string successor_id;
+  hozon::hdmap::Lane lane;
 };
 constexpr double kDfaultLaneWidth = 1.875;
 constexpr int kLaneMarkerDelaySize = 5;
@@ -157,7 +174,10 @@ class MapSelectLite {
       const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in);
   bool CheckFctIn(
       const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in);
-  bool CheckMapMsg(const std::shared_ptr<hozon::hdmap::Map>& map);
+  bool CheckMapMsg(
+      const std::shared_ptr<hozon::hdmap::Map>& map,
+      const std::shared_ptr<hozon::localization::Localization>& localization,
+      bool loc_state, bool is_fusion_map);
   bool CheckGlobalLoc(
       const std::shared_ptr<hozon::localization::Localization>& loc);
   bool CheckLocalLoc(
@@ -169,6 +189,18 @@ class MapSelectLite {
       const std::shared_ptr<hozon::hdmap::Map>& map,
       const std::shared_ptr<hozon::localization::Localization>& global_loc,
       const std::shared_ptr<hozon::localization::Localization>& local_loc);
+  bool IsCarInLanes(
+      const std::shared_ptr<hozon::hdmap::Map>& map,
+      const std::shared_ptr<hozon::localization::Localization>& localization);
+  bool CheckLane(const hozon::hdmap::Lane& lane);
+  bool UpdateSelfBoundaryPoints(const std::shared_ptr<hozon::hdmap::Map>& map,
+                                std::string lane_id,
+                                std::vector<Eigen::Vector2d>* left_points,
+                                std::vector<Eigen::Vector2d>* right_points);
+  bool UpdateThresholdValue(const std::shared_ptr<hozon::hdmap::Map>& map,
+                            float* dis_value);
+  LaneInMapInfo IsLaneInMap(const std::shared_ptr<hozon::hdmap::Map>& map,
+                            std::string lane_id);
 
   double left_map_c0_ = kDfaultLaneWidth;
   double right_map_c0_ = -kDfaultLaneWidth;
@@ -229,6 +261,14 @@ class MapSelectLite {
   double last_dr_time_{0.0};
   double last_fct_in_time_{0.0};
   hozon::routing::RoutingResponse debug_;
+  std::map<std::string, LaneLine> lanes_lines_map_;
+  std::vector<hozon::common::math::Vec2d> left_boundary_points_;
+  std::vector<hozon::common::math::Vec2d> right_boundary_points_;
+  float min_dist_value_;
+  std::string min_dist_id_;
+  int nearest_index_;
+  float max_half_lane_dis_ = 3.5;
+  float min_half_lane_dis_ = 1.35;
 };
 
 }  // namespace mf

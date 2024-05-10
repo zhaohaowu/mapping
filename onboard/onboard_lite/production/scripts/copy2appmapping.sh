@@ -31,7 +31,7 @@ function copy() {
   fi
 }
 function remove() {
-  rm -rf /app/runtime_service/mapping
+  find /app/runtime_service/mapping -mindepth 1 -maxdepth 1 ! -name etc -exec rm -rf {} +
   rm -rf /app/conf/mapping/*
 }
 

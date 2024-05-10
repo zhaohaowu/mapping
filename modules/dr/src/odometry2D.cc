@@ -66,6 +66,9 @@ bool Odometry2D::update() {
               car_standstill_omg_sum_ / car_standstill_counter_;
           gyro_bias_ = gyro_bias_ * 0.8 + gyro_tmp * 0.2;
 
+          HLOG_DEBUG << "wsj_dr_gyro_z_static_start" << gyro_bias_.z()
+                     << "wsj_dr_gyro_z_static_end";
+
           constexpr double max_gyro_bias = 0.005;
           gyro_bias_[2] =
               std::min(std::max(gyro_bias_[2], -max_gyro_bias), max_gyro_bias);
@@ -79,8 +82,13 @@ bool Odometry2D::update() {
       }
 
       // 使用 ins 零偏
-      if (itr_pre->gpsStatus == 4 || itr_pre->gpsStatus == 8) {
-        gyro_bias_[2] = itr_pre->gyo_bias[2] * M_PI / 180;
+      if ((itr_pre->gpsStatus == 4) && (itr_pre->sdPosition.x() <= 0.05) &&
+          (itr_pre->sdPosition.y() <= 0.05)) {
+        // gyro_bias_[2] = itr_pre->gyo_bias[2] * M_PI / 180;
+
+        double gyro_tmp_ins_z = itr_pre->gyo_bias[2] * M_PI / 180;
+        gyro_bias_[2] = gyro_bias_[2] * 0.8 + gyro_tmp_ins_z * 0.2;
+
         constexpr double max_gyro_bias = 0.005;
         gyro_bias_[2] =
             std::min(std::max(gyro_bias_[2], -max_gyro_bias), max_gyro_bias);
@@ -211,6 +219,9 @@ bool Odometry2D::update() {
 
     HLOG_DEBUG << "wsj_wheel_time_start" << cur_odom_data.timestamp
                << "wsj_wheel_time_end";
+
+    HLOG_DEBUG << "wsj_dr_gyro_offset_start" << gyro_bias_[2]
+               << "wsj_dr_gyro_offset_end";
 
     AddOdomData(cur_odom_data /*, delta_dis*/);
     last_local_vel = local_vel;

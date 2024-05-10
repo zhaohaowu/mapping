@@ -170,6 +170,8 @@ void DRInterface::SetLocationData(
   locationDataPtr->mutable_pose()->mutable_pose_local()->set_heading(
       static_cast<float>(eulerAngle[2]));
 
+  HLOG_DEBUG << "wsj_dr_heading_start" << eulerAngle[2] << "wsj_dr_heading_end";
+
   // 速度
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
@@ -330,6 +332,9 @@ void DRInterface::ConvertImuData(
   imu_data.mounting_error << imu_proto->ins_info().mounting_error().x(),
       imu_proto->ins_info().mounting_error().y(),
       imu_proto->ins_info().mounting_error().z();
+  imu_data.sdPosition << imu_proto->ins_info().sd_position().x(),
+      imu_proto->ins_info().sd_position().y(),
+      imu_proto->ins_info().sd_position().z();
 }
 
 void DRInterface::ConvertChassisData(

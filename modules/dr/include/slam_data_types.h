@@ -103,6 +103,7 @@ struct ImuDataHozon {
   Eigen::Vector3d gyo_bias;
   Eigen::Vector3d acc_bias;
   Eigen::Vector3d mounting_error;
+  Eigen::Vector3d sdPosition;  // 经纬高标准差 Unit: meter
 };
 using ImuDataConstPtr = std::shared_ptr<const ImuDataHozon>;
 using ImuDataPtr = std::shared_ptr<ImuDataHozon>;

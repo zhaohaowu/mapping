@@ -39,11 +39,11 @@ bool KalmanFilter::Init(const std::string& configfile) {
     return false;
   }
   const auto P_raw = node[key].as<std::vector<double>>();
-  if (P_raw.size() != 16) {
-    HLOG_ERROR << key << " dimension should be 4x4";
+  if (P_raw.size() != 36) {
+    HLOG_ERROR << key << " dimension should be 6x6";
     return false;
   }
-  Eigen::Matrix<double, 4, 4> P_tmp(P_raw.data());
+  Eigen::Matrix<double, 6, 6> P_tmp(P_raw.data());
   P_ = P_tmp;
 
   key = "Q";
@@ -52,11 +52,11 @@ bool KalmanFilter::Init(const std::string& configfile) {
     return false;
   }
   const auto Q_raw = node[key].as<std::vector<double>>();
-  if (Q_raw.size() != 16) {
+  if (Q_raw.size() != 36) {
     HLOG_ERROR << key << " dimension should be 6x6";
     return false;
   }
-  Eigen::Matrix<double, 4, 4> Q_tmp(Q_raw.data());
+  Eigen::Matrix<double, 6, 6> Q_tmp(Q_raw.data());
   Q_ = Q_tmp;
 
   key = "H";
@@ -65,11 +65,11 @@ bool KalmanFilter::Init(const std::string& configfile) {
     return false;
   }
   const auto H_raw = node[key].as<std::vector<double>>();
-  if (H_raw.size() != 16) {
+  if (H_raw.size() != 36) {
     HLOG_ERROR << key << " dimension should be 6x6";
     return false;
   }
-  Eigen::Matrix<double, 4, 4> H_tmp(H_raw.data());
+  Eigen::Matrix<double, 6, 6> H_tmp(H_raw.data());
   H_ = H_tmp;
 
   key = "R";
@@ -78,11 +78,11 @@ bool KalmanFilter::Init(const std::string& configfile) {
     return false;
   }
   const auto R_raw = node[key].as<std::vector<double>>();
-  if (R_raw.size() != 16) {
+  if (R_raw.size() != 36) {
     HLOG_ERROR << key << " dimension should be 6x6";
     return false;
   }
-  Eigen::Matrix<double, 4, 4> R_tmp(R_raw.data());
+  Eigen::Matrix<double, 6, 6> R_tmp(R_raw.data());
   R_ = R_tmp;
 
   configfile_ = configfile;
@@ -106,40 +106,49 @@ void KalmanFilter::SetInitialState(const Eigen::VectorXd& state) {
 
 void KalmanFilter::SetF(const Eigen::MatrixXd& F) { F_ = F; }
 
-void KalmanFilter::Predict(double t, double ve, double vn, double vu,
+void KalmanFilter::Predict(double t, double vx, double vy, double vz,
                            double avy) {
-  const double delta_e = t * ve;
-  const double delta_n = t * vn;
-  const double delta_u = t * vu;
-  const double delta_yaw = t * avy;
+  // 车体系下线速度和角速度
+  Eigen::Vector3d liner_vel_VRF = {vx, vy, vz};
+  Eigen::Vector3d delta_dist = liner_vel_VRF * t;
+  Eigen::Vector3d angular_vel_VRF = {0, 0, avy};
+  Eigen::Vector3d delta_angle = angular_vel_VRF * t;
+  // 1.状态预测
+  Sophus::SO3d state_rot = Sophus::SO3d::exp(state_.tail(3));
+  state_.head(3) = state_.head(3) + state_rot.matrix() * delta_dist;
+  state_.tail(3) = (state_rot * Sophus::SO3d::exp(delta_angle)).log();
 
-  Eigen::VectorXd u(4, 1);
-  u << delta_e, delta_n, delta_u, delta_yaw;
-  state_ = F_ * state_ + u;
+  // 2.计算F
+  Eigen::MatrixXd F = Eigen::MatrixXd::Identity(6, 6);
+  F.template block<3, 3>(0, 3) = -1 * state_rot.matrix() * SkewMatrix(angular_vel_VRF);
+  F.template block<3, 1>(0, 3) = Eigen::Vector3d::Zero();
+  F.template block<3, 1>(0, 4) = Eigen::Vector3d::Zero();
+  Sophus::SO3d delta_rot = Sophus::SO3d::exp(angular_vel_VRF);
+  Eigen::Vector3d JrSO3_input = (state_rot * delta_rot).log();
+  F.template block<3, 3>(3, 3) = JrSO3(JrSO3_input).inverse() * delta_rot.matrix().transpose();
+  F.template block<3, 1>(3, 3) = Eigen::Vector3d::Zero();
+  F.template block<3, 1>(3, 4) = Eigen::Vector3d::Zero();
+  F.template block<2, 1>(3, 5) = Eigen::Vector2d::Zero();
+  SetF(F);
 
-  if (state_(3) > 360.0) {
-    state_(3) -= 360.0;
-  } else if (state_(3) < 0.0) {
-    state_(3) += 360.0;
-  }
-
+  // 3.P预测
   P_ = F_ * P_ * F_.transpose() + Q_;
 }
 
 void KalmanFilter::MeasurementUpdate(const Eigen::VectorXd& z) {
   auto meas = z;
-  if (fabs(state_(3) - meas(3)) > angle_sign_change_thr_) {
-    if (state_(3) < 180.0 && meas(3) > 180.0) {
-      meas(3) -= 360.0;
-    } else if (state_(3) > 180.0 && meas(3) < 180.0) {
-      meas(3) += 360.0;
-    }
-  }
 
-  const auto y = meas - H_ * state_;
+  Sophus::SO3d meas_rot = Sophus::SO3d::exp(meas.tail(3));
+  Sophus::SO3d state_rot = Sophus::SO3d::exp(state_.tail(3));
+  Eigen::VectorXd y_diff(6, 1);
+  y_diff.template block<3, 1>(0, 0) = meas.head(3) - state_.head(3);
+  y_diff.template block<3, 1>(3, 0) = (state_rot.inverse() * meas_rot).log();
+
   const auto S = H_ * P_ * H_.transpose() + R_;
   const auto K = P_ * H_.transpose() * S.inverse();
-  state_ = state_ + (K * y);
+  auto K_ydiff = K * y_diff;
+  state_.head(3) = state_.head(3) + K_ydiff.head(3);
+  state_.tail(3) = (state_rot * Sophus::SO3d::exp(K_ydiff.tail(3))).log();
   const int size = state_.size();
   const auto I = Eigen::MatrixXd::Identity(size, size);
   P_ = (I - K * H_) * P_;
@@ -148,6 +157,32 @@ void KalmanFilter::MeasurementUpdate(const Eigen::VectorXd& z) {
 Eigen::VectorXd KalmanFilter::GetState() const { return state_; }
 
 bool KalmanFilter::IsInitialized() const { return init_; }
+
+Eigen::Matrix<double, 3, 3> KalmanFilter::JlSO3(
+    const Eigen::Matrix<double, 3, 1>& w) {
+  double theta = w.norm();
+  if (theta < 1e-6) {
+    return Eigen::MatrixXd::Identity(3, 3);
+  } else {
+    Eigen::Matrix<double, 3, 1> a = w / theta;
+    Eigen::Matrix<double, 3, 3> J =
+        sin(theta) / theta * Eigen::MatrixXd::Identity(3, 3) +
+        (1 - sin(theta) / theta) * a * a.transpose() +
+        ((1 - cos(theta)) / theta) * SkewMatrix(a);
+    return J;
+  }
+}
+
+Eigen::Matrix<double, 3, 3> KalmanFilter::JrSO3(
+    const Eigen::Matrix<double, 3, 1>& w) {
+  return JlSO3(-w);
+}
+
+Eigen::Matrix<double, 3, 3> KalmanFilter::SkewMatrix(Eigen::Vector3d v) {
+  Eigen::Matrix<double, 3, 3> m;
+  m << 0, -v(2), v(1), v(2), 0, -v(0), -v(1), v(0), 0;
+  return m;
+}
 
 }  // namespace fc
 }  // namespace loc

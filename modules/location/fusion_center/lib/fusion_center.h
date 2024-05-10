@@ -14,6 +14,7 @@
 #include <thread>
 #include <utility>
 
+#include <Sophus/se3.hpp>
 #include "modules/location/fusion_center/lib/eskf.h"
 #include "modules/location/fusion_center/lib/kalman_filter.h"
 #include "modules/location/fusion_center/lib/monitor.h"

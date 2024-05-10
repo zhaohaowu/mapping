@@ -92,7 +92,7 @@ bool ESKF::Init(const std::string& configfile) {
   X_dx_.setZero();
   Fx_.setZero();
   K_.setZero();
-  P_.setZero();
+  P_ = Mat15T::Identity();
   HLOG_INFO << "ESKF Yaml Init Success!";
 
   return true;

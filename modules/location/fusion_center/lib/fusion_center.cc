@@ -1390,6 +1390,9 @@ double Rad2TwoPi(double rad) {
   if (deg < 0) {
     deg += 360.0;
   }
+  if (deg > 360.0) {
+    deg -= 360;
+  }
   return deg;
 }
 
@@ -1412,14 +1415,11 @@ void FusionCenter::KalmanFiltering(Node* const node) {
     return;
   }
 
-  Eigen::VectorXd state(4, 1);
-  state << node->enu(0), node->enu(1), node->enu(2),
-      Rad2TwoPi(node->orientation(2));
-
+  Eigen::VectorXd state(6, 1);
+  state << node->enu(0), node->enu(1), node->enu(2), 0, 0, node->orientation(2);
   if (!kalman_filter_.IsInitialized()) {
     kalman_filter_.SetInitialState(state);
   }
-
   double delta_t = 0.0;
   if (prev_global_valid_) {
     prev_global_node_mutex_.lock();
@@ -1427,23 +1427,15 @@ void FusionCenter::KalmanFiltering(Node* const node) {
     prev_global_node_mutex_.unlock();
   }
 
-  Eigen::MatrixXd F = Eigen::MatrixXd::Identity(4, 4);
-  kalman_filter_.SetF(F);
-
-  kalman_filter_.Predict(delta_t, node->velocity(0), node->velocity(1),
-                         node->velocity(2), node->angular_velocity(2));
+  kalman_filter_.Predict(delta_t, node->linear_vel_VRF(0),
+                         node->linear_vel_VRF(1), node->linear_vel_VRF(2),
+                         node->angular_velocity(2) / 57.3);
   kalman_filter_.MeasurementUpdate(state);
 
   const auto curr_state = kalman_filter_.GetState();
   node->enu << curr_state(0), curr_state(1), curr_state(2);
   if (params_.use_smooth_yaw) {
-    double yaw_deg = curr_state(3);
-    if (yaw_deg > 360.0) {
-      yaw_deg -= 360.0;
-    } else if (yaw_deg < 0.0) {
-      yaw_deg += 360.0;
-    }
-    node->orientation(2) = TwoPi2Rad(yaw_deg);
+    node->orientation(2) = curr_state(5);
   }
 }
 
@@ -1478,15 +1470,6 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
       HLOG_ERROR << "not find valid output in fusion deque";
       return false;
     }
-    // fusion_node = *(fusion_deque_.back());
-  }
-
-  const double ins_fusion_diff = ctx->ins_node.ticktime - fusion_node.ticktime;
-  const double diff_dr_fc = ctx->dr_node.ticktime - fusion_node.ticktime;
-  if (ins_fusion_diff < 0 || diff_dr_fc < 0) {
-    HLOG_ERROR << "ins  or time behind newest fusion time,ins_fusion_diff"
-               << ins_fusion_diff << ",diff_dr_fc:" << diff_dr_fc;
-    return false;
   }
 
   // 定位状态码赋值
@@ -1497,9 +1480,11 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     loc_state = FaultCodeAssign(loc_state);
   }
 
+  const double diff_dr_fc = ctx->dr_node.ticktime - fusion_node.ticktime;
   if (diff_dr_fc < 1e-3) {
     ctx->global_node = fusion_node;
     ctx->global_node.location_state = loc_state;
+    ctx->global_node.velocity = ctx->ins_node.velocity;
   } else {
     // DR实时补帧至最新
     Node refer_node = fusion_node;
@@ -1513,6 +1498,8 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     }
     // todo此处后期改成dr_node
     ctx->global_node = ctx->ins_node;
+    // ctx->global_node = ctx->dr_node;
+    // ctx->global_node.rtk_status = ctx->ins_node.rtk_status;
     ctx->global_node.location_state = loc_state;
     ctx->global_node.cov = fusion_node.cov;
     #ifdef ISORIN
@@ -1522,28 +1509,16 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     const auto& pose = Node2SE3(refer_node) * T_delta;
     ctx->global_node.enu = pose.translation();
     ctx->global_node.orientation = pose.so3().log();
+    ctx->global_node.quaternion = pose.so3().unit_quaternion();
+    ctx->global_node.velocity =
+        ctx->global_node.quaternion * ctx->dr_node.velocity;
   }
 
   // kf 使用dr 替换ins
-  HLOG_DEBUG << "ctx->global_node.velocity_old:"
-             << ctx->global_node.velocity.x() << ","
-             << ctx->global_node.velocity.y() << ","
-             << ctx->global_node.velocity.z();
-  HLOG_DEBUG << "ctx->global_node.angular_velocity_old:"
-             << ctx->global_node.angular_velocity.z();
-
-  Eigen::Vector3d Vgb = ctx->global_node.quaternion * ctx->dr_node.velocity;
-  ctx->global_node.velocity = Vgb;
+  ctx->global_node.linear_vel_VRF = ctx->dr_node.velocity;
   ctx->global_node.angular_velocity =
       (ctx->dr_node.angular_velocity) * 180 / M_PI;
   ctx->global_node.ticktime = ctx->dr_node.ticktime;
-
-  HLOG_DEBUG << "ctx->global_node.velocity_new:"
-             << ctx->global_node.velocity.x() << ","
-             << ctx->global_node.velocity.y() << ","
-             << ctx->global_node.velocity.z();
-  HLOG_DEBUG << "ctx->global_node.angular_velocity_new:"
-             << ctx->global_node.angular_velocity.z();
 
   // KF滤波
   if (params_.smooth_outputs) {

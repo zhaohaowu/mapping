@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include <Sophus/se3.hpp>
+
 namespace hozon {
 namespace mp {
 namespace loc {
@@ -24,10 +26,13 @@ class KalmanFilter {
   void Reinit();
   void SetInitialState(const Eigen::VectorXd& state);
   void SetF(const Eigen::MatrixXd& F);
-  void Predict(double t, double ve, double vn, double vu, double avy);
+  void Predict(double t, double vx, double vy, double vz, double avy);
   void MeasurementUpdate(const Eigen::VectorXd& z);
   bool IsInitialized() const;
   Eigen::VectorXd GetState() const;
+  Eigen::Matrix<double, 3, 3> JlSO3(const Eigen::Matrix<double, 3, 1>& w);
+  Eigen::Matrix<double, 3, 3> JrSO3(const Eigen::Matrix<double, 3, 1>& w);
+  Eigen::Matrix<double, 3, 3> SkewMatrix(Eigen::Vector3d v);
 
  private:
   bool init_ = false;

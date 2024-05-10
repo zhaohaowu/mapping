@@ -619,6 +619,25 @@ double MapMatching::GetCurrentTime() {
          1e3;  // ms
 }
 
+bool MapMatching::CompensateInsYError(SE3* T02_W_V_INPUT,
+                                      double ins_timeStamp) {
+  if (abs(ins_timeStamp - T_fc_.timeStamp) > 0.1) {
+    return false;
+  }
+  // 构建补偿y后的当前INS测量,将INS转到车体系下进行y的偏差，以INS节点为原点
+  SE3 T_ins = *T02_W_V_INPUT;
+  SE3 T_fc = T_fc_.pose;
+
+  SE3 T_diff = T_ins.inverse() * T_fc;
+  Eigen::Vector3d ori_diff(0, 0, 0);
+  Sophus::SO3d R_diff = Sophus::SO3d::exp(ori_diff);
+  Eigen::Vector3d pose_diff(0, T_diff.translation().y(), 0);
+  SE3 T_com_diff(R_diff, pose_diff);
+  *T02_W_V_INPUT = T_ins * T_com_diff;
+
+  return true;
+}
+
 void MapMatching::procData() {
   Eigen::Vector3d esti_ref_point;
   ref_point_mutex_.lock();
@@ -645,6 +664,31 @@ void MapMatching::procData() {
     percep_stamp_ =
         curr_roadmark_sensor.transport_element.header().data_stamp();
     percep_stamp_mutex_.unlock();
+  }
+  //  寻找FC
+  hozon::localization::Localization cur_fc;
+  if (!FindPecepFC(&cur_fc)) {
+    HLOG_ERROR << "Dont find fc when use perception line to find fc deque";
+    T_fc_.valid = false;
+  } else {
+    T_fc_.valid = true;
+    Eigen::Quaterniond q_W_V(
+        cur_fc.pose().quaternion().w(), cur_fc.pose().quaternion().x(),
+        cur_fc.pose().quaternion().y(), cur_fc.pose().quaternion().z());
+    if (fabs(q_W_V.norm() - 1) < 1e-3) {
+      q_W_V.normalize();
+      Eigen::Vector3d pose(cur_fc.pose().gcj02().x(), cur_fc.pose().gcj02().y(),
+                           cur_fc.pose().gcj02().z());
+      ref_point_mutex_.lock();
+      Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, esti_ref_point);
+      ref_point_mutex_.unlock();
+      T_fc_.pose = SE3(q_W_V, enu);
+      Eigen::Vector3d velocity_vrf(cur_fc.pose().linear_velocity_vrf().x(),
+                                   cur_fc.pose().linear_velocity_vrf().y(),
+                                   cur_fc.pose().linear_velocity_vrf().z());
+      T_fc_.velocity_vrf = velocity_vrf;
+      T_fc_.timeStamp = cur_fc.header().data_stamp();
+    }
   }
   HLOG_INFO << "ProcessData: get perception stamp end!"
             << ", percep ts: " << percep_stamp_;
@@ -679,10 +723,9 @@ void MapMatching::procData() {
 
   bool use_extrapolate = static_cast<bool>(
       cur_ins.gps_status() != static_cast<int>(InsStatus::RTK_STABLE));
-  if (use_extrapolate && proc_stamp_last_ > 0.0) {
-    // T02_W_V_INPUT = T02_W_VF_last_ * (T02_W_V_last_.inverse() * T02_W_V);
-    if (T_fc_.valid) {
-      T02_W_V_INPUT = T_fc_.pose * (T02_W_V_last_.inverse() * T02_W_V);
+  if (use_extrapolate && proc_stamp_last_ > 0.0 && T_fc_.valid) {
+    if (!CompensateInsYError(&T02_W_V_INPUT, cur_ins.header().data_stamp())) {
+      HLOG_ERROR << "CompensateInsYError Fail!";
     }
     pubOdomPoints(kTopicInputOdom, T02_W_V_INPUT.translation(),
                   T02_W_V_INPUT.unit_quaternion(), time_sec_, time_nsec_);
@@ -702,31 +745,6 @@ void MapMatching::procData() {
   Sophus::SE3d T02_W_VF = T02_W_V, _T_W_V_fine = T02_W_V;
   hozon::mp::loc::Connect connect;
   hozon::mp::loc::Connect origin_connect;
-  hozon::localization::Localization cur_fc;
-  if (!FindPecepFC(&cur_fc)) {
-    HLOG_ERROR << "ProcessData: Dont find fc when use perception line to find "
-                  "fc deque";
-    T_fc_.valid = false;
-  } else {
-    T_fc_.valid = true;
-    Eigen::Quaterniond q_W_V(
-        cur_fc.pose().quaternion().w(), cur_fc.pose().quaternion().x(),
-        cur_fc.pose().quaternion().y(), cur_fc.pose().quaternion().z());
-    if (fabs(q_W_V.norm() - 1) < 1e-3) {
-      q_W_V.normalize();
-      Eigen::Vector3d pose(cur_fc.pose().gcj02().x(), cur_fc.pose().gcj02().y(),
-                           cur_fc.pose().gcj02().z());
-      ref_point_mutex_.lock();
-      Eigen::Vector3d enu = util::Geo::Gcj02ToEnu(pose, esti_ref_point);
-      ref_point_mutex_.unlock();
-      T_fc_.pose = SE3(q_W_V, enu);
-      Eigen::Vector3d velocity_vrf(cur_fc.pose().linear_velocity_vrf().x(),
-                                   cur_fc.pose().linear_velocity_vrf().y(),
-                                   cur_fc.pose().linear_velocity_vrf().z());
-      T_fc_.velocity_vrf = velocity_vrf;
-    }
-  }
-  HLOG_INFO << "ProcessData: extract fc msg end!";
 
   time_.evaluate(
       [&, this] {
@@ -875,7 +893,8 @@ void MapMatching::procData() {
       if (hozon::mp::util::RvizAgent::Instance().Ok() &&
           mm_params.use_rviz_bridge) {
         if (!_T_W_V_fine.translation().isZero()) {
-          setPoints(*lane, T02_W_V, &front_points_);
+          HLOG_DEBUG << "optimize_finish_, " << Precusion(proc_stamp_, 16);
+          setPoints(*lane, T_fc_.pose, &front_points_);
         } else {
           setPoints(*lane, T02_W_V, &front_points_);
         }
@@ -890,7 +909,7 @@ void MapMatching::procData() {
         setOriginConnectMapPoints(origin_connect, T02_W_V, front_points_);
         pubOriginConnectMapPoints(front_points_, time_sec_, time_nsec_);
         front_points_.clear();
-        setOriginConnectPercepPoints(origin_connect, T02_W_V, front_points_);
+        setOriginConnectPercepPoints(origin_connect, T_output_, front_points_);
         pubOriginConnectPercepPoints(front_points_, time_sec_, time_nsec_);
       }
     }

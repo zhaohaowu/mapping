@@ -33,6 +33,7 @@ using hozon::mp::loc::MapBoundaryLine;
 
 struct ValidPose {
   bool valid = true;
+  double timeStamp = -1;
   SE3 pose;
   Eigen::Vector3d velocity_vrf;
 };

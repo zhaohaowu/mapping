@@ -60,6 +60,7 @@ struct Node {
   Eigen::Vector3d enu = Eigen::Vector3d::Zero();
   Eigen::Vector3d orientation = Eigen::Vector3d::Zero();
   Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
+  Eigen::Vector3d linear_vel_VRF = Eigen::Vector3d::Zero();
   Eigen::Vector3d angular_velocity = Eigen::Vector3d::Zero();
   Eigen::Vector3d linear_accel = Eigen::Vector3d::Zero();
   Eigen::Vector3d b_a = Eigen::Vector3d::Zero();

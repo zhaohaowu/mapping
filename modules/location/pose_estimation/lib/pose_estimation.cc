@@ -356,11 +356,11 @@ bool MapMatching::FindPecepINS(HafNodeInfo* cur_ins) {
   }
 }
 
-bool MapMatching::ExtractInsMsg(HafNodeInfo* cur_ins, SE3* T02_W_V_ins,
+bool MapMatching::ExtractInsMsg(const HafNodeInfo& cur_ins, SE3* T02_W_V_ins,
                                 const Eigen::Vector3d& ref_point) {
   static SE3 T02_W_V_pre(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
   // 1.RTK state
-  ins_status_type_ = (*cur_ins).gps_status();
+  ins_status_type_ = cur_ins.gps_status();
   if (ins_status_type_ !=
           static_cast<int>(InsStatus::SINGLE_POINT_LOCATION_ORIEN) &&
       ins_status_type_ != static_cast<int>(InsStatus::PSEUD_DIFF) &&
@@ -371,13 +371,12 @@ bool MapMatching::ExtractInsMsg(HafNodeInfo* cur_ins, SE3* T02_W_V_ins,
     return false;
   }
   // 2.旋转与平移提取,enu转换
-  Eigen::Vector3d pose((*cur_ins).pos_gcj02().x(), (*cur_ins).pos_gcj02().y(),
-                       (*cur_ins).pos_gcj02().z());
+  Eigen::Vector3d pose(cur_ins.pos_gcj02().x(), cur_ins.pos_gcj02().y(),
+                       cur_ins.pos_gcj02().z());
   ins_altitude_ = pose.z();
   Eigen::Vector3d enu = hozon::mp::util::Geo::Gcj02ToEnu(pose, ref_point);
-  Eigen::Quaterniond q_W_V(
-      (*cur_ins).quaternion().w(), (*cur_ins).quaternion().x(),
-      (*cur_ins).quaternion().y(), (*cur_ins).quaternion().z());
+  Eigen::Quaterniond q_W_V(cur_ins.quaternion().w(), cur_ins.quaternion().x(),
+                           cur_ins.quaternion().y(), cur_ins.quaternion().z());
   if (q_W_V.norm() < 1e-10) {
     HLOG_ERROR << "setIns q_W_V.norm() < 1e-10 ";
     return false;
@@ -390,11 +389,10 @@ bool MapMatching::ExtractInsMsg(HafNodeInfo* cur_ins, SE3* T02_W_V_ins,
   }
 
   if (std::fabs(q_W_V.norm() - 1) > 1e-3) {
-    HLOG_WARN << "HafNodeInfo quaternion(w,x,y,z) "
-              << (*cur_ins).quaternion().w() << ","
-              << (*cur_ins).quaternion().x() << ","
-              << (*cur_ins).quaternion().y() << ","
-              << (*cur_ins).quaternion().z() << ",norm:" << q_W_V.norm();
+    HLOG_WARN << "HafNodeInfo quaternion(w,x,y,z) " << cur_ins.quaternion().w()
+              << "," << cur_ins.quaternion().x() << ","
+              << cur_ins.quaternion().y() << "," << cur_ins.quaternion().z()
+              << ",norm:" << q_W_V.norm();
     return false;
   }
 
@@ -411,9 +409,9 @@ bool MapMatching::ExtractInsMsg(HafNodeInfo* cur_ins, SE3* T02_W_V_ins,
   *T02_W_V_ins = SE3(q_W_V, enu);
   T02_W_V_pre = *T02_W_V_ins;
 
-  time_sec_ = static_cast<uint64_t>((*cur_ins).header().data_stamp());
-  time_nsec_ = static_cast<uint64_t>(
-      ((*cur_ins).header().data_stamp() - time_sec_) * 1e9);
+  time_sec_ = static_cast<uint64_t>(cur_ins.header().data_stamp());
+  time_nsec_ =
+      static_cast<uint64_t>((cur_ins.header().data_stamp() - time_sec_) * 1e9);
 
   return true;
 }
@@ -518,9 +516,6 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
       return;
     }
   }
-  Eigen::Vector3d velocity_vrf(info.pose().linear_velocity_vrf().x(),
-                               info.pose().linear_velocity_vrf().y(),
-                               info.pose().linear_velocity_vrf().z());
   Eigen::Vector3d pose(info.pose().gcj02().x(), info.pose().gcj02().y(),
                        info.pose().gcj02().z());
 
@@ -667,6 +662,7 @@ void MapMatching::procData() {
   }
   //  寻找FC
   hozon::localization::Localization cur_fc;
+  Eigen::Vector3d cur_vel;
   if (!FindPecepFC(&cur_fc)) {
     HLOG_ERROR << "Dont find fc when use perception line to find fc deque";
     T_fc_.valid = false;
@@ -686,6 +682,7 @@ void MapMatching::procData() {
       Eigen::Vector3d velocity_vrf(cur_fc.pose().linear_velocity_vrf().x(),
                                    cur_fc.pose().linear_velocity_vrf().y(),
                                    cur_fc.pose().linear_velocity_vrf().z());
+      cur_vel = velocity_vrf;
       T_fc_.velocity_vrf = velocity_vrf;
       T_fc_.timeStamp = cur_fc.header().data_stamp();
     }
@@ -695,7 +692,8 @@ void MapMatching::procData() {
 
   // ins数据处理
   SE3 T02_W_V, T02_W_V_pre, T02_W_V_INPUT;
-  double input_stamp = 0;
+  double input_stamp = percep_stamp_;
+  proc_stamp_ = percep_stamp_;
   HafNodeInfo cur_ins;
   ins_deque_mutex_.lock();
   if (ins_deque_.empty()) {
@@ -711,15 +709,14 @@ void MapMatching::procData() {
     cur_ins = latest_ins_;
   }
 
-  if (!ExtractInsMsg(&cur_ins, &T02_W_V, esti_ref_point)) {
-    HLOG_ERROR << "ProcessData: ExtractInsMsg Fail!";
+  if (!ExtractInsMsg(cur_ins, &T02_W_V, esti_ref_point)) {
+    HLOG_ERROR << "ExtractInsMsg Fail!";
     return;
   }
   HLOG_INFO << "ProcessData: extract ins msg end!";
 
   T02_W_V_pre = T02_W_V_pre_;
   T02_W_V_INPUT = T02_W_V;
-  input_stamp = (cur_ins).header().data_stamp();
 
   bool use_extrapolate = static_cast<bool>(
       cur_ins.gps_status() != static_cast<int>(InsStatus::RTK_STABLE));
@@ -749,6 +746,7 @@ void MapMatching::procData() {
   time_.evaluate(
       [&, this] {
         map_match_->SetInsTs(input_stamp);
+        map_match_->SetVel(cur_vel);
         HLOG_INFO << "ProcessData: map matching start!"
                   << ", intput ts: " << input_stamp;
         map_match_->Match(mhd_map_, all_perception, T02_W_V_INPUT, T_fc_);

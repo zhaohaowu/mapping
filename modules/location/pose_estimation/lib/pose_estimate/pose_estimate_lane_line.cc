@@ -47,6 +47,10 @@ void MatchLaneLine::set_ins_ts(const double& ins_ts) {
   ins_timestamp_ = ins_ts;
 }
 
+void MatchLaneLine::set_linear_vel(const Eigen::Vector3d& linear_vel) {
+  match_linear_vel_ = linear_vel;
+}
+
 void MatchLaneLine::Match(const HdMap& hd_map,
                           const std::shared_ptr<Perception>& perception,
                           const SE3& T_W_V, const ValidPose& T_fc) {
@@ -691,7 +695,7 @@ bool MatchLaneLine::IsBigCurvaturePercepLine(VP perception_points) {
     return false;
   }
   constexpr double unusual_avg_curvature_thre = 0.019;
-  constexpr double unusual_max_curvature_thre = 0.039;
+  constexpr double unusual_max_curvature_thre = 0.029;
   int i = 0;
   double sum_curvature = 0.f;
   double max_curvature = 0.f;
@@ -705,6 +709,10 @@ bool MatchLaneLine::IsBigCurvaturePercepLine(VP perception_points) {
   double avg_curvature = sum_curvature / (perception_points.size() + 1e-10);
   return (avg_curvature > unusual_avg_curvature_thre &&
           max_curvature > unusual_max_curvature_thre);
+}
+
+bool MatchLaneLine::IsLowSpeed() {
+  return (match_linear_vel_.x() > 0.0 && match_linear_vel_.x() < 2.99);
 }
 
 void MatchLaneLine::GetMatchMapLineCache(
@@ -904,11 +912,17 @@ void MatchLaneLine::LaneLineConnect(
         continue;
       }
       auto perception_points = perception_line->points();
-      if (IsBigCurvaturePercepLine(perception_points)) {
-        big_curvature_ = true;
-        HLOG_INFO << "timestamp: " << ins_timestamp_
-                  << ", big curvature!!!, max_match_x: " << max_match_x;
+      bool is_big_curvature = IsBigCurvaturePercepLine(perception_points);
+      bool is_low_speed = IsLowSpeed();
+      if (is_big_curvature || is_low_speed) {
         max_match_x -= mm_params.max_length_offset;
+        HLOG_INFO << "timestamp: " << ins_timestamp_
+                  << ",is_big_curvature: " << is_big_curvature
+                  << ", is_low_speed: " << is_low_speed
+                  << ", max_match_x: " << max_match_x;
+        if (is_big_curvature) {
+          big_curvature_ = true;
+        }
 #ifdef ISORIN
         // mapping trigger 大曲率弯道
         CheckTriggerBigCurv(ins_timestamp_);

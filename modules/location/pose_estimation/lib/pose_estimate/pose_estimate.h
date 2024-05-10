@@ -23,8 +23,6 @@ struct Connect {
   std::vector<PointMatchPair> lane_line_match_pairs;
 };
 
-
-
 class MapMatch {
  public:
   MapMatch();
@@ -37,6 +35,7 @@ class MapMatch {
   bool GoodMatchCheck(const SE3 &T);
   bool CheckLaneWidth(const SE3 &T);
   void SetInsTs(const double &ins_ts);
+  void SetVel(const Eigen::Vector3d &linear_vel);
   int GetLanePairSize() { return lane_line_->get_match_line_size(); }
   int GetMatchPairSize() { return connect_.lane_line_match_pairs.size(); }
   VP GetRvizMergeMapLines() { return lane_line_->SetRvizMergeMapLines(); }
@@ -49,6 +48,7 @@ class MapMatch {
   bool has_err_;
   int err_type_;
   double ins_timestamp_;
+  Eigen::Vector3d linear_vel_{0.0, 0.0, 0.0};
 };
 
 }  // namespace loc

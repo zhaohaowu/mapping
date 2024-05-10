@@ -289,11 +289,10 @@ class MapMatching {
   bool GetHdCurrLaneType(const Eigen::Vector3d& utm);
   bool FindPecepINS(HafNodeInfo* now_ins);
   bool FindPecepFC(hozon::localization::Localization* cur_fc);
-  bool ExtractInsMsg(HafNodeInfo* now_ins, SE3* T02_W_V_ins,
+  bool ExtractInsMsg(const HafNodeInfo& cur_ins, SE3* T02_W_V_ins,
                      const Eigen::Vector3d& ref_point);
   double GetCurrentTime();
-  bool CompensateInsYError(SE3* T02_W_V_INPUT,
-                           double ins_timeStamp);
+  bool CompensateInsYError(SE3* T02_W_V_INPUT, double ins_timeStamp);
 
  private:
   int mm_err_type_;  // 用于接收map_match_lane_line中的故障

@@ -114,6 +114,7 @@ class MatchLaneLine {
    * @return timestamp
    */
   void set_ins_ts(const double& ins_ts);
+  void set_linear_vel(const Eigen::Vector3d& linear_vel);
   inline void GetError(bool* has_err, int* err_type) {
     *has_err = has_err_;
     *err_type = static_cast<int>(err_type_);
@@ -254,12 +255,14 @@ class MatchLaneLine {
   void ComputeCurvature(const std::vector<double>& coeffs, const double x,
                         double* curvature);
   bool IsBigCurvaturePercepLine(VP perception_points);
+  bool IsLowSpeed();
   void CheckTriggerBigCurv(double cur_time);
 
  public:
   double ts_;
   double last_ins_timestamp_ = 0.f;
   double ins_timestamp_ = 0.f;
+  Eigen::Vector3d match_linear_vel_{0.0, 0.0, 0.0};
   std::vector<std::vector<PointMatchPair>> origin_match_pairs_;
   std::vector<std::vector<PointMatchPair>> match_pairs_;
   std::list<LineMatchPair> line_match_pairs_;

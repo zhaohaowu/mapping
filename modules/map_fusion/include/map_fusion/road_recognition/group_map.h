@@ -37,6 +37,7 @@ struct Point {
 
 struct Line {
   em::Id id;
+  em::Id id_next = -1000;  // 下一根line的id号
   em::LineType type;
   em::Color color;
   em::LanePos lanepos;
@@ -309,6 +310,13 @@ class GroupMap {
   void FillLineSegment(LineSegment::Ptr line, LineSegment* line_set);
   void UpdatePathInCurrPose(const std::vector<KinePose::Ptr>& path,
                             const KinePose& curr_pose);
+  void ForwardCrossVirtual(Group::Ptr curr_group,
+                           std::vector<Group::Ptr>* groups, double stamp);
+  bool IsZebraIn(const Eigen::Vector2f& curr_start_pl,
+                 const Eigen::Vector2f& curr_start_pr,
+                 const Eigen::Vector2f& next_start_pl,
+                 const Eigen::Vector2f& next_start_pr);
+  void UpdateLane(Group::Ptr curr_group);
 };
 
 }  // namespace gm

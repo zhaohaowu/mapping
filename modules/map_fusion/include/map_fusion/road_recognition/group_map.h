@@ -45,6 +45,8 @@ struct Line {
   std::deque<Point> pts;
   // 末端方向向量与x轴夹角
   double mean_end_heading = 0;  // in rad, [-pi, +pi]
+  // 末端预测方向向量，由mean_end_heading聚类计算而来
+  double pred_end_heading = 0;
   // 末端heading角的标准差
   double mean_end_heading_std_dev = 0;
   // 末端平均点间距
@@ -246,7 +248,7 @@ class GroupMap {
                                   std::vector<Group::Ptr>* groups);
   void GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp);
   bool LaneLineNeedToPredict(const LineSegment& line, bool check_back = true);
-  void PredictLaneLine(double heading, LineSegment* line);
+  void PredictLaneLine(LineSegment* line);
   std::shared_ptr<hozon::hdmap::Map> ConvertToProtoMap(
       const std::vector<Group::Ptr>& groups, const KinePose::Ptr& curr_pose,
       const em::ElementMap::Ptr& ele);
@@ -277,6 +279,9 @@ class GroupMap {
                       std::map<em::Id, Overlaps::Ptr>* overlap, Lane::Ptr lane);
   void CatmullRom(const std::vector<Eigen::Vector3f>& pts,
                   std::vector<Eigen::Vector3f>* fit_points, int num);
+  void HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred, int* num);
+  void HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
+                      double threshold);
   void PredictLaneLine(double heading, std::vector<Point>* line,
                        double mean_end_interval);
   void RelateGroups(std::vector<Group::Ptr>* groups, double stamp);

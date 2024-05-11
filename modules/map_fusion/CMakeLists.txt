@@ -78,6 +78,7 @@ target_link_libraries(mf
   europa_hdmap
   opencv_flann
   opencv_core
+  pcl_segmentation
   ${AMAP_LIBS}
   neta_https
   )

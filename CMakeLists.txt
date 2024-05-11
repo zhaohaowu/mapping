@@ -97,6 +97,7 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindSqlite3.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindAmap.cmake)
     include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindAbsl.cmake)
+    include(${THIRDPARTY_ROOT_PATH}/third_party/cmake/FindPcl.cmake)
     if(EXISTS ${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/nlohmann_json)
         include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/nlohmann_json/include)
     elseif(EXISTS ${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/json)
@@ -105,12 +106,12 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
         message(WARNING "neither nlohmann_json nor json exists in ${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}")
     endif()
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/flann_cpp/include)
-    include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/pcl/include/pcl-1.11)
+    #include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/pcl/include/pcl-1.11)
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/cuda/targets/x86_64-linux/include)
 
     message("cudaheader====" ${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/cuda/targets/x86_64-linux/include)
 
-    link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/pcl/lib)
+    #link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/pcl/lib)
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/flann_cpp/lib)
     include_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/ceres/include)
     link_directories(${THIRDPARTY_ROOT_PATH}/third_party/${TARGET_PLATFORM}/ceres/lib)
@@ -183,6 +184,7 @@ if(IND)
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/ceres/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/boost/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/opencv/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/pcl/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/absl/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/zmq/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gtest/lib/

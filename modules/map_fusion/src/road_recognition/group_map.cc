@@ -6,6 +6,7 @@
  ******************************************************************************/
 
 #include "map_fusion/road_recognition/group_map.h"
+#include <pcl/segmentation/extract_clusters.h>
 
 #include <cfloat>
 #include <cstddef>
@@ -2535,16 +2536,24 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
           }
         }
         // 使用平均heading，这样可以使得预测的线都是平行的，不交叉
+        // 由于部分弯道heading偏差较大，导致整体平均heading发生偏差，
+        // 现增加pred_end_heading字段用于预测，使用k-means算法或者PCL欧式聚类对heading进行聚类
         if (!lines_need_pred.empty()) {
-          double avg_heading = 0;
-          for (const auto& line : lines_need_pred) {
-            avg_heading += line->mean_end_heading;
-          }
-          avg_heading /= static_cast<double>(lines_need_pred.size());
+          // k-means聚类
+          // int k = 3;
+          // HeadingCluster(&lines_need_pred, &k);
+
+          // PCL欧式聚类 阈值为10度
+          const double heading_threshold = 10.0 / 180. * M_PI;
+          HeadingCluster(&lines_need_pred, heading_threshold);
+
           for (auto& line : lines_need_pred) {
-            PredictLaneLine(avg_heading, line.get());
+            PredictLaneLine(line.get());
           }
           for (auto& lane : center_line_need_pred) {
+            auto avg_heading = (lane->left_boundary->pred_end_heading +
+                                lane->right_boundary->pred_end_heading) /
+                               2;
             PredictLaneLine(avg_heading, &(lane->center_line_pts),
                             lane->left_boundary->mean_end_interval);
           }
@@ -2756,6 +2765,131 @@ void GroupMap::CatmullRom(const std::vector<Eigen::Vector3f>& pts,
       fit_points->emplace_back(point);
       t += 1.0 / num;
     }
+  }
+}
+
+void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
+                              int* num) {
+  if (num == nullptr) {
+    HLOG_ERROR << "k is not specified for k-means cluster";
+    return;
+  }
+  std::vector<double> heading_data;
+  for (const auto& line : *lines_need_pred) {
+    heading_data.emplace_back(line->mean_end_heading);
+  }
+
+  if (*num > heading_data.size()) {
+    *num = heading_data.size();
+  }
+
+  std::vector<double> centroids;
+  double min_val = *std::min_element(heading_data.begin(), heading_data.end());
+  double max_val = *std::max_element(heading_data.begin(), heading_data.end());
+  double step = (max_val - min_val) / (*num - 1);
+  for (int i = 0; i < *num; ++i) {
+    centroids.push_back(min_val + i * step);
+  }
+
+  // 迭代更新聚类中心点
+  std::vector<int> cluster_count(*num, 0);
+  std::vector<double> cluster_sum(*num, 0.0);
+  std::vector<int> assignments(heading_data.size(), -1);
+  bool converged = false;
+  while (!converged) {
+    converged = true;
+    for (int i = 0; i < heading_data.size(); ++i) {
+      double min_dist = std::numeric_limits<double>::max();
+      int closest_centroid = -1;
+      for (int j = 0; j < *num; ++j) {
+        double dist = std::abs(heading_data[i] - centroids[j]);
+        if (dist < min_dist) {
+          min_dist = dist;
+          closest_centroid = j;
+        }
+      }
+      if (assignments[i] != closest_centroid) {
+        assignments[i] = closest_centroid;
+        converged = false;
+      }
+      cluster_count[closest_centroid]++;
+      cluster_sum[closest_centroid] += heading_data[i];
+    }
+
+    // 更新聚类中心点
+    for (int i = 0; i < *num; ++i) {
+      if (cluster_count[i] > 0) {
+        centroids[i] = cluster_sum[i] / cluster_count[i];
+      }
+    }
+  }
+
+  // 填充pred_end_heading字段用于预测
+  int i = 0;
+  for (auto& line : *lines_need_pred) {
+    line->pred_end_heading = centroids[assignments[i]];
+    ++i;
+  }
+}
+
+void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
+                              double threshold) {
+  pcl::PointCloud<pcl::PointXYZ>::Ptr heading_data(
+      new pcl::PointCloud<pcl::PointXYZ>);
+  for (const auto& line : *lines_need_pred) {
+    pcl::PointXYZ point;
+    point.x =
+        static_cast<float>(line->mean_end_heading);  // 将一维heading添加到x轴上
+    point.y = 0.0;
+    point.z = 0.0;
+    heading_data->emplace_back(point);
+  }
+
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr heading_data_tree(
+      new pcl::search::KdTree<pcl::PointXYZ>);
+  heading_data_tree->setInputCloud(heading_data);
+
+  // 对heading进行欧式聚类
+  pcl::EuclideanClusterExtraction<pcl::PointXYZ> heading_cluster;
+  heading_cluster.setClusterTolerance(threshold);
+  heading_cluster.setMinClusterSize(1);
+  heading_cluster.setMaxClusterSize(heading_data->size());
+  heading_cluster.setSearchMethod(heading_data_tree);
+  heading_cluster.setInputCloud(heading_data);
+
+  std::vector<pcl::PointIndices> heading_cluster_indices;
+  heading_cluster.extract(heading_cluster_indices);
+
+  std::vector<double> mean_heading;
+  std::vector<int> assignments(heading_data->size(), -1);
+
+  // std::unordered_map<double, int> heading_data_map;
+  // int heading_index = 0;
+  // for (const auto& line : *lines_need_pred) {
+  //   heading_data_map[line->mean_end_heading] = heading_index;
+  //   heading_index = heading_index + 1;
+  // }
+
+  for (int i = 0; i < heading_cluster_indices.size(); ++i) {
+    double heading_sum = 0.;
+    int heading_data_size = 0;
+    for (const auto& idx : heading_cluster_indices[i].indices) {
+      auto heading_data_element = (*heading_data)[idx].x;
+      heading_sum = heading_sum + heading_data_element;
+      // auto it = heading_data_map.find(heading_data_element);
+      assignments[idx] = i;
+      heading_data_size = heading_data_size + 1;
+    }
+    if (heading_data_size != 0) {
+      mean_heading.emplace_back(heading_sum / heading_data_size);
+    }
+  }
+
+  // 填充pred_end_heading字段用于预测
+  int i = 0;
+  for (auto& line : *lines_need_pred) {
+    line->pred_end_heading = mean_heading[assignments[i]];
+    ++i;
   }
 }
 
@@ -3889,7 +4023,7 @@ bool GroupMap::LaneLineNeedToPredict(const LineSegment& line, bool check_back) {
 
 // 对line从最后一个点开始，沿着heading方向直线预测
 //! TBD：当前直接按直线预测，后续考虑对弯道继续非直线预测，比如按曲率
-void GroupMap::PredictLaneLine(double heading, LineSegment* line) {
+void GroupMap::PredictLaneLine(LineSegment* line) {
   if (line == nullptr || line->pts.empty()) {
     return;
   }
@@ -3899,7 +4033,8 @@ void GroupMap::PredictLaneLine(double heading, LineSegment* line) {
   float dist_to_veh = back_pt.norm();
   auto pred_length = conf_.predict_farthest_dist - dist_to_veh;
   auto pred_counts = static_cast<int>(pred_length / mean_interval);
-  Eigen::Vector2f n(std::cos(heading), std::sin(heading));
+  Eigen::Vector2f n(std::cos(line->pred_end_heading),
+                    std::sin(line->pred_end_heading));
   for (int i = 0; i != pred_counts; ++i) {
     Eigen::Vector2f pt = back_pt + (i + 1) * n;
     Point pred_pt;

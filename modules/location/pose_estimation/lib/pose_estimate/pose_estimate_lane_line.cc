@@ -15,6 +15,7 @@
 #include <memory>
 #include <queue>
 #include <set>
+#include <stack>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -556,7 +557,8 @@ bool MatchLaneLine::GetNeighboringMapLines(
 
 void MatchLaneLine::MergeMapLines(
     const std::shared_ptr<MapBoundaryLine>& boundary_lines, const SE3& T) {
-  HLOG_INFO << "MergeMapLines: start!";
+  HLOG_INFO << "MergeMapLines: start!"
+            << " ts: " << ins_timestamp_;
   if (!lines_map_.empty()) {
     lines_map_.clear();
   }
@@ -597,7 +599,7 @@ void MatchLaneLine::MergeMapLines(
       linked_lines_id_.clear();
     }
     HLOG_INFO << "MergeMapLines: traversal start, root_id: "
-              << line.second.front().first;
+              << line.second.front().first << " ts: " << ins_timestamp_;
     Traversal(root_segment_start_point, line_ids, loop);
     multi_linked_lines_.emplace_back(linked_lines_id_);
   }
@@ -635,51 +637,65 @@ void MatchLaneLine::MergeMapLines(
       merge_lane_ids[merge_lane_id] += 1;
     }
   }
-  HLOG_INFO << "MergeMapLines: add merge_lane_ids element end!";
+  HLOG_INFO << "MergeMapLines: add merge_lane_ids element end!"
+            << " ts: " << ins_timestamp_;
   multi_linked_lines_.clear();
   return;
 }
 
 void MatchLaneLine::Traversal(const V3& root_start_point,
                               std::vector<std::string> line_ids, int loop) {
+  HLOG_ERROR << "Traversal: start "
+             << " ts: " << ins_timestamp_;
+  V3 seg_point;
+  seg_point << 0, 0, 9;
   if (lines_map_.empty()) {
     return;
   }
-  ++loop;
-  if (loop > 100) {
-    linked_lines_id_.emplace_back(line_ids);
-    HLOG_ERROR << "Traversal: loop > 40, loop: " << loop;
-    return;
-  }
-  V3 cur_start_point = root_start_point;
-  auto cur_line_infos_iter = lines_map_.find(cur_start_point);
-  if (cur_line_infos_iter == lines_map_.end()) {
-    if (line_ids.empty()) {
-      HLOG_ERROR << "Traversal: traversal loop failed " << loop;
-      return;
+  std::stack<V3> line_start_points;
+  line_start_points.push(root_start_point);
+  while (!line_start_points.empty()) {
+    V3 cur_start_point = line_start_points.top();
+    if (cur_start_point.isApprox(seg_point) && !line_ids.empty()) {
+      line_ids.pop_back();
+      continue;
     }
-    linked_lines_id_.emplace_back(
-        line_ids);  // 一侧车道线可能会有两根链接后车道线
-    return;
-  }
-  auto successor_segments_info = cur_line_infos_iter->second;
-  int size = static_cast<int>(successor_segments_info.size());
-  if (size > 0) {
-    for (int i = 0; i < size; ++i) {
+    line_start_points.pop();
+    auto cur_line_infos_iter = lines_map_.find(cur_start_point);
+    if (cur_line_infos_iter == lines_map_.end()) {
+      if (line_ids.empty()) {
+        HLOG_ERROR << "Traversal: traversal loop failed " << loop;
+        continue;
+      }
+      linked_lines_id_.emplace_back(line_ids);
+      line_ids.pop_back();
+      continue;
+    }
+
+    auto successor_segments_info = cur_line_infos_iter->second;
+    int size = static_cast<int>(successor_segments_info.size());
+    if (size > 0) {
       bool find_flag = std::binary_search(line_ids.begin(), line_ids.end(),
-                                          successor_segments_info[i].first);
+                                          successor_segments_info[0].first);
+      line_ids.push_back(successor_segments_info[0].first);
+      visited_id_.insert(successor_segments_info[0].first);
+      line_start_points.push(seg_point);
       if (find_flag) {
         linked_lines_id_.emplace_back(line_ids);
-        return;
+        HLOG_ERROR << "line_ids size: " << line_ids.size();
+        line_ids.pop_back();
+        continue;
       }
-      line_ids.emplace_back(successor_segments_info[i].first);
-      visited_id_.insert(successor_segments_info[i].first);
-      Traversal(successor_segments_info[i].second, line_ids, loop);
-      line_ids.pop_back();
+      for (int i = 0; i < size; ++i) {
+        line_start_points.push(successor_segments_info[i].second);
+      }
+
+    } else {
+      // HLOG_ERROR << "   Traversal: traversal loop: " << loop << " failed!";
     }
-  } else {
-    HLOG_ERROR << "Traversal: traversal loop: " << loop << " failed!";
   }
+  HLOG_INFO << "Traversal: end "
+            << " ts: " << ins_timestamp_;
 }
 
 bool MatchLaneLine::IsBigCurvaturePercepLine(VP perception_points) {

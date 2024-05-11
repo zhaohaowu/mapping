@@ -57,9 +57,9 @@ std::vector<hozon::mp::loc::V3> PerceptionLaneLine::points() {
 PerceptionLaneLineList::PerceptionLaneLineList(
     const hozon::perception::TransportElement &transport_element) {
   this->type_ = PERCEPTYION_LANE_BOUNDARY_LINE;
-  for (auto line : transport_element.lane()) {
+  for (auto& line : transport_element.lane()) {
     auto new_line = std::make_shared<PerceptionLaneLine>(line);
-    lane_line_list_.emplace_back(new_line);
+    lane_line_list_.emplace_back(std::move(new_line));
   }
   HLOG_DEBUG << "lane_line_list_.size() = " << lane_line_list_.size();
 }

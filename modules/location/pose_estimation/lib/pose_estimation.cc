@@ -878,9 +878,6 @@ void MapMatching::procData() {
                                          esti_ref_point);
       }
     }
-    if (mm_node_info_ == nullptr) {
-      return;
-    }
     optimize_success_ = true;
     proc_stamp_ = input_stamp;
     if (curr_roadmark_sensor.frame_id != 0) {
@@ -933,6 +930,9 @@ PtrNodeInfo MapMatching::getMmNodeInfo() {
     std::lock_guard<std::mutex> lg(mm_output_lck_);
     auto output_node_info =
         std::make_shared<::hozon::localization::HafNodeInfo>();
+    if (mm_node_info_ == nullptr) {
+      return nullptr;
+    }
     output_node_info = mm_node_info_;
     return output_node_info;
   }

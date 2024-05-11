@@ -159,7 +159,7 @@ bool LaneLineMergeTrack::IsForkConvergelike(
   // 短线的长度必须小于40米， 否则不认为是分合流线场景
   float line1_length = GetLength(point_set1);
   float line2_length = GetLength(point_set2);
-  HLOG_ERROR << "line1_length:" << line1_length;
+  HLOG_DEBUG << "line1_length:" << line1_length;
   float short_line_length = std::min(line1_length, line2_length);
   if (short_line_length >= 40) {
     return false;
@@ -227,8 +227,8 @@ bool LaneLineMergeTrack::IsForkConvergelike(
   for (int i = 0, j = 0; i < point_list.size() && j < point_list.size();) {
     double point_dis = (point_list[i].head(2) - point_list[j].head(2)).norm();
     if (point_dis > 4.0) {
-      HLOG_INFO << "TEST i:" << i << ",j:" << j << ", point_dis:" << point_dis
-                << ",dis:" << dist_list[j] - dist_list[i];
+      HLOG_DEBUG << "TEST i:" << i << ",j:" << j << ", point_dis:" << point_dis
+                 << ",dis:" << dist_list[j] - dist_list[i];
       bins++;
       if (dist_list[j] - dist_list[i] > 0.15) {
         order_times++;

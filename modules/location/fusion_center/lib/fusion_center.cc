@@ -1416,7 +1416,8 @@ void FusionCenter::KalmanFiltering(Node* const node) {
   }
 
   Eigen::VectorXd state(6, 1);
-  state << node->enu(0), node->enu(1), node->enu(2), 0, 0, node->orientation(2);
+  state << node->enu(0), node->enu(1), node->enu(2), node->orientation(0),
+      node->orientation(1), node->orientation(2);
   if (!kalman_filter_.IsInitialized()) {
     kalman_filter_.SetInitialState(state);
   }
@@ -1434,9 +1435,10 @@ void FusionCenter::KalmanFiltering(Node* const node) {
 
   const auto curr_state = kalman_filter_.GetState();
   node->enu << curr_state(0), curr_state(1), curr_state(2);
-  if (params_.use_smooth_yaw) {
-    node->orientation(2) = curr_state(5);
-  }
+
+  node->orientation(0) = curr_state(3);
+  node->orientation(1) = curr_state(4);
+  node->orientation(2) = curr_state(5);
 }
 
 bool FusionCenter::GetGlobalPose(Context* const ctx) {

@@ -4,11 +4,13 @@
  *Date: 2023-11-29
  *****************************************************************************/
 #include "onboard/onboard_lite/phm_comment_lite/comment_lite.h"
+
 #include <gflags/gflags.h>
 
 #include "adf-lite/include/base.h"
 #include "base/utils/log.h"
 #include "cfg/config_param.h"
+#include "lib/health_manager/health_manager.h"
 #include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 #include "yaml-cpp/yaml.h"
 
@@ -24,7 +26,8 @@ int32_t PhmComponentOnboard::AlgInit() {
     return -1;
   }
   std::string work_root = std::string(var);
-  std::string gflag_file = work_root + "/runtime_service/mapping/conf/lite/mapping_config.flags";
+  std::string gflag_file =
+      work_root + "/runtime_service/mapping/conf/lite/mapping_config.flags";
   gflags::ReadFromFlagsFile(gflag_file, "", false);
   // phm
   phm_component_ = std::make_unique<PhmComponent>();
@@ -41,6 +44,8 @@ int32_t PhmComponentOnboard::AlgInit() {
       "system/running_mode",
       [this](const std::string&, const std::string&, const uint8_t& runmode) {
         runmode_ = runmode;
+        lib::HealthManager::Instance()->NotifySmInfo(
+            static_cast<base::RunningMode>(runmode_));
         // HLOG_ERROR << "!!!!!!!!MonitorParam_runmode_ = " << runmode_;
       });  // 平台回调，每次行泊切换都会调用func
 

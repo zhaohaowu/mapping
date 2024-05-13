@@ -427,6 +427,10 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   auto now = hozon::common::Clock::NowInSeconds() * 1000;
   bool global_hd_updated = false;
   if (last < 0 || now - last > FLAGS_service_update_interval) {
+    auto phm_health = hozon::perception::lib::HealthManager::Instance();
+    phm_health->HealthReport(MAKE_HM_TUPLE(
+        hozon::perception::base::HmModuleId::MAPPING,
+        hozon::perception::base::HealthId::CPID_MAP_SEND_HD_AND_HQ_FPS));
     mf_->ProcService(latest_plugin, latest_planning, curr_routing_.get());
     global_hd_updated = true;
     last = now;
@@ -804,6 +808,10 @@ int MapFusionLite::SendPercepResult(
   auto msg = std::make_shared<hozon::netaos::adf_lite::BaseData>();
   msg->proto_msg = percep_result;
   // SendOutput("map_percep", msg);
+  auto phm_health = hozon::perception::lib::HealthManager::Instance();
+  phm_health->HealthReport(MAKE_HM_TUPLE(
+      hozon::perception::base::HmModuleId::MAPPING,
+      hozon::perception::base::HealthId::CPID_FUSION_MAP_SEND_MAP_DATA_FPS));
   SendOutput("map_fusion", msg);
   return 0;
 }

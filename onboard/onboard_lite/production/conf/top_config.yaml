@@ -22,6 +22,7 @@ resourceLimit:
 executors:
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/data_source_config.yaml
     order: 1
+    quit_order: 12
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/phm_config/phm_common_onboard_config.yaml
     order: 2
     quit_order: 11

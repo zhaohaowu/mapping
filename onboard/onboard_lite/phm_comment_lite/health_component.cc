@@ -50,16 +50,12 @@ bool PhmComponent::InitHealth() {
 }
 
 void PhmComponent::NotifySmInfo(const RunningMode& state) {
-  HLOG_DEBUG << "[DEBUG_HM] cur_suspend_" << cur_suspend_ << " suspend_ "
-             << suspend_ << " state " << static_cast<int32_t>(state);
-  if (cur_suspend_ != suspend_) {
-    if (cur_suspend_) {
-      PauseTrigger();
-    } else {
-      ResumeTrigger();
-    }
+  HLOG_DEBUG << "[DEBUG_HM] state " << static_cast<int32_t>(state);
+  if (state == base::RunningMode::DRIVING) {
+    ResumeTrigger();
+  } else if (state == base::RunningMode::PARKING) {
+    PauseTrigger();
   }
-  suspend_ = cur_suspend_;
 }
 
 void PhmComponent::BindResumeTrigger(

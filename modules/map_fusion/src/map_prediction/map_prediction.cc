@@ -37,6 +37,7 @@
 #include "base/utils/log.h"
 #include "boost/thread/exceptions.hpp"
 #include "common/configs/config_gflags.h"
+#include "common/file/file.h"
 #include "common/math/double_type.h"
 #include "common/math/line_segment2d.h"
 #include "common/math/vec2d.h"
@@ -107,6 +108,7 @@ int MapPrediction::Init() {
 
 void MapPrediction::Stop() {}
 
+// enu to utm
 // 范围：[0-360)，北零顺时针 转到
 // 范围：[-180-180)，东零逆时针(最后都转为弧度)
 double ConvertHeading(double heading) {
@@ -644,23 +646,84 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
   utm_pos.set_z(0);
 
   hq_map_ = std::make_shared<hozon::hdmap::Map>();
+  std::shared_ptr<hozon::hdmap::Map> hq_map_local =
+      std::make_shared<hozon::hdmap::Map>();
 
-  auto ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_.get());
+  if (!get_default_routing_) {
+    GetRoutingLanesFromFile();  // 只要读一次里面存储所有的lane id
+  }
+
+  // 通过这个范围取得junction
+  auto ret =
+      GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_local.get());
   if (ret != 0) {
     HLOG_ERROR << "GetLocalMap failed";
     return nullptr;
   }
 
-  if (!hq_map_) {
-    HLOG_ERROR << "nullptr hq_map_";
+  if (default_routing_lanes_.empty()) {
+    HLOG_ERROR << "default routing response is empty";
     return nullptr;
   }
+
+  // lane和local map取交集
+  std::vector<std::string> local_lanes;
+  for (const auto& lane_it : hq_map_local->lane()) {
+    local_lanes.emplace_back(lane_it.id().id());
+  }
+
+  std::unordered_set<std::string> road_id_set;
+  // lane
+  for (const auto& lane_id_it : default_routing_lanes_) {
+    if (std::find(local_lanes.begin(), local_lanes.end(), lane_id_it) !=
+        local_lanes.end()) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(lane_id_it);
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        hq_map_->add_lane()->CopyFrom(lane_ptr->lane());
+        road_id_set.emplace(lane_ptr->road_id().id());
+      }
+    }
+  }
+
+  // road
+  for (auto road_id_it = road_id_set.begin(); road_id_it != road_id_set.end();
+       ++road_id_it) {
+    hozon::hdmap::Id road_id;
+    road_id.set_id(*road_id_it);
+    auto road_ptr = GLOBAL_HD_MAP->GetRoadById(road_id);
+    if (road_ptr != nullptr) {
+      hq_map_->add_road()->CopyFrom(road_ptr->road());
+    }
+  }
+
+  // junction
+  hq_map_->mutable_junction()->CopyFrom(hq_map_local->junction());
+
+  // crosswalk
+  hq_map_->mutable_crosswalk()->CopyFrom(hq_map_local->crosswalk());
+
+  // signal
+  hq_map_->mutable_signal()->CopyFrom(hq_map_local->signal());
+
+  // overlap
+  hq_map_->mutable_overlap()->CopyFrom(hq_map_local->overlap());
+
+  // speed bump
+  hq_map_->mutable_speed_bump()->CopyFrom(hq_map_local->speed_bump());
+
+  // arraw
+  hq_map_->mutable_arraw()->CopyFrom(hq_map_local->arraw());
+
   if (local_enu_center_flag_) {
     HLOG_ERROR << "init_pose_ not inited";
     return nullptr;
   }
+
   HDMapLaneToLocal();
-  JunctionToLocal();
+  HDMapRoadToLocal();
+  NCPMapToLocal();
 
   return hq_map_;
 }
@@ -1695,6 +1758,30 @@ int MapPrediction::GetRoutingLaneIndex(
   return index;
 }
 
+void MapPrediction::GetRoutingLanesFromFile() {
+  hozon::routing::RoutingResponse routing;
+  std::string routing_file_path =
+      FLAGS_map_dir + "/default_routing_response.txt";
+  if (!hozon::common::GetProtoFromASCIIFile(routing_file_path, &routing)) {
+    HLOG_ERROR << "get default routing response from file faild:"
+               << routing_file_path;
+    return;
+  }
+
+  for (const auto& road_it : routing.road()) {
+    for (const auto& passage_it : road_it.passage()) {
+      for (const auto& lane_it : passage_it.segment()) {
+        default_routing_lanes_.emplace_back(lane_it.id());
+      }
+    }
+  }
+  if (default_routing_lanes_.empty()) {
+    HLOG_ERROR << "the default routing response file is empty";
+    return;
+  }
+  get_default_routing_ = true;
+}
+
 void MapPrediction::ConvertToLocal() {
   if (!hq_map_) {
     HLOG_ERROR << "nullptr hq_map_";
@@ -1793,6 +1880,25 @@ void MapPrediction::HDMapLaneToLocal() {
         point->set_x(pt_local.x());
         point->set_y(pt_local.y());
         point->set_z(0);
+      }
+    }
+  }
+}
+
+void MapPrediction::HDMapRoadToLocal() {
+  for (auto& hq_road : *hq_map_->mutable_road()) {
+    for (auto& sec : *hq_road.mutable_section()) {
+      for (auto& edge :
+           *sec.mutable_boundary()->mutable_outer_polygon()->mutable_edge()) {
+        for (auto& seg : *edge.mutable_curve()->mutable_segment()) {
+          for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
+            Eigen::Vector3d pt_local = UtmPtToLocalEnu(pt);
+            pt_local = T_local_enu_to_local_ * pt_local;
+            pt.set_x(pt_local.x());
+            pt.set_y(pt_local.y());
+            pt.set_z(0);
+          }
+        }
       }
     }
   }
@@ -2044,6 +2150,140 @@ void MapPrediction::JunctionToLocal() {
       pt.set_y(pt_local.y());
       pt.set_z(0);
     }
+  }
+}
+
+void MapPrediction::NCPMapToLocal() {
+  JunctionToLocal();
+
+  // crosswalk
+  for (auto& hq_cross_walk : *hq_map_->mutable_crosswalk()) {
+    for (auto& pt : *hq_cross_walk.mutable_polygon()->mutable_point()) {
+      Eigen::Vector3d pt_local = UtmPtToLocalEnu(pt);
+      pt_local = T_local_enu_to_local_ * pt_local;
+      pt.set_x(pt_local.x());
+      pt.set_y(pt_local.y());
+      pt.set_z(0);
+    }
+  }
+
+  // signal
+  // 存储signal over lap id
+  std::unordered_set<std::string> signal_overlap_id_set;
+  for (auto& hq_signal : *hq_map_->mutable_signal()) {
+    for (auto& signal_id : hq_signal.overlap_id()) {
+      signal_overlap_id_set.insert(signal_id.id());
+    }
+    for (auto& pt : *hq_signal.mutable_boundary()->mutable_point()) {
+      Eigen::Vector3d pt_local = UtmPtToLocalEnu(pt);
+      pt_local = T_local_enu_to_local_ * pt_local;
+      pt.set_x(pt_local.x());
+      pt.set_y(pt_local.y());
+      pt.set_z(0);
+    }
+    for (auto& stop_line : *hq_signal.mutable_stop_line()) {
+      for (auto& segment : *stop_line.mutable_segment()) {
+        for (auto& pt : *segment.mutable_line_segment()->mutable_point()) {
+          Eigen::Vector3d pt_local = UtmPtToLocalEnu(pt);
+          pt_local = T_local_enu_to_local_ * pt_local;
+          pt.set_x(pt_local.x());
+          pt.set_y(pt_local.y());
+          pt.set_z(0);
+        }
+        if (segment.line_segment().point_size() > 0) {
+          Eigen::Vector3d pt_local =
+              UtmPtToLocalEnu(segment.line_segment().point(0));
+          segment.mutable_start_position()->set_x(pt_local.x());
+          segment.mutable_start_position()->set_y(pt_local.y());
+          segment.mutable_start_position()->set_z(0);
+        }
+      }
+    }
+  }
+
+  // overlap
+  for (auto& hq_overlap : *hq_map_->mutable_overlap()) {
+    for (auto& region_overlap : *hq_overlap.mutable_region_overlap()) {
+      for (auto& polygon : *region_overlap.mutable_polygon()) {
+        for (auto& pt : *polygon.mutable_point()) {
+          Eigen::Vector3d pt_local = UtmPtToLocalEnu(pt);
+          pt_local = T_local_enu_to_local_ * pt_local;
+          pt.set_x(pt_local.x());
+          pt.set_y(pt_local.y());
+          pt.set_z(0);
+        }
+      }
+    }
+  }
+
+  // 临时修改overlap字段
+  for (auto& hq_overlap : *hq_map_->mutable_overlap()) {
+    if (signal_overlap_id_set.count(hq_overlap.id().id()) != 0) {
+      for (auto& object_overlap : *hq_overlap.mutable_object()) {
+        auto& lane_overlap_info = *object_overlap.mutable_lane_overlap_info();
+        double s = lane_overlap_info.end_s();
+        lane_overlap_info.set_end_s(s + 1);
+      }
+    }
+  }
+
+  // speed bump
+  for (auto& hq_speed_bump : *hq_map_->mutable_speed_bump()) {
+    for (auto& position : *hq_speed_bump.mutable_position()) {
+      for (auto& segment : *position.mutable_segment()) {
+        for (auto& pt : *segment.mutable_line_segment()->mutable_point()) {
+          Eigen::Vector3d pt_local = UtmPtToLocalEnu(pt);
+          pt_local = T_local_enu_to_local_ * pt_local;
+          pt.set_x(pt_local.x());
+          pt.set_y(pt_local.y());
+          pt.set_z(0);
+        }
+        Eigen::Vector3d pt_local = UtmPtToLocalEnu(segment.start_position());
+        segment.mutable_start_position()->set_x(pt_local.x());
+        segment.mutable_start_position()->set_y(pt_local.y());
+        segment.mutable_start_position()->set_z(0);
+      }
+    }
+  }
+
+  // arraw
+  for (auto& hq_arraw : *hq_map_->mutable_arraw()) {
+    for (auto& pt : *hq_arraw.mutable_shape()->mutable_point()) {
+      hozon::common::PointENU point_enu;
+      point_enu.set_x(pt.x());
+      point_enu.set_y(pt.y());
+      point_enu.set_z(pt.z());
+      Eigen::Vector3d pt_local = UtmPtToLocalEnu(point_enu);
+      pt_local = T_local_enu_to_local_ * pt_local;
+      pt.set_x(pt_local.x());
+      pt.set_y(pt_local.y());
+      pt.set_z(0);
+    }
+
+    // 将center point从utm转到local系
+    auto& pt_center = *hq_arraw.mutable_center_point();
+    hozon::common::PointENU point_enu;
+    point_enu.set_x(pt_center.x());
+    point_enu.set_y(pt_center.y());
+    point_enu.set_z(0);
+    Eigen::Vector3d pt_local_center = UtmPtToLocalEnu(point_enu);
+    pt_local_center = T_local_enu_to_local_ * pt_local_center;
+    pt_center.set_x(pt_local_center.x());
+    pt_center.set_y(pt_local_center.y());
+
+    // 将heading从utm系转到local系
+    double enu_heading = hq_arraw.heading();
+    Eigen::Quaterniond quat_arrow_in_local_enu(
+        Eigen::AngleAxisd(enu_heading, Eigen::Vector3d::UnitZ()));
+
+    Eigen::Quaterniond quat_enu_to_local(T_local_enu_to_local_.rotation());
+
+    Eigen::Quaterniond quat_arrow_in_local =
+        quat_enu_to_local * quat_arrow_in_local_enu;
+    Eigen::Vector3d euler =
+        quat_arrow_in_local.toRotationMatrix().eulerAngles(2, 0, 1);
+    hq_arraw.clear_heading();
+    hq_arraw.set_heading(euler[0]);
   }
 }
 

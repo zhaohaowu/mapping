@@ -140,6 +140,7 @@ class MapPrediction {
   Eigen::Vector3d GcjPtToLocalEnu(const hozon::common::PointENU& point_gcj);
   void ConvertToLocal();
   void HDMapLaneToLocal();
+  void HDMapRoadToLocal();
   void RoutingPointToLocal(bool need_update_global_hd,
                            hozon::routing::RoutingResponse* routing,
                            const std::string& id);
@@ -148,6 +149,7 @@ class MapPrediction {
   void ArrawStopLineToLocal();
   void CrossWalkToLocal();
   void JunctionToLocal();
+  void NCPMapToLocal();
   void RoadToLocal();
   void DeelEdge(hozon::hdmap::BoundaryEdge* edge);
   void VizLocAndHqMap();
@@ -190,6 +192,7 @@ class MapPrediction {
   int GetRoutingLaneIndex(
       const std::string& lane_id,
       const std::vector<std::vector<std::string>>& routing_lanes);
+  void GetRoutingLanesFromFile();
 
   std::mutex mtx_;
   std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>
@@ -245,6 +248,10 @@ class MapPrediction {
   std::string end_routing_lane_id_;
   std::string last_routing_lane_id_;
   std::shared_ptr<hozon::routing::RoutingResponse> current_routing_ = nullptr;
+
+  // default_routing_response
+  std::vector<std::string> default_routing_lanes_;
+  bool get_default_routing_ = false;
 };
 
 }  // namespace mf

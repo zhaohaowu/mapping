@@ -28,6 +28,7 @@
 namespace hozon {
 namespace mp {
 namespace mf {
+namespace select {
 constexpr uint64_t kLocationIsFault = 12;
 constexpr uint64_t kLocationFaultStart = 101;
 constexpr uint64_t kLocationFatalFault = 111;
@@ -1712,7 +1713,7 @@ bool MapSelectLite::IsCarInLanes(
       HLOG_ERROR << "something is wrong when check lane ";
       continue;
     }
-    LaneLine lane_line;
+    SelectLaneLine lane_line;
     lane_line.id = lane.id().id();
     std::vector<cv::Point2f> kdtree_points;
     std::vector<Eigen::Vector2d> line_points;
@@ -2009,7 +2010,7 @@ LaneInMapInfo MapSelectLite::IsLaneInMap(
   }
   return lane_info;
 }
-
+}  // namespace select
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon

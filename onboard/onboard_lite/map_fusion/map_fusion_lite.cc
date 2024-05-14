@@ -622,7 +622,7 @@ MapFusionLite::GetLatestLocPlugin() {
 int MapFusionLite::SendFusionResult(
     const std::shared_ptr<hozon::localization::Localization>& location,
     const std::shared_ptr<hozon::hdmap::Map>& map,
-    mp::mf::MapSelectResult select, hozon::routing::RoutingResponse* routing) {
+    mp::mf::select::MapSelectResult select, hozon::routing::RoutingResponse* routing) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   static bool input_nullptr_map_or_routing_flags = false;
   if (map == nullptr || routing == nullptr) {
@@ -778,7 +778,7 @@ int MapFusionLite::SendFusionResult(
 int MapFusionLite::SendPercepResult(
     const std::shared_ptr<hozon::localization::Localization>& location,
     const std::shared_ptr<hozon::hdmap::Map>& map,
-    mp::mf::MapSelectResult select,
+    mp::mf::select::MapSelectResult select,
     const std::shared_ptr<hozon::routing::RoutingResponse>& routing) {
   auto percep_result = std::make_shared<hozon::navigation_hdmap::MapMsg>();
   percep_result->mutable_header()->CopyFrom(location->header());

@@ -35,11 +35,12 @@
 namespace hozon {
 namespace mp {
 namespace mf {
+namespace select {
 struct Point2d {
   double x{0.0};
   double y{0.0};
 };
-struct LaneLine {
+struct SelectLaneLine {
   std::string id;
   std::shared_ptr<cv::flann::Index> lane_line_kdtree;  // 中心线的Kdtree
   std::vector<Eigen::Vector2d> lane_line_points;
@@ -262,7 +263,7 @@ class MapSelectLite {
   double last_dr_time_{0.0};
   double last_fct_in_time_{0.0};
   hozon::routing::RoutingResponse debug_;
-  std::map<std::string, LaneLine> lanes_lines_map_;
+  std::map<std::string, SelectLaneLine> lanes_lines_map_;
   std::vector<hozon::common::math::Vec2d> left_boundary_points_;
   std::vector<hozon::common::math::Vec2d> right_boundary_points_;
   float min_dist_value_;
@@ -271,7 +272,7 @@ class MapSelectLite {
   float max_half_lane_dis_ = 3.5;
   float min_half_lane_dis_ = 1.35;
 };
-
+}  // namespace select
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon

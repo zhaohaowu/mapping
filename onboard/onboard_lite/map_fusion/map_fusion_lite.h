@@ -25,7 +25,7 @@ namespace perception {
 namespace common_onboard {
 
 using hozon::mp::mf::MapFusion;
-using hozon::mp::mf::MapSelectLite;
+using hozon::mp::mf::select::MapSelectLite;
 using hozon::netaos::adf_lite::Bundle;
 
 class MapFusionLite : public hozon::netaos::adf_lite::Executor {
@@ -60,12 +60,12 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   int SendFusionResult(
       const std::shared_ptr<hozon::localization::Localization>& location,
       const std::shared_ptr<hozon::hdmap::Map>& map,
-      mp::mf::MapSelectResult select,
+      mp::mf::select::MapSelectResult select,
       hozon::routing::RoutingResponse* routing);
   int SendPercepResult(
       const std::shared_ptr<hozon::localization::Localization>& location,
       const std::shared_ptr<hozon::hdmap::Map>& map,
-      mp::mf::MapSelectResult select,
+      mp::mf::select::MapSelectResult select,
       const std::shared_ptr<hozon::routing::RoutingResponse>& routing);
 
   int MapFusionOutputEvaluation(
@@ -92,7 +92,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   std::shared_ptr<hozon::functionmanager::FunctionManagerIn> curr_fct_in_ =
       nullptr;
   std::mutex process_mtx_;
-  mp::mf::MapSelectResult curr_map_type_ = {hozon::navigation_hdmap::MapMsg_MapType_INVALID, false, 2};
+  mp::mf::select::MapSelectResult curr_map_type_ = {hozon::navigation_hdmap::MapMsg_MapType_INVALID, false, 2};
   bool select_debug_ = true;
 };
 

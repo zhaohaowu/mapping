@@ -95,7 +95,7 @@ int32_t InsFusionLite::receive_ins(Bundle* input) {
         hozon::perception::base::FaultStatus::OCCUR,
         hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
         input_data_loss_error_flag = true;
-    HLOG_ERROR << "INS: receive ins is null";
+    HLOG_WARN << "INS: receive ins is null";
     return -1;
   } else {
     if (input_data_loss_error_flag) {
@@ -196,7 +196,7 @@ int32_t InsFusionLite::receive_gnss(Bundle* input) {
                         GNSS_DATA_ERROR_MUL_FPS,
         hozon::perception::base::FaultStatus::OCCUR,
         hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
-    HLOG_ERROR << "INS: receive gnss is null";
+    HLOG_WARN << "INS: receive gnss is null";
     return -1;
   } else {
     phm_fault->Report(MAKE_FM_TUPLE(
@@ -303,7 +303,7 @@ int32_t InsFusionLite::receive_inspva(Bundle* input) {
   ++inspva_count;
   if (inspva_count >= 100) {
     inspva_count = 0;
-    HLOG_ERROR << "rev plugin ins lite heartbeat";
+    HLOG_INFO << "rev plugin ins lite heartbeat";
   }
   return 0;
 }

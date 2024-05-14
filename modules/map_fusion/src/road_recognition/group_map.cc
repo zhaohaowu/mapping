@@ -125,7 +125,7 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
   //     | 1 | 2 |
   //     |   |   |
   is_cross_ = is_cross;
-  HLOG_ERROR << "IS_CROSS" << is_cross_.cross_after_lane_ << "  "
+  HLOG_INFO << "IS_CROSS" << is_cross_.cross_after_lane_ << "  "
              << is_cross.cross_before_lane_ << "  " << is_cross.is_crossing_;
   curr_pose_ = curr_pose;
   std::deque<Line::Ptr> lines;

@@ -155,7 +155,7 @@ int32_t PoseEstimationLite::OnIns(Bundle* input) {
   ins_count++;
   if (ins_count >= 100) {
     ins_count = 0;
-    HLOG_ERROR << "rev ins heartbeat";
+    HLOG_INFO << "rev ins heartbeat";
   }
   pose_estimation_->OnIns(ins_fusion);
 

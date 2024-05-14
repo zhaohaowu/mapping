@@ -213,10 +213,10 @@ int MapFusion::ProcPercep(
     HLOG_ERROR << "nullptr road recognition";
     return -1;
   }
-  HLOG_ERROR << "Proc Pilot start!";
+  HLOG_INFO << "Proc Pilot start!";
   recog_->OnLocalization(curr_loc);
   recog_->OnLocalMap(curr_local_map);
-  HLOG_ERROR << "OnLocalMap!";
+  HLOG_INFO << "OnLocalMap!";
   auto map = recog_->GetPercepMap();
   if (map == nullptr) {
     HLOG_ERROR << "get nullptr percep map";

@@ -86,9 +86,9 @@ int32_t MapFusionLite::AlgInit() {
 
 void MapFusionLite::AlgRelease() {
   if (mf_) {
-    HLOG_ERROR << "try stopping map fusion";
+    HLOG_INFO << "try stopping map fusion";
     mf_->Stop();
-    HLOG_ERROR << "done stopping map fusion";
+    HLOG_INFO << "done stopping map fusion";
   }
 
   if (RVIZ_AGENT.Ok()) {
@@ -521,13 +521,13 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   }
   {
     std::lock_guard<std::mutex> lock(process_mtx_);
-    HLOG_ERROR << ">>>>>>>>>>>START<<<<<<<<<<<<<<<<";
+    HLOG_INFO << ">>>>>>>>>>>START<<<<<<<<<<<<<<<<";
     curr_map_type_ = map_select_->Process(latest_loc, latest_fusion_map,
                                           latest_percep_map, latest_fct_in);
     if (select_debug_) {
       DebugSelectMap();
     }
-    HLOG_ERROR << "select map_type" << curr_map_type_.map_type << ", "
+    HLOG_INFO << "select map_type:" << curr_map_type_.map_type << ", "
                << curr_map_type_.valid;
     if (curr_map_type_.map_type ==
             hozon::navigation_hdmap::MapMsg_MapType_FUSION_NNP_MAP ||

@@ -280,6 +280,7 @@ int32_t FusionCenterLite::OnPoseEstimation(Bundle* input) {
 }
 
 int32_t FusionCenterLite::OnRunningMode(Bundle* input) {
+  static int running_mode_count = 0;
   auto rm_msg = input->GetOne("running_mode");
   if (rm_msg == nullptr) {
     HLOG_ERROR << "nullptr rm_msg plugin";

@@ -173,6 +173,7 @@ int32_t DrFusionLite::receive_dr(Bundle* input) {
 }
 
 int32_t DrFusionLite::OnRunningMode(Bundle* input) {
+  static int running_mode_count = 0;
   auto rm_msg = input->GetOne("running_mode");
   if (rm_msg == nullptr) {
     HLOG_ERROR << "nullptr rm_msg plugin";
@@ -194,6 +195,11 @@ int32_t DrFusionLite::OnRunningMode(Bundle* input) {
              runmode ==
                  static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
     ResumeTrigger("receive_dr");
+  }
+  ++running_mode_count;
+  if (running_mode_count >= 100) {
+    running_mode_count = 0;
+    HLOG_INFO << "on running model heartbeat";
   }
   return 0;
 }

@@ -1096,7 +1096,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
         time_diff < params_.no_mm_max_time) {
       if (PredictMMMeas()) {
         meas_flag = true;
-        HLOG_ERROR << "No MM measurement,predict MM meas. time_diff:"
+        HLOG_INFO << "No MM measurement,predict MM meas. time_diff:"
                    << time_diff;
       }
 

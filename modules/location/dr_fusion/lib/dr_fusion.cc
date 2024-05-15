@@ -25,7 +25,6 @@ namespace hmu = hozon::mp::util;
 
 bool DrFusion::OnDr(const hozon::dead_reckoning::DeadReckoning& dr_node,
                     hozon::localization::HafNodeInfo* const node) {
-  static int dr_count = 0;
   hozon::localization::HafNodeInfo haf_dr_node;
   if (!DrNode2DrFusionNode(dr_node, &haf_dr_node)) {
     return false;
@@ -40,11 +39,6 @@ bool DrFusion::OnDr(const hozon::dead_reckoning::DeadReckoning& dr_node,
   }
   latest_dr_node_ = haf_dr_node;
   *node = haf_dr_node;
-  ++dr_count;
-  if (dr_count >= 100) {
-    dr_count = 0;
-    HLOG_ERROR << "rev dr heartbeat";
-  }
   return true;
 }
 

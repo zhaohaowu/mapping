@@ -87,6 +87,7 @@ int32_t InsFusionLite::receive_ins(Bundle* input) {
   static bool input_data_loss_error_flag = false;
   static bool input_data_value_error_flag = false;
   static bool input_data_time_error_flag = false;
+  static int ins_count = 0;
   if (!ptr_rec_ins) {
     phm_fault->Report(MAKE_FM_TUPLE(
         hozon::perception::base::FmModuleId::MAPPING,
@@ -182,11 +183,17 @@ int32_t InsFusionLite::receive_ins(Bundle* input) {
     }
   }
   last_ins_time = cur_ins_time;
+  ++ins_count;
+  if (ins_count >= 100) {
+    ins_count = 0;
+    HLOG_INFO << "rev ins heartbeat";
+  }
   return 0;
 }
 
 int32_t InsFusionLite::receive_gnss(Bundle* input) {
   static double last_gnss_time = -1.0;
+  static int gnss_count = 0;
   auto ptr_rec_gnss = input->GetOne("gnssinfo");
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   if (!ptr_rec_gnss) {
@@ -279,6 +286,11 @@ int32_t InsFusionLite::receive_gnss(Bundle* input) {
         hozon::perception::base::FaultStatus::RESET,
         hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
   }
+  ++gnss_count;
+  if (gnss_count >= 100) {
+    gnss_count = 0;
+    HLOG_INFO << "rev gnss heartbeat";
+  }
   return 0;
 }
 int32_t InsFusionLite::receive_inspva(Bundle* input) {
@@ -309,6 +321,7 @@ int32_t InsFusionLite::receive_inspva(Bundle* input) {
 }
 
 int32_t InsFusionLite::OnRunningMode(Bundle* input) {
+  static int running_mode_count = 0;
   auto rm_msg = input->GetOne("running_mode");
   if (rm_msg == nullptr) {
     HLOG_ERROR << "nullptr rm_msg plugin";
@@ -339,6 +352,11 @@ int32_t InsFusionLite::OnRunningMode(Bundle* input) {
     ResumeTrigger("receive_ins");
     ResumeTrigger("receive_gnss");
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & ALL";
+  }
+  ++running_mode_count;
+  if (running_mode_count >= 100) {
+    running_mode_count = 0;
+    HLOG_INFO << "on running model heartbeat";
   }
   return 0;
 }

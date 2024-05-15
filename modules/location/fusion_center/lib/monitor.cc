@@ -154,7 +154,7 @@ bool Monitor::PoseJumpSingleFrameVehicle() {
   if (fabs(pose_diff.translation().y()) > params_.fc_max_single_dist_hori ||
       vert_float_ratio > params_.fc_max_float_ratio_vert ||
       fabs(pose_diff.so3().log().z()) > params_.fc_yaw_maxdiff) {
-    HLOG_ERROR << "Vehicle y diff:" << pose_diff.translation().y()
+    HLOG_INFO << "Vehicle y diff:" << pose_diff.translation().y()
                << " larger than thr:" << params_.fc_max_single_dist_hori
                << " or x ratio:" << vert_float_ratio
                << " larger than thr:" << params_.fc_max_float_ratio_vert

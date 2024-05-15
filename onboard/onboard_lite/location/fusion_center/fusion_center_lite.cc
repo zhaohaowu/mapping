@@ -92,6 +92,7 @@ void FusionCenterLite::RegistProcessFunc() {
 int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   static bool input_data_init_error_flag = false;
+  static int ins_fusion_count = 0;
   if (!input) {
     return -1;
   }
@@ -125,12 +126,18 @@ int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
   }
 
   fusion_center_->OnIns(*ins_fusion);
+  ++ins_fusion_count;
+  if (ins_fusion_count >= 100) {
+    ins_fusion_count = 0;
+    HLOG_INFO << "rev ins_fusion lite heartbeat";
+  }
   return 0;
 }
 
 int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   static bool input_data_value_error_flag = false;
+  static int dr_fusion_count = 0;
   if (!input) {
     return -1;
   }
@@ -183,7 +190,11 @@ int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
       std::make_shared<hozon::netaos::adf_lite::BaseData>();
   localization_pack->proto_msg = localization;
   SendOutput(kFcTopic, localization_pack);
-
+  ++dr_fusion_count;
+  if (dr_fusion_count >= 100) {
+    dr_fusion_count = 0;
+    HLOG_INFO << "rev dr_fusion lite heartbeat";
+  }
   return 0;
 }
 // 目前fc没有用到local_map，当前放开会上报无效故障，暂时注释，后续接入时放开
@@ -242,6 +253,7 @@ int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
 // }
 
 int32_t FusionCenterLite::OnPoseEstimation(Bundle* input) {
+  static int pe_count = 0;
   if (!input) {
     return -1;
   }
@@ -259,6 +271,11 @@ int32_t FusionCenterLite::OnPoseEstimation(Bundle* input) {
   }
 
   fusion_center_->OnPoseEstimate(*pose_estimation);
+  ++pe_count;
+  if (pe_count >= 100) {
+    pe_count = 0;
+    HLOG_INFO << "rev PoseEstimation lite heartbeat";
+  }
   return 0;
 }
 
@@ -291,6 +308,11 @@ int32_t FusionCenterLite::OnRunningMode(Bundle* input) {
     ResumeTrigger("recv_pose_estimation");
     ResumeTrigger("recv_dr_fusion");
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & ALL";
+  }
+  ++running_mode_count;
+  if (running_mode_count >= 100) {
+    running_mode_count = 0;
+    HLOG_INFO << "on running model heartbeat";
   }
   return 0;
 }

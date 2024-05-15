@@ -230,7 +230,7 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
     }
   }
   last_percep_time = cur_percep_time;
-  perception_count++;
+  ++perception_count;
   if (perception_count >= 1) {
     perception_count = 0;
     HLOG_INFO << "rev perception heartbeat";
@@ -242,6 +242,7 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
 }
 
 int32_t PoseEstimationLite::OnPoseEstimation(Bundle* input) {
+  static int pe_count = 0;
   if (!input) {
     return -1;
   }
@@ -254,11 +255,16 @@ int32_t PoseEstimationLite::OnPoseEstimation(Bundle* input) {
   auto pe_workflow = std::make_shared<hozon::netaos::adf_lite::BaseData>();
   pe_workflow->proto_msg = pe_node_info;
   SendOutput(kPoseEstimationTopic, pe_workflow);
-
+  ++pe_count;
+  if (pe_count >= 1) {
+    pe_count = 0;
+    HLOG_INFO << "send pe heartbeat";
+  }
   return 0;
 }
 
 int32_t PoseEstimationLite::OnRunningMode(Bundle* input) {
+  static int running_mode_count = 0;
   auto rm_msg = input->GetOne(kRunningModeTopic_);
   if (rm_msg == nullptr) {
     HLOG_ERROR << "nullptr rm_msg plugin";
@@ -284,6 +290,11 @@ int32_t PoseEstimationLite::OnRunningMode(Bundle* input) {
     ResumeTrigger("recv_ins_fusion");
     ResumeTrigger("recv_perception");
     ResumeTrigger("send_pose_estimation_result");
+  }
+  ++running_mode_count;
+  if (running_mode_count >= 100) {
+    running_mode_count = 0;
+    HLOG_INFO << "on running model heartbeat";
   }
   return 0;
 }

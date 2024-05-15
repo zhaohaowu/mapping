@@ -488,7 +488,7 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
   // 1. FC deque
   if (info.location_state() == 0 || info.location_state() == 12 ||
       info.location_state() >= 100) {
-    HLOG_ERROR << "info.location_state() : " << info.location_state();
+    HLOG_INFO << "info.location_state() : " << info.location_state();
   }
 
   {
@@ -1091,6 +1091,7 @@ void MapMatching::eraseFront(bool is_erase_buf = true) {
 void MapMatching::mmProcCallBack(void) {
   pthread_setname_np(pthread_self(), "loc_mm_proc");
   while (proc_thread_run_) {
+    static int loc_mm_proc_count = 0;
     eraseFront(true);
     if (static_cast<int>(this->sensorSize()) < delay_frame_) {
       usleep(50 * 1e3);
@@ -1102,6 +1103,11 @@ void MapMatching::mmProcCallBack(void) {
     }
     eraseFront(false);
     procData();
+    ++loc_mm_proc_count;
+    if (loc_mm_proc_count >= 100) {
+      loc_mm_proc_count = 0;
+      HLOG_INFO << "loc_mm_proc heartbeat";
+    }
     usleep(33 * 1e3);
   }
 }

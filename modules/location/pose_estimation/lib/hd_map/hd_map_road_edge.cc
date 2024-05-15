@@ -34,7 +34,7 @@ void MapRoadEdge::Set(const hozon::common::PointENU& position,
     HLOG_ERROR << "get nearest road_edge failed";
     return;
   }
-  HLOG_ERROR << "road_ptr_vec.size = " << road_ptr_vec.size();
+  HLOG_DEBUG << "road_ptr_vec.size = " << road_ptr_vec.size();
   size_t l_count = 0, r_count = 0;
   for (const auto& road_ptr : road_ptr_vec) {
     auto left_road_edge = road_ptr->left_boundary;

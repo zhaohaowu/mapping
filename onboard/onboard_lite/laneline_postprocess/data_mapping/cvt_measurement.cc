@@ -25,16 +25,22 @@ bool DataMapping::CvtPb2Measurement(
   for (auto& item : measurepb->transport_element().lane()) {
     perception_base::LaneLineMeasurementPtr laneptr =
         std::make_shared<perception_base::LaneLineMeasurement>();
-    CvtPb2LaneLineMeasurement(item, laneptr);
-    measure_frame->lanelines_measurement_->lanelines.push_back(laneptr);
+    if (CvtPb2LaneLineMeasurement(item, laneptr)) {
+      measure_frame->lanelines_measurement_->lanelines.push_back(laneptr);
+    } else {
+      HLOG_ERROR << "laneline measurement data has nan value...";
+    }
   }
   measure_frame->roadedges_measurement_ =
       std::make_shared<perception_base::RoadEdgesMeasurement>();
   for (auto& item : measurepb->transport_element().road_edges()) {
     perception_base::RoadEdgeMeasurementPtr roadedgeptr =
         std::make_shared<perception_base::RoadEdgeMeasurement>();
-    CvtPb2RoadEdgeMeasurement(item, roadedgeptr);
-    measure_frame->roadedges_measurement_->road_edges.push_back(roadedgeptr);
+    if (CvtPb2RoadEdgeMeasurement(item, roadedgeptr)) {
+      measure_frame->roadedges_measurement_->road_edges.push_back(roadedgeptr);
+    } else {
+      HLOG_ERROR << "laneline measurement data has nan value...";
+    }
   }
 
   return true;

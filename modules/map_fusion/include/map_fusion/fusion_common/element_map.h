@@ -184,6 +184,8 @@ enum LineType {
   LaneType_UNCLOSED_ROAD = 12,                 // 非封闭路段线
   LaneType_ROAD_VIRTUAL = 13,                  // 道路虚拟线
   LaneType_LANE_CHANG_VIRTUAL = 14,            // 变道虚拟线
+  LaneType_FISHBONE_SOLID = 15,                // 鱼骨实线
+  LaneType_FISHBONE_DASHED = 16,               // 鱼骨虚线
   LaneType_OTHER = 99,                         // 其他
 };
 

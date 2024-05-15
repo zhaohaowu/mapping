@@ -1866,7 +1866,7 @@ void GeoOptimization::OnLocalMap(
   FilterIntersectLine();
 
   // 过滤过短的线段且其斜率不是众数的线段
-//  FilterShortLine();
+  //  FilterShortLine();
 
   // 过滤感知长线交叉的问题
 
@@ -2199,6 +2199,14 @@ void GeoOptimization::FillLaneType(hozon::mp::mf::em::Boundary* lane_line,
     case hozon::mapping::LaneType::LaneType_LANE_CHANG_VIRTUAL:
       lane_line->linetype =
           hozon::mp::mf::em::LineType::LaneType_LANE_CHANG_VIRTUAL;
+      break;
+    case hozon::mapping::LaneType::LaneType_FISHBONE_SOLID:
+      lane_line->linetype =
+          hozon::mp::mf::em::LineType::LaneType_FISHBONE_SOLID;
+      break;
+    case hozon::mapping::LaneType::LaneType_FISHBONE_DASHED:
+      lane_line->linetype =
+          hozon::mp::mf::em::LineType::LaneType_FISHBONE_DASHED;
       break;
     default:
       lane_line->linetype = hozon::mp::mf::em::LineType::LaneType_OTHER;

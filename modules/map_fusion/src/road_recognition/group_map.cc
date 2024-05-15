@@ -126,7 +126,7 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
   //     |   |   |
   is_cross_ = is_cross;
   HLOG_INFO << "IS_CROSS" << is_cross_.cross_after_lane_ << "  "
-             << is_cross.cross_before_lane_ << "  " << is_cross.is_crossing_;
+            << is_cross.cross_before_lane_ << "  " << is_cross.is_crossing_;
   curr_pose_ = curr_pose;
   std::deque<Line::Ptr> lines;
   // lane_line_interp_dist可以设为-1，当前上游点间隔已经是1m，这里不用插值出更细的点
@@ -4369,14 +4369,14 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
         boundary_type->set_s(0.0);
         auto type = ProtoBoundType::UNKNOWN;
         std::set<em::LineType> dotted = {
-            em::LaneType_DASHED,
-            em::LaneType_SHORT_DASHED,
-            em::LaneType_DOUBLE_DASHED,
-            em::LaneType_LEFT_SOLID_RIGHT_DASHED,
+            em::LaneType_DASHED,          em::LaneType_SHORT_DASHED,
+            em::LaneType_DOUBLE_DASHED,   em::LaneType_LEFT_SOLID_RIGHT_DASHED,
+            em::LaneType_FISHBONE_DASHED,
         };
         std::set<em::LineType> solid = {
             em::LaneType_SOLID,
             em::LaneType_RIGHT_SOLID_LEFT_DASHED,
+            em::LaneType_FISHBONE_SOLID,
         };
         if (dotted.find(lane->left_boundary->type) != dotted.end() &&
             lane->left_boundary->color == em::YELLOW) {

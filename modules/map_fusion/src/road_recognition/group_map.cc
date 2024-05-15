@@ -22,7 +22,7 @@
 #include "base/utils/log.h"
 #include "map_fusion/fusion_common/calc_util.h"
 #include "map_fusion/fusion_common/element_map.h"
-#include "third_party/x86_2004/cuda/targets/x86_64-linux/include/driver_types.h"
+// #include "third_party/x86_2004/cuda/targets/x86_64-linux/include/driver_types.h"
 
 namespace hozon {
 namespace mp {
@@ -2688,6 +2688,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
   SmoothCenterline(groups);
 #if 1
   //! TBD: 临时修改，解除多个后继，仅保留角度变化最小的一个后继
+  HLOG_INFO << "get success of smallest angle";
   std::map<std::string, LaneWithNextLanes> lanes_has_next;
   if (groups->size() > 1) {
     for (size_t i = 0; i != groups->size() - 1; ++i) {
@@ -2760,6 +2761,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
 #endif
 
   // 对远处车道线进行预测，仅对无后继的lane尝试预测
+  HLOG_INFO << "predict success lane";
   if (conf_.predict_farthest_dist > conf_.robust_percep_dist) {
     Group::Ptr last_grp = nullptr;
     // 找到最后一个非空的group，只预测最后一个group里的lane

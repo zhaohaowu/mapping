@@ -204,11 +204,22 @@ void ESKF::Correct(const Node& cur_meas_data) {
   K_ = P_ * H_.transpose() * ((H_ * P_ * H_.transpose() + R).inverse());
   X_dx_ = K_ * y_diff;
   P_ = (Mat15T::Identity() - K_ * H_) * P_;
+  
+  static int count = 0;
+  ++count;
+  if (count >= 10) {
+    HLOG_INFO << "X_.meas_type: " << X_.meas_type << ",ydiff0:" << y_diff(0)
+              << ",ydiff1:" << y_diff(1) << ",ydiff2:" << y_diff(2)
+              << ",ydiff3:" << y_diff(3) << ",ydiff4:" << y_diff(4)
+              << ",ydiff5:" << y_diff(5);
+    HLOG_INFO << ",P_pos_1:" << P_(0, 0) << ",P_pos_2:" << P_(1, 1)
+             << ",P_pos_3:" << P_(2, 2) << ",P_angle_1:" << P_(6, 6)
+             << ",P_angle_1:" << P_(7, 7) << ",P_angle_1:" << P_(8, 8);
+    count = 0;
+  }
 
   // 5.更新名义状态，并重置X_dx_
   UpdateAndReset();
-  // LOC_INFO << "X_" << X_.p << " ,cur_meas_data.enu:" << cur_meas_data.enu
-  //          << " ,diff:" << X_.p - cur_meas_data.enu;
   HLOG_DEBUG << "eskf update............X_.meas_type: " << X_.meas_type;
 }
 

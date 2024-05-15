@@ -6,6 +6,7 @@
  ******************************************************************************/
 
 #pragma once
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <random>
@@ -105,6 +106,15 @@ enum Color {
   BLACK = 5
 };
 
+struct local_line_info {
+  hozon::mapping::LanePositionType lane_pos;
+  std::vector<Eigen::Vector3d> local_line_pts;
+  std::vector<double> right_width;       // 距离右边线的距离
+  std::vector<double> right_road_width;  // 距离右侧路沿距离
+  std::vector<double> left_road_width;   // 距离左侧路沿距离
+  uint32_t flag;  // 0-->最左车道线，1-->最右车道线，2-->普通车道线
+};
+
 class LanePilot {
  public:
   int lane_id_ = 1000;
@@ -156,6 +166,9 @@ class GeoOptimization {
   // std::shared_ptr<std::vector<LanePilot>> map_lanes_ = nullptr;
   // std::shared_ptr<hozon::hdmap::Map> pilot_map_ = nullptr;
   std::map<int, std::vector<Line_kd>> all_lines_;  // 用于存储当前所有line信息
+  std::unordered_map<hozon::mapping::LanePositionType, local_line_info>
+      local_line_table_;
+  int extra_val = 100;  // 暂时临时这样设定，后面需要整合优化
   std::set<int> last_track_id_;  // 记录上一帧不进行跟踪的trackid
   double slope_ = 0.;
   // gcj02 global position
@@ -236,6 +249,35 @@ class GeoOptimization {
   // void PridictBackMapLanes();
 
   // void PridictCenterMapLanes();
+
+  void CompleteLocalMap();
+
+  void UpdateLocalMapLine();
+
+  void CreateLocalLineTable();
+
+  void AlignmentVecLane();
+
+  void ComputerLineDis(const std::vector<Eigen::Vector3d>& line_pts,
+                       const std::vector<Eigen::Vector3d>& right_line_pts,
+                       std::vector<double>* line_dis);
+
+  void HandleExtraWideLane();
+
+  void FitMissedLaneLine(const hozon::mapping::LanePositionType& ex);
+
+  void HandleSingleSideLine();
+
+  static double ComputeVecToLaneDis(
+      const std::vector<Eigen::Vector3d>& base_line);
+
+  void FitSingleSideLine(std::vector<Eigen::Vector3d>* base_line,
+                         std::vector<std::vector<Eigen::Vector3d>>* new_lines,
+                         const int& lane_num, const bool& flag,
+                         const int& is_boundary, const double& lane_width);
+
+  bool JudgeLineOverRoad(const std::vector<Eigen::Vector3d>& lane_line,
+                         const std::vector<Eigen::Vector3d>& road_line);
 
   void AppendElemtMap(const std::shared_ptr<hozon::mapping::LocalMap>& msg);
 

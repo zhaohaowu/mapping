@@ -4427,14 +4427,14 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
         boundary_type->set_s(0.0);
         auto type = ProtoBoundType::UNKNOWN;
         std::set<em::LineType> dotted = {
-            em::LaneType_DASHED,
-            em::LaneType_SHORT_DASHED,
-            em::LaneType_DOUBLE_DASHED,
-            em::LaneType_RIGHT_SOLID_LEFT_DASHED,
+            em::LaneType_DASHED,          em::LaneType_SHORT_DASHED,
+            em::LaneType_DOUBLE_DASHED,   em::LaneType_RIGHT_SOLID_LEFT_DASHED,
+            em::LaneType_FISHBONE_DASHED,
         };
         std::set<em::LineType> solid = {
             em::LaneType_SOLID,
             em::LaneType_LEFT_SOLID_RIGHT_DASHED,
+            em::LaneType_FISHBONE_SOLID,
         };
         if (dotted.find(lane->right_boundary->type) != dotted.end() &&
             lane->right_boundary->color == em::YELLOW) {

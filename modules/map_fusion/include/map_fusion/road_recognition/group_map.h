@@ -129,8 +129,9 @@ struct Lane {
   std::string lanepos_id;
   std::vector<double> center_line_param;        // 线段末尾的y = kx + b
   std::vector<double> center_line_param_front;  // 线段前向的y = kx + b
-  int is_trans = 0;  // 是否当前朝向，用黄实现判断
-  int is_ego = 0;    // 是否当前道路，用路沿判断
+  int is_trans = 0;        // 是否当前朝向，用黄实现判断
+  int is_ego = 0;          // 是否当前道路，用路沿判断
+  bool is_smooth = false;  // 是否平滑过了
   std::vector<em::Id> arrow_relate;
   std::vector<em::Id> zebra_relate;
   std::vector<em::Id> stl_relate;
@@ -322,6 +323,9 @@ class GroupMap {
                  const Eigen::Vector2f& next_start_pl,
                  const Eigen::Vector2f& next_start_pr);
   void UpdateLane(Group::Ptr curr_group);
+  void SmoothCenterline(std::vector<Group::Ptr>* groups);
+  std::vector<Point> SlidingWindow(std::vector<Point> centerline, int w);
+  std::vector<Point> SigmoidFunc(std::vector<Point> centerline, float sigma);
 };
 
 }  // namespace gm

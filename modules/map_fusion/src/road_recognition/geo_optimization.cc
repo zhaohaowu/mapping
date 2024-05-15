@@ -1334,7 +1334,7 @@ void GeoOptimization::FilterIntersectLine() {
           } else if (size1 <= 25 && size2 > 25) {
             if (Intersect(line2.line->points(0), line2.line->points(size2 - 1),
                           line.line->points(0), line.line->points(size1 - 1))) {
-              line2.store = false;
+              line.store = false;
             }
           }
         }

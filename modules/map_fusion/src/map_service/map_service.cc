@@ -61,7 +61,7 @@ bool MapService::Init() {
 void MapService::GetUidThread() {
   static constexpr double kGetUUIDIntervalMs = 1000;
   std::ifstream ifs;
-  ifs.open("/hd_map/uid.txt", std::ios::in);
+  ifs.open("/cfg/hd_uuid/uid.txt", std::ios::in);
   if (ifs.is_open()) {
     std::lock_guard<std::mutex> lock(mutex_);
     std::getline(ifs, uuid_);
@@ -81,7 +81,7 @@ void MapService::GetUidThread() {
         if (uid_result.result_code ==
             hozon::netaos::https::HttpsResult_Success) {
           HLOG_INFO << "uid: " << uid_result.response;
-          std::ofstream ofs("/hd_map/uid.txt");
+          std::ofstream ofs("/cfg/hd_uuid/uid.txt");
           std::lock_guard<std::mutex> lock(mutex_);
           uuid_ = uid_result.response;
           ofs << uuid_ << std::endl;

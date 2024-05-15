@@ -8,17 +8,21 @@
 #include "map_fusion/road_recognition/group_map.h"
 #include <pcl/segmentation/extract_clusters.h>
 
+#include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <cstddef>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include "Eigen/src/Core/Matrix.h"
 #include "base/utils/log.h"
 #include "map_fusion/fusion_common/calc_util.h"
 #include "map_fusion/fusion_common/element_map.h"
+#include "third_party/x86_2004/cuda/targets/x86_64-linux/include/driver_types.h"
 
 namespace hozon {
 namespace mp {
@@ -1698,25 +1702,30 @@ void GroupMap::BuildCrossingLane(std::vector<Lane::Ptr>* lane_virtual,
                       lane_in_curr->center_line_pts[index_center - 1].pt.x(),
                       lane_in_curr->center_line_pts[index_center - 1].pt.y(),
                       lane_in_curr->center_line_pts[index_center - 1].pt.z());
-  if (is_cross_.is_crossing_) {
+  if (is_cross_.is_crossing_ && is_cross_.along_path_dis_.norm() > 2.0) {
     float i = 0.0;
     float len = is_cross_.along_path_dis_.norm();
+    left_bound.pts.emplace_back(left_pt_pre);
+    right_bound.pts.emplace_back(right_pt_pre);
+    ctl_pt.emplace_back(center_pt_pre);
     while (i < len - 1.0) {
-      left_bound.pts.emplace_back(left_pt_pre);
       i = i + 1.0;
       float minus_x = 1 / len * is_cross_.along_path_dis_.x();
       float minus_y = 1 / len * is_cross_.along_path_dis_.y();
       float pre_x = left_pt_pre.pt.x() - minus_x;
       float pre_y = left_pt_pre.pt.y() - minus_y;
       left_pt_pre = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
-      right_bound.pts.emplace_back(right_pt_pre);
+      left_bound.pts.emplace_back(left_pt_pre);
+
       pre_x = right_pt_pre.pt.x() - minus_x;
       pre_y = right_pt_pre.pt.y() - minus_y;
       right_pt_pre = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
-      ctl_pt.emplace_back(center_pt_pre);
+      right_bound.pts.emplace_back(right_pt_pre);
+
       pre_x = center_pt_pre.pt.x() - minus_x;
       pre_y = center_pt_pre.pt.y() - minus_y;
       center_pt_pre = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+      ctl_pt.emplace_back(center_pt_pre);
     }
     i = 0.0;
     em::Point param_left =
@@ -1944,6 +1953,281 @@ void GroupMap::UpdateLane(Group::Ptr curr_group) {
     if (lane->right_boundary->id_next == -1000 &&
         line_next.find(lane->right_boundary->id) != line_next.end()) {
       lane->right_boundary->id_next = line_next[lane->right_boundary->id];
+    }
+  }
+}
+
+std::vector<Point> GroupMap::SigmoidFunc(std::vector<Point> centerline,
+                                         float sigma) {
+  int size_ct = centerline.size();
+  // 中心点数目少于两个点不拟合
+  if (centerline.size() < 2) {
+    return centerline;
+  }
+  float dis_x = centerline.back().pt.x() - centerline.front().pt.x();
+  float dis_y = centerline.back().pt.y() - centerline.front().pt.y();
+
+  // 距离过小不拟合
+  if (dis_x < 0.1) {
+    return centerline;
+  }
+  std::vector<Point> center;
+  center.emplace_back(centerline[0]);
+
+  for (int i = 1; i < centerline.size() - 1; ++i) {
+    Point ctp(VIRTUAL, 0.0, 0.0, 0.0);
+    if (center.back().pt.x() < centerline[i + 1].pt.x()) {
+      ctp.pt.x() = centerline[i + 1].pt.x();
+      float deta_x = centerline[i + 1].pt.x() - center[0].pt.x();
+      // 1/(1+e^(-x)) sigmoid函数
+      // 把x的范围圈定在[-sigma,sigma]范围内，deta_x的范围是(0,dis_x]
+      // y的范围是(centerline[0].pt.y(),centerline[0].y()+dis_y)
+      ctp.pt.y() = centerline[0].pt.y() +
+                   dis_y / (1 + exp(-(2 * deta_x - dis_x) / dis_x * sigma));
+    } else {
+      float x_to_end = centerline.back().pt.x() - center.back().pt.x();
+      float interval = x_to_end / static_cast<float>(centerline.size() - i - 1);
+      ctp.pt.x() = center.back().pt.x() + interval;
+      float deta_x = ctp.pt.x() - center[0].pt.x();
+      ctp.pt.y() = centerline[0].pt.y() +
+                   dis_y / (1 + exp(-(2 * deta_x - dis_x) / dis_x * sigma));
+    }
+    center.emplace_back(ctp);
+  }
+  center.emplace_back(centerline.back());
+  return center;
+}
+std::vector<Point> GroupMap::SlidingWindow(std::vector<Point> centerline,
+                                           int w) {
+  int size_ct = centerline.size();
+  if (size_ct < w) {
+    return centerline;
+  }
+  std::vector<Point> center;
+  Point ptc(VIRTUAL, 0.0, 0.0, 0.0);
+  center.emplace_back(ptc);
+  for (int i = 0; i < centerline.size(); ++i) {
+    if (i < w) {
+      center[0].pt += centerline[i].pt;
+    } else {
+      Point pt;
+      pt.type = VIRTUAL;
+      pt.pt = center[i - w].pt - centerline[i - w].pt + centerline[i].pt;
+      center.emplace_back(pt);
+      center[i - w].pt /= w;
+    }
+  }
+  center.back().pt /= w;
+  return center;
+}
+void GroupMap::SmoothCenterline(std::vector<Group::Ptr>* groups) {
+  std::unordered_map<std::string, int>
+      lane_grp_index;  // lane所在对应group的index
+  for (auto& grp : *groups) {
+    for (int index = 0; index < grp->lanes.size(); ++index) {
+      lane_grp_index[grp->lanes[index]->str_id_with_group] = index;
+    }
+  }
+  for (size_t i = 0; i < groups->size() - 1; ++i) {
+    auto& curr_grp = groups->at(i);
+    auto& next_grp = groups->at(i + 1);
+
+    for (auto lane : curr_grp->lanes) {
+      if (lane->is_smooth || lane->next_lane_str_id_with_group.empty()) {
+        continue;
+      }
+      if (lane->next_lane_str_id_with_group.size() == 1) {
+        // 从后往前滑动窗口
+        //! TD:后续用距离不用点
+        //! TBD:每个点计算曲率，抑制最大曲率
+        int lane_index = lane_grp_index[lane->next_lane_str_id_with_group[0]];
+        std::vector<Point> centerpt;
+        auto& cur_centerline = lane->center_line_pts;
+        int crr_size = cur_centerline.size();
+        if (crr_size >= 10) {
+          centerpt.insert(centerpt.begin(), cur_centerline.end() - 10,
+                          cur_centerline.end());
+        } else {
+          centerpt.insert(centerpt.begin(), cur_centerline.begin(),
+                          cur_centerline.end());
+          int ctpt_size = centerpt.size();
+          if (lane->prev_lane_str_id_with_group.size() == 1) {
+            int pre_index =
+                lane_grp_index[lane->prev_lane_str_id_with_group[0]];
+            auto& prev_centerline =
+                groups->at(i - 1)->lanes[pre_index]->center_line_pts;
+            if (prev_centerline.size() >= 10 - ctpt_size) {
+              centerpt.insert(centerpt.begin(),
+                              prev_centerline.end() - (10 - ctpt_size),
+                              prev_centerline.end());
+            } else {
+              centerpt.insert(centerpt.begin(), prev_centerline.begin(),
+                              prev_centerline.end());
+            }
+          }
+        }
+        std::vector<Point> res = SigmoidFunc(centerpt, 5.0);
+        int res_size = res.size();
+        if (crr_size >= res_size) {
+          std::copy(res.begin(), res.end(),
+                    lane->center_line_pts.end() - res_size);
+          if ((lane->center_line_pts.back().pt -
+               next_grp->lanes[lane_index]->center_line_pts[0].pt)
+                  .norm() > 0.1) {
+            lane->center_line_pts.emplace_back(
+                next_grp->lanes[lane_index]->center_line_pts[0]);
+          }
+        } else {
+          std::copy(res.end() - crr_size, res.end(),
+                    lane->center_line_pts.begin());
+          int pre_index = lane_grp_index[lane->prev_lane_str_id_with_group[0]];
+          auto& prev_centerline =
+              groups->at(i - 1)->lanes[pre_index]->center_line_pts;
+          std::copy(res.begin(), res.end() - crr_size,
+                    prev_centerline.end() - (res_size - crr_size));
+          if ((lane->center_line_pts.back().pt -
+               next_grp->lanes[lane_index]->center_line_pts[0].pt)
+                  .norm() > 0.1) {
+            lane->center_line_pts.emplace_back(
+                next_grp->lanes[lane_index]->center_line_pts[0]);
+          }
+          if ((prev_centerline.back().pt - lane->center_line_pts[0].pt).norm() >
+              0.1) {
+            prev_centerline.emplace_back(lane->center_line_pts[0]);
+          }
+        }
+      } else {
+        // 从前往后滑动
+        // 一根车道最多两根后继
+        std::vector<Point> next_centerpt;
+        int lane_index_next_f =
+            lane_grp_index[lane->next_lane_str_id_with_group[0]];
+        auto& next_first_lane = next_grp->lanes[lane_index_next_f];
+        auto& lane_next_f_centerline =
+            next_grp->lanes[lane_index_next_f]->center_line_pts;
+        int next_f_ctl_size = lane_next_f_centerline.size();
+        if (next_f_ctl_size >= 10) {
+          next_centerpt.insert(next_centerpt.end(),
+                               lane_next_f_centerline.begin(),
+                               lane_next_f_centerline.begin() + 10);
+        } else {
+          next_centerpt.insert(next_centerpt.end(),
+                               lane_next_f_centerline.begin(),
+                               lane_next_f_centerline.end());
+          int ctpt_size = next_centerpt.size();
+
+          if (next_first_lane->next_lane_str_id_with_group.size() == 1) {
+            int next_next_index =
+                lane_grp_index[next_first_lane->next_lane_str_id_with_group[0]];
+            auto& next_next_ctline =
+                groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
+            if (next_next_ctline.size() >= 10 - ctpt_size) {
+              next_centerpt.insert(next_centerpt.end(),
+                                   next_next_ctline.begin(),
+                                   next_next_ctline.begin() + (10 - ctpt_size));
+
+            } else {
+              next_centerpt.insert(next_centerpt.end(),
+                                   next_next_ctline.begin(),
+                                   next_next_ctline.end());
+            }
+          }
+        }
+        std::vector<Point> first_ctl = SigmoidFunc(next_centerpt, 5.0);
+        int first_ctl_size = first_ctl.size();
+        if (next_f_ctl_size >= first_ctl_size) {
+          std::copy(first_ctl.begin(), first_ctl.end(),
+                    lane_next_f_centerline.begin());
+          if ((lane_next_f_centerline[0].pt - lane->center_line_pts.back().pt)
+                  .norm() > 0.1) {
+            lane_next_f_centerline.insert(lane_next_f_centerline.begin(),
+                                          lane->center_line_pts.back());
+          }
+        } else {
+          std::copy(first_ctl.begin(), first_ctl.begin() + next_f_ctl_size,
+                    lane_next_f_centerline.begin());
+          int next_next_index =
+              lane_grp_index[next_first_lane->next_lane_str_id_with_group[0]];
+          auto& next_next_ctline =
+              groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
+          std::copy(first_ctl.begin() + next_f_ctl_size, first_ctl.end(),
+                    next_next_ctline.begin());
+          if ((lane_next_f_centerline[0].pt - lane->center_line_pts.back().pt)
+                  .norm() > 0.1) {
+            lane_next_f_centerline.insert(lane_next_f_centerline.begin(),
+                                          lane->center_line_pts.back());
+          }
+          if ((lane_next_f_centerline.back().pt - next_next_ctline[0].pt)
+                  .norm() > 0.1) {
+            next_next_ctline.insert(next_next_ctline.begin(),
+                                    lane_next_f_centerline.back());
+          }
+        }
+
+        next_centerpt.clear();
+        int lane_index_next_s =
+            lane_grp_index[lane->next_lane_str_id_with_group[1]];
+        auto& next_second_lane = next_grp->lanes[lane_index_next_s];
+        auto& lane_next_s_centerline =
+            next_grp->lanes[lane_index_next_s]->center_line_pts;
+        int next_s_ctl_size = lane_next_s_centerline.size();
+        if (next_s_ctl_size >= 10) {
+          next_centerpt.insert(next_centerpt.end(),
+                               lane_next_s_centerline.begin(),
+                               lane_next_s_centerline.begin() + 10);
+        } else {
+          next_centerpt.insert(next_centerpt.end(),
+                               lane_next_s_centerline.begin(),
+                               lane_next_s_centerline.end());
+          int ctpt_size = next_centerpt.size();
+          if (next_second_lane->next_lane_str_id_with_group.size() == 1) {
+            int next_next_index =
+                lane_grp_index[next_second_lane
+                                   ->next_lane_str_id_with_group[0]];
+            auto& next_next_ctline =
+                groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
+            if (next_next_ctline.size() >= 10 - ctpt_size) {
+              next_centerpt.insert(next_centerpt.end(),
+                                   next_next_ctline.begin(),
+                                   next_next_ctline.begin() + (10 - ctpt_size));
+            } else {
+              next_centerpt.insert(next_centerpt.end(),
+                                   next_next_ctline.begin(),
+                                   next_next_ctline.end());
+            }
+          }
+        }
+        std::vector<Point> second_ctl = SigmoidFunc(next_centerpt, 5.0);
+        int second_ctl_size = second_ctl.size();
+        if (next_s_ctl_size >= second_ctl_size) {
+          std::copy(second_ctl.begin(), second_ctl.end(),
+                    lane_next_s_centerline.begin());
+          if ((lane_next_s_centerline[0].pt - lane->center_line_pts.back().pt)
+                  .norm() > 0.1) {
+            lane_next_s_centerline.insert(lane_next_s_centerline.begin(),
+                                          lane->center_line_pts.back());
+          }
+        } else {
+          std::copy(second_ctl.begin(), second_ctl.begin() + next_s_ctl_size,
+                    lane_next_s_centerline.begin());
+          int next_next_index =
+              lane_grp_index[next_second_lane->next_lane_str_id_with_group[0]];
+          auto& next_next_line =
+              groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
+          std::copy(second_ctl.begin() + next_s_ctl_size, second_ctl.end(),
+                    next_next_line.begin());
+          if ((lane_next_s_centerline[0].pt - lane->center_line_pts.back().pt)
+                  .norm() > 0.1) {
+            lane_next_s_centerline.insert(lane_next_s_centerline.begin(),
+                                          lane->center_line_pts.back());
+          }
+          if ((next_next_line[0].pt - lane_next_s_centerline.back().pt).norm() >
+              0.1) {
+            next_next_line.insert(next_next_line.begin(),
+                                  lane_next_s_centerline.back());
+          }
+        }
+      }
     }
   }
 }
@@ -2353,6 +2637,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
                 .norm();
         if (max_length_lane <= 10.0 && flag_lane == 0 &&
             group_distance < 10.0) {
+          HLOG_ERROR << " is connect";
           BuildVirtualLaneBefore(curr_group, next_group);
           // groups->erase(groups->begin() + i - 1);
         }
@@ -2400,7 +2685,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
   if (groups->size() > 1) {
     RelateGroups(groups, stamp);
   }
-
+  SmoothCenterline(groups);
 #if 1
   //! TBD: 临时修改，解除多个后继，仅保留角度变化最小的一个后继
   std::map<std::string, LaneWithNextLanes> lanes_has_next;
@@ -2500,7 +2785,8 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
           last_grp->group_segments.back()->end_slice.pr.y());
       Eigen::Vector2f curr_pos(0.0, 0.0);
       bool veh_in_this_junction = false;
-      if (PointInVectorSide(curr_end_pr, curr_end_pl, curr_pos) >= 0 ||
+      if ((PointInVectorSide(curr_end_pr, curr_end_pl, curr_pos) >= 0 &&
+           PointToVectorDist(curr_end_pr, curr_end_pl, curr_pos) < 40) ||
           PointToVectorDist(curr_end_pr, curr_end_pl, curr_pos) < 20 ||
           (!check_back)) {
         veh_in_this_junction = true;
@@ -4007,7 +4293,7 @@ bool GroupMap::LaneLineNeedToPredict(const LineSegment& line, bool check_back) {
   auto mean_interval = line.mean_end_interval;
   float dist_to_veh = back_pt.norm();
   bool valid_back = true;
-  if (check_back && back_pt.x() < -20) {
+  if (check_back && back_pt.x() < -40) {
     valid_back = false;
   }
   if (valid_back &&

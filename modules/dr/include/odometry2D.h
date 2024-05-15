@@ -129,6 +129,8 @@ class Odometry2D : public OdometryBase {
 
   std::deque<Eigen::Vector3d> ins_buffer_;
   double avg_pitch_ = 0.0;
+  std::deque<Eigen::Vector3d> vel_deque_;
+  bool is_static_{false};
 };
 
 }  // namespace dr

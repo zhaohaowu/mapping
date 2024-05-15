@@ -12,13 +12,12 @@
 #include "depend/perception-lib/lib/health_manager/health_manager.h"
 #include "gtest/gtest.h"
 #include "modules/dr/include/dr.h"
-#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
+#include "modules/util/include/util/orin_trigger_manager.h"
 #include "perception-lib/lib/environment/environment.h"
 #include "proto/dead_reckoning/dr.pb.h"
 #include "proto/soc/chassis.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
 #include "yaml-cpp/yaml.h"
-#include "modules/util/include/util/orin_trigger_manager.h"
 
 namespace hozon {
 namespace perception {
@@ -33,8 +32,6 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
   int32_t AlgInit() override {
     REGISTER_PROTO_MESSAGE_TYPE("imu_ins", hozon::soc::ImuIns);
     REGISTER_PROTO_MESSAGE_TYPE("chassis", hozon::soc::Chassis);
-    REGISTER_PROTO_MESSAGE_TYPE(
-        "running_mode", hozon::perception::common_onboard::running_mode);
     REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
 
     std::string default_work_root = "/app/";
@@ -49,11 +46,6 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
                               "dr/dr_config.yaml";
     dr_interface_ = std::make_shared<hozon::mp::dr::DRInterface>(config_file);
 
-    // 接收行泊切换信号
-    RegistAlgProcessFunc(
-        "receive_running_mode",
-        std::bind(&DeadReckoning::running_mode, this, std::placeholders::_1));
-
     // 接收数据线程
     RegistAlgProcessFunc("receive_chassis",
                          std::bind(&DeadReckoning::receive_chassis, this,
@@ -65,12 +57,12 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
     return 0;
   }
 
-  int32_t running_mode(Bundle* input);
   int32_t receive_chassis(Bundle* input);
   int32_t receive_imu(Bundle* input);
 
   void AlgRelease() override {}
-  void CheckTriggerDrDrift(double vel_x, double p_x, double p_y, double cur_time);
+  void CheckTriggerDrDrift(double vel_x, double p_x, double p_y,
+                           double cur_time);
   bool IsDrDrift(double p_x, double p_y);
 
  private:
@@ -79,12 +71,6 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
 };
 
 REGISTER_ADF_CLASS(DeadReckoning, DeadReckoning);
-
-// send in-process data and interprocess data
-int32_t DeadReckoning::running_mode(Bundle* input) {
-  HLOG_ERROR << "DR: receive running_mode signal";
-  return 0;
-}
 
 // recieve in-process data and interprocess data
 int32_t DeadReckoning::receive_chassis(Bundle* input) {
@@ -95,6 +81,13 @@ int32_t DeadReckoning::receive_chassis(Bundle* input) {
   static bool chassis_input_data_error_flag = false;
   static bool chassis_input_time_error_flag = false;
   static bool chassis_input_data_nan_flag = false;
+
+  static int count_chassis = 0;
+  count_chassis++;
+  if (count_chassis > 100) {
+    count_chassis = 0;
+    HLOG_INFO << "receive chassis heartbeat";
+  }
 
   if (!ptr_rec_chassis) {
     dr_fault->Report(MAKE_FM_TUPLE(
@@ -193,31 +186,38 @@ bool DeadReckoning::IsDrDrift(double p_x, double p_y) {
     return false;
   }
   if (!pose_que_.empty() && pose_que_.size() < 21) {
-    pose_diff_avg += 0.05 * std::sqrt(((p_x - pose_que_.back().first) * (p_x - pose_que_.back().first))
-                                  + ((p_y - pose_que_.back().second) * (p_y - pose_que_.back().second)));
+    pose_diff_avg += 0.05 * std::sqrt(((p_x - pose_que_.back().first) *
+                                       (p_x - pose_que_.back().first)) +
+                                      ((p_y - pose_que_.back().second) *
+                                       (p_y - pose_que_.back().second)));
     pose_que_.push_back(std::make_pair(p_x, p_y));
     return false;
   } else {
-    d_p = std::sqrt(((p_x - pose_que_.back().first) * (p_x - pose_que_.back().first))
-                  + ((p_y - pose_que_.back().second)) * (p_y - pose_que_.back().second));
+    d_p = std::sqrt(
+        ((p_x - pose_que_.back().first) * (p_x - pose_que_.back().first)) +
+        ((p_y - pose_que_.back().second)) * (p_y - pose_que_.back().second));
     pose_diff_avg += 0.05 * d_p;
     pose_diff_avg -=
-        0.05 * std::sqrt(((pose_que_[0].first - pose_que_[1].first) * (pose_que_[0].first - pose_que_[1].first))
-                      + ((pose_que_[0].second - pose_que_[1].second) * (pose_que_[0].second - pose_que_[1].second)));
+        0.05 * std::sqrt(((pose_que_[0].first - pose_que_[1].first) *
+                          (pose_que_[0].first - pose_que_[1].first)) +
+                         ((pose_que_[0].second - pose_que_[1].second) *
+                          (pose_que_[0].second - pose_que_[1].second)));
     if (pose_diff_avg < 0.01 || d_p < 0.01) return false;
     if (d_p < pose_diff_avg * 1.5) {
       pose_que_.pop_front();
       pose_que_.push_back(std::make_pair(p_x, p_y));
       return false;
     } else {
-      HLOG_ERROR << "d_p: " << d_p << " is larger than pose_diff_avg * 1.5: " << pose_diff_avg * 1.5;
+      HLOG_ERROR << "d_p: " << d_p << " is larger than pose_diff_avg * 1.5: "
+                 << pose_diff_avg * 1.5;
       pose_que_.clear();
       return true;
     }
   }
 }
 
-void DeadReckoning::CheckTriggerDrDrift(double vel_x, double p_x, double p_y, double cur_time) {
+void DeadReckoning::CheckTriggerDrDrift(double vel_x, double p_x, double p_y,
+                                        double cur_time) {
   if (vel_x > 3.0) {
     static bool enable_12 = true;
     static double last_time_12 = -1;
@@ -244,6 +244,13 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
   static bool input_time_error_flag = false;
   static bool input_data_nan_flag = false;
   static bool output_data_nan_flag = false;
+
+  static int count_imu = 0;
+  count_imu++;
+  if (count_imu > 100) {
+    count_imu = 0;
+    HLOG_INFO << "receive imu heartbeat";
+  }
 
   dr_health->HealthReport(
       MAKE_HM_TUPLE(hozon::perception::base::HmModuleId::MAPPING,
@@ -372,10 +379,10 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
         output_data_nan_flag = false;
       }
     }
-    #ifdef ISORIN
-      // mapping trigger 轮速计跳变
-      CheckTriggerDrDrift(vel_x, pose_x, pose_y, cur_imu_time);
-    #endif
+#ifdef ISORIN
+    // mapping trigger 轮速计跳变
+    CheckTriggerDrDrift(vel_x, pose_x, pose_y, cur_imu_time);
+#endif
 
   } else {
     HLOG_WARN << "DR: is not init";

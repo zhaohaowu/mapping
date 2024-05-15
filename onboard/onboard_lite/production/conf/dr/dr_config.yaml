@@ -9,15 +9,8 @@ input:
       capacity: 5
     - topic: chassis # interprocess cm
       capacity: 5
-    - topic: running_mode 
-      capacity: 5
 
 trigger:
-  - name: receive_running_mode
-    type: EVENT
-    mainSources:
-      - name: running_mode
-        timeout: 1000
   - name: receive_chassis
     type: EVENT
     mainSources:

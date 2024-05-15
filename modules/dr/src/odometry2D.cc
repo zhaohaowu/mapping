@@ -41,6 +41,26 @@ bool Odometry2D::update() {
     std::tie(local_vel, delta_dis) =
         UpdatePosByWheel(oldest_wheels[0], oldest_wheels[1]);
 
+    // 静止判断
+    vel_deque_.push_back(local_vel);
+    while (vel_deque_.size() > 3) {
+      vel_deque_.pop_front();
+    }
+    int count_vel = 0;
+    for (const auto vel : vel_deque_) {
+      if (vel_deque_.size() < 3) {
+        is_static_ = false;
+      }
+      if (fabs(vel.x()) < 1.0e-6) {
+        count_vel++;
+      }
+      if (fabs(count_vel - vel_deque_.size()) < 1.0e-6) {
+        is_static_ = true;
+      } else {
+        is_static_ = false;
+      }
+    }
+
     double wheel_time_dt =
         oldest_wheels[1].timestamp - oldest_wheels[0].timestamp;
     double wheel_time = oldest_wheels[1].timestamp;
@@ -377,7 +397,7 @@ void Odometry2D::UpdateOrientationByIMU(const ImuDataHozon& last_imu,
   Eigen::Vector3d det_ang = gyro_unbias * dt;
   w_by_gyro_ = gyro_unbias;
 
-  if (det_ang.norm() > 1e-12) {
+  if (det_ang.norm() > 1e-12 && !is_static_) {
     qat_ = qat_ * Eigen::Quaterniond(
                       Eigen::AngleAxisd(det_ang.norm(), det_ang.normalized()));
     qat_ = qat_.normalized();

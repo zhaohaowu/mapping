@@ -26,6 +26,6 @@ ins_ang_noise2: 3.5e-3
 R_mm_posx_std: 2.0e-4
 R_mm_posy_std: 2.0e-4
 R_mm_posz_std: 2.0e-4
-R_mm_orix_std: 1.0e-5
-R_mm_oriy_std: 1.0e-5
+R_mm_orix_std: 2.0e-4
+R_mm_oriy_std: 2.0e-4
 R_mm_oriz_std: 1.0e-5

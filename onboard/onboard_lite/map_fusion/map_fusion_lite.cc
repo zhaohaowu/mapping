@@ -528,7 +528,7 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
       DebugSelectMap();
     }
     HLOG_INFO << "select map_type:" << curr_map_type_.map_type << ", "
-               << curr_map_type_.valid;
+              << curr_map_type_.valid;
     if (curr_map_type_.map_type ==
             hozon::navigation_hdmap::MapMsg_MapType_FUSION_NNP_MAP ||
         curr_map_type_.map_type ==
@@ -622,7 +622,8 @@ MapFusionLite::GetLatestLocPlugin() {
 int MapFusionLite::SendFusionResult(
     const std::shared_ptr<hozon::localization::Localization>& location,
     const std::shared_ptr<hozon::hdmap::Map>& map,
-    mp::mf::select::MapSelectResult select, hozon::routing::RoutingResponse* routing) {
+    mp::mf::select::MapSelectResult select,
+    hozon::routing::RoutingResponse* routing) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   static bool input_nullptr_map_or_routing_flags = false;
   if (map == nullptr || routing == nullptr) {

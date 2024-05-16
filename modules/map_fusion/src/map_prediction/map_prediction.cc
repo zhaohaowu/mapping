@@ -646,19 +646,29 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
   utm_pos.set_z(0);
 
   hq_map_ = std::make_shared<hozon::hdmap::Map>();
-  std::shared_ptr<hozon::hdmap::Map> hq_map_local =
+  std::shared_ptr<hozon::hdmap::Map> hq_map_local_small =
+      std::make_shared<hozon::hdmap::Map>();
+  std::shared_ptr<hozon::hdmap::Map> hq_map_local_wide =
       std::make_shared<hozon::hdmap::Map>();
 
   if (!get_default_routing_) {
-    GetRoutingLanesFromFile();  // 只要读一次里面存储所有的lane id
+    GetRoutingLanesFromFile();  // 只要读取一次里面存储所有的routing lane id
   }
 
-  // 通过这个范围取得junction
   auto ret =
-      GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_local.get());
+      GLOBAL_HD_MAP->GetLocalMap(utm_pos, {50, 50}, hq_map_local_small.get());
   if (ret != 0) {
-    HLOG_ERROR << "GetLocalMap failed";
+    HLOG_ERROR << "GetLocalMap 50m range failed";
+  }
+  ret =
+      GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_local_wide.get());
+  if (ret != 0) {
+    HLOG_ERROR << "GetLocalMap 300m range failed";
     return nullptr;
+  }
+  std::vector<std::string> local_lanes_small;
+  for (const auto& lane_it : hq_map_local_small->lane()) {
+    local_lanes_small.emplace_back(lane_it.id().id());
   }
 
   if (default_routing_lanes_.empty()) {
@@ -666,16 +676,30 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
     return nullptr;
   }
 
-  // lane和local map取交集
-  std::vector<std::string> local_lanes;
-  for (const auto& lane_it : hq_map_local->lane()) {
-    local_lanes.emplace_back(lane_it.id().id());
+  std::vector<std::string> local_lanes_wide;
+  for (const auto& lane_it : hq_map_local_wide->lane()) {
+    local_lanes_wide.emplace_back(lane_it.id().id());
   }
 
   std::unordered_set<std::string> road_id_set;
-  // lane
+  std::vector<std::string> local_lanes;
+  // routing lane和local map 300m 范围取交集
   for (const auto& lane_id_it : default_routing_lanes_) {
-    if (std::find(local_lanes.begin(), local_lanes.end(), lane_id_it) !=
+    if (std::find(local_lanes_wide.begin(), local_lanes_wide.end(),
+                  lane_id_it) != local_lanes_wide.end()) {
+      local_lanes.emplace_back(lane_id_it);
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(lane_id_it);
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        hq_map_->add_lane()->CopyFrom(lane_ptr->lane());
+        road_id_set.emplace(lane_ptr->road_id().id());
+      }
+    }
+  }
+  // 再和local map 50m 范围取并集
+  for (const auto& lane_id_it : local_lanes_small) {
+    if (std::find(local_lanes.begin(), local_lanes.end(), lane_id_it) ==
         local_lanes.end()) {
       hozon::hdmap::Id lane_id;
       lane_id.set_id(lane_id_it);
@@ -698,23 +722,13 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
     }
   }
 
-  // junction
-  hq_map_->mutable_junction()->CopyFrom(hq_map_local->junction());
-
-  // crosswalk
-  hq_map_->mutable_crosswalk()->CopyFrom(hq_map_local->crosswalk());
-
-  // signal
-  hq_map_->mutable_signal()->CopyFrom(hq_map_local->signal());
-
-  // overlap
-  hq_map_->mutable_overlap()->CopyFrom(hq_map_local->overlap());
-
-  // speed bump
-  hq_map_->mutable_speed_bump()->CopyFrom(hq_map_local->speed_bump());
-
-  // arraw
-  hq_map_->mutable_arraw()->CopyFrom(hq_map_local->arraw());
+  // 以下元素都是300m范围内的
+  hq_map_->mutable_junction()->CopyFrom(hq_map_local_wide->junction());
+  hq_map_->mutable_crosswalk()->CopyFrom(hq_map_local_wide->crosswalk());
+  hq_map_->mutable_signal()->CopyFrom(hq_map_local_wide->signal());
+  hq_map_->mutable_overlap()->CopyFrom(hq_map_local_wide->overlap());
+  hq_map_->mutable_speed_bump()->CopyFrom(hq_map_local_wide->speed_bump());
+  hq_map_->mutable_arraw()->CopyFrom(hq_map_local_wide->arraw());
 
   if (local_enu_center_flag_) {
     HLOG_ERROR << "init_pose_ not inited";
@@ -724,6 +738,12 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
   HDMapLaneToLocal();
   HDMapRoadToLocal();
   NCPMapToLocal();
+
+  // 透传routing
+  if (current_routing_ != nullptr) {
+    routing->Clear();
+    routing->CopyFrom(*current_routing_);
+  }
 
   return hq_map_;
 }
@@ -1767,6 +1787,10 @@ void MapPrediction::GetRoutingLanesFromFile() {
                << routing_file_path;
     return;
   }
+
+  // 透传全局routing
+  current_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
+  current_routing_->CopyFrom(routing);
 
   for (const auto& road_it : routing.road()) {
     for (const auto& passage_it : road_it.passage()) {

@@ -114,6 +114,9 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
   is_cross_.along_path_dis_.x() = 0.0;
   is_cross_.along_path_dis_.y() = 0.0;
   is_cross_.along_path_dis_.z() = 0.0;
+  history_id_.lane_id = 0;
+  history_id_.road_id = 0;
+  history_id_.cicle = 2000;
   path_ = std::make_shared<PathManager>(pm_conf);
 
   return true;
@@ -193,7 +196,7 @@ std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap() {
   IsInCrossing(groups, &is_cross_);
   VizGroup(groups, ele_map_->map_info.stamp);
 
-  proto_map = group_map.Export(ele_map_);
+  proto_map = group_map.Export(ele_map_, &history_id_);
   ele_map_output_ = group_map.AddElementMap(ele_map_);
   return proto_map;
 }

@@ -203,6 +203,12 @@ struct IsCross {
   size_t cross_after_lane_ = 0;
 };
 
+struct HistoryId {
+  int lane_id = 0;
+  int road_id = 0;
+  int cicle = 2000;
+};
+
 class GroupMap {
  public:
   explicit GroupMap(const GroupMapConf& conf) : conf_(conf) {}
@@ -212,13 +218,13 @@ class GroupMap {
              const KinePose::Ptr& curr_pose, const em::ElementMap::Ptr& ele_map,
              IsCross is_cross);
   void GetGroups(std::vector<Group::Ptr>* groups);
-  std::shared_ptr<hozon::hdmap::Map> Export(const em::ElementMap::Ptr& ele_map);
+  std::shared_ptr<hozon::hdmap::Map> Export(const em::ElementMap::Ptr& ele_map,
+                                            HistoryId* history_id);
   std::shared_ptr<hozon::mp::mf::em::ElementMapOut> AddElementMap(
       const em::ElementMap::Ptr& ele_map);
 
   bool ego_line_exist_ = false;
   std::vector<double> predict_line_params_;  // 三次样条
-
  private:
   void CollectGroupPossibleLanes(Group::Ptr grp,
                                  std::vector<Lane::Ptr>* possible_lanes);
@@ -257,7 +263,7 @@ class GroupMap {
   void PredictLaneLine(LineSegment* line);
   std::shared_ptr<hozon::hdmap::Map> ConvertToProtoMap(
       const std::vector<Group::Ptr>& groups, const KinePose::Ptr& curr_pose,
-      const em::ElementMap::Ptr& ele);
+      const em::ElementMap::Ptr& ele, HistoryId* history_id);
   std::shared_ptr<hozon::mp::mf::em::ElementMapOut> ConvertToElementMap(
       const std::vector<Group::Ptr>& groups, const KinePose::Ptr& curr_pose,
       const em::ElementMap::Ptr& ele_map);

@@ -22,7 +22,6 @@
 #include "base/utils/log.h"
 #include "map_fusion/fusion_common/calc_util.h"
 #include "map_fusion/fusion_common/element_map.h"
-// #include "third_party/x86_2004/cuda/targets/x86_64-linux/include/driver_types.h"
 
 namespace hozon {
 namespace mp {
@@ -4629,7 +4628,7 @@ std::shared_ptr<hozon::mp::mf::em::ElementMapOut> GroupMap::ConvertToElementMap(
 // 把Group里元素转换成map proto，并且坐标变换到local系
 std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
     const std::vector<Group::Ptr>& groups, const KinePose::Ptr& curr_pose,
-    const em::ElementMap::Ptr& ele_map) {
+    const em::ElementMap::Ptr& ele_map, HistoryId* history_id) {
   for (const auto& grp : groups) {
     if (grp == nullptr) {
       HLOG_ERROR << "found nullptr group";
@@ -4643,14 +4642,16 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
   map->mutable_header()->mutable_header()->set_data_stamp(
       groups.front()->stamp);
 
-  int lane_id = 0;
+  int lane_id = history_id->lane_id;  // 0;
   std::map<std::string, int> lane_id_hash;
   for (const auto& grp : groups) {
     for (const auto& lane : grp->lanes) {
-      lane_id_hash.insert_or_assign(lane->str_id_with_group, lane_id++);
+      lane_id++;
+      lane_id = lane_id % history_id->cicle;
+      lane_id_hash.insert_or_assign(lane->str_id_with_group, lane_id);
     }
   }
-
+  history_id->lane_id = lane_id;
   std::vector<std::vector<std::string>> lane_ids_in_group;
 
   for (const auto& grp : groups) {
@@ -4714,15 +4715,22 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
         boundary_type->set_s(0.0);
         auto type = ProtoBoundType::UNKNOWN;
         std::set<em::LineType> dotted = {
-            em::LaneType_DASHED,          em::LaneType_SHORT_DASHED,
-            em::LaneType_DOUBLE_DASHED,   em::LaneType_LEFT_SOLID_RIGHT_DASHED,
+            em::LaneType_DASHED,
+            em::LaneType_SHORT_DASHED,
+            em::LaneType_DOUBLE_DASHED,
             em::LaneType_FISHBONE_DASHED,
         };
         std::set<em::LineType> solid = {
             em::LaneType_SOLID,
-            em::LaneType_RIGHT_SOLID_LEFT_DASHED,
             em::LaneType_FISHBONE_SOLID,
         };
+        if (lane->left_boundary->lanepos > 0) {
+          dotted.insert(em::LaneType_RIGHT_SOLID_LEFT_DASHED);
+          solid.insert(em::LaneType_LEFT_SOLID_RIGHT_DASHED);
+        } else {
+          dotted.insert(em::LaneType_LEFT_SOLID_RIGHT_DASHED);
+          solid.insert(em::LaneType_RIGHT_SOLID_LEFT_DASHED);
+        }
         if (dotted.find(lane->left_boundary->type) != dotted.end() &&
             lane->left_boundary->color == em::YELLOW) {
           type = ProtoBoundType::DOTTED_YELLOW;
@@ -4772,15 +4780,22 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
         boundary_type->set_s(0.0);
         auto type = ProtoBoundType::UNKNOWN;
         std::set<em::LineType> dotted = {
-            em::LaneType_DASHED,          em::LaneType_SHORT_DASHED,
-            em::LaneType_DOUBLE_DASHED,   em::LaneType_RIGHT_SOLID_LEFT_DASHED,
+            em::LaneType_DASHED,
+            em::LaneType_SHORT_DASHED,
+            em::LaneType_DOUBLE_DASHED,
             em::LaneType_FISHBONE_DASHED,
         };
         std::set<em::LineType> solid = {
             em::LaneType_SOLID,
-            em::LaneType_LEFT_SOLID_RIGHT_DASHED,
             em::LaneType_FISHBONE_SOLID,
         };
+        if (lane->right_boundary->lanepos > 0) {
+          dotted.insert(em::LaneType_RIGHT_SOLID_LEFT_DASHED);
+          solid.insert(em::LaneType_LEFT_SOLID_RIGHT_DASHED);
+        } else {
+          dotted.insert(em::LaneType_LEFT_SOLID_RIGHT_DASHED);
+          solid.insert(em::LaneType_RIGHT_SOLID_LEFT_DASHED);
+        }
         if (dotted.find(lane->right_boundary->type) != dotted.end() &&
             lane->right_boundary->color == em::YELLOW) {
           type = ProtoBoundType::DOTTED_YELLOW;
@@ -4874,9 +4889,10 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
   //! TBD: 暂时未加RoadBoundary
   auto* proto_road = map->add_road();
   proto_road->mutable_id()->set_id("0");
-  int grp_idx = -1;
+  int grp_idx = history_id->road_id;  //-1;
   for (const auto& grp : lane_ids_in_group) {
     grp_idx += 1;
+    grp_idx = grp_idx % history_id->cicle;
     if (grp.empty()) {
       continue;
     }
@@ -4889,7 +4905,7 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
       proto_lane_id->set_id(id);
     }
   }
-
+  history_id->road_id = grp_idx;
   // stop lines
   // for (const auto& stopline_it : ele_map->stop_lines) {
   //   auto* stop_line = map->add_stop_line();
@@ -5036,11 +5052,11 @@ void GroupMap::GetGroups(std::vector<Group::Ptr>* groups) {
 
 // 导出为map proto
 std::shared_ptr<hozon::hdmap::Map> GroupMap::Export(
-    const em::ElementMap::Ptr& ele_map) {
+    const em::ElementMap::Ptr& ele_map, HistoryId* history_id) {
   if (curr_pose_ == nullptr || groups_.empty()) {
     return nullptr;
   }
-  auto map = ConvertToProtoMap(groups_, curr_pose_, ele_map);
+  auto map = ConvertToProtoMap(groups_, curr_pose_, ele_map, history_id);
   return map;
 }
 

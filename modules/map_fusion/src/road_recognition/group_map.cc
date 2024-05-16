@@ -529,7 +529,7 @@ void GroupMap::GenLaneSegInGroupSeg(std::vector<GroupSegment::Ptr>* segments) {
         auto& left_line = seg->line_segments.at(i);
         auto& right_line = seg->line_segments.at(i + 1);
         auto& left_center = left_line->center;
-        auto& right_center = right_line->center;
+        auto right_center = right_line->center;
         auto dist = Dist(left_center, right_center);
         if (dist < conf_.min_lane_width) {
           if (i == 0 && line_seg_num > 2) {

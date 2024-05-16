@@ -204,7 +204,7 @@ void ESKF::Correct(const Node& cur_meas_data) {
   K_ = P_ * H_.transpose() * ((H_ * P_ * H_.transpose() + R).inverse());
   X_dx_ = K_ * y_diff;
   P_ = (Mat15T::Identity() - K_ * H_) * P_;
-  
+
   static int count = 0;
   ++count;
   if (count >= 10) {

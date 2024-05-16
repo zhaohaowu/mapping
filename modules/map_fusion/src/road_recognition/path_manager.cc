@@ -69,13 +69,16 @@ void PathManager::GetPath(std::vector<KinePose::Ptr>* path,
   auto curr_vel = latest_pose_.vel;
   auto curr_ang_vel = latest_pose_.ang_vel;
   float norm_vel = curr_vel.head<2>().norm();
+  Eigen::Quaternionf last_quat(1.0, 0.0, 0.0, 0.0);
   // 车辆静止时，为了能继续往前预测，设定一个常量速度，并且角速度设为0
-  const float kStationaryVelThreshold = 0.1;  // 判断为静止的速度阈值
+  const float kStationaryVelThreshold = 0.5;  // 判断为静止的速度阈值
   const float kPseudoVelKmph = 30.0;          // 静止时假设的前进速度
   if (std::abs(norm_vel) <= kStationaryVelThreshold) {
     curr_vel << kPseudoVelKmph / 3.6F, 0, 0;
     norm_vel = curr_vel.head<2>().norm();
     curr_ang_vel.setZero();
+  } else {
+    last_quat = poses_.back()->quat;
   }
 
   int avg_n = std::min(static_cast<int>(path->size()), 5);
@@ -93,7 +96,6 @@ void PathManager::GetPath(std::vector<KinePose::Ptr>* path,
 
   float dt = avg_interval / norm_vel;
   int predict_counts = static_cast<int>(predict_range / avg_interval);
-  auto last_quat = poses_.back()->quat;
   auto last_stamp = poses_.back()->stamp;
   // 使用匀速匀旋转来递推位姿
   //! TBD:

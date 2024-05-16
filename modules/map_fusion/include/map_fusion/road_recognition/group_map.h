@@ -225,6 +225,7 @@ class GroupMap {
 
   bool ego_line_exist_ = false;
   std::vector<double> predict_line_params_;  // 三次样条
+
  private:
   void CollectGroupPossibleLanes(Group::Ptr grp,
                                  std::vector<Lane::Ptr>* possible_lanes);

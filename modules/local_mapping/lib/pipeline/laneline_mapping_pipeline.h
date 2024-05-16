@@ -51,6 +51,9 @@ class LaneLineMappingPipeline : public BaseMappingPipeline {
                        const AssociationResult& association_result);
   void CollectOutputObjects(LaneLinesPtr tracked_lanelines);
   void CatmullRomFit(LaneLinesPtr tracked_lanelines);
+  void AdjustIntersectionLines(LaneLinesPtr tracked_lanelines);
+  void DeleteLaneLineShortPart(size_t laneline_delete_index,
+                               std::vector<Eigen::Vector3d>* vehicle_points);
   void RemoveLostTracks();
   void SetIntersectionThreshold();
   void AssginPosition(LaneLinesPtr localmap_frame_ptr);

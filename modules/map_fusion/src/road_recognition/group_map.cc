@@ -4889,7 +4889,7 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
   //! TBD: 暂时未加RoadBoundary
   auto* proto_road = map->add_road();
   proto_road->mutable_id()->set_id("0");
-  int grp_idx = history_id->road_id;  //-1;
+  int grp_idx = history_id->road_id;  // -1;
   for (const auto& grp : lane_ids_in_group) {
     grp_idx += 1;
     grp_idx = grp_idx % history_id->cicle;

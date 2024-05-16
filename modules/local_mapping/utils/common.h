@@ -325,6 +325,76 @@ class CommonUtil {
 
     return T_enu_vehicle.inverse() * point_enu;
   }
+
+  /// 判断两线段是否相交，如果相交计算出交点，参考：https://zhuanlan.zhihu.com/p/158533421
+  /// 输入：
+  ///   a: 线段1起点
+  ///   b: 线段1终点
+  ///   c: 线段2起点
+  ///   d: 线段2终点
+  ///   intersect_pt: 计算后的交点
+  /// 返回值：
+  ///   false，不相交
+  ///   true，相交
+  template <typename T>
+  static bool SegmentIntersection(const Eigen::Vector3<T>& a,
+                                  const Eigen::Vector3<T>& b,
+                                  const Eigen::Vector3<T>& c,
+                                  const Eigen::Vector3<T>& d,
+                                  Eigen::Vector3<T>* intersect_pt) {
+    if (intersect_pt == nullptr) {
+      return false;
+    }
+    Eigen::Vector3<T> n2(d.y() - c.y(), c.x() - d.x(), 0);
+    T dist_c_n2 = c.x() * n2.x() + c.y() * n2.y();
+    T dist_a_n2 = a.x() * n2.x() + a.y() * n2.y();
+    T dist_b_n2 = b.x() * n2.x() + b.y() * n2.y();
+    const T EPSILON = 1e-5;
+    if ((dist_a_n2 - dist_c_n2) * (dist_b_n2 - dist_c_n2) >= -EPSILON) {
+      return false;
+    }
+
+    Eigen::Vector3<T> n1(b.y() - a.y(), a.x() - b.x(), 0);
+    T dist_a_n1 = a.x() * n1.x() + a.y() * n1.y();
+    T dist_c_n1 = c.x() * n1.x() + c.y() * n1.y();
+    T dist_d_n1 = d.x() * n1.x() + d.y() * n1.y();
+    if ((dist_c_n1 - dist_a_n1) * (dist_d_n1 - dist_a_n1) >= -EPSILON) {
+      return false;
+    }
+
+    T denominator = n1.x() * n2.y() - n1.y() * n2.x();
+    if (std::abs(denominator) < EPSILON) {
+      return false;
+    }
+    T fraction = (dist_a_n1 - dist_c_n2) / denominator;
+    intersect_pt->x() = a.x() + fraction * n1.y();
+    intersect_pt->y() = a.y() - fraction * n1.x();
+    // HLOG_ERROR << "(x1,y1): " << a.x() << " " << a.y();
+    // HLOG_ERROR << "(x2,y2): " << b.x() << " " << b.y();
+    // HLOG_ERROR << "(x3,y3): " << c.x() << " " << c.y();
+    // HLOG_ERROR << "(x4,y4): " << d.x() << " " << d.y();
+    return true;
+  }
+
+  // 计算车道线的平均heading
+  static double CalMeanLineHeading(const std::vector<Eigen::Vector3d>& points) {
+    if (points.size() < 2) {
+      return 0;
+    }
+    double mean_theta = 0.;
+    for (size_t i = 0; i < points.size() - 1; i++) {
+      const Eigen::Vector2f pa(points[i].x(), points[i].y());
+      const Eigen::Vector2f pb(points[i + 1].x(), points[i + 1].y());
+      Eigen::Vector2f v = pb - pa;
+      double theta = 0;
+      if (std::abs(v.x()) > 1e-2) {
+        theta = atan2(v.y(), v.x());  // atan2计算出的角度范围是[-pi, pi]
+      }
+      mean_theta += theta;
+    }
+    mean_theta /= static_cast<double>(points.size());
+    return mean_theta;
+  }
 };
 
 }  // namespace lm

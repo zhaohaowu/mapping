@@ -2239,78 +2239,11 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
   }
   for (auto& grp : *groups) {
     std::vector<Lane::Ptr> possible_lanes;
-    for (const auto& grp_seg : grp->group_segments) {
-      if (possible_lanes.empty()) {
-        for (const auto& lane_seg : grp_seg->lane_segments) {
-          auto lane = std::make_shared<Lane>();
-          lane->str_id = lane_seg->str_id;
-          lane->lanepos_id = lane_seg->lanepos_id;
-          lane->str_id_with_group = grp->str_id + ":" + lane->str_id;
-          lane->left_boundary = std::make_shared<LineSegment>();
-          lane->left_boundary->id = lane_seg->left_boundary->id;
-          lane->left_boundary->lanepos = lane_seg->left_boundary->lanepos;
-          lane->left_boundary->type = lane_seg->left_boundary->type;
-          lane->left_boundary->color = lane_seg->left_boundary->color;
-          lane->left_boundary->isego = lane_seg->left_boundary->isego;
-          lane->left_boundary->mean_end_heading =
-              lane_seg->left_boundary->mean_end_heading;
-          lane->left_boundary->mean_end_heading_std_dev =
-              lane_seg->left_boundary->mean_end_heading_std_dev;
-          lane->left_boundary->mean_end_interval =
-              lane_seg->left_boundary->mean_end_interval;
-          for (const auto& pt : lane_seg->left_boundary->pts) {
-            lane->left_boundary->pts.emplace_back(pt);
-          }
-          lane->right_boundary = std::make_shared<LineSegment>();
-          lane->right_boundary->id = lane_seg->right_boundary->id;
-          lane->right_boundary->lanepos = lane_seg->right_boundary->lanepos;
-          lane->right_boundary->type = lane_seg->right_boundary->type;
-          lane->right_boundary->color = lane_seg->right_boundary->color;
-          lane->right_boundary->isego = lane_seg->right_boundary->isego;
-          lane->right_boundary->mean_end_heading =
-              lane_seg->right_boundary->mean_end_heading;
-          lane->right_boundary->mean_end_heading_std_dev =
-              lane_seg->right_boundary->mean_end_heading_std_dev;
-          lane->right_boundary->mean_end_interval =
-              lane_seg->right_boundary->mean_end_interval;
-          for (const auto& pt : lane_seg->right_boundary->pts) {
-            lane->right_boundary->pts.emplace_back(pt);
-          }
-          possible_lanes.emplace_back(lane);
-        }
-        continue;
-      }
-
-      const size_t grp_lane_num = possible_lanes.size();
-      if (grp_lane_num != grp_seg->lane_segments.size()) {
-        HLOG_ERROR << "something is wrong, group's lane num should be equal to "
-                      "group segment's lane segment num";
-        return;
-      }
-
-      for (size_t i = 0; i != grp_lane_num; ++i) {
-        auto& exist_lane = possible_lanes.at(i);
-        const auto& lane_seg = grp_seg->lane_segments.at(i);
-        for (const auto& pt : lane_seg->left_boundary->pts) {
-          exist_lane->left_boundary->pts.emplace_back(pt);
-        }
-        for (const auto& pt : lane_seg->right_boundary->pts) {
-          exist_lane->right_boundary->pts.emplace_back(pt);
-        }
-      }
-    }
-
+    possible_lanes.clear();
+    // 收集可能的lane
+    CollectGroupPossibleLanes(grp, &possible_lanes);
     // 过滤掉边线只有一个点的lane
-    std::vector<Lane::Ptr> valid_lanes;
-    for (const auto& lane : possible_lanes) {
-      if (lane != nullptr && lane->left_boundary != nullptr &&
-          lane->left_boundary->pts.size() > 1 &&
-          lane->right_boundary != nullptr &&
-          lane->right_boundary->pts.size() > 1) {
-        grp->lanes.emplace_back(lane);
-      }
-    }
-
+    FilterGroupBadLane(possible_lanes, grp);
     // 区分出同向、反向车道
     //! 注意：当前同向、反向车道仅用于路口处排除关联到反向车道，普通路段不考虑同向、反向.
     // 同向、反向可能有多种隔离场景：单/双黄线、隔离带（路沿）、隔离栅栏等；
@@ -2318,77 +2251,11 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
     // 找到隔离线（当前只用黄线），判断每个车道的中心线在隔离线的左侧还是右侧，
     // 右侧为同向车道，左侧为反向车道.
     //! TBD：综合考虑黄线、路沿、栅栏等作为隔离线.
-    std::vector<em::Point> separate;
-    for (auto it = grp->lanes.rbegin(); it != grp->lanes.rend(); ++it) {
-      LineSegment::Ptr yellow_bound = nullptr;
-      if ((*it)->right_boundary->color == em::YELLOW &&
-          (*it)->right_boundary->pts.size() > 1) {
-        yellow_bound = (*it)->right_boundary;
-      } else if ((*it)->left_boundary->color == em::YELLOW &&
-                 (*it)->left_boundary->pts.size() > 1) {
-        yellow_bound = (*it)->left_boundary;
-      }
-      if (yellow_bound != nullptr) {
-        auto start = yellow_bound->pts.front().pt;
-        auto end = yellow_bound->pts.back().pt;
-        separate.emplace_back(start);
-        separate.emplace_back(end);
-        break;
-      }
-    }
-    // 没有隔离线，就默认所有车道都是同向
-    if (separate.size() < 2) {
-      for (auto& lane : grp->lanes) {
-        lane->direction_type = em::DIRECTION_FORWARD;
-      }
-    } else {
-      for (auto& lane : grp->lanes) {
-        auto start_center = (lane->left_boundary->pts.front().pt +
-                             lane->right_boundary->pts.front().pt) *
-                            0.5;
-        auto end_center = (lane->left_boundary->pts.back().pt +
-                           lane->right_boundary->pts.back().pt) *
-                          0.5;
-        auto center = (start_center + end_center) * 0.5;
-        Eigen::Vector2f p0(separate.front().x(), separate.front().y());
-        Eigen::Vector2f p1(separate.back().x(), separate.back().y());
-        Eigen::Vector2f pt(center.x(), center.y());
-        if (PointInVectorSide(p0, p1, pt) > 0) {
-          lane->direction_type = em::DIRECTION_FORWARD;
-        } else {
-          lane->direction_type = em::DIRECTION_BACKWARD;
-        }
-      }
-    }
-
-    // 将车道关联到停止线
-    for (const auto& lane : grp->lanes) {
-      for (auto& stop_line : stopline_) {
-        if (MatchLaneAndStopLine(lane, stop_line.second)) {
-          stop_line.second->lane_id.emplace_back(lane->str_id);
-        }
-      }
-    }
-
+    SetGroupLaneOrient(grp);
+    // 关联停止线
+    MatchStopLineWithGroup(grp);
     // 关联左右
-    if (grp->lanes.size() > 1) {
-      for (size_t i = 0; i != grp->lanes.size() - 1; ++i) {
-        auto& curr = grp->lanes.at(i);
-        for (size_t j = i + 1; j != grp->lanes.size(); ++j) {
-          const auto& right = grp->lanes.at(j);
-          curr->right_lane_str_id_with_group.emplace_back(
-              right->str_id_with_group);
-        }
-      }
-      for (size_t i = grp->lanes.size() - 1; i != 0; --i) {
-        auto& curr = grp->lanes.at(i);
-        for (int j = i - 1; j >= 0; --j) {
-          const auto& left = grp->lanes.at(j);
-          curr->left_lane_str_id_with_group.emplace_back(
-              left->str_id_with_group);
-        }
-      }
-    }
+    MatchLRLane(grp);
   }
 
   //   |   |
@@ -2405,6 +2272,215 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
   // 对上面相邻的Group，SliceLine切分处会缺失点，导致前一个group里的线与后一个group里的线断开了，
   // 这里对于前一个group里每根线，从后一个group查找是否存在，如果存在就将后一个group那根线的front
   // 直接加到前一个group的back
+  OptiPreNextLaneBoundaryPoint(groups);
+  // 生成车道中心线
+  GenLaneCenterLine(groups);
+  // 关联前后，并且把前后lane的中心线连接上
+  // 关联同一个lanepos但不同trackid的前后继
+  //! TBD:后续要加上斑马线、停止线等有标识的车道线前后继关系，以及前后关系计算
+
+  // 车道线补齐逻辑
+  InferenceLaneLength(groups);
+  // 设置lane属性(is_ego、is_tran)
+  SetLaneStatus(groups);
+  // 左车道断开或者右车道断开导致没形成道
+  // if(groups.size()>2){
+  //   for(size_t i = 0; i < groups.size()-2; i++){
+  //   }
+  // }
+
+  // 停止线斑马线路面箭头与车道绑定
+  if (groups->size() > 1) {
+    RelateGroups(groups, stamp);
+  }
+  SmoothCenterline(groups);
+
+#if 1
+  OptiNextLane(groups);
+#endif
+  LaneForwardPredict(groups, stamp);
+  // // 打印点
+  // for (auto& grp : *groups) {
+  //   for (auto& lane_grp : grp->lanes) {
+  //     HLOG_ERROR << "lane_grp->str_id_with_group ="
+  //                << lane_grp->str_id_with_group;
+  //     for (auto& ct_p : lane_grp->center_line_pts) {
+  //       HLOG_ERROR << "ct_p.pt.x() = " << ct_p.pt.x()
+  //                  << "  ct_p.pt.y() = " << ct_p.pt.y();
+  //     }
+  //   }
+  // }
+}
+
+void GroupMap::CollectGroupPossibleLanes(
+    Group::Ptr grp, std::vector<Lane::Ptr>* possible_lanes) {
+  for (const auto& grp_seg : grp->group_segments) {
+    if (possible_lanes->empty()) {
+      for (const auto& lane_seg : grp_seg->lane_segments) {
+        auto lane = std::make_shared<Lane>();
+        lane->str_id = lane_seg->str_id;
+        lane->lanepos_id = lane_seg->lanepos_id;
+        lane->str_id_with_group = grp->str_id + ":" + lane->str_id;
+        lane->left_boundary = std::make_shared<LineSegment>();
+        lane->left_boundary->id = lane_seg->left_boundary->id;
+        lane->left_boundary->lanepos = lane_seg->left_boundary->lanepos;
+        lane->left_boundary->type = lane_seg->left_boundary->type;
+        lane->left_boundary->color = lane_seg->left_boundary->color;
+        lane->left_boundary->isego = lane_seg->left_boundary->isego;
+        lane->left_boundary->mean_end_heading =
+            lane_seg->left_boundary->mean_end_heading;
+        lane->left_boundary->mean_end_heading_std_dev =
+            lane_seg->left_boundary->mean_end_heading_std_dev;
+        lane->left_boundary->mean_end_interval =
+            lane_seg->left_boundary->mean_end_interval;
+        for (const auto& pt : lane_seg->left_boundary->pts) {
+          lane->left_boundary->pts.emplace_back(pt);
+        }
+        lane->right_boundary = std::make_shared<LineSegment>();
+        lane->right_boundary->id = lane_seg->right_boundary->id;
+        lane->right_boundary->lanepos = lane_seg->right_boundary->lanepos;
+        lane->right_boundary->type = lane_seg->right_boundary->type;
+        lane->right_boundary->color = lane_seg->right_boundary->color;
+        lane->right_boundary->isego = lane_seg->right_boundary->isego;
+        lane->right_boundary->mean_end_heading =
+            lane_seg->right_boundary->mean_end_heading;
+        lane->right_boundary->mean_end_heading_std_dev =
+            lane_seg->right_boundary->mean_end_heading_std_dev;
+        lane->right_boundary->mean_end_interval =
+            lane_seg->right_boundary->mean_end_interval;
+        for (const auto& pt : lane_seg->right_boundary->pts) {
+          lane->right_boundary->pts.emplace_back(pt);
+        }
+        possible_lanes->emplace_back(lane);
+      }
+      continue;
+    }
+
+    const size_t grp_lane_num = possible_lanes->size();
+    if (grp_lane_num != grp_seg->lane_segments.size()) {
+      HLOG_ERROR << "something is wrong, group's lane num should be equal to "
+                    "group segment's lane segment num";
+      return;
+    }
+
+    for (size_t i = 0; i != grp_lane_num; ++i) {
+      auto& exist_lane = possible_lanes->at(i);
+      const auto& lane_seg = grp_seg->lane_segments.at(i);
+      for (const auto& pt : lane_seg->left_boundary->pts) {
+        exist_lane->left_boundary->pts.emplace_back(pt);
+      }
+      for (const auto& pt : lane_seg->right_boundary->pts) {
+        exist_lane->right_boundary->pts.emplace_back(pt);
+      }
+    }
+  }
+}
+
+bool GroupMap::FilterGroupBadLane(const std::vector<Lane::Ptr>& possible_lanes,
+                                  Group::Ptr grp) {
+  // 过滤掉边线只有一个点的lane
+  std::vector<Lane::Ptr> valid_lanes;
+  for (const auto& lane : possible_lanes) {
+    if (lane != nullptr && lane->left_boundary != nullptr &&
+        lane->left_boundary->pts.size() > 1 &&
+        lane->right_boundary != nullptr &&
+        lane->right_boundary->pts.size() > 1) {
+      grp->lanes.emplace_back(lane);
+    }
+  }
+  return true;
+}
+
+bool GroupMap::MatchLRLane(Group::Ptr grp) {
+  if (grp->lanes.size() > 1) {
+    for (size_t i = 0; i != grp->lanes.size() - 1; ++i) {
+      auto& curr = grp->lanes.at(i);
+      for (size_t j = i + 1; j != grp->lanes.size(); ++j) {
+        const auto& right = grp->lanes.at(j);
+        curr->right_lane_str_id_with_group.emplace_back(
+            right->str_id_with_group);
+      }
+    }
+    for (size_t i = grp->lanes.size() - 1; i != 0; --i) {
+      auto& curr = grp->lanes.at(i);
+      for (int j = i - 1; j >= 0; --j) {
+        const auto& left = grp->lanes.at(j);
+        curr->left_lane_str_id_with_group.emplace_back(left->str_id_with_group);
+      }
+    }
+  }
+  return true;
+}
+
+bool GroupMap::MatchStopLineWithGroup(Group::Ptr grp) {
+  // 将车道关联到停止线
+  for (const auto& lane : grp->lanes) {
+    for (auto& stop_line : stopline_) {
+      if (MatchLaneAndStopLine(lane, stop_line.second)) {
+        stop_line.second->lane_id.emplace_back(lane->str_id);
+      }
+    }
+  }
+  return true;
+}
+
+bool GroupMap::SetGroupLaneOrient(Group::Ptr grp) {
+  std::vector<em::Point> separate;
+  for (auto it = grp->lanes.rbegin(); it != grp->lanes.rend(); ++it) {
+    LineSegment::Ptr yellow_bound = nullptr;
+    if ((*it)->right_boundary->color == em::YELLOW &&
+        (*it)->right_boundary->pts.size() > 1) {
+      yellow_bound = (*it)->right_boundary;
+    } else if ((*it)->left_boundary->color == em::YELLOW &&
+               (*it)->left_boundary->pts.size() > 1) {
+      yellow_bound = (*it)->left_boundary;
+    }
+    if (yellow_bound != nullptr) {
+      auto start = yellow_bound->pts.front().pt;
+      auto end = yellow_bound->pts.back().pt;
+      separate.emplace_back(start);
+      separate.emplace_back(end);
+      break;
+    }
+  }
+  // 没有隔离线，就默认所有车道都是同向
+  if (separate.size() < 2) {
+    for (auto& lane : grp->lanes) {
+      lane->direction_type = em::DIRECTION_FORWARD;
+    }
+  } else {
+    for (auto& lane : grp->lanes) {
+      auto start_center = (lane->left_boundary->pts.front().pt +
+                           lane->right_boundary->pts.front().pt) *
+                          0.5;
+      auto end_center = (lane->left_boundary->pts.back().pt +
+                         lane->right_boundary->pts.back().pt) *
+                        0.5;
+      auto center = (start_center + end_center) * 0.5;
+      Eigen::Vector2f p0(separate.front().x(), separate.front().y());
+      Eigen::Vector2f p1(separate.back().x(), separate.back().y());
+      Eigen::Vector2f pt(center.x(), center.y());
+      if (PointInVectorSide(p0, p1, pt) > 0) {
+        lane->direction_type = em::DIRECTION_FORWARD;
+      } else {
+        lane->direction_type = em::DIRECTION_BACKWARD;
+      }
+    }
+  }
+  return true;
+}
+
+bool GroupMap::GenLaneCenterLine(std::vector<Group::Ptr>* groups) {
+  for (auto& grp : *groups) {
+    for (auto& lane : grp->lanes) {
+      FitCenterLine(lane);
+    }
+  }
+
+  return true;
+}
+
+bool GroupMap::OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups) {
   for (size_t i = 0; i < groups->size() - 1; ++i) {
     auto& curr_grp = groups->at(i);
     auto& next_grp = groups->at(i + 1);
@@ -2444,17 +2520,10 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
       }
     }
   }
+  return true;
+}
 
-  // 中心线
-  for (auto& grp : *groups) {
-    for (auto& lane : grp->lanes) {
-      FitCenterLine(lane);
-    }
-  }
-
-  // 关联前后，并且把前后lane的中心线连接上
-  // 关联同一个lanepos但不同trackid的前后继
-  //! TBD:后续要加上斑马线、停止线等有标识的车道线前后继关系，以及前后关系计算
+bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
   // 从前往后
   if (groups->size() > 1) {
     for (size_t i = 0; i != groups->size() - 1; ++i) {
@@ -2648,13 +2717,10 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
     }
   }
 
-  // 左车道断开或者右车道断开导致没形成道
-  // if(groups.size()>2){
-  //   for(size_t i = 0; i < groups.size()-2; i++){
+  return true;
+}
 
-  //   }
-  // }
-
+bool GroupMap::SetLaneStatus(std::vector<Group::Ptr>* groups) {
   // 添加主路和是否当前朝向属性
   for (auto& group : *groups) {
     int flag = 0;
@@ -2679,14 +2745,10 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
       }
     }
   }
+  return true;
+}
 
-  // 停止线斑马线路面箭头与车道绑定
-
-  if (groups->size() > 1) {
-    RelateGroups(groups, stamp);
-  }
-  SmoothCenterline(groups);
-#if 1
+bool GroupMap::OptiNextLane(std::vector<Group::Ptr>* groups) {
   //! TBD: 临时修改，解除多个后继，仅保留角度变化最小的一个后继
   HLOG_INFO << "get success of smallest angle";
   std::map<std::string, LaneWithNextLanes> lanes_has_next;
@@ -2758,8 +2820,12 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
           curr_lane->str_id_with_group);
     }
   }
-#endif
 
+  return true;
+}
+
+bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
+                                  const double& stamp) {
   // 对远处车道线进行预测，仅对无后继的lane尝试预测
   HLOG_INFO << "predict success lane";
   if (conf_.predict_farthest_dist > conf_.robust_percep_dist) {
@@ -2849,17 +2915,8 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
       }
     }
   }
-  // // 打印点
-  // for (auto& grp : *groups) {
-  //   for (auto& lane_grp : grp->lanes) {
-  //     HLOG_ERROR << "lane_grp->str_id_with_group ="
-  //                << lane_grp->str_id_with_group;
-  //     for (auto& ct_p : lane_grp->center_line_pts) {
-  //       HLOG_ERROR << "ct_p.pt.x() = " << ct_p.pt.x()
-  //                  << "  ct_p.pt.y() = " << ct_p.pt.y();
-  //     }
-  //   }
-  // }
+
+  return true;
 }
 
 void GroupMap::ForwardCrossVirtual(Group::Ptr curr_group,

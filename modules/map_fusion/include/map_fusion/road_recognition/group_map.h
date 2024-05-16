@@ -215,20 +215,25 @@ class GroupMap {
   std::shared_ptr<hozon::hdmap::Map> Export(const em::ElementMap::Ptr& ele_map);
   std::shared_ptr<hozon::mp::mf::em::ElementMapOut> AddElementMap(
       const em::ElementMap::Ptr& ele_map);
+
   bool ego_line_exist_ = false;
   std::vector<double> predict_line_params_;  // 三次样条
 
  private:
-  const double pi_ = acos(-1);
-  std::map<em::Id, Zebra::Ptr> zebra_;
-  std::map<em::Id, Arrow::Ptr> arrow_;
-  std::map<em::Id, Stpl::Ptr> stopline_;
-  std::map<em::Id, Overlaps::Ptr> overlaps_;
-  GroupMapConf conf_;
-  IsCross is_cross_;
-  const double kMergeLengthThreshold = 10.;
-  const double kSplitLengthThreshold = 10.;
-  std::vector<Pose> path_in_curr_pose_;
+  void CollectGroupPossibleLanes(Group::Ptr grp,
+                                 std::vector<Lane::Ptr>* possible_lanes);
+  bool FilterGroupBadLane(const std::vector<Lane::Ptr>& possible_lanes,
+                          Group::Ptr grp);
+  bool MatchLRLane(Group::Ptr grp);
+  bool MatchStopLineWithGroup(Group::Ptr grp);
+  bool SetGroupLaneOrient(Group::Ptr grp);
+  bool GenLaneCenterLine(std::vector<Group::Ptr>* groups);
+  bool OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups);
+  bool SetLaneStatus(std::vector<Group::Ptr>* groups);
+  bool LaneForwardPredict(std::vector<Group::Ptr>* groups, const double& stamp);
+  bool OptiNextLane(std::vector<Group::Ptr>* groups);
+  bool InferenceLaneLength(std::vector<Group::Ptr>* groups);
+
   void RetrieveBoundaries(const em::ElementMap::Ptr& ele_map, float interp_dist,
                           std::deque<Line::Ptr>* lines);
   void BuildGroupSegments(
@@ -256,9 +261,7 @@ class GroupMap {
   std::shared_ptr<hozon::mp::mf::em::ElementMapOut> ConvertToElementMap(
       const std::vector<Group::Ptr>& groups, const KinePose::Ptr& curr_pose,
       const em::ElementMap::Ptr& ele_map);
-  std::vector<Group::Ptr> groups_;
-  KinePose::Ptr curr_pose_ = nullptr;
-  std::vector<GroupSegment::Ptr> group_segments_;
+
   hozon::hdmap::ArrowData_Type FillArrowType(em::ArrowType arrowtype);
   void EgoLineTrajectory(std::vector<GroupSegment::Ptr>* grp_segment,
                          const em::ElementMap::Ptr& ele_map);
@@ -326,6 +329,20 @@ class GroupMap {
   void SmoothCenterline(std::vector<Group::Ptr>* groups);
   std::vector<Point> SlidingWindow(std::vector<Point> centerline, int w);
   std::vector<Point> SigmoidFunc(std::vector<Point> centerline, float sigma);
+
+  const double pi_ = acos(-1);
+  std::map<em::Id, Zebra::Ptr> zebra_;
+  std::map<em::Id, Arrow::Ptr> arrow_;
+  std::map<em::Id, Stpl::Ptr> stopline_;
+  std::map<em::Id, Overlaps::Ptr> overlaps_;
+  GroupMapConf conf_;
+  IsCross is_cross_;
+  const double kMergeLengthThreshold = 10.;
+  const double kSplitLengthThreshold = 10.;
+  std::vector<Pose> path_in_curr_pose_;
+  std::vector<Group::Ptr> groups_;
+  KinePose::Ptr curr_pose_ = nullptr;
+  std::vector<GroupSegment::Ptr> group_segments_;
 };
 
 }  // namespace gm

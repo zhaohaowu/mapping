@@ -45,6 +45,18 @@ class CurveFitter {
     return sum;
   }
 
+  template <typename T>
+  double evalueHeading(const T& x) {
+    double sum = 0.0;
+    double val = 1.0;
+    // 一阶导
+    for (int i = 1; i < params.size(); ++i) {
+      sum += params[i] * val * i;
+      val *= x;
+    }
+    return sum;
+  }
+
  public:
   std::vector<float> params;
   float x_min = FLT_MAX;

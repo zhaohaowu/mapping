@@ -38,6 +38,8 @@ bool LaneTarget::Init(const ProcessOption& options,
   tracked_element_->world_points = detected_lane_line->world_points;
   tracked_element_->id = id_;
   tracked_element_->tracked_count++;
+  // 缓存N帧跟踪状态
+  lastest_n_tracked_state_.set_capacity(10);
   return true;
 }
 

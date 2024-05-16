@@ -188,16 +188,27 @@ int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
 
   // 建图模块功能实现
   HLOG_DEBUG << "start  do localmap work job...";
-  app_ptr_->OnPerception(measurement_frame);
-  HLOG_DEBUG << "finish do localmap work job...";
+  if (app_ptr_->OnPerception(measurement_frame)) {
+    HLOG_DEBUG << "finish do localmap work job...";
 
-  HLOG_DEBUG << "start send localmap data to External pb ...";
-  PublishLaneLine();
-  PublishLocalMap();
-  HLOG_DEBUG << "finish send localmap data to External pb ...";
+    HLOG_DEBUG << "start send localmap data to External pb ...";
+    PublishLaneLine();
+    PublishLocalMap();
+    HLOG_DEBUG << "finish send localmap data to External pb ...";
 
-  HLOG_INFO << "*** LocalMappingOnboard Run End ***";
-  return 0;
+    HLOG_INFO << "*** LocalMappingOnboard Run End ***";
+    return 0;
+  } else {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::
+            LOCALMAPPING_CANNOT_OUTPUT_LOCAL_MAP,
+        hozon::perception::base::FaultStatus::OCCUR,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
+
+    HLOG_ERROR << "localmapping can not output loaclmap";
+    return -1;
+  }
 }
 
 int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {

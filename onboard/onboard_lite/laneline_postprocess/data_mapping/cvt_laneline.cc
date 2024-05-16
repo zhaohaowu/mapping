@@ -144,6 +144,28 @@ static hozon::perception::LaneType CvtLaneType2Pb(
   }
 }
 
+static hozon::perception::LaneStabilityError::CalculateStatus
+CvtLaneStabilityStatus2Pb(
+    perception_base::LaneStabilityError::CalculateStatus status) {
+  using CalculateStatus = perception_base::LaneStabilityError::CalculateStatus;
+  switch (status) {
+    case CalculateStatus::SUCCESS:
+      return hozon::perception::LaneStabilityError_CalculateStatus_SUCCESS;
+    case CalculateStatus::FAILED_FIT:
+      return hozon::perception::LaneStabilityError_CalculateStatus_FAILED_FIT;
+    case CalculateStatus::FAILED_ERROR_VALUE:
+      return hozon::perception::
+          LaneStabilityError_CalculateStatus_FAILED_ERROR_VALUE;
+    case CalculateStatus::FAILED_INSUFFICIENT_DATA:
+      return hozon::perception::
+          LaneStabilityError_CalculateStatus_FAILED_INSUFFICIENT_DATA;
+    case CalculateStatus::FAILED_OTHER:
+      return hozon::perception::LaneStabilityError_CalculateStatus_FAILED_OTHER;
+    default:
+      return hozon::perception::LaneStabilityError_CalculateStatus_FAILED_OTHER;
+  }
+}
+
 static hozon::perception::LaneInfo::LaneLineSceneType CvtLaneSceneType2Pb(
     perception_base::LaneLineSceneType scene_type) {
   switch (scene_type) {
@@ -273,6 +295,14 @@ bool DataMapping::CvtLaneToPb(const perception_base::LaneLinePtr& lane_msg,
   hozon::perception::Color send_color = CvtLaneColor2Pb(lane_msg->color);
   pb_object->set_color(send_color);
   pb_object->set_confidence(lane_msg->geo_confidence);
+  auto stability_error = pb_object->mutable_stability_error();
+  auto status =
+      CvtLaneStabilityStatus2Pb(lane_msg->stability_error.calculate_status);
+  stability_error->set_calculate_status(status);
+  stability_error->set_offset_mae(lane_msg->stability_error.offset_mae);
+  stability_error->set_offset_var(lane_msg->stability_error.offset_var);
+  stability_error->set_heading_mae(lane_msg->stability_error.heading_mae);
+  stability_error->set_heading_var(lane_msg->stability_error.heading_var);
   return true;
 }
 

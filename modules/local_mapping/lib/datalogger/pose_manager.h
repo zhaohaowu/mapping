@@ -32,6 +32,7 @@ class PoseManager {
   bool GetTurnState() const;
   bool PushDrData(const LocationConstPtr& latest_localization);
   void PushLocalDrData(double timestamp, const DrDataConstPtr& local_pose);
+  void SetTimeStampDrPose(DrDataConstPtr);
   ~PoseManager() = default;
 
  private:

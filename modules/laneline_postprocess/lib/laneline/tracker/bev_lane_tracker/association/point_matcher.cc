@@ -481,11 +481,11 @@ bool PointMatcher::Associate(
         detect_measurements,
     const std::vector<SimpleLaneTrackerPtr>& lane_trackers,
     PointAssociationResult* association_result) {
-  Clear();
   SetTrackKDTree(lane_trackers);
   SetDetectionPointDist(detect_measurements);
   AssociationKnn(options, lane_trackers, detect_measurements,
                  association_result);
+  Clear();
   return true;
 }
 
@@ -495,11 +495,11 @@ bool PointMatcher::Associate(
         detect_measurements,
     const std::vector<SimpleRoadEdgeTrackerPtr>& lane_trackers,
     PointAssociationResult* association_result) {
-  Clear();
   SetTrackKDTree(lane_trackers);
   SetDetectionPointDist(detect_measurements);
   AssociationKnn(options, lane_trackers, detect_measurements,
                  association_result);
+  Clear();
   return true;
 }
 

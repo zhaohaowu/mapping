@@ -105,16 +105,10 @@ DrDataConstPtr PoseManager::GetDrPoseByTimeStamp(double timestamp) {
     dr_ptr->angular_velocity = after->angular_velocity;
     dr_ptr->acceleration = after->acceleration;
     dr_ptr->gear = after->gear;
-    cur_T_w_v_ = dr_ptr->pose;
-    T_cur_last_ = cur_T_w_v_.inverse() * last_T_w_v_;
-    last_T_w_v_ = cur_T_w_v_;
     return dr_ptr;
   }
 
   if (before->timestamp == timestamp && after->timestamp == timestamp) {
-    cur_T_w_v_ = before->pose;
-    T_cur_last_ = cur_T_w_v_.inverse() * last_T_w_v_;
-    last_T_w_v_ = cur_T_w_v_;
     return before;
   }
 
@@ -129,10 +123,15 @@ DrDataConstPtr PoseManager::GetDrPoseByTimeStamp(double timestamp) {
       (timestamp - before->timestamp) / (after->timestamp - before->timestamp);
   auto dr_pose_state =
       std::make_shared<DrData>(before->Interpolate(ratio, *after, timestamp));
-  cur_T_w_v_ = dr_pose_state->pose;
-  T_cur_last_ = cur_T_w_v_.inverse() * last_T_w_v_;
-  last_T_w_v_ = cur_T_w_v_;
   return dr_pose_state;
+}
+
+void PoseManager::SetTimeStampDrPose(DrDataConstPtr dr_pose_ptr) {
+  if (dr_pose_ptr) {
+    cur_T_w_v_ = dr_pose_ptr->pose;
+    T_cur_last_ = cur_T_w_v_.inverse() * last_T_w_v_;
+    last_T_w_v_ = cur_T_w_v_;
+  }
 }
 
 bool PoseManager::PushDrData(const LocationConstPtr& latest_localization) {

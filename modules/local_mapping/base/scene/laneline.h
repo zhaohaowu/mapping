@@ -14,6 +14,7 @@
 #include "Eigen/Core"
 #include "depend/perception-base/base/laneline/base_laneline.h"
 #include "depend/perception-base/base/point/point.h"
+#include "depend/proto/local_mapping/local_map.pb.h"
 #include "modules/local_mapping/base/scene/base.h"
 
 namespace hozon {
@@ -117,6 +118,8 @@ struct LaneLine : public BaseData {
   std::vector<Eigen::Vector3d> control_points;
 
   std::vector<Eigen::Vector3d> fit_points;
+  // @brief lane line stability error
+  mapping::LaneStabilityError stability_error;
 
   // @brief lane line track id
   int id = -1;

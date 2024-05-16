@@ -34,14 +34,25 @@ class CurveFitter {
     y_.resize(40);
     result_.resize(order_ + 1);
   }
-  bool PolyFitProcess(const std::vector<Eigen::Vector2d> &points);
-  bool WeightPolyFitProcess(const std::vector<Eigen::Vector2d> &points,
-                            const std::vector<float> &weights);
+  bool PolyFitProcess(const std::vector<Eigen::Vector2d>& points);
+  bool WeightPolyFitProcess(const std::vector<Eigen::Vector2d>& points,
+                            const std::vector<float>& weights);
   template <typename T>
-  double evalueValue(const T &x) {
+  double evalueValue(const T& x) {
     double sum = 0.0, val = 1.0;
     for (int i = 0; i < params_.size(); ++i) {
       sum += params_[i] * val;
+      val *= x;
+    }
+    return sum;
+  }
+  template <typename T>
+  double evalueHeading(const T& x) {
+    double sum = 0.0;
+    double val = 1.0;
+    // 一阶导
+    for (int i = 1; i < params_.size(); ++i) {
+      sum += params_[i] * val * i;
       val *= x;
     }
     return sum;

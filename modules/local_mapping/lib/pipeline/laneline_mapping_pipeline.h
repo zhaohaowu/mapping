@@ -19,6 +19,7 @@
 #include "modules/local_mapping/lib/filter/laneline_measure_filter.h"
 #include "modules/local_mapping/lib/filter/laneline_merge_tracker.h"
 #include "modules/local_mapping/lib/filter/mapping_position_manager.h"
+#include "modules/local_mapping/lib/filter/mapping_remove_manager.h"
 #include "modules/local_mapping/lib/gatekeeper/laneline_gatekeeper.h"
 #include "modules/local_mapping/lib/interface/base_mapping_pipeline.h"
 #include "modules/local_mapping/utils/lane_utils.h"
@@ -53,6 +54,7 @@ class LaneLineMappingPipeline : public BaseMappingPipeline {
   void RemoveLostTracks();
   void SetIntersectionThreshold();
   void AssginPosition(LaneLinesPtr localmap_frame_ptr);
+  void DeleteOutlierLaneLines(std::vector<LaneTrackerPtr>* trackers);
   void LimitTracksNum();
   void SmoothEndPt();
   static bool CompareTrackTime(const LaneTrackerPtr& d1,
@@ -74,6 +76,7 @@ class LaneLineMappingPipeline : public BaseMappingPipeline {
   std::unique_ptr<LaneGatekeeper> lane_gate_keeper_ = nullptr;
   std::unique_ptr<LaneMeasurementFilter> lane_meas_filter_ =
       nullptr;  // 车道线观测过滤模块
+  std::unique_ptr<MappingRemoveManager> mapping_remove_manager_ = nullptr;
   //   ProcessInitOption tracker_init_option_;
   //   ProcessInitOption target_init_option_;
   // 用于判断路口前后

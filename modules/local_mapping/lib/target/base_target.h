@@ -9,6 +9,8 @@
 #include <memory>
 #include <string>
 
+#include <boost/circular_buffer.hpp>
+
 #include "modules/local_mapping/base/scene/arrow.h"
 #include "modules/local_mapping/base/scene/laneline.h"
 #include "modules/local_mapping/base/scene/roadedge.h"
@@ -78,6 +80,7 @@ class BaseTarget {
   inline int Id() const { return id_; }
 
   inline int Count() const { return tracked_count_; }
+  boost::circular_buffer<bool> lastest_n_tracked_state_;
 
  protected:
   ElementPtr tracked_element_ = nullptr;
@@ -173,6 +176,8 @@ void BaseTarget<Element>::UpdateWithoutDetectedObject(
   } else {
     tracked_element_->state = TrackState::NOTMATURED;
   }
+  tracked_element_->lost_age = lost_age_;
+  lastest_n_tracked_state_.push_back(false);
   HLOG_DEBUG << "lane_id:" << id_ << ",lastest_tracked_timestamp_"
              << lastest_tracked_timestamp_ << ", options.timestamp"
              << options.timestamp << ", lost_age_" << lost_age_;
@@ -194,6 +199,7 @@ void BaseTarget<Element>::UpdateWithDetectedObject(
   }
   SetLastestTrackedTimestamp(options.timestamp);
   tracking_time_ = lastest_tracked_timestamp_ - start_tracked_timestamp_;
+  lastest_n_tracked_state_.push_back(true);
   tracked_element_->tracking_time = tracking_time_;
   tracked_element_->latest_tracked_time = lastest_tracked_timestamp_;
 }

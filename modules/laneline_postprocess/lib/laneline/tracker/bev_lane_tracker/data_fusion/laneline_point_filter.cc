@@ -94,7 +94,7 @@ bool LanePointFilter::Init(const LanePointFilterInitOptions& init_options) {
   // 设置LaneLinePolynomial参数
   polynomial_ = std::make_shared<LaneLinePolynomial>();
   polynomial_->order = lane_point_filter_param_.curve_fitting_order();
-
+  latest_stability_data_.set_capacity(3);
   return true;
 }
 
@@ -279,8 +279,7 @@ bool LanePointFilter::IsAbnormalPose(
 
   bool is_pose_error = is_angle_big_change || is_position_big_change;
   if (is_pose_error) {
-    HLOG_ERROR << " [LanePointFilter]: "
-               << " IsAbnormalPose: "
+    HLOG_ERROR << " [LanePointFilter]: " << " IsAbnormalPose: "
                << " is_angle_big_change, " << is_angle_big_change
                << " is_position_big_change, " << is_position_big_change
                << " Current pose error, yaw:" << yaw * 180 / M_PI
@@ -460,6 +459,82 @@ void LanePointFilter::PredictStage() {
   P_ = A_update_ * P_ * A_update_.transpose() + Q_;
 }
 
+void LanePointFilter::calculate_stability_error(
+    const std::vector<Eigen::Vector2d>& fit_points) {
+  LaneLineStabilityData stability_data{};
+  CurveFitter curve_fitter(3);
+  curve_fitter.PolyFitProcess(fit_points);
+  // 1.从0到10m每间隔1m取一个点取平均
+  double offset = 0.0;
+  for (int i = 0; i < 10; ++i) {
+    offset += curve_fitter.evalueValue(i);
+  }
+  offset = offset / 10;
+  stability_data.offset = offset;
+  // 2.计算在每个点的一阶导累加平均
+  double heading = 0.0;
+  for (const auto& pt : fit_points) {
+    heading += curve_fitter.evalueHeading(pt.x());
+  }
+  heading = heading / (fit_points.size() + 1);
+  stability_data.heading = heading;
+  if (std::isnan(offset) || std::isnan(heading)) {
+    stability_data.status = CalculateStatus::FAILED_ERROR_VALUE;
+  } else {
+    stability_data.status = CalculateStatus::SUCCESS;
+  }
+  // 3.添加进历史数据
+  latest_stability_data_.push_back(stability_data);
+  auto& stability_error =
+      lane_target_ref_->GetTrackedLaneLine()->stability_error;
+  // 数据不足3帧
+  if (latest_stability_data_.size() < 3) {
+    stability_error.calculate_status =
+        CalculateStatus::FAILED_INSUFFICIENT_DATA;
+    return;
+  }
+  // 4.遍历确认计算状态
+  bool error_flag = false;
+  double mean_offset = 0.0;
+  double mean_heading = 0.0;
+  for (const auto& data : latest_stability_data_) {
+    // 有次计算存在错误设置状态后直接返回
+    if (data.status != CalculateStatus::SUCCESS) {
+      stability_error.calculate_status = data.status;
+      error_flag = true;
+      break;
+    }
+    mean_offset += data.offset / 3.0;
+    mean_heading += data.heading / 3.0;
+  }
+  if (error_flag) {
+    return;
+  }
+  // 5.计算MAE和VAE
+  double offset_mae = 0.0;
+  double offset_var = 0.0;
+  double heading_mae = 0.0;
+  double heading_var = 0.0;
+  for (const auto& data : latest_stability_data_) {
+    double offset_error = data.offset - mean_offset;
+    offset_mae += std::abs(offset_error) / 3.0;
+    offset_var += offset_error * offset_error / 3.0;
+    double heading_error = data.heading - mean_heading;
+    heading_mae += std::abs(heading_error) / 3.0;
+    heading_var += heading_error * heading_error / 3.0;
+  }
+  HLOG_DEBUG << "post_process track_id: " << lane_target_ref_->Id()
+             << ", stability_error offset_mae: " << offset_mae
+             << ", offset_var: " << offset_var
+             << ", heading_mae: " << heading_mae
+             << ", heading_var: " << heading_var;
+  stability_error.calculate_status = CalculateStatus::SUCCESS;
+  stability_error.offset_mae = offset_mae;
+  stability_error.offset_var = offset_var;
+  stability_error.heading_mae = heading_mae;
+  stability_error.heading_var = heading_var;
+}
+
 void LanePointFilter::UpdateResult() {
   auto& tracked_pt = lane_target_ref_->GetTrackedLaneLine()->point_set;
   // 将X_点存入跟踪线数据结构中进行发送
@@ -473,14 +548,27 @@ void LanePointFilter::UpdateResult() {
   auto& track_polynomial =
       lane_target_ref_->GetTrackedLaneLine()->vehicle_curve;
   std::vector<perception_base::Point3DF> lane_vehicle_pts;
+  std::vector<Eigen::Vector2d> fit_points;
   lane_vehicle_pts.clear();
   for (const auto& lane_point : tracked_pt) {
     lane_vehicle_pts.push_back(lane_point.vehicle_point);
+    const auto& pt = lane_point.vehicle_point;
+    fit_points.emplace_back(pt.x, pt.y);
   }
 
   if (!pyfilt_->CurveFitting(lane_vehicle_pts, polynomial_)) {
+    LaneLineStabilityData stability_data{};
+    stability_data.status = CalculateStatus::FAILED_FIT;
+    latest_stability_data_.push_back(stability_data);
+    if (lane_target_ref_->IsTracked()) {
+      calculate_stability_error(fit_points);
+    }
     HLOG_ERROR << "LaneLinePolynomial fitting failed.";
     return;
+  }
+
+  if (lane_target_ref_->IsTracked()) {
+    calculate_stability_error(fit_points);
   }
 
   track_polynomial.min = polynomial_->min;

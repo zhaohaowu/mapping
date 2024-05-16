@@ -47,7 +47,7 @@ class LocalMapApp {
  public:
   bool Init();
 
-  void OnPerception(const MeasurementFrameConstPtr& measurement_frame_ptr);
+  bool OnPerception(const MeasurementFrameConstPtr& measurement_frame_ptr);
 
   void OnLocalization(const LocationConstPtr& localization_frame_ptr);
 

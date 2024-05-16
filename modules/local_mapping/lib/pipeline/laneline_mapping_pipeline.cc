@@ -39,6 +39,8 @@ bool LaneLineMappingPipeline::Init() {
   lane_position_manager_->Init();
   map_lane_position_manager_ = std::make_unique<MappingPositionManager>();
   CHECK(map_lane_position_manager_->Init());
+  mapping_remove_manager_ = std::make_unique<MappingRemoveManager>();
+  CHECK(mapping_remove_manager_->Init());
   laneline_merge_tracker_ = std::make_unique<LaneLineMergeTrack>();
   lane_targets_.reserve(100);
   lane_trackers_.clear();
@@ -57,6 +59,14 @@ void LaneLineMappingPipeline::AssginPosition(
   // set lane pose atrribute
   map_lane_position_manager_->Process(localmap_laneline_ptr);
   lane_position_manager_->Process(localmap_laneline_ptr);
+}
+void LaneLineMappingPipeline::DeleteOutlierLaneLines(
+    std::vector<LaneTrackerPtr>* trackers) {
+  if (trackers->size() < 2) {
+    return;
+  }
+  // 删除异常车道线
+  mapping_remove_manager_->Process(trackers);
 }
 bool LaneLineMappingPipeline::Process(
     const ProcessOption& option, MeasurementFrameConstPtr measurement_frame_ptr,
@@ -140,15 +150,18 @@ bool LaneLineMappingPipeline::Process(
   HLOG_DEBUG << "lane tracker size:" << lane_trackers_.size();
   laneline_merge_tracker_->MergeTracks(&lane_trackers_);
   HLOG_DEBUG << "after mergeTracks lane tracker size:" << lane_trackers_.size();
-  LimitTracksNum();
+    // 9 过滤异常车道线
+  DeleteOutlierLaneLines(&lane_trackers_);
   // 端点优化
   SmoothEndPt();
+  LimitTracksNum();
   // todo 曲线平滑，检查每个点的导数，突变点，用周围的点拟合点填充该点
   CollectOutputObjects(tracked_lanes);
   HLOG_DEBUG << "output track laneline size ============"
              << lane_trackers_.size();
   // PERF_BLOCK_END("laneline_CollectOutputObjects");
-  // 9.车道线设置POS
+
+  // 10.车道线设置POS
   AssginPosition(tracked_lanes);
   // for (const auto& lane : tracked_lanes->lanelines) {
   //   HLOG_INFO << "cam2 lane id:" << lane->id
@@ -156,7 +169,7 @@ bool LaneLineMappingPipeline::Process(
   // }
   // PERF_BLOCK_END("laneline_PostProcess");
 
-  // 10. 输出点插值到1米一个
+  // 11. 输出点插值到1米一个
   CatmullRomFit(tracked_lanes);
 
 // 当tracker中存在nan值时进行触发

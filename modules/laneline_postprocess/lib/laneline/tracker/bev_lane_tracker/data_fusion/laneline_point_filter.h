@@ -12,13 +12,13 @@
 #include <vector>
 
 #include "boost/circular_buffer.hpp"
+#include "depend/proto/perception/transport_element.pb.h"
 #include "modules/laneline_postprocess/lib/laneline/curve_fitter/base_curve_fitter.h"
 #include "modules/laneline_postprocess/lib/laneline/proto/lane_postprocess.pb.h"
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/base/lane_filter.h"
 #include "modules/laneline_postprocess/lib/laneline/tracker/bev_lane_tracker/data_fusion/point_manager.h"
 #include "modules/laneline_postprocess/lib/laneline/utils/laneline_polynomial.h"
 #include "perception-base/base/laneline/base_laneline.h"
-
 namespace hozon {
 namespace mp {
 namespace environment {
@@ -28,7 +28,13 @@ namespace perception_base = hozon::perception::base;
 struct LanePointFilterInitOptions {
   LanePointFilterParam lane_point_filter_param;
 };
+using CalculateStatus = perception_base::LaneStabilityError::CalculateStatus;
 
+struct LaneLineStabilityData {
+  CalculateStatus status;
+  double offset;
+  double heading;
+};
 class LanePointFilter : public BaseLaneFilter {
  public:
   explicit LanePointFilter(LaneTargetPtr lane_target)
@@ -74,6 +80,8 @@ class LanePointFilter : public BaseLaneFilter {
 
   void KalmanUpdate(
       const std::vector<perception_base::LaneLinePoint>& measurement_points);
+  void calculate_stability_error(
+      const std::vector<Eigen::Vector2d>& fit_points);
 
  private:
   AdaptorPointManagerPtr point_manager_;
@@ -97,6 +105,8 @@ class LanePointFilter : public BaseLaneFilter {
   float init_p_ = 1;
   int pt_size_ = 20;
   float point_sigma_ = 0.3;
+  // 记录连续3帧线的拟合状态、offset、heading
+  boost::circular_buffer<LaneLineStabilityData> latest_stability_data_;
 };
 
 }  // namespace environment

@@ -353,6 +353,8 @@ bool DataMapping::CvtLaneLine2Pb(const LaneLinePtr& lane_msg,
              << std::to_string(lane_msg->latest_tracked_time);
   pb_lane->set_tracked_age(lane_msg->tracked_count);
   pb_lane->set_latest_tracked_time(lane_msg->latest_tracked_time);
+  // 车道线稳定性误差
+  pb_lane->mutable_stability_error()->CopyFrom(lane_msg->stability_error);
   return true;
 }
 

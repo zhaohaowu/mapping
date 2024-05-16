@@ -66,7 +66,7 @@ void LocalMapApp::OnIns(const InsDataConstPtr& ins_msg_ptr) {
   globle_transfor_mat_ = ins_msg_ptr->pose;
 }
 
-void LocalMapApp::OnPerception(
+bool LocalMapApp::OnPerception(
     const MeasurementFrameConstPtr& measurement_frame_ptr) {
   // localmap 局部建图的处理过程
   DrDataConstPtr perception_pose = POSE_MANAGER->GetDrPoseByTimeStamp(
@@ -75,8 +75,9 @@ void LocalMapApp::OnPerception(
     HLOG_ERROR << "perception time is:"
                << std::to_string(measurement_frame_ptr->header.timestamp);
     HLOG_ERROR << "perception_pose is nullptr";
-    return;
+    return false;
   }
+  POSE_MANAGER->SetTimeStampDrPose(perception_pose);
   POSE_MANAGER->PushLocalDrData(measurement_frame_ptr->header.timestamp,
                                 perception_pose);
   mmgr_ptr_->Process(measurement_frame_ptr);
@@ -86,6 +87,7 @@ void LocalMapApp::OnPerception(
     perception_ = *measurement_frame_ptr;
     rviz_mutex_.unlock();
   }
+  return true;
 }
 
 LocalMapApp::~LocalMapApp() {

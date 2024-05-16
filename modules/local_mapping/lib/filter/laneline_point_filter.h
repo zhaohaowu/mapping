@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "boost/circular_buffer.hpp"
+#include "depend/proto/local_mapping/local_map.pb.h"
 #include "modules/local_mapping/lib/filter/point_manager.h"
 #include "modules/local_mapping/lib/interface/base_init_options.h"
 #include "modules/local_mapping/lib/target/base_target.h"
@@ -21,10 +22,19 @@ namespace hozon {
 namespace mp {
 namespace lm {
 
+using CalculateStatus = mapping::LaneStabilityError::CalculateStatus;
+struct LaneLineStabilityData {
+  CalculateStatus status;
+  double offset;
+  double heading;
+};
+
 class LaneLinePointFilter {
  public:
   explicit LaneLinePointFilter(LaneTargetPtr lane_target)
-      : target_ref_(std::move(lane_target)), curve_fit_(3, 40) {}
+      : target_ref_(std::move(lane_target)), curve_fit_(3, 40) {
+    latest_stability_data_.set_capacity(3);
+  }
   virtual ~LaneLinePointFilter() = default;
   LaneLinePointFilter(const LaneLinePointFilter&) = delete;
   LaneLinePointFilter& operator=(const LaneLinePointFilter&) = delete;
@@ -62,6 +72,9 @@ class LaneLinePointFilter {
   void RevisePredictFit();
   // 基于local系下的点做卡尔曼更新
   void KalmanUpdate(const std::vector<Eigen::Vector3d>& measurement_points);
+  // 计算车道线的heading、offset误差
+  void calculate_stability_error(
+      const std::vector<Eigen::Vector3d>& fit_points);
 
  private:
   LaneTargetPtr target_ref_;
@@ -86,6 +99,8 @@ class LaneLinePointFilter {
   float init_p_ = 1;
   int pt_size_ = 20;
   float point_sigma_ = 0.3;
+  // 记录连续3帧线的拟合状态、offset、heading
+  boost::circular_buffer<LaneLineStabilityData> latest_stability_data_;
 };
 
 }  // namespace lm

@@ -185,7 +185,7 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
         if (dist > interp_dist) {
           n.normalize();
           int interp_cnt = static_cast<int>(dist / interp_dist);
-          for (int i = 0; i != interp_cnt; ++i) {
+          for (int i = 0; i < interp_cnt; ++i) {
             em::Point interp_pt = last_raw + (i + 1) * n;
             Point pt(gm::INTERPOLATED, interp_pt.x(), interp_pt.y(),
                      interp_pt.z());
@@ -216,7 +216,7 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
       std::vector<double> thetas(last_n_pts.size() - 1, 0);
       double mean_theta = 0.;
       double mean_interval = 0.;
-      for (size_t i = 0; i != last_n_pts.size() - 1; ++i) {
+      for (size_t i = 0; i < last_n_pts.size() - 1; ++i) {
         const Eigen::Vector2f pa = last_n_pts.at(i).pt.head<2>();
         const Eigen::Vector2f pb = last_n_pts.at(i + 1).pt.head<2>();
         Eigen::Vector2f v = pb - pa;
@@ -440,7 +440,7 @@ void GroupMap::CreateGroupSegFromPath(
   const auto slice_num = slice_lines.size();
   segments->clear();
   segments->reserve(slice_num);
-  for (size_t i = 0; i != slice_num - 1; ++i) {
+  for (size_t i = 0; i < slice_num - 1; ++i) {
     auto seg = std::make_shared<GroupSegment>();
     seg->start_slice = slice_lines.at(i);
     seg->end_slice = slice_lines.at(i + 1);
@@ -2362,7 +2362,7 @@ void GroupMap::CollectGroupPossibleLanes(
       return;
     }
 
-    for (size_t i = 0; i != grp_lane_num; ++i) {
+    for (size_t i = 0; i < grp_lane_num; ++i) {
       auto& exist_lane = possible_lanes->at(i);
       const auto& lane_seg = grp_seg->lane_segments.at(i);
       for (const auto& pt : lane_seg->left_boundary->pts) {
@@ -2392,15 +2392,15 @@ bool GroupMap::FilterGroupBadLane(const std::vector<Lane::Ptr>& possible_lanes,
 
 bool GroupMap::MatchLRLane(Group::Ptr grp) {
   if (grp->lanes.size() > 1) {
-    for (size_t i = 0; i != grp->lanes.size() - 1; ++i) {
+    for (size_t i = 0; i < grp->lanes.size() - 1; ++i) {
       auto& curr = grp->lanes.at(i);
-      for (size_t j = i + 1; j != grp->lanes.size(); ++j) {
+      for (size_t j = i + 1; j < grp->lanes.size(); ++j) {
         const auto& right = grp->lanes.at(j);
         curr->right_lane_str_id_with_group.emplace_back(
             right->str_id_with_group);
       }
     }
-    for (size_t i = grp->lanes.size() - 1; i != 0; --i) {
+    for (size_t i = grp->lanes.size() - 1; i > 0; --i) {
       auto& curr = grp->lanes.at(i);
       for (int j = i - 1; j >= 0; --j) {
         const auto& left = grp->lanes.at(j);
@@ -2525,7 +2525,7 @@ bool GroupMap::OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups) {
 bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
   // 从前往后
   if (groups->size() > 1) {
-    for (size_t i = 0; i != groups->size() - 1; ++i) {
+    for (size_t i = 0; i < groups->size() - 1; ++i) {
       auto& curr_group = groups->at(i);
       auto& next_group = groups->at(i + 1);
       int flag = 0;       // 前后group是否有车道根据trackid关联
@@ -2752,7 +2752,7 @@ bool GroupMap::OptiNextLane(std::vector<Group::Ptr>* groups) {
   HLOG_INFO << "get success of smallest angle";
   std::map<std::string, LaneWithNextLanes> lanes_has_next;
   if (groups->size() > 1) {
-    for (size_t i = 0; i != groups->size() - 1; ++i) {
+    for (size_t i = 0; i < groups->size() - 1; ++i) {
       auto& curr_grp = groups->at(i);
       auto& next_grp = groups->at(i + 1);
       for (auto& curr_lane : curr_grp->lanes) {
@@ -4503,7 +4503,7 @@ std::shared_ptr<hozon::mp::mf::em::ElementMapOut> GroupMap::ConvertToElementMap(
       centerline.id = center_id++;
       double length = 0;
       em::Point prev_pt;
-      for (size_t i = 0; i != lane->center_line_pts.size(); ++i) {
+      for (size_t i = 0; i < lane->center_line_pts.size(); ++i) {
         const auto& pt = lane->center_line_pts[i];
         if (i > 0) {
           length += Dist(pt.pt, prev_pt);
@@ -4673,7 +4673,7 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
       auto* central_seg = proto_lane->mutable_central_curve()->add_segment();
       double length = 0;
       em::Point prev_pt;
-      for (size_t i = 0; i != lane->center_line_pts.size(); ++i) {
+      for (size_t i = 0; i < lane->center_line_pts.size(); ++i) {
         const auto& pt = lane->center_line_pts[i].pt;
         if (i > 0) {
           length += Dist(pt, prev_pt);
@@ -4696,7 +4696,7 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
         auto* left_seg = left_boundary->mutable_curve()->add_segment();
         length = 0;
         prev_pt.setZero();
-        for (size_t i = 0; i != lane->left_boundary->pts.size(); ++i) {
+        for (size_t i = 0; i < lane->left_boundary->pts.size(); ++i) {
           const auto& pt = lane->left_boundary->pts[i].pt;
           if (i > 0) {
             length += Dist(pt, prev_pt);
@@ -4761,7 +4761,7 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
         auto* right_seg = right_boundary->mutable_curve()->add_segment();
         length = 0;
         prev_pt.setZero();
-        for (size_t i = 0; i != lane->right_boundary->pts.size(); ++i) {
+        for (size_t i = 0; i < lane->right_boundary->pts.size(); ++i) {
           const auto& pt = lane->right_boundary->pts[i].pt;
           if (i > 0) {
             length += Dist(pt, prev_pt);

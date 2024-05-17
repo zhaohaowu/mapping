@@ -87,7 +87,7 @@ void PathManager::GetPath(std::vector<KinePose::Ptr>* path,
   }
   std::vector<KinePose::Ptr> last_n_poses(path->end() - avg_n, path->end());
   float length = 0;
-  for (int i = 0; i != avg_n - 1; ++i) {
+  for (int i = 0; i < avg_n - 1; ++i) {
     const auto& p0 = last_n_poses[i]->pos;
     const auto& p1 = last_n_poses[i + 1]->pos;
     length += Dist(p0, p1);
@@ -102,7 +102,7 @@ void PathManager::GetPath(std::vector<KinePose::Ptr>* path,
   //! 当前为了简单实现，n时刻的位置都是直接按起始时刻位姿一直向前递推得到的，
   //! 这就导致递推的位置是一根直线，后期考虑n时刻位姿在n-1时刻位姿基础上进行积分递推
 
-  for (int i = 0; i != predict_counts; ++i) {
+  for (int i = 0; i < predict_counts; ++i) {
     float ndt = static_cast<float>(i + 1) * dt;
     Eigen::Quaternionf dq_ndt = ExpQ<float>(curr_ang_vel * ndt);
     // HLOG_ERROR << "curr_ang_vel =" << curr_ang_vel.x() << "  "
@@ -152,7 +152,7 @@ void PathManager::GetPath(std::vector<KinePose::Ptr>* path, float predict_range,
   }
   std::vector<KinePose::Ptr> last_n_poses(path->end() - avg_n, path->end());
   float length = 0;
-  for (int i = 0; i != avg_n - 1; ++i) {
+  for (int i = 0; i < avg_n - 1; ++i) {
     const auto& p0 = last_n_poses[i]->pos;
     const auto& p1 = last_n_poses[i + 1]->pos;
     length += Dist(p0, p1);
@@ -167,7 +167,7 @@ void PathManager::GetPath(std::vector<KinePose::Ptr>* path, float predict_range,
   //! TBD:
   //! 当前为了简单实现，n时刻的位置都是直接按起始时刻位姿一直向前递推得到的，
   //! 这就导致递推的位置是一根直线，后期考虑n时刻位姿在n-1时刻位姿基础上进行积分递推
-  for (int i = 0; i != predict_counts; ++i) {
+  for (int i = 0; i < predict_counts; ++i) {
     float ndt = static_cast<float>(i + 1) * dt;
     float length_tmp = avg_interval * (i + 1);
     Eigen::Vector3f point(

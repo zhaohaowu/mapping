@@ -2852,6 +2852,11 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
           last_grp->group_segments.back()->end_slice.pr.y());
       Eigen::Vector2f curr_pos(0.0, 0.0);
       bool veh_in_this_junction = false;
+      // HLOG_INFO << "calculate veh_in_this_junction";
+      // HLOG_INFO << "curr_end_pl = " << curr_end_pl.x() << "  "
+      //           << curr_end_pl.y();
+      // HLOG_INFO << "curr_end_pr = " << curr_end_pr.x() << "  "
+      //           << curr_end_pr.y();
       if ((PointInVectorSide(curr_end_pr, curr_end_pl, curr_pos) >= 0 &&
            PointToVectorDist(curr_end_pr, curr_end_pl, curr_pos) < 40) ||
           PointToVectorDist(curr_end_pr, curr_end_pl, curr_pos) < 20 ||
@@ -2968,7 +2973,7 @@ void GroupMap::ForwardCrossVirtual(Group::Ptr curr_group,
     auto mean_interval = left_bound.mean_end_interval;
     auto pred_counts = static_cast<int>(pred_length / mean_interval);
     Eigen::Vector2f n(std::cos(heading), std::sin(heading));
-    for (int i = 0; i != pred_counts; ++i) {
+    for (int i = 0; i < pred_counts; ++i) {
       Eigen::Vector2f pt = left_pt_pre.pt.head<2>() + (i + 1) * n;
       Point pred_pt;
       pred_pt.pt << pt.x(), pt.y(), 0;
@@ -2998,7 +3003,7 @@ void GroupMap::ForwardCrossVirtual(Group::Ptr curr_group,
     pred_length = conf_.predict_farthest_dist - dist_to_veh;
     mean_interval = right_bound.mean_end_interval;
     pred_counts = static_cast<int>(pred_length / mean_interval);
-    for (int i = 0; i != pred_counts; ++i) {
+    for (int i = 0; i < pred_counts; ++i) {
       Eigen::Vector2f pt = right_pt_pre.pt.head<2>() + (i + 1) * n;
       Point pred_pt;
       pred_pt.pt << pt.x(), pt.y(), 0;
@@ -3016,7 +3021,7 @@ void GroupMap::ForwardCrossVirtual(Group::Ptr curr_group,
     pred_length = conf_.predict_farthest_dist - dist_to_veh;
     mean_interval = left_bound.mean_end_interval;
     pred_counts = static_cast<int>(pred_length / mean_interval);
-    for (int i = 0; i != pred_counts; ++i) {
+    for (int i = 0; i < pred_counts; ++i) {
       Eigen::Vector2f pt = center_pt_pre.pt.head<2>() + (i + 1) * n;
       Point pred_pt;
       pred_pt.pt << pt.x(), pt.y(), 0;
@@ -4379,7 +4384,7 @@ void GroupMap::PredictLaneLine(LineSegment* line) {
   auto pred_counts = static_cast<int>(pred_length / mean_interval);
   Eigen::Vector2f n(std::cos(line->pred_end_heading),
                     std::sin(line->pred_end_heading));
-  for (int i = 0; i != pred_counts; ++i) {
+  for (int i = 0; i < pred_counts; ++i) {
     Eigen::Vector2f pt = back_pt + (i + 1) * n;
     Point pred_pt;
     pred_pt.pt << pt.x(), pt.y(), 0;
@@ -4400,7 +4405,7 @@ void GroupMap::PredictLaneLine(double heading, std::vector<Point>* line,
   auto pred_length = conf_.predict_farthest_dist - dist_to_veh;
   auto pred_counts = static_cast<int>(pred_length / mean_interval);
   Eigen::Vector2f n(std::cos(heading), std::sin(heading));
-  for (int i = 0; i != pred_counts; ++i) {
+  for (int i = 0; i < pred_counts; ++i) {
     Eigen::Vector2f pt = back_pt + (i + 1) * n;
     Point pred_pt;
     pred_pt.pt << pt.x(), pt.y(), 0;

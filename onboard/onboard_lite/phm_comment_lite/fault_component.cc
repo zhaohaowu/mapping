@@ -104,7 +104,9 @@ bool PhmComponent::FaultReport(const int32_t& faultid, const int32_t& objid,
         debounceTime;
     phm_client_->ReportFault(cFault);
     HLOG_WARN << "[DEBUG_PHM] FaultManager reset fault_name " << fault_name;
-    faultmap_.erase(it);
+    if (it != faultmap_.end()) {
+      faultmap_.erase(it);
+    }
   }
 
   return true;

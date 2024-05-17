@@ -846,13 +846,12 @@ void FusionCenter::Node2Localization(const Context& ctx,
   ++count;
   if (count >= 50) {
     count = 0;
-    HLOG_ERROR << "dr_ticktime:" << ticktime
-               << ",ESKF_Cov:" << global_node.cov(0, 0) * 1e10 << ", "
-               << global_node.cov(1, 1) * 1e10 << ", "
-               << global_node.cov(2, 2) * 1e10 << ", "
-               << global_node.cov(6, 6) * 1e10 << ", "
-               << global_node.cov(7, 7) * 1e10 << ", "
-               << global_node.cov(8, 8) * 1e10;
+    HLOG_INFO << "dr_ticktime:" << ticktime
+              << ",ESKF_Cov:" << global_node.cov(0, 0) << ", "
+              << global_node.cov(1, 1) << ", " << global_node.cov(2, 2) << ", "
+              << global_node.cov(6, 6) << ", " << global_node.cov(7, 7) << ", "
+              << global_node.cov(8, 8) << ",gcj02:" << pose->gcj02().x() << ","
+              << pose->gcj02().y();
   }
   location->clear_covariance();
   for (int i = 0; i < 36; ++i) {

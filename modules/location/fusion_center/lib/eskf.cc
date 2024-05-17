@@ -207,13 +207,17 @@ void ESKF::Correct(const Node& cur_meas_data) {
   static int count = 0;
   ++count;
   if (count >= 10) {
-    HLOG_INFO << "X_.meas_type: " << X_.meas_type << ",ydiff0:" << y_diff(0)
-              << ",ydiff1:" << y_diff(1) << ",ydiff2:" << y_diff(2)
-              << ",ydiff3:" << y_diff(3) << ",ydiff4:" << y_diff(4)
-              << ",ydiff5:" << y_diff(5);
-    HLOG_INFO << ",P_pos_1:" << P_(0, 0) << ",P_pos_2:" << P_(1, 1)
-              << ",P_pos_3:" << P_(2, 2) << ",P_angle_1:" << P_(6, 6)
-              << ",P_angle_1:" << P_(7, 7) << ",P_angle_1:" << P_(8, 8);
+    HLOG_INFO << "meas_ticktime: " << cur_meas_data.ticktime
+              << ",meas_type: " << X_.meas_type << ",ydiff_pos1:" << y_diff(0)
+              << ",ydiff_pos2:" << y_diff(1) << ",ydiff_pos3:" << y_diff(2)
+              << ",ydiff_ori1:" << y_diff(3) << ",ydiff_ori2:" << y_diff(4)
+              << ",ydiff_ori3:" << y_diff(5) << ",Kydiff_pos1:" << X_dx_(0)
+              << ",Kydiff_pos2:" << X_dx_(1) << ",Kydiff_pos3:" << X_dx_(2)
+              << ",Kydiff_ori1:" << X_dx_(6) << ",Kydiff_ori2:" << X_dx_(7)
+              << ",Kydiff_ori3:" << X_dx_(8) << ",P_pos_1:" << P_(0, 0)
+              << ",P_pos_2:" << P_(1, 1) << ",P_pos_3:" << P_(2, 2)
+              << ",P_angle_1:" << P_(6, 6) << ",P_angle_1:" << P_(7, 7)
+              << ",P_angle_1:" << P_(8, 8);
     count = 0;
   }
 

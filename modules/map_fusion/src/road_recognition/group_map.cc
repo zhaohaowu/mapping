@@ -805,6 +805,7 @@ bool GroupMap::IsLaneConnet(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
       return true;
     }
   }
+  HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group;
   return false;
 }
 
@@ -998,7 +999,7 @@ void GroupMap::FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group) {
       curr_group_next_lane;  // 当前车道groupindex,后继在下个group的index
   std::map<int, std::vector<int>> next_group_prev_lane;
   if (curr_group->lanes.size() >= next_group->lanes.size()) {
-    HLOG_ERROR << "CUR >= NEXT";
+    HLOG_DEBUG << "CUR >= NEXT";
     for (int i = 0; i < curr_group->lanes.size(); ++i) {
       auto& lane_in_curr = curr_group->lanes[i];
       if (lane_in_curr->next_lane_str_id_with_group.empty()) {
@@ -1109,7 +1110,7 @@ void GroupMap::FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group) {
       }
     }
   } else {
-    HLOG_ERROR << "CUR < NEXT";
+    HLOG_DEBUG << "CUR < NEXT";
     for (int i = 0; i < next_group->lanes.size(); ++i) {
       auto& lane_in_next = next_group->lanes[i];
       if (lane_in_next->prev_lane_str_id_with_group.empty()) {
@@ -1540,10 +1541,12 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
         auto dist_to_slice =
             PointToVectorDist(next_start_pl, next_start_pr, curr_pos);
         //! 注意：当前路口策略是：先使用预测的车道往前行驶一半路口长度，之后再使用前方车道进行关联.
+        // dist_to_slice > (group_distance * 0.5) && veh_in_this_junction
         //! 为了能使用curr group的车道向前预测，这里把next
         //! group的索引标记出来，后面会将next group 里车道都删掉，这样curr
         //! group就变成最后一个group了，后续就能正常使用其向前预测了.
-        if (dist_to_slice > (group_distance * 0.5) && veh_in_this_junction) {
+        // 把一半变成30m
+        if (dist_to_slice > 30 && veh_in_this_junction) {
           erase_grp_idx = grp_idx + 1;
           break;
         }
@@ -2035,6 +2038,14 @@ void GroupMap::SmoothCenterline(std::vector<Group::Ptr>* groups) {
       if (lane->is_smooth || lane->next_lane_str_id_with_group.empty()) {
         continue;
       }
+      // 前后继直接相连不平滑
+      if (lane->next_lane_str_id_with_group.size() == 1) {
+        int index_next_ = lane_grp_index[lane->next_lane_str_id_with_group[0]];
+        if (next_grp->lanes[index_next_]->prev_lane_str_id_with_group.size() ==
+            1) {
+          continue;
+        }
+      }
       if (lane->next_lane_str_id_with_group.size() == 1) {
         // 从后往前滑动窗口
         //! TD:后续用距离不用点
@@ -2522,6 +2533,61 @@ bool GroupMap::OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups) {
   return true;
 }
 
+void GroupMap::VirtualLaneLeftRight(Group::Ptr curr_group,
+                                    Group::Ptr next_group) {
+  // 默认补齐的group的lanenumber一致，且一条lane有且仅有一个后继或前驱
+  // is_after对应的从前往后或者从后往前
+  std::unordered_map<std::string, int>
+      next_lane_index;  // next_group的lane对应的index
+  for (int i = 0; i < next_group->lanes.size(); ++i) {
+    next_lane_index[next_group->lanes[i]->str_id_with_group] = i;
+    // 按照curr_group的左右邻来更新
+    next_group->lanes[i]->left_lane_str_id_with_group.clear();
+    next_group->lanes[i]->right_lane_str_id_with_group.clear();
+  }
+  std::unordered_map<std::string, int>
+      curr_lane_index;  // curr_group的lane对应的index
+  for (int i = 0; i < curr_group->lanes.size(); ++i) {
+    curr_lane_index[curr_group->lanes[i]->str_id_with_group] = i;
+  }
+  for (int curr_index = 0; curr_index < curr_group->lanes.size();
+       ++curr_index) {
+    if (curr_group->lanes[curr_index]->next_lane_str_id_with_group.empty()) {
+      continue;
+    }
+    int index = next_lane_index[curr_group->lanes[curr_index]
+                                    ->next_lane_str_id_with_group[0]];
+    auto& lane_next =
+        next_group->lanes[index];  // curr_lane对应next_group里的后继lane
+    for (auto& left_lane :
+         curr_group->lanes[curr_index]->left_lane_str_id_with_group) {
+      // curr_lane所有的左边线
+      int left_lane_index =
+          curr_lane_index[left_lane];  // 左边线对应curr_group的index
+      if (curr_group->lanes[left_lane_index]
+              ->next_lane_str_id_with_group.empty()) {
+        continue;
+      }
+      std::string left_lane_next_id =
+          curr_group->lanes[left_lane_index]->next_lane_str_id_with_group
+              [0];  // 左边线对应next_group里的后继lane_id
+      lane_next->left_lane_str_id_with_group.emplace_back(
+          left_lane_next_id);  // 将左边线lane_id添加到lane_next的左边线中
+    }
+    for (auto& right_lane :
+         curr_group->lanes[curr_index]->right_lane_str_id_with_group) {
+      int right_lane_index = curr_lane_index[right_lane];
+      if (curr_group->lanes[right_lane_index]
+              ->next_lane_str_id_with_group.empty()) {
+        continue;
+      }
+      std::string right_lane_next_id =
+          curr_group->lanes[right_lane_index]->next_lane_str_id_with_group[0];
+      lane_next->right_lane_str_id_with_group.emplace_back(right_lane_next_id);
+    }
+  }
+}
+
 bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
   // 从前往后
   if (groups->size() > 1) {
@@ -2622,11 +2688,17 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
         if (flag_lane == 0 && group_distance < 10.0) {
           UpdateLane(curr_group);
           BuildVirtualLaneAfter(curr_group, next_group);
+          VirtualLaneLeftRight(curr_group, next_group);
         }
         for (auto& lane_in_curr : curr_group->lanes) {
           lane_in_curr->next_lane_str_id_with_group.clear();
           // lane_in_curr->left_boundary->id_next = -1000;
           // lane_in_curr->right_boundary->id_next = -1000;
+        }
+        for (auto& lane_in_curr : curr_group->lanes) {
+          HLOG_DEBUG << "lane_in_curr->id = " << lane_in_curr->str_id;
+          HLOG_DEBUG << "lane_in_curr->next_lane_str_id_with_group.SIZE = "
+                     << lane_in_curr->next_lane_str_id_with_group.size();
         }
       }
     }
@@ -2705,7 +2777,7 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
                 .norm();
         if (max_length_lane <= 10.0 && flag_lane == 0 &&
             group_distance < 10.0) {
-          HLOG_ERROR << " is connect";
+          HLOG_DEBUG << " is connect";
           BuildVirtualLaneBefore(curr_group, next_group);
           // groups->erase(groups->begin() + i - 1);
         }
@@ -3711,6 +3783,12 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
       lane_pre.right_boundary = std::make_shared<LineSegment>(right_bound);
       Lane::Ptr lane_ptr = std::make_shared<Lane>(lane_pre);
       FitCenterLine(lane_ptr);
+      if (lane_ptr->center_line_param.empty()) {
+        lane_ptr->center_line_param = lane_in_curr->center_line_param;
+      }
+      if (lane_ptr->center_line_param_front.empty()) {
+        lane_ptr->center_line_param_front = lane_in_curr->center_line_param;
+      }
       // HLOG_ERROR << "lane_pre.center_line_pts.size() = "
       //            << lane_pre.center_line_pts.size() << "   "
       //            << lane_ptr->center_line_pts.size()
@@ -3727,8 +3805,8 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
       // lane_pre.center_line_pts = ctl_pt;
       // lane_pre.prev_lane_str_id_with_group.emplace_back(
       //     lane_in_curr->str_id_with_group);
-      // lane_in_curr->next_lane_str_id_with_group.emplace_back(
-      //     lane_pre.str_id_with_group);
+      lane_in_curr->next_lane_str_id_with_group.emplace_back(
+          lane_pre.str_id_with_group);
 
       for (const auto& lane_right :
            lane_in_curr->right_lane_str_id_with_group) {
@@ -3748,8 +3826,6 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
 
       // next_group->lanes.emplace_back(std::make_shared<Lane>(lane_pre));
       next_group->lanes.emplace_back(lane_ptr);
-    } else {
-      lane_in_curr->next_lane_str_id_with_group.clear();
     }
   }
   // for (auto& lane_in_curr : curr_group->lanes) {
@@ -4025,7 +4101,14 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
       // ctl_pt;
       Lane::Ptr lane_ptr = std::make_shared<Lane>(lane_pre);
       FitCenterLine(lane_ptr);
-      HLOG_ERROR << "lane_pre.center_line_pts.size() = "
+      if (lane_ptr->center_line_param.empty()) {
+        lane_ptr->center_line_param = lane_in_next->center_line_param_front;
+      }
+      if (lane_ptr->center_line_param_front.empty()) {
+        lane_ptr->center_line_param_front =
+            lane_in_next->center_line_param_front;
+      }
+      HLOG_DEBUG << "lane_pre.center_line_pts.size() = "
                  << lane_pre.center_line_pts.size() << "   "
                  << lane_ptr->center_line_pts.size()
                  << "  lane_pre.left_boundary = "
@@ -4038,8 +4121,8 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
       }
       // lane_pre.next_lane_str_id_with_group.emplace_back(
       //     lane_in_next->str_id_with_group);
-      // lane_in_next->prev_lane_str_id_with_group.emplace_back(
-      //     lane_pre.str_id_with_group);
+      lane_in_next->prev_lane_str_id_with_group.emplace_back(
+          lane_pre.str_id_with_group);
       for (const auto& lane_right :
            lane_in_next->right_lane_str_id_with_group) {
         size_t index = lane_right.find(":");
@@ -4056,9 +4139,6 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
         lane_pre.left_lane_str_id_with_group.emplace_back(left_str);
       }
       curr_group->lanes.emplace_back(lane_ptr);
-
-    } else {
-      lane_in_next->prev_lane_str_id_with_group.clear();
     }
   }
   // for (auto& lane_in_next : next_group->lanes) {
@@ -4834,7 +4914,7 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
           proto_lane->add_left_neighbor_forward_lane_id()->set_id(
               std::to_string(id));
         } else {
-          HLOG_ERROR << "cannot find " << left_id << " in lane_id_hash";
+          HLOG_DEBUG << "cannot find " << left_id << " in lane_id_hash";
         }
       }
 
@@ -4846,7 +4926,7 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
           proto_lane->add_right_neighbor_forward_lane_id()->set_id(
               std::to_string(id));
         } else {
-          HLOG_ERROR << "cannot find " << right_id << " in lane_id_hash";
+          HLOG_DEBUG << "cannot find " << right_id << " in lane_id_hash";
         }
       }
 
@@ -4857,7 +4937,7 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
           id = lane_id_hash[next_id];
           proto_lane->add_successor_id()->set_id(std::to_string(id));
         } else {
-          HLOG_ERROR << "cannot find " << next_id << " in lane_id_hash";
+          HLOG_DEBUG << "cannot find " << next_id << " in lane_id_hash";
         }
       }
 
@@ -4868,7 +4948,7 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
           id = lane_id_hash[prev_id];
           proto_lane->add_predecessor_id()->set_id(std::to_string(id));
         } else {
-          HLOG_ERROR << "cannot find " << prev_id << " in lane_id_hash";
+          HLOG_DEBUG << "cannot find " << prev_id << " in lane_id_hash";
         }
       }
 
@@ -4911,6 +4991,7 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
     }
   }
   history_id->road_id = grp_idx;
+
   // stop lines
   // for (const auto& stopline_it : ele_map->stop_lines) {
   //   auto* stop_line = map->add_stop_line();

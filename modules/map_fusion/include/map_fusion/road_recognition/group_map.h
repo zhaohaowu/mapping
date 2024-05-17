@@ -334,6 +334,7 @@ class GroupMap {
                  const Eigen::Vector2f& next_start_pr);
   void UpdateLane(Group::Ptr curr_group);
   void SmoothCenterline(std::vector<Group::Ptr>* groups);
+  void VirtualLaneLeftRight(Group::Ptr curr_group, Group::Ptr next_group);
   std::vector<Point> SlidingWindow(std::vector<Point> centerline, int w);
   std::vector<Point> SigmoidFunc(std::vector<Point> centerline, float sigma);
 

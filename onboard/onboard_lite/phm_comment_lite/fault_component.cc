@@ -64,7 +64,8 @@ bool PhmComponent::FaultReport(const int32_t& faultid, const int32_t& objid,
                                const int32_t& status,
                                const int32_t& debounceCount,
                                const int32_t& debounceTime) {
-  HLOG_DEBUG << "[DEBUG_PHM] FLAGS_enable_phm_option " << FLAGS_enable_phm_option;
+  HLOG_DEBUG << "[DEBUG_PHM] FLAGS_enable_phm_option "
+             << FLAGS_enable_phm_option;
   if (!FLAGS_enable_phm_option) {
     return false;
   }
@@ -79,33 +80,31 @@ bool PhmComponent::FaultReport(const int32_t& faultid, const int32_t& objid,
       std::to_string(faultid) + "-" + std::to_string(objid);
 
   auto it = faultmap_.find(fault_name);
-  if (it == faultmap_.end()) {
-    if (status == 1) {
+  if (status == 1) {
+    if (it == faultmap_.end()) {
       faultmap_.insert(std::make_pair(fault_name, status));
-      SendFault_t cFault(faultid, objid, status);
-      cFault.faultDebounce.debounceType =
-          hozon::netaos::phm::DebounceType::DEBOUNCE_TYPE_COUNT;
-      cFault.faultDebounce.debounceSetting.countDebounce.debounceCount =
-          debounceCount;
-      cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
-          debounceTime;
-      phm_client_->ReportFault(cFault);
-      HLOG_WARN << "[DEBUG_PHM] FaultManager ReportFault fault_name "
-                << fault_name;
     }
-  } else {
-    if (0 == status) {
-      SendFault_t cFault(faultid, objid, status);
-      cFault.faultDebounce.debounceType =
-          hozon::netaos::phm::DebounceType::DEBOUNCE_TYPE_COUNT;
-      cFault.faultDebounce.debounceSetting.countDebounce.debounceCount =
-          debounceCount;
-      cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
-          debounceTime;
-      phm_client_->ReportFault(cFault);
-      HLOG_WARN << "[DEBUG_PHM] FaultManager reset fault_name " << fault_name;
-      faultmap_.erase(it);
-    }
+    SendFault_t cFault(faultid, objid, status);
+    cFault.faultDebounce.debounceType =
+        hozon::netaos::phm::DebounceType::DEBOUNCE_TYPE_COUNT;
+    cFault.faultDebounce.debounceSetting.countDebounce.debounceCount =
+        debounceCount;
+    cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
+        debounceTime;
+    phm_client_->ReportFault(cFault);
+    HLOG_WARN << "[DEBUG_PHM] FaultManager ReportFault fault_name "
+              << fault_name;
+  } else if (0 == status) {
+    SendFault_t cFault(faultid, objid, status);
+    cFault.faultDebounce.debounceType =
+        hozon::netaos::phm::DebounceType::DEBOUNCE_TYPE_COUNT;
+    cFault.faultDebounce.debounceSetting.countDebounce.debounceCount =
+        debounceCount;
+    cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
+        debounceTime;
+    phm_client_->ReportFault(cFault);
+    HLOG_WARN << "[DEBUG_PHM] FaultManager reset fault_name " << fault_name;
+    faultmap_.erase(it);
   }
 
   return true;

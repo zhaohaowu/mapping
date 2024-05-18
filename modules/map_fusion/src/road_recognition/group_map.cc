@@ -718,48 +718,58 @@ bool GroupMap::IsAccessLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
       lane_in_next->center_line_pts.empty()) {
     return false;
   }
-  size_t sizet = lane_in_curr->center_line_pts.size();
+
+  // 从lane_in_next车道的中心线上找出一条大于2米长度的向量出来(从起点位置开始)。
   Eigen::Vector3f lane_in_next_norm(0.0, 0.0, 0.0);
-  size_t next_lane_cp_idx = 1;
-  while (next_lane_cp_idx < lane_in_next->center_line_pts.size() &&
-         lane_in_next_norm.norm() < 2.0) {
+  for (size_t next_lane_cp_idx = 1;
+       next_lane_cp_idx < lane_in_next->center_line_pts.size();
+       ++next_lane_cp_idx) {
     lane_in_next_norm = lane_in_next->center_line_pts[next_lane_cp_idx].pt -
                         lane_in_next->center_line_pts[0].pt;
-    next_lane_cp_idx++;
-  }
-  if (lane_in_next_norm.norm() > 2.0) {
-    Eigen::Vector3f lane_curr2next_vec =
-        lane_in_curr->center_line_pts[sizet - 1].pt -
-        lane_in_next->center_line_pts[0].pt;
-    lane_in_next_norm = lane_in_next_norm.normalized();
-    if ((lane_in_next_norm.cross(lane_curr2next_vec)).norm() > 2.0) {
-      // curr点是否在next_lane的右侧
-      float is_right = lane_in_next_norm.y() * lane_curr2next_vec.x() -
-                       lane_in_next_norm.x() * lane_curr2next_vec.y();
-      if (is_right > 0 &&
-          (lane_in_next->right_boundary->type == em::LaneType_SOLID ||
-           lane_in_next->right_boundary->type == em::LaneType_DOUBLE_SOLID ||
-           lane_in_next->right_boundary->type ==
-               em::LaneType_LEFT_SOLID_RIGHT_DASHED)) {
-        HLOG_ERROR << "NOT ACCESS RIGHT!";
-        return false;
-      } else if (is_right < 0 &&
-                 (lane_in_next->left_boundary->type == em::LaneType_SOLID ||
-                  lane_in_next->left_boundary->type ==
-                      em::LaneType_DOUBLE_SOLID ||
-                  lane_in_next->left_boundary->type ==
-                      em::LaneType_RIGHT_SOLID_LEFT_DASHED)) {
-        HLOG_ERROR << "NOT ACCESS LEFT!";
-        return false;
-      }
+    if (lane_in_next_norm.norm() >= 2.0) {
+      break;
     }
-  } else {
+  }
+
+  if (lane_in_next_norm.norm() <= 2.0) {
     return false;
   }
+
+  size_t sizet = lane_in_curr->center_line_pts.size();
+  Eigen::Vector3f lane_curr2next_vec =
+      lane_in_curr->center_line_pts[sizet - 1].pt -
+      lane_in_next->center_line_pts[0].pt;
+  lane_in_next_norm = lane_in_next_norm.normalized();
+  // 判断两车道中心线的横向距离是否大于2.0, 如果小于2米，认为是可通行的。
+  if ((lane_in_next_norm.cross(lane_curr2next_vec)).norm() <= 2.0) {
+    return true;
+  }
+
+  // 判断curr点是否在next_lane的右侧
+  bool is_right = (lane_in_next_norm.y() * lane_curr2next_vec.x() -
+                   lane_in_next_norm.x() * lane_curr2next_vec.y()) > 0
+                      ? true
+                      : false;
+  if (is_right &&
+      (lane_in_next->right_boundary->type == em::LaneType_SOLID ||
+       lane_in_next->right_boundary->type == em::LaneType_DOUBLE_SOLID ||
+       lane_in_next->right_boundary->type ==
+           em::LaneType_LEFT_SOLID_RIGHT_DASHED)) {
+    HLOG_ERROR << "NOT ACCESS RIGHT!";
+    return false;
+  } else if (!is_right &&
+             (lane_in_next->left_boundary->type == em::LaneType_SOLID ||
+              lane_in_next->left_boundary->type == em::LaneType_DOUBLE_SOLID ||
+              lane_in_next->left_boundary->type ==
+                  em::LaneType_RIGHT_SOLID_LEFT_DASHED)) {
+    HLOG_ERROR << "NOT ACCESS LEFT!";
+    return false;
+  }
+
   return true;
 }
 
-bool GroupMap::IsLaneConnet(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
+bool GroupMap::AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
   if (!IsAccessLane(lane_in_curr, lane_in_next)) {
     return false;
   }
@@ -769,7 +779,7 @@ bool GroupMap::IsLaneConnet(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
   float dis_thresh{0.0};
   if (dis_pt < 5 || (lane_in_curr->lanepos_id == lane_in_next->lanepos_id &&
                      lane_in_curr->lanepos_id != "99_99")) {
-    HLOG_ERROR << "lane_in_curr=" << lane_in_curr->str_id_with_group
+    HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group
                << "   lane_in_next" << lane_in_next->str_id_with_group
                << "  dis_pt = " << dis_pt
                << " lane_in_curr->lanepos_id =" << lane_in_curr->lanepos_id
@@ -790,14 +800,14 @@ bool GroupMap::IsLaneConnet(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
     }
     float dis = CalculatePoint2CenterLine(lane_in_next, lane_in_curr);
     float angle = Calculate2CenterlineAngle(lane_in_next, lane_in_curr, sizet);
-    // HLOG_ERROR << "angle = "<<angle*180/pi_;
-    HLOG_ERROR << "lane_in_curr=" << lane_in_curr->str_id_with_group
+    // HLOG_DEBUG << "angle = "<<angle*180/pi_;
+    HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group
                << "   lane_in_next" << lane_in_next->str_id_with_group
                << "  dis2l = " << dis << "  dis thresh = " << dis_thresh
                << " angle = " << abs(angle) * 180 / pi_
                << "  angel_thresh = " << angel_thresh;
     if ((dis < dis_thresh && abs(angle) * 180 / pi_ < angel_thresh)) {
-      // HLOG_ERROR << "lane_in_curr=" << lane_in_curr->str_id_with_group
+      // HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group
       //            << "   lane_in_next" << lane_in_next->str_id_with_group
       //            << "  dis2l = " << dis << "  dis thresh = " << dis_thresh
       //            << " angle = " << angle << "  angel_thresh = " <<
@@ -809,7 +819,7 @@ bool GroupMap::IsLaneConnet(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
   return false;
 }
 
-bool GroupMap::IsLaneConnet(
+bool GroupMap::AreLaneConnect(
     Group::Ptr curr_group, Group::Ptr next_group, int i, int j,
     std::map<int, std::vector<int>>* curr_group_next_lane,
     std::map<int, std::vector<int>>* next_group_prev_lane) {
@@ -1020,8 +1030,8 @@ void GroupMap::FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group) {
           bool has_next_lane = false;
           for (int j = 0; j < next_group->lanes.size(); ++j) {
             has_next_lane =
-                IsLaneConnet(curr_group, next_group, i, j,
-                             &curr_group_next_lane, &next_group_prev_lane) ||
+                AreLaneConnect(curr_group, next_group, i, j,
+                               &curr_group_next_lane, &next_group_prev_lane) ||
                 has_next_lane;
           }
           if (!has_next_lane) {
@@ -1131,8 +1141,8 @@ void GroupMap::FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group) {
           bool has_prev_lane = false;
           for (int j = 0; j < curr_group->lanes.size(); ++j) {
             has_prev_lane =
-                IsLaneConnet(curr_group, next_group, j, i,
-                             &curr_group_next_lane, &next_group_prev_lane) ||
+                AreLaneConnect(curr_group, next_group, j, i,
+                               &curr_group_next_lane, &next_group_prev_lane) ||
                 has_prev_lane;
           }
           double next_len = CalcLaneLength(lane_in_next);
@@ -1332,6 +1342,43 @@ bool GroupMap::IsZebraIn(const Eigen::Vector2f& curr_start_pl,
   return false;
 }
 
+bool GroupMap::IsVehicleInJunction(Group::Ptr curr_group,
+                                   Group::Ptr next_group) {
+  bool veh_in_this_junction = false;
+  // 判断车是否在curr和next group范围内，如果是就认为在路口内
+  auto curr_grp_start_slice = curr_group->group_segments.front()->start_slice;
+  auto curr_grp_end_slice = curr_group->group_segments.back()->end_slice;
+  auto next_grp_start_slice = next_group->group_segments.front()->start_slice;
+  Eigen::Vector2f curr_start_pl(curr_grp_start_slice.pl.x(),
+                                curr_grp_start_slice.pl.y());
+  Eigen::Vector2f curr_start_pr(curr_grp_start_slice.pr.x(),
+                                curr_grp_start_slice.pr.y());
+  Eigen::Vector2f curr_end_pl(curr_grp_end_slice.pl.x(),
+                              curr_grp_end_slice.pl.y());
+  Eigen::Vector2f curr_end_pr(curr_grp_end_slice.pr.x(),
+                              curr_grp_end_slice.pr.y());
+  Eigen::Vector2f next_start_pl(next_grp_start_slice.pl.x(),
+                                next_grp_start_slice.pl.y());
+  Eigen::Vector2f next_start_pr(next_grp_start_slice.pr.x(),
+                                next_grp_start_slice.pr.y());
+  Eigen::Vector2f curr_pos(0, 0);
+  if (PointInVectorSide(curr_start_pr, curr_start_pl, curr_pos) >= 0 &&
+      PointInVectorSide(next_start_pr, next_start_pl, curr_pos) <= 0) {
+    veh_in_this_junction = true;
+  }
+  //! 注意： 这里判断车与curr
+  //! group的距离是否小于规控要求的长度，如果小于表示前方太短了，
+  //! 此时也认为是在路口内，这样就可以将next group里车道删除，正常的使用curr
+  //! group向前预测
+  if (PointInVectorSide(curr_end_pr, curr_end_pl, curr_pos) <= 0 &&
+      PointToVectorDist(curr_end_pr, curr_end_pl, curr_pos) <
+          conf_.predict_farthest_dist) {
+    veh_in_this_junction = true;
+  }
+
+  return veh_in_this_junction;
+}
+
 void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
   std::vector<Group::Ptr> group_virtual;
   int erase_grp_idx = -1;
@@ -1344,200 +1391,44 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
         next_group->lanes.size() < 1) {
       continue;
     }
-    auto curr_group_size = curr_group->group_segments.size();
+
+    // 判断curr_group的最后一个groupsegment的中心点和next_group的第一个groupsegment的中心点的距离
+    auto curr_grp_gs_size = curr_group->group_segments.size();
     double group_distance =
-        (curr_group->group_segments[curr_group_size - 1]->end_slice.po -
+        (curr_group->group_segments[curr_grp_gs_size - 1]->end_slice.po -
          next_group->group_segments.front()->start_slice.po)
             .norm();
-    double min_dis_curr_lane_next_group = DBL_MAX;
-    for (auto& lane : curr_group->lanes) {
-      double diss = (lane->center_line_pts.back().pt -
-                     next_group->group_segments.front()->start_slice.po)
-                        .norm();
-      if (diss < min_dis_curr_lane_next_group) {
-        min_dis_curr_lane_next_group = diss;
+    //
+    double currgrp_nearest_mindis_to_nextgrp = DBL_MAX;
+    for (auto& cur_group_lane : curr_group->lanes) {
+      double calcu_dis = (cur_group_lane->center_line_pts.back().pt -
+                          next_group->group_segments.front()->start_slice.po)
+                             .norm();
+      if (calcu_dis < currgrp_nearest_mindis_to_nextgrp) {
+        currgrp_nearest_mindis_to_nextgrp = calcu_dis;
       }
     }
-    auto curr_grp_start_slice = curr_group->group_segments.front()->start_slice;
-    auto curr_grp_end_slice = curr_group->group_segments.back()->end_slice;
-    auto next_grp_start_slice = next_group->group_segments.front()->start_slice;
-    Eigen::Vector2f curr_start_pl(curr_grp_start_slice.pl.x(),
-                                  curr_grp_start_slice.pl.y());
-    Eigen::Vector2f curr_start_pr(curr_grp_start_slice.pr.x(),
-                                  curr_grp_start_slice.pr.y());
-    Eigen::Vector2f curr_end_pl(curr_grp_end_slice.pl.x(),
-                                curr_grp_end_slice.pl.y());
-    Eigen::Vector2f curr_end_pr(curr_grp_end_slice.pr.x(),
-                                curr_grp_end_slice.pr.y());
-    Eigen::Vector2f next_start_pl(next_grp_start_slice.pl.x(),
-                                  next_grp_start_slice.pl.y());
-    Eigen::Vector2f next_start_pr(next_grp_start_slice.pr.x(),
-                                  next_grp_start_slice.pr.y());
-    Eigen::Vector2f curr_pos(0, 0);
-    if (group_distance > 10 && min_dis_curr_lane_next_group > 10) {
-      //  ||
-      //  (group_distance > 5 && IsZebraIn(curr_start_pl, curr_start_pr,
-      //                                  next_start_pl, next_start_pr))
-      // 小路口及以上并且正处于路口
-      bool veh_in_this_junction = false;
-      // 判断车是否在curr和next group范围内，如果是就认为在路口内
-      if (PointInVectorSide(curr_start_pr, curr_start_pl, curr_pos) >= 0 &&
-          PointInVectorSide(next_start_pr, next_start_pl, curr_pos) <= 0) {
-        veh_in_this_junction = true;
-      }
-      //! 注意： 这里判断车与curr
-      //! group的距离是否小于规控要求的长度，如果小于表示前方太短了，
-      //! 此时也认为是在路口内，这样就可以将next group里车道删除，正常的使用curr
-      //! group向前预测
-      if (PointInVectorSide(curr_end_pr, curr_end_pl, curr_pos) <= 0 &&
-          PointToVectorDist(curr_end_pr, curr_end_pl, curr_pos) <
-              conf_.predict_farthest_dist) {
-        veh_in_this_junction = true;
-      }
 
+    if (group_distance > 10 && currgrp_nearest_mindis_to_nextgrp > 10) {
+      // 小路口及以上并且正处于路口
+      bool veh_in_this_junction = IsVehicleInJunction(curr_group, next_group);
+
+      // 生成curr_group和next_group的中线的角度值。
       auto cur_group_v =
-          (curr_group->group_segments[curr_group_size - 1]->end_slice.po -
-           curr_group->group_segments[curr_group_size - 2]->end_slice.po)
+          (curr_group->group_segments[curr_grp_gs_size - 1]->end_slice.po -
+           curr_group->group_segments[curr_grp_gs_size - 2]->end_slice.po)
               .normalized();
       auto next_group_v = (next_group->group_segments[1]->end_slice.po -
                            next_group->group_segments[0]->end_slice.po)
                               .normalized();
       if (cur_group_v.dot(next_group_v) > 0.8) {
-#if 0
-        // 角度差别不大的情况下
-        if (curr_group->lanes.size() == next_group->lanes.size()) {
-          for (size_t lane_idx = 0; lane_idx < curr_group->lanes.size(); ++lane_idx) {
-            if (curr_group->lanes[lane_idx]->next_lane_str_id_with_group.empty()) {
-              BuildCrossingLane(&lane_virtual, curr_group->lanes[lane_idx],
-                                next_group->lanes[lane_idx]);
-            }
-          }
-        } else {
-          size_t next_group_lane_min_index = 0,
-                 next_group_lane_max_index = next_group->lanes.size() - 1;
-          for (size_t curr_lane_idx = 0;
-               curr_lane_idx < curr_group->lanes.size(); ++curr_lane_idx) {
-            auto& lane_in_curr = curr_group->lanes[curr_lane_idx];
-            if (!lane_in_curr->next_lane_str_id_with_group.empty()) {
-              for (size_t next_lane_idx = 0;
-                   next_lane_idx < next_group_lane_max_index; ++next_lane_idx) {
-                if (lane_in_curr->next_lane_str_id_with_group[0] ==
-                    next_group->lanes[next_lane_idx]->str_id_with_group) {
-                  next_group_lane_min_index = next_lane_idx;
-                  break;
-                }
-              }
-            } else {
-              if (curr_lane_idx == 0 &&
-                  next_group->lanes.size() < curr_group->lanes.size()) {
-                //
-                BuildCrossingLane(&lane_virtual, lane_in_curr,
-                                  next_group->lanes[0]);
-              } else if ((curr_lane_idx == curr_group->lanes.size() - 1 &&
-                          next_group->lanes.size() <
-                              curr_group->lanes.size()) ||
-                         next_group_lane_min_index ==
-                             next_group_lane_max_index) {
-                BuildCrossingLane(&lane_virtual, lane_in_curr,
-                                  next_group->lanes[next_group_lane_max_index]);
-              }
-//              else if (curr_group->lanes.size() - 1 - curr_lane_idx ==
-//                         next_group_lane_max_index -
-//                             next_group_lane_min_index) {
-//                BuildCrossingLane(&lane_virtual, lane_in_curr,
-//                                  next_group->lanes[next_group_lane_min_index]);
-//                next_group_lane_min_index += 1;
-//              }
-              else { // NOLINT
-                if (lane_in_curr->center_line_param.size() > 0) {
-                  size_t sizet = lane_in_curr->center_line_pts.size();
-                  auto lane_in_next =
-                      next_group->lanes[next_group_lane_min_index];
-                  float angle1 =
-                      atan((lane_in_next->center_line_pts[0].pt.y() -
-                            lane_in_curr->center_line_pts[sizet - 1].pt.y()) /
-                           (lane_in_next->center_line_pts[0].pt.x() -
-                            lane_in_curr->center_line_pts[sizet - 1].pt.x())) -
-                      atan(lane_in_curr->center_line_param[1]);
-                  auto lane_in_next2 =
-                      next_group->lanes[next_group_lane_min_index + 1];
-                  float angle2 =
-                      atan((lane_in_next2->center_line_pts[0].pt.y() -
-                            lane_in_curr->center_line_pts[sizet - 1].pt.y()) /
-                           (lane_in_next2->center_line_pts[0].pt.x() -
-                            lane_in_curr->center_line_pts[sizet - 1].pt.x())) -
-                      atan(lane_in_curr->center_line_param[1]);
-                  if (lane_in_next->center_line_param_front.size() > 0 &&
-                      lane_in_next2->center_line_param_front.size() > 0) {
-                    float angle_diss1 =
-                        atan(lane_in_next->center_line_param_front[1]) -
-                        atan(lane_in_curr->center_line_param[1]);
-                    float angle_diss2 =
-                        atan(lane_in_next->center_line_param_front[1]) -
-                        atan(lane_in_curr->center_line_param[1]);
-//                    abs(angle_diss1) >
-//                    abs(angle_diss2) + 1.0 / 180 * 3.14 &&
-                    if (abs(lane_in_next->center_line_param_front[0] -
-                            lane_in_curr->center_line_param[0]) >
-                            abs(lane_in_next2->center_line_param_front[0] -
-                                lane_in_curr->center_line_param[0])) {
-                      next_group_lane_min_index += 1;
-                    }
-                    BuildCrossingLane(
-                        &lane_virtual, lane_in_curr,
-                        next_group->lanes[next_group_lane_min_index]);
-                    if (next_group->lanes.size() > curr_group->lanes.size()) {
-                      next_group_lane_min_index += 1;
-                    }
-                  } else if (abs(angle1) > abs(angle2) ||
-                             lane_in_next2->lanepos_id ==
-                                 lane_in_curr->lanepos_id) {
-                    next_group_lane_min_index += 1;
-                    BuildCrossingLane(
-                        &lane_virtual, lane_in_curr,
-                        next_group->lanes[next_group_lane_min_index]);
-                  } else {
-                    BuildCrossingLane(
-                        &lane_virtual, lane_in_curr,
-                        next_group->lanes[next_group_lane_min_index]);
-                    if (next_group->lanes.size() > curr_group->lanes.size()) {
-                      next_group_lane_min_index += 1;
-                    }
-                  }
-                } else {
-                  if (curr_group->lanes.size() > next_group->lanes.size()) {
-                    size_t mod =
-                        curr_lane_idx % (next_group_lane_max_index + 1);
-                    size_t div =
-                        curr_lane_idx / (next_group_lane_max_index + 1);
-                    if (mod > (next_group_lane_max_index + 1) / 2) {
-                      next_group_lane_min_index += 1;
-                    }
-                    next_group_lane_min_index =
-                        ((mod > (next_group_lane_max_index + 1) / 2) ? 1 : 0) +
-                        div;
-                  } else {
-                    size_t mod =
-                        next_group_lane_min_index % (curr_group->lanes.size());
-                    size_t div =
-                        next_group_lane_min_index / (curr_group->lanes.size());
-                    if (mod > (next_group_lane_max_index + 1) / 2) {
-                      next_group_lane_min_index += 1;
-                    }
-                    next_group_lane_min_index =
-                        ((mod > (next_group_lane_max_index + 1) / 2) ? 1 : 0) +
-                        div;
-                  }
-
-                  BuildCrossingLane(
-                      &lane_virtual, lane_in_curr,
-                      next_group->lanes[next_group_lane_min_index]);
-                }
-              }
-            }
-          }
-        }
-#else
+        auto next_grp_start_slice =
+            next_group->group_segments.front()->start_slice;
+        Eigen::Vector2f next_start_pl(next_grp_start_slice.pl.x(),
+                                      next_grp_start_slice.pl.y());
+        Eigen::Vector2f next_start_pr(next_grp_start_slice.pr.x(),
+                                      next_grp_start_slice.pr.y());
+        Eigen::Vector2f curr_pos(0, 0);
         auto dist_to_slice =
             PointToVectorDist(next_start_pl, next_start_pr, curr_pos);
         //! 注意：当前路口策略是：先使用预测的车道往前行驶一半路口长度，之后再使用前方车道进行关联.
@@ -1553,87 +1444,14 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
 
         if (veh_in_this_junction) {
           // 找到与curr_group最近的历史车辆位置
-          Pose nearest;
-          nearest.stamp = -1;
-          float min_dist = FLT_MAX;
-          for (const auto& p : path_in_curr_pose_) {
-            Eigen::Vector2f pt(p.pos.x(), p.pos.y());
-            float dist = PointToVectorDist(curr_end_pl, curr_end_pr, pt);
-            if (dist < min_dist) {
-              min_dist = dist;
-              nearest = p;
-              nearest.stamp = 0;
-            }
-          }
-
-          // 找到与历史车辆位置最接近的curr_lane作为当前所在lane
-          min_dist = FLT_MAX;
           Lane::Ptr ego_curr_lane = nullptr;
-          if (nearest.stamp >= 0) {
-            Eigen::Vector3f temp_pt(1, 0, 0);
-            // 转到当前车体系下
-            Eigen::Vector3f temp_pt_curr_veh =
-                nearest.quat * temp_pt + nearest.pos;
-            Eigen::Vector2f p1(nearest.pos.x(), nearest.pos.y());
-            Eigen::Vector2f p0(temp_pt_curr_veh.x(), temp_pt_curr_veh.y());
-            for (auto& curr_lane : curr_group->lanes) {
-              Eigen::Vector2f pt(curr_lane->center_line_pts.back().pt.x(),
-                                 curr_lane->center_line_pts.back().pt.y());
-              float dist = PointToVectorDist(p0, p1, pt);
-              if (dist < min_dist) {
-                min_dist = dist;
-                ego_curr_lane = curr_lane;
-              }
-            }
-          }
-
-          Eigen::Vector2f thresh_v(std::cos(conf_.junction_heading_diff),
-                                   std::sin(conf_.junction_heading_diff));
-          Eigen::Vector2f n(1, 0);  // 车前向量
-          float thresh_len = std::abs(thresh_v.transpose() * n);
-
+          FindNearestLaneToHistoricalVehiclePosition(curr_group, ego_curr_lane);
           Lane::Ptr best_next_lane = nullptr;
-          float max_len = 0;
-          for (auto& next_lane : next_group->lanes) {
-            Eigen::Vector2f p0(0, 0);
-            Eigen::Vector2f p1(next_lane->center_line_pts.front().pt.x(),
-                               next_lane->center_line_pts.front().pt.y());
-            Eigen::Vector2f v = p1 - p0;
-            v.normalize();
-            float len = std::abs(v.transpose() * n);
-            if (len > max_len && len >= thresh_len) {
-              max_len = len;
-              best_next_lane = next_lane;
-            }
-          }
-
-          float min_offset = FLT_MAX;
-          const float kOffsetThreshold = 3.5 * 0.5;  // 半个3.5米车道宽度
-          float check_offset_thresh = -10000;
-          if (conf_.junction_heading_diff > 0.001) {
-            check_offset_thresh =
-                kOffsetThreshold / std::tan(conf_.junction_heading_diff);
-          }
-          // 如果此时距离足够近，并且通过角度未找到合适的next
-          // lane，此时通过找最小的横向偏移来确定next lane
-          if (best_next_lane == nullptr &&
-              dist_to_slice <= check_offset_thresh) {
-            for (auto& next_lane : next_group->lanes) {
-              float offset =
-                  std::abs(next_lane->center_line_pts.front().pt.y());
-              if (offset < min_offset && offset <= kOffsetThreshold) {
-                min_offset = offset;
-                best_next_lane = next_lane;
-              }
-            }
-          }
-
+          FindBestNextLane(next_group, dist_to_slice, best_next_lane);
           if (ego_curr_lane != nullptr && best_next_lane != nullptr) {
             BuildCrossingLane(&lane_virtual, ego_curr_lane, best_next_lane);
           }
         }
-
-#endif
       }
     } else {
       // 非路口
@@ -1644,6 +1462,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
     }
   }
 
+  // 删除待删除的group
   if (erase_grp_idx > 0) {
     groups->erase(groups->begin() + erase_grp_idx, groups->end());
     if (!groups->empty()) {
@@ -1651,6 +1470,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
     }
   }
 
+  // 增加虚拟车道到groups中
   for (int i = groups->size() - 1; i >= 0; --i) {
     if (group_virtual.empty()) {
       break;
@@ -1937,7 +1757,7 @@ void GroupMap::FitCenterLine(Lane::Ptr lane) {
   }
 }
 
-void GroupMap::UpdateLane(Group::Ptr curr_group) {
+void GroupMap::UpdateLaneBoundaryId(Group::Ptr curr_group) {
   std::unordered_map<em::Id, em::Id> line_next;
   for (auto lane : curr_group->lanes) {
     if (lane->left_boundary->id_next != -1000) {
@@ -1955,6 +1775,105 @@ void GroupMap::UpdateLane(Group::Ptr curr_group) {
     if (lane->right_boundary->id_next == -1000 &&
         line_next.find(lane->right_boundary->id) != line_next.end()) {
       lane->right_boundary->id_next = line_next[lane->right_boundary->id];
+    }
+  }
+}
+
+void GroupMap::DelLaneNextStrIdInGroup(Group::Ptr curr_group) {
+  for (auto& lane_in_curr : curr_group->lanes) {
+    lane_in_curr->next_lane_str_id_with_group.clear();
+  }
+}
+
+void GroupMap::DelLanePrevStrIdInGroup(Group::Ptr curr_group) {
+  for (auto& lane_in_curr : curr_group->lanes) {
+    lane_in_curr->prev_lane_str_id_with_group.clear();
+  }
+}
+
+void GroupMap::FindNearestLaneToHistoricalVehiclePosition(
+    Group::Ptr curr_group, Lane::Ptr ego_curr_lane) {
+  auto curr_grp_start_slice = curr_group->group_segments.front()->start_slice;
+  auto curr_grp_end_slice = curr_group->group_segments.back()->end_slice;
+  Eigen::Vector2f curr_start_pl(curr_grp_start_slice.pl.x(),
+                                curr_grp_start_slice.pl.y());
+  Eigen::Vector2f curr_start_pr(curr_grp_start_slice.pr.x(),
+                                curr_grp_start_slice.pr.y());
+  Eigen::Vector2f curr_end_pl(curr_grp_end_slice.pl.x(),
+                              curr_grp_end_slice.pl.y());
+  Eigen::Vector2f curr_end_pr(curr_grp_end_slice.pr.x(),
+                              curr_grp_end_slice.pr.y());
+  Pose nearest;
+  nearest.stamp = -1;
+  float min_dist = FLT_MAX;
+  for (const auto& p : path_in_curr_pose_) {
+    Eigen::Vector2f pt(p.pos.x(), p.pos.y());
+    float dist = PointToVectorDist(curr_end_pl, curr_end_pr, pt);
+    if (dist < min_dist) {
+      min_dist = dist;
+      nearest = p;
+      nearest.stamp = 0;
+    }
+  }
+
+  // 找到与历史车辆位置最接近的curr_lane作为当前所在lane
+  min_dist = FLT_MAX;
+  if (nearest.stamp >= 0) {
+    Eigen::Vector3f temp_pt(1, 0, 0);
+    // 转到当前车体系下
+    Eigen::Vector3f temp_pt_curr_veh = nearest.quat * temp_pt + nearest.pos;
+    Eigen::Vector2f p1(nearest.pos.x(), nearest.pos.y());
+    Eigen::Vector2f p0(temp_pt_curr_veh.x(), temp_pt_curr_veh.y());
+    for (auto& curr_lane : curr_group->lanes) {
+      Eigen::Vector2f pt(curr_lane->center_line_pts.back().pt.x(),
+                         curr_lane->center_line_pts.back().pt.y());
+      float dist = PointToVectorDist(p0, p1, pt);
+      if (dist < min_dist) {
+        min_dist = dist;
+        ego_curr_lane = curr_lane;
+      }
+    }
+  }
+}
+
+void GroupMap::FindBestNextLane(Group::Ptr next_group,
+                                const float& dist_to_slice,
+                                Lane::Ptr best_next_lane) {
+  Eigen::Vector2f thresh_v(std::cos(conf_.junction_heading_diff),
+                           std::sin(conf_.junction_heading_diff));
+  Eigen::Vector2f n(1, 0);  // 车前向量
+  float thresh_len = std::abs(thresh_v.transpose() * n);
+
+  float max_len = 0;
+  for (auto& next_lane : next_group->lanes) {
+    Eigen::Vector2f p0(0, 0);
+    Eigen::Vector2f p1(next_lane->center_line_pts.front().pt.x(),
+                       next_lane->center_line_pts.front().pt.y());
+    Eigen::Vector2f v = p1 - p0;
+    v.normalize();
+    float len = std::abs(v.transpose() * n);
+    if (len > max_len && len >= thresh_len) {
+      max_len = len;
+      best_next_lane = next_lane;
+    }
+  }
+
+  float min_offset = FLT_MAX;
+  const float kOffsetThreshold = 3.5 * 0.5;  // 半个3.5米车道宽度
+  float check_offset_thresh = -10000;
+  if (conf_.junction_heading_diff > 0.001) {
+    check_offset_thresh =
+        kOffsetThreshold / std::tan(conf_.junction_heading_diff);
+  }
+  // 如果此时距离足够近，并且通过角度未找到合适的next
+  // lane，此时通过找最小的横向偏移来确定next lane
+  if (best_next_lane == nullptr && dist_to_slice <= check_offset_thresh) {
+    for (auto& next_lane : next_group->lanes) {
+      float offset = std::abs(next_lane->center_line_pts.front().pt.y());
+      if (offset < min_offset && offset <= kOffsetThreshold) {
+        min_offset = offset;
+        best_next_lane = next_lane;
+      }
     }
   }
 }
@@ -2590,201 +2509,195 @@ void GroupMap::VirtualLaneLeftRight(Group::Ptr curr_group,
 
 bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
   // 从前往后
-  if (groups->size() > 1) {
-    for (size_t i = 0; i < groups->size() - 1; ++i) {
-      auto& curr_group = groups->at(i);
-      auto& next_group = groups->at(i + 1);
-      int flag = 0;       // 前后group是否有车道根据trackid关联
-      int flag_lane = 1;  // currgroup的车道是否全都有nextgroup关联
-      for (auto& lane_in_curr : curr_group->lanes) {
-        int next_lane_exit = 0;  // currlane是否有后继
-        // HLOG_ERROR << "curr+lane = " << lane_in_curr->str_id_with_group;
-        for (auto& lane_in_next : next_group->lanes) {
-          if (lane_in_curr->str_id == lane_in_next->str_id ||
-              lane_in_curr->left_boundary->id ==
-                  lane_in_next->left_boundary->id ||
-              lane_in_curr->right_boundary->id ==
-                  lane_in_next->right_boundary->id) {
-            // 目前这个是否有next是为了记录是否需要补道，如果有后继就不用补道
-            lane_in_curr->next_lane_str_id_with_group.emplace_back(
-                lane_in_next->str_id_with_group);
-            // HLOG_ERROR << "the next lane is "
-            //            << lane_in_next->str_id_with_group;
-            lane_in_curr->left_boundary->id_next =
-                lane_in_next->left_boundary->id;
-            lane_in_curr->right_boundary->id_next =
-                lane_in_next->right_boundary->id;
-            lane_in_next->prev_lane_str_id_with_group.emplace_back(
-                lane_in_curr->str_id_with_group);
+  if (groups->size() < 2) {
+    return true;
+  }
 
-            //! TBD:
-            //! 这里直接把后一个lane中心线的第一个点加到前一个lane中心线的末尾，
-            //! 后续需要考虑某些异常情况，比如后一个lane中心线的第一个点在前一个lane中心线最后
-            //! 一个点的后方，这样直连就导致整个中心线往后折返了；以及还要考虑横向偏移较大时不平
-            //! 滑的问题
-            // if (!lane_in_next->center_line_pts.empty()) {
-            // lane_in_curr->center_line_pts.emplace_back(
-            //     lane_in_next->center_line_pts.front());
-            // }
-            flag = 1;
-            next_lane_exit = 1;
-            if (lane_in_next->center_line_param.empty()) {
-              lane_in_next->center_line_param = lane_in_curr->center_line_param;
-            }
-            if (lane_in_next->center_line_param_front.empty()) {
-              lane_in_next->center_line_param_front =
-                  lane_in_next->center_line_param;
-            }
-            break;
-          }
-          if (IsLaneConnet(lane_in_curr, lane_in_next)) {
-            lane_in_curr->next_lane_str_id_with_group.emplace_back(
-                lane_in_next->str_id_with_group);
-            lane_in_curr->left_boundary->id_next =
-                lane_in_next->left_boundary->id;
-            lane_in_curr->right_boundary->id_next =
-                lane_in_next->right_boundary->id;
+  for (size_t i = 0; i < groups->size() - 1; ++i) {
+    auto& curr_group = groups->at(i);
+    auto& next_group = groups->at(i + 1);
+    bool is_any_next_lane_exit =
+        false;  // 前后group是否存在某个车道根据trackid关联
+    bool is_all_next_lane_exit =
+        true;  // currgroup的车道是否全部都有nextgroup关联
+    for (auto& lane_in_curr : curr_group->lanes) {
+      bool next_lane_exit = false;  // currlane是否有后继
+      // HLOG_ERROR << "curr+lane = " << lane_in_curr->str_id_with_group;
+      for (auto& lane_in_next : next_group->lanes) {
+        if (lane_in_curr->str_id == lane_in_next->str_id ||
+            lane_in_curr->left_boundary->id ==
+                lane_in_next->left_boundary->id ||
+            lane_in_curr->right_boundary->id ==
+                lane_in_next->right_boundary->id) {
+          // 目前这个是否有next是为了记录是否需要补道，如果有后继就不用补道
+          lane_in_curr->next_lane_str_id_with_group.emplace_back(
+              lane_in_next->str_id_with_group);
+          // HLOG_ERROR << "the next lane is "
+          //            << lane_in_next->str_id_with_group;
+          lane_in_curr->left_boundary->id_next =
+              lane_in_next->left_boundary->id;
+          lane_in_curr->right_boundary->id_next =
+              lane_in_next->right_boundary->id;
+          lane_in_next->prev_lane_str_id_with_group.emplace_back(
+              lane_in_curr->str_id_with_group);
 
-            flag = 1;
-            next_lane_exit = 1;
-            // if (lane_in_next->center_line_param.empty()) {
-            //   lane_in_next->center_line_param =
-            //   lane_in_curr->center_line_param;
-            // }
-            // if (lane_in_next->center_line_param_front.empty()) {
-            //   lane_in_next->center_line_param_front =
-            //       lane_in_next->center_line_param;
-            // }
-            break;
+          // ! TBD:
+          // ！这里直接把后一个lane中心线的第一个点加到前一个lane中心线的末尾，
+          // !后续需要考虑某些异常情况，比如后一个lane中心线的第一个点在前一个lane中心线最后
+          // !一个点的后方，这样直连就导致整个中心线往后折返了；以及还要考虑横向偏移较大时不平
+          // ! 滑的问题
+          // if (!lane_in_next->center_line_pts.empty()) {
+          // lane_in_curr->center_line_pts.emplace_back(
+          //     lane_in_next->center_line_pts.front());
+          // }
+          is_any_next_lane_exit = true;
+          next_lane_exit = true;
+          if (lane_in_next->center_line_param.empty()) {
+            lane_in_next->center_line_param = lane_in_curr->center_line_param;
           }
+          if (lane_in_next->center_line_param_front.empty()) {
+            lane_in_next->center_line_param_front =
+                lane_in_next->center_line_param;
+          }
+          break;
         }
-        if (next_lane_exit == 0) {
-          flag_lane = 0;
+        if (AreLaneConnect(lane_in_curr, lane_in_next)) {
+          lane_in_curr->next_lane_str_id_with_group.emplace_back(
+              lane_in_next->str_id_with_group);
+          lane_in_curr->left_boundary->id_next =
+              lane_in_next->left_boundary->id;
+          lane_in_curr->right_boundary->id_next =
+              lane_in_next->right_boundary->id;
+
+          is_any_next_lane_exit = true;
+          next_lane_exit = true;
+          // if (lane_in_next->center_line_param.empty()) {
+          //   lane_in_next->center_line_param =
+          //   lane_in_curr->center_line_param;
+          // }
+          // if (lane_in_next->center_line_param_front.empty()) {
+          //   lane_in_next->center_line_param_front =
+          //       lane_in_next->center_line_param;
+          // }
+          break;
         }
       }
-      if (flag == 1) {
-        // 查看trackid一致但是groupsize不一致的情况
-        // 如果是线段长短不一致
-        // float max_length_lane = 0.0;
-        // for (auto& lane : next_group->lanes) {
-        //   size_t size_lane = lane->center_line_pts.size();
-        //   float len = (lane->center_line_pts[size_lane - 1].pt -
-        //                lane->center_line_pts[0].pt)
-        //                   .norm();
-        //   if (len > max_length_lane) {
-        //     max_length_lane = len;
-        //   }
-        // }
-
-        // if (max_length_lane <= 10.0 && flag_lane == 0) {
-        //   BuildVirtualLaneAfter(curr_group, next_group);
-        //   // groups->erase(groups->begin() + i + 1);
-        //   // i--;
-        // }
-        double group_distance =
-            (curr_group->group_segments.back()->end_slice.po -
-             next_group->group_segments.front()->start_slice.po)
-                .norm();
-        if (flag_lane == 0 && group_distance < 10.0) {
-          UpdateLane(curr_group);
-          BuildVirtualLaneAfter(curr_group, next_group);
-          VirtualLaneLeftRight(curr_group, next_group);
-        }
-        for (auto& lane_in_curr : curr_group->lanes) {
-          lane_in_curr->next_lane_str_id_with_group.clear();
-          // lane_in_curr->left_boundary->id_next = -1000;
-          // lane_in_curr->right_boundary->id_next = -1000;
-        }
-        for (auto& lane_in_curr : curr_group->lanes) {
-          HLOG_DEBUG << "lane_in_curr->id = " << lane_in_curr->str_id;
-          HLOG_DEBUG << "lane_in_curr->next_lane_str_id_with_group.SIZE = "
-                     << lane_in_curr->next_lane_str_id_with_group.size();
-        }
+      if (!next_lane_exit) {
+        is_all_next_lane_exit = false;
       }
     }
-  }
-  // 从后往前
+    if (is_any_next_lane_exit) {
+      // 查看trackid一致但是groupsize不一致的情况
+      // 如果是线段长短不一致
+      // float max_length_lane = 0.0;
+      // for (auto& lane : next_group->lanes) {
+      //   size_t size_lane = lane->center_line_pts.size();
+      //   float len = (lane->center_line_pts[size_lane - 1].pt -
+      //                lane->center_line_pts[0].pt)
+      //                   .norm();
+      //   if (len > max_length_lane) {
+      //     max_length_lane = len;
+      //   }
+      // }
 
-  if (groups->size() > 1) {
-    for (size_t i = groups->size() - 1; i > 0; --i) {
-      auto& curr_group = groups->at(i - 1);
-      auto& next_group = groups->at(i);
-      int flag = 0;       // 前后group是否有车道根据trackid关联
-      int flag_lane = 1;  // currgroup的车道是否全都有nextgroup关联
-      for (auto& lane_in_next : next_group->lanes) {
-        int next_lane_exit = 0;  // next_group是否有前驱
-        // HLOG_ERROR << "next+lane = " << lane_in_next->str_id_with_group;
-        for (auto& lane_in_curr : curr_group->lanes) {
-          if (lane_in_curr->str_id == lane_in_next->str_id ||
-              lane_in_curr->left_boundary->id ==
-                  lane_in_next->left_boundary->id ||
-              lane_in_curr->right_boundary->id ==
-                  lane_in_next->right_boundary->id) {
-            flag = 1;
-            next_lane_exit = 1;
-            // HLOG_ERROR << "the prev lane is "
-            //            << lane_in_curr->str_id_with_group;
-            lane_in_next->prev_lane_str_id_with_group.emplace_back(
-                lane_in_curr->str_id_with_group);
-            if (lane_in_curr->center_line_param.empty()) {
-              lane_in_curr->center_line_param =
-                  lane_in_next->center_line_param_front;
-            }
-            if (lane_in_curr->center_line_param_front.empty()) {
-              lane_in_curr->center_line_param_front =
-                  lane_in_curr->center_line_param;
-            }
-            break;
+      // if (max_length_lane <= 10.0 && is_all_next_lane_exit == 0) {
+      //   BuildVirtualLaneAfter(curr_group, next_group);
+      //   // groups->erase(groups->begin() + i + 1);
+      //   // i--;
+      // }
+      double group_distance =
+          (curr_group->group_segments.back()->end_slice.po -
+           next_group->group_segments.front()->start_slice.po)
+              .norm();
+      if (!is_all_next_lane_exit && group_distance < 10.0) {
+        UpdateLaneBoundaryId(curr_group);
+        // 后侧车道线补齐
+        BuildVirtualLaneAfter(curr_group, next_group);
+        VirtualLaneLeftRight(curr_group, next_group);
+      }
+      DelLaneNextStrIdInGroup(curr_group);
+    }
+  }
+
+  // 从后往前
+  for (size_t i = groups->size() - 1; i > 0; --i) {
+    auto& curr_group = groups->at(i - 1);
+    auto& next_group = groups->at(i);
+    bool is_any_next_lane_exit =
+        false;  // 前后group是否存在某个车道根据trackid关联
+    bool is_all_next_lane_exit =
+        true;  // currgroup的车道是否全部都有nextgroup关联
+    for (auto& lane_in_next : next_group->lanes) {
+      bool next_lane_exit = false;  // next_group是否有前驱（0:没有,1:有）
+      // HLOG_ERROR << "next+lane = " << lane_in_next->str_id_with_group;
+      for (auto& lane_in_curr : curr_group->lanes) {
+        if (lane_in_curr->str_id == lane_in_next->str_id ||
+            lane_in_curr->left_boundary->id ==
+                lane_in_next->left_boundary->id ||
+            lane_in_curr->right_boundary->id ==
+                lane_in_next->right_boundary->id) {
+          is_any_next_lane_exit = true;
+          next_lane_exit = true;
+          // HLOG_ERROR << "the prev lane is "
+          //            << lane_in_curr->str_id_with_group;
+          lane_in_next->prev_lane_str_id_with_group.emplace_back(
+              lane_in_curr->str_id_with_group);
+          if (lane_in_curr->center_line_param.empty()) {
+            lane_in_curr->center_line_param =
+                lane_in_next->center_line_param_front;
           }
-          if (IsLaneConnet(lane_in_curr, lane_in_next)) {
-            flag = 1;
-            next_lane_exit = 1;
-            lane_in_next->prev_lane_str_id_with_group.emplace_back(
-                lane_in_curr->str_id_with_group);
-            // HLOG_ERROR << "the prev lane is "
-            //            << lane_in_curr->str_id_with_group;
-            // if (lane_in_curr->center_line_param.empty()) {
-            //   lane_in_curr->center_line_param =
-            //       lane_in_next->center_line_param_front;
-            // }
-            // if (lane_in_curr->center_line_param_front.empty()) {
-            //   lane_in_curr->center_line_param_front =
-            //       lane_in_curr->center_line_param;
-            // }
-            break;
+          if (lane_in_curr->center_line_param_front.empty()) {
+            lane_in_curr->center_line_param_front =
+                lane_in_curr->center_line_param;
           }
+          break;
         }
-        if (next_lane_exit == 0) {
-          flag_lane = 0;
+        if (AreLaneConnect(lane_in_curr, lane_in_next)) {
+          is_any_next_lane_exit = true;
+          next_lane_exit = true;
+          lane_in_next->prev_lane_str_id_with_group.emplace_back(
+              lane_in_curr->str_id_with_group);
+          // HLOG_ERROR << "the prev lane is "
+          //            << lane_in_curr->str_id_with_group;
+          // if (lane_in_curr->center_line_param.empty()) {
+          //   lane_in_curr->center_line_param =
+          //       lane_in_next->center_line_param_front;
+          // }
+          // if (lane_in_curr->center_line_param_front.empty()) {
+          //   lane_in_curr->center_line_param_front =
+          //       lane_in_curr->center_line_param;
+          // }
+          break;
         }
       }
-      if (flag == 1) {
-        // 查看trackid一致但是groupsize不一致的情况
-        // 如果是线段长短不一致
-        float max_length_lane = 0.0;
-        for (auto& lane : curr_group->lanes) {
-          size_t size_lane = lane->center_line_pts.size();
-          float len = (lane->center_line_pts[size_lane - 1].pt -
-                       lane->center_line_pts[0].pt)
-                          .norm();
-          if (len > max_length_lane) {
-            max_length_lane = len;
-          }
-        }
-        double group_distance =
-            (curr_group->group_segments.back()->end_slice.po -
-             next_group->group_segments.front()->start_slice.po)
-                .norm();
-        if (max_length_lane <= 10.0 && flag_lane == 0 &&
-            group_distance < 10.0) {
-          HLOG_DEBUG << " is connect";
-          BuildVirtualLaneBefore(curr_group, next_group);
-          // groups->erase(groups->begin() + i - 1);
-        }
-        for (auto& lane : next_group->lanes) {
-          lane->prev_lane_str_id_with_group.clear();
+      if (!next_lane_exit) {
+        is_all_next_lane_exit = false;
+      }
+    }
+    if (is_any_next_lane_exit) {
+      // 查看trackid一致但是groupsize不一致的情况
+      // 如果是线段长短不一致
+      float max_length_lane = 0.0;
+      for (auto& lane : curr_group->lanes) {
+        size_t size_lane = lane->center_line_pts.size();
+        float len = (lane->center_line_pts[size_lane - 1].pt -
+                     lane->center_line_pts[0].pt)
+                        .norm();
+        if (len > max_length_lane) {
+          max_length_lane = len;
         }
       }
+      double group_distance =
+          (curr_group->group_segments.back()->end_slice.po -
+           next_group->group_segments.front()->start_slice.po)
+              .norm();
+      if (max_length_lane <= 10.0 && !is_all_next_lane_exit &&
+          group_distance < 10.0) {
+        HLOG_DEBUG << " is connect";
+        BuildVirtualLaneBefore(curr_group, next_group);
+        // groups->erase(groups->begin() + i - 1);
+      }
+      DelLanePrevStrIdInGroup(next_group);
     }
   }
 
@@ -3555,7 +3468,6 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
                                      Group::Ptr next_group) {
   for (auto& lane_in_curr : curr_group->lanes) {
     if (lane_in_curr->next_lane_str_id_with_group.empty()) {
-      // && !lane_in_curr->center_line_param.empty()
       Lane lane_pre;
       LineSegment left_bound;
       LineSegment right_bound;

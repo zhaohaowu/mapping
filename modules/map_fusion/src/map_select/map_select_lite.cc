@@ -1710,7 +1710,7 @@ bool MapSelectLite::IsCarInLanes(
   min_dist_value_ = FLT_MAX;
   for (const auto& lane : map->lane()) {
     if (!CheckLane(lane)) {
-      HLOG_ERROR << "something is wrong when check lane ";
+      HLOG_DEBUG << "something is wrong when check lane ";
       continue;
     }
     SelectLaneLine lane_line;

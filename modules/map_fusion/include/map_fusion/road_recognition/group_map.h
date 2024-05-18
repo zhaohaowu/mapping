@@ -309,10 +309,11 @@ class GroupMap {
                                   Lane::Ptr lane_in_curr);
   float Calculate2CenterlineAngle(Lane::Ptr lane_in_next,
                                   Lane::Ptr lane_in_curr, size_t sizet);
-  bool IsLaneConnet(Group::Ptr curr_group, Group::Ptr next_group, int i, int j,
-                    std::map<int, std::vector<int>>* curr_group_next_lane,
-                    std::map<int, std::vector<int>>* next_group_prev_lane);
-  bool IsLaneConnet(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next);
+  bool AreLaneConnect(Group::Ptr curr_group, Group::Ptr next_group, int i,
+                      int j,
+                      std::map<int, std::vector<int>>* curr_group_next_lane,
+                      std::map<int, std::vector<int>>* next_group_prev_lane);
+  bool AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next);
   void NextGroupLaneConnect(
       Group::Ptr curr_group, Group::Ptr next_group,
       const std::map<int, std::vector<int>>& curr_group_next_lane);
@@ -332,7 +333,15 @@ class GroupMap {
                  const Eigen::Vector2f& curr_start_pr,
                  const Eigen::Vector2f& next_start_pl,
                  const Eigen::Vector2f& next_start_pr);
-  void UpdateLane(Group::Ptr curr_group);
+  bool IsVehicleInJunction(Group::Ptr curr_group, Group::Ptr next_group);
+
+  void UpdateLaneBoundaryId(Group::Ptr curr_group);
+  void DelLaneNextStrIdInGroup(Group::Ptr curr_group);
+  void DelLanePrevStrIdInGroup(Group::Ptr curr_group);
+  void FindNearestLaneToHistoricalVehiclePosition(Group::Ptr curr_group,
+                                                  Lane::Ptr ego_curr_lane);
+  void FindBestNextLane(Group::Ptr next_group, const float& dist_to_slice,
+                        Lane::Ptr best_next_lane);
   void SmoothCenterline(std::vector<Group::Ptr>* groups);
   void VirtualLaneLeftRight(Group::Ptr curr_group, Group::Ptr next_group);
   std::vector<Point> SlidingWindow(std::vector<Point> centerline, int w);

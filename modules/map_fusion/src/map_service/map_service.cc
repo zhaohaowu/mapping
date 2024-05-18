@@ -318,6 +318,7 @@ void MapService::SetFautl() {
   amap_adapter_.GetDiagnose(&state, &type, &detailMessage);
 
   if (static_cast<::hdmap::service::DiagnosisType>(0) == type) {
+    fault_ = MS_NO_ERROR;
     return;
   }
 
@@ -339,7 +340,10 @@ void MapService::SetFautl() {
              ::hdmap::service::DIAGNOSIS_TYPE_GNSS_LOST_FAULT == type ||
              ::hdmap::service::DIAGNOSIS_TYPE_GNSS_INVALID_FAULT == type) {
     fault_ = MS_INPUT_LOC_ERROR;
+  } else {
+    fault_ = MS_NO_ERROR;
   }
+  HLOG_INFO << "GD:" << (int)type << " HZ" << (int)fault_;
 }
 
 MapServiceFault MapService::GetFault() {

@@ -147,6 +147,7 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
 void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
                                   float interp_dist,
                                   std::deque<Line::Ptr>* lines) {
+  HLOG_INFO << "RetrieveBoundaries";
   if (ele_map == nullptr || lines == nullptr) {
     return;
   }
@@ -273,6 +274,7 @@ void GroupMap::BuildGroupSegments(
     const KinePose::Ptr& curr_pose, std::deque<Line::Ptr>* lines,
     std::vector<GroupSegment::Ptr>* group_segments,
     const em::ElementMap::Ptr& ele_map) {
+  HLOG_INFO << "BuildGroupSegments";
   if (path == nullptr || curr_pose == nullptr || lines == nullptr ||
       group_segments == nullptr) {
     return;
@@ -390,6 +392,7 @@ void GroupMap::EgoLineTrajectory(std::vector<GroupSegment::Ptr>* grp_segment,
 void GroupMap::BuildGroups(double stamp,
                            std::vector<GroupSegment::Ptr> group_segments,
                            std::vector<Group::Ptr>* groups) {
+  HLOG_INFO << "BuildGroups";
   if (group_segments.empty() || groups == nullptr) {
     return;
   }
@@ -755,14 +758,14 @@ bool GroupMap::IsAccessLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
        lane_in_next->right_boundary->type == em::LaneType_DOUBLE_SOLID ||
        lane_in_next->right_boundary->type ==
            em::LaneType_LEFT_SOLID_RIGHT_DASHED)) {
-    HLOG_ERROR << "NOT ACCESS RIGHT!";
+    HLOG_DEBUG << "NOT ACCESS RIGHT!";
     return false;
   } else if (!is_right &&
              (lane_in_next->left_boundary->type == em::LaneType_SOLID ||
               lane_in_next->left_boundary->type == em::LaneType_DOUBLE_SOLID ||
               lane_in_next->left_boundary->type ==
                   em::LaneType_RIGHT_SOLID_LEFT_DASHED)) {
-    HLOG_ERROR << "NOT ACCESS LEFT!";
+    HLOG_DEBUG << "NOT ACCESS LEFT!";
     return false;
   }
 
@@ -2166,6 +2169,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
   if (groups->size() < 1) {
     return;
   }
+  HLOG_INFO << "GenLanesInGroups";
   for (auto& grp : *groups) {
     std::vector<Lane::Ptr> possible_lanes;
     possible_lanes.clear();

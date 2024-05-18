@@ -1828,63 +1828,63 @@ bool MapSelectLite::CheckLane(const hozon::hdmap::Lane& lane) {
 
   if (!lane.has_central_curve() || !lane.has_left_boundary() ||
       !lane.has_right_boundary() || !lane.has_id()) {
-    HLOG_ERROR << "lane has no boundary or id";
+    HLOG_DEBUG << "lane has no boundary or id";
     return false;
   }
   if (!lane.left_boundary().has_curve() || !lane.right_boundary().has_curve()) {
-    HLOG_ERROR << "lane has no curve";
+    HLOG_DEBUG << "lane has no curve";
     return false;
   }
   if (lane.central_curve().segment().empty() ||
       lane.left_boundary().curve().segment().empty() ||
       lane.right_boundary().curve().segment().empty()) {
-    HLOG_ERROR << "the segment of lane is empty";
+    HLOG_DEBUG << "the segment of lane is empty";
     return false;
   }
   for (const auto& segment : lane.central_curve().segment()) {
     if (!segment.has_line_segment()) {
-      HLOG_ERROR << "central line has no line segment";
+      HLOG_DEBUG << "central line has no line segment";
       return false;
     }
     if (segment.line_segment().point().empty()) {
-      HLOG_ERROR << "central line point vec is empty";
+      HLOG_DEBUG << "central line point vec is empty";
       return false;
     }
     for (const auto& point : segment.line_segment().point()) {
       if (!point.has_x() || !point.has_y()) {
-        HLOG_ERROR << "central line point has no x or y";
+        HLOG_DEBUG << "central line point has no x or y";
         return false;
       }
     }
   }
   for (const auto& right_segment : lane.right_boundary().curve().segment()) {
     if (!right_segment.has_line_segment()) {
-      HLOG_ERROR << "right boundary has no line segment";
+      HLOG_DEBUG << "right boundary has no line segment";
       return false;
     }
     if (right_segment.line_segment().point().empty()) {
-      HLOG_ERROR << "right boundary  point is empty";
+      HLOG_DEBUG << "right boundary  point is empty";
       return false;
     }
     for (const auto& point : right_segment.line_segment().point()) {
       if (!point.has_x() || !point.has_y()) {
-        HLOG_ERROR << "the point of right boundary  has no x or y";
+        HLOG_DEBUG << "the point of right boundary  has no x or y";
         return false;
       }
     }
   }
   for (const auto& left_segment : lane.left_boundary().curve().segment()) {
     if (!left_segment.has_line_segment()) {
-      HLOG_ERROR << "left boundary has no line segment";
+      HLOG_DEBUG << "left boundary has no line segment";
       return false;
     }
     if (left_segment.line_segment().point().empty()) {
-      HLOG_ERROR << "left boundary  point is empty";
+      HLOG_DEBUG << "left boundary  point is empty";
       return false;
     }
     for (const auto& point : left_segment.line_segment().point()) {
       if (!point.has_x() || !point.has_y()) {
-        HLOG_ERROR << "the point of left boundary  has no x or y";
+        HLOG_DEBUG << "the point of left boundary  has no x or y";
         return false;
       }
     }

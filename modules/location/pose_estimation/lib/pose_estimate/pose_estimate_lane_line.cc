@@ -118,7 +118,7 @@ void MatchLaneLine::Match(const HdMap& hd_map,
   auto merge_map_lines_cost_time =
       (t2.time_since_epoch() - t1.time_since_epoch()).count() / 1e9;
   HLOG_DEBUG << "MatchLaneLine: merge_map_lines_cost_time: "
-            << merge_map_lines_cost_time << " ms";
+             << merge_map_lines_cost_time << " ms";
   if (merged_map_lines_.empty()) {
     if (mm_params.use_valid_map_lane_fault && last_ins_timestamp_ != 0) {
       invalid_map_duration += fabs(ins_timestamp_ - last_ins_timestamp_);
@@ -557,8 +557,7 @@ bool MatchLaneLine::GetNeighboringMapLines(
 
 void MatchLaneLine::MergeMapLines(
     const std::shared_ptr<MapBoundaryLine>& boundary_lines, const SE3& T) {
-  HLOG_INFO << "MergeMapLines: start!"
-            << " ts: " << ins_timestamp_;
+  HLOG_INFO << "MergeMapLines: start!" << " ts: " << ins_timestamp_;
   if (!lines_map_.empty()) {
     lines_map_.clear();
   }
@@ -598,8 +597,8 @@ void MatchLaneLine::MergeMapLines(
     if (!linked_lines_id_.empty()) {
       linked_lines_id_.clear();
     }
-    HLOG_INFO << "MergeMapLines: traversal start, root_id: "
-              << line.second.front().first << " ts: " << ins_timestamp_;
+    HLOG_DEBUG << "MergeMapLines: traversal start, root_id: "
+               << line.second.front().first << " ts: " << ins_timestamp_;
     Traversal(root_segment_start_point, line_ids, loop);
     multi_linked_lines_.emplace_back(linked_lines_id_);
   }
@@ -645,8 +644,7 @@ void MatchLaneLine::MergeMapLines(
 
 void MatchLaneLine::Traversal(const V3& root_start_point,
                               std::vector<std::string> line_ids, int loop) {
-  HLOG_DEBUG << "Traversal: start "
-             << " ts: " << ins_timestamp_;
+  HLOG_DEBUG << "Traversal: start " << " ts: " << ins_timestamp_;
   V3 seg_point;
   seg_point << 0, 0, 9;
   if (lines_map_.empty()) {
@@ -664,7 +662,7 @@ void MatchLaneLine::Traversal(const V3& root_start_point,
     auto cur_line_infos_iter = lines_map_.find(cur_start_point);
     if (cur_line_infos_iter == lines_map_.end()) {
       if (line_ids.empty()) {
-        HLOG_INFO << "Traversal: traversal loop failed " << loop;
+        HLOG_DEBUG << "Traversal: traversal loop failed " << loop;
         continue;
       }
       linked_lines_id_.emplace_back(line_ids);
@@ -694,8 +692,7 @@ void MatchLaneLine::Traversal(const V3& root_start_point,
       // HLOG_ERROR << "   Traversal: traversal loop: " << loop << " failed!";
     }
   }
-  HLOG_DEBUG << "Traversal: end "
-            << " ts: " << ins_timestamp_;
+  HLOG_DEBUG << "Traversal: end " << " ts: " << ins_timestamp_;
 }
 
 bool MatchLaneLine::IsBigCurvaturePercepLine(VP perception_points) {
@@ -1037,7 +1034,7 @@ bool MatchLaneLine::CalCulatePercepAndMapLaneWidth(
   auto right_iter = std::lower_bound(match_pairs.begin(), match_pairs.end(),
                                      ref_pair, SortPairByX);
   if (right_iter == match_pairs.end() || right_iter == match_pairs.begin()) {
-    HLOG_ERROR << "can not find fit pair";
+    HLOG_DEBUG << "can not find fit pair";
     return false;
   }
   auto right_pre_iter = std::prev(right_iter);

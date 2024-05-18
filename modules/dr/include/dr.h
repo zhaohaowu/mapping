@@ -37,7 +37,8 @@ class DRInterface {
   bool Process();
   bool GetLatestPose(
       double timestamp,
-      std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr);
+      std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
+      double sync_time);
 
  private:
   double GetCurrentNsecTime() {

@@ -286,6 +286,7 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
   std::shared_ptr<hozon::soc::ImuIns> imu_proto =
       std::static_pointer_cast<hozon::soc::ImuIns>(ptr_rec_imu->proto_msg);
   double cur_imu_time = imu_proto->header().sensor_stamp().imuins_stamp();
+  double sync_time = imu_proto->sync_domain_time_s() * 1e-9;
 
   if (last_imu_time > 0) {
     if (cur_imu_time - last_imu_time < 0) {
@@ -357,7 +358,7 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
   // 发送dr数据
   std::shared_ptr<hozon::dead_reckoning::DeadReckoning> msg(
       new hozon::dead_reckoning::DeadReckoning);
-  if (dr_interface_->GetLatestPose(cur_imu_time, msg)) {
+  if (dr_interface_->GetLatestPose(cur_imu_time, msg, sync_time)) {
     auto dr_output_data = std::make_shared<hozon::netaos::adf_lite::BaseData>();
     dr_output_data->proto_msg = msg;
     Bundle bundle;

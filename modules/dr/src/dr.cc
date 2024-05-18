@@ -46,7 +46,8 @@ Eigen::Vector3d DRInterface::Qat2EulerAngle(const Eigen::Quaterniond& q) {
 
 bool DRInterface::GetLatestPose(
     double timestamp,
-    std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr) {
+    std::shared_ptr<hozon::dead_reckoning::DeadReckoning> locationDataPtr,
+    double sync_time) {
   if (dr_estimator_->initialized_) {
     OdometryData latest_odom = dr_estimator_->get_latest_odom_data();
     double time_diff = timestamp - latest_odom.timestamp;
@@ -54,6 +55,8 @@ bool DRInterface::GetLatestPose(
       HLOG_WARN << "ins_time - dr_time:" << time_diff;
     }
 
+    double time_delay = timestamp - sync_time;
+    HLOG_DEBUG << "time_delay:" << time_delay;
     // 预测
     latest_odom.timestamp = timestamp;
     Eigen::Vector3d latest_pose = {
@@ -77,14 +80,28 @@ bool DRInterface::GetLatestPose(
       predict_qat = latest_qua * Eigen::Quaterniond(Eigen::AngleAxisd(
                                      delta_ang.norm(), delta_ang.normalized()));
     }
+
+    // 角度再预测
+    Eigen::Vector3d delta_ang_again = latest_odom.loc_omg * time_delay;
+    Eigen::Quaterniond predict_qat_again = predict_qat;
+    if (delta_ang_again.norm() > 1e-12) {
+      predict_qat_again = predict_qat * Eigen::Quaterniond(Eigen::AngleAxisd(
+                                            delta_ang_again.norm(),
+                                            delta_ang_again.normalized()));
+    }
+
     // 更新
     latest_odom.odometry.x = predict_pos[0];
     latest_odom.odometry.y = predict_pos[1];
     latest_odom.odometry.z = predict_pos[2];
-    latest_odom.odometry.qx = predict_qat.x();
-    latest_odom.odometry.qy = predict_qat.y();
-    latest_odom.odometry.qz = predict_qat.z();
-    latest_odom.odometry.qw = predict_qat.w();
+    // latest_odom.odometry.qx = predict_qat.x();
+    // latest_odom.odometry.qy = predict_qat.y();
+    // latest_odom.odometry.qz = predict_qat.z();
+    // latest_odom.odometry.qw = predict_qat.w();
+    latest_odom.odometry.qx = predict_qat_again.x();
+    latest_odom.odometry.qy = predict_qat_again.y();
+    latest_odom.odometry.qz = predict_qat_again.z();
+    latest_odom.odometry.qw = predict_qat_again.w();
 
     HLOG_DEBUG << "wsj_pos_veh_start" << latest_odom.odometry.x << ","
                << latest_odom.odometry.y << "," << latest_odom.odometry.z
@@ -288,6 +305,7 @@ void DRInterface::ConvertImuData(
 
   // imu_data.timestamp = imu_proto->header().data_stamp();
   imu_data.timestamp = imu_proto->header().sensor_stamp().imuins_stamp();
+  imu_data.sync_stamp = imu_proto->sync_domain_time_s() * 1e-9;
   // imu_data.seq =
   // std::cout << std::setprecision(15) << "Imu datastamp: " <<
   // imu_data.timestamp

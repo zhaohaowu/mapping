@@ -211,6 +211,7 @@ bool Odometry2D::update() {
     cur_odom_data.chassis_stamp = wheel_time;
     cur_odom_data.imu_stamp = imu_datas.back().timestamp;
     cur_odom_data.timestamp = wheel_time;
+    cur_odom_data.sync_stamp = imu_datas.back().sync_stamp;
 
     // cur_odom_data.odometry.position << pos_[0], pos_[1], pos_[2];
 

@@ -95,7 +95,7 @@ int32_t DeadReckoning::receive_chassis(Bundle* input) {
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::CHASSIS_INPUT_SIGNAL_ERROR_MUL_FPS,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
     chassis_input_data_error_flag = true;
     HLOG_ERROR << "DR: receive chassis is null";
     return -1;
@@ -121,11 +121,11 @@ int32_t DeadReckoning::receive_chassis(Bundle* input) {
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::CHASSIS_INPUT_TIME_ERROR_MUL_FPS,
           hozon::perception::base::FaultStatus::OCCUR,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
       chassis_input_time_error_flag = true;
-      HLOG_ERROR << "DR: receive chassis data stamp is error";
-      HLOG_WARN << "cur_chassis_time:" << cur_chassis_time << ","
-                << "last_chassis_time:" << last_chassis_time;
+      HLOG_ERROR << "DR: receive chassis data stamp is error:"
+                 << "cur_chassis_time:" << cur_chassis_time << ","
+                 << "last_chassis_time:" << last_chassis_time;
     } else {
       if (chassis_input_time_error_flag) {
         dr_fault->Report(MAKE_FM_TUPLE(
@@ -142,11 +142,11 @@ int32_t DeadReckoning::receive_chassis(Bundle* input) {
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::CHASSIS_INPUT_TIME_ERROR_MUL_FPS,
           hozon::perception::base::FaultStatus::OCCUR,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
       chassis_input_time_error_delay_flag = true;
-      HLOG_ERROR << "DR: receive chassis data stamp is delay";
-      HLOG_WARN << "cur_chassis_time:" << cur_chassis_time << ","
-                << "last_chassis_time:" << last_chassis_time;
+      HLOG_ERROR << "DR: receive chassis data stamp is delay:"
+                 << "cur_chassis_time:" << cur_chassis_time << ","
+                 << "last_chassis_time:" << last_chassis_time;
     } else {
       if (chassis_input_time_error_delay_flag) {
         dr_fault->Report(MAKE_FM_TUPLE(
@@ -166,7 +166,7 @@ int32_t DeadReckoning::receive_chassis(Bundle* input) {
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::CHASSIS_INPUT_VALUE_ERROR_MUL_FPS,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
     chassis_input_data_nan_flag = true;
     HLOG_ERROR << "DR: receive chassis data Nan";
   } else {
@@ -229,8 +229,8 @@ void DeadReckoning::CheckTriggerDrDrift(double vel_x, double p_x, double p_y,
     static double last_time_12 = -1;
     if (IsDrDrift(p_x, p_y)) {
       if (enable_12) {
-        HLOG_INFO << "DR: vel_x = " << vel_x;
-        HLOG_ERROR << "Start to trigger dc 1012";
+        HLOG_INFO << "DR: vel_x = " << vel_x << ","
+                  << "Start to trigger dc 1012";
         GLOBAL_DC_TRIGGER.TriggerCollect(1012);
         enable_12 = false;
         last_time_12 = cur_time;
@@ -268,7 +268,7 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::IMU_DATA_ERROR_MUL_FPS,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
     input_data_error_flag = true;
     HLOG_ERROR << "DR: receive imu data is null";
     return -1;
@@ -293,11 +293,11 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::IMU_DATA_TIME_ERROR_MUL_FPS,
           hozon::perception::base::FaultStatus::OCCUR,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
       input_time_error_flag = true;
-      HLOG_ERROR << "DR: receive imu data stamp is error";
-      HLOG_WARN << "cur_imu_time:" << cur_imu_time << ","
-                << "last_imu_time:" << last_imu_time;
+      HLOG_ERROR << "DR: receive imu data stamp is error:"
+                 << "cur_imu_time:" << cur_imu_time << ","
+                 << "last_imu_time:" << last_imu_time;
     } else {
       if (input_time_error_flag) {
         dr_fault->Report(MAKE_FM_TUPLE(
@@ -314,11 +314,11 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::IMU_DATA_TIME_ERROR_MUL_FPS,
           hozon::perception::base::FaultStatus::OCCUR,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
       input_time_error_delay_flag = true;
-      HLOG_ERROR << "DR: receive imu data stamp is delay";
-      HLOG_WARN << "cur_imu_time:" << cur_imu_time << ","
-                << "last_imu_time:" << last_imu_time;
+      HLOG_ERROR << "DR: receive imu data stamp is delay:"
+                 << "cur_imu_time:" << cur_imu_time << ","
+                 << "last_imu_time:" << last_imu_time;
     } else {
       if (input_time_error_delay_flag) {
         dr_fault->Report(MAKE_FM_TUPLE(
@@ -337,7 +337,7 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::IMU_DATA_VALUE_ERROR_MUL_FPS,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
     input_data_nan_flag = true;
     HLOG_ERROR << "DR: receive imu data Nan";
   } else {
@@ -378,7 +378,7 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::DR_OUTPUT_VALUE_ERROR,
           hozon::perception::base::FaultStatus::OCCUR,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
       output_data_nan_flag = true;
       HLOG_ERROR << "DR: output Nan";
     } else {

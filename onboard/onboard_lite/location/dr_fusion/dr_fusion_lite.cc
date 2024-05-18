@@ -68,7 +68,7 @@ int32_t DrFusionLite::receive_dr(Bundle* input) {
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::MULTI_FRAME_DR_INPUT_DATA_LOSS,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
     input_data_loss_error_flag = true;
     HLOG_WARN << "Location: receive dr is null";
     return -1;
@@ -97,7 +97,7 @@ int32_t DrFusionLite::receive_dr(Bundle* input) {
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::MULTI_FRAME_DR_INPUT_TIME_ERROR,
           hozon::perception::base::FaultStatus::OCCUR,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
       input_data_time_error_flag = true;
       HLOG_WARN << "Location: receive dr data stamp is error";
     } else {
@@ -115,7 +115,7 @@ int32_t DrFusionLite::receive_dr(Bundle* input) {
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::MULTI_FRAME_DR_INPUT_TIME_ERROR,
           hozon::perception::base::FaultStatus::OCCUR,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
       input_data_time_error_flag = true;
       HLOG_WARN << "Location: receive dr data stamp is delay";
     } else {
@@ -142,7 +142,7 @@ int32_t DrFusionLite::receive_dr(Bundle* input) {
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::MULTI_FRAME_DR_INPUT_VALUE_ERROR,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
     input_data_value_error_flag = true;
     HLOG_ERROR << "Location: receive dr data Nan";
   } else {

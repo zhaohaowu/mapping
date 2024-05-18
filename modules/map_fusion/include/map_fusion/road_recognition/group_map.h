@@ -301,8 +301,13 @@ class GroupMap {
   bool MatchLaneAndStopLine(const Lane::Ptr& lane, const Stpl::Ptr& stop_line);
   Stpl::Ptr MatchedStopLine(const std::string& lane_id);
   void FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group);
-  void BuildCrossingLane(std::vector<Lane::Ptr>* lane_virtual,
-                         Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next);
+  void GenerateTransitionLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next,
+                              std::vector<Lane::Ptr>* lane_virtual);
+  void GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next,
+                                 Lane::Ptr transition_lane);
+  void GenerateTransitionLaneToPo(Lane::Ptr lane_in_curr,
+                                  Lane::Ptr lane_in_next,
+                                  Lane::Ptr transition_lane);
   float CalculateDistPt(Lane::Ptr lane_in_next, Lane::Ptr lane_in_curr,
                         size_t sizet);
   float CalculatePoint2CenterLine(Lane::Ptr lane_in_next,
@@ -338,10 +343,10 @@ class GroupMap {
   void UpdateLaneBoundaryId(Group::Ptr curr_group);
   void DelLaneNextStrIdInGroup(Group::Ptr curr_group);
   void DelLanePrevStrIdInGroup(Group::Ptr curr_group);
-  void FindNearestLaneToHistoricalVehiclePosition(Group::Ptr curr_group,
-                                                  Lane::Ptr ego_curr_lane);
+  void FindNearestLaneToHisVehiclePosition(Group::Ptr curr_group,
+                                           Lane::Ptr* ego_curr_lane);
   void FindBestNextLane(Group::Ptr next_group, const float& dist_to_slice,
-                        Lane::Ptr best_next_lane);
+                        Lane::Ptr* best_next_lane);
   void SmoothCenterline(std::vector<Group::Ptr>* groups);
   void VirtualLaneLeftRight(Group::Ptr curr_group, Group::Ptr next_group);
   std::vector<Point> SlidingWindow(std::vector<Point> centerline, int w);

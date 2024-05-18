@@ -933,6 +933,7 @@ int MapFusionLite::MapServiceFaultOutput(
   static bool hd_map_active_error = false;
   static bool hd_map_init_fail = false;
   int fault_value = static_cast<int>(fault);
+  HLOG_INFO << "Map service fault:" << pre_fault_value_ << "," << fault_value;
   if (fault_value != pre_fault_value_ && pre_fault_value_ != -1) {
     if (hd_map_input_loc_error) {
       phm_fault->Report(MAKE_FM_TUPLE(

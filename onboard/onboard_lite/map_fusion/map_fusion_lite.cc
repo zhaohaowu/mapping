@@ -519,6 +519,8 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
       latest_percep_routing = percep_routing;
     }
   }
+  auto fault = mf_->GetMapServiceFault();
+  MapServiceFaultOutput(fault);
   {
     std::lock_guard<std::mutex> lock(process_mtx_);
     HLOG_INFO << ">>>>>>>>>>>START<<<<<<<<<<<<<<<<";
@@ -564,8 +566,6 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
         latest_fusion_map->Clear();
         return -1;
       }
-      auto fault = mf_->GetMapServiceFault();
-      MapServiceFaultOutput(fault);
     } else {
       HLOG_ERROR << "map select return wrong map type:"
                  << curr_map_type_.map_type << ", " << curr_map_type_.valid
@@ -627,25 +627,8 @@ int MapFusionLite::SendFusionResult(
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   static bool input_nullptr_map_or_routing_flags = false;
   if (map == nullptr || routing == nullptr) {
-    phm_fault->Report(MAKE_FM_TUPLE(
-        hozon::perception::base::FmModuleId::MAPPING,
-        hozon::perception::base::FaultType::
-            LOCALMAPPING_MAPFUSION_CAN_NOT_OUPT_LOCAL_MAP,
-        hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
-    input_nullptr_map_or_routing_flags = true;
     HLOG_ERROR << "input nullptr map or routing";
     return -1;
-  } else {
-    if (input_nullptr_map_or_routing_flags) {
-      phm_fault->Report(MAKE_FM_TUPLE(
-          hozon::perception::base::FmModuleId::MAPPING,
-          hozon::perception::base::FaultType::
-              LOCALMAPPING_MAPFUSION_CAN_NOT_OUPT_LOCAL_MAP,
-          hozon::perception::base::FaultStatus::RESET,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
-      input_nullptr_map_or_routing_flags = false;
-    }
   }
   auto phm_health = hozon::perception::lib::HealthManager::Instance();
   phm_health->HealthReport(MAKE_HM_TUPLE(

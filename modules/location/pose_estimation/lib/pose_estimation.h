@@ -118,7 +118,7 @@ class MapMatchingFrameRateRecord {
       fps = cnt / (ts - last_ts);
       cnt = 0;
       last_ts = ts;
-      HLOG_ERROR << prefix << " : " << fps;
+      HLOG_DEBUG << prefix << " : " << fps;
     }
   }
 };
@@ -130,7 +130,6 @@ class MapMatching {
         ins_status_type_(static_cast<int>(InsStatus::INVALID)),
         delay_frame_(0),
         max_frame_buf_(0),
-        optimize_success_(false),
         output_valid_(false),
         proc_stamp_(0.f),
         ins_input_ready_(false),
@@ -291,7 +290,6 @@ class MapMatching {
   bool FindPecepFC(hozon::localization::Localization* cur_fc);
   bool ExtractInsMsg(const HafNodeInfo& cur_ins, SE3* T02_W_V_ins,
                      const Eigen::Vector3d& ref_point);
-  double GetCurrentTime();
   bool CompensateInsYError(SE3* T02_W_V_INPUT, double ins_timeStamp);
 
  private:
@@ -301,7 +299,6 @@ class MapMatching {
   int max_frame_buf_;
 
   bool init_ = false;
-  bool optimize_success_;
   bool output_valid_;
   bool ins_input_ready_;
   bool use_inter_;

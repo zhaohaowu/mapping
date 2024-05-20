@@ -207,7 +207,6 @@ bool MapMatching::Init(const std::string& config_file,
       HLOG_WARN << "RvizAgent register " << kTopicInputOdom << " failed";
     }
   }
-  optimize_success_ = false;
 
   proc_thread_run_ = true;
   proc_thread_ = std::thread(&MapMatching::mmProcCallBack, this);
@@ -311,9 +310,9 @@ void MapMatching::setIns(const ::hozon::localization::HafNodeInfo& ins) {
     ref_point_mutex_.lock();
     ref_point_ = pose;
     enu = hozon::mp::util::Geo::Gcj02ToEnu(pose, ref_point_);
-    HLOG_DEBUG << "ref point changed: " << ins_timestamp_
-               << " newref: " << ref_point_.x() << " " << ref_point_.y() << " "
-               << ref_point_.z();
+    HLOG_INFO << "ref point changed: " << ins_timestamp_
+              << " newref: " << ref_point_.x() << " " << ref_point_.y() << " "
+              << ref_point_.z();
     ref_point_mutex_.unlock();
   }
   auto T02_W_V = SE3(q_W_V, enu);
@@ -377,22 +376,16 @@ bool MapMatching::ExtractInsMsg(const HafNodeInfo& cur_ins, SE3* T02_W_V_ins,
   Eigen::Vector3d enu = hozon::mp::util::Geo::Gcj02ToEnu(pose, ref_point);
   Eigen::Quaterniond q_W_V(cur_ins.quaternion().w(), cur_ins.quaternion().x(),
                            cur_ins.quaternion().y(), cur_ins.quaternion().z());
-  if (q_W_V.norm() < 1e-10) {
-    HLOG_ERROR << "setIns q_W_V.norm() < 1e-10 ";
-    return false;
-  }
   q_W_V.normalize();
-
   if (q_W_V.norm() < 1e-7) {
     HLOG_ERROR << "setIns q_W_V.norm() < 1e-7 ";
     return false;
   }
-
   if (std::fabs(q_W_V.norm() - 1) > 1e-3) {
-    HLOG_WARN << "HafNodeInfo quaternion(w,x,y,z) " << cur_ins.quaternion().w()
-              << "," << cur_ins.quaternion().x() << ","
-              << cur_ins.quaternion().y() << "," << cur_ins.quaternion().z()
-              << ",norm:" << q_W_V.norm();
+    HLOG_ERROR << "HafNodeInfo quaternion(w,x,y,z) " << cur_ins.quaternion().w()
+               << "," << cur_ins.quaternion().x() << ","
+               << cur_ins.quaternion().y() << "," << cur_ins.quaternion().z()
+               << ",norm:" << q_W_V.norm();
     return false;
   }
 
@@ -488,7 +481,7 @@ void MapMatching::setLocation(const ::hozon::localization::Localization& info) {
   // 1. FC deque
   if (info.location_state() == 0 || info.location_state() == 12 ||
       info.location_state() >= 100) {
-    HLOG_INFO << "info.location_state() : " << info.location_state();
+    HLOG_DEBUG << "info.location_state() : " << info.location_state();
   }
 
   {
@@ -603,17 +596,6 @@ bool MapMatching::FindPecepFC(hozon::localization::Localization* cur_fc) {
   }
 }
 
-static std::string Precusion(double num, int n) {
-  std::stringstream ss;
-  ss << std::setprecision(n) << num;
-  return ss.str();
-}
-
-double MapMatching::GetCurrentTime() {
-  return std::chrono::steady_clock::now().time_since_epoch().count() /
-         1e3;  // ms
-}
-
 bool MapMatching::CompensateInsYError(SE3* T02_W_V_INPUT,
                                       double ins_timeStamp) {
   if (abs(ins_timeStamp - T_fc_.timeStamp) > 0.1) {
@@ -622,14 +604,12 @@ bool MapMatching::CompensateInsYError(SE3* T02_W_V_INPUT,
   // 构建补偿y后的当前INS测量,将INS转到车体系下进行y的偏差，以INS节点为原点
   SE3 T_ins = *T02_W_V_INPUT;
   SE3 T_fc = T_fc_.pose;
-
   SE3 T_diff = T_ins.inverse() * T_fc;
   Eigen::Vector3d ori_diff(0, 0, 0);
   Sophus::SO3d R_diff = Sophus::SO3d::exp(ori_diff);
   Eigen::Vector3d pose_diff(0, T_diff.translation().y(), 0);
   SE3 T_com_diff(R_diff, pose_diff);
   *T02_W_V_INPUT = T_ins * T_com_diff;
-
   return true;
 }
 
@@ -687,8 +667,6 @@ void MapMatching::procData() {
       T_fc_.timeStamp = cur_fc.header().data_stamp();
     }
   }
-  HLOG_INFO << "ProcessData: get perception stamp end!"
-            << ", percep ts: " << percep_stamp_;
 
   // ins数据处理
   SE3 T02_W_V, T02_W_V_pre, T02_W_V_INPUT;
@@ -713,7 +691,6 @@ void MapMatching::procData() {
     HLOG_ERROR << "ExtractInsMsg Fail!";
     return;
   }
-  HLOG_INFO << "ProcessData: extract ins msg end!";
 
   T02_W_V_pre = T02_W_V_pre_;
   T02_W_V_INPUT = T02_W_V;
@@ -747,8 +724,6 @@ void MapMatching::procData() {
       [&, this] {
         map_match_->SetInsTs(input_stamp);
         map_match_->SetVel(cur_vel);
-        HLOG_INFO << "ProcessData: map matching start!"
-                  << ", intput ts: " << input_stamp;
         map_match_->Match(mhd_map_, all_perception, T02_W_V_INPUT, T_fc_);
       },
       "match lane :");
@@ -807,20 +782,6 @@ void MapMatching::procData() {
   auto solver_time =
       (t2_solver.time_since_epoch() - t1_solver.time_since_epoch()).count() /
       1e9;
-  double avg_diff_y = 0.f;
-  double sum_diff_y = 0.f;
-  for (auto& pair : connect.lane_line_match_pairs) {
-    auto map_point = pair.map_pw;
-    auto percep_point = pair.pecep_pv;
-    auto diff_y = (T02_W_VF.inverse() * map_point).y() - percep_point.y();
-    sum_diff_y += diff_y;
-    HLOG_DEBUG << "ProcessData: map_point.y: "
-               << (T02_W_VF.inverse() * map_point).y()
-               << ", percep_point.y: " << percep_point.y()
-               << ", diff_y: " << diff_y;
-  }
-  avg_diff_y = sum_diff_y / connect.lane_line_match_pairs.size();
-  HLOG_DEBUG << "ProcessData: avg_diff_y: " << avg_diff_y;
   if (!solve_is_ok) {
     HLOG_ERROR << "ProcessData: solver is not ok stamp:" << ins_timestamp_;
     output_valid_ = false;
@@ -878,7 +839,6 @@ void MapMatching::procData() {
                                          esti_ref_point);
       }
     }
-    optimize_success_ = true;
     proc_stamp_ = input_stamp;
     if (curr_roadmark_sensor.frame_id != 0) {
       auto lane_lines =
@@ -887,12 +847,7 @@ void MapMatching::procData() {
           std::static_pointer_cast<PerceptionLaneLineList>(lane_lines[0]);
       if (hozon::mp::util::RvizAgent::Instance().Ok() &&
           mm_params.use_rviz_bridge) {
-        if (!_T_W_V_fine.translation().isZero()) {
-          HLOG_DEBUG << "optimize_finish_, " << Precusion(proc_stamp_, 16);
-          setPoints(*lane, T_fc_.pose, &front_points_);
-        } else {
-          setPoints(*lane, T02_W_V, &front_points_);
-        }
+        setPoints(*lane, T02_W_V, &front_points_);
         pubPoints(front_points_, time_sec_, time_nsec_, kTopicMmFrontPoints);
         front_points_.clear();
         setConnectPercepPoints(connect, T_output_, front_points_);

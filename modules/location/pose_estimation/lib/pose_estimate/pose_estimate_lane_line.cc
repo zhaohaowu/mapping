@@ -77,6 +77,7 @@ void MatchLaneLine::Match(const HdMap& hd_map,
         invalid_map_duration = mm_params.invalid_map_thr;
       }
     }
+    HLOG_ERROR << "map_elment is nullptr!!!";
     return;
   }
   std::shared_ptr<MapBoundaryLine> map_boundary_lines =
@@ -90,6 +91,7 @@ void MatchLaneLine::Match(const HdMap& hd_map,
         invalid_map_duration = mm_params.invalid_map_thr;
       }
     }
+    HLOG_ERROR << "map_boundary_lines empty!!!";
     return;
   }
   for (const auto& p : percep_->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE)) {
@@ -109,6 +111,7 @@ void MatchLaneLine::Match(const HdMap& hd_map,
         invalid_pecep_duration = mm_params.invalid_pecep_thr;
       }
     }
+    HLOG_ERROR << "percep_lanelines empty!!!";
     return;
   }
   auto t1 = std::chrono::steady_clock::now();
@@ -128,6 +131,7 @@ void MatchLaneLine::Match(const HdMap& hd_map,
         invalid_map_duration = mm_params.invalid_map_thr;
       }
     }
+    HLOG_ERROR << "merged_map_lines empty!!!";
     return;
   }
   invalid_pecep_duration = 0;
@@ -438,11 +442,11 @@ void MatchLaneLine::FilterPercpLaneline(
   int egolane_cnt = 0;
   for (auto& line : lanelines) {
     per_lines[line->lane_position_type()].emplace_back(line);
-    HLOG_INFO << "percep-laneinfo "
-              << line->curve_vehicle_coord_.lane_position_type_
-              << " confid|min|max: " << line->curve_vehicle_coord_.confidence_
-              << " " << line->Min() << " " << line->Max()
-              << " stamp: " << ins_timestamp_;
+    HLOG_DEBUG << "percep-laneinfo "
+               << line->curve_vehicle_coord_.lane_position_type_
+               << " confid|min|max: " << line->curve_vehicle_coord_.confidence_
+               << " " << line->Min() << " " << line->Max()
+               << " stamp: " << ins_timestamp_;
     if (per_lines[line->lane_position_type()].size() < 2) {
       continue;
     }
@@ -476,7 +480,7 @@ void MatchLaneLine::FilterPercpLaneline(
     }
     if (line->Max() < 0.f || line->Min() > 100.f ||
         line->Max() - line->Min() < mm_params.perceplane_len_lowerbound) {
-      HLOG_INFO << "short-percep-lane " << line->Id() << " " << ins_timestamp_;
+      HLOG_DEBUG << "short-percep-lane " << line->Id() << " " << ins_timestamp_;
       continue;
     }
     if (egolane_cnt == 2) {
@@ -557,7 +561,6 @@ bool MatchLaneLine::GetNeighboringMapLines(
 
 void MatchLaneLine::MergeMapLines(
     const std::shared_ptr<MapBoundaryLine>& boundary_lines, const SE3& T) {
-  HLOG_INFO << "MergeMapLines: start!" << " ts: " << ins_timestamp_;
   if (!lines_map_.empty()) {
     lines_map_.clear();
   }
@@ -569,7 +572,7 @@ void MatchLaneLine::MergeMapLines(
     auto id = line.first;
     const auto& control_points = line.second.control_point;
     if (control_points.size() <= 1) {
-      HLOG_INFO << "MergeMapLines: control_points size <= 1";
+      HLOG_DEBUG << "MergeMapLines: control_points size <= 1";
       continue;
     }
     auto start_point = control_points.front().point;
@@ -577,13 +580,12 @@ void MatchLaneLine::MergeMapLines(
     auto end_point = control_points.back().point;
     auto end_point_v = T_V_W * end_point;
     if (start_point.norm() == end_point.norm()) {
-      HLOG_INFO << "MergeMapLines: start_point.norm() == end_point.norm()";
+      HLOG_DEBUG << "MergeMapLines: start_point.norm() == end_point.norm()";
       continue;
     }
     LineSegment line_segment{id, end_point_v};
     lines_map_[start_point_v].emplace_back(std::move(line_segment));
   }
-  HLOG_INFO << "MergeMapLines: reconstruct map boundary lines end!";
   if (!visited_id_.empty()) {
     visited_id_.clear();
   }
@@ -597,13 +599,11 @@ void MatchLaneLine::MergeMapLines(
     if (!linked_lines_id_.empty()) {
       linked_lines_id_.clear();
     }
-    HLOG_DEBUG << "MergeMapLines: traversal start, root_id: "
-               << line.second.front().first << " ts: " << ins_timestamp_;
     Traversal(root_segment_start_point, line_ids, loop);
     multi_linked_lines_.emplace_back(linked_lines_id_);
   }
   if (multi_linked_lines_.empty()) {
-    HLOG_INFO << "MergeMapLines: multi_linked_lines_ empty!";
+    HLOG_DEBUG << "MergeMapLines: multi_linked_lines_ empty!";
     return;
   }
   if (!merged_map_lines_.empty()) {
@@ -636,15 +636,12 @@ void MatchLaneLine::MergeMapLines(
       merge_lane_ids[merge_lane_id] += 1;
     }
   }
-  HLOG_INFO << "MergeMapLines: add merge_lane_ids element end!"
-            << " ts: " << ins_timestamp_;
   multi_linked_lines_.clear();
   return;
 }
 
 void MatchLaneLine::Traversal(const V3& root_start_point,
                               std::vector<std::string> line_ids, int loop) {
-  HLOG_DEBUG << "Traversal: start " << " ts: " << ins_timestamp_;
   V3 seg_point;
   seg_point << 0, 0, 9;
   if (lines_map_.empty()) {
@@ -669,7 +666,6 @@ void MatchLaneLine::Traversal(const V3& root_start_point,
       line_ids.pop_back();
       continue;
     }
-
     auto successor_segments_info = cur_line_infos_iter->second;
     int size = static_cast<int>(successor_segments_info.size());
     if (size > 0) {
@@ -687,12 +683,8 @@ void MatchLaneLine::Traversal(const V3& root_start_point,
       for (int i = 0; i < size; ++i) {
         line_start_points.push(successor_segments_info[i].second);
       }
-
-    } else {
-      // HLOG_ERROR << "   Traversal: traversal loop: " << loop << " failed!";
     }
   }
-  HLOG_DEBUG << "Traversal: end " << " ts: " << ins_timestamp_;
 }
 
 bool MatchLaneLine::IsBigCurvaturePercepLine(VP perception_points) {
@@ -789,8 +781,6 @@ void MatchLaneLine::SelectBestMatchPairs(
   for (auto& tmp_match_mapline : *match_mapline_cache) {
     int lanepose = tmp_match_mapline.first;                  // perception line
     auto& candidate_match_lines = tmp_match_mapline.second;  // map lines
-    HLOG_DEBUG << "lanepose: " << lanepose << " ,candidate_match_lines size: "
-               << candidate_match_lines.size();
     if (candidate_match_lines.size() >= 2) {
       int best_map_id = -1;
       double min_diff = std::numeric_limits<double>::max();
@@ -863,8 +853,6 @@ void MatchLaneLine::SelectBestMatchPairs(
                 CmpWidth(candidate_match_line,
                          select_match_line);  // first: percep; second: map
             auto width_diff = fabs(result.first - result.second);
-            HLOG_DEBUG << "candidate_match_lines[" << k
-                       << "] width_diff: " << width_diff;
             if (width_diff < last_width_diff) {
               last_width_diff = width_diff;
               best_index = k;
@@ -899,9 +887,9 @@ void MatchLaneLine::SelectBestMatchPairs(
         line_pair_points.emplace_back(match_pair);
       }
       match_pairs_.push_back(line_pair_points);
-      HLOG_INFO << "LaneLineConnect | percep line: " << lanepose
-                << ", map line: " << candidate_match_lines[i].map_id
-                << ", ts: " << ins_timestamp_;
+      HLOG_DEBUG << "LaneLineConnect | percep line: " << lanepose
+                 << ", map line: " << candidate_match_lines[i].map_id
+                 << ", ts: " << ins_timestamp_;
     }
     origin_match_pairs_ = match_pairs_;
   }
@@ -916,7 +904,6 @@ void MatchLaneLine::LaneLineConnect(
   auto lane_lines = percep_->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE);
   for (auto& fil_line_list : percep_lanelines) {
     if (fil_line_list.size() == 0) {
-      HLOG_ERROR << "fil_line_list.size() == 0";
       return;
     }
     std::unordered_map<int, std::vector<MatchMapLine>> match_mapline_cache;
@@ -929,17 +916,17 @@ void MatchLaneLine::LaneLineConnect(
       bool is_low_speed = IsLowSpeed();
       if (is_big_curvature || is_low_speed) {
         max_match_x -= mm_params.max_length_offset;
-        HLOG_INFO << "timestamp: " << ins_timestamp_
-                  << ",is_big_curvature: " << is_big_curvature
-                  << ", is_low_speed: " << is_low_speed
-                  << ", max_match_x: " << max_match_x;
+        HLOG_DEBUG << "timestamp: " << ins_timestamp_
+                   << ",is_big_curvature: " << is_big_curvature
+                   << ", is_low_speed: " << is_low_speed
+                   << ", max_match_x: " << max_match_x;
         if (is_big_curvature) {
           big_curvature_ = true;
-        }
 #ifdef ISORIN
-        // mapping trigger 大曲率弯道
-        CheckTriggerBigCurv(ins_timestamp_);
+          // mapping trigger 大曲率弯道
+          CheckTriggerBigCurv(ins_timestamp_);
 #endif
+        }
       }
       std::vector<std::pair<V3, std::string>> nearest_line_match_pairs;
       std::vector<std::pair<V3, std::string>> farest_line_match_pairs;
@@ -1072,7 +1059,7 @@ double MatchLaneLine::CalCulatePointToLineDistance(const V3& selected_point,
                                                    const V3& line_point1,
                                                    const V3& line_point2) {
   if ((line_point1 - line_point2).norm() < 1e-1) {
-    HLOG_ERROR << "(n1 - n2).norm() < 1e-1 !!";
+    HLOG_DEBUG << "(n1 - n2).norm() < 1e-1 !!";
     return DBL_MAX;
   }
   V3 direction_vector;
@@ -1112,11 +1099,11 @@ bool MatchLaneLine::GetFitPoints(const VP& points, const double x, V3* pt) {
 bool MatchLaneLine::GetFitMapPoints(const std::vector<ControlPoint>& points,
                                     const double x, V3* pt) {
   if (pt == nullptr) {
-    HLOG_ERROR << "pt == nullptr";
+    HLOG_DEBUG << "pt == nullptr";
     return false;
   }
   if (points.size() < 2) {
-    HLOG_ERROR << "points.size() < 2";
+    HLOG_DEBUG << "points.size() < 2";
     return false;
   }
   auto iter =
@@ -1184,8 +1171,8 @@ void MatchLaneLine::ComputeLaneWidthDiff(
     int loop = i;
     auto left_match_pair = left_match_pairs[i];
     if (big_curvature_ && left_match_pair.pecep_pv.x() > 25) {
-      HLOG_INFO << "big_curvature!!!, left_match_pair x: "
-                << left_match_pair.pecep_pv.x() << ", > 25, skip!~";
+      HLOG_DEBUG << "big_curvature!!!, left_match_pair x: "
+                 << left_match_pair.pecep_pv.x() << ", > 25, skip!~";
       continue;
     }
     PointMatchPair right_match_pair;

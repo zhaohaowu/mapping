@@ -343,7 +343,8 @@ void MapService::SetFautl() {
   } else {
     fault_ = MS_NO_ERROR;
   }
-  HLOG_INFO << "GD:" << (int)type << " HZ" << (int)fault_;
+  HLOG_INFO << "GD:" << static_cast<int>(type) << " HZ"
+            << static_cast<int>(fault_);
 }
 
 MapServiceFault MapService::GetFault() {

@@ -31,14 +31,11 @@ bool MappingRemoveManager::IsForkConvergelike(
     return false;
   }
 
-  // 短线的长度必须小于40米， 否则不认为是分合流线场景
+  // 分合流线场景
   float line1_length = GetLength(point_set1);
   float line2_length = GetLength(point_set2);
   HLOG_DEBUG << "line1_length:" << line1_length;
   float short_line_length = std::min(line1_length, line2_length);
-  if (short_line_length >= 40) {
-    return false;
-  }
 
   std::vector<double> dist_list;
   std::vector<Eigen::Vector3d> point_list;

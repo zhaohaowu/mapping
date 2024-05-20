@@ -105,23 +105,25 @@ void FusionCenter::OnImu(const ImuIns& imuins) {
 
 void FusionCenter::OnIns(const HafNodeInfo& ins) {
   if (!params_.recv_ins || !ins.valid_estimate()) {
+    HLOG_WARN << "ins_seq is not valid!";
     return;
   }
 
   {
     std::unique_lock<std::mutex> lock(latest_ins_mutex_);
     if (ins.header().seq() == latest_ins_data_.header().seq()) {
+      HLOG_WARN << "ins seq is same!" << ins.header().seq();
       return;
     }
     latest_ins_data_ = ins;
     // debug
     if (ins.gps_status() == 0) {
-      HLOG_ERROR << "ins_seq:" << ins.header().seq()
-                 << ", ins_ticktime:" << ins.header().data_stamp()
-                 << " ,ins_gps_state:" << ins.gps_status()
-                 << " ,ins_linear_velocity:" << ins.linear_velocity().x()
-                 << " ," << ins.linear_velocity().y() << " ,"
-                 << ins.linear_velocity().z();
+      HLOG_WARN << "ins_seq:" << ins.header().seq()
+                << ", ins_ticktime:" << ins.header().data_stamp()
+                << " ,ins_gps_state:" << ins.gps_status()
+                << " ,ins_linear_velocity:" << ins.linear_velocity().x() << " ,"
+                << ins.linear_velocity().y() << " ,"
+                << ins.linear_velocity().z();
     }
   }
 
@@ -135,6 +137,7 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
   Node node;
   node.type = NodeType::INS;
   if (!ExtractBasicInfo(ins, &node)) {
+    HLOG_WARN << "ExtractBasicInfo ins fail";
     return;
   }
 
@@ -341,7 +344,7 @@ bool FusionCenter::IsInsDrift(const Node& ins_node) {
   if (curr_i_node.rtk_status != 4 || curr_i_node.sys_status!= 2) return false;
   const auto pose_diff = Node2SE3(prev_i_node).inverse() * Node2SE3(curr_i_node);
   if (fabs(pose_diff.translation().y()) > 0.5) {
-    HLOG_ERROR << "Vehicle y diff:" << fabs(pose_diff.translation().y())
+    HLOG_WARN << "Vehicle y diff:" << fabs(pose_diff.translation().y())
               << " larger than thr:" << 0.5;
     return true;
   }
@@ -443,6 +446,7 @@ void FusionCenter::ShrinkQueue(T* const deque, uint32_t maxsize) {
 
 bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
   if (node == nullptr) {
+    HLOG_WARN << "ins node is nullptr";
     return false;
   }
 
@@ -877,13 +881,12 @@ void FusionCenter::Node2Localization(const Context& ctx,
 
   // debug
   if (global_node.rtk_status == 0) {
-    HLOG_ERROR << "ins_seq:" << ins.header().seq()
-               << ", ins_ticktime:" << ins.header().data_stamp()
-               << " ,ins_gps_state:" << ins.gps_status()
-               << " ,fc_rtk_state:" << global_node.rtk_status
-               << " ,ins_linear_velocity:" << ins.linear_velocity().x() << " ,"
-               << ins.linear_velocity().y() << " ,"
-               << ins.linear_velocity().z();
+    HLOG_WARN << "ins_seq:" << ins.header().seq()
+              << ", ins_ticktime:" << ins.header().data_stamp()
+              << " ,ins_gps_state:" << ins.gps_status()
+              << " ,fc_rtk_state:" << global_node.rtk_status
+              << " ,ins_linear_velocity:" << ins.linear_velocity().x() << " ,"
+              << ins.linear_velocity().y() << " ," << ins.linear_velocity().z();
   }
 }
 
@@ -916,7 +919,7 @@ bool FusionCenter::Interpolate(double ticktime,
   const int dlen = static_cast<int>(d.size());
 
   if (dlen == 0) {
-    HLOG_ERROR << "Interpolate error 1,INS deque is empty";
+    HLOG_WARN << "Interpolate error 1,INS deque is empty";
     return false;
   }
   for (; i < dlen; ++i) {
@@ -930,12 +933,12 @@ bool FusionCenter::Interpolate(double ticktime,
   }
 
   if (i == 0 || i == dlen) {
-    HLOG_ERROR << "Interpolate error 2,i:" << i;
+    HLOG_WARN << "Interpolate error 2,i:" << i;
     return false;
   }
 
   if (!IsInterpolable(d[i - 1], d[i], dis_tol, ang_tol, time_tol)) {
-    HLOG_ERROR << "Interpolate error 3";
+    HLOG_WARN << "Interpolate error 3";
     return false;
   }
 
@@ -946,7 +949,7 @@ bool FusionCenter::Interpolate(double ticktime,
   double ratio =
       (ticktime - d[i - 1]->ticktime) / (d[i]->ticktime - d[i - 1]->ticktime);
   if (std::isnan(ratio) || std::isinf(ratio)) {
-    HLOG_ERROR << "Interpolate error 4, ratio error";
+    HLOG_WARN << "Interpolate error 4, ratio error";
     return false;
   }
 
@@ -1118,8 +1121,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
       std::unique_lock<std::mutex> lock(ins_deque_mutex_);
       for (const auto& ins_node : ins_deque_) {
         if (ins_node->ticktime > cur_fusion_ticktime &&
-            ins_node->ticktime > last_meas_time_ &&
-            AllowInsMeas(ins_node->sys_status, ins_node->rtk_status)) {
+            ins_node->ticktime > last_meas_time_) {
           std::shared_ptr<Node> new_ins_node =
               std::make_shared<Node>(*ins_node);
           if (params_.lateral_error_compensation) {
@@ -1329,8 +1331,9 @@ Node FusionCenter::State2Node(const State& state) {
 }
 
 bool FusionCenter::AllowInsMeas(uint32_t sys_status, uint32_t rtk_status) {
-  if ((sys_status == 2 && (rtk_status == 4 || rtk_status == 5)) ||
-      (sys_status == 3 && rtk_status == 3)) {
+  if ((sys_status == 1 || sys_status == 2 || sys_status == 3) &&
+      (rtk_status == 1 || rtk_status == 2 || rtk_status == 3 ||
+       rtk_status == 4 || rtk_status == 5)) {
     return true;
   }
   return false;
@@ -1493,7 +1496,8 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     {
       std::lock_guard<std::mutex> lock(dr_deque_mutex_);
       if (!Interpolate(refer_node.ticktime, dr_deque_, &ni)) {
-        HLOG_ERROR << "interpolate dr output failed";
+        HLOG_ERROR << "interpolate dr output failed,fusion node time:"
+                   << refer_node.ticktime << ",ins_time:" << ctx->ins_node.ticktime;
         return false;
       }
     }

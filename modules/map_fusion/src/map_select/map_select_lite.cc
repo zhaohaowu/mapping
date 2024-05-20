@@ -1741,7 +1741,6 @@ bool MapSelectLite::IsCarInLanes(
       static_cast<float>(localization->pose_local().position().y())};
   Eigen::Vector2d car_pos = {localization->pose_local().position().x(),
                              localization->pose_local().position().y()};
-
   int dim = 1;
   float curr_dist_value = max_half_lane_dis_;
   for (const auto& lane_lines : lanes_lines_map_) {
@@ -1755,33 +1754,59 @@ bool MapSelectLite::IsCarInLanes(
 
     lanes_lines_map_[lane_lines.first].min_dist_value = nearest_dis_value;
     lanes_lines_map_[lane_lines.first].nearest_index = nearest_index[0];
+    if (nearest_dis_value < min_dist_value_) {
+      min_dist_value_ = nearest_dis_value;
+      min_dist_id_ = lane_lines.first;
+      nearest_index_ = nearest_index[0];
+    }
+  }
+  if (lanes_lines_map_.find(min_dist_id_) != lanes_lines_map_.end()) {
+    auto line_points_size =
+        lanes_lines_map_[min_dist_id_].lane_line_points.size();
+    UpdateThresholdValue(map, &curr_dist_value);
+    if ((min_dist_value_ > curr_dist_value) && (line_points_size > 1)) {
+      int second_point_index = 0;
+      if (nearest_index_ <= line_points_size - 2) {
+        second_point_index = nearest_index_ + 1;
+      } else {
+        second_point_index = nearest_index_ - 1;
+      }
+
+      auto nearest_point =
+          lanes_lines_map_[min_dist_id_].lane_line_points[nearest_index_];
+      auto second_point =
+          lanes_lines_map_[min_dist_id_].lane_line_points[second_point_index];
+
+      min_dist_value_ = PointToVectorDist(nearest_point, second_point, car_pos);
+    }
   }
 
   bool upate_lane_id = false;
-
-  for (const auto& lane_lines : lanes_lines_map_) {
-    auto lane_id = lane_lines.first;
-    auto lane_nearest_index = lane_lines.second.nearest_index;
-    int second_lane_index = 0;
-    auto line_points_size = lanes_lines_map_[lane_id].lane_line_points.size();
-    if (line_points_size < 2) {
-      continue;
-    }
-    if (lane_nearest_index <= line_points_size - 2) {
-      second_lane_index = lane_nearest_index + 1;
-    } else {
-      second_lane_index = lane_nearest_index - 1;
-    }
-    auto nearest_point =
-        lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index];
-    auto second_point =
-        lanes_lines_map_[lane_id].lane_line_points[second_lane_index];
-    auto line_dist_value =
-        PointToVectorDist(nearest_point, second_point, car_pos);
-    if (min_dist_value_ > line_dist_value) {
-      upate_lane_id = true;
-      min_dist_value_ = line_dist_value;
-      min_dist_id_ = lane_id;
+  if (min_dist_value_ > curr_dist_value) {
+    for (const auto& lane_lines : lanes_lines_map_) {
+      auto lane_id = lane_lines.first;
+      auto lane_nearest_index = lane_lines.second.nearest_index;
+      int second_lane_index = 0;
+      auto line_points_size = lanes_lines_map_[lane_id].lane_line_points.size();
+      if (line_points_size < 2) {
+        continue;
+      }
+      if (lane_nearest_index <= line_points_size - 2) {
+        second_lane_index = lane_nearest_index + 1;
+      } else {
+        second_lane_index = lane_nearest_index - 1;
+      }
+      auto nearest_point =
+          lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index];
+      auto second_point =
+          lanes_lines_map_[lane_id].lane_line_points[second_lane_index];
+      auto line_dist_value =
+          PointToVectorDist(nearest_point, second_point, car_pos);
+      if (min_dist_value_ > line_dist_value) {
+        upate_lane_id = true;
+        min_dist_value_ = line_dist_value;
+        min_dist_id_ = lane_id;
+      }
     }
   }
 
@@ -1792,25 +1817,33 @@ bool MapSelectLite::IsCarInLanes(
   if (min_dist_value_ <= curr_dist_value) {
     std::vector<Eigen::Vector2d> left_start_end_points;
     std::vector<Eigen::Vector2d> right_start_end_points;
+    bool out_of_end_scope = false;
     if (UpdateSelfBoundaryPoints(map, min_dist_id_, &left_start_end_points,
                                  &right_start_end_points)) {
-      if ((2 == left_start_end_points.size()) &&
-          (2 == right_start_end_points.size())) {
-        if (PointInVectorSide(left_start_end_points.back(),
-                              right_start_end_points.back(), car_pos) < 0) {
-          HLOG_ERROR << "the car out the end point scope";
-          return false;
-        }
-        if (PointInVectorSide(left_start_end_points.front(),
-                              right_start_end_points.front(), car_pos) > 0) {
-          HLOG_ERROR << "the car out the start point scope";
-          return false;
+      if (PointInVectorSide(left_start_end_points.back(),
+                            right_start_end_points.back(), car_pos) < 0) {
+        HLOG_ERROR << "the car out the end point scope";
+        out_of_end_scope = true;
+        // return false;
+      }
+      if (PointInVectorSide(left_start_end_points.front(),
+                            right_start_end_points.front(), car_pos) > 0) {
+        HLOG_ERROR << "the car out the start point scope";
+        return false;
+      }
+    }
+    if (out_of_end_scope) {
+      if ((left_start_end_points.size() == 3) &&
+          (right_start_end_points.size() == 3)) {
+        if (PointInVectorSide(left_start_end_points.at(1),
+                              right_start_end_points.at(1), car_pos) > 0) {
+          return true;
         }
       }
+      return false;
     }
     return true;
   }
-
   HLOG_ERROR << "dis between car and the nearest cental line :"
              << min_dist_value_
              << "lanes_lines_  size:" << lanes_lines_map_.size()
@@ -1925,16 +1958,23 @@ bool MapSelectLite::UpdateSelfBoundaryPoints(
   RemoveDuplicates(&left_boundary_points_);
   RemoveDuplicates(&right_boundary_points_);
 
-  if ((left_boundary_points_.size() < 2) ||
-      (right_boundary_points_.size() < 2)) {
+  auto left_size = left_boundary_points_.size();
+  auto right_size = right_boundary_points_.size();
+  if ((left_size < 2) || (right_size < 2)) {
     return false;
   }
   left_points->emplace_back(left_boundary_points_.front().x(),
                             left_boundary_points_.front().y());
-  left_points->emplace_back(left_boundary_points_.back().x(),
-                            left_boundary_points_.back().y());
   right_points->emplace_back(right_boundary_points_.front().x(),
                              right_boundary_points_.front().y());
+  if ((left_size > 5) && (right_size > 5)) {
+    left_points->emplace_back(left_boundary_points_.at(left_size / 2).x(),
+                              left_boundary_points_.at(left_size / 2).y());
+    right_points->emplace_back(right_boundary_points_.at(left_size / 2).x(),
+                               right_boundary_points_.at(left_size / 2).y());
+  }
+  left_points->emplace_back(left_boundary_points_.back().x(),
+                            left_boundary_points_.back().y());
   right_points->emplace_back(right_boundary_points_.back().x(),
                              right_boundary_points_.back().y());
   return true;

@@ -83,6 +83,8 @@ bool PhmComponent::FaultReport(const int32_t& faultid, const int32_t& objid,
   if (status == 1) {
     if (it == faultmap_.end()) {
       faultmap_.insert(std::make_pair(fault_name, status));
+      HLOG_WARN << "[DEBUG_PHM] FaultManager ReportFault fault_name "
+              << fault_name;
     }
     SendFault_t cFault(faultid, objid, status);
     cFault.faultDebounce.debounceType =
@@ -92,8 +94,6 @@ bool PhmComponent::FaultReport(const int32_t& faultid, const int32_t& objid,
     cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
         debounceTime;
     phm_client_->ReportFault(cFault);
-    HLOG_WARN << "[DEBUG_PHM] FaultManager ReportFault fault_name "
-              << fault_name;
   } else if (0 == status) {
     SendFault_t cFault(faultid, objid, status);
     cFault.faultDebounce.debounceType =
@@ -103,7 +103,7 @@ bool PhmComponent::FaultReport(const int32_t& faultid, const int32_t& objid,
     cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
         debounceTime;
     phm_client_->ReportFault(cFault);
-    HLOG_WARN << "[DEBUG_PHM] FaultManager reset fault_name " << fault_name;
+    HLOG_DEBUG << "[DEBUG_PHM] FaultManager reset fault_name " << fault_name;
     if (it != faultmap_.end()) {
       faultmap_.erase(it);
     }

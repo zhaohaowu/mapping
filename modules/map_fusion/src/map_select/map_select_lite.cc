@@ -1970,8 +1970,9 @@ bool MapSelectLite::UpdateSelfBoundaryPoints(
   if ((left_size > 5) && (right_size > 5)) {
     left_points->emplace_back(left_boundary_points_.at(left_size / 2).x(),
                               left_boundary_points_.at(left_size / 2).y());
-    right_points->emplace_back(right_boundary_points_.at(left_size / 2).x(),
-                               right_boundary_points_.at(left_size / 2).y());
+
+    right_points->emplace_back(right_boundary_points_.at(right_size / 2).x(),
+                               right_boundary_points_.at(right_size / 2).y());
   }
   left_points->emplace_back(left_boundary_points_.back().x(),
                             left_boundary_points_.back().y());

@@ -2455,7 +2455,9 @@ void GeoOptimization::HandleSingleSideLine() {
   */
   std::vector<int> left_lanepos;
   std::vector<int> right_lanepos;
+  std::vector<hozon::mapping::LanePositionType> lane_pos;
   for (const auto& local_line : local_map_use_->lane_lines()) {
+    lane_pos.emplace_back(local_line.lanepos());
     if (local_line.points().size() < 2) {
       continue;
     }
@@ -2543,7 +2545,7 @@ void GeoOptimization::HandleSingleSideLine() {
       if (std::abs(left_road_pts.front().y()) <
           std::abs(right_road_pts.front().y())) {
         int lane_num = std::ceil(ComputeVecToLaneDis(left_road_pts) / 3.5);
-        if (left_road_pts.front().x() > 0 || left_road_pts.back().x() < 0) {
+        if (left_road_pts.front().x() > 0 || left_road_pts.back().x() < 0 || !lane_pos.empty()) {
           return;
         }
         FitSingleSideLine(&left_road_pts, &new_lines, lane_num, true, 1, 3.5);
@@ -2556,7 +2558,7 @@ void GeoOptimization::HandleSingleSideLine() {
         }
       } else {
         int lane_num = std::ceil(ComputeVecToLaneDis(right_road_pts) / 3.5);
-        if (right_road_pts.front().x() > 0 || right_road_pts.back().x() < 0) {
+        if (right_road_pts.front().x() > 0 || right_road_pts.back().x() < 0 || !lane_pos.empty()) {
           return;
         }
         FitSingleSideLine(&right_road_pts, &new_lines, lane_num, false, 2, 3.5);

@@ -162,6 +162,7 @@ int32_t PoseEstimationLite::OnIns(Bundle* input) {
   return 0;
 }
 int32_t PoseEstimationLite::OnLocation(Bundle* input) {
+  static int location_count = 0;
   if (!input) {
     return -1;
   }
@@ -176,6 +177,11 @@ int32_t PoseEstimationLite::OnLocation(Bundle* input) {
     return -1;
   }
   pose_estimation_->OnLocation(fc_fusion);
+  location_count++;
+  if (location_count >= 100) {
+    location_count = 0;
+    HLOG_INFO << "rev location heartbeat";
+  }
   return 0;
 }
 

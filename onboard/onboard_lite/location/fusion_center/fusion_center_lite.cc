@@ -18,7 +18,7 @@ namespace common_onboard {
 
 const char* const kImuTopic = "imu_ins";
 const char* const kInsFusionTopic = "/location/ins_fusion";
-const char* const kDrFusionTopic = "/location/dr_fusion";
+const char* const kDrFusionTopic = "dr";
 const char* const kPoseEstimationTopic = "/location/pose_estimation";
 const char* const kLocalMapTopic = "local_map";
 const char* const kFcTopic = "localization";
@@ -62,7 +62,7 @@ void FusionCenterLite::RegistMessageType() const {
   REGISTER_PROTO_MESSAGE_TYPE(kImuTopic, hozon::soc::ImuIns);
   REGISTER_PROTO_MESSAGE_TYPE(kInsFusionTopic,
                               hozon::localization::HafNodeInfo);
-  REGISTER_PROTO_MESSAGE_TYPE(kDrFusionTopic, hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE(kDrFusionTopic, hozon::dead_reckoning::DeadReckoning);
   REGISTER_PROTO_MESSAGE_TYPE(kPoseEstimationTopic,
                               hozon::localization::HafNodeInfo);
   REGISTER_PROTO_MESSAGE_TYPE(kFcTopic, hozon::localization::Localization);
@@ -146,7 +146,7 @@ int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
     return -1;
   }
   const auto dr_fusion =
-      std::static_pointer_cast<hozon::localization::HafNodeInfo>(
+      std::static_pointer_cast<hozon::dead_reckoning::DeadReckoning>(
           p_dr_fusion->proto_msg);
   if (!dr_fusion) {
     return -1;

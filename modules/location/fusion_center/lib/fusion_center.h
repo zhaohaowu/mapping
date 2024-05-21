@@ -21,6 +21,7 @@
 #include "proto/localization/localization.pb.h"
 #include "proto/localization/node_info.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
+#include "proto/dead_reckoning/dr.pb.h"
 
 namespace hozon {
 namespace mp {
@@ -40,7 +41,7 @@ class FusionCenter {
             const std::string& eskfconf, const std::string& monitorconf);
   void OnImu(const ImuIns& imuins);
   void OnIns(const HafNodeInfo& ins);
-  void OnDR(const HafNodeInfo& dr);
+  void OnDR(const hozon::dead_reckoning::DeadReckoning& dr);
   void OnInitDR(const Node& initdr);
   void OnPoseEstimate(const HafNodeInfo& pe);
   void SetEhpCounter(int32_t counter);
@@ -52,6 +53,7 @@ class FusionCenter {
   template <typename T>
   void ShrinkQueue(T* const deque, uint32_t maxsize);
   bool ExtractBasicInfo(const HafNodeInfo& msg, Node* const node);
+  bool DrToBasicInfo(const hozon::dead_reckoning::DeadReckoning& msg, Node* const node);
   void SetRefpoint(const Eigen::Vector3d& blh);
   Eigen::Vector3d Refpoint();
   void Node2Localization(const Context& ctx, Localization* const location);
@@ -138,7 +140,7 @@ class FusionCenter {
 
   ImuIns prev_imuins_;
   ImuIns curr_imuins_;
-  HafNodeInfo prev_raw_dr_;
+  hozon::dead_reckoning::DeadReckoning prev_raw_dr_;
   HafNodeInfo prev_raw_pe_;
 
   std::shared_ptr<std::thread> th_fusion_ = nullptr;

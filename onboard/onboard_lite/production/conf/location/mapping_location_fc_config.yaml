@@ -9,7 +9,7 @@ input:
     capacity: 2
   - topic: /location/ins_fusion
     capacity: 2
-  - topic: /location/dr_fusion
+  - topic: dr
     capacity: 2
   - topic: /location/pose_estimation
     capacity: 2
@@ -36,7 +36,7 @@ trigger:
   - name: recv_dr_fusion
     type: EVENT
     mainSources:
-      - name: /location/dr_fusion
+      - name: dr
         timeout: 100
   - name: recv_running_mode
     type: EVENT

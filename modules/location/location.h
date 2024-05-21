@@ -10,7 +10,6 @@
 #include <memory>
 
 #include "modules/location/coord_adapter/lib/coord_adapter.h"
-#include "modules/location/dr_fusion/lib/dr_fusion.h"
 #include "modules/location/fusion_center/lib/fusion_center.h"
 #include "modules/location/ins_fusion/lib/ins_fusion.h"
 // #include "modules/location/pose_estimation/lib/pose_estimation.h"
@@ -20,7 +19,6 @@ namespace mp {
 namespace loc {
 
 using hozon::mp::loc::ca::CoordAdapter;
-using hozon::mp::loc::DrFusion;
 using hozon::mp::loc::InsFusion;
 using hozon::mp::loc::fc::FusionCenter;
 
@@ -48,7 +46,6 @@ class Localization {
   void DrFusionPoseProcess(int dr_state);
 
  private:
-  std::unique_ptr<DrFusion> dr_fusion_ = nullptr;
   std::unique_ptr<InsFusion> ins_fusion_ = nullptr;
   std::unique_ptr<FusionCenter> fc_ = nullptr;
 };

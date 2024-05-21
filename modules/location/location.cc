@@ -30,11 +30,6 @@ const char* const kFcMonitorConf =
 bool Localization::Init() {
   const std::string ws = hozon::perception::lib::GetEnv(
       "DEBUG_MAPPING_WORK_ROOT", "/opt/app/1") + "/";
-  const std::string dr_fusion_conf(ws + kDrFusionConf);
-  dr_fusion_ = std::make_unique<DrFusion>();
-  if (dr_fusion_->Init(dr_fusion_conf) != DrInitStatus::OK) {
-    return false;
-  }
 
   const std::string ins_fusion_conf(ws + kInsFusionConf);
   ins_fusion_ = std::make_unique<InsFusion>();

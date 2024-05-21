@@ -1,5 +1,0 @@
---dr_config=conf/mapping/location/dr_fusion/dr_config.yaml
---ins_fusion_module_input_topic=/mapping/location/ins
---dr_module_input_topic=/mapping/dr
---loc_dr_module_output_topic=/mapping/location/dr
---dr_viz_addr=ipc:///tmp/rviz_agent_dr_fusion

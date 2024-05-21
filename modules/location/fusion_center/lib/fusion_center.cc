@@ -152,8 +152,8 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
   }
 }
 
-void FusionCenter::OnDR(const HafNodeInfo& dr) {
-  if (!ref_init_ || !params_.recv_dr || !dr.valid_estimate()) {
+void FusionCenter::OnDR(const hozon::dead_reckoning::DeadReckoning& dr) {
+  if (!ref_init_ || !params_.recv_dr) {
     return;
   }
   // seq not used on orin
@@ -169,7 +169,7 @@ void FusionCenter::OnDR(const HafNodeInfo& dr) {
 
   Node node;
   node.type = NodeType::DR;
-  if (!ExtractBasicInfo(dr, &node)) {
+  if (!DrToBasicInfo(dr, &node)) {
     return;
   }
   std::unique_lock<std::mutex> lock(dr_deque_mutex_);
@@ -442,6 +442,76 @@ void FusionCenter::ShrinkQueue(T* const deque, uint32_t maxsize) {
   while (deque->size() > maxsize) {
     deque->pop_front();
   }
+}
+
+bool FusionCenter::DrToBasicInfo(
+    const hozon::dead_reckoning::DeadReckoning& msg, Node* const node) {
+  if (node == nullptr) {
+    return false;
+  }
+  const auto& mq = msg.pose().pose_local().quaternion();
+  if (std::isnan(mq.w()) || std::isnan(mq.x()) || std::isnan(mq.y()) ||
+      std::isnan(mq.z())) {
+    HLOG_WARN << "DeadReckoning is nan";
+    return false;
+  }
+
+  Eigen::Quaterniond q(msg.pose().pose_local().quaternion().w(),
+                       msg.pose().pose_local().quaternion().x(),
+                       msg.pose().pose_local().quaternion().y(),
+                       msg.pose().pose_local().quaternion().z());
+  if (q.norm() < 1e-10) {
+    HLOG_ERROR << "DeadReckoning quaternion(w,x,y,z) "
+               << msg.pose().pose_local().quaternion().w() << ","
+               << msg.pose().pose_local().quaternion().x() << ","
+               << msg.pose().pose_local().quaternion().y() << ","
+               << msg.pose().pose_local().quaternion().z();
+    return false;
+  }
+  if (std::fabs(q.norm() - 1) > 1e-3) {
+    HLOG_ERROR << "DeadReckoning quaternion(w,x,y,z) "
+               << msg.pose().pose_local().quaternion().w() << ","
+               << msg.pose().pose_local().quaternion().x() << ","
+               << msg.pose().pose_local().quaternion().y() << ","
+               << msg.pose().pose_local().quaternion().z()
+               << ",norm:" << q.norm();
+    return false;
+  }
+  node->seq = msg.header().seq();
+  node->ticktime = msg.header().data_stamp();
+  node->blh << msg.pose().pose_local().position().x(),
+      msg.pose().pose_local().position().y(),
+      msg.pose().pose_local().position().z();
+  node->orientation = Sophus::SO3d(q).log();
+  node->velocity << msg.velocity().twist_vrf().linear_vrf().x(),
+      msg.velocity().twist_vrf().linear_vrf().y(),
+      msg.velocity().twist_vrf().linear_vrf().z();
+  node->angular_velocity << msg.velocity().twist_vrf().angular_vrf().x(),
+      msg.velocity().twist_vrf().angular_vrf().y(),
+      msg.velocity().twist_vrf().angular_vrf().z();
+  node->linear_accel << msg.acceleration().linear_vrf().linear_raw_vrf().x(),
+      msg.acceleration().linear_vrf().linear_raw_vrf().y(),
+      msg.acceleration().linear_vrf().linear_raw_vrf().z();
+  node->quaternion = q;
+  // dr是逆时针（0-360），fc是顺时针（-180~180)
+  // 局部坐标系是以x轴为0度，逆时针。
+  auto heading = msg.pose().pose_local().heading();
+  heading = heading > 180.0F ? heading - 360.0F : heading;
+  while (heading < -180) {
+    heading += 360;
+  }
+  while (heading > 180) {
+    heading -= 360;
+  }
+  node->heading = heading;
+  node->refpoint = Refpoint();
+
+  node->enu = node->blh;
+
+  for (int i = 0; i < 36; ++i) {
+    node->cov(i) = 0;
+  }
+  return true;
 }
 
 bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {

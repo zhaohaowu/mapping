@@ -241,7 +241,6 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
       line->mean_end_heading = mean_theta;
       line->mean_end_heading_std_dev = std_theta;
     }
-
     lines->emplace_back(line);
   }
 
@@ -386,6 +385,8 @@ void GroupMap::EgoLineTrajectory(std::vector<GroupSegment::Ptr>* grp_segment,
     ego_line_exist_ = true;
     FitLaneline(ele_map, line1_id, line2_id, near_line);
   }
+  ego_line_id_.left_id = line1_id;
+  ego_line_id_.right_id = line2_id;
 }
 
 // 将所有GroupSegments聚合成一个个Group
@@ -2898,12 +2899,8 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
         // 由于部分弯道heading偏差较大，导致整体平均heading发生偏差，
         // 现增加pred_end_heading字段用于预测，使用k-means算法或者PCL欧式聚类对heading进行聚类
         if (!lines_need_pred.empty()) {
-          // k-means聚类
-          // int k = 3;
-          // HeadingCluster(&lines_need_pred, &k);
-
-          // PCL欧式聚类 阈值为10度
-          const double heading_threshold = 10.0 / 180. * M_PI;
+          // PCL欧式聚类 阈值为20度
+          const double heading_threshold = 15 / 180. * M_PI;
           HeadingCluster(&lines_need_pred, heading_threshold);
 
           for (auto& line : lines_need_pred) {
@@ -3118,72 +3115,43 @@ void GroupMap::CatmullRom(const std::vector<Eigen::Vector3f>& pts,
   }
 }
 
-void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
-                              int* num) {
-  if (num == nullptr) {
-    HLOG_ERROR << "k is not specified for k-means cluster";
-    return;
-  }
-  std::vector<double> heading_data;
-  for (const auto& line : *lines_need_pred) {
-    heading_data.emplace_back(line->mean_end_heading);
-  }
+Eigen::Vector3f GroupMap::Qat2EulerAngle(const Eigen::Quaternionf& q) {
+  Eigen::Vector3f eulerangle = {0, 0, 0};
+  float sinr_cosp = +2.0 * (q.w() * q.x() + q.y() * q.z());
+  float cosr_cosp = +1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y());
+  eulerangle[0] = atan2(sinr_cosp, cosr_cosp);
 
-  if (*num > heading_data.size()) {
-    *num = heading_data.size();
+  // pitch (y-axis rotation)
+  float sinp = +2.0 * (q.w() * q.y() - q.z() * q.x());
+  if (fabs(sinp) >= 1) {
+    eulerangle[1] = copysign(M_PI / 2, sinp);
+  } else {
+    eulerangle[1] = asin(sinp);
   }
+  // yaw (z-axis rotation)
+  float siny_cosp = +2.0 * (q.w() * q.z() + q.x() * q.y());
+  float cosy_cosp = +1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z());
+  eulerangle[2] = atan2(siny_cosp, cosy_cosp);
+  return eulerangle;
+}
 
-  std::vector<double> centroids;
-  double min_val = *std::min_element(heading_data.begin(), heading_data.end());
-  double max_val = *std::max_element(heading_data.begin(), heading_data.end());
-  double step = (max_val - min_val) / (*num - 1);
-  for (int i = 0; i < *num; ++i) {
-    centroids.push_back(min_val + i * step);
+float GroupMap::Angle_diff(float angle_0, float angle_1) {
+  float diff = angle_0 - angle_1;
+  if (diff > M_PI) {
+    diff -= 2 * M_PI;
   }
-
-  // 迭代更新聚类中心点
-  std::vector<int> cluster_count(*num, 0);
-  std::vector<double> cluster_sum(*num, 0.0);
-  std::vector<int> assignments(heading_data.size(), -1);
-  bool converged = false;
-  while (!converged) {
-    converged = true;
-    for (int i = 0; i < heading_data.size(); ++i) {
-      double min_dist = std::numeric_limits<double>::max();
-      int closest_centroid = -1;
-      for (int j = 0; j < *num; ++j) {
-        double dist = std::abs(heading_data[i] - centroids[j]);
-        if (dist < min_dist) {
-          min_dist = dist;
-          closest_centroid = j;
-        }
-      }
-      if (assignments[i] != closest_centroid) {
-        assignments[i] = closest_centroid;
-        converged = false;
-      }
-      cluster_count[closest_centroid]++;
-      cluster_sum[closest_centroid] += heading_data[i];
-    }
-
-    // 更新聚类中心点
-    for (int i = 0; i < *num; ++i) {
-      if (cluster_count[i] > 0) {
-        centroids[i] = cluster_sum[i] / cluster_count[i];
-      }
-    }
+  if (diff < -M_PI) {
+    diff += 2 * M_PI;
   }
-
-  // 填充pred_end_heading字段用于预测
-  int i = 0;
-  for (auto& line : *lines_need_pred) {
-    line->pred_end_heading = centroids[assignments[i]];
-    ++i;
-  }
+  return diff;
 }
 
 void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
                               double threshold) {
+  static double last_predict_angle = 0.0;
+  double ego_left_heading = 9.9;
+  double ego_right_heading = 9.9;
+  double ego_lane_heading = 9.9;
   pcl::PointCloud<pcl::PointXYZ>::Ptr heading_data(
       new pcl::PointCloud<pcl::PointXYZ>);
   for (const auto& line : *lines_need_pred) {
@@ -3193,8 +3161,23 @@ void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
     point.y = 0.0;
     point.z = 0.0;
     heading_data->emplace_back(point);
-  }
+    HLOG_INFO << "----mean_heading:" << line->mean_end_heading;
 
+    if (line->id == ego_line_id_.left_id) {
+      ego_left_heading = line->mean_end_heading;
+    }
+    if (line->id == ego_line_id_.right_id) {
+      ego_right_heading = line->mean_end_heading;
+    }
+  }
+  if (!fabs(ego_left_heading - 9.9) < 1e-1 &&
+      !fabs(ego_right_heading - 9.9) < 1e-1) {
+    ego_lane_heading = (ego_left_heading + ego_right_heading) / 2.0;
+  } else if (!fabs(ego_left_heading - 9.9) < 1e-1) {
+    ego_lane_heading = ego_left_heading;
+  } else if (!fabs(ego_left_heading - 9.9) < 1e-1) {
+    ego_lane_heading = ego_right_heading;
+  }
   pcl::search::KdTree<pcl::PointXYZ>::Ptr heading_data_tree(
       new pcl::search::KdTree<pcl::PointXYZ>);
   heading_data_tree->setInputCloud(heading_data);
@@ -3209,37 +3192,64 @@ void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
 
   std::vector<pcl::PointIndices> heading_cluster_indices;
   heading_cluster.extract(heading_cluster_indices);
-
-  std::vector<double> mean_heading;
-  std::vector<int> assignments(heading_data->size(), -1);
-
-  // std::unordered_map<double, int> heading_data_map;
-  // int heading_index = 0;
-  // for (const auto& line : *lines_need_pred) {
-  //   heading_data_map[line->mean_end_heading] = heading_index;
-  //   heading_index = heading_index + 1;
-  // }
-
-  for (int i = 0; i < heading_cluster_indices.size(); ++i) {
-    double heading_sum = 0.;
-    int heading_data_size = 0;
-    for (const auto& idx : heading_cluster_indices[i].indices) {
-      auto heading_data_element = (*heading_data)[idx].x;
-      heading_sum = heading_sum + heading_data_element;
-      // auto it = heading_data_map.find(heading_data_element);
-      assignments[idx] = i;
-      heading_data_size = heading_data_size + 1;
-    }
-    if (heading_data_size != 0) {
-      mean_heading.emplace_back(heading_sum / heading_data_size);
+  double predict_heading = 0.0;
+  if (!fabs(ego_lane_heading - 9.9) < 1e-1) {
+    predict_heading = ego_lane_heading;
+    predict_heading = 0.3 * last_predict_angle + 0.7 * predict_heading;
+  } else {
+    if (heading_cluster_indices.size() == 1) {
+      double heading_sum = 0.;
+      int heading_data_size = 0;
+      for (const auto& idx : heading_cluster_indices[0].indices) {
+        auto heading_data_element = (*heading_data)[idx].x;
+        heading_sum = heading_sum + heading_data_element;
+        heading_data_size = heading_data_size + 1;
+      }
+      predict_heading =
+          heading_data_size != 0 ? heading_sum / heading_data_size : 0;
+      predict_heading = 0.3 * last_predict_angle + 0.7 * predict_heading;
+    } else {
+      // 找到聚类数量最多的
+      std::vector<double> cluster_headings;
+      int max_count = 0;
+      int max_index = -1;
+      for (int i = 0; i < heading_cluster_indices.size(); i++) {
+        double heading_sum = 0.;
+        int heading_data_size = 0;
+        for (const auto& idx : heading_cluster_indices[i].indices) {
+          auto heading_data_element = (*heading_data)[idx].x;
+          heading_sum = heading_sum + heading_data_element;
+          heading_data_size = heading_data_size + 1;
+        }
+        double predict_heading =
+            heading_data_size != 0 ? heading_sum / heading_data_size : 0;
+        cluster_headings.push_back(predict_heading);
+        if (heading_data_size > max_count) {
+          max_count = heading_data_size;
+          max_index = i;
+        }
+      }
+      // if (max_index!=-1 && max_index ==  min_diff_index){
+      //   predict_heading = cluster_headings[max_index];
+      // } else
+      {
+        // 求平均值
+        double sum = 0;
+        for (const auto& line : *lines_need_pred) {
+          sum += line->mean_end_heading;
+        }
+        predict_heading =
+            lines_need_pred->empty() ? 0.0 : (sum / lines_need_pred->size());
+        HLOG_WARN << "mode 4:" << predict_heading;
+        predict_heading = 0.4 * last_predict_angle + 0.6 * predict_heading;
+      }
     }
   }
+  last_predict_angle = predict_heading;
+  // HLOG_INFO << "predict heading:" << predict_heading;
 
-  // 填充pred_end_heading字段用于预测
-  int i = 0;
   for (auto& line : *lines_need_pred) {
-    line->pred_end_heading = mean_heading[assignments[i]];
-    ++i;
+    line->pred_end_heading = predict_heading;
   }
 }
 

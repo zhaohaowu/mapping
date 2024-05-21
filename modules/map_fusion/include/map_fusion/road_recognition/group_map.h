@@ -208,6 +208,10 @@ struct HistoryId {
   int road_id = 0;
   int cicle = 2000;
 };
+struct EgoLane {
+  int left_id = -200;
+  int right_id = -200;
+};
 
 class GroupMap {
  public:
@@ -290,7 +294,6 @@ class GroupMap {
                       std::map<em::Id, Overlaps::Ptr>* overlap, Lane::Ptr lane);
   void CatmullRom(const std::vector<Eigen::Vector3f>& pts,
                   std::vector<Eigen::Vector3f>* fit_points, int num);
-  void HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred, int* num);
   void HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
                       double threshold);
   void PredictLaneLine(double heading, std::vector<Point>* line,
@@ -351,6 +354,8 @@ class GroupMap {
   void VirtualLaneLeftRight(Group::Ptr curr_group, Group::Ptr next_group);
   std::vector<Point> SlidingWindow(std::vector<Point> centerline, int w);
   std::vector<Point> SigmoidFunc(std::vector<Point> centerline, float sigma);
+  Eigen::Vector3f Qat2EulerAngle(const Eigen::Quaternionf& q);
+  float Angle_diff(float angle_0, float angle_1);
 
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;
@@ -365,6 +370,7 @@ class GroupMap {
   std::vector<Group::Ptr> groups_;
   KinePose::Ptr curr_pose_ = nullptr;
   std::vector<GroupSegment::Ptr> group_segments_;
+  EgoLane ego_line_id_;
 };
 
 }  // namespace gm

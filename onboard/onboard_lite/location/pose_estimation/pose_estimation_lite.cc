@@ -9,23 +9,24 @@
 #include <gflags/gflags.h>
 #include <perception-lib/lib/environment/environment.h>
 
+#include <memory>
+#include <utility>
+
+#include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
+#include "depend/perception-lib/lib/fault_manager/fault_manager.h"
+#include "modules/location/pose_estimation/lib/pose_estimation.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
+#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 #include "perception-base/base/state_machine/state_machine_info.h"
-#include "yaml-cpp/yaml.h"
 
-DEFINE_string(config_yaml,
+DEFINE_string(pose_estimation_yaml,
               "runtime_service/mapping/conf/mapping/location/"
-              "pose_estimation/pose_estimation_config.yaml",
-              "path to pose estimation config yaml");
-DEFINE_string(config_cam_yaml,
+              "pose_estimation/pose_estimation.yaml",
+              "path to pose_estimation config yaml");
+DEFINE_string(map_matching_yaml,
               "runtime_service/mapping/conf/mapping/location/"
-              "pose_estimation/pose_estimation_cam.yaml",
-              "path to pose estimation camera config yaml");
-DEFINE_string(pose_estimation_lite_config_yaml,
-              "runtime_service/mapping/conf/mapping/location/"
-              "pose_estimation/pose_estimation_lite_config.yaml",
-              "path to pose estimation camera config yaml");
-
+              "pose_estimation/map_matching.yaml",
+              "path to map_matching config yaml");
 DEFINE_string(mapping_location_pose_estimation_config_yaml,
               "runtime_service/mapping/conf/lite/location/"
               "mapping_location_pose_estimation_config.yaml",
@@ -39,46 +40,36 @@ namespace common_onboard {
 
 constexpr char* const kPoseEstimationTopic = "/location/pose_estimation";
 int32_t PoseEstimationLite::AlgInit() {
-  pose_estimation_ = std::make_unique<MapMatching>();
+  pose_estimation_ = std::make_unique<PoseEstimation>();
   const std::string adflite_root_path =
       hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", ".");
-  const std::string config_yaml = adflite_root_path + "/" + FLAGS_config_yaml;
-  const std::string config_cam_yaml =
-      adflite_root_path + "/" + FLAGS_config_cam_yaml;
+  const std::string pose_estimation_yaml =
+      adflite_root_path + "/" + FLAGS_pose_estimation_yaml;
+  const std::string map_matching_yaml =
+      adflite_root_path + "/" + FLAGS_map_matching_yaml;
   const std::string mapping_location_pose_estimation_config_yaml =
       adflite_root_path + "/" +
       FLAGS_mapping_location_pose_estimation_config_yaml;
-  const std::string pose_estimation_lite_config_yaml =
-      adflite_root_path + "/" + FLAGS_pose_estimation_lite_config_yaml;
-  if (!pose_estimation_->Init(config_yaml, config_cam_yaml)) {
+  if (!pose_estimation_->Init(pose_estimation_yaml, map_matching_yaml)) {
     return -1;
   }
 
   RegistMessageType();
-  RegistAlgProcessFunc(
-      "recv_localization",
-      std::bind(&PoseEstimationLite::OnLocation, this, std::placeholders::_1));
-  RegistAlgProcessFunc(
-      "recv_ins_fusion",
-      std::bind(&PoseEstimationLite::OnIns, this, std::placeholders::_1));
-  RegistAlgProcessFunc("recv_perception",
-                       std::bind(&PoseEstimationLite::OnPerception, this,
-                                 std::placeholders::_1));
-  RegistAlgProcessFunc("send_pose_estimation_result",
-                       std::bind(&PoseEstimationLite::OnPoseEstimation, this,
-                                 std::placeholders::_1));
-  RegistAlgProcessFunc("recv_running_mode",
-                       std::bind(&PoseEstimationLite::OnRunningMode, this,
-                                 std::placeholders::_1));
-  YAML::Node config = YAML::LoadFile(pose_estimation_lite_config_yaml);
-  auto use_rviz_bridge = config["use_rviz_bridge"].as<bool>();
-  if (use_rviz_bridge) {
-    auto viz_addr = config["viz_addr"].as<std::string>();
-    int ret = mp::util::RvizAgent::Instance().Init(viz_addr);
-    if (ret < 0) {
-      HLOG_WARN << "RvizAgent init failed:" << viz_addr;
-    }
-  }
+  RegistAlgProcessFunc("recv_localization", [this](auto&& PH1) {
+    return OnLocation(std::forward<decltype(PH1)>(PH1));
+  });
+  RegistAlgProcessFunc("recv_ins_fusion", [this](auto&& PH1) {
+    return OnIns(std::forward<decltype(PH1)>(PH1));
+  });
+  RegistAlgProcessFunc("recv_perception", [this](auto&& PH1) {
+    return OnPerception(std::forward<decltype(PH1)>(PH1));
+  });
+  RegistAlgProcessFunc("send_pose_estimation_result", [this](auto&& PH1) {
+    return OnPoseEstimation(std::forward<decltype(PH1)>(PH1));
+  });
+  RegistAlgProcessFunc("recv_running_mode", [this](auto&& PH1) {
+    return OnRunningMode(std::forward<decltype(PH1)>(PH1));
+  });
   ExtractCmParameter(mapping_location_pose_estimation_config_yaml);
   return 0;
 }
@@ -87,7 +78,7 @@ void PoseEstimationLite::ExtractCmParameter(const std::string& yamlpath) {
   YAML::Node cm_yaml_config = YAML::LoadFile(yamlpath);
   for (const auto& triggerNode : cm_yaml_config["trigger"]) {
     auto triggername = triggerNode["name"].as<std::string>();
-    std::string typeStr = triggerNode["type"].as<std::string>();
+    auto typeStr = triggerNode["type"].as<std::string>();
     if (typeStr == "EVENT") {
       for (const auto& sourceNode : triggerNode["mainSources"]) {
         if (triggername == "recv_perception") {
@@ -110,11 +101,11 @@ void PoseEstimationLite::ExtractCmParameter(const std::string& yamlpath) {
     }
   }
 
-  HLOG_INFO << " kPerceptionTopic_: " << kPerceptionTopic_
-            << " kPerceptionTopic_ " << kPerceptionTopic_
-            << " kinsFusionTopic_ " << kinsFusionTopic_
-            << " kRunningModeTopic_ " << kRunningModeTopic_ << " kFcTopic_ "
-            << kFcTopic_;
+  HLOG_ERROR << " kPoseEstimationTopic: " << kPoseEstimationTopic
+             << " kPerceptionTopic_ " << kPerceptionTopic_
+             << " kinsFusionTopic_ " << kinsFusionTopic_
+             << " kRunningModeTopic_ " << kRunningModeTopic_ << " kFcTopic_ "
+             << kFcTopic_;
 }
 
 void PoseEstimationLite::AlgRelease() {
@@ -137,7 +128,7 @@ void PoseEstimationLite::RegistMessageType() const {
 
 int32_t PoseEstimationLite::OnIns(Bundle* input) {
   static int ins_count = 0;
-  if (!input) {
+  if (input == nullptr) {
     return -1;
   }
 
@@ -161,9 +152,10 @@ int32_t PoseEstimationLite::OnIns(Bundle* input) {
 
   return 0;
 }
+
 int32_t PoseEstimationLite::OnLocation(Bundle* input) {
   static int location_count = 0;
-  if (!input) {
+  if (input == nullptr) {
     return -1;
   }
   auto p_fc_fusion = input->GetOne(kFcTopic_);
@@ -187,11 +179,11 @@ int32_t PoseEstimationLite::OnLocation(Bundle* input) {
 
 int32_t PoseEstimationLite::OnPerception(Bundle* input) {
   static int perception_count = 0;
-  if (!input) {
+  if (input == nullptr) {
     return -1;
   }
   static double last_percep_time = -1.0;
-  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+  auto* phm_fault = hozon::perception::lib::FaultManager::Instance();
   auto p_perception = input->GetOne(kPerceptionTopic_);
   if (p_perception == nullptr) {
     phm_fault->Report(MAKE_FM_TUPLE(
@@ -249,10 +241,10 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
 
 int32_t PoseEstimationLite::OnPoseEstimation(Bundle* input) {
   static int pe_count = 0;
-  if (!input) {
+  if (input == nullptr) {
     return -1;
   }
-  const auto pe_node_info = pose_estimation_->getMmNodeInfo();
+  const auto pe_node_info = pose_estimation_->GetMmNodeInfo();
   if (!pe_node_info) {
     HLOG_ERROR << "onboard get pose estimation result error!";
     return -1;

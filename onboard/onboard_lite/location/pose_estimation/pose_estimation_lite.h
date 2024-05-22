@@ -8,21 +8,18 @@
 #pragma once
 
 #include <adf-lite/include/base.h>
+
 #include <memory>
 #include <string>
 
 #include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
-#include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 #include "modules/location/pose_estimation/lib/pose_estimation.h"
-#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
-#include "depend/perception-lib/lib/fault_manager/fault_manager.h"
-#include "depend/perception-lib/lib/health_manager/health_manager.h"
 
 namespace hozon {
 namespace perception {
 namespace common_onboard {
 
-using hozon::mp::loc::MapMatching;
+using hozon::mp::loc::pe::PoseEstimation;
 using hozon::netaos::adf_lite::Bundle;
 
 class PoseEstimationLite : public hozon::netaos::adf_lite::Executor {
@@ -43,8 +40,9 @@ class PoseEstimationLite : public hozon::netaos::adf_lite::Executor {
   int32_t OnPerception(Bundle* input);
   int32_t OnPoseEstimation(Bundle* input);
   int32_t OnRunningMode(Bundle* input);
+
  private:
-  std::unique_ptr<MapMatching> pose_estimation_ = nullptr;
+  std::unique_ptr<PoseEstimation> pose_estimation_ = nullptr;
   std::string kPerceptionTopic_;
   std::string kinsFusionTopic_;
   std::string kFcTopic_;

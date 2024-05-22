@@ -10,9 +10,11 @@ aux_source_directory(util UTIL_SRCS)
 aux_source_directory(hd_map HD_MAP_SRCS)
 aux_source_directory(perception PERCEPTION_SRCS)
 aux_source_directory(../../util/include UTIL_INCLUDE_SRCS)
+aux_source_directory(reloc RELOC_SRCS)
 
 set(POSE_ESTIMATION_SRCS
   pose_estimation.cc
+  map_matching.cc
   ${UTIL_INCLUDE_SRCS}
   ${POINT_FACTOR_SRCS}
   ${POSE_ESTIMATE}
@@ -20,6 +22,7 @@ set(POSE_ESTIMATION_SRCS
   ${UTIL_SRCS}
   ${HD_MAP_SRCS}
   ${PERCEPTION_SRCS}
+  ${RELOC_SRCS}
 )
 
 add_mapping_library(location_pose_estimation_core SHARED ${POSE_ESTIMATION_SRCS})

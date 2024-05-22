@@ -44,8 +44,7 @@ class Map {
    *
    * @return
    */
-  void SetMap(const hozon::common::PointENU& position,
-              const Eigen::Matrix3d& rotation, const double& distance,
+  void SetMap(const std::vector<hozon::hdmap::LaneInfoConstPtr>& lane_ptr_vec,
               const Eigen::Vector3d& ref_point);
 
   /**

@@ -41,9 +41,9 @@ class MapBoundaryLine : public MapElement {
    * @param width : range in side of the vehicle
    * @return
    */
-  void Crop(const SE3 &T_W_V, double front, double width);
+  void Crop(const SE3& T_W_V, double front, double width);
   void Print(
-      const std::unordered_map<std::string, BoundaryLine> &boundarylines);
+      const std::unordered_map<std::string, BoundaryLine>& boundarylines);
   /**
    * @brief set map lane line element
    *
@@ -54,11 +54,10 @@ class MapBoundaryLine : public MapElement {
    *
    * @return
    */
-  void Set(const hozon::common::PointENU &position,
-           const Eigen::Matrix3d &rotation, const double &distance,
-           const V3 &ref_point);
-  bool AddMapLine(const hozon::hdmap::LaneBoundary &lane_boundary,
-                  const V3 &ref_point);
+  void Set(const std::vector<hozon::hdmap::LaneInfoConstPtr>& lane_ptr_vec,
+           const V3& ref_point);
+  bool AddMapLine(const hozon::hdmap::LaneBoundary& lane_boundary,
+                  const V3& ref_point);
   using Ptr = std::shared_ptr<MapBoundaryLine>;
   std::unordered_map<std::string, BoundaryLine> boundary_line_;
 };

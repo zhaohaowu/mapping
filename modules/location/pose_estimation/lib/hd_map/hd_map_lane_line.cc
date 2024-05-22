@@ -14,47 +14,34 @@ namespace hozon {
 namespace mp {
 namespace loc {
 
-void MapBoundaryLine::Set(const hozon::common::PointENU& position,
-                          const Eigen::Matrix3d& rotation,
-                          const double& distance, const V3& ref_point) {
+void MapBoundaryLine::Set(
+    const std::vector<hozon::hdmap::LaneInfoConstPtr>& lane_ptr_vec,
+    const V3& ref_point) {
   boundary_line_.clear();
-  Eigen::Vector3d euler = hozon::mp::loc::RotToEuler312(rotation);
-  euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
-  double heading = 90.0 - euler.z() / M_PI * 180;
-  if (heading < 0.0) {
-    heading += 360.0;
-  }
-  heading = hozon::mp::loc::CalHeading(heading);
-  std::vector<hozon::hdmap::LaneInfoConstPtr> lane_ptr_vec;
-  const int ret = GLOBAL_HD_MAP->GetLanesWithHeading(
-      position, distance, heading, M_PI / 4.0, &lane_ptr_vec);
-  if (ret != 0 || lane_ptr_vec.empty()) {
-    HLOG_ERROR << "get nearest lane failed";
-    return;
-  }
   HLOG_DEBUG << "lane_ptr_vec.size = " << lane_ptr_vec.size();
-  size_t l_count = 0, r_count = 0;
+  size_t l_count = 0;
+  size_t r_count = 0;
   bool is_big_curvature_lane = false;
   for (const auto& lane_ptr : lane_ptr_vec) {
     auto lane = (*lane_ptr).lane();
     if (lane.has_extra_left_boundary()) {
-      auto extra_left_lane_boundary = lane.extra_left_boundary();
+      const auto& extra_left_lane_boundary = lane.extra_left_boundary();
       if (AddMapLine(extra_left_lane_boundary, ref_point)) {
         l_count++;
       }
     } else if (lane.has_left_boundary()) {
-      auto left_lane_boundary = lane.left_boundary();
+      const auto& left_lane_boundary = lane.left_boundary();
       if (AddMapLine(left_lane_boundary, ref_point)) {
         l_count++;
       }
     }
     if (lane.has_extra_right_boundary()) {
-      auto extra_right_lane_boundary = lane.extra_right_boundary();
+      const auto& extra_right_lane_boundary = lane.extra_right_boundary();
       if (AddMapLine(extra_right_lane_boundary, ref_point)) {
         r_count++;
       }
     } else if (lane.has_right_boundary()) {
-      auto right_lane_boundary = lane.right_boundary();
+      const auto& right_lane_boundary = lane.right_boundary();
       if (AddMapLine(right_lane_boundary, ref_point)) {
         r_count++;
       }

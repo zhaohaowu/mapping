@@ -89,8 +89,6 @@ debug_plot_info: false
 
 line_error_normal_thr: 0.15
 
-use_rviz_bridge: false
-
 # double line type point weight
 set_point_weight_switch: true
 double_line_point_weight: 0.3

@@ -9,6 +9,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/lib/util
   ${CMAKE_CURRENT_SOURCE_DIR}/lib/hd_map
   ${CMAKE_CURRENT_SOURCE_DIR}/lib/perception 
+  ${CMAKE_CURRENT_SOURCE_DIR}/lib/reloc 
 )
 
 add_subdirectory(lib)

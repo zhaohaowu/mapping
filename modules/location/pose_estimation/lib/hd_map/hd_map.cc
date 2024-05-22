@@ -52,10 +52,9 @@ void Map<Map_Type>::BoxUpdate(const SE3& T_W_V, double front, double width) {
   box_.emplace_back(T_W_V * d);
 }
 template <typename Map_Type>
-void Map<Map_Type>::SetMap(const hozon::common::PointENU& position,
-                           const Eigen::Matrix3d& rotation,
-                           const double& distance,
-                           const Eigen::Vector3d& ref_point) {
+void Map<Map_Type>::SetMap(
+    const std::vector<hozon::hdmap::LaneInfoConstPtr>& lane_ptr_vec,
+    const Eigen::Vector3d& ref_point) {
   MapBoundaryLine::Ptr map_boundary_line = std::make_shared<MapBoundaryLine>();
   MapRoadEdge::Ptr map_road_edge = std::make_shared<MapRoadEdge>();
   if (!map_boundary_line) {
@@ -66,7 +65,7 @@ void Map<Map_Type>::SetMap(const hozon::common::PointENU& position,
   }
   // map_road_edge->Set(position, rotation, distance, ref_point_);
   // elment_.emplace_back(map_road_edge);
-  map_boundary_line->Set(position, rotation, distance, ref_point_);
+  map_boundary_line->Set(lane_ptr_vec, ref_point);
   elment_.emplace_back(map_boundary_line);
 }
 template <typename Map_Type>

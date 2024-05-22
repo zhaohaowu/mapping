@@ -1983,6 +1983,7 @@ void GeoOptimization::CompleteLocalMap() {
     3、根据车道线和路沿进行补全；
   */
   if (!local_map_use_) {
+    HLOG_ERROR << "local_map_use_ is nullptr";
     return;
   }
   // 更新local_map_use_，原则如下：
@@ -1996,7 +1997,7 @@ void GeoOptimization::CompleteLocalMap() {
   // 对自车相邻的两个车道线进行补齐
   AlignmentVecLane();
   // // 处理超宽车道
-  // HandleExtraWideLane();
+  HandleExtraWideLane();
   // 处理单边线
   HandleSingleSideLine();
 }
@@ -2051,7 +2052,7 @@ void GeoOptimization::CreateLocalLineTable() {
     }
     if (local_line_table_.find(right_line_pos) == local_line_table_.end()) {
       local_line_table_.at(lane_pos).flag = 1;
-      HLOG_ERROR << "right_line_pos not in local_line_table";
+      HLOG_WARN << "right_line_pos not in local_line_table";
       continue;
     }
     if (local_line_table_.find(left_line_pos) == local_line_table_.end()) {
@@ -2311,7 +2312,7 @@ void GeoOptimization::HandleExtraWideLane() {
     bool width_flag = false;
     for (const auto& wid : lane_width) {
       if (wid >= 5.5) {
-        HLOG_ERROR << "有漏检现象！";
+        HLOG_WARN << "have extra wide lanes!";
         width_flag = true;  // 漏检
         break;
       }
@@ -2423,7 +2424,7 @@ void GeoOptimization::FitMissedLaneLine(
   }
 
   if (new_lines.empty()) {
-    HLOG_ERROR << "fit new line failed";
+    HLOG_WARN << "fit new line failed";
     return;
   }
   for (const auto& line : new_lines) {

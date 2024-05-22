@@ -39,7 +39,7 @@ phmMonitor:
       faultObj: 39
 
     - monitorType: alive
-      periodMs: 100
+      periodMs: 1000
       expectedIndication: 10
       minMargin: 1
       maxMargin: 1

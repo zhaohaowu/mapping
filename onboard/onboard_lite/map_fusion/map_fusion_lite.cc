@@ -190,17 +190,26 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
     curr_loc_ = std::make_shared<hozon::localization::Localization>(*loc_res);
   }
   if (prev_loc_res != nullptr && curr_loc_ != nullptr) {
-    auto loc_distance = std::sqrt(std::pow(curr_loc_->pose().gcj02().x() -
-                                               prev_loc_res->pose().gcj02().x(),
-                                           2.0) +
-                                  std::pow(curr_loc_->pose().gcj02().y() -
-                                               prev_loc_res->pose().gcj02().y(),
-                                           2.0) +
-                                  std::pow(curr_loc_->pose().gcj02().z() -
-                                               prev_loc_res->pose().gcj02().z(),
-                                           2.0));
-    auto pre_yaw = prev_loc_res->pose().euler_angles().z();
-    auto cur_yaw = curr_loc_->pose().euler_angles().z();
+    auto loc_distance =
+        std::sqrt(std::pow(curr_loc_->pose_local().position().x() -
+                               prev_loc_res->pose_local().position().x(),
+                           2.0) +
+                  std::pow(curr_loc_->pose_local().position().y() -
+                               prev_loc_res->pose_local().position().y(),
+                           2.0) +
+                  std::pow(curr_loc_->pose_local().position().z() -
+                               prev_loc_res->pose_local().position().z(),
+                           2.0));
+    auto pre_loc_quaternion = prev_loc_res->pose_local().quaternion();
+    auto cur_loc_quaternion = curr_loc_->pose_local().quaternion();
+    Eigen::Quaterniond pre_quaternion(
+        pre_loc_quaternion.w(), pre_loc_quaternion.x(), pre_loc_quaternion.y(),
+        pre_loc_quaternion.z());
+    Eigen::Quaterniond cur_quaternion(
+        cur_loc_quaternion.w(), cur_loc_quaternion.x(), cur_loc_quaternion.y(),
+        cur_loc_quaternion.z());
+    auto pre_yaw = Qat2EulerAngle(pre_quaternion).z();
+    auto cur_yaw = Qat2EulerAngle(cur_quaternion).z();
     auto loc_yaw = pre_yaw - cur_yaw;
     if (loc_yaw > M_PI) {
       loc_yaw -= 2 * M_PI;
@@ -215,7 +224,7 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::LOCATION_POS_ATTITUDE_ERROR,
           hozon::perception::base::FaultStatus::OCCUR,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 5, 100));
       location_error_flags = true;
       HLOG_ERROR << "Location pos error";
     } else {
@@ -1066,6 +1075,26 @@ int MapFusionLite::MapServiceFaultOutput(
     HLOG_ERROR << "HD_MAP_SDK_INIT_FAIL ";
   }
   return 0;
+}
+
+Eigen::Vector3d MapFusionLite::Qat2EulerAngle(const Eigen::Quaterniond& q) {
+  Eigen::Vector3d eulerangle = {0, 0, 0};
+  double sinr_cosp = +2.0 * (q.w() * q.x() + q.y() * q.z());
+  double cosr_cosp = +1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y());
+  eulerangle[0] = atan2(sinr_cosp, cosr_cosp);
+
+  // pitch (y-axis rotation)
+  double sinp = +2.0 * (q.w() * q.y() - q.z() * q.x());
+  if (fabs(sinp) >= 1) {
+    eulerangle[1] = copysign(M_PI / 2, sinp);
+  } else {
+    eulerangle[1] = asin(sinp);
+  }
+  // yaw (z-axis rotation)
+  double siny_cosp = +2.0 * (q.w() * q.z() + q.x() * q.y());
+  double cosy_cosp = +1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z());
+  eulerangle[2] = atan2(siny_cosp, cosy_cosp);
+  return eulerangle;
 }
 
 }  // namespace common_onboard

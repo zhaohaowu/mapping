@@ -36,6 +36,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   int32_t AlgInit() override;
   void AlgRelease() override;
   int32_t OnRunningMode(hozon::netaos::adf_lite::Bundle* input);
+  static Eigen::Vector3d Qat2EulerAngle(const Eigen::Quaterniond& q);
 
  private:
   void RegistMessageType();

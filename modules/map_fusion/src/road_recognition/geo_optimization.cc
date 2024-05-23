@@ -2546,7 +2546,8 @@ void GeoOptimization::HandleSingleSideLine() {
       if (std::abs(left_road_pts.front().y()) <
           std::abs(right_road_pts.front().y())) {
         int lane_num = std::ceil(ComputeVecToLaneDis(left_road_pts) / 3.5);
-        if (left_road_pts.front().x() > 0 || left_road_pts.back().x() < 0 || !lane_pos.empty()) {
+        if (left_road_pts.front().x() > 0 || left_road_pts.back().x() < 0 ||
+            !lane_pos.empty()) {
           return;
         }
         FitSingleSideLine(&left_road_pts, &new_lines, lane_num, true, 1, 3.5);
@@ -2559,7 +2560,8 @@ void GeoOptimization::HandleSingleSideLine() {
         }
       } else {
         int lane_num = std::ceil(ComputeVecToLaneDis(right_road_pts) / 3.5);
-        if (right_road_pts.front().x() > 0 || right_road_pts.back().x() < 0 || !lane_pos.empty()) {
+        if (right_road_pts.front().x() > 0 || right_road_pts.back().x() < 0 ||
+            !lane_pos.empty()) {
           return;
         }
         FitSingleSideLine(&right_road_pts, &new_lines, lane_num, false, 2, 3.5);
@@ -2800,6 +2802,8 @@ void GeoOptimization::AppendElemtMap(
     hozon::mp::mf::em::Boundary lane_line;
 
     auto point_size = lane_line_it.points().size();
+    Eigen::Vector3f last_point;  // 为了把太近的点过滤掉
+    int last_point_exisit = 0;
     for (const auto& line_point_it : lane_line_it.points()) {
       if (std::isnan(line_point_it.x()) || std::isnan(line_point_it.y()) ||
           std::isnan(line_point_it.z())) {
@@ -2808,6 +2812,15 @@ void GeoOptimization::AppendElemtMap(
       }
       Eigen::Vector3f point_local(line_point_it.x(), line_point_it.y(),
                                   line_point_it.z());
+      if (last_point_exisit == 0) {
+        last_point = point_local;
+        last_point_exisit = 1;
+      } else {
+        if ((last_point - point_local).norm() < 0.1) {
+          continue;
+        }
+        last_point = point_local;
+      }
       // Eigen::Vector3d point_enu = T_U_V_ * point_local;
       hozon::mp::mf::em::BoundaryNode node;
       node.point = point_local;

@@ -114,6 +114,8 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
   is_cross_.along_path_dis_.x() = 0.0;
   is_cross_.along_path_dis_.y() = 0.0;
   is_cross_.along_path_dis_.z() = 0.0;
+  is_cross_.next_lane_left = -1000;
+  is_cross_.next_lane_right = -1000;
   history_id_.lane_id = 0;
   history_id_.road_id = 0;
   history_id_.cicle = 2000;
@@ -178,19 +180,19 @@ std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap() {
   std::shared_ptr<hozon::hdmap::Map> proto_map = nullptr;
 
   gm::GroupMap group_map(gm_conf_);
-  auto ret = group_map.Build(path, curr_pose, ele_map_, is_cross_);
+  auto ret = group_map.Build(path, curr_pose, ele_map_, &is_cross_);
   if (!ret) {
     HLOG_ERROR << "Build group map failed";
     return nullptr;
   }
 
-  if (group_map.ego_line_exist_) {
-    ego_exist_ = true;
-    line_params_ = group_map.predict_line_params_;
-  } else {
-    ego_exist_ = false;
-    line_params_.clear();
-  }
+  // if (group_map.ego_line_exist_) {
+  //   ego_exist_ = true;
+  //   line_params_ = group_map.predict_line_params_;
+  // } else {
+  //   ego_exist_ = false;
+  //   line_params_.clear();
+  // }
   std::vector<gm::Group::Ptr> groups;
   group_map.GetGroups(&groups);
   IsInCrossing(groups, &is_cross_);

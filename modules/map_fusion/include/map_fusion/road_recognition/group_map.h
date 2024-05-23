@@ -127,8 +127,8 @@ struct Lane {
   std::string str_id;
   std::string str_id_with_group;
   std::string lanepos_id;
-  std::vector<double> center_line_param;        // 线段末尾的y = kx + b
-  std::vector<double> center_line_param_front;  // 线段前向的y = kx + b
+  std::vector<double> center_line_param;  // 线段末尾的y = kx + b (b,k)
+  std::vector<double> center_line_param_front;  // 线段前向的y = kx + b (b,k)
   int is_trans = 0;        // 是否当前朝向，用黄实现判断
   int is_ego = 0;          // 是否当前道路，用路沿判断
   bool is_smooth = false;  // 是否平滑过了
@@ -201,6 +201,8 @@ struct IsCross {
   em::Point along_path_dis_;
   size_t cross_before_lane_ = 0;
   size_t cross_after_lane_ = 0;
+  em::Id next_lane_left = -1000;
+  em::Id next_lane_right = -1000;
 };
 
 struct HistoryId {
@@ -220,7 +222,7 @@ class GroupMap {
 
   bool Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
              const KinePose::Ptr& curr_pose, const em::ElementMap::Ptr& ele_map,
-             IsCross is_cross);
+             IsCross* is_cross);
   void GetGroups(std::vector<Group::Ptr>* groups);
   std::shared_ptr<hozon::hdmap::Map> Export(const em::ElementMap::Ptr& ele_map,
                                             HistoryId* history_id);
@@ -356,7 +358,9 @@ class GroupMap {
   std::vector<Point> SigmoidFunc(std::vector<Point> centerline, float sigma);
   Eigen::Vector3f Qat2EulerAngle(const Eigen::Quaternionf& q);
   float Angle_diff(float angle_0, float angle_1);
-
+  bool IsIntersect(Lane::Ptr line1, Lane::Ptr line2);
+  void EraseIntersectLane(Group::Ptr curr_group, Group::Ptr next_group);
+  bool BoundaryIsValid(const LineSegment& line);
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;
   std::map<em::Id, Arrow::Ptr> arrow_;

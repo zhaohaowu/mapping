@@ -275,6 +275,7 @@ void PoseEstimation::ProcData() {
     location_state_ = static_cast<int>(fc_pose_ptr->location_state());
     ins_state_ = static_cast<int>(fc_pose_ptr->rtk_status());
     velocity_ = fc_pose_ptr->pose().linear_velocity_vrf().x();
+    ins_height_ = ins_pose_ptr->pose().gcj02().z();
     // 获取高精地图
     std::vector<LaneInfoPtr> hdmap_lanes;
     if (!GetHdMapLane(fc_pose_ptr, &hdmap_lanes)) {
@@ -295,7 +296,7 @@ void PoseEstimation::ProcData() {
       }
       continue;
     }
-    // 地图转换
+    // 地图转换,enu系下的点
     MappingManager map_manager;
     if (!MapConvert(*fc_pose_ptr, ref_point, hdmap_lanes, &map_manager)) {
       HLOG_ERROR << "map transform failed";
@@ -331,7 +332,7 @@ void PoseEstimation::ProcData() {
     SetInputPose(fc_pose_ptr, ins_pose_ptr, &T_input);
     // mm模块
     map_matching_->ProcData(use_rviz_, T_input, fc_pose_ptr, perception,
-                            hdmap_lanes, ref_point);
+                            hdmap_lanes, ref_point, ins_height_);
     HLOG_DEBUG << "sum " << tic.Toc() << " ms";
     {
       std::lock_guard<std::mutex> lock(ready_mutex_);

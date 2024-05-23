@@ -115,7 +115,7 @@ void MapMatching::ProcData(
     const std::shared_ptr<hozon::localization::Localization>& fc,
     const hozon::perception::TransportElement& perception,
     const std::vector<hozon::hdmap::LaneInfoConstPtr>& lanes,
-    const Eigen::Vector3d& ref_point) {
+    const Eigen::Vector3d& ref_point, double ins_height) {
   // 地图数据处理
   auto hdmap = SetHdMap(lanes, ref_point);
 
@@ -193,10 +193,11 @@ void MapMatching::ProcData(
       static_cast<uint64_t>((cur_stamp - static_cast<double>(cur_sec)) * 1e9);
   mm_output_lck_.lock();
   if (!output_valid) {
-    mm_node_info_ = generateNodeInfo(T_output, 0, 0, true, ref_point);
-  } else {
     mm_node_info_ =
-        generateNodeInfo(T_output, cur_sec, cur_nsec, false, ref_point);
+        generateNodeInfo(T_output, 0, 0, true, ref_point, ins_height);
+  } else {
+    mm_node_info_ = generateNodeInfo(T_output, cur_sec, cur_nsec, false,
+                                     ref_point, ins_height);
   }
   mm_output_lck_.unlock();
 
@@ -259,7 +260,8 @@ PtrNodeInfo MapMatching::getMmNodeInfo() {
 PtrNodeInfo MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V,
                                           uint64_t sec, uint64_t nsec,
                                           const bool& has_err,
-                                          const Eigen::Vector3d& ref_point) {
+                                          const Eigen::Vector3d& ref_point,
+                                          double ins_height) {
   PtrNodeInfo node_info =
       std::make_shared<::hozon::localization::HafNodeInfo>();
   auto blh = hozon::mp::util::Geo::EnuToGcj02(
@@ -278,7 +280,7 @@ PtrNodeInfo MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V,
   node_info->set_is_valid(true);
   node_info->mutable_pos_gcj02()->set_x(blh.x());
   node_info->mutable_pos_gcj02()->set_y(blh.y());
-  node_info->mutable_pos_gcj02()->set_z(blh.z());
+  node_info->mutable_pos_gcj02()->set_z(ins_height);
   node_info->mutable_quaternion()->set_x(
       static_cast<float>(T_W_V.unit_quaternion().x()));
   node_info->mutable_quaternion()->set_y(

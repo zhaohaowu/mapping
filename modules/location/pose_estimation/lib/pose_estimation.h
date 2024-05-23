@@ -122,6 +122,7 @@ class PoseEstimation {
   std::atomic<bool> reloc_flag_{false};
   std::atomic<int> reloc_cnt_ = 30;
   std::atomic<bool> reloc_test_ = false;
+  std::atomic<double> ins_height_ = 0.0;
   std::string rviz_addr_;
   Eigen::Affine3d T_fc_;
   Eigen::Affine3d T_ins_;

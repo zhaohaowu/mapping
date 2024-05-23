@@ -2929,208 +2929,53 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
         check_back = false;
       }
       std::vector<Lane::Ptr> lanes_wo_next;  // 末端lane，即无后继的lane
-      Eigen::Vector2f curr_end_pl(
-          last_grp->group_segments.back()->end_slice.pl.x(),
-          last_grp->group_segments.back()->end_slice.pl.y());
-      Eigen::Vector2f curr_end_pr(
-          last_grp->group_segments.back()->end_slice.pr.x(),
-          last_grp->group_segments.back()->end_slice.pr.y());
-      Eigen::Vector2f curr_pos(0.0, 0.0);
-      bool veh_in_this_junction = false;
-      // HLOG_INFO << "calculate veh_in_this_junction";
-      // HLOG_INFO << "curr_end_pl = " << curr_end_pl.x() << "  "
-      //           << curr_end_pl.y();
-      // HLOG_INFO << "curr_end_pr = " << curr_end_pr.x() << "  "
-      //           << curr_end_pr.y();
-      if ((PointInVectorSide(curr_end_pr, curr_end_pl, curr_pos) >= 0 &&
-           PointToVectorDist(curr_end_pr, curr_end_pl, curr_pos) < 40) ||
-          PointToVectorDist(curr_end_pr, curr_end_pl, curr_pos) < 20 ||
-          (!check_back)) {
-        veh_in_this_junction = true;
-      }
-      if (veh_in_this_junction) {
-        ForwardCrossVirtual(last_grp, groups, stamp);
-      } else {
-        for (const auto& lane : last_grp->lanes) {
-          if (lane == nullptr) {
-            HLOG_ERROR << "found nullptr lane";
-            continue;
-          }
-          if (lane->next_lane_str_id_with_group.empty()) {
-            lanes_wo_next.emplace_back(lane);
-          }
-        }
-        std::vector<LineSegment::Ptr> lines_need_pred;
-        std::vector<Lane::Ptr> center_line_need_pred;
-        for (auto& lane : lanes_wo_next) {
-          int lane_center_need_pre = 0;
-          if (lane->left_boundary != nullptr &&
-              LaneLineNeedToPredict(*lane->left_boundary, check_back)) {
-            lines_need_pred.emplace_back(lane->left_boundary);
-            lane_center_need_pre++;
-          }
-          if (lane->right_boundary != nullptr &&
-              LaneLineNeedToPredict(*lane->right_boundary, check_back)) {
-            lines_need_pred.emplace_back(lane->right_boundary);
-            lane_center_need_pre++;
-          }
-          if (lane_center_need_pre == 2) {
-            center_line_need_pred.emplace_back(lane);
-          }
-        }
-        // 使用平均heading，这样可以使得预测的线都是平行的，不交叉
-        // 由于部分弯道heading偏差较大，导致整体平均heading发生偏差，
-        // 现增加pred_end_heading字段用于预测，使用k-means算法或者PCL欧式聚类对heading进行聚类
-        if (!lines_need_pred.empty()) {
-          // PCL欧式聚类 阈值为20度
-          const double heading_threshold = 15 / 180. * M_PI;
-          HeadingCluster(&lines_need_pred, heading_threshold);
 
-          for (auto& line : lines_need_pred) {
-            PredictLaneLine(line.get());
-          }
-          for (auto& lane : center_line_need_pred) {
-            auto avg_heading = (lane->left_boundary->pred_end_heading +
-                                lane->right_boundary->pred_end_heading) /
-                               2;
-            PredictLaneLine(avg_heading, &(lane->center_line_pts),
-                            lane->left_boundary->mean_end_interval);
-          }
+      for (const auto& lane : last_grp->lanes) {
+        if (lane == nullptr) {
+          HLOG_ERROR << "found nullptr lane";
+          continue;
+        }
+        if (lane->next_lane_str_id_with_group.empty()) {
+          lanes_wo_next.emplace_back(lane);
+        }
+      }
+      std::vector<LineSegment::Ptr> lines_need_pred;
+      std::vector<Lane::Ptr> center_line_need_pred;
+      for (auto& lane : lanes_wo_next) {
+        int lane_center_need_pre = 0;
+        if (lane->left_boundary != nullptr &&
+            LaneLineNeedToPredict(*lane->left_boundary, check_back)) {
+          lane_center_need_pre++;
+        }
+        if (lane->right_boundary != nullptr &&
+            LaneLineNeedToPredict(*lane->right_boundary, check_back)) {
+          lane_center_need_pre++;
+        }
+        // 左右边线都满足预测要求才会往前预测
+        if (lane_center_need_pre == 2) {
+          lines_need_pred.emplace_back(lane->left_boundary);
+          lines_need_pred.emplace_back(lane->right_boundary);
+          center_line_need_pred.emplace_back(lane);
+        }
+      }
+
+      // 使用平均heading，这样可以使得预测的线都是平行的，不交叉
+      // 由于部分弯道heading偏差较大，导致整体平均heading发生偏差，
+      // 现增加pred_end_heading字段用于预测，使用PCL欧式聚类对heading进行聚类
+      if (!lines_need_pred.empty()) {
+        // PCL欧式聚类 阈值为15度
+        const double heading_threshold = 15. / 180. * M_PI;
+        HeadingCluster(&lines_need_pred, heading_threshold);
+
+        // 重新构建group 线的类型为虚线
+        for (auto& lane : center_line_need_pred) {
+          PredictLaneLine(last_grp, groups, lane, stamp);
         }
       }
     }
   }
 
   return true;
-}
-
-void GroupMap::ForwardCrossVirtual(Group::Ptr curr_group,
-                                   std::vector<Group::Ptr>* groups,
-                                   double stamp) {
-  Group grp;
-  grp.stamp = stamp;
-  grp.str_id = curr_group->str_id + "P";
-
-  double heading = 0;
-  int lines = 0;
-  for (auto lane_in_curr : curr_group->lanes) {
-    if (lane_in_curr->left_boundary != nullptr) {
-      heading += lane_in_curr->left_boundary->mean_end_heading;
-      lines++;
-    }
-    if (lane_in_curr->right_boundary != nullptr) {
-      heading += lane_in_curr->right_boundary->mean_end_heading;
-      lines++;
-    }
-  }
-  heading /= static_cast<double>(lines);
-  for (auto lane_in_curr : curr_group->lanes) {
-    if (lane_in_curr->left_boundary->pts.empty() ||
-        lane_in_curr->right_boundary->pts.empty() ||
-        lane_in_curr->center_line_pts.empty()) {
-      continue;
-    }
-    Lane lane_pre;
-    LineSegment left_bound;
-    left_bound.id = lane_in_curr->left_boundary->id;
-    left_bound.lanepos = lane_in_curr->left_boundary->lanepos;
-    left_bound.type =
-        em::LaneType_DASHED;       // lane_in_curr->left_boundary->type;
-    left_bound.color = em::WHITE;  // lane_in_curr->left_boundary->color;
-    left_bound.isego = lane_in_curr->left_boundary->isego;
-    left_bound.mean_end_heading = lane_in_curr->left_boundary->mean_end_heading;
-    left_bound.mean_end_heading_std_dev =
-        lane_in_curr->left_boundary->mean_end_heading_std_dev;
-    left_bound.mean_end_interval =
-        lane_in_curr->left_boundary->mean_end_interval;
-    size_t index_left = lane_in_curr->left_boundary->pts.size();
-    Point left_pt_pred(VIRTUAL,
-                       lane_in_curr->left_boundary->pts[index_left - 1].pt.x(),
-                       lane_in_curr->left_boundary->pts[index_left - 1].pt.y(),
-                       lane_in_curr->left_boundary->pts[index_left - 1].pt.z());
-    left_bound.pts.emplace_back(left_pt_pred);
-    float dist_to_veh = left_pt_pred.pt.norm();
-    auto pred_length = conf_.predict_farthest_dist - dist_to_veh;
-    auto mean_interval = left_bound.mean_end_interval;
-    auto pred_counts = static_cast<int>(pred_length / mean_interval);
-    Eigen::Vector2f n(std::cos(heading), std::sin(heading));
-    for (int i = 0; i < pred_counts; ++i) {
-      Eigen::Vector2f pt = left_pt_pred.pt.head<2>() + (i + 1) * n;
-      Point pred_pt;
-      pred_pt.pt << pt.x(), pt.y(), 0;
-      pred_pt.type = gm::VIRTUAL;
-      left_bound.pts.emplace_back(pred_pt);
-    }
-    LineSegment right_bound;
-    right_bound.id = lane_in_curr->right_boundary->id;
-    right_bound.lanepos = lane_in_curr->right_boundary->lanepos;
-    right_bound.type =
-        em::LaneType_DASHED;        // lane_in_curr->right_boundary->type;
-    right_bound.color = em::WHITE;  // lane_in_curr->right_boundary->color;
-    right_bound.isego = lane_in_curr->right_boundary->isego;
-    right_bound.mean_end_heading =
-        lane_in_curr->right_boundary->mean_end_heading;
-    right_bound.mean_end_heading_std_dev =
-        lane_in_curr->right_boundary->mean_end_heading_std_dev;
-    right_bound.mean_end_interval =
-        lane_in_curr->right_boundary->mean_end_interval;
-    size_t index_right = lane_in_curr->right_boundary->pts.size();
-    Point right_pt_pred(
-        VIRTUAL, lane_in_curr->right_boundary->pts[index_right - 1].pt.x(),
-        lane_in_curr->right_boundary->pts[index_right - 1].pt.y(),
-        lane_in_curr->right_boundary->pts[index_right - 1].pt.z());
-    right_bound.pts.emplace_back(right_pt_pred);
-    dist_to_veh = right_pt_pred.pt.norm();
-    pred_length = conf_.predict_farthest_dist - dist_to_veh;
-    mean_interval = right_bound.mean_end_interval;
-    pred_counts = static_cast<int>(pred_length / mean_interval);
-    for (int i = 0; i < pred_counts; ++i) {
-      Eigen::Vector2f pt = right_pt_pred.pt.head<2>() + (i + 1) * n;
-      Point pred_pt;
-      pred_pt.pt << pt.x(), pt.y(), 0;
-      pred_pt.type = gm::VIRTUAL;
-      right_bound.pts.emplace_back(pred_pt);
-    }
-    std::vector<Point> ctr_pts;
-    size_t index_center = lane_in_curr->center_line_pts.size();
-    Point center_pt_pred(
-        VIRTUAL, lane_in_curr->center_line_pts[index_center - 1].pt.x(),
-        lane_in_curr->center_line_pts[index_center - 1].pt.y(),
-        lane_in_curr->center_line_pts[index_center - 1].pt.z());
-    ctr_pts.emplace_back(center_pt_pred);
-    dist_to_veh = center_pt_pred.pt.norm();
-    pred_length = conf_.predict_farthest_dist - dist_to_veh;
-    mean_interval = left_bound.mean_end_interval;
-    pred_counts = static_cast<int>(pred_length / mean_interval);
-    for (int i = 0; i < pred_counts; ++i) {
-      Eigen::Vector2f pt = center_pt_pred.pt.head<2>() + (i + 1) * n;
-      Point pred_pt;
-      pred_pt.pt << pt.x(), pt.y(), 0;
-      pred_pt.type = gm::VIRTUAL;
-      ctr_pts.emplace_back(pred_pt);
-    }
-    lane_pre.str_id = lane_in_curr->str_id;
-    lane_pre.lanepos_id = lane_in_curr->lanepos_id;
-    size_t index = lane_in_curr->str_id_with_group.find(":");
-    lane_pre.str_id_with_group =
-        lane_in_curr->str_id_with_group.substr(0, index) +
-        "P:" + lane_pre.str_id;
-    lane_pre.left_boundary = std::make_shared<LineSegment>(left_bound);
-    lane_pre.right_boundary = std::make_shared<LineSegment>(right_bound);
-    lane_pre.center_line_param = lane_in_curr->center_line_param;
-    lane_pre.center_line_param_front = lane_in_curr->center_line_param;
-    lane_pre.center_line_pts = ctr_pts;
-    lane_pre.prev_lane_str_id_with_group.emplace_back(
-        lane_in_curr->str_id_with_group);
-    lane_in_curr->next_lane_str_id_with_group.emplace_back(
-        lane_pre.str_id_with_group);
-    if (lane_pre.left_boundary->pts.size() > 1 &&
-        lane_pre.right_boundary->pts.size() > 1 &&
-        lane_pre.center_line_pts.size() > 1) {
-      grp.lanes.emplace_back(std::make_shared<Lane>(lane_pre));
-    }
-  }
-  (*groups).emplace_back(std::make_shared<Group>(grp));
 }
 
 void GroupMap::SetAllOverlaps(std::map<em::Id, Zebra::Ptr>* zebra,
@@ -4662,46 +4507,117 @@ bool GroupMap::LaneLineNeedToPredict(const LineSegment& line, bool check_back) {
 
 // 对line从最后一个点开始，沿着heading方向直线预测
 //! TBD：当前直接按直线预测，后续考虑对弯道继续非直线预测，比如按曲率
-void GroupMap::PredictLaneLine(LineSegment* line) {
-  if (line == nullptr || line->pts.empty()) {
-    return;
+void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
+                               std::vector<Group::Ptr>* groups,
+                               const Lane::Ptr curr_lane, double stamp) {
+  Group grp;
+  grp.stamp = stamp;
+  grp.str_id = curr_group->str_id + "P";
+
+  Lane lane_pre;
+  LineSegment left_bound;
+  left_bound.id = curr_lane->left_boundary->id;
+  left_bound.lanepos = curr_lane->left_boundary->lanepos;
+  left_bound.type = em::LaneType_DASHED;
+  left_bound.color = em::WHITE;
+  left_bound.isego = curr_lane->left_boundary->isego;
+
+  left_bound.mean_end_heading = curr_lane->left_boundary->mean_end_heading;
+  left_bound.mean_end_heading_std_dev =
+      curr_lane->left_boundary->mean_end_heading_std_dev;
+  left_bound.mean_end_interval = curr_lane->left_boundary->mean_end_interval;
+
+  if (curr_lane->left_boundary != nullptr &&
+      !curr_lane->left_boundary->pts.empty()) {
+    Eigen::Vector2f back_pt = curr_lane->left_boundary->pts.back().pt.head<2>();
+    auto mean_interval = curr_lane->left_boundary->mean_end_interval;
+    float dist_to_veh = back_pt.norm();
+    auto pred_length = conf_.predict_farthest_dist - dist_to_veh;
+    auto pred_counts = static_cast<int>(pred_length / mean_interval);
+    Eigen::Vector2f n(std::cos(curr_lane->left_boundary->pred_end_heading),
+                      std::sin(curr_lane->left_boundary->pred_end_heading));
+    for (int i = 0; i <= pred_counts; ++i) {
+      Eigen::Vector2f pt = back_pt + i * n;
+      Point pred_pt;
+      pred_pt.pt << pt.x(), pt.y(), 0;
+      pred_pt.type = gm::VIRTUAL;
+      left_bound.pts.emplace_back(pred_pt);
+    }
   }
 
-  Eigen::Vector2f back_pt = line->pts.back().pt.head<2>();
-  auto mean_interval = line->mean_end_interval;
-  float dist_to_veh = back_pt.norm();
-  auto pred_length = conf_.predict_farthest_dist - dist_to_veh;
-  auto pred_counts = static_cast<int>(pred_length / mean_interval);
-  Eigen::Vector2f n(std::cos(line->pred_end_heading),
-                    std::sin(line->pred_end_heading));
-  for (int i = 0; i < pred_counts; ++i) {
-    Eigen::Vector2f pt = back_pt + (i + 1) * n;
-    Point pred_pt;
-    pred_pt.pt << pt.x(), pt.y(), 0;
-    pred_pt.type = gm::PREDICTED;
-    line->pts.emplace_back(pred_pt);
-  }
-}
+  LineSegment right_bound;
+  right_bound.id = curr_lane->right_boundary->id;
+  right_bound.lanepos = curr_lane->right_boundary->lanepos;
+  right_bound.type = em::LaneType_DASHED;
+  right_bound.color = em::WHITE;
+  right_bound.isego = curr_lane->right_boundary->isego;
+  right_bound.mean_end_heading = curr_lane->right_boundary->mean_end_heading;
+  right_bound.mean_end_heading_std_dev =
+      curr_lane->right_boundary->mean_end_heading_std_dev;
+  right_bound.mean_end_interval = curr_lane->right_boundary->mean_end_interval;
 
-void GroupMap::PredictLaneLine(double heading, std::vector<Point>* line,
-                               double mean_end_interval) {
-  if (line == nullptr || line->empty()) {
-    return;
+  if (curr_lane->right_boundary != nullptr &&
+      !curr_lane->right_boundary->pts.empty()) {
+    Eigen::Vector2f back_pt =
+        curr_lane->right_boundary->pts.back().pt.head<2>();
+    auto mean_interval = curr_lane->right_boundary->mean_end_interval;
+    float dist_to_veh = back_pt.norm();
+    auto pred_length = conf_.predict_farthest_dist - dist_to_veh;
+    auto pred_counts = static_cast<int>(pred_length / mean_interval);
+    Eigen::Vector2f n(std::cos(curr_lane->right_boundary->pred_end_heading),
+                      std::sin(curr_lane->right_boundary->pred_end_heading));
+    for (int i = 0; i <= pred_counts; ++i) {
+      Eigen::Vector2f pt = back_pt + i * n;
+      Point pred_pt;
+      pred_pt.pt << pt.x(), pt.y(), 0;
+      pred_pt.type = gm::VIRTUAL;
+      right_bound.pts.emplace_back(pred_pt);
+    }
   }
 
-  Eigen::Vector2f back_pt = line->back().pt.head<2>();
-  auto mean_interval = mean_end_interval;
-  float dist_to_veh = back_pt.norm();
-  auto pred_length = conf_.predict_farthest_dist - dist_to_veh;
-  auto pred_counts = static_cast<int>(pred_length / mean_interval);
-  Eigen::Vector2f n(std::cos(heading), std::sin(heading));
-  for (int i = 0; i < pred_counts; ++i) {
-    Eigen::Vector2f pt = back_pt + (i + 1) * n;
-    Point pred_pt;
-    pred_pt.pt << pt.x(), pt.y(), 0;
-    pred_pt.type = gm::PREDICTED;
-    line->emplace_back(pred_pt);
+  std::vector<Point> ctr_pts;
+  if (!curr_lane->center_line_pts.empty()) {
+    Eigen::Vector2f back_pt = curr_lane->center_line_pts.back().pt.head<2>();
+    auto mean_interval = (curr_lane->left_boundary->mean_end_interval +
+                          curr_lane->right_boundary->mean_end_interval) /
+                         2;
+    float dist_to_veh = back_pt.norm();
+    auto pred_length = conf_.predict_farthest_dist - dist_to_veh;
+    auto pred_counts = static_cast<int>(pred_length / mean_interval);
+    auto heading = (curr_lane->left_boundary->pred_end_heading +
+                    curr_lane->right_boundary->pred_end_heading) /
+                   2;
+    Eigen::Vector2f n(std::cos(heading), std::sin(heading));
+    for (int i = 0; i <= pred_counts; ++i) {
+      Eigen::Vector2f pt = back_pt + i * n;
+      Point pred_pt;
+      pred_pt.pt << pt.x(), pt.y(), 0;
+      pred_pt.type = gm::VIRTUAL;
+      ctr_pts.emplace_back(pred_pt);
+    }
   }
+
+  lane_pre.str_id = curr_lane->str_id;
+  lane_pre.lanepos_id = curr_lane->lanepos_id;
+  size_t index = curr_lane->str_id_with_group.find(":");
+  lane_pre.str_id_with_group =
+      curr_lane->str_id_with_group.substr(0, index) + "P:" + lane_pre.str_id;
+  lane_pre.left_boundary = std::make_shared<LineSegment>(left_bound);
+  lane_pre.right_boundary = std::make_shared<LineSegment>(right_bound);
+  lane_pre.center_line_param = curr_lane->center_line_param;
+  lane_pre.center_line_param_front = curr_lane->center_line_param;
+  lane_pre.center_line_pts = ctr_pts;
+  lane_pre.prev_lane_str_id_with_group.emplace_back(
+      curr_lane->str_id_with_group);
+  curr_lane->next_lane_str_id_with_group.emplace_back(
+      lane_pre.str_id_with_group);
+  if (lane_pre.left_boundary->pts.size() > 1 &&
+      lane_pre.right_boundary->pts.size() > 1 &&
+      lane_pre.center_line_pts.size() > 1) {
+    grp.lanes.emplace_back(std::make_shared<Lane>(lane_pre));
+  }
+
+  (*groups).emplace_back(std::make_shared<Group>(grp));
 }
 
 // 判断车道是否收缩，即宽度越来越小

@@ -209,7 +209,7 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
     }
 
     // 计算末端平均heading、平均间距
-    const int kAvgPtCount = 20;
+    const int kAvgPtCount = 40;
     int avg_n = std::min(static_cast<int>(line->pts.size()), kAvgPtCount);
     if (avg_n < 2) {
       line->mean_end_interval = 0;
@@ -3123,7 +3123,7 @@ void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
   double predict_heading = 0.0;
   if (!fabs(ego_lane_heading - 9.9) < 1e-1) {
     predict_heading = ego_lane_heading;
-    predict_heading = 0.3 * last_predict_angle + 0.7 * predict_heading;
+    predict_heading = 0.4 * last_predict_angle + 0.6 * predict_heading;
   } else {
     if (heading_cluster_indices.size() == 1) {
       double heading_sum = 0.;
@@ -3135,7 +3135,7 @@ void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
       }
       predict_heading =
           heading_data_size != 0 ? heading_sum / heading_data_size : 0;
-      predict_heading = 0.3 * last_predict_angle + 0.7 * predict_heading;
+      predict_heading = 0.4 * last_predict_angle + 0.6 * predict_heading;
     } else {
       // 找到聚类数量最多的
       std::vector<double> cluster_headings;

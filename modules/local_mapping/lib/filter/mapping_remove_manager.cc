@@ -192,10 +192,9 @@ MappingRemoveManager::GenerateLanesFromRefLines(
       avg_dist = GetAvgDistBetweenTwoLane(ref_line->GetConstTrackedObject(),
                                           remove_line->GetConstTrackedObject());
     }
-    // HLOG_DEBUG << "lane_1 id:" << ref_line->Id()
-    //            << "propoal_lane id:" <<
-    //            remove_line->GetConstTrackedObject()->id
-    //            << ",avg_dist:" << avg_dist;
+    HLOG_DEBUG << "lane_1 id:" << ref_line->Id()
+               << "propoal_lane id:" << remove_line->GetConstTrackedObject()->id
+               << ",avg_dist:" << avg_dist;
     // 与参考线的平均距离大于2.5，认为可构成车道
     if (avg_dist > 2.5f) {
       laneTrackerMap[ref_line->Id()].emplace_back(remove_schedule_lanes->at(i));
@@ -280,7 +279,108 @@ float MappingRemoveManager::GetAvgDistBetweenTwoLane(
 
   return avg_dist;
 }
+// 获取平均的y值，只取最近20%的点
+float MappingRemoveManager::GetAvgDeltaBetweenTwoLane(
+    const LaneLinePtr& line_delete, const LaneLinePtr& line_ref) {
+  std::vector<Eigen::Vector3d> point_set_delete;
+  std::vector<Eigen::Vector3d> point_set_ref;
+  float sum_delete_y = 0;
+  float sum_ref_y = 0;
+  int delete_size = line_delete->vehicle_points.size();
+  int ref_size = line_ref->vehicle_points.size();
+  if (delete_size == 0 || ref_size == 0) {
+    return FLT_MAX;
+  }
+  float min_x = std::max(line_delete->vehicle_points[0].x(),
+                         line_ref->vehicle_points[0].x());
+  float max_x = std::min(line_delete->vehicle_points[delete_size - 1].x(),
+                         line_ref->vehicle_points[ref_size - 1].x());
+  // 选点，选择overlay部分的距离本车最近的20%的点来计算距离
+  SelectPoints(line_delete, &point_set_delete, min_x, max_x);
+  SelectPoints(line_ref, &point_set_ref, min_x, max_x);
 
+  HLOG_DEBUG << "point_set_delete:" << point_set_delete.size()
+             << "point_set_ref:" << point_set_ref.size();
+  if (point_set_delete.size() == 0 || point_set_ref.size() == 0) {
+    HLOG_ERROR << "LocanMapping: point_set size == 0.";
+    return FLT_MAX;
+  }
+  for (auto& point : point_set_delete) {
+    sum_delete_y += point.y();
+  }
+  for (auto& point : point_set_ref) {
+    sum_ref_y += point.y();
+  }
+  float deleta_y = sum_delete_y / (point_set_delete.size() + 0.000001);
+  float ref_y = sum_ref_y / (point_set_ref.size() + 0.000001);
+  float avg_delta = deleta_y - ref_y;
+
+  return avg_delta;
+}
+
+int findIndexOfFirstNonNegative(
+    const std::vector<std::pair<int, double>>& pairs) {
+  for (int i = 0; i < pairs.size(); ++i) {
+    if (pairs[i].second >= 0) {
+      return i;
+    }
+  }
+  // 如果没有找到非负数，返回-1作为未找到的标记
+  return -1;
+}
+// 删除相邻两参考线之间的异常待删除线
+bool MappingRemoveManager::DeleteLinebetweenRefLane(
+    const LaneTrackerPtr& lanetarget, std::vector<LaneTrackerPtr>* trackers) {
+  std::vector<std::pair<int, double>> ref_id_delta_pairs;
+  for (auto& ref_track : *trackers) {
+    const auto& ref_line = ref_track->GetConstTarget()->GetConstTrackedObject();
+    const auto& delete_line =
+        lanetarget->GetConstTarget()->GetConstTrackedObject();
+    if (IsForkConvergelike(lanetarget->GetConstTarget(),
+                           ref_track->GetConstTarget())) {
+      return false;
+    }
+    double over_lay_ratio =
+        GetOverLayRatioBetweenTwoLane(delete_line, ref_line);
+    if (over_lay_ratio < 0.3) {
+      continue;
+    }
+    // y的平均差值（待删除-参考线）
+    float avg_delta = GetAvgDeltaBetweenTwoLane(delete_line, ref_line);
+
+    ref_id_delta_pairs.emplace_back(
+        std::pair<int, double>(ref_track->GetConstTarget()->Id(), avg_delta));
+  }
+  // 从小到大排序
+  std::sort(ref_id_delta_pairs.begin(), ref_id_delta_pairs.end(),
+            [](std::pair<int, double>& a, std::pair<int, double>& b) {
+              return a.second < b.second;
+            });
+  // 寻找第一个非负index
+  int index = findIndexOfFirstNonNegative(ref_id_delta_pairs);
+  // 待删除线位于最左边和最右边（暂时不删除）
+  if (index <= 0) {
+    HLOG_DEBUG << "findIndexOfFirstNonNegative index:" << index;
+    return false;
+  }
+  // 与左边线的delta小于0，与右边线的delta大于0
+  float left_delta = ref_id_delta_pairs[index - 1].second;
+  float right_delta = ref_id_delta_pairs[index].second;
+
+  HLOG_DEBUG << "lanetarget->GetConstTarget() id:"
+             << lanetarget->GetConstTarget()->Id();
+  HLOG_DEBUG << "ref_id_delta_pairs[index - 1] left_delta id:"
+             << ref_id_delta_pairs[index - 1].first;
+  HLOG_DEBUG << "ref_id_delta_pairs[index] right_delta id:"
+             << ref_id_delta_pairs[index].first;
+  HLOG_DEBUG << "left_delta:" << left_delta << " ,right_delta:" << right_delta;
+
+  if ((std::abs(left_delta) < 2.5 || std::abs(right_delta) < 2.5) &&
+      lanetarget->GetConstTarget()->GetConstTrackedObject()->lost_age > 4) {
+    return true;
+  }
+  return false;
+}
 // 如果没有参考线，待删除线之间的博弈删除
 bool MappingRemoveManager::DeleteLaneisTooNear(
     const LaneTrackerPtr& lanetarget, std::vector<LaneTrackerPtr>* trackers) {
@@ -345,19 +445,17 @@ bool MappingRemoveManager::isReference(const LaneTargetConstPtr& target,
                                        std::vector<LaneTrackerPtr>* trackers) {
   // 长度条件，长度大于10m；跟踪状态，未lost,点稳定性好,路口前的线（路口对面的一般质量不太好，不作为参考线）
   auto laneline = target->GetConstTrackedObject();
-  // HLOG_DEBUG << "lane id:" << laneline->id << ", tracked_count"
-  //            << laneline->tracked_count;
-  // HLOG_DEBUG << "lane id:" << laneline->id
-  //            << ",state:" << static_cast<int>(laneline->state)
-  //            << ",lost_age:" << laneline->lost_age;
-  // HLOG_DEBUG << ",lane_length:" << GetLength(laneline->vehicle_points);
+  HLOG_DEBUG << "lane id:" << laneline->id
+             << ",state:" << static_cast<int>(laneline->state)
+             << ",lost_age:" << laneline->lost_age;
+  HLOG_DEBUG << ",lane_length:" << GetLength(laneline->vehicle_points);
 
   int total_tracked_count = 0;
   int max_continue_count = 0;
   TrackedStatic(target, &total_tracked_count, &max_continue_count);
-  // HLOG_DEBUG << "target->IsTracked():" << target->IsTracked()
-  //            << "total_tracked_count:" << total_tracked_count
-  //            << " ,max_continue_count:" << max_continue_count;
+  HLOG_DEBUG << "target->IsTracked():" << target->IsTracked()
+             << "total_tracked_count:" << total_tracked_count
+             << " ,max_continue_count:" << max_continue_count;
 
   // 非路口：
   // 1、跟踪状态；
@@ -368,7 +466,7 @@ bool MappingRemoveManager::isReference(const LaneTargetConstPtr& target,
   if (target->IsTracked() && GetLength(laneline->vehicle_points) > 50.0 &&
       max_continue_count > 3 && total_tracked_count > 5 &&
       (!isOnOpposite(laneline))) {
-    // HLOG_DEBUG << "OK isReference";
+    HLOG_DEBUG << "OK isReference";
     return true;
   }
   // 路口对面：
@@ -380,7 +478,7 @@ bool MappingRemoveManager::isReference(const LaneTargetConstPtr& target,
   if (target->IsTracked() && GetLength(laneline->vehicle_points) > 20.0 &&
       max_continue_count > 2 && total_tracked_count > 4 &&
       (isOnOpposite(laneline))) {
-    // HLOG_DEBUG << "OK isReference";
+    HLOG_DEBUG << "OK isReference";
     return true;
   }
 
@@ -449,39 +547,32 @@ void MappingRemoveManager::Process(std::vector<LaneTrackerPtr>* trackers) {
     }
   }
 
-  // 如果没有参考线，则待删除之间进行判断是否要删除。（有风险，暂停）
-  // if (reference_lanes.size() == 0) {
-  //   for (auto& remove_lane : remove_schedule_lanes) {
-  //     if (DeleteLaneisTooNear(remove_lane, &remove_schedule_lanes)) {
-  //       remove_index_.insert(remove_lane->GetConstTarget()->Id());
-  //     }
-  //   }
-  // }
-
-  // 参考线不再删除，待删除线参考删除线来删除。
-  // 1、不能与参考线构成车道的待删除线，直接删除；
-  // 2、和参考线可以构成车道的待删除线之间再进行判断是否需要删除；
-  for (auto& ref_lane : reference_lanes) {
-    // 可与参考线生成车道的待删除线map
-    auto ref_delete_lane_map =
-        GenerateLanesFromRefLines(ref_lane, &remove_schedule_lanes);
-
-    // 有参考线时,待删除线之间的博弈(有风险，暂停)
-
-    // for (auto& remove_lane :
-    // ref_delete_lane_map[ref_lane->GetConstTarget()->Id()]) {
-    //   if (DeleteLaneisTooNear(remove_lane,
-    //                           &ref_delete_lane_map[ref_lane->GetConstTarget()->Id()]))
-    //                           {
-    //     remove_index_.insert(remove_lane->GetConstTarget()->Id());
-    //   }
-    // }
+  // 最严格删线逻辑：只有在两条参考线之间时，且待删除线距离两条线距离都小于阈值(2.5)时,删除之。
+  for (auto& remove_lane : remove_schedule_lanes) {
+    {
+      if (DeleteLinebetweenRefLane(remove_lane, &reference_lanes)) {
+        HLOG_DEBUG << "Deleta!!!!! id:" << remove_lane->GetConstTarget()->Id();
+        remove_index_.insert(remove_lane->GetConstTarget()->Id());
+      }
+    }
   }
+  // 如果待删除线满足删除条件，则删除其车前面的点
+  for (auto& tracker : *trackers) {
+    if (remove_index_.count(tracker->GetConstTarget()->Id()) > 0) {
+      auto& points =
+          tracker->GetConstTarget()->GetConstTrackedObject()->vehicle_points;
+      points.erase(std::remove_if(points.begin(), points.end(),
+                                  [&](const auto& pt) { return pt.x() > 0; }),
+                   points.end());
+    }
+  }
+
+  // 如果tracker点被删光，则直接删除此条tracker,待商榷
   trackers->erase(std::remove_if(trackers->begin(), trackers->end(),
                                  [&](const auto& tracker) {
-                                   return remove_index_.count(
-                                              tracker->GetConstTarget()->Id()) >
-                                          0;
+                                   return tracker->GetConstTarget()
+                                              ->GetConstTrackedObject()
+                                              ->vehicle_points.size() == 0;
                                  }),
                   trackers->end());
 }

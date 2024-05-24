@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <utility>
+
 #include "base/utils/log.h"
 #include "modules/local_mapping/lib/datalogger/map_manager.h"
 #include "modules/local_mapping/utils/lane_utils.h"
@@ -22,6 +23,9 @@ bool MappingPositionManager::Init() {
 
 bool MappingPositionManager::IsUnknownLaneline(
     const LaneLinePtr& laneline_ptr) {
+  if (laneline_ptr->vehicle_points.size() == 0) {
+    return true;
+  }
   // 对于长度小于10米或者在50米外的车道线，
   // lane_pos设置为OTHER;(注意分合流场景等特殊情况的处理) TODO(陈安猛)
   if (laneline_ptr->vehicle_points.back().x() -
@@ -83,6 +87,9 @@ void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
     }
   }
   for (auto& lane_line : laneline_ptrs->lanelines) {
+    if (lane_line->vehicle_points.size() == 0) {
+      continue;
+    }
     double mid_point_x = (lane_line->vehicle_points.front().x() +
                           lane_line->vehicle_points.back().x()) /
                          2.0;

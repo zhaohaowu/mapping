@@ -102,6 +102,10 @@ void PoseEstimation::OnLocation(
     HLOG_ERROR << "gcj02 or quaternion is nan";
     return;
   }
+  if (msg->location_state() == 0) {
+    HLOG_ERROR << "Global localization is error";
+    return;
+  }
 
   // 判断enu系下的车辆fc姿态是否异常
   Eigen::Quaternionf enu_quaternion(

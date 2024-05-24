@@ -153,7 +153,7 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
 }
 
 void FusionCenter::OnDR(const hozon::dead_reckoning::DeadReckoning& dr) {
-  if (!ref_init_ || !params_.recv_dr) {
+  if (!params_.recv_dr) {
     return;
   }
   // seq not used on orin
@@ -291,9 +291,9 @@ bool FusionCenter::GetCurrentContext(Context* const ctx) {
     std::unique_lock<std::mutex> lock(ins_deque_mutex_);
     if (ins_deque_.empty()) {
       HLOG_ERROR << "ins_deque is empty";
-      return false;
+    } else {
+      ctx->ins_node = *(ins_deque_.back());
     }
-    ctx->ins_node = *(ins_deque_.back());
   }
   {
     std::unique_lock<std::mutex> lock(dr_deque_mutex_);
@@ -702,6 +702,7 @@ void FusionCenter::Node2Localization(const Context& ctx,
   header->set_seq(seq_++);
   header->set_frame_id("location");
   header->set_data_stamp(ticktime);
+
   if (abs(global_node.ticktime - local_node.ticktime) > 0.001) {
     HLOG_INFO << "location global node.ticktime:" << global_node.ticktime
               << ", local node.ticktime:" << local_node.ticktime;
@@ -719,7 +720,9 @@ void FusionCenter::Node2Localization(const Context& ctx,
   location->set_received_ehp_counter(ehp_counter_);
   location->set_rtk_status(global_node.rtk_status);
   location->set_location_state(global_node.location_state);
-
+  if (!global_node.state) {
+    location->set_location_state(0);
+  }
   // location->mutable_mounting_error()->set_x(
   //     static_cast<float>(ins.mounting_error().x()));
   // location->mutable_mounting_error()->set_y(
@@ -1520,6 +1523,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
   if (params_.passthrough_ins) {
     ctx->global_node = ctx->ins_node;
     ctx->global_node.location_state = 5;
+    ctx->global_node.state = true;
     return true;
   }
 
@@ -1628,6 +1632,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
       }
     }
   }
+  ctx->global_node.state = true;
   return true;
 }
 

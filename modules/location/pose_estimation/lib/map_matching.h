@@ -45,7 +45,7 @@ struct MMFault {
 class MapMatching {
  public:
   MapMatching() { map_match_ = std::make_shared<hozon::mp::loc::MapMatch>(); }
-  ~MapMatching();
+  ~MapMatching() = default;
   bool Init(const std::string& config_file);
   hozon::mp::loc::Map<hozon::hdmap::Map> SetHdMap(
       const std::vector<hozon::hdmap::LaneInfoConstPtr>& lane_ptr_vec,

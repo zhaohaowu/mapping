@@ -31,6 +31,10 @@ PoseEstimation::PoseEstimation() : proc_thread_run_(true) {
 
 PoseEstimation::~PoseEstimation() {
   proc_thread_run_ = false;
+  {
+    std::unique_lock<std::mutex> lock(cv_mutex_);
+    cv_.notify_one();
+  }
   if (proc_thread_.joinable()) {
     proc_thread_.join();
   }
@@ -214,8 +218,7 @@ void PoseEstimation::OnPerception(
   perception_ = *msg;
   perception_mutex_.unlock();
   {
-    std::lock_guard<std::mutex> lock(ready_mutex_);
-    ready_ = true;
+    std::unique_lock<std::mutex> lock(cv_mutex_);
     cv_.notify_one();
   }
 }
@@ -224,8 +227,8 @@ void PoseEstimation::ProcData() {
   pthread_setname_np(pthread_self(), "mp_loc_proc");
   while (proc_thread_run_) {
     {
-      std::unique_lock<std::mutex> lock(ready_mutex_);
-      cv_.wait(lock, [this] { return ready_; });
+      std::unique_lock<std::mutex> lock(cv_mutex_);
+      cv_.wait(lock);
     }
     HLOG_INFO << "pose_estimation proc_data thread heartbeat";
     util::TicToc tic;
@@ -236,10 +239,6 @@ void PoseEstimation::ProcData() {
     static double last_per_timestamp = perception.header().data_stamp();
     if (perception.header().data_stamp() - last_per_timestamp < 1e-3) {
       HLOG_ERROR << "perception data repeat";
-      {
-        std::lock_guard<std::mutex> lock(ready_mutex_);
-        ready_ = false;
-      }
       continue;
     }
     last_per_timestamp = perception.header().data_stamp();
@@ -252,10 +251,6 @@ void PoseEstimation::ProcData() {
         GetFcPoseForTimestamp(ref_point, perception.header().data_stamp());
     if (!fc_pose_ptr) {
       HLOG_ERROR << "GetFcPoseForTimestamp Failed";
-      {
-        std::lock_guard<std::mutex> lock(ready_mutex_);
-        ready_ = false;
-      }
       continue;
     }
     // 获取同步后的ins定位数据
@@ -263,10 +258,6 @@ void PoseEstimation::ProcData() {
         ref_point, perception.header().data_stamp());  // ins
     if (!ins_pose_ptr) {
       HLOG_ERROR << "GetInsPoseForTimestamp Failed";
-      {
-        std::lock_guard<std::mutex> lock(ready_mutex_);
-        ready_ = false;
-      }
       continue;
     }
     // ins标准差赋值、定位状态、ins状态、线速度赋值
@@ -280,30 +271,18 @@ void PoseEstimation::ProcData() {
     std::vector<LaneInfoPtr> hdmap_lanes;
     if (!GetHdMapLane(fc_pose_ptr, &hdmap_lanes)) {
       HLOG_ERROR << "GetHdMapLane Failed";
-      {
-        std::lock_guard<std::mutex> lock(ready_mutex_);
-        ready_ = false;
-      }
       continue;
     }
     // 感知转换
     TrackingManager tracking_manager;
     if (!PercepConvert(perception, &tracking_manager)) {
       HLOG_ERROR << "percep transform failed";
-      {
-        std::lock_guard<std::mutex> lock(ready_mutex_);
-        ready_ = false;
-      }
       continue;
     }
     // 地图转换,enu系下的点
     MappingManager map_manager;
     if (!MapConvert(*fc_pose_ptr, ref_point, hdmap_lanes, &map_manager)) {
       HLOG_ERROR << "map transform failed";
-      {
-        std::lock_guard<std::mutex> lock(ready_mutex_);
-        ready_ = false;
-      }
       continue;
     }
     if (use_rviz_ && RVIZ_AGENT.Ok()) {
@@ -320,10 +299,6 @@ void PoseEstimation::ProcData() {
                             std::make_shared<TrackingManager>(tracking_manager),
                             std::make_shared<MappingManager>(map_manager))) {
         HLOG_ERROR << "Reloc Failed";
-        {
-          std::lock_guard<std::mutex> lock(ready_mutex_);
-          ready_ = false;
-        }
         continue;
       }
     }
@@ -334,10 +309,6 @@ void PoseEstimation::ProcData() {
     map_matching_->ProcData(use_rviz_, T_input, fc_pose_ptr, perception,
                             hdmap_lanes, ref_point, ins_height_);
     HLOG_DEBUG << "sum " << tic.Toc() << " ms";
-    {
-      std::lock_guard<std::mutex> lock(ready_mutex_);
-      ready_ = false;
-    }
   }
 }
 

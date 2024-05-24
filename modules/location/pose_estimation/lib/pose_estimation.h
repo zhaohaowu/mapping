@@ -106,8 +106,7 @@ class PoseEstimation {
   std::mutex perception_mutex_;
   std::mutex ref_point_mutex_;
   std::mutex rviz_mutex_;
-  std::mutex ready_mutex_;
-  bool ready_{false};
+  std::mutex cv_mutex_;
   std::condition_variable cv_;
 
   int ins_deque_max_size_ = 100;

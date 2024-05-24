@@ -147,6 +147,13 @@ void MatchLaneLine::Match(const HdMap& hd_map,
     FilterPointPair(&match_pairs_[i], T_V_W_);
   }
   NormalizeWeight(match_pairs_);
+  for (auto& match_pairs : match_pairs_) {
+    for (auto& match_pair : match_pairs) {
+      if (fabs(static_cast<int>(match_pair.type)) != 1) {
+        match_pair.weight *= 0.6;
+      }
+    }
+  }
 }
 
 void MatchLaneLine::NormalizeWeight(
@@ -436,9 +443,11 @@ void MatchLaneLine::FilterPercpLaneline(
     const std::list<LaneLinePerceptionPtr>& lanelines,
     std::list<LaneLinePerceptionPtr>* const out) {
   std::unordered_map<int, std::vector<LaneLinePerceptionPtr>> per_lines;
-  if (out == nullptr) {
+  if (out == nullptr || lanelines.empty()) {
+    HLOG_ERROR << "FilterPercpLaneline: out == nullptr || lanelines.empty()";
     return;
   }
+  bool is_changing_lane = false;
   int egolane_cnt = 0;
   for (auto& line : lanelines) {
     per_lines[line->lane_position_type()].emplace_back(line);
@@ -468,6 +477,13 @@ void MatchLaneLine::FilterPercpLaneline(
     if (fabs(line->lane_position_type()) == 1) {
       egolane_cnt++;
     }
+    auto line_points = line->points();
+    if (line_points.empty()) {
+      continue;
+    }
+    if (fabs(line_points[0].y()) < 0.5) {
+      is_changing_lane = true;
+    }
   }
   for (auto line_elem : per_lines) {
     if (line_elem.second.empty()) {
@@ -483,7 +499,12 @@ void MatchLaneLine::FilterPercpLaneline(
       HLOG_DEBUG << "short-percep-lane " << line->Id() << " " << ins_timestamp_;
       continue;
     }
-    if (egolane_cnt == 2) {
+    if (is_changing_lane) {
+      if (fabs(line->lane_position_type()) == 1 ||
+          fabs(line->lane_position_type()) == 2) {
+        (*out).emplace_back(line);
+      }
+    } else if (egolane_cnt == 2) {
       if (fabs(line->lane_position_type()) == 1) {
         (*out).emplace_back(line);
       }

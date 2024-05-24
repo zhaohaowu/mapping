@@ -658,10 +658,10 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
                   lane->center_line_pts[0].pt.x() < 0.0) {
                 size_t crs_before = groups[i - 1]->lanes.size();
                 size_t crs_after = groups[i + 1]->lanes.size();
-                if ((crs_before != iscross->cross_before_lane_ ||
-                     crs_after != iscross->cross_after_lane_) &&
-                    (groups[i + 1]->group_segments.front()->start_slice.po.x() >
-                     10.0)) {
+                if ((groups[i + 1]->group_segments.front()->start_slice.po.x() >
+                     1.0)) {
+                  //(crs_before != iscross->cross_before_lane_ ||
+                  //  crs_after != iscross->cross_after_lane_) &&
                   iscross->along_path_dis_ =
                       groups[i - 1]->group_segments.back()->end_slice.po;
                   iscross->cross_before_lane_ = crs_before;
@@ -679,6 +679,8 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
           //  如果找到车所在的group
           HLOG_ERROR << "groups[i]->str_id = " << groups[i]->str_id;
           iscross->is_crossing_ = 0;
+          iscross->next_lane_left = -1000;
+          iscross->next_lane_right = -1000;
           break;
         }
       }

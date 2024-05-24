@@ -1961,12 +1961,25 @@ void GroupMap::FindBestNextLane(Group::Ptr next_group,
       break;
     }
   }
+  // HLOG_ERROR << "next_group nemae" << next_group->str_id
+  //            << "  exist = " << exist;
+  if (exist == -1) {
+    is_cross_.next_lane_left = (*best_next_lane)->left_boundary->id;
+    is_cross_.next_lane_right = (*best_next_lane)->right_boundary->id;
+    return;
+  }
   if (exist > -1 && exist < next_group->lanes.size()) {
     auto& exist_pt = next_group->lanes[exist]->center_line_pts.front().pt;
     float atan_exist = abs(atan(exist_pt.y() / exist_pt.x())) * 180 / pi_;
     auto best_pt = (*best_next_lane)->center_line_pts.front().pt;
     float atan_best = abs(atan(best_pt.y() / best_pt.x())) * 180 / pi_;
-    if (atan_exist < atan_best + 1.0) {
+    // HLOG_ERROR << "next_group->lanes[exist] NAME = "
+    //            << next_group->lanes[exist]->str_id_with_group
+    //            << "  (*best_next_lane) name "
+    //            << (*best_next_lane)->str_id_with_group;
+    // HLOG_ERROR << "atan_exist = " << atan_exist
+    //            << "  atan_best = " << atan_best;
+    if (atan_exist < atan_best + 2.0) {
       // 一度以内不变化
       *best_next_lane = next_group->lanes[exist];
     } else {

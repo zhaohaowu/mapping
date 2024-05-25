@@ -414,8 +414,9 @@ void LaneLineMappingPipeline::AdjustIntersectionLines(
           cv_points.emplace_back(point_i.x(), point_i.y());
         }
         cv::flann::KDTreeIndexParams index_params(1);
-        auto* kdtree =
-            new cv::flann::Index(cv::Mat(cv_points).reshape(1), index_params);
+        std::shared_ptr<cv::flann::Index> kdtree =
+            std::make_shared<cv::flann::Index>(cv::Mat(cv_points).reshape(1),
+                                               index_params);
         // 对每个点搜索最近点,得到两条线交点附近点的下标
         float j2i_nearest_dist = MAXFLOAT;
         size_t nearst_i = 0;
@@ -504,8 +505,8 @@ void LaneLineMappingPipeline::AdjustIntersectionLines(
   }
 }
 
-void LaneLineMappingPipeline::DeleteLaneLineShortPart(size_t point_delete_index,
-                             std::vector<Eigen::Vector3d>* vehicle_points) {
+void LaneLineMappingPipeline::DeleteLaneLineShortPart(
+    size_t point_delete_index, std::vector<Eigen::Vector3d>* vehicle_points) {
   double length1 =
       (vehicle_points->back() - vehicle_points->at(point_delete_index)).norm();
   double length2 =

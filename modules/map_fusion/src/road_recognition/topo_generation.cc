@@ -660,7 +660,7 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
                 size_t crs_after = groups[i + 1]->lanes.size();
                 if ((groups[i + 1]->group_segments.front()->start_slice.po.x() >
                      1.0)) {
-                  //(crs_before != iscross->cross_before_lane_ ||
+                  // (crs_before != iscross->cross_before_lane_ ||
                   //  crs_after != iscross->cross_after_lane_) &&
                   iscross->along_path_dis_ =
                       groups[i - 1]->group_segments.back()->end_slice.po;

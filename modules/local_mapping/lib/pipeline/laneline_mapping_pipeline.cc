@@ -399,107 +399,71 @@ void LaneLineMappingPipeline::AdjustIntersectionLines(
       if (laneline_j_ptr->vehicle_points.size() < 2) {
         continue;
       }
-      Eigen::Vector3d a = laneline_i_ptr->vehicle_points.front();
-      Eigen::Vector3d b = laneline_i_ptr->vehicle_points.back();
-      Eigen::Vector3d c = laneline_j_ptr->vehicle_points.front();
-      Eigen::Vector3d d = laneline_j_ptr->vehicle_points.back();
-      Eigen::Vector3d intersect_pt;
+      Eigen::Vector3d intersect_pt;  // 交点
       // 判断两线段是否相交，如果相交，计算交点
-      if (CommonUtil::SegmentIntersection(a, b, c, d, &intersect_pt)) {
-        // 构建kd-tree
-        std::vector<cv::Point2f> cv_points;
-        for (size_t index_i = 0;
-             index_i < laneline_i_ptr->vehicle_points.size(); index_i++) {
-          const auto& point_i = laneline_i_ptr->vehicle_points[index_i];
-          cv_points.emplace_back(point_i.x(), point_i.y());
-        }
-        cv::flann::KDTreeIndexParams index_params(1);
-        std::shared_ptr<cv::flann::Index> kdtree =
-            std::make_shared<cv::flann::Index>(cv::Mat(cv_points).reshape(1),
-                                               index_params);
-        // 对每个点搜索最近点,得到两条线交点附近点的下标
-        float j2i_nearest_dist = MAXFLOAT;
-        size_t nearst_i = 0;
-        size_t nearst_j = 0;
-        for (size_t index_j = 0;
-             index_j < laneline_j_ptr->vehicle_points.size(); index_j++) {
-          const int dim = 1;
-          std::vector<int> nearest_index(dim);
-          std::vector<float> nearest_dist(dim);
-          auto find_pt_x =
-              static_cast<float>(laneline_j_ptr->vehicle_points[index_j].x());
-          auto find_pt_y =
-              static_cast<float>(laneline_j_ptr->vehicle_points[index_j].y());
-          if (std::isnan(find_pt_x) || std::isnan(find_pt_y)) {
-            continue;
-          }
-          std::vector<float> query_point =
-              std::vector<float>({find_pt_x, find_pt_y});
-          kdtree->knnSearch(query_point, nearest_index, nearest_dist, dim,
-                            cv::flann::SearchParams(-1));
-          if (nearest_dist[0] < j2i_nearest_dist) {
-            nearst_i = nearest_index[0];
-            nearst_j = index_j;
-            j2i_nearest_dist = nearest_dist[0];
-          }
-        }
-        // HLOG_ERROR << "相交线段i_id: " << laneline_i_ptr->id;
-        // HLOG_ERROR << "相交线段j_id: " << laneline_j_ptr->id;
-        // HLOG_ERROR << "线段i交点下标: " << nearst_i;
-        // HLOG_ERROR << "线段j交点下标: " << nearst_i;
-        // HLOG_ERROR << "交点距离: " << j2i_nearest_dist;
-        // 最近点距离如果大于1.5m过滤
-        if (j2i_nearest_dist < 1.5) {
-          // 根据平均heading与主车道线的差大小判断删哪个线
-          LaneLinePtr left_lane_line = std::make_shared<LaneLine>();
-          LaneLinePtr right_lane_line = std::make_shared<LaneLine>();
+      if (LaneLineIntersection(laneline_i_ptr->vehicle_points,
+                               laneline_j_ptr->vehicle_points, &intersect_pt)) {
+        // 根据heading与主车道线的heading差大小判断删哪个线
+        LaneLinePtr left_lane_line = std::make_shared<LaneLine>();
+        LaneLinePtr right_lane_line = std::make_shared<LaneLine>();
 
-          for (const auto& laneline_ptr : tracked_lanelines->lanelines) {
-            if (laneline_ptr->position == LaneLinePosition::EGO_LEFT) {
-              left_lane_line = laneline_ptr;
-            } else if (laneline_ptr->position == LaneLinePosition::EGO_RIGHT) {
-              right_lane_line = laneline_ptr;
-            }
+        for (const auto& laneline_ptr : tracked_lanelines->lanelines) {
+          if (laneline_ptr->position == LaneLinePosition::EGO_LEFT) {
+            left_lane_line = laneline_ptr;
+          } else if (laneline_ptr->position == LaneLinePosition::EGO_RIGHT) {
+            right_lane_line = laneline_ptr;
           }
-          double left_lane_line_heading = 0;
-          double right_lane_line_heading = 0;
-          if (!left_lane_line->vehicle_points.empty()) {
-            if (laneline_i_ptr->position != LaneLinePosition::EGO_LEFT &&
-                laneline_j_ptr->position != LaneLinePosition::EGO_LEFT) {
-              left_lane_line_heading = CommonUtil::CalMeanLineHeading(
-                  left_lane_line->vehicle_points);
-            }
-          }
-          if (!right_lane_line->vehicle_points.empty()) {
-            if (laneline_i_ptr->position != LaneLinePosition::EGO_RIGHT &&
-                laneline_j_ptr->position != LaneLinePosition::EGO_RIGHT) {
-              right_lane_line_heading = CommonUtil::CalMeanLineHeading(
-                  right_lane_line->vehicle_points);
-            }
-          }
-          double main_laneline_heading =
-              (left_lane_line_heading + right_lane_line_heading) / 2;
-          double i_heading =
-              CommonUtil::CalMeanLineHeading(laneline_i_ptr->vehicle_points);
-          double j_heading =
-              CommonUtil::CalMeanLineHeading(laneline_j_ptr->vehicle_points);
-          int laneline_delete_index =
-              (fabs(i_heading - main_laneline_heading)) >
-                      (fabs(j_heading - main_laneline_heading))
-                  ? i
-                  : j;
-          size_t point_delete_index =
-              (fabs(i_heading - main_laneline_heading)) >
-                      (fabs(j_heading - main_laneline_heading))
-                  ? nearst_i
-                  : nearst_j;
-          // 删除目标车道线被交点分成的两段线中较短的那段
-          DeleteLaneLineShortPart(
-              point_delete_index,
-              &(tracked_lanelines->lanelines[laneline_delete_index]
-                    ->vehicle_points));
-          HLOG_WARN << "delete some intersection laneline";
         }
+        double left_lane_line_heading = 0;
+        double right_lane_line_heading = 0;
+        if (!left_lane_line->vehicle_points.empty()) {
+          if (laneline_i_ptr->position != LaneLinePosition::EGO_LEFT &&
+              laneline_j_ptr->position != LaneLinePosition::EGO_LEFT) {
+            left_lane_line_heading =
+                CommonUtil::CalMeanLineHeading(left_lane_line->vehicle_points);
+          }
+        }
+        if (!right_lane_line->vehicle_points.empty()) {
+          if (laneline_i_ptr->position != LaneLinePosition::EGO_RIGHT &&
+              laneline_j_ptr->position != LaneLinePosition::EGO_RIGHT) {
+            right_lane_line_heading =
+                CommonUtil::CalMeanLineHeading(right_lane_line->vehicle_points);
+          }
+        }
+        double main_laneline_heading =
+            (left_lane_line_heading + right_lane_line_heading) / 2;
+        double i_heading =
+            CommonUtil::CalMeanLineHeading(laneline_i_ptr->vehicle_points);
+        double j_heading =
+            CommonUtil::CalMeanLineHeading(laneline_j_ptr->vehicle_points);
+        int laneline_delete_index =
+            (fabs(CommonUtil::NormalizeAngle(i_heading -
+                                             main_laneline_heading))) >
+                    (fabs(CommonUtil::NormalizeAngle(j_heading -
+                                                     main_laneline_heading)))
+                ? i
+                : j;
+
+        size_t point_delete_index = 0;
+        while (tracked_lanelines->lanelines[laneline_delete_index]
+                       ->vehicle_points[point_delete_index + 1]
+                       .x() < intersect_pt.x() &&
+               point_delete_index <
+                   tracked_lanelines->lanelines[laneline_delete_index]
+                           ->vehicle_points.size() -
+                       2) {
+          point_delete_index++;
+        }
+        // 删除目标车道线被交点分成的两段线中较短的那段
+        DeleteLaneLineShortPart(
+            point_delete_index,
+            &(tracked_lanelines->lanelines[laneline_delete_index]
+                  ->vehicle_points));
+        HLOG_WARN << "delete some intersection laneline";
+        HLOG_WARN << "intersect_pt.x()" << intersect_pt.x();
+        HLOG_WARN << "point_delete_index: " << point_delete_index;
+        // 继续判断这两条线是否相交，防止出现多个交点
+        j--;
       }
     }
   }
@@ -508,18 +472,21 @@ void LaneLineMappingPipeline::AdjustIntersectionLines(
 void LaneLineMappingPipeline::DeleteLaneLineShortPart(
     size_t point_delete_index, std::vector<Eigen::Vector3d>* vehicle_points) {
   double length1 =
-      (vehicle_points->back() - vehicle_points->at(point_delete_index)).norm();
+      (vehicle_points->back() - vehicle_points->at(point_delete_index + 1))
+          .norm();
   double length2 =
       (vehicle_points->front() - vehicle_points->at(point_delete_index)).norm();
   std::vector<Eigen::Vector3d> new_points;
   auto& points = *vehicle_points;
   if (length1 < length2) {
-    new_points.assign(points.begin(),
-                      points.begin() + static_cast<int64>(point_delete_index));
+    new_points.assign(
+        points.begin(),
+        points.begin() + static_cast<int64>(point_delete_index + 1));
     *vehicle_points = new_points;
   } else {
-    new_points.assign(points.begin() + static_cast<int64>(point_delete_index),
-                      points.end());
+    new_points.assign(
+        points.begin() + static_cast<int64>(point_delete_index + 1),
+        points.end());
     *vehicle_points = new_points;
   }
 }

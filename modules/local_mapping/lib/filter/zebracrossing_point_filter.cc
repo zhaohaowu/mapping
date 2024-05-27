@@ -160,7 +160,7 @@ bool ZebraCrossingPointFilter::CheckWidthStableMeasureState() {
       sum_width += measurement_width;
     }
     auto& track_zebracrossing = target_ref_->GetTrackedObject();
-    track_zebracrossing->length =
+    track_zebracrossing->width =
         sum_width / static_cast<float>(history_measure_size_);
     width_is_stable_state_ = true;
     return true;

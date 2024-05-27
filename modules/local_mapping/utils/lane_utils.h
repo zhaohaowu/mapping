@@ -202,6 +202,10 @@ void TransMeasurementVehicle2Local(
 void TransTrackerLocal2Vehicle(const LaneLinesPtr& tracked_lanes);
 void TransTrackerLocal2Vehicle(const RoadEdgesPtr& tracked_roadedges);
 
+bool LaneLineIntersection(const std::vector<Eigen::Vector3d>& point_set1,
+                          const std::vector<Eigen::Vector3d>& point_set2,
+                          Eigen::Vector3d* intersect_pt);
+
 void DeepCopy(const LocalMapFramePtr& src_data,
               LocalMapFramePtr& dst_data);  // NOLINT
 

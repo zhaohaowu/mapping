@@ -362,18 +362,31 @@ class CommonUtil {
       return false;
     }
 
-    T denominator = n1.x() * n2.y() - n1.y() * n2.x();
-    if (std::abs(denominator) < EPSILON) {
+    // 向量AB和CD
+    Eigen::Vector3<T> AB(b.x() - a.x(), b.y() - a.y(), 0);
+    Eigen::Vector3<T> CD(d.x() - c.x(), d.y() - c.y(), 0);
+
+    // 计算外积的z分量判断是否平行
+    T cross_product_z = AB.x() * CD.y() - AB.y() * CD.x();
+
+    // 如果平行（包括共线），返回false
+    if (std::abs(cross_product_z) < EPSILON - 9) {
       return false;
     }
-    T fraction = (dist_a_n1 - dist_c_n2) / denominator;
-    intersect_pt->x() = a.x() + fraction * n1.y();
-    intersect_pt->y() = a.y() - fraction * n1.x();
-    // HLOG_ERROR << "(x1,y1): " << a.x() << " " << a.y();
-    // HLOG_ERROR << "(x2,y2): " << b.x() << " " << b.y();
-    // HLOG_ERROR << "(x3,y3): " << c.x() << " " << c.y();
-    // HLOG_ERROR << "(x4,y4): " << d.x() << " " << d.y();
-    return true;
+
+    // 计算参数t和s
+    T t =
+        ((c.x() - a.x()) * CD.y() - (c.y() - a.y()) * CD.x()) / cross_product_z;
+    T s =
+        ((c.x() - a.x()) * AB.y() - (c.y() - a.y()) * AB.x()) / cross_product_z;
+
+    // 检查t和s是否在[0, 1]区间内
+    if (0 <= t && t <= 1 && 0 <= s && s <= 1) {
+      intersect_pt->x() = a.x() + t * AB.x();
+      intersect_pt->y() = a.y() + t * AB.y();
+      return true;  // 有交点
+    }
+    return false;  // 无交点或不在线段上
   }
 
   // 计算车道线的平均heading
@@ -394,6 +407,16 @@ class CommonUtil {
     }
     mean_theta /= static_cast<double>(points.size());
     return mean_theta;
+  }
+
+  static double NormalizeAngle(double angle) {
+    if (angle > M_PI) {
+      angle -= 2 * M_PI;
+    }
+    if (angle < -M_PI) {
+      angle += 2 * M_PI;
+    }
+    return angle;
   }
 };
 

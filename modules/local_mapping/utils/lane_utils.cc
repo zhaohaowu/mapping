@@ -655,6 +655,56 @@ float GetDistBetweenTwoLane(const std::vector<Eigen::Vector3d>& point_set1,
   }
   return dist_sum / (lane_short.size());
 }
+
+bool LaneLineIntersection(const std::vector<Eigen::Vector3d>& point_set1,
+                          const std::vector<Eigen::Vector3d>& point_set2,
+                          Eigen::Vector3d* intersect_pt) {
+  // 两条线没有重合区域则跳过
+  if (!(point_set1.front().x() < point_set2.back().x() ||
+        point_set2.front().x() < point_set1.back().x())) {
+    return false;
+  }
+  // 前提两条线的车辆系下的点已经从近到远排好序
+  // 区分两条线中的长短线，从短线中每次找两个点
+  double curve_length1 = point_set1.back().x() - point_set1.front().x();
+  double curve_length2 = point_set2.back().x() - point_set2.front().x();
+  auto lane_short = point_set1;
+  auto lane_long = point_set2;
+  if (curve_length1 > curve_length2) {
+    lane_short = point_set2;
+    lane_long = point_set1;
+  }
+  Eigen::Vector3d a;
+  Eigen::Vector3d b;
+  Eigen::Vector3d c;
+  Eigen::Vector3d d;
+  // 每次从短线上选相邻的俩点，长线上选择两个点把它们夹住
+  for (int short_index = 0, long_index1 = 0, long_index2 = 1;
+       short_index < lane_short.size() - 1 &&
+       long_index1 < lane_long.size() - 1 && long_index2 < lane_long.size();
+       short_index++) {
+    a = lane_short[short_index];
+    b = lane_short[short_index + 1];
+    if (b.x() < lane_long[0].x() || a.x() > lane_long.back().x()) {
+      continue;
+    }
+    while (long_index1 < lane_long.size() - 1 &&
+           lane_long[long_index1 + 1].x() < a.x()) {
+      long_index1++;
+    }
+    while (long_index2 < lane_long.size() &&
+           lane_long[long_index2].x() < b.x()) {
+      long_index2++;
+    }
+    c = lane_long[long_index1];
+    d = lane_long[long_index2];
+    if (CommonUtil::SegmentIntersection(a, b, c, d, intersect_pt)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 float GetOverLayLengthBetweenTwoLane(
     const std::vector<Eigen::Vector3d>& point_set1,
     const std::vector<Eigen::Vector3d>& point_set2, float thresh_length) {

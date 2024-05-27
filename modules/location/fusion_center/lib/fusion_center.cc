@@ -322,12 +322,14 @@ bool FusionCenter::GetCurrentContext(Context* const ctx) {
       last_ins = ins_deque_.back();
     }
     ins_deque_mutex_.unlock();
-    CheckTriggerInsStatePose(*last_ins);
+    if (last_ins != nullptr) {
+      CheckTriggerInsStatePose(last_ins);
+    }
   #endif
   return true;
 }
 
-bool FusionCenter::IsInsDrift(const Node& ins_node) {
+bool FusionCenter::IsInsDrift(const std::shared_ptr<Node> ins_node) {
   int i_size = ins_trig_deque_.size();
   if (i_size < 20) {
     ins_trig_deque_.push_back(ins_node);
@@ -337,59 +339,63 @@ bool FusionCenter::IsInsDrift(const Node& ins_node) {
     ins_trig_deque_.pop_front();
     ins_trig_deque_.push_back(ins_node);
   }
-  Node curr_i_node, prev_i_node;
-  curr_i_node = ins_trig_deque_.at(i_size - 1);
-  prev_i_node = ins_trig_deque_.at(i_size - 2);
+  // Node curr_i_node, prev_i_node;
+  auto curr_i_node = ins_trig_deque_.at(i_size - 1);
+  auto prev_i_node = ins_trig_deque_.at(i_size - 2);
   // rtk状态正常时判断，异常直接返回
-  if (curr_i_node.rtk_status != 4 || curr_i_node.sys_status!= 2) return false;
-  const auto pose_diff = Node2SE3(prev_i_node).inverse() * Node2SE3(curr_i_node);
+  if (curr_i_node->rtk_status != 4 || curr_i_node->sys_status!= 2) return false;
+  const auto pose_diff = Node2SE3(*prev_i_node).inverse() * Node2SE3(*curr_i_node);
   if (fabs(pose_diff.translation().y()) > 0.5) {
-    HLOG_WARN << "Vehicle y diff:" << fabs(pose_diff.translation().y())
+    HLOG_INFO << "Vehicle y diff:" << fabs(pose_diff.translation().y())
               << " larger than thr:" << 0.5;
     return true;
   }
   return false;
 }
 
-bool FusionCenter::IsInsStateChange(const Node& node) {
+bool FusionCenter::IsInsStateChange(const std::shared_ptr<Node> node) {
   static uint32_t last_sys, last_rtk;
   static bool first_flag = true;
   if (first_flag) {
-    last_sys = node.sys_status;
-    last_rtk = node.rtk_status;
+    last_sys = node->sys_status;
+    last_rtk = node->rtk_status;
     first_flag = false;
     return false;
-  } else if ((last_rtk == 4 && node.rtk_status != last_rtk)
-          || (last_sys == 2 && node.sys_status != last_sys)) {
-    HLOG_ERROR << "node.rtk_status: " << node.rtk_status << " node.sys_status: " << node.sys_status;
-    last_sys = node.sys_status;
-    last_rtk = node.rtk_status;
+  } else if ((last_rtk == 4 && node->rtk_status != 4 && node->rtk_status != 5)
+          || (last_sys == 2 && node->sys_status != 2)) {
+    HLOG_INFO << "node->rtk_status: " << node->rtk_status
+              << " node->sys_status: " << node->sys_status;
+    last_sys = node->sys_status;
+    last_rtk = node->rtk_status;
     return true;
   }
-  last_sys = node.sys_status;
-  last_rtk = node.rtk_status;
+  last_sys = node->sys_status;
+  last_rtk = node->rtk_status;
   return false;
 }
 
-void FusionCenter::CheckTriggerInsStatePose(const Node& i_node) {
+void FusionCenter::CheckTriggerInsStatePose(const std::shared_ptr<Node> i_node) {
   static double last_time = -1;
   static bool enable_02 = true;
+  if (i_node->linear_vel_VRF(0) < 6.0) {
+    return;
+  }
   if (IsInsStateChange(i_node)) {
     if (enable_02) {
-      HLOG_ERROR << "Start to trigger dc 1002 state";
+      HLOG_WARN << "Start to trigger dc 1002 state";
       GLOBAL_DC_TRIGGER.TriggerCollect(1002);
       enable_02 = false;
-      last_time = i_node.ticktime;
+      last_time = i_node->ticktime;
     }
   } else if (IsInsDrift(i_node)) {
     if (enable_02) {
-      HLOG_ERROR << "Start to trigger dc 1002 drift";
+      HLOG_WARN << "Start to trigger dc 1002 drift";
       GLOBAL_DC_TRIGGER.TriggerCollect(1002);
       enable_02 = false;
-      last_time = i_node.ticktime;
+      last_time = i_node->ticktime;
     }
   }
-  enable_02 = (i_node.ticktime - last_time) > 600;
+  enable_02 = (i_node->ticktime - last_time) > 600;
 }
 
 bool FusionCenter::LoadParams(const std::string& configfile) {
@@ -1662,21 +1668,21 @@ void FusionCenter::CheckTriggerLocState(Context* const ctx) {
   auto curr_time = ctx->global_node.ticktime;
   if (curr_state != last_state && curr_state == 123 && enable_05) {
       // mapping trigger 无车道线
-      HLOG_ERROR << "curr_loc_state: " << curr_state;
-      HLOG_ERROR << "Start to trigger dc 1005";
+      HLOG_WARN << "curr_loc_state: " << curr_state
+                << " Start to trigger dc 1005";
       GLOBAL_DC_TRIGGER.TriggerCollect(1005);
       enable_05 = false;
       last_time_05 = curr_time;
   } else if (curr_state != last_state && curr_state == 128 && enable_10) {
       // mapping trigger 定位结果跳变
-      HLOG_ERROR << "curr_loc_state: " << curr_state;
-      HLOG_ERROR << "Start to trigger dc 1010";
+      HLOG_WARN << "curr_loc_state: " << curr_state
+                << " Start to trigger dc 1010";
       GLOBAL_DC_TRIGGER.TriggerCollect(1010);
       enable_10 = false;
       last_time_10 = curr_time;
   } else if (curr_state != last_state && curr_state == 130 && enable_03) {
-      HLOG_ERROR << "curr_loc_state: " << curr_state;
-      HLOG_ERROR << "Start to trigger dc 1003";
+      HLOG_WARN << "curr_loc_state: " << curr_state
+                << " Start to trigger dc 1003";
       GLOBAL_DC_TRIGGER.TriggerCollect(1003);
       enable_03 = false;
       last_time_03 = curr_time;

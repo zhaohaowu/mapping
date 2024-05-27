@@ -98,9 +98,9 @@ class FusionCenter {
   double OrientationToHeading(const Eigen::Vector3d& orientation);
   bool FilterPoseEstimation(const Node& node);
   // mapping trigger
-  void CheckTriggerInsStatePose(const Node& i_node);
-  bool IsInsDrift(const Node& ins_node);
-  bool IsInsStateChange(const Node& node);
+  void CheckTriggerInsStatePose(const std::shared_ptr<Node> i_node);
+  bool IsInsDrift(const std::shared_ptr<Node> ins_node);
+  bool IsInsStateChange(const std::shared_ptr<Node> node);
   void CheckTriggerLocState(Context* const ctx);
 
  private:
@@ -168,7 +168,7 @@ class FusionCenter {
   Node init_ins_node_;
 
   // mapping trigger
-  std::deque<Node> ins_trig_deque_;
+  std::deque<std::shared_ptr<Node>> ins_trig_deque_;
 };
 
 }  // namespace fc

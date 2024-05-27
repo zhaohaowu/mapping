@@ -209,28 +209,38 @@ bool DeadReckoning::IsDrDrift(double p_x, double p_y) {
                          ((pose_que_[0].second - pose_que_[1].second) *
                           (pose_que_[0].second - pose_que_[1].second)));
     if (pose_diff_avg < 0.01 || d_p < 0.01) return false;
-    if (d_p < pose_diff_avg * 1.5) {
-      pose_que_.pop_front();
-      pose_que_.push_back(std::make_pair(p_x, p_y));
-      return false;
+    if (pose_diff_avg > 0.1) {
+      if (d_p < pose_diff_avg * 1.5) {
+        pose_que_.pop_front();
+        pose_que_.push_back(std::make_pair(p_x, p_y));
+        return false;
+      } else {
+        HLOG_WARN << "d_p: " << d_p << " is larger than pose_diff_avg * 1.5: "
+                  << pose_diff_avg * 1.5;
+        pose_que_.clear();
+        return true;
+      }
     } else {
-      HLOG_ERROR << "d_p: " << d_p << " is larger than pose_diff_avg * 1.5: "
-                 << pose_diff_avg * 1.5;
-      pose_que_.clear();
-      return true;
+      if (std::abs(d_p - pose_diff_avg) > 0.05) {
+        HLOG_WARN << "diff between d_p and pose_diff_avg: "
+                    << std::abs(d_p - pose_diff_avg) << " is larger than 0.05!";
+        pose_que_.clear();
+        return true;
+      }
     }
   }
+  return false;
 }
 
 void DeadReckoning::CheckTriggerDrDrift(double vel_x, double p_x, double p_y,
                                         double cur_time) {
-  if (vel_x > 3.0) {
+  // 6.0 m/s
+  if (vel_x > 6.0) {
     static bool enable_12 = true;
     static double last_time_12 = -1;
     if (IsDrDrift(p_x, p_y)) {
       if (enable_12) {
-        HLOG_INFO << "DR: vel_x = " << vel_x << ","
-                  << "Start to trigger dc 1012";
+        HLOG_WARN << "DR: vel_x = " << vel_x << " Start to trigger dc 1012";
         GLOBAL_DC_TRIGGER.TriggerCollect(1012);
         enable_12 = false;
         last_time_12 = cur_time;

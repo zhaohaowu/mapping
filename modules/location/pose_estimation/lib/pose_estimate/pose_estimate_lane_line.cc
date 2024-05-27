@@ -992,7 +992,7 @@ void MatchLaneLine::CheckTriggerBigCurv(double cur_time) {
   static bool enable_11 = true;
   static double last_time_11 = ins_timestamp_;
   if (enable_11) {
-    HLOG_ERROR << "Start to trigger dc 1011";
+    HLOG_WARN << "Start to trigger dc 1011";
     GLOBAL_DC_TRIGGER.TriggerCollect(1011);
     enable_11 = false;
     last_time_11 = ins_timestamp_;

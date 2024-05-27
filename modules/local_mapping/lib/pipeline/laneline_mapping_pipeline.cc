@@ -585,7 +585,7 @@ void LaneLineMappingPipeline::CheckTriggerLanelineNan() {
       static_cast<double>(tc.time_since_epoch().count()) * 1.0e-9;
   if (enable_16) {
     // mapping trigger 车道线nan值
-    HLOG_ERROR << "Start to trigger dc 1016";
+    HLOG_WARN << "Laneline Nan, Start to trigger dc 1016";
     GLOBAL_DC_TRIGGER.TriggerCollect(1016);
     enable_16 = false;
     last_time_16 = curr_time;

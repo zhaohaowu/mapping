@@ -473,7 +473,7 @@ void RoadEdgeMappingPipeline::CheckTriggerRoadedgeNan() {
       static_cast<double>(tc.time_since_epoch().count()) * 1.0e-9;
   if (enable_15) {
     // mapping trigger 路沿线nan值
-    HLOG_ERROR << "Start to trigger dc 1015";
+    HLOG_WARN << "Roadedge Nan, Start to trigger dc 1015";
     GLOBAL_DC_TRIGGER.TriggerCollect(1015);
     enable_15 = false;
     last_time_15 = curr_time;

@@ -191,9 +191,9 @@ class RelocRviz {
     pose->mutable_pose()->mutable_orientation()->set_y(q.y());
     pose->mutable_pose()->mutable_orientation()->set_z(q.z());
     pose->mutable_pose()->mutable_orientation()->set_w(q.w());
-    // if (path_msg.poses().size() > 250) {
-    //   path_msg.mutable_poses()->DeleteSubrange(0, 1);
-    // }
+    if (path_msg.poses().size() > 250) {
+      path_msg.mutable_poses()->DeleteSubrange(0, 1);
+    }
     RVIZ_AGENT.Publish(topic, path_msg);
   }
 

@@ -1,117 +1,102 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
  *   file       ： hd_map_road_edge.cc
- *   author     ： ouyanghailin
+ *   author     ： luoning
  *   date       ： 2024.04
  ******************************************************************************/
-
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_road_edge.h"
-#include "modules/location/pose_estimation/lib/util/euler.h"
-
-#include "modules/location/pose_estimation/lib/util/globals.h"
-#include "common/utm_projection/coordinate_convertor.h"
 
 namespace hozon {
 namespace mp {
 namespace loc {
-
-void MapRoadEdge::Set(const hozon::common::PointENU& position,
-                          const Eigen::Matrix3d& rotation,
-                          const double& distance, const V3& ref_point) {
+void MapRoadEdge::Set(const std::vector<hozon::hdmap::LaneInfoConstPtr>& lane_ptr_vec,
+                      const V3& ref_point) {
   edge_line_.clear();
-  static std::string map_road_edge = "00000";
-  Eigen::Vector3d euler = hozon::mp::loc::RotToEuler312(rotation);
-  euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
-  double heading = 90.0 - euler.z() / M_PI * 180;
-  if (heading < 0.0) {
-    heading += 360.0;
-  }
-  heading = hozon::mp::loc::CalHeading(heading);
-  std::vector<hozon::hdmap::RoadRoiPtr> road_ptr_vec;
-  std::vector<hozon::hdmap::JunctionInfoConstPtr> junction_ptr_vec;
-  const int ret = GLOBAL_HD_MAP->GetRoadBoundaries(position, distance, &road_ptr_vec, &junction_ptr_vec);
-  if (ret != 0 || road_ptr_vec.empty()) {
-    HLOG_ERROR << "get nearest road_edge failed";
-    return;
-  }
-  HLOG_DEBUG << "road_ptr_vec.size = " << road_ptr_vec.size();
-  size_t l_count = 0, r_count = 0;
-  for (const auto& road_ptr : road_ptr_vec) {
-    auto left_road_edge = road_ptr->left_boundary;
-    auto left_road_edge_id = map_road_edge;
-    if (AddMapRoadEdge(left_road_edge, ref_point, left_road_edge_id)) {
-        map_road_edge = std::to_string(std::stoi(map_road_edge) + 1);
-        l_count++;
+  std::unordered_set<std::string> road_ids;
+  std::unordered_set<std::string> sec_ids;
+  for (const auto& lane_ptr : lane_ptr_vec) {
+    if (!lane_ptr) {
+      continue;
     }
-    auto right_road_edge = road_ptr->right_boundary;
-    auto right_road_edge_id = map_road_edge;
-    if (AddMapRoadEdge(right_road_edge, ref_point, right_road_edge_id)) {
-        map_road_edge = std::to_string(std::stoi(map_road_edge) + 1);
-        r_count++;
+    road_ids.insert(lane_ptr->road_id().id());
+    sec_ids.insert(lane_ptr->section_id().id());
+  }
+  for (const auto& road_id : road_ids) {
+    hozon::hdmap::Id road_ptr;
+    road_ptr.set_id(road_id);
+    auto road = GLOBAL_HD_MAP->GetRoadById(road_ptr)->road();
+    for (const auto& section : road.section()) {
+      if (sec_ids.find(section.id().id()) == sec_ids.end()) {
+        continue;
+      }
+      int road_edge_count = 0;
+      for (const auto& line :
+           section.boundary().outer_polygon().edge()) {
+        if (line.type() == hdmap::BoundaryEdge::UNKNOWN) {
+          continue;
+        }
+        if (line.type() == hdmap::BoundaryEdge::NORMAL) {
+          continue;
+        }
+        if (line.is_plane()) {
+          continue;
+        }
+        auto edge_curve = line.curve();
+        auto edge_curve_id = line.id().id();
+        if (edge_line_.find(edge_curve_id) != edge_line_.end()) {
+          continue;
+        }
+        auto& el = edge_line_[edge_curve_id];
+        el.id_edge = edge_curve_id;
+        const int zone = 51;
+        for (const auto& curve_segment : edge_curve.segment()) {
+          auto edge_line_segment = curve_segment.line_segment();
+          for (const auto& point : edge_line_segment.point()) {
+            double x = point.x();
+            double y = point.y();
+            auto ret =
+                hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
+            if (!ret) {
+              HLOG_ERROR << "utm2gcs failed";
+              continue;
+            }
+            Eigen::Vector3d p_gcj(y, x, 0);
+            Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
+            ControlPoint cpoint(0, {0, 0, 0});
+            cpoint.line_type = -1;
+            cpoint.point = p_enu;
+            el.control_point.emplace_back(cpoint);
+          }
+        }
+        road_edge_count = road_edge_count + 1;
+      }
     }
   }
-  HLOG_ERROR << "l_count = " << l_count << " , r_count = " << r_count
-             << ", edge_line_ size: " << edge_line_.size();
-  // Print(edge_line_);
   this->type_ = HD_MAP_ROAD_EDGE;
 }
 
-bool MapRoadEdge::AddMapRoadEdge(
-    const hozon::hdmap::LineBoundary& road_edge, const V3& ref_point, const std::string road_edge_id) {
-  if (road_edge.line_points.empty()) {
-    return false;
+void MapRoadEdge::Crop(const SE3& T_W_V, double front, double width) {
+  const SE3 T_V_W = T_W_V.inverse();
+  for (auto& line : edge_line_) {
+    auto& one_line = line.second;
+    // 裁剪地图
+    std::vector<ControlPoint> control_points;
+    for (const auto& p : one_line.control_point) {
+      V3 temp = p.point;
+      temp.z() = 0;
+      temp = T_V_W * temp;
+      // in corp
+      bool in_x = (temp.x() > (-front)) && (temp.x() < front);
+      bool in_y = (temp.y() > (-width)) && (temp.y() < width);
+
+      if (in_x && in_y) {
+        control_points.emplace_back(p);
+      }
+    }
+    // 交换数据
+    line.second.control_point = control_points;
   }
-  const auto el_points = road_edge.line_points;
-//   const auto road_edge_id = road_edge_id;
-  if (edge_line_.find(road_edge_id) != edge_line_.end()) {
-    return false;
-  }
-  auto& el = edge_line_[road_edge_id];
-  el.id_edge = road_edge_id;
-  el.edge_type = 0;
-  for (auto& el_point : el_points) {  // utm frame point
-    auto utm_x = el_point.x();
-    auto utm_y = el_point.y();
-    hozon::common::coordinate_convertor::UTM2GCS(51, &utm_x, &utm_y);
-    Eigen::Vector3d el_point_gcj(utm_y, utm_x, 0);
-    Eigen::Vector3d el_point_enu = util::Geo::Gcj02ToEnu(el_point_gcj, ref_point);
-    ControlPoint cpoint(0, {0, 0, 0});
-    cpoint.point = el_point_enu;
-    el.control_point.emplace_back(cpoint);
-  }
-  return true;
 }
-
-// void MapBoundaryLine::Print(
-//     const std::unordered_map<std::string, BoundaryLine>& boundarylines) {
-//   HLOG_DEBUG << "boundarylines.size = " << boundarylines.size();
-//   for (auto line : boundarylines) {
-//     auto id = line.first;
-//     auto cpt = line.second.control_point;
-//     HLOG_DEBUG << "id = " << id;
-//     HLOG_DEBUG << "cpt.size = " << cpt.size();
-//   }
-// }
-
-// void MapBoundaryLine::Crop(const SE3& T_W_V, double front, double width) {
-//   const SE3 T_V_W = T_W_V.inverse();
-//   for (auto& line : edge_line_) {
-//     auto& one_line = line.second;
-//     std::vector<ControlPoint> control_points;
-//     for (const auto& p : one_line.control_point) {
-//       V3 temp = p.point;
-//       temp.z() = 0;
-//       temp = T_V_W * temp;
-//       bool in_x = (temp.x() > (-front)) && (temp.x() < front);
-//       bool in_y = (temp.y() > (-width)) && (temp.y() < width);
-//       if (in_x && in_y) {
-//         control_points.emplace_back(p);
-//       }
-//     }
-//     line.second.control_point = control_points;
-//   }
-// }
-
 }  // namespace loc
 }  // namespace mp
 }  // namespace hozon

@@ -29,12 +29,13 @@ use_map_lane_match_fault: true        #fault-130
 ##no valid fault
 use_valid_estimate_last_fault: false  #已关闭(old fault-125)
 ##map_lane_match_fault
-map_lane_match_diver: 2.0       # 一分二改道的阈值
-map_lane_match_max: 0.4         # 最大y_error(m)--阈值0.4
-map_lane_match_buff: 20         # 超过buff次就上报故障
-map_lane_match_ser_max: 0.8     # 阈值0.8
+map_lane_match_diver: 1.5       # 单边判断的阈值1.5
+fault_restore_dis: 0.15         # 退出130的近端点阈值
+fault_restore_ave_dis: 0.35     # 退出130的平均阈值
+edge_line_err: 0.1              # 地图路沿和感知车道线的允许误差阈值
+map_lane_match_buff: 10         # 超过buff次就上报故障
+map_lane_match_ser_max: 0.8     # 双边判断的阈值0.8
 map_lane_match_ser_buff: 5
-near_dis: 2                     # 近段点距离
 straight_far_dis: 25            # 直道远段点距离
 curve_far_dis: 12               # 匝道远段点距离
 curvature_thr: 0.0005           # 感知车道线曲率阈值
@@ -51,7 +52,7 @@ exceed_curb_report_cnt: 10
 offset_onelane_max_err: 3       # m 
 offset_onelane_cnt: 30
 offset_maplane_min_dis: -20     # m，车道线最近距离
-offset_maplane_max_dis: 40      # m，车道线最远距离 
+offset_maplane_max_dis: 40      # m，车道线最远距离
 offset_maxlane: 9               # m，车道线阈值，只使用9m内的车道线
 ##valid_pecep_lane_fault(123)
 invalid_pecep_thr: 1            # s，秒

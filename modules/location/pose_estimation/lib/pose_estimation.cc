@@ -842,8 +842,8 @@ void PoseEstimation::RvizFunc() {
     auto nsec = static_cast<uint64_t>(
         (perception.timestamp - static_cast<double>(sec)) * 1e9);
     RelocRviz::PubFcOdom(T_fc, sec, nsec, "/pe/fc_odom");
-    RelocRviz::PubFcTf(T_fc, sec, nsec, "/pe/ins_tf");
-    RelocRviz::PubFcPath(T_fc, sec, nsec, "/pe/ins_path");
+    RelocRviz::PubFcTf(T_fc, sec, nsec, "/pe/fc_tf");
+    RelocRviz::PubFcPath(T_fc, sec, nsec, "/pe/fc_path");
     RelocRviz::PubPerception(T_input, perception, sec, nsec, "/pe/perception");
     RelocRviz::PubPerceptionMarker(T_fc, perception, sec, nsec,
                                    "/pe/perception_marker");

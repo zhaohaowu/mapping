@@ -147,10 +147,16 @@ class MatchLaneLine {
   void CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
                                 const Eigen::Vector3d& FC_vel);
   void CalLinesMinDist(const LaneLinePerceptionPtr& percep,
-                       const std::vector<std::vector<V3>>& map_lines_point,
-                       double* const near, double* const far,
-                       const double& far_dis);
-
+                       const std::unordered_map<std::string, std::vector<V3>>& filtered_fcmap_lines,
+                       double* const near, double* const far, const double& far_dis,
+                       const double& near_dis);
+  bool GetEdgeFitPoints(const std::vector<ControlPoint>& points,
+                        const double x, V3* pt);
+  void CalEdgeAndPercepMinDist(const Eigen::Vector3d& FC_vel,
+                               const std::pair<std::string, std::vector<ControlPoint>>& edge,
+                               const LaneLinePerceptionPtr& line,
+                               V3* map_near_point, V3* map_far_point,
+                               V3* percep_near_point, V3* percep_far_point);
   static bool SortPairByX(const PointMatchPair& pair1,
                           const PointMatchPair& pair2) {
     return pair1.pecep_pv.x() < pair2.pecep_pv.x();
@@ -247,9 +253,11 @@ class MatchLaneLine {
    */
   void MergeMapLines(const std::shared_ptr<MapBoundaryLine>& boundary_lines,
                      const SE3& T);
-
+  void MergeMapEdges(const std::shared_ptr<MapRoadEdge>& road_edges, const SE3& T);
   void Traversal(const V3& root_start_point, std::vector<std::string> line_ids,
                  int loop);
+  void EdgesTraversal(const V3& root_start_point, std::vector<std::string> line_ids,
+                     int loop);
   void NormalizeWeight(
       std::vector<std::vector<PointMatchPair>>& match_pairs);  // NOLINT
   void ComputeCurvature(const std::vector<double>& coeffs, const double x,
@@ -295,8 +303,15 @@ class MatchLaneLine {
 
  private:
   bool big_curvature_ = false;
-
+  bool check_error_last_ = false;
+  std::unordered_set<std::string> edge_visited_id_;
   std::unordered_set<std::string> visited_id_;
+  std::map<V3, std::vector<LineSegment>, PointV3Comp<V3>>
+      edges_map_;  // map: {{start_point, LineSegment}}
+  std::vector<std::vector<std::string>> linked_edges_id_;
+  std::vector<std::vector<std::vector<std::string>>>
+      multi_linked_edges_;  // 内层vector是一组前后继链接的车道线
+  std::unordered_map<std::string, std::vector<ControlPoint>> merged_map_edges_;
   std::map<V3, std::vector<LineSegment>, PointV3Comp<V3>>
       lines_map_;  // map: {{start_point, LineSegment}}
   std::vector<std::vector<std::string>> linked_lines_id_;

@@ -33,6 +33,11 @@ void Map<Map_Type>::Crop(const SE3& T_W_V, double front, double width) {
         p->Crop(T_W_V, front, width);
         break;
       }
+      case HD_MAP_ROAD_EDGE: {
+        auto p = std::static_pointer_cast<MapRoadEdge>(elment);
+        p->Crop(T_W_V, front, width);
+        break;
+      }
       default:
         break;
     }
@@ -63,8 +68,8 @@ void Map<Map_Type>::SetMap(
   if (!map_road_edge) {
     return;
   }
-  // map_road_edge->Set(position, rotation, distance, ref_point_);
-  // elment_.emplace_back(map_road_edge);
+  map_road_edge->Set(lane_ptr_vec, ref_point);
+  elment_.emplace_back(map_road_edge);
   map_boundary_line->Set(lane_ptr_vec, ref_point);
   elment_.emplace_back(map_boundary_line);
 }

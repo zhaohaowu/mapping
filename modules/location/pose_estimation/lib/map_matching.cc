@@ -33,13 +33,15 @@ bool MapMatching::Init(const std::string& config_file) {
       config["use_map_lane_match_fault"].as<bool>();
   mm_params.min_vel = config["min_vel"].as<double>();
   mm_params.map_lane_match_diver = config["map_lane_match_diver"].as<double>();
-  mm_params.map_lane_match_max = config["map_lane_match_max"].as<double>();
+  mm_params.fault_restore_dis = config["fault_restore_dis"].as<double>();
+  mm_params.edge_line_err = config["edge_line_err"].as<double>();
   mm_params.map_lane_match_buff = config["map_lane_match_buff"].as<int>();
   mm_params.map_lane_match_ser_max =
       config["map_lane_match_ser_max"].as<double>();
   mm_params.map_lane_match_ser_buff =
       config["map_lane_match_ser_buff"].as<int>();
-  mm_params.near_dis = config["near_dis"].as<double>();
+  mm_params.fault_restore_ave_dis =
+      config["fault_restore_ave_dis"].as<double>();
   mm_params.straight_far_dis = config["straight_far_dis"].as<double>();
   mm_params.curve_far_dis = config["curve_far_dis"].as<double>();
   // mm_params.curvature_thr = config["curvature_thr"].as<double>();
@@ -128,6 +130,10 @@ void MapMatching::ProcData(
   int loc_state = static_cast<int>(fc->location_state());
   ValidPose fc_msg;
   fc_msg.valid = true;
+  fc_msg.timeStamp = cur_stamp;
+  fc_msg.velocity_vrf = {fc->pose().linear_velocity_vrf().x(),
+                         fc->pose().linear_velocity_vrf().y(),
+                         fc->pose().linear_velocity_vrf().z()};
   Eigen::Quaterniond fc_q(
       fc->pose().quaternion().w(), fc->pose().quaternion().x(),
       fc->pose().quaternion().y(), fc->pose().quaternion().z());

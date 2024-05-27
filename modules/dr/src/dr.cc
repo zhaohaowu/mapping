@@ -57,6 +57,9 @@ bool DRInterface::GetLatestPose(
 
     double time_delay = timestamp - sync_time;
     HLOG_DEBUG << "time_delay:" << time_delay;
+
+    static bool has_sync_time = sync_time > 1e-2;
+
     // 预测
     latest_odom.timestamp = timestamp;
     Eigen::Vector3d latest_pose = {
@@ -83,25 +86,20 @@ bool DRInterface::GetLatestPose(
 
     // 角度再预测
     Eigen::Vector3d delta_ang_again = latest_odom.loc_omg * time_delay;
-    Eigen::Quaterniond predict_qat_again = predict_qat;
-    if (delta_ang_again.norm() > 1e-12) {
-      predict_qat_again = predict_qat * Eigen::Quaterniond(Eigen::AngleAxisd(
-                                            delta_ang_again.norm(),
-                                            delta_ang_again.normalized()));
+    if (delta_ang_again.norm() > 1e-12 && has_sync_time) {
+      predict_qat = predict_qat *
+                    Eigen::Quaterniond(Eigen::AngleAxisd(
+                        delta_ang_again.norm(), delta_ang_again.normalized()));
     }
 
     // 更新
     latest_odom.odometry.x = predict_pos[0];
     latest_odom.odometry.y = predict_pos[1];
     latest_odom.odometry.z = predict_pos[2];
-    // latest_odom.odometry.qx = predict_qat.x();
-    // latest_odom.odometry.qy = predict_qat.y();
-    // latest_odom.odometry.qz = predict_qat.z();
-    // latest_odom.odometry.qw = predict_qat.w();
-    latest_odom.odometry.qx = predict_qat_again.x();
-    latest_odom.odometry.qy = predict_qat_again.y();
-    latest_odom.odometry.qz = predict_qat_again.z();
-    latest_odom.odometry.qw = predict_qat_again.w();
+    latest_odom.odometry.qx = predict_qat.x();
+    latest_odom.odometry.qy = predict_qat.y();
+    latest_odom.odometry.qz = predict_qat.z();
+    latest_odom.odometry.qw = predict_qat.w();
 
     HLOG_DEBUG << "wsj_pos_veh_start" << latest_odom.odometry.x << ","
                << latest_odom.odometry.y << "," << latest_odom.odometry.z

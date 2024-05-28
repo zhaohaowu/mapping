@@ -2971,7 +2971,6 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
           center_line_need_pred.emplace_back(lane);
         }
       }
-
       // 使用平均heading，这样可以使得预测的线都是平行的，不交叉
       // 由于部分弯道heading偏差较大，导致整体平均heading发生偏差，
       // 现增加pred_end_heading字段用于预测，使用PCL欧式聚类对heading进行聚类
@@ -3136,7 +3135,7 @@ void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
   double predict_heading = 0.0;
   if (!fabs(ego_lane_heading - 9.9) < 1e-1) {
     predict_heading = ego_lane_heading;
-    predict_heading = 0.4 * last_predict_angle + 0.6 * predict_heading;
+    predict_heading = 0.6 * last_predict_angle + 0.4 * predict_heading;
   } else {
     if (heading_cluster_indices.size() == 1) {
       double heading_sum = 0.;
@@ -3148,7 +3147,7 @@ void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
       }
       predict_heading =
           heading_data_size != 0 ? heading_sum / heading_data_size : 0;
-      predict_heading = 0.4 * last_predict_angle + 0.6 * predict_heading;
+      predict_heading = 0.6 * last_predict_angle + 0.4 * predict_heading;
     } else {
       // 找到聚类数量最多的
       std::vector<double> cluster_headings;
@@ -3182,7 +3181,7 @@ void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
         predict_heading =
             lines_need_pred->empty() ? 0.0 : (sum / lines_need_pred->size());
         HLOG_WARN << "mode 4:" << predict_heading;
-        predict_heading = 0.4 * last_predict_angle + 0.6 * predict_heading;
+        predict_heading = 0.6 * last_predict_angle + 0.4 * predict_heading;
       }
     }
   }
@@ -4550,7 +4549,7 @@ void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
     Eigen::Vector2f n(std::cos(curr_lane->left_boundary->pred_end_heading),
                       std::sin(curr_lane->left_boundary->pred_end_heading));
     for (int i = 0; i <= pred_counts; ++i) {
-      Eigen::Vector2f pt = back_pt + i * n;
+      Eigen::Vector2f pt = back_pt + i * mean_interval * n;
       Point pred_pt;
       pred_pt.pt << pt.x(), pt.y(), 0;
       pred_pt.type = gm::VIRTUAL;
@@ -4580,7 +4579,7 @@ void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
     Eigen::Vector2f n(std::cos(curr_lane->right_boundary->pred_end_heading),
                       std::sin(curr_lane->right_boundary->pred_end_heading));
     for (int i = 0; i <= pred_counts; ++i) {
-      Eigen::Vector2f pt = back_pt + i * n;
+      Eigen::Vector2f pt = back_pt + i * mean_interval * n;
       Point pred_pt;
       pred_pt.pt << pt.x(), pt.y(), 0;
       pred_pt.type = gm::VIRTUAL;
@@ -4602,7 +4601,7 @@ void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
                    2;
     Eigen::Vector2f n(std::cos(heading), std::sin(heading));
     for (int i = 0; i <= pred_counts; ++i) {
-      Eigen::Vector2f pt = back_pt + i * n;
+      Eigen::Vector2f pt = back_pt + i * mean_interval * n;
       Point pred_pt;
       pred_pt.pt << pt.x(), pt.y(), 0;
       pred_pt.type = gm::VIRTUAL;

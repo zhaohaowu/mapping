@@ -119,3 +119,5 @@ common_min_line_length: 2.0
 max_length_offset: 20.0
 
 curvature_thresold: 0.05
+
+lane_control_pointInfo_size: 100

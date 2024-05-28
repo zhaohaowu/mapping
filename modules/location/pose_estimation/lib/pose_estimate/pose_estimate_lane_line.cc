@@ -97,8 +97,7 @@ void MatchLaneLine::Match(const HdMap& hd_map,
     HLOG_ERROR << "map_boundary_lines empty!!!";
     return;
   }
-  auto map_road_edge =
-      hd_map.GetElement(hozon::mp::loc::HD_MAP_ROAD_EDGE);
+  auto map_road_edge = hd_map.GetElement(hozon::mp::loc::HD_MAP_ROAD_EDGE);
   if (map_road_edge == nullptr) {
     return;
   }
@@ -129,8 +128,17 @@ void MatchLaneLine::Match(const HdMap& hd_map,
   }
   auto t1 = std::chrono::steady_clock::now();
   auto t2 = std::chrono::steady_clock::now();
-  MergeMapLines(map_boundary_lines, T_W_V);
-  MergeMapEdges(map_road_edges, T_fc.pose);
+  if (map_boundary_lines->boundary_line_.empty()) {
+    lane_control_pointInfo_.clear();
+  } else {
+    MergeMapLines(map_boundary_lines, T_W_V);
+  }
+  if (map_road_edges->edge_line_.empty()) {
+    edge_control_pointInfo_.clear();
+  } else {
+    MergeMapEdges(map_road_edges, T_fc.pose);
+  }
+
   t2 = std::chrono::steady_clock::now();
   auto merge_map_lines_cost_time =
       (t2.time_since_epoch() - t1.time_since_epoch()).count() / 1e9;
@@ -212,19 +220,20 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
   for (const auto& map_line : merged_fcmap_lines_) {
     const auto line_idx = map_line.first;
     for (auto& control_point : map_line.second) {
-       V3 points = T_V_W * control_point.point;
-       filtered_fcmap_lines[line_idx].emplace_back(points);
+      V3 points = T_V_W * control_point.point;
+      filtered_fcmap_lines[line_idx].emplace_back(points);
     }
   }
-  std::unordered_map<std::string, std::vector<ControlPoint>> filtered_fcmap_edges;
+  std::unordered_map<std::string, std::vector<ControlPoint>>
+      filtered_fcmap_edges;
   for (const auto& map_edge : merged_map_edges_) {
     const auto line_idx = map_edge.first;
     for (auto& control_point : map_edge.second) {
-       ControlPoint cpoint(0, {0, 0, 0});
-       V3 edge_point = control_point.point;
-       cpoint.line_type = -1;
-       cpoint.point = edge_point;
-       if (edge_point.x() < -15) {
+      ControlPoint cpoint(0, {0, 0, 0});
+      V3 edge_point = control_point.point;
+      cpoint.line_type = -1;
+      cpoint.point = edge_point;
+      if (edge_point.x() < -15) {
         continue;
       }
       filtered_fcmap_edges[line_idx].emplace_back(cpoint);
@@ -243,28 +252,31 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
       continue;
     }
     V3 map_point(0, 0, 0);
-    bool flag_fit0 = GetFitMapPoints(map_edge.second, FC_vel(0) * 1.5, &map_point);
+    bool flag_fit0 =
+        GetFitMapPoints(map_edge.second, FC_vel(0) * 1.5, &map_point);
     // 比较并更新左右边界
     if (map_point.y() > 0) {
       ++map_edge_posi_cnt;
-      if (nearest_left_edge.second.empty() || (map_point.y() < map_left_point.y() && map_left_point.y() > 0)) {
-          map_left_point = map_point;
-          nearest_left_edge = std::make_pair(edge_idx, map_edge.second);
+      if (nearest_left_edge.second.empty() ||
+          (map_point.y() < map_left_point.y() && map_left_point.y() > 0)) {
+        map_left_point = map_point;
+        nearest_left_edge = std::make_pair(edge_idx, map_edge.second);
       }
     }
     if (map_point.y() < 0) {
       ++map_edge_nag_cnt;
-      if (nearest_right_edge.second.empty() || (map_point.y() > map_right_point.y() && map_right_point.y() < 0)) {
-          map_right_point = map_point;
-          nearest_right_edge = std::make_pair(edge_idx, map_edge.second);
+      if (nearest_right_edge.second.empty() ||
+          (map_point.y() > map_right_point.y() && map_right_point.y() < 0)) {
+        map_right_point = map_point;
+        nearest_right_edge = std::make_pair(edge_idx, map_edge.second);
       }
     }
   }
   bool exceed_map_edge_check = false;
   if ((map_edge_posi_cnt >= 2 && map_edge_nag_cnt == 0) ||
       (map_edge_posi_cnt == 0 && map_edge_nag_cnt >= 2)) {
-      exceed_map_edge_check = true;
-      HLOG_ERROR << "130 : vehicle exceed map edges";
+    exceed_map_edge_check = true;
+    HLOG_ERROR << "130 : vehicle exceed map edges";
   }
   std::list<std::shared_ptr<hozon::mp::loc::PerceptionLaneLine>> line_list;
   for (const auto& line : fil_line_list) {
@@ -272,30 +284,36 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
     V3 map_far_point(0, 0, 0);
     V3 percep_near_point(0, 0, 0);
     V3 percep_far_point(0, 0, 0);
-    if (line ->lane_position_type() == -1) {
-      CalEdgeAndPercepMinDist(FC_vel, nearest_left_edge, line,
-                      &map_near_point, &map_far_point,
-                      &percep_near_point, &percep_far_point);
+    if (line->lane_position_type() == -1) {
+      CalEdgeAndPercepMinDist(FC_vel, nearest_left_edge, line, &map_near_point,
+                              &map_far_point, &percep_near_point,
+                              &percep_far_point);
       if (fabs(percep_far_point.y()) < 4 &&
-         (fabs(percep_near_point.y()) - fabs(map_near_point.y()) < mm_params.edge_line_err &&
-          fabs(percep_far_point.y()) - fabs(map_far_point.y()) < mm_params.edge_line_err)) {
+          (fabs(percep_near_point.y()) - fabs(map_near_point.y()) <
+               mm_params.edge_line_err &&
+           fabs(percep_far_point.y()) - fabs(map_far_point.y()) <
+               mm_params.edge_line_err)) {
         line_list.emplace_back(line);
       }
     }
-    if (line ->lane_position_type() == 1) {
-      CalEdgeAndPercepMinDist(FC_vel, nearest_right_edge, line,
-                      &map_near_point, &map_far_point,
-                      &percep_near_point, &percep_far_point);
+    if (line->lane_position_type() == 1) {
+      CalEdgeAndPercepMinDist(FC_vel, nearest_right_edge, line, &map_near_point,
+                              &map_far_point, &percep_near_point,
+                              &percep_far_point);
       if (fabs(percep_far_point.y()) < 4 &&
-          (fabs(percep_near_point.y()) - fabs(map_near_point.y()) < mm_params.edge_line_err &&
-          fabs(percep_far_point.y()) - fabs(map_far_point.y()) < mm_params.edge_line_err)) {
+          (fabs(percep_near_point.y()) - fabs(map_near_point.y()) <
+               mm_params.edge_line_err &&
+           fabs(percep_far_point.y()) - fabs(map_far_point.y()) <
+               mm_params.edge_line_err)) {
         line_list.emplace_back(line);
       }
     }
   }
   for (auto& line : line_list) {
-    auto far_dis = std::min(FC_vel(0) * 2.0, static_cast<double>(line->Max()) * 0.6);
-    auto near_dis = std::min(FC_vel(0) * 1.5, static_cast<double>(line->Max()) * 0.4);
+    auto far_dis =
+        std::min(FC_vel(0) * 2.0, static_cast<double>(line->Max()) * 0.6);
+    auto near_dis =
+        std::min(FC_vel(0) * 1.5, static_cast<double>(line->Max()) * 0.4);
     if (big_curvature_ ||
         (FC_vel(0) < mm_params.min_vel && FC_vel(1) < mm_params.min_vel)) {
       far_dis_last = mm_params.curve_far_dis;
@@ -313,7 +331,7 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
       CalLinesMinDist(line, filtered_fcmap_lines, &right_dist_near_v,
                       &right_dist_far_v, far_dis, near_dis);
       CalLinesMinDist(line, filtered_fcmap_lines, &right_near_check_dist_v,
-                      &right_far_check_dist_v , far_dis_last,
+                      &right_far_check_dist_v, far_dis_last,
                       std::max(2.0, static_cast<double>(line->Min())));
     }
   }
@@ -327,8 +345,10 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
              << "right_far_check_dist_v = " << right_far_check_dist_v;
   const double left_error = (left_dist_near_v + left_dist_far_v) * 0.5;
   const double right_error = (right_dist_near_v + right_dist_far_v) * 0.5;
-  const double left_check_error = (left_near_check_dist_v + left_far_check_dist_v) * 0.5;
-  const double right_check_error = (right_near_check_dist_v + right_far_check_dist_v) * 0.5;
+  const double left_check_error =
+      (left_near_check_dist_v + left_far_check_dist_v) * 0.5;
+  const double right_check_error =
+      (right_near_check_dist_v + right_far_check_dist_v) * 0.5;
   const double global_error = (left_error + right_error) * 0.5;
   const double global_near_error = (left_dist_near_v + right_dist_near_v) * 0.5;
 
@@ -348,8 +368,7 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
       HLOG_ERROR << "130 : double both sides distance exceed thr";
       fc_good_match_double_check = false;
     }
-    if (FLAGS_map_service_mode == 1 &&
-        (FC_vel(0) > 10 || FC_vel(1) > 10)) {
+    if (FLAGS_map_service_mode == 1 && (FC_vel(0) > 10 || FC_vel(1) > 10)) {
       if (fabs(left_dist_near_v) >= mm_params.map_lane_match_diver ||
           fabs(right_dist_near_v) >= mm_params.map_lane_match_diver) {
         HLOG_ERROR << "130 : single near distance exceed thr";
@@ -393,18 +412,19 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
   bool good_match_check_flag = false;
   // 感知车道线没有与地图车道线匹配则差值置0
   bool good_match_check_nonzero_flag = false;
-  if (check_error_last_ && (FC_vel(0) > mm_params.min_vel || FC_vel(1) > mm_params.min_vel)) {
+  if (check_error_last_ &&
+      (FC_vel(0) > mm_params.min_vel || FC_vel(1) > mm_params.min_vel)) {
     err_type_ = ERROR_TYPE::MAP_LANE_MATCH_FAIL;
     if (fabs(left_near_check_dist_v) <= mm_params.fault_restore_dis &&
         fabs(right_near_check_dist_v) <= mm_params.fault_restore_dis &&
         fabs(left_check_error) <= mm_params.fault_restore_ave_dis &&
-        fabs(right_check_error) <= mm_params.fault_restore_ave_dis && !exceed_map_edge_check) {
+        fabs(right_check_error) <= mm_params.fault_restore_ave_dis &&
+        !exceed_map_edge_check) {
       fc_good_match_check_last = true;
     }
-    if (fabs(left_near_check_dist_v) >0 &&
-        fabs(right_near_check_dist_v) > 0 &&
-        fabs(left_check_error) > 0 &&
-        fabs(right_check_error) > 0 && !exceed_map_edge_check) {
+    if (fabs(left_near_check_dist_v) > 0 && fabs(right_near_check_dist_v) > 0 &&
+        fabs(left_check_error) > 0 && fabs(right_check_error) > 0 &&
+        !exceed_map_edge_check) {
       fc_good_match_check_nonzero_last = true;
     }
     if (fc_good_match_check_last) {
@@ -417,18 +437,23 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
     } else {
       check_good_match_nonzero_cnt = 0;
     }
-    good_match_check_flag = (check_good_match_cnt > mm_params.map_lane_match_ser_buff) ? true : false;
-    good_match_check_nonzero_flag = (check_good_match_nonzero_cnt > mm_params.map_lane_match_ser_buff) ? true : false;
+    good_match_check_flag =
+        (check_good_match_cnt > mm_params.map_lane_match_ser_buff) ? true
+                                                                   : false;
+    good_match_check_nonzero_flag =
+        (check_good_match_nonzero_cnt > mm_params.map_lane_match_ser_buff)
+            ? true
+            : false;
     if (good_match_check_flag && good_match_check_nonzero_flag) {
       check_error_last_ = false;
     }
   }
 }
-void MatchLaneLine::CalEdgeAndPercepMinDist(const Eigen::Vector3d& FC_vel,
-                      const std::pair<std::string, std::vector<ControlPoint>>& edge,
-                      const LaneLinePerceptionPtr& line,
-                      V3* map_near_point, V3* map_far_point,
-                      V3* percep_near_point, V3* percep_far_point) {
+void MatchLaneLine::CalEdgeAndPercepMinDist(
+    const Eigen::Vector3d& FC_vel,
+    const std::pair<std::string, std::vector<ControlPoint>>& edge,
+    const LaneLinePerceptionPtr& line, V3* map_near_point, V3* map_far_point,
+    V3* percep_near_point, V3* percep_far_point) {
   if (map_near_point == nullptr || map_far_point == nullptr ||
       percep_near_point == nullptr || percep_far_point == nullptr) {
     return;
@@ -442,22 +467,30 @@ void MatchLaneLine::CalEdgeAndPercepMinDist(const Eigen::Vector3d& FC_vel,
   }
   V3 v_p_near(0, 0, 0);
   V3 v_p_far(0, 0, 0);
-  bool flag_fit0 = GetFitMapPoints(edge.second,
-    std::min(FC_vel(0) * 1.5, static_cast<double>(line->Max()) * 0.4), &v_p_near);
+  bool flag_fit0 = GetFitMapPoints(
+      edge.second,
+      std::min(FC_vel(0) * 1.5, static_cast<double>(line->Max()) * 0.4),
+      &v_p_near);
   if (flag_fit0) {
     *map_near_point = v_p_near;
   }
-  bool flag_fit1 = GetFitMapPoints(edge.second,
-   std::min(FC_vel(0) * 2.0, static_cast<double>(line->Max()) * 0.6), &v_p_far);
+  bool flag_fit1 = GetFitMapPoints(
+      edge.second,
+      std::min(FC_vel(0) * 2.0, static_cast<double>(line->Max()) * 0.6),
+      &v_p_far);
   if (flag_fit1) {
     *map_far_point = v_p_far;
   }
   V3 w_p_near(0, 0, 0);
   V3 w_p_far(0, 0, 0);
-  bool flag_fit2 = GetFcFitPoints(perce_points,
-   std::min(FC_vel(0) * 1.5, static_cast<double>(line->Max()) * 0.4), &w_p_near);
-  bool flag_fit3 = GetFcFitPoints(perce_points,
-   std::min(FC_vel(0) * 2.0, static_cast<double>(line->Max()) * 0.6), &w_p_far);
+  bool flag_fit2 = GetFcFitPoints(
+      perce_points,
+      std::min(FC_vel(0) * 1.5, static_cast<double>(line->Max()) * 0.4),
+      &w_p_near);
+  bool flag_fit3 = GetFcFitPoints(
+      perce_points,
+      std::min(FC_vel(0) * 2.0, static_cast<double>(line->Max()) * 0.6),
+      &w_p_far);
   if (flag_fit2) {
     *percep_near_point = w_p_near;
   }
@@ -468,8 +501,10 @@ void MatchLaneLine::CalEdgeAndPercepMinDist(const Eigen::Vector3d& FC_vel,
 
 void MatchLaneLine::CalLinesMinDist(
     const LaneLinePerceptionPtr& percep,
-    const std::unordered_map<std::string, std::vector<V3>>& filtered_fcmap_lines,
-    double* const near, double* const far, const double& far_dis, const double& near_dis) {
+    const std::unordered_map<std::string, std::vector<V3>>&
+        filtered_fcmap_lines,
+    double* const near, double* const far, const double& far_dis,
+    const double& near_dis) {
   if (!percep || !near || !far) {
     return;
   }
@@ -488,9 +523,7 @@ void MatchLaneLine::CalLinesMinDist(
     }
     V3 v_p_near(0, 0, 0);
     V3 v_p_far(0, 0, 0);
-    bool flag_fit0 = GetFitPoints(
-        map_point, anchor_pt0.x(),
-        &anchor_pt0);
+    bool flag_fit0 = GetFitPoints(map_point, anchor_pt0.x(), &anchor_pt0);
     if (flag_fit0) {
       v_p_near = anchor_pt0;
     }
@@ -499,9 +532,7 @@ void MatchLaneLine::CalLinesMinDist(
       v_p_far = anchor_pt1;
     }
     V3 w_p_near(0, 0, 0);
-    bool flag_fit2 = GetFcFitPoints(
-        perce_points, anchor_pt2.x(),
-        &anchor_pt2);
+    bool flag_fit2 = GetFcFitPoints(perce_points, anchor_pt2.x(), &anchor_pt2);
     if (flag_fit2) {
       w_p_near = anchor_pt2;
     }
@@ -766,6 +797,7 @@ void MatchLaneLine::MergeMapLines(
   if (!lines_map_.empty()) {
     lines_map_.clear();
   }
+
   auto T_V_W = T.inverse();
   for (const auto& line : boundary_lines->boundary_line_) {
     if (line.second.line_type == MapLineType::LaneChangeVirtualLine) {
@@ -773,7 +805,8 @@ void MatchLaneLine::MergeMapLines(
     }
     auto id = line.first;
     const auto& control_points = line.second.control_point;
-    if (control_points.size() <= 1) {
+    auto control_points_size = control_points.size();
+    if (control_points_size <= 1) {
       HLOG_DEBUG << "MergeMapLines: control_points size <= 1";
       continue;
     }
@@ -785,8 +818,34 @@ void MatchLaneLine::MergeMapLines(
       HLOG_DEBUG << "MergeMapLines: start_point.norm() == end_point.norm()";
       continue;
     }
+    bool flag = false;
+    if (!lane_control_pointInfo_.empty()) {
+      for (const auto& control_point : lane_control_pointInfo_) {
+        if (start_point_v == control_point.last_start_point_v &&
+            end_point_v == control_point.last_end_point_v &&
+            control_points_size == control_point.last_control_points_size) {
+          HLOG_INFO << "the line seg ment already exist!!";
+          flag = true;
+          break;
+        }
+      }
+    }
+    if (flag) {
+      continue;
+    }
+
     LineSegment line_segment{id, end_point_v};
     lines_map_[start_point_v].emplace_back(std::move(line_segment));
+    lane_control_pointInfo_.emplace_back(
+        ControlPointInfo{start_point_v, end_point_v, control_points_size});
+    if (lane_control_pointInfo_.size() >
+        mm_params.lane_control_pointInfo_size) {
+      lane_control_pointInfo_.erase(
+          lane_control_pointInfo_.begin(),
+          lane_control_pointInfo_.begin() +
+              (lane_control_pointInfo_.size() -
+               mm_params.lane_control_pointInfo_size));
+    }
   }
   if (!visited_id_.empty()) {
     visited_id_.clear();
@@ -839,7 +898,6 @@ void MatchLaneLine::MergeMapLines(
     }
   }
   multi_linked_lines_.clear();
-  return;
 }
 
 void MatchLaneLine::Traversal(const V3& root_start_point,
@@ -896,11 +954,13 @@ void MatchLaneLine::MergeMapEdges(
   if (!edges_map_.empty()) {
     edges_map_.clear();
   }
+
   auto T_V_W = T.inverse();
   for (const auto& line : road_edges->edge_line_) {
     auto id = line.first;
     const auto& control_points = line.second.control_point;
-    if (control_points.size() <= 1) {
+    auto control_points_size = control_points.size();
+    if (control_points_size <= 1) {
       HLOG_INFO << "MergeMapEdges: control_points size <= 1";
       continue;
     }
@@ -912,8 +972,23 @@ void MatchLaneLine::MergeMapEdges(
       HLOG_INFO << "MergeMapEdges: start_point.norm() == end_point.norm()";
       continue;
     }
+    bool flag = false;
+    for (const auto& control_point : edge_control_pointInfo_) {
+      if (start_point_v == control_point.last_start_point_v &&
+          end_point_v == control_point.last_end_point_v &&
+          control_points_size == control_point.last_control_points_size) {
+        HLOG_INFO << "the line seg ment already exist!!";
+        flag = true;
+        break;
+      }
+    }
+    if (flag) {
+      continue;
+    }
     LineSegment line_segment{id, end_point_v};
     edges_map_[start_point_v].emplace_back(std::move(line_segment));
+    edge_control_pointInfo_.emplace_back(
+        ControlPointInfo{start_point_v, end_point_v, control_points_size});
   }
   HLOG_INFO << "MergeMapEdges: reconstruct map road edges end!";
   if (!edge_visited_id_.empty()) {
@@ -930,7 +1005,7 @@ void MatchLaneLine::MergeMapEdges(
       linked_edges_id_.clear();
     }
     HLOG_DEBUG << "MergeMapEdge: traversal start, root_id: "
-              << line.second.front().first << " ts: " << ins_timestamp_;
+               << line.second.front().first << " ts: " << ins_timestamp_;
     EdgesTraversal(root_segment_start_point, line_ids, loop);
     multi_linked_edges_.emplace_back(linked_edges_id_);
   }
@@ -967,11 +1042,11 @@ void MatchLaneLine::MergeMapEdges(
   HLOG_INFO << "MergeMapEdges: add merge_lane_ids element end!"
             << " ts: " << ins_timestamp_;
   multi_linked_edges_.clear();
-  return;
 }
 
 void MatchLaneLine::EdgesTraversal(const V3& root_start_point,
-                              std::vector<std::string> line_ids, int loop) {
+                                   std::vector<std::string> line_ids,
+                                   int loop) {
   HLOG_DEBUG << "EDGE Traversal: start "
              << " ts: " << ins_timestamp_;
   V3 seg_point;
@@ -1018,7 +1093,7 @@ void MatchLaneLine::EdgesTraversal(const V3& root_start_point,
     }
   }
   HLOG_DEBUG << "EDGE Traversal: end "
-            << " ts: " << ins_timestamp_;
+             << " ts: " << ins_timestamp_;
 }
 
 bool MatchLaneLine::IsBigCurvaturePercepLine(VP perception_points) {

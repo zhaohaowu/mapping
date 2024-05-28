@@ -108,6 +108,8 @@ bool MapMatching::Init(const std::string& config_file) {
       config["common_min_line_length"].as<double>();
   mm_params.max_length_offset = config["max_length_offset"].as<double>();
   mm_params.curvature_thresold = config["curvature_thresold"].as<double>();
+  mm_params.lane_control_pointInfo_size =
+      config["lane_control_pointInfo_size"].as<int>();
 
   return true;
 }

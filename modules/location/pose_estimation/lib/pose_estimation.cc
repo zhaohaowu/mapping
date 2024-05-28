@@ -773,13 +773,15 @@ bool PoseEstimation::MapConvert(
       continue;
     }
 
-    AddMapLine(T_V_W, ref_point, lane.left_boundary(), map_manager);
-    AddMapLine(T_V_W, ref_point, lane.right_boundary(), map_manager);
     if (lane.has_extra_left_boundary()) {
       AddMapLine(T_V_W, ref_point, lane.extra_left_boundary(), map_manager);
+    } else if (lane.has_left_boundary()) {
+      AddMapLine(T_V_W, ref_point, lane.left_boundary(), map_manager);
     }
     if (lane.has_extra_right_boundary()) {
       AddMapLine(T_V_W, ref_point, lane.extra_right_boundary(), map_manager);
+    } else if (lane.has_right_boundary()) {
+      AddMapLine(T_V_W, ref_point, lane.right_boundary(), map_manager);
     }
     road_ids.insert(lane_ptr->road_id().id());
     sec_ids.insert(lane_ptr->section_id().id());

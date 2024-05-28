@@ -235,6 +235,9 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
     lastest_valid_pe_mutex_.lock();
     lastest_valid_pe_ = node;
     lastest_valid_pe_mutex_.unlock();
+    filter_valid_pe_ = false;
+  } else {
+    filter_valid_pe_ = true;
   }
   std::unique_lock<std::mutex> lock(pe_deque_mutex_);
   pe_deque_.emplace_back(std::make_shared<Node>(node));
@@ -784,7 +787,13 @@ void FusionCenter::Node2Localization(const Context& ctx,
 
   pose->mutable_wgs()->set_x(ins.pos_wgs().x());
   pose->mutable_wgs()->set_y(ins.pos_wgs().y());
-  pose->mutable_wgs()->set_z(ins.pos_wgs().z());
+  // pose->mutable_wgs()->set_z(ins.pos_wgs().z());
+  if (filter_valid_pe_) {
+    // filter mm valid
+    pose->mutable_wgs()->set_z(1.0);
+  } else {
+    pose->mutable_wgs()->set_z(2.0);
+  }
 
   pose->mutable_gcj02()->set_x(global_node.blh(0));
   pose->mutable_gcj02()->set_y(global_node.blh(1));

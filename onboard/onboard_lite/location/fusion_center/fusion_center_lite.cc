@@ -295,19 +295,29 @@ int32_t FusionCenterLite::OnRunningMode(Bundle* input) {
   }
   int runmode = msg->mode();
   // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
+  static int last_runmode =
+      static_cast<int>(hozon::perception::base::RunningMode::DRIVING);
   if (runmode ==
       static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
-    PauseTrigger("recv_ins_fusion");
-    PauseTrigger("recv_pose_estimation");
-    PauseTrigger("recv_dr_fusion");
+    if (last_runmode != runmode) {
+      PauseTrigger("recv_ins_fusion");
+      PauseTrigger("recv_pose_estimation");
+      PauseTrigger("recv_dr_fusion");
+      HLOG_INFO << "!!!!!!!!!!get run mode PARKING";
+      last_runmode = runmode;
+    }
     // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
   } else if (runmode == static_cast<int>(
                             hozon::perception::base::RunningMode::DRIVING) ||
              runmode ==
                  static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
-    ResumeTrigger("recv_ins_fusion");
-    ResumeTrigger("recv_pose_estimation");
-    ResumeTrigger("recv_dr_fusion");
+    if (last_runmode != runmode) {
+      ResumeTrigger("recv_ins_fusion");
+      ResumeTrigger("recv_pose_estimation");
+      ResumeTrigger("recv_dr_fusion");
+      HLOG_INFO << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
+      last_runmode = runmode;
+    }
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & ALL";
   }
   ++running_mode_count;

@@ -81,25 +81,35 @@ int32_t LocalMappingOnboard::OnRunningMode(adf_lite_Bundle* input) {
       std::static_pointer_cast<hozon::perception::common_onboard::running_mode>(
           rm_msg->proto_msg);
   int runmode = msg->mode();
+  static int last_runmode =
+      static_cast<int>(hozon::perception::base::RunningMode::DRIVING);
   HLOG_DEBUG << " *** get run mode : *** " << runmode;
   if (runmode ==
       static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
-    PauseTrigger("recv_perception");
-    PauseTrigger("recv_localization");
-    if (RVIZ_AGENT.Ok()) {
-      PauseTrigger("recv_ins");
-      PauseTrigger("recv_image");
+    if (last_runmode != runmode) {
+      PauseTrigger("recv_perception");
+      PauseTrigger("recv_localization");
+      if (RVIZ_AGENT.Ok()) {
+        PauseTrigger("recv_ins");
+        PauseTrigger("recv_image");
+      }
+      last_runmode = runmode;
+      HLOG_INFO << "!!!!!!!!!!get run mode PARKING";
     }
     HLOG_DEBUG << "!!!!!!!!!!get run mode PARKING";
   } else if (runmode == static_cast<int>(
                             hozon::perception::base::RunningMode::DRIVING) ||
              runmode ==
                  static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
-    ResumeTrigger("recv_perception");
-    ResumeTrigger("recv_localization");
-    if (RVIZ_AGENT.Ok()) {
-      ResumeTrigger("recv_ins");
-      ResumeTrigger("recv_image");
+    if (last_runmode != runmode) {
+      ResumeTrigger("recv_perception");
+      ResumeTrigger("recv_localization");
+      if (RVIZ_AGENT.Ok()) {
+        ResumeTrigger("recv_ins");
+        ResumeTrigger("recv_image");
+      }
+      last_runmode = runmode;
+      HLOG_INFO << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
     }
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
   }

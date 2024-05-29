@@ -276,18 +276,28 @@ int32_t PoseEstimationLite::OnRunningMode(Bundle* input) {
     return -1;
   }
   int runmode = msg->mode();
+  static int last_runmode =
+      static_cast<int>(hozon::perception::base::RunningMode::DRIVING);
   if (runmode ==
       static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
-    PauseTrigger("recv_ins_fusion");
-    PauseTrigger("recv_perception");
-    PauseTrigger("send_pose_estimation_result");
+    if (last_runmode != runmode) {
+      PauseTrigger("recv_ins_fusion");
+      PauseTrigger("recv_perception");
+      PauseTrigger("send_pose_estimation_result");
+      HLOG_INFO << "!!!!!!!!!!get run mode PARKING";
+      last_runmode = runmode;
+    }
   } else if (runmode == static_cast<int>(
                             hozon::perception::base::RunningMode::DRIVING) ||
              runmode ==
                  static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
-    ResumeTrigger("recv_ins_fusion");
-    ResumeTrigger("recv_perception");
-    ResumeTrigger("send_pose_estimation_result");
+    if (last_runmode != runmode) {
+      ResumeTrigger("recv_ins_fusion");
+      ResumeTrigger("recv_perception");
+      ResumeTrigger("send_pose_estimation_result");
+      HLOG_INFO << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
+      last_runmode = runmode;
+    }
   }
   ++running_mode_count;
   if (running_mode_count >= 100) {

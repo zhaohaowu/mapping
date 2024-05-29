@@ -824,21 +824,31 @@ int32_t MapFusionLite::OnRunningMode(hozon::netaos::adf_lite::Bundle* input) {
   }
   int runmode = msg->mode();
   // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
+  static int last_runmode =
+      static_cast<int>(hozon::perception::base::RunningMode::DRIVING);
   if (runmode ==
       static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
-    PauseTrigger("recv_location");
-    PauseTrigger("recv_local_map");
-    PauseTrigger("recv_loc_plugin");
-    PauseTrigger("send_map_fusion");
+    if (last_runmode != runmode) {
+      PauseTrigger("recv_location");
+      PauseTrigger("recv_local_map");
+      PauseTrigger("recv_loc_plugin");
+      PauseTrigger("send_map_fusion");
+      HLOG_INFO << "!!!!!!!!!!get run mode PARKING";
+      last_runmode = runmode;
+    }
     // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
   } else if (runmode == static_cast<int>(
                             hozon::perception::base::RunningMode::DRIVING) ||
              runmode ==
                  static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
-    ResumeTrigger("recv_location");
-    ResumeTrigger("recv_local_map");
-    ResumeTrigger("recv_loc_plugin");
-    ResumeTrigger("send_map_fusion");
+    if (last_runmode != runmode) {
+      ResumeTrigger("recv_location");
+      ResumeTrigger("recv_local_map");
+      ResumeTrigger("recv_loc_plugin");
+      ResumeTrigger("send_map_fusion");
+      HLOG_INFO << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
+      last_runmode = runmode;
+    }
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
   }
   return 0;

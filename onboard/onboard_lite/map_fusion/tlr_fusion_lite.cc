@@ -89,15 +89,25 @@ int32_t TlrFusionLite::OnRunningMode(hozon::netaos::adf_lite::Bundle* input) {
   }
   int runmode = msg->mode();
   // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
+  static int last_runmode =
+      static_cast<int>(hozon::perception::base::RunningMode::DRIVING);
   if (runmode ==
       static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
-    PauseTrigger("recv_tlr_percep");
+    if (last_runmode != runmode) {
+      PauseTrigger("recv_tlr_percep");
+      last_runmode = runmode;
+      HLOG_INFO << "!!!!!!!!!!get run mode PARKING";
+    }
     // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
   } else if (runmode == static_cast<int>(
                             hozon::perception::base::RunningMode::DRIVING) ||
              runmode ==
                  static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
-    ResumeTrigger("recv_tlr_percep");
+    if (last_runmode != runmode) {
+      ResumeTrigger("recv_tlr_percep");
+      last_runmode = runmode;
+      HLOG_INFO << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
+    }
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
   }
   return 0;

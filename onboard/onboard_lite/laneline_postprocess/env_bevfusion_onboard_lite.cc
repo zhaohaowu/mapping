@@ -89,18 +89,27 @@ int32_t EnvBevfusionOnboard::OnRunningMode(adf_lite_Bundle* input) {
           rm_msg->proto_msg);
   int runmode = msg->mode();
   HLOG_DEBUG << " *** get run mode : *** " << runmode;
+  static int last_runmode =
+      static_cast<int>(hozon::perception::base::RunningMode::DRIVING);
   if (runmode ==
       static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
-    PauseTrigger("recv_detection_bevfusion_lane_proto");
-    PauseTrigger("recv_dr");
-
+    if (last_runmode != runmode) {
+      PauseTrigger("recv_detection_bevfusion_lane_proto");
+      PauseTrigger("recv_dr");
+      last_runmode = runmode;
+      HLOG_INFO << "!!!!!!!!!!get run mode PARKING";
+    }
     HLOG_DEBUG << "!!!!!!!!!!get run mode PARKING";
   } else if (runmode == static_cast<int>(
                             hozon::perception::base::RunningMode::DRIVING) ||
              runmode ==
                  static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
-    ResumeTrigger("recv_detection_bevfusion_lane_proto");
-    ResumeTrigger("recv_dr");
+    if (last_runmode != runmode) {
+      ResumeTrigger("recv_detection_bevfusion_lane_proto");
+      ResumeTrigger("recv_dr");
+      last_runmode = runmode;
+      HLOG_INFO << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
+    }
     // HLOG_DEBUG << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
   }
   return 0;

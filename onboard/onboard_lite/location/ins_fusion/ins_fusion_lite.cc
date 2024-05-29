@@ -335,22 +335,32 @@ int32_t InsFusionLite::OnRunningMode(Bundle* input) {
     return -1;
   }
   int runmode = msg->mode();
+  static int last_runmode =
+      static_cast<int>(hozon::perception::base::RunningMode::DRIVING);
   // HLOG_ERROR << "!!!!!!!!!!get run mode : " << runmode;
   if (runmode ==
       static_cast<int>(hozon::perception::base::RunningMode::PARKING)) {
-    PauseTrigger("send_ins_proc");
-    PauseTrigger("receive_inspva");
-    PauseTrigger("receive_ins");
-    PauseTrigger("receive_gnss");
+    if (last_runmode != runmode) {
+      PauseTrigger("send_ins_proc");
+      PauseTrigger("receive_inspva");
+      PauseTrigger("receive_ins");
+      PauseTrigger("receive_gnss");
+      HLOG_INFO << "!!!!!!!!!!get run mode PARKING";
+      last_runmode = runmode;
+    }
     // HLOG_ERROR << "!!!!!!!!!!get run mode PARKING";
   } else if (runmode == static_cast<int>(
                             hozon::perception::base::RunningMode::DRIVING) ||
              runmode ==
                  static_cast<int>(hozon::perception::base::RunningMode::ALL)) {
-    ResumeTrigger("send_ins_proc");
-    ResumeTrigger("receive_inspva");
-    ResumeTrigger("receive_ins");
-    ResumeTrigger("receive_gnss");
+    if (last_runmode != runmode) {
+      ResumeTrigger("send_ins_proc");
+      ResumeTrigger("receive_inspva");
+      ResumeTrigger("receive_ins");
+      ResumeTrigger("receive_gnss");
+      HLOG_INFO << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
+      last_runmode = runmode;
+    }
     // HLOG_ERROR << "!!!!!!!!!!get run mode DRIVER & ALL";
   }
   ++running_mode_count;
@@ -361,7 +371,7 @@ int32_t InsFusionLite::OnRunningMode(Bundle* input) {
   return 0;
 }
 
-template<typename T>
+template <typename T>
 bool InsFusionLite::isNan(const T& t) {
   return std::isnan(t.x()) | std::isnan(t.y()) | std::isnan(t.z());
 }

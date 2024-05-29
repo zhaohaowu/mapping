@@ -299,13 +299,25 @@ class MatchLaneLine {
  private:
   struct EigenMatrixHash {
     std::size_t operator()(const Eigen::Matrix<double, 3, 1>& matrix) const {
-      std::size_t seed = 0;
-      for (size_t i = 0; i < matrix.size(); ++i) {
-        // 将每个元素的哈希值与当前种子值混合
-        seed ^= std::hash<double>()(matrix[i]) + 0x9e3779b9 + (seed << 6) +
-                (seed >> 2);
-      }
-      return seed;
+      return std::hash<double>()(matrix(0)) ^ std::hash<double>()(matrix(1)) ^
+             std::hash<double>()(matrix(2));
+    }
+  };
+  struct ControlPointInfoEqual {
+    bool operator()(const ControlPointInfo& lhs,
+                    const ControlPointInfo& rhs) const {
+      return lhs.last_start_point_v.isApprox(rhs.last_start_point_v) &&
+             lhs.last_end_point_v.isApprox(rhs.last_end_point_v) &&
+             lhs.last_control_points_size == rhs.last_control_points_size;
+    }
+  };
+  struct ControlPointInfoHash {
+    std::size_t operator()(const ControlPointInfo& cpt_info) const {
+      std::size_t hashValue = 0;
+      hashValue ^= EigenMatrixHash()(cpt_info.last_start_point_v);
+      hashValue ^= EigenMatrixHash()(cpt_info.last_end_point_v);
+      hashValue ^= std::hash<size_t>()(cpt_info.last_control_points_size);
+      return hashValue;
     }
   };
 
@@ -328,8 +340,12 @@ class MatchLaneLine {
   std::unordered_map<std::string, std::vector<ControlPoint>> merged_map_lines_;
   std::unordered_map<std::string, std::vector<ControlPoint>>
       merged_fcmap_lines_;
-  std::vector<ControlPointInfo> lane_control_pointInfo_;
-  std::vector<ControlPointInfo> edge_control_pointInfo_;
+  std::unordered_set<ControlPointInfo, ControlPointInfoHash,
+                     ControlPointInfoEqual>
+      lane_control_pointInfo_;
+  std::unordered_set<ControlPointInfo, ControlPointInfoHash,
+                     ControlPointInfoEqual>
+      edge_control_pointInfo_;
 };
 
 }  // namespace loc

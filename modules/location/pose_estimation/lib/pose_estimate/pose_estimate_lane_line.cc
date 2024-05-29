@@ -797,6 +797,9 @@ void MatchLaneLine::MergeMapLines(
   if (!lines_map_.empty()) {
     lines_map_.clear();
   }
+  if (!lane_control_pointInfo_.empty()) {
+    lane_control_pointInfo_.clear();
+  }
 
   auto T_V_W = T.inverse();
   for (const auto& line : boundary_lines->boundary_line_) {
@@ -818,34 +821,14 @@ void MatchLaneLine::MergeMapLines(
       HLOG_DEBUG << "MergeMapLines: start_point.norm() == end_point.norm()";
       continue;
     }
-    bool flag = false;
-    if (!lane_control_pointInfo_.empty()) {
-      for (const auto& control_point : lane_control_pointInfo_) {
-        if (start_point_v == control_point.last_start_point_v &&
-            end_point_v == control_point.last_end_point_v &&
-            control_points_size == control_point.last_control_points_size) {
-          HLOG_INFO << "the line seg ment already exist!!";
-          flag = true;
-          break;
-        }
-      }
-    }
-    if (flag) {
+    ControlPointInfo cpt_info{start_point_v, end_point_v, control_points_size};
+    if (lane_control_pointInfo_.find(cpt_info) !=
+        lane_control_pointInfo_.end()) {
       continue;
     }
-
     LineSegment line_segment{id, end_point_v};
     lines_map_[start_point_v].emplace_back(std::move(line_segment));
-    lane_control_pointInfo_.emplace_back(
-        ControlPointInfo{start_point_v, end_point_v, control_points_size});
-    if (lane_control_pointInfo_.size() >
-        mm_params.lane_control_pointInfo_size) {
-      lane_control_pointInfo_.erase(
-          lane_control_pointInfo_.begin(),
-          lane_control_pointInfo_.begin() +
-              (lane_control_pointInfo_.size() -
-               mm_params.lane_control_pointInfo_size));
-    }
+    lane_control_pointInfo_.insert(cpt_info);
   }
   if (!visited_id_.empty()) {
     visited_id_.clear();
@@ -954,6 +937,9 @@ void MatchLaneLine::MergeMapEdges(
   if (!edges_map_.empty()) {
     edges_map_.clear();
   }
+  if (!edge_control_pointInfo_.empty()) {
+    edge_control_pointInfo_.clear();
+  }
 
   auto T_V_W = T.inverse();
   for (const auto& line : road_edges->edge_line_) {
@@ -972,23 +958,14 @@ void MatchLaneLine::MergeMapEdges(
       HLOG_INFO << "MergeMapEdges: start_point.norm() == end_point.norm()";
       continue;
     }
-    bool flag = false;
-    for (const auto& control_point : edge_control_pointInfo_) {
-      if (start_point_v == control_point.last_start_point_v &&
-          end_point_v == control_point.last_end_point_v &&
-          control_points_size == control_point.last_control_points_size) {
-        HLOG_INFO << "the line seg ment already exist!!";
-        flag = true;
-        break;
-      }
-    }
-    if (flag) {
+    ControlPointInfo cpt_info{start_point_v, end_point_v, control_points_size};
+    if (edge_control_pointInfo_.find(cpt_info) !=
+        edge_control_pointInfo_.end()) {
       continue;
     }
     LineSegment line_segment{id, end_point_v};
     edges_map_[start_point_v].emplace_back(std::move(line_segment));
-    edge_control_pointInfo_.emplace_back(
-        ControlPointInfo{start_point_v, end_point_v, control_points_size});
+    edge_control_pointInfo_.insert(cpt_info);
   }
   HLOG_INFO << "MergeMapEdges: reconstruct map road edges end!";
   if (!edge_visited_id_.empty()) {

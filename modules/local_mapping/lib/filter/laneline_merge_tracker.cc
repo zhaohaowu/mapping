@@ -60,8 +60,8 @@ void LaneLineMergeTrack::MergeTrackPoints(
 }
 
 // 两条Tracker重合度很高
-bool LaneLineMergeTrack::MergeOverlayStrategy(
-    const LaneTargetConstPtr& left_line, const LaneTargetConstPtr& right_line) {
+bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
+                                              const LaneTargetPtr& right_line) {
   // 如果其中之一是分流和合流线，则不进行merge（待加）；
   double over_lay_ratio = GetOverLayRatioBetweenTwoLane(
       left_line->GetConstTrackedObject(), right_line->GetConstTrackedObject());
@@ -79,18 +79,22 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(
     // 两条tracker时间差超过2帧保存最新的
     if (std::abs(time_diff) > 0.2) {
       if (time_diff > 0) {
-        remove_index_.insert(right_line->Id());
+        right_line->SetDeleteFlag(true);
+        left_line->SetDeletedTrackIds(*right_line);
         MergeTrackPoints(left_line, right_line);
       } else {
-        remove_index_.insert(left_line->Id());
+        left_line->SetDeleteFlag(true);
+        right_line->SetDeletedTrackIds(*left_line);
         MergeTrackPoints(right_line, left_line);
       }
     } else {
       // 时间差不超过2帧保存跟踪时间长的
       if (left_line->Count() > right_line->Count()) {
-        remove_index_.insert(right_line->Id());
+        right_line->SetDeleteFlag(true);
+        left_line->SetDeletedTrackIds(*right_line);
       } else {
-        remove_index_.insert(left_line->Id());
+        left_line->SetDeleteFlag(true);
+        right_line->SetDeletedTrackIds(*left_line);
       }
     }
     return true;
@@ -102,7 +106,7 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(
 
 // tracker 重叠区域很近及分叉线的合并策略
 bool LaneLineMergeTrack::MergeOverlayCrossStrategy(
-    const LaneTargetConstPtr& left_line, const LaneTargetConstPtr& right_line) {
+    const LaneTargetPtr& left_line, const LaneTargetPtr& right_line) {
   // 如果其中之一是分流和合流线，则不进行merge（待加）；
   double thresh_width = 1.0;
   double over_lay_ratio = GetOverLayRatioBetweenTwoLane(
@@ -125,18 +129,22 @@ bool LaneLineMergeTrack::MergeOverlayCrossStrategy(
     // 两条tracker时间差超过2帧保存最新的
     if (std::abs(time_diff) > 0.2) {
       if (time_diff > 0) {
-        remove_index_.insert(right_line->Id());
+        right_line->SetDeleteFlag(true);
+        left_line->SetDeletedTrackIds(*right_line);
         MergeTrackPoints(left_line, right_line);
       } else {
-        remove_index_.insert(left_line->Id());
+        left_line->SetDeleteFlag(true);
+        right_line->SetDeletedTrackIds(*left_line);
         MergeTrackPoints(right_line, left_line);
       }
     } else {
       // 时间差不超过2帧保存跟踪时间长的
       if (left_line->Count() > right_line->Count()) {
-        remove_index_.insert(right_line->Id());
+        right_line->SetDeleteFlag(true);
+        left_line->SetDeletedTrackIds(*right_line);
       } else {
-        remove_index_.insert(left_line->Id());
+        left_line->SetDeleteFlag(true);
+        right_line->SetDeletedTrackIds(*left_line);
       }
     }
     return true;
@@ -271,15 +279,14 @@ void LaneLineMergeTrack::MergeTracks(std::vector<LaneTrackerPtr>* trackers) {
   if (trackers->size() < 2) {
     return;
   }
-  remove_index_.clear();
   for (int i = 0; i < trackers->size() - 1; ++i) {
-    const auto& left_line = trackers->at(i)->GetConstTarget();
-    if (!left_line->IsTracked()) {
+    const auto& left_line = trackers->at(i)->GetTarget();
+    if (!left_line->IsTracked() || left_line->GetDeleteFlag()) {
       continue;
     }
     for (int j = i + 1; j < trackers->size(); ++j) {
-      const auto& right_line = trackers->at(j)->GetConstTarget();
-      if (!right_line->IsTracked()) {
+      const auto& right_line = trackers->at(j)->GetTarget();
+      if (!right_line->IsTracked() || right_line->GetDeleteFlag()) {
         continue;
       }
 
@@ -294,13 +301,12 @@ void LaneLineMergeTrack::MergeTracks(std::vector<LaneTrackerPtr>* trackers) {
       }
     }
   }
-  trackers->erase(std::remove_if(trackers->begin(), trackers->end(),
-                                 [&](const auto& tracker) {
-                                   return remove_index_.count(
-                                              tracker->GetConstTarget()->Id()) >
-                                          0;
-                                 }),
-                  trackers->end());
+  trackers->erase(
+      std::remove_if(trackers->begin(), trackers->end(),
+                     [&](const auto& tracker) {
+                       return tracker->GetConstTarget()->GetDeleteFlag();
+                     }),
+      trackers->end());
 }
 
 }  // namespace lm

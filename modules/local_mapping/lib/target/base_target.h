@@ -4,10 +4,13 @@
 // @brief: base lane element target head file
 
 #pragma once
+#include <algorithm>
 #include <atomic>
 #include <limits>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <boost/circular_buffer.hpp>
 
@@ -77,6 +80,46 @@ class BaseTarget {
     reverse_flag_ = reverse_flag;
   }
 
+  inline void SetDeleteFlag(bool delete_flag) { delete_flag_ = delete_flag; }
+  inline bool GetDeleteFlag() const { return delete_flag_; }
+
+  inline void SetDeletedTrackIds(const BaseTarget& delete_target) {
+    if (this == &delete_target) {
+      return;
+    }
+    // 先插入delete_target
+    deleted_track_ids_.emplace_back(delete_target.id_,
+                                    delete_target.lastest_tracked_timestamp_);
+    // 去重插入因delete_target删除的ids
+    for (const auto& id : delete_target.deleted_track_ids_) {
+      bool find_flag = false;
+      for (const auto& id_ : deleted_track_ids_) {
+        if (id_.first == id.first) {
+          find_flag = true;
+          break;
+        }
+      }
+      if (!find_flag) {
+        deleted_track_ids_.push_back(id);
+      }
+    }
+    std::sort(deleted_track_ids_.begin(), deleted_track_ids_.end(),
+              [](const auto& left, const auto& right) {
+                return left.second > right.second;
+              });
+    if (deleted_track_ids_.size() > 10) {
+      deleted_track_ids_.resize(10);
+    }
+  }
+
+  inline std::vector<int> GetDeletedTrackIds() const {
+    std::vector<int> deleted_ids;
+    deleted_ids.reserve(deleted_track_ids_.size());
+    for (const auto& pair : deleted_track_ids_) {
+      deleted_ids.push_back(pair.first);
+    }
+    return deleted_ids;
+  }
   inline int Id() const { return id_; }
 
   inline int Count() const { return tracked_count_; }
@@ -84,11 +127,13 @@ class BaseTarget {
 
  protected:
   ElementPtr tracked_element_ = nullptr;
+  std::vector<std::pair<int, double>> deleted_track_ids_;
   int id_ = 0;
   int lost_age_ = 0;
   bool reverse_flag_ = false;
   int tracked_count_ = 0;
   bool send_postlane_ = true;  // 是否后处理的车道线发送给定位用
+  bool delete_flag_ = false;  // merge 或者删除逻辑标记是否被删除掉了
   TrackStatus track_status_ = TrackStatus::MAX_TRACK_STATUS_NUM;
   double start_tracked_timestamp_ = 0.0;
   double lastest_tracked_timestamp_ = 0.0;

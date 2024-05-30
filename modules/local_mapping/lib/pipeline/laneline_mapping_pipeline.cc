@@ -504,8 +504,7 @@ void LaneLineMappingPipeline::CollectOutputObjects(
       HLOG_DEBUG << "LaneTrack NOT OUTPUT!";
       HLOG_DEBUG << "MinningTimestamp: "
                  << std::to_string(output_lane_object->latest_tracked_time)
-                 << " "
-                 << "Buffer LaneTarget "
+                 << " " << "Buffer LaneTarget "
                  << "TrackStatus: " << lane_target->ToStr() << " "
                  << "LaneTrack NOT OUTPUT!";
       // HLOG_INFO << "use_debug_mode_" << use_debug_mode_;
@@ -517,6 +516,7 @@ void LaneLineMappingPipeline::CollectOutputObjects(
     // 供map_lane使用
     output_lane_object->id = lane_target->Id();
     output_lane_object->send_postlane = lane_target->SendPostLane();
+    output_lane_object->deleted_track_ids = lane_target->GetDeletedTrackIds();
     HLOG_DEBUG << "send_postline:" << output_lane_object->send_postlane
                << "id_:" << output_lane_object->id;
     tracked_lanelines->lanelines.push_back(output_lane_object);

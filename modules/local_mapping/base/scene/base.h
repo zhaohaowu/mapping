@@ -33,7 +33,6 @@ struct BaseData {
   double latest_tracked_time = 0.0;
   // @brief lost measurement frame nums
   int lost_age = -1;
-
   TrackState state = TrackState::NOTMATURED;
 };
 

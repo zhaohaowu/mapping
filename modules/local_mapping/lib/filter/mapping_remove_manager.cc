@@ -319,7 +319,7 @@ float MappingRemoveManager::GetAvgDeltaBetweenTwoLane(
 }
 
 int findIndexOfFirstNonNegative(
-    const std::vector<std::pair<int, double>>& pairs) {
+    const std::vector<std::pair<LaneTargetPtr, double>>& pairs) {
   for (int i = 0; i < pairs.size(); ++i) {
     if (pairs[i].second >= 0) {
       return i;
@@ -329,16 +329,16 @@ int findIndexOfFirstNonNegative(
   return -1;
 }
 // 删除相邻两参考线之间的异常待删除线
-bool MappingRemoveManager::DeleteLinebetweenRefLane(
+LaneTargetPtr MappingRemoveManager::DeleteLinebetweenRefLane(
     const LaneTrackerPtr& lanetarget, std::vector<LaneTrackerPtr>* trackers) {
-  std::vector<std::pair<int, double>> ref_id_delta_pairs;
+  std::vector<std::pair<LaneTargetPtr, double>> ref_id_delta_pairs;
   for (auto& ref_track : *trackers) {
     const auto& ref_line = ref_track->GetConstTarget()->GetConstTrackedObject();
     const auto& delete_line =
         lanetarget->GetConstTarget()->GetConstTrackedObject();
     if (IsForkConvergelike(lanetarget->GetConstTarget(),
                            ref_track->GetConstTarget())) {
-      return false;
+      return nullptr;
     }
     double over_lay_ratio =
         GetOverLayRatioBetweenTwoLane(delete_line, ref_line);
@@ -348,20 +348,17 @@ bool MappingRemoveManager::DeleteLinebetweenRefLane(
     // y的平均差值（待删除-参考线）
     float avg_delta = GetAvgDeltaBetweenTwoLane(delete_line, ref_line);
 
-    ref_id_delta_pairs.emplace_back(
-        std::pair<int, double>(ref_track->GetConstTarget()->Id(), avg_delta));
+    ref_id_delta_pairs.emplace_back(ref_track->GetTarget(), avg_delta);
   }
   // 从小到大排序
   std::sort(ref_id_delta_pairs.begin(), ref_id_delta_pairs.end(),
-            [](std::pair<int, double>& a, std::pair<int, double>& b) {
-              return a.second < b.second;
-            });
+            [](const auto& a, const auto& b) { return a.second < b.second; });
   // 寻找第一个非负index
   int index = findIndexOfFirstNonNegative(ref_id_delta_pairs);
   // 待删除线位于最左边和最右边（暂时不删除）
   if (index <= 0) {
     HLOG_DEBUG << "findIndexOfFirstNonNegative index:" << index;
-    return false;
+    return nullptr;
   }
   // 与左边线的delta小于0，与右边线的delta大于0
   float left_delta = ref_id_delta_pairs[index - 1].second;
@@ -370,16 +367,17 @@ bool MappingRemoveManager::DeleteLinebetweenRefLane(
   HLOG_DEBUG << "lanetarget->GetConstTarget() id:"
              << lanetarget->GetConstTarget()->Id();
   HLOG_DEBUG << "ref_id_delta_pairs[index - 1] left_delta id:"
-             << ref_id_delta_pairs[index - 1].first;
+             << ref_id_delta_pairs[index - 1].first->Id();
   HLOG_DEBUG << "ref_id_delta_pairs[index] right_delta id:"
-             << ref_id_delta_pairs[index].first;
+             << ref_id_delta_pairs[index].first->Id();
   HLOG_DEBUG << "left_delta:" << left_delta << " ,right_delta:" << right_delta;
 
   if ((std::abs(left_delta) < 2.5 || std::abs(right_delta) < 2.5) &&
       lanetarget->GetConstTarget()->GetConstTrackedObject()->lost_age > 4) {
-    return true;
+    // 查找对应的ref_id, 以left为准
+    return ref_id_delta_pairs[index - 1].first;
   }
-  return false;
+  return nullptr;
 }
 // 如果没有参考线，待删除线之间的博弈删除
 bool MappingRemoveManager::DeleteLaneisTooNear(
@@ -517,6 +515,7 @@ void MappingRemoveManager::TrackedStatic(const LaneTargetConstPtr& target,
 void MappingRemoveManager::Process(std::vector<LaneTrackerPtr>* trackers) {
   HLOG_DEBUG << "***MappingRemoveManager Process start***";
   remove_index_.clear();
+  remove_index_map_.clear();
   // 设置路口前后的标志
   SetIntersection(trackers);
   // 分成三部分（参考线、车后的线和待删除线）。
@@ -550,9 +549,13 @@ void MappingRemoveManager::Process(std::vector<LaneTrackerPtr>* trackers) {
   // 最严格删线逻辑：只有在两条参考线之间时，且待删除线距离两条线距离都小于阈值(2.5)时,删除之。
   for (auto& remove_lane : remove_schedule_lanes) {
     {
-      if (DeleteLinebetweenRefLane(remove_lane, &reference_lanes)) {
+      auto ref_lane_target =
+          DeleteLinebetweenRefLane(remove_lane, &reference_lanes);
+      if (ref_lane_target) {
         HLOG_DEBUG << "Deleta!!!!! id:" << remove_lane->GetConstTarget()->Id();
         remove_index_.insert(remove_lane->GetConstTarget()->Id());
+        remove_index_map_[remove_lane->GetConstTarget()->Id()] =
+            ref_lane_target;
       }
     }
   }
@@ -564,6 +567,11 @@ void MappingRemoveManager::Process(std::vector<LaneTrackerPtr>* trackers) {
       points.erase(std::remove_if(points.begin(), points.end(),
                                   [&](const auto& pt) { return pt.x() > 0; }),
                    points.end());
+      // 删除此条tracker前记录其id到ref_lane
+      auto iter = remove_index_map_.find(tracker->GetConstTarget()->Id());
+      if (points.empty() && iter != remove_index_map_.end()) {
+        iter->second->SetDeletedTrackIds(*tracker->GetConstTarget());
+      }
     }
   }
 

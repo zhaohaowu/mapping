@@ -120,7 +120,8 @@ struct LaneLine : public BaseData {
   std::vector<Eigen::Vector3d> fit_points;
   // @brief lane line stability error
   mapping::LaneStabilityError stability_error;
-
+  // @brief 以该线为参考线删除的track ids
+  std::vector<int> deleted_track_ids;
   // @brief lane line track id
   int id = -1;
 

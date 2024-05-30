@@ -53,14 +53,16 @@ class MappingRemoveManager {
       const std::vector<LaneTrackerPtr>* remove_schedule_lanes);
   bool IsForkConvergelike(const LaneTargetConstPtr& left_line,
                           const LaneTargetConstPtr& right_line);
-  bool DeleteLinebetweenRefLane(const LaneTrackerPtr& lanetarget,
-                                std::vector<LaneTrackerPtr>* trackers);
+  LaneTargetPtr DeleteLinebetweenRefLane(const LaneTrackerPtr& lanetarget,
+                                         std::vector<LaneTrackerPtr>* trackers);
   float GetAvgDeltaBetweenTwoLane(const LaneLinePtr& line_delete,
                                   const LaneLinePtr& line_ref);
 
  private:
   // 需要删除的tracker标记
   std::unordered_set<int> remove_index_;
+  // 删除的track id及对应ref_lane
+  std::unordered_map<int, LaneTargetPtr> remove_index_map_;
 };
 
 }  // namespace lm

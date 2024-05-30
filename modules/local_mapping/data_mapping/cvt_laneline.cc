@@ -346,8 +346,8 @@ bool DataMapping::CvtLaneLine2Pb(const LaneLinePtr& lane_msg,
   pb_lane->set_confidence(1.0);
   // pb_lane->set_confidence(lane_msg->geo_confidence);
   pb_lane->set_lost_age(lane_msg->lost_age);
-  HLOG_DEBUG << "DEBUG:"
-             << "id, " << lane_msg->id << ", lost_age, " << lane_msg->lost_age
+  HLOG_DEBUG << "DEBUG:" << "id, " << lane_msg->id << ", lost_age, "
+             << lane_msg->lost_age
              << ", tracked_age: " << lane_msg->tracked_count
              << ", latest_tracked_age, "
              << std::to_string(lane_msg->latest_tracked_time);
@@ -355,6 +355,12 @@ bool DataMapping::CvtLaneLine2Pb(const LaneLinePtr& lane_msg,
   pb_lane->set_latest_tracked_time(lane_msg->latest_tracked_time);
   // 车道线稳定性误差
   pb_lane->mutable_stability_error()->CopyFrom(lane_msg->stability_error);
+  // 设定deleted_track_ids
+  for (int id : lane_msg->deleted_track_ids) {
+    pb_lane->add_deleted_track_ids(id);
+    HLOG_DEBUG << "deleted_track_ids track_id " << lane_msg->id
+               << ", deleted id " << id;
+  }
   return true;
 }
 

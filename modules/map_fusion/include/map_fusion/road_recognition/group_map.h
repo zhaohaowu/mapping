@@ -298,7 +298,9 @@ class GroupMap {
                       std::map<em::Id, Overlaps::Ptr>* overlap, Lane::Ptr lane);
   void CatmullRom(const std::vector<Eigen::Vector3f>& pts,
                   std::vector<Eigen::Vector3f>* fit_points, int num);
-  void HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
+  float PointToLaneDis(const Lane::Ptr& lane_ptr, Eigen::Vector3f point);
+  void HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
+                      std::vector<LineSegment::Ptr>* lines_need_pred,
                       double threshold);
   void RelateGroups(std::vector<Group::Ptr>* groups, double stamp);
   bool MatchLanePtAndStopLine(const em::Point& left_pt,

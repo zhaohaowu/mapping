@@ -2976,8 +2976,9 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
       // 现增加pred_end_heading字段用于预测，使用PCL欧式聚类对heading进行聚类
       if (!lines_need_pred.empty()) {
         // PCL欧式聚类 阈值为15度
-        const double heading_threshold = 15. / 180. * M_PI;
-        HeadingCluster(&lines_need_pred, heading_threshold);
+        const double heading_threshold = 10. / 180. * M_PI;
+        HeadingCluster(center_line_need_pred, &lines_need_pred,
+                       heading_threshold);
 
         // 重新构建group 线的类型为虚线
         for (auto& lane : center_line_need_pred) {
@@ -3086,7 +3087,44 @@ float GroupMap::Angle_diff(float angle_0, float angle_1) {
   return diff;
 }
 
-void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
+float GroupMap::PointToLaneDis(const Lane::Ptr& lane_ptr,
+                               Eigen::Vector3f point) {
+  if (lane_ptr == nullptr || lane_ptr->left_boundary == nullptr ||
+      lane_ptr->right_boundary == nullptr) {
+    return std::numeric_limits<float>::max();
+  }
+  if (lane_ptr->left_boundary->pts.size() < 2 ||
+      lane_ptr->right_boundary->pts.size() < 2) {
+    return std::numeric_limits<float>::max();
+  }
+  float left_dist = 0;
+  if (lane_ptr->left_boundary->pts.back().pt.x() < point.x()) {
+    int size = lane_ptr->left_boundary->pts.size();
+    left_dist =
+        PointToVectorDist(lane_ptr->left_boundary->pts[size - 2].pt,
+                          lane_ptr->left_boundary->pts[size - 1].pt, point);
+  } else {
+    left_dist = PointToVectorDist(lane_ptr->left_boundary->pts[0].pt,
+                                  lane_ptr->left_boundary->pts[1].pt, point);
+  }
+
+  float right_dist = 0;
+  if (lane_ptr->right_boundary->pts.back().pt.x() < point.x()) {
+    int size = lane_ptr->right_boundary->pts.size();
+    right_dist =
+        PointToVectorDist(lane_ptr->right_boundary->pts[size - 2].pt,
+                          lane_ptr->right_boundary->pts[size - 1].pt, point);
+  } else {
+    right_dist = PointToVectorDist(lane_ptr->right_boundary->pts[0].pt,
+                                   lane_ptr->right_boundary->pts[1].pt, point);
+  }
+  HLOG_INFO << "left_dist:" << left_dist << ",right_dist:" << right_dist << ","
+            << left_dist * right_dist;
+  return left_dist * right_dist;
+}
+
+void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
+                              std::vector<LineSegment::Ptr>* lines_need_pred,
                               double threshold) {
   static double last_predict_angle = 0.0;
   double ego_left_heading = 9.9;
@@ -3132,6 +3170,7 @@ void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
 
   std::vector<pcl::PointIndices> heading_cluster_indices;
   heading_cluster.extract(heading_cluster_indices);
+  HLOG_INFO << "cluser size:" << heading_cluster_indices.size();
   double predict_heading = 0.0;
   if (!fabs(ego_lane_heading - 9.9) < 1e-1) {
     predict_heading = ego_lane_heading;
@@ -3147,32 +3186,31 @@ void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
       }
       predict_heading =
           heading_data_size != 0 ? heading_sum / heading_data_size : 0;
+      HLOG_WARN << "heading mode 2:" << predict_heading;
       predict_heading = 0.6 * last_predict_angle + 0.4 * predict_heading;
     } else {
-      // 找到聚类数量最多的
-      std::vector<double> cluster_headings;
-      int max_count = 0;
-      int max_index = -1;
-      for (int i = 0; i < heading_cluster_indices.size(); i++) {
-        double heading_sum = 0.;
-        int heading_data_size = 0;
-        for (const auto& idx : heading_cluster_indices[i].indices) {
-          auto heading_data_element = (*heading_data)[idx].x;
-          heading_sum = heading_sum + heading_data_element;
-          heading_data_size = heading_data_size + 1;
-        }
-        double predict_heading =
-            heading_data_size != 0 ? heading_sum / heading_data_size : 0;
-        cluster_headings.push_back(predict_heading);
-        if (heading_data_size > max_count) {
-          max_count = heading_data_size;
-          max_index = i;
+      int nearest_lane_index = -1;
+      double nearest_lane_dist = std::numeric_limits<float>::max();
+      // 找到自车所在的lane
+      Eigen::Vector3f cur_pose = {0, 0, 0};
+      for (int i = 0; i < lanes_need_pred.size(); i++) {
+        auto lane_ptr = lanes_need_pred[i];
+        float cur_dist = PointToLaneDis(lane_ptr, cur_pose);
+        if (cur_dist < nearest_lane_dist) {
+          nearest_lane_dist = cur_dist;
+          nearest_lane_index = i;
         }
       }
-      // if (max_index!=-1 && max_index ==  min_diff_index){
-      //   predict_heading = cluster_headings[max_index];
-      // } else
-      {
+
+      if (nearest_lane_index != -1) {
+        auto lane_ptr = lanes_need_pred[nearest_lane_index];
+        predict_heading = (lane_ptr->left_boundary->mean_end_heading +
+                           lane_ptr->right_boundary->mean_end_heading) /
+                          2.0;
+        HLOG_WARN << "heading mode 3:" << predict_heading << ","
+                  << nearest_lane_dist;
+        predict_heading = 0.6 * last_predict_angle + 0.4 * predict_heading;
+      } else {
         // 求平均值
         double sum = 0;
         for (const auto& line : *lines_need_pred) {
@@ -3180,7 +3218,7 @@ void GroupMap::HeadingCluster(std::vector<LineSegment::Ptr>* lines_need_pred,
         }
         predict_heading =
             lines_need_pred->empty() ? 0.0 : (sum / lines_need_pred->size());
-        HLOG_WARN << "mode 4:" << predict_heading;
+        HLOG_WARN << "heading mode 4:" << predict_heading;
         predict_heading = 0.6 * last_predict_angle + 0.4 * predict_heading;
       }
     }

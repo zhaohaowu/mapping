@@ -218,7 +218,7 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
     } else {
       std::vector<Point> last_n_pts(line->pts.end() - avg_n, line->pts.end());
       // 计算前后两点连成的向量与x的夹角theta的均值
-      std::vector<double> thetas(last_n_pts.size() - 1, 0);
+      std::vector<double> thetas;
       double mean_theta = 0.;
       double mean_interval = 0.;
       for (size_t i = 0; i < last_n_pts.size() - 1; ++i) {
@@ -226,16 +226,16 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
         const Eigen::Vector2f pb = last_n_pts.at(i + 1).pt.head<2>();
         Eigen::Vector2f v = pb - pa;
         double theta = 0;
-        if (std::abs(v.x()) > 1e-2) {
+        if (std::abs(v.x()) > 0.8) {
           theta = atan2(v.y(), v.x());  // atan2计算出的角度范围是[-pi, pi]
+          thetas.push_back(theta);
+          mean_theta += theta;
+          mean_interval += v.norm();
         }
-        thetas[i] = theta;
-        mean_theta += theta;
-        mean_interval += v.norm();
       }
 
-      mean_interval /= static_cast<double>(thetas.size());
-      mean_theta /= static_cast<double>(thetas.size());
+      mean_interval /= (static_cast<double>(thetas.size()) + 1e-1);
+      mean_theta /= (static_cast<double>(thetas.size()) + 1e-1);
       double square_sum =
           std::inner_product(thetas.begin(), thetas.end(), thetas.begin(), 0.0);
       double std_theta =

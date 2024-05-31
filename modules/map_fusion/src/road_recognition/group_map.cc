@@ -1418,7 +1418,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
     }
 
     if (group_distance > 10 && currgrp_nearest_mindis_to_nextgrp > 10) {
-      // 小路口及以上并且正处于路口
+      // > 10m路口
       bool veh_in_this_junction = IsVehicleInJunction(curr_group, next_group);
 
       // 生成curr_group和next_group的中线的角度值。
@@ -1429,7 +1429,8 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
       auto next_group_v = (next_group->group_segments[1]->end_slice.po -
                            next_group->group_segments[0]->end_slice.po)
                               .normalized();
-      if (cur_group_v.dot(next_group_v) > 0.8) {  // ？
+      if (cur_group_v.dot(next_group_v) > 0.8) {
+        // 直行场景
         auto next_grp_start_slice =
             next_group->group_segments.front()->start_slice;
         Eigen::Vector2f next_start_pl(next_grp_start_slice.pl.x(),
@@ -1439,58 +1440,43 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
         Eigen::Vector2f curr_pos(0, 0);
         auto dist_to_slice =
             PointToVectorDist(next_start_pl, next_start_pr, curr_pos);
-        //! 注意：当前路口策略是：先使用预测的车道往前行驶一半路口长度，之后再使用前方车道进行关联.
-        // dist_to_slice > (group_distance * 0.5) && veh_in_this_junction
+        //! 当前路口策略是：30内有可连接的车道就直接连上
         //! 为了能使用curr group的车道向前预测，这里把next
         //! group的索引标记出来，后面会将next group 里车道都删掉，这样curr
         //! group就变成最后一个group了，后续就能正常使用其向前预测了.
-        // 把一半变成30m
-        HLOG_ERROR << "curr_group NAME = " << curr_group->str_id
-                   << "  dist_to_slice = " << dist_to_slice
-                   << "  veh_in_this_junction = " << veh_in_this_junction;
+        HLOG_INFO << "curr_group NAME = " << curr_group->str_id
+                  << "  dist_to_slice = " << dist_to_slice
+                  << "  veh_in_this_junction = " << veh_in_this_junction;
         if (veh_in_this_junction) {
           Lane::Ptr ego_curr_lane = nullptr;
           FindNearestLaneToHisVehiclePosition(curr_group, &ego_curr_lane);
-          if (ego_curr_lane == nullptr) {
-            HLOG_ERROR << "ego_curr_lane nullptr";
-          }
           Lane::Ptr best_next_lane = nullptr;
-          FindBestNextLane(next_group, dist_to_slice, &best_next_lane);
-          if (best_next_lane == nullptr) {
-            HLOG_ERROR << "best_next_lane nullptr";
+          if (dist_to_slice <= 30) {
+            FindBestNextLane(next_group, dist_to_slice, &best_next_lane);
           }
-          if (dist_to_slice > 30 || best_next_lane == nullptr) {
-            erase_grp_idx = grp_idx + 1;
-            break;
-          }
+
+          // 条件判断，分三种情况
           if (ego_curr_lane != nullptr && best_next_lane != nullptr) {
             GenerateTransitionLane(ego_curr_lane, best_next_lane,
                                    &virtual_lanes);
+          } else if (ego_curr_lane == nullptr) {
+            HLOG_ERROR << "ego_curr_lane nullptr";
+          } else if (best_next_lane == nullptr) {
+            // 30m内没找到对应的可连接车道，直接退出
+            erase_grp_idx = grp_idx + 1;
+            HLOG_WARN << "best_next_lane nullptr";
           }
+        } else {
+          // wait update
+          // 对应应该是车已经走到了next_group里面，现在是默认是不连接
+          HLOG_DEBUG << "vehicle is not in junction";
         }
-        // if (dist_to_slice > 30 && veh_in_this_junction) {
-        //   // 找到与curr_group最近的历史车辆位置
-        //   Lane::Ptr ego_curr_lane = nullptr;
-        //   FindNearestLaneToHisVehiclePosition(curr_group, &ego_curr_lane);
-        //   if (ego_curr_lane == nullptr) {
-        //     HLOG_ERROR << "ego_curr_lane nullptr";
-        //   }
-        //   Lane::Ptr best_next_lane = nullptr;
-        //   FindBestNextLane(next_group, dist_to_slice, &best_next_lane);
-        //   if (best_next_lane == nullptr) {
-        //     HLOG_ERROR << "best_next_lane nullptr";
-        //   }
-        //   if (ego_curr_lane != nullptr && best_next_lane != nullptr) {
-        //     GenerateTransitionLane(ego_curr_lane, best_next_lane,
-        //                            &virtual_lanes);
-        //   } else {
-        //     erase_grp_idx = grp_idx + 1;
-        //     break;
-        //   }
-        // }
+      } else {
+        // 转弯场景
+        HLOG_WARN << "it is curve scene";
       }
     } else {
-      // 非路口
+      // 小路口 < 10m，或者不是路口
       FindGroupNextLane(curr_group, next_group);
     }
     if (virtual_lanes.size() > 0) {

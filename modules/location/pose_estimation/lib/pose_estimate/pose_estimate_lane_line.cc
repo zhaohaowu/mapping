@@ -885,47 +885,50 @@ void MatchLaneLine::MergeMapLines(
 
 void MatchLaneLine::Traversal(const V3& root_start_point,
                               std::vector<std::string> line_ids, int loop) {
-  V3 seg_point;
-  seg_point << 0, 0, 9;
   if (lines_map_.empty()) {
     return;
   }
-  std::stack<V3> line_start_points;
-  line_start_points.push(root_start_point);
-  while (!line_start_points.empty()) {
-    V3 cur_start_point = line_start_points.top();
-    if (cur_start_point.isApprox(seg_point) && !line_ids.empty()) {
-      line_ids.pop_back();
-      continue;
-    }
-    line_start_points.pop();
+
+  std::stack<std::tuple<V3, std::vector<std::string>, int>> stack;
+  stack.push(std::make_tuple(root_start_point, line_ids, loop));
+
+  while (!stack.empty()) {
+    auto [cur_start_point, cur_line_ids, cur_loop] = stack.top();
+    stack.pop();  // V3 cur_start_point = root_start_point;
     auto cur_line_infos_iter = lines_map_.find(cur_start_point);
     if (cur_line_infos_iter == lines_map_.end()) {
-      if (line_ids.empty()) {
-        HLOG_DEBUG << "Traversal: traversal loop failed " << loop;
+      if (cur_line_ids.empty()) {
+        HLOG_DEBUG << "Traversal: traversal loop failed " << cur_loop;
         continue;
       }
-      linked_lines_id_.emplace_back(line_ids);
-      line_ids.pop_back();
+      linked_lines_id_.emplace_back(cur_line_ids);
       continue;
     }
     auto successor_segments_info = cur_line_infos_iter->second;
     int size = static_cast<int>(successor_segments_info.size());
     if (size > 0) {
-      bool find_flag = std::binary_search(line_ids.begin(), line_ids.end(),
-                                          successor_segments_info[0].first);
-      line_ids.push_back(successor_segments_info[0].first);
-      visited_id_.insert(successor_segments_info[0].first);
-      line_start_points.push(seg_point);
-      if (find_flag) {
-        linked_lines_id_.emplace_back(line_ids);
-        HLOG_DEBUG << "line_ids size: " << line_ids.size();
-        line_ids.pop_back();
-        continue;
-      }
       for (int i = 0; i < size; ++i) {
-        line_start_points.push(successor_segments_info[i].second);
+        bool find_flag =
+            std::binary_search(cur_line_ids.begin(), cur_line_ids.end(),
+                               successor_segments_info[i].first);
+        if (find_flag) {
+          linked_lines_id_.emplace_back(cur_line_ids);
+          continue;
+        }
+        cur_line_ids.emplace_back(successor_segments_info[i].first);
+        cur_loop++;
+        visited_id_.insert(successor_segments_info[i].first);
+        stack.push(std::make_tuple(successor_segments_info[i].second,
+                                   cur_line_ids, cur_loop));
+        cur_line_ids.pop_back();
+        cur_loop--;
       }
+      if (cur_line_ids.size() > 50) {
+        HLOG_ERROR << "Traversal: cur_line_ids size > 50!!!, break loop!!!";
+        break;
+      }
+    } else {
+      HLOG_DEBUG << "Traversal: traversal loop: " << cur_loop << " failed!";
     }
   }
 }
@@ -1026,47 +1029,51 @@ void MatchLaneLine::EdgesTraversal(const V3& root_start_point,
                                    int loop) {
   HLOG_DEBUG << "EDGE Traversal: start "
              << " ts: " << ins_timestamp_;
-  V3 seg_point;
-  seg_point << 0, 0, 9;
   if (edges_map_.empty()) {
     return;
   }
-  std::stack<V3> line_start_points;
-  line_start_points.push(root_start_point);
-  while (!line_start_points.empty()) {
-    V3 cur_start_point = line_start_points.top();
-    if (cur_start_point.isApprox(seg_point) && !line_ids.empty()) {
-      line_ids.pop_back();
-      continue;
-    }
-    line_start_points.pop();
+
+  std::stack<std::tuple<V3, std::vector<std::string>, int>> stack;
+  stack.push(std::make_tuple(root_start_point, line_ids, loop));
+
+  while (!stack.empty()) {
+    auto [cur_start_point, cur_line_ids, cur_loop] = stack.top();
+    stack.pop();  // V3 cur_start_point = root_start_point;
     auto cur_line_infos_iter = edges_map_.find(cur_start_point);
     if (cur_line_infos_iter == edges_map_.end()) {
-      if (line_ids.empty()) {
-        HLOG_DEBUG << "EDGE Traversal: traversal loop failed " << loop;
+      if (cur_line_ids.empty()) {
+        HLOG_DEBUG << "Traversal: traversal loop failed " << cur_loop;
         continue;
       }
-      linked_edges_id_.emplace_back(line_ids);
-      line_ids.pop_back();
+      linked_edges_id_.emplace_back(cur_line_ids);
       continue;
     }
     auto successor_segments_info = cur_line_infos_iter->second;
     int size = static_cast<int>(successor_segments_info.size());
     if (size > 0) {
-      bool find_flag = std::binary_search(line_ids.begin(), line_ids.end(),
-                                          successor_segments_info[0].first);
-      line_ids.push_back(successor_segments_info[0].first);
-      edge_visited_id_.insert(successor_segments_info[0].first);
-      line_start_points.push(seg_point);
-      if (find_flag) {
-        linked_edges_id_.emplace_back(line_ids);
-        HLOG_DEBUG << "edge_ids size: " << line_ids.size();
-        line_ids.pop_back();
-        continue;
-      }
       for (int i = 0; i < size; ++i) {
-        line_start_points.push(successor_segments_info[i].second);
+        bool find_flag =
+            std::binary_search(cur_line_ids.begin(), cur_line_ids.end(),
+                               successor_segments_info[i].first);
+        if (find_flag) {
+          linked_edges_id_.emplace_back(cur_line_ids);
+          continue;
+        }
+        cur_line_ids.emplace_back(successor_segments_info[i].first);
+        cur_loop++;
+        edge_visited_id_.insert(successor_segments_info[i].first);
+        stack.push(std::make_tuple(successor_segments_info[i].second,
+                                   cur_line_ids, cur_loop));
+        cur_line_ids.pop_back();
+        cur_loop--;
       }
+      if (cur_line_ids.size() > 50) {
+        HLOG_ERROR << "EDGE Traversal: cur_line_ids size > 50!!!, break loop!!!";
+        break;
+      }
+    } else {
+      HLOG_DEBUG << "EDGE Traversal: traversal loop: " << cur_loop
+                 << " failed!";
     }
   }
   HLOG_DEBUG << "EDGE Traversal: end "

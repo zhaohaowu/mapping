@@ -34,6 +34,7 @@ class SystemDeviceImp : public ::hdmap::service::ISystemDevice {
 
  public:
   const char* getUid() override;
+  const char* getCustomConfig() override;
   ::hdmap::service::SystemInfo getSystemInfo() override;
   ::hdmap::service::NetworkState getNetworkState() override;
   int64_t getDiskFreeSize() override;
@@ -51,6 +52,7 @@ class SystemDeviceImp : public ::hdmap::service::ISystemDevice {
   ::hdmap::service::ISystemDeviceListener* listener_;
   std::string uuid_;
   std::mutex mutex_;
+  std::string vehicle_platform_type_{"EP41"};
 };
 
 }  // namespace mf

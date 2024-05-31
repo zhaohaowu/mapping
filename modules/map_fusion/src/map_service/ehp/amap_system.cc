@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstring>
 #include <ctime>
+#include <fstream>
 #include <iostream>
 
 #include "glog/logging.h"
@@ -18,7 +19,23 @@ namespace hozon {
 namespace mp {
 namespace mf {
 // 系统接口 demo
-SystemDeviceImp::SystemDeviceImp() : listener_(nullptr) {}
+SystemDeviceImp::SystemDeviceImp() : listener_(nullptr) {
+  std::ifstream ifs;
+  ifs.open("/cfg/system/vehicle_flag.cfg", std::ios::in);
+  if (ifs.is_open()) {
+    std::getline(ifs, vehicle_platform_type_);
+    HLOG_INFO << "vehicle_platform_type_ is " << vehicle_platform_type_;
+  }
+  ifs.close();
+  if (vehicle_platform_type_.empty()) {
+    HLOG_ERROR << "No /cfg/system/vehicle_flag.cfg value!";
+    vehicle_platform_type_ = "EP41";  // 改用默认值
+  }
+  if (vehicle_platform_type_ != "EP41" && vehicle_platform_type_ != "EP40") {
+    HLOG_ERROR << "The vehicle_flag invalid!";
+    vehicle_platform_type_ = "EP41";
+  }
+}
 
 SystemDeviceImp::~SystemDeviceImp() { listener_ = nullptr; }
 
@@ -26,6 +43,16 @@ const char* SystemDeviceImp::getUid() {
   std::lock_guard<std::mutex> lock(mutex_);
   HLOG_INFO << "uuid: " << uuid_;
   return uuid_.c_str();
+}
+
+const char* SystemDeviceImp::getCustomConfig() {
+  if (vehicle_platform_type_ == "EP41") {
+    return R"({"adapter.transmit.idc.host.ip":"172.16.80.50"})";
+  }
+  if (vehicle_platform_type_ == "EP40") {
+    return R"({"adapter.transmit.idc.host.ip":"172.16.1.60"})";
+  }
+  return R"({"adapter.transmit.idc.host.ip":"172.16.80.50"})";
 }
 
 ::hdmap::service::NetworkState SystemDeviceImp::getNetworkState() {

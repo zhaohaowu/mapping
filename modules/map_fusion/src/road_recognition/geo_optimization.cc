@@ -2831,6 +2831,9 @@ void GeoOptimization::AppendElemtMap(
       node_name++;
     }
     lane_line.id = lane_line_it.track_id();
+    for (const auto& delete_id : lane_line_it.deleted_track_ids()) {
+      lane_line.delete_ids.emplace_back(delete_id);
+    }
     FillLanePos(&lane_line, lane_line_it.lanepos());
     FillLaneType(&lane_line, lane_line_it.lanetype());
     FillLaneColor(&lane_line, lane_line_it.color());

@@ -37,7 +37,8 @@ struct Point {
 
 struct Line {
   em::Id id;
-  em::Id id_next = -1000;  // 下一根line的id号
+  em::Id id_next = -1000;           // 下一根line的id号
+  std::vector<em::Id> deteled_ids;  // 这根id的被删的其他ids
   em::LineType type;
   em::Color color;
   em::LanePos lanepos;
@@ -315,6 +316,9 @@ class GroupMap {
   void GenerateTransitionLaneToPo(Lane::Ptr lane_in_curr,
                                   Lane::Ptr lane_in_next,
                                   Lane::Ptr transition_lane);
+  void GenerateTransitionLaneToPo2(Lane::Ptr lane_in_curr,
+                                   Lane::Ptr lane_in_next,
+                                   Lane::Ptr transition_lane);
   float CalculateDistPt(Lane::Ptr lane_in_next, Lane::Ptr lane_in_curr,
                         size_t sizet);
   float CalculatePoint2CenterLine(Lane::Ptr lane_in_next,
@@ -363,6 +367,12 @@ class GroupMap {
   bool IsIntersect(Lane::Ptr line1, Lane::Ptr line2);
   void EraseIntersectLane(Group::Ptr curr_group, Group::Ptr next_group);
   bool BoundaryIsValid(const LineSegment& line);
+  bool LineIdConsistant(LineSegment::Ptr line, em::Id id);
+  void GenerateTransitionLaneToBefore(Lane::Ptr lane_in_curr,
+                                      Lane::Ptr transition_lane);
+  void GenerateTransitionLaneToAfter(Lane::Ptr lane_in_curr,
+                                     Lane::Ptr lane_in_next,
+                                     Lane::Ptr transition_lane);
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;
   std::map<em::Id, Arrow::Ptr> arrow_;
@@ -377,6 +387,7 @@ class GroupMap {
   KinePose::Ptr curr_pose_ = nullptr;
   std::vector<GroupSegment::Ptr> group_segments_;
   EgoLane ego_line_id_;
+  Lane::Ptr history_best_lane_ = nullptr;
 };
 
 }  // namespace gm

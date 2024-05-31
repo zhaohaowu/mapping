@@ -655,17 +655,23 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
           if (groups[i]->str_id.back() == 'V' && i > 0 && i < index) {
             for (const auto& lane : groups[i]->lanes) {
               if (lane->center_line_pts.size() > 0 &&
-                  lane->center_line_pts[0].pt.x() < 0.0) {
-                size_t crs_before = groups[i - 1]->lanes.size();
-                size_t crs_after = groups[i + 1]->lanes.size();
+                      lane->center_line_pts[0].pt.x() < 0.0 ||
+                  groups[i - 1]->str_id.back() == 'V') {
+                // size_t crs_before = groups[i - 1]->lanes.size();
+                // size_t crs_after = groups[i + 1]->lanes.size();
                 if ((groups[i + 1]->group_segments.front()->start_slice.po.x() >
-                     1.0)) {
-                  // (crs_before != iscross->cross_before_lane_ ||
+                     1.0)) {  // (crs_before != iscross->cross_before_lane_ ||
                   //  crs_after != iscross->cross_after_lane_) &&
-                  iscross->along_path_dis_ =
-                      groups[i - 1]->group_segments.back()->end_slice.po;
-                  iscross->cross_before_lane_ = crs_before;
-                  iscross->cross_after_lane_ = crs_after;
+                  int t = i;
+                  while (t >= 0 && groups[t]->group_segments.size() < 2) {
+                    t--;
+                  }
+                  if (t >= 0) {
+                    iscross->along_path_dis_ =
+                        groups[t]->group_segments.back()->end_slice.po;
+                  }
+                  // iscross->cross_before_lane_ = crs_before;
+                  // iscross->cross_after_lane_ = crs_after;
                 }
                 curr_group_v = 1;
                 break;

@@ -176,6 +176,9 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
     line->color = bound->color;
     line->isego = bound->is_ego;
     line->lanepos = bound->lanepos;
+    for (const auto& delete_id : bound->delete_ids) {
+      line->deteled_ids.emplace_back(delete_id);
+    }
     em::Point last_raw(0, 0, 0);
     for (const auto& node : bound->nodes) {
       if (node == nullptr) {
@@ -480,6 +483,9 @@ void GroupMap::SplitPtsToGroupSeg(std::deque<Line::Ptr>* lines,
       line_seg->mean_end_heading = line->mean_end_heading;
       line_seg->mean_end_heading_std_dev = line->mean_end_heading_std_dev;
       line_seg->mean_end_interval = line->mean_end_interval;
+      for (const auto& delete_id : line->deteled_ids) {
+        line_seg->deteled_ids.emplace_back(delete_id);
+      }
       while (!line->pts.empty()) {
         Eigen::Vector2f front_pt_xy = line->pts.front().pt.head<2>();
         // 第一个点已经在end_slice的右边，直接跳过这条线
@@ -539,63 +545,70 @@ void GroupMap::GenLaneSegInGroupSeg(std::vector<GroupSegment::Ptr>* segments) {
         auto right_center = right_line->center;
         auto dist = Dist(left_center, right_center);
         if (dist < conf_.min_lane_width) {
-          if (i == 0 && line_seg_num > 2) {
-            std::string index =
-                std::to_string(left_line->id) + "_" +
-                std::to_string(seg->line_segments.at(i + 2)->id);
-            if (last_seg_id.substr(0, index.length()) != index) {
-              continue;
-            }
-            auto& right_line_2 = seg->line_segments.at(i + 2);
-            auto& right_center_2 = right_line_2->center;
-            auto dist2 = Dist(left_center, right_center_2);
-            if (dist2 < conf_.min_lane_width || dist2 > conf_.max_lane_width) {
-              continue;
-            }
-            right_line = right_line_2;
-            right_center = right_center_2;
-            i = i + 1;
-          } else if (i == line_seg_num - 2 && line_seg_num > 2) {
-            std::string index = std::to_string(seg->line_segments.at(i)->id);
-            std::string index2 =
-                index + "_" + std::to_string(seg->line_segments.at(i + 1)->id);
-            auto& left_line_2 = seg->line_segments.at(i - 1);
-            auto& left_center_2 = left_line_2->center;
-            if ((last_seg_id.length() > index.length() &&
-                 last_seg_id.substr(last_seg_id.length() - index.length(),
-                                    index.length()) == index) ||
-                (last_seg_id.length() > index2.length() &&
-                 last_seg_id.substr(last_seg_id.length() - index2.length(),
-                                    index2.length()) == index2)) {
-              continue;
-            }
+          // if (i == 0 && line_seg_num > 2) {
+          //   std::string index =
+          //       std::to_string(left_line->id) + "_" +
+          //       std::to_string(seg->line_segments.at(i + 2)->id);
+          //   if (last_seg_id.substr(0, index.length()) != index) {
+          //     continue;
+          //   }
+          //   auto& right_line_2 = seg->line_segments.at(i + 2);
+          //   auto& right_center_2 = right_line_2->center;
+          //   auto dist2 = Dist(left_center, right_center_2);
+          //   if (dist2 < conf_.min_lane_width || dist2 > conf_.max_lane_width)
+          //   {
+          //     continue;
+          //   }
+          //   right_line = right_line_2;
+          //   right_center = right_center_2;
+          //   i = i + 1;
+          // } else if (i == line_seg_num - 2 && line_seg_num > 2) {
+          //   std::string index = std::to_string(seg->line_segments.at(i)->id);
+          //   std::string index2 =
+          //       index + "_" + std::to_string(seg->line_segments.at(i +
+          //       1)->id);
+          //   auto& left_line_2 = seg->line_segments.at(i - 1);
+          //   auto& left_center_2 = left_line_2->center;
+          //   if ((last_seg_id.length() > index.length() &&
+          //        last_seg_id.substr(last_seg_id.length() - index.length(),
+          //                           index.length()) == index) ||
+          //       (last_seg_id.length() > index2.length() &&
+          //        last_seg_id.substr(last_seg_id.length() - index2.length(),
+          //                           index2.length()) == index2)) {
+          //     continue;
+          //   }
 
-            auto dist2 = Dist(left_center_2, right_center);
-            auto dist1 = Dist(left_center_2, left_center);
-            if (dist2 < conf_.min_lane_width || dist2 > conf_.max_lane_width) {
-              continue;
-            } else {
-              auto lane_seg = std::make_shared<LaneSegment>();
-              lane_seg->left_boundary = left_line_2;
-              lane_seg->right_boundary = right_line;
-              // 将左右边线id连起来，作为LaneSegment的str_id，
-              // 这里使用边线id组成字符串id来标识lane，可以方便后续比对lane与lane是否共线
-              lane_seg->str_id = std::to_string(left_line_2->id) + "_" +
-                                 std::to_string(right_line->id);
-              lane_seg->lanepos_id = std::to_string(left_line_2->lanepos) +
-                                     "_" + std::to_string(right_line->lanepos);
-              if (dist1 > conf_.min_lane_width &&
-                  dist1 < conf_.max_lane_width) {
-                seg->lane_segments.back() = lane_seg;
-              } else {
-                seg->lane_segments.emplace_back(lane_seg);
-              }
-              break;
-            }
-          } else {
-            continue;
-          }
+          //   auto dist2 = Dist(left_center_2, right_center);
+          //   auto dist1 = Dist(left_center_2, left_center);
+          //   if (dist2 < conf_.min_lane_width || dist2 > conf_.max_lane_width)
+          //   {
+          //     continue;
+          //   } else {
+          //     auto lane_seg = std::make_shared<LaneSegment>();
+          //     lane_seg->left_boundary = left_line_2;
+          //     lane_seg->right_boundary = right_line;
+          //     // 将左右边线id连起来，作为LaneSegment的str_id，
+          //     //
+          //     这里使用边线id组成字符串id来标识lane，可以方便后续比对lane与lane是否共线
+          //     lane_seg->str_id = std::to_string(left_line_2->id) + "_" +
+          //                        std::to_string(right_line->id);
+          //     lane_seg->lanepos_id = std::to_string(left_line_2->lanepos) +
+          //                            "_" +
+          //                            std::to_string(right_line->lanepos);
+          //     if (dist1 > conf_.min_lane_width &&
+          //         dist1 < conf_.max_lane_width) {
+          //       seg->lane_segments.back() = lane_seg;
+          //     } else {
+          //       seg->lane_segments.emplace_back(lane_seg);
+          //     }
+          //     break;
+          //   }
+          // } else {
+          //   continue;
+          // }
+          continue;
         }
+
         // if (dist < conf_.min_lane_width || dist > conf_.max_lane_width) {
         //   continue;
         // }
@@ -652,10 +665,11 @@ void GroupMap::UniteGroupSegmentsToGroups(
     }
   }
 
-  if (group_segments.size() > 2) {
-    for (size_t i = 1; i < group_segments.size() - 1; ++i) {
+  if (group_segments.size() > 3) {
+    for (size_t i = 1; i < group_segments.size() - 2; ++i) {
       if ((group_segments[i]->str_id != group_segments[i - 1]->str_id) &&
-          (group_segments[i]->str_id != group_segments[i + 1]->str_id)) {
+          ((group_segments[i]->str_id != group_segments[i + 1]->str_id) ||
+           (group_segments[i]->str_id != group_segments[i + 2]->str_id))) {
         group_segments.erase(group_segments.begin() + i);
         i--;
       }
@@ -1497,6 +1511,10 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
     if (group_virtual.empty()) {
       break;
     }
+    if (groups->at(i)->str_id + "VV" == group_virtual.back()->str_id) {
+      groups->insert(groups->begin() + i + 1, group_virtual.back());
+      group_virtual.pop_back();
+    }
     if (groups->at(i)->str_id + 'V' == group_virtual.back()->str_id) {
       groups->insert(groups->begin() + i + 1, group_virtual.back());
       group_virtual.pop_back();
@@ -1517,6 +1535,9 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
   left_bound.mean_end_heading_std_dev =
       lane_in_curr->left_boundary->mean_end_heading_std_dev;
   left_bound.mean_end_interval = lane_in_curr->left_boundary->mean_end_interval;
+  for (const auto& delete_id : lane_in_curr->left_boundary->deteled_ids) {
+    left_bound.deteled_ids.emplace_back(delete_id);
+  }
   size_t index_left = lane_in_curr->left_boundary->pts.size();
   Point left_pt_pred(VIRTUAL,
                      lane_in_curr->left_boundary->pts[index_left - 1].pt.x(),
@@ -1534,6 +1555,9 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
       lane_in_curr->right_boundary->mean_end_heading_std_dev;
   right_bound.mean_end_interval =
       lane_in_curr->right_boundary->mean_end_interval;
+  for (const auto& delete_id : lane_in_curr->right_boundary->deteled_ids) {
+    right_bound.deteled_ids.emplace_back(delete_id);
+  }
   size_t index_right = lane_in_curr->right_boundary->pts.size();
   Point right_pt_pred(
       VIRTUAL, lane_in_curr->right_boundary->pts[index_right - 1].pt.x(),
@@ -1680,20 +1704,243 @@ void GroupMap::GenerateTransitionLaneToPo(Lane::Ptr lane_in_curr,
       transition_lane->str_id_with_group);
 }
 
+void GroupMap::GenerateTransitionLaneToPo2(Lane::Ptr lane_in_curr,
+                                           Lane::Ptr lane_in_next,
+                                           Lane::Ptr transition_lane) {
+  transition_lane->str_id = lane_in_curr->str_id;
+  transition_lane->lanepos_id = lane_in_curr->lanepos_id;
+  size_t index = lane_in_curr->str_id_with_group.find("V");
+  transition_lane->str_id_with_group =
+      lane_in_curr->str_id_with_group.substr(0, index) +
+      "2VV:" + transition_lane->str_id;
+  transition_lane->center_line_param = lane_in_curr->center_line_param;
+  transition_lane->center_line_param_front = lane_in_curr->center_line_param;
+  transition_lane->prev_lane_str_id_with_group.emplace_back(
+      lane_in_curr->str_id_with_group);
+  lane_in_curr->next_lane_str_id_with_group.emplace_back(
+      transition_lane->str_id_with_group);
+  transition_lane->next_lane_str_id_with_group.emplace_back(
+      lane_in_next->str_id_with_group);
+  lane_in_next->prev_lane_str_id_with_group.emplace_back(
+      transition_lane->str_id_with_group);
+}
+
+void GroupMap::GenerateTransitionLaneToBefore(Lane::Ptr lane_in_curr,
+                                              Lane::Ptr transition_lane) {
+  LineSegment& left_bound = *transition_lane->left_boundary;
+  left_bound.id = lane_in_curr->left_boundary->id;
+  left_bound.lanepos = lane_in_curr->left_boundary->lanepos;
+  left_bound.type = em::LaneType_DASHED;  // lane_in_curr->left_boundary->type;
+  left_bound.color = em::WHITE;           // lane_in_curr->left_boundary->color;
+  left_bound.isego = lane_in_curr->left_boundary->isego;
+  left_bound.mean_end_heading = lane_in_curr->left_boundary->mean_end_heading;
+  left_bound.mean_end_heading_std_dev =
+      lane_in_curr->left_boundary->mean_end_heading_std_dev;
+  left_bound.mean_end_interval = lane_in_curr->left_boundary->mean_end_interval;
+  for (const auto& delete_id : lane_in_curr->left_boundary->deteled_ids) {
+    left_bound.deteled_ids.emplace_back(delete_id);
+  }
+  size_t index_left = lane_in_curr->left_boundary->pts.size();
+  Point left_pt_pred(VIRTUAL,
+                     lane_in_curr->left_boundary->pts[index_left - 1].pt.x(),
+                     lane_in_curr->left_boundary->pts[index_left - 1].pt.y(),
+                     lane_in_curr->left_boundary->pts[index_left - 1].pt.z());
+  LineSegment& right_bound = *transition_lane->right_boundary;
+  right_bound.id = lane_in_curr->right_boundary->id;
+  right_bound.lanepos = lane_in_curr->right_boundary->lanepos;
+  right_bound.type =
+      em::LaneType_DASHED;        // lane_in_curr->right_boundary->type;
+  right_bound.color = em::WHITE;  // lane_in_curr->right_boundary->color;
+  right_bound.isego = lane_in_curr->right_boundary->isego;
+  right_bound.mean_end_heading = lane_in_curr->right_boundary->mean_end_heading;
+  right_bound.mean_end_heading_std_dev =
+      lane_in_curr->right_boundary->mean_end_heading_std_dev;
+  right_bound.mean_end_interval =
+      lane_in_curr->right_boundary->mean_end_interval;
+  for (const auto& delete_id : lane_in_curr->right_boundary->deteled_ids) {
+    right_bound.deteled_ids.emplace_back(delete_id);
+  }
+  size_t index_right = lane_in_curr->right_boundary->pts.size();
+  Point right_pt_pred(
+      VIRTUAL, lane_in_curr->right_boundary->pts[index_right - 1].pt.x(),
+      lane_in_curr->right_boundary->pts[index_right - 1].pt.y(),
+      lane_in_curr->right_boundary->pts[index_right - 1].pt.z());
+  std::vector<Point>& ctr_pts = transition_lane->center_line_pts;
+  size_t index_center = lane_in_curr->center_line_pts.size();
+  Point center_pt_pred(VIRTUAL,
+                       lane_in_curr->center_line_pts[index_center - 1].pt.x(),
+                       lane_in_curr->center_line_pts[index_center - 1].pt.y(),
+                       lane_in_curr->center_line_pts[index_center - 1].pt.z());
+  float i = 0.0;
+  float len = is_cross_.along_path_dis_.norm();
+  left_bound.pts.emplace_back(left_pt_pred);
+  right_bound.pts.emplace_back(right_pt_pred);
+  ctr_pts.emplace_back(center_pt_pred);
+  while (i < len - 1.0) {
+    i = i + 1.0;
+    float minus_x = 1 / len * is_cross_.along_path_dis_.x();
+    float minus_y = 1 / len * is_cross_.along_path_dis_.y();
+    float pre_x = left_pt_pred.pt.x() - minus_x;
+    float pre_y = left_pt_pred.pt.y() - minus_y;
+    left_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+    left_bound.pts.emplace_back(left_pt_pred);
+
+    pre_x = right_pt_pred.pt.x() - minus_x;
+    pre_y = right_pt_pred.pt.y() - minus_y;
+    right_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+    right_bound.pts.emplace_back(right_pt_pred);
+
+    pre_x = center_pt_pred.pt.x() - minus_x;
+    pre_y = center_pt_pred.pt.y() - minus_y;
+    center_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+    ctr_pts.emplace_back(center_pt_pred);
+  }
+  if (left_bound.pts.empty() || right_bound.pts.empty() || ctr_pts.empty()) {
+    return;
+  }
+  transition_lane->str_id = lane_in_curr->str_id;
+  transition_lane->lanepos_id = lane_in_curr->lanepos_id;
+  size_t index = lane_in_curr->str_id_with_group.find(":");
+  transition_lane->str_id_with_group =
+      lane_in_curr->str_id_with_group.substr(0, index) +
+      "V:" + transition_lane->str_id;
+  transition_lane->center_line_param = lane_in_curr->center_line_param;
+  transition_lane->center_line_param_front = lane_in_curr->center_line_param;
+  transition_lane->prev_lane_str_id_with_group.emplace_back(
+      lane_in_curr->str_id_with_group);
+  lane_in_curr->next_lane_str_id_with_group.emplace_back(
+      transition_lane->str_id_with_group);
+}
+void GroupMap::GenerateTransitionLaneToAfter(Lane::Ptr lane_in_curr,
+                                             Lane::Ptr lane_in_next,
+                                             Lane::Ptr transition_lane) {
+  LineSegment& left_bound = *transition_lane->left_boundary;
+  left_bound.id = lane_in_curr->left_boundary->id;
+  left_bound.lanepos = lane_in_curr->left_boundary->lanepos;
+  left_bound.type = em::LaneType_DASHED;  // lane_in_curr->left_boundary->type;
+  left_bound.color = em::WHITE;           // lane_in_curr->left_boundary->color;
+  left_bound.isego = lane_in_curr->left_boundary->isego;
+  left_bound.mean_end_heading = lane_in_curr->left_boundary->mean_end_heading;
+  left_bound.mean_end_heading_std_dev =
+      lane_in_curr->left_boundary->mean_end_heading_std_dev;
+  left_bound.mean_end_interval = lane_in_curr->left_boundary->mean_end_interval;
+  for (const auto& delete_id : lane_in_curr->left_boundary->deteled_ids) {
+    left_bound.deteled_ids.emplace_back(delete_id);
+  }
+  size_t index_left = lane_in_curr->left_boundary->pts.size();
+  Point left_pt_pred(VIRTUAL,
+                     lane_in_curr->left_boundary->pts[index_left - 1].pt.x(),
+                     lane_in_curr->left_boundary->pts[index_left - 1].pt.y(),
+                     lane_in_curr->left_boundary->pts[index_left - 1].pt.z());
+  LineSegment& right_bound = *transition_lane->right_boundary;
+  right_bound.id = lane_in_curr->right_boundary->id;
+  right_bound.lanepos = lane_in_curr->right_boundary->lanepos;
+  right_bound.type =
+      em::LaneType_DASHED;        // lane_in_curr->right_boundary->type;
+  right_bound.color = em::WHITE;  // lane_in_curr->right_boundary->color;
+  right_bound.isego = lane_in_curr->right_boundary->isego;
+  right_bound.mean_end_heading = lane_in_curr->right_boundary->mean_end_heading;
+  right_bound.mean_end_heading_std_dev =
+      lane_in_curr->right_boundary->mean_end_heading_std_dev;
+  right_bound.mean_end_interval =
+      lane_in_curr->right_boundary->mean_end_interval;
+  for (const auto& delete_id : lane_in_curr->right_boundary->deteled_ids) {
+    right_bound.deteled_ids.emplace_back(delete_id);
+  }
+  size_t index_right = lane_in_curr->right_boundary->pts.size();
+  Point right_pt_pred(
+      VIRTUAL, lane_in_curr->right_boundary->pts[index_right - 1].pt.x(),
+      lane_in_curr->right_boundary->pts[index_right - 1].pt.y(),
+      lane_in_curr->right_boundary->pts[index_right - 1].pt.z());
+  std::vector<Point>& ctr_pts = transition_lane->center_line_pts;
+  size_t index_center = lane_in_curr->center_line_pts.size();
+  Point center_pt_pred(VIRTUAL,
+                       lane_in_curr->center_line_pts[index_center - 1].pt.x(),
+                       lane_in_curr->center_line_pts[index_center - 1].pt.y(),
+                       lane_in_curr->center_line_pts[index_center - 1].pt.z());
+  left_bound.pts.emplace_back(left_pt_pred);
+  float i = 0.0;
+  em::Point param_left =
+      lane_in_next->left_boundary->pts[0].pt - left_bound.pts.back().pt;
+  float len = param_left.norm();
+  while (i < len - 1.0) {
+    i = i + 1.0;
+    float pre_x = left_pt_pred.pt.x() + 1 / len * param_left.x();
+    float pre_y = left_pt_pred.pt.y() + 1 / len * param_left.y();
+    left_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+    left_bound.pts.emplace_back(left_pt_pred);
+  }
+  if (left_bound.pts.empty()) {
+    return;
+  }
+  right_bound.pts.emplace_back(right_pt_pred);
+  i = 0.0;
+  em::Point param_right =
+      lane_in_next->right_boundary->pts[0].pt - right_bound.pts.back().pt;
+  len = param_right.norm();
+  while (i < len - 1.0) {
+    i = i + 1.0;
+    float pre_x = right_pt_pred.pt.x() + 1 / len * param_right.x();
+    float pre_y = right_pt_pred.pt.y() + 1 / len * param_right.y();
+    right_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+    right_bound.pts.emplace_back(right_pt_pred);
+  }
+  if (right_bound.pts.empty()) {
+    return;
+  }
+  ctr_pts.emplace_back(center_pt_pred);
+  i = 0.0;
+  em::Point param_center =
+      lane_in_next->center_line_pts[0].pt - ctr_pts.back().pt;
+  len = param_center.norm();
+  while (i < len - 2.0) {
+    i = i + 1.0;
+    float pre_x = center_pt_pred.pt.x() + 1 / len * param_center.x();
+    float pre_y = center_pt_pred.pt.y() + 1 / len * param_center.y();
+    center_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+    ctr_pts.emplace_back(center_pt_pred);
+  }
+  ctr_pts.emplace_back(lane_in_next->center_line_pts.front());
+  if (ctr_pts.empty()) {
+    return;
+  }
+}
 void GroupMap::GenerateTransitionLane(Lane::Ptr lane_in_curr,
                                       Lane::Ptr lane_in_next,
                                       std::vector<Lane::Ptr>* virtual_lanes) {
   Lane::Ptr transition_lane = std::make_shared<Lane>();
   transition_lane->left_boundary = std::make_shared<LineSegment>();
   transition_lane->right_boundary = std::make_shared<LineSegment>();
-
-  GenerateTransitionLaneGeo(lane_in_curr, lane_in_next, transition_lane);
-  GenerateTransitionLaneToPo(lane_in_curr, lane_in_next, transition_lane);
-
-  if (transition_lane->left_boundary->pts.size() > 1 &&
-      transition_lane->right_boundary->pts.size() > 1 &&
-      transition_lane->center_line_pts.size() > 1) {
+  if (is_cross_.is_crossing_ && is_cross_.along_path_dis_.norm() > 2.0) {
+    GenerateTransitionLaneToBefore(lane_in_curr, transition_lane);
     (*virtual_lanes).emplace_back(transition_lane);
+    Lane::Ptr transition_lane_after1 = std::make_shared<Lane>();
+    transition_lane_after1->left_boundary = std::make_shared<LineSegment>();
+    transition_lane_after1->right_boundary = std::make_shared<LineSegment>();
+    GenerateTransitionLaneToAfter(transition_lane, lane_in_next,
+                                  transition_lane_after1);
+    GenerateTransitionLaneToPo(transition_lane, lane_in_next,
+                               transition_lane_after1);
+    (*virtual_lanes).emplace_back(transition_lane_after1);
+    if (history_best_lane_ != nullptr) {
+      Lane::Ptr transition_lane_after2 = std::make_shared<Lane>();
+      transition_lane_after2->left_boundary = std::make_shared<LineSegment>();
+      transition_lane_after2->right_boundary = std::make_shared<LineSegment>();
+      GenerateTransitionLaneToAfter(transition_lane, history_best_lane_,
+                                    transition_lane_after2);
+      GenerateTransitionLaneToPo2(transition_lane, history_best_lane_,
+                                  transition_lane_after2);
+      (*virtual_lanes).emplace_back(transition_lane_after2);
+    }
+  } else {
+    GenerateTransitionLaneGeo(lane_in_curr, lane_in_next, transition_lane);
+    GenerateTransitionLaneToPo(lane_in_curr, lane_in_next, transition_lane);
+
+    if (transition_lane->left_boundary->pts.size() > 1 &&
+        transition_lane->right_boundary->pts.size() > 1 &&
+        transition_lane->center_line_pts.size() > 1) {
+      (*virtual_lanes).emplace_back(transition_lane);
+    }
   }
 }
 
@@ -1870,6 +2117,18 @@ void GroupMap::FindNearestLaneToHisVehiclePosition(Group::Ptr curr_group,
   }
 }
 
+bool GroupMap::LineIdConsistant(LineSegment::Ptr line, em::Id id) {
+  if (line->id == id) {
+    return true;
+  }
+  for (const auto& detele_id : line->deteled_ids) {
+    if (detele_id == id) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void GroupMap::FindBestNextLane(Group::Ptr next_group,
                                 const float& dist_to_slice,
                                 Lane::Ptr* best_next_lane) {
@@ -1913,12 +2172,13 @@ void GroupMap::FindBestNextLane(Group::Ptr next_group,
   // 比较当前时刻的下一条lane信息和历史时刻的lane信息
   // 1.没有找到best_next_lane
   if (*best_next_lane == nullptr) {
-    if (is_cross_.next_lane_left == -1000 ||
-        is_cross_.next_lane_right == -1000) {
+    if (is_cross_.next_lane_left != -1000 ||
+        is_cross_.next_lane_right != -1000) {
       // 如果上一帧存在best_lane
       for (auto& lane_ : next_group->lanes) {
-        if (lane_->left_boundary->id == is_cross_.next_lane_left ||
-            lane_->right_boundary->id == is_cross_.next_lane_right) {
+        if (LineIdConsistant(lane_->left_boundary, is_cross_.next_lane_left) ||
+            LineIdConsistant(lane_->right_boundary,
+                             is_cross_.next_lane_right)) {
           *best_next_lane = lane_;
           return;
         }
@@ -1932,47 +2192,57 @@ void GroupMap::FindBestNextLane(Group::Ptr next_group,
     is_cross_.next_lane_right = (*best_next_lane)->right_boundary->id;
     return;
   }
+  // HLOG_ERROR << " best is equal to exist "
+  //            << LineIdConsistant((*best_next_lane)->left_boundary,
+  //                                is_cross_.next_lane_left)
+  //            << "  "
+  //            << LineIdConsistant((*best_next_lane)->right_boundary,
+  //                                is_cross_.next_lane_right);
   // 3.跟上一帧连接的车道一致，直接返回
-  if (is_cross_.next_lane_left == (*best_next_lane)->left_boundary->id ||
-      is_cross_.next_lane_right == (*best_next_lane)->right_boundary->id) {
+  if (LineIdConsistant((*best_next_lane)->left_boundary,
+                       is_cross_.next_lane_left) ||
+      LineIdConsistant((*best_next_lane)->right_boundary,
+                       is_cross_.next_lane_right)) {
     return;
   }
   // 4.跟上一帧连接的车道不一致，看看是否需要更新best_lane
   int exist = -1;
   for (int i = 0; i < next_group->lanes.size(); ++i) {
     auto& lane_ = next_group->lanes[i];
-    if (lane_->left_boundary->id == is_cross_.next_lane_left &&
-        lane_->right_boundary->id == is_cross_.next_lane_right) {
+    if (LineIdConsistant(lane_->left_boundary, is_cross_.next_lane_left) &&
+        LineIdConsistant(lane_->right_boundary, is_cross_.next_lane_right)) {
       exist = i;
+      history_best_lane_ = lane_;
       break;
     }
   }
-  // HLOG_ERROR << "next_group nemae" << next_group->str_id
-  //            << "  exist = " << exist;
   if (exist == -1) {
     is_cross_.next_lane_left = (*best_next_lane)->left_boundary->id;
     is_cross_.next_lane_right = (*best_next_lane)->right_boundary->id;
     return;
   }
+
+// 之前是会筛选是否要更新历史的连接，现在交给规控选择，因此这段注释掉
+#if 0
   if (exist > -1 && exist < next_group->lanes.size()) {
     auto& exist_pt = next_group->lanes[exist]->center_line_pts.front().pt;
     float atan_exist = abs(atan(exist_pt.y() / exist_pt.x())) * 180 / pi_;
     auto best_pt = (*best_next_lane)->center_line_pts.front().pt;
     float atan_best = abs(atan(best_pt.y() / best_pt.x())) * 180 / pi_;
-    // HLOG_ERROR << "next_group->lanes[exist] NAME = "
-    //            << next_group->lanes[exist]->str_id_with_group
-    //            << "  (*best_next_lane) name "
-    //            << (*best_next_lane)->str_id_with_group;
-    // HLOG_ERROR << "atan_exist = " << atan_exist
-    //            << "  atan_best = " << atan_best;
-    if (atan_exist < atan_best + 2.0) {
-      // 一度以内不变化
+    float offset_exist =
+        std::abs(next_group->lanes[exist]->center_line_pts.front().pt.y());
+    float offset_best =
+        std::abs((*best_next_lane)->center_line_pts.front().pt.y());
+    if (atan_exist < atan_best + 1.0 || offset_exist < offset_best + 0.5) {
+      // && offset_exist < offset_best + 1.0
+      // 1度以内不变化或者横向偏差不超过1m
       *best_next_lane = next_group->lanes[exist];
     } else {
       is_cross_.next_lane_left = (*best_next_lane)->left_boundary->id;
       is_cross_.next_lane_right = (*best_next_lane)->right_boundary->id;
     }
   }
+#endif
 }
 
 std::vector<Point> GroupMap::SigmoidFunc(std::vector<Point> centerline,
@@ -2322,7 +2592,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp) {
   }
   SmoothCenterline(groups);
 
-#if 1
+#if 0
   OptiNextLane(groups);
 #endif
   LaneForwardPredict(groups, stamp);
@@ -2354,6 +2624,9 @@ void GroupMap::CollectGroupPossibleLanes(
         lane->left_boundary->type = lane_seg->left_boundary->type;
         lane->left_boundary->color = lane_seg->left_boundary->color;
         lane->left_boundary->isego = lane_seg->left_boundary->isego;
+        for (const auto& delete_id : lane_seg->left_boundary->deteled_ids) {
+          lane->left_boundary->deteled_ids.emplace_back(delete_id);
+        }
         lane->left_boundary->mean_end_heading =
             lane_seg->left_boundary->mean_end_heading;
         lane->left_boundary->mean_end_heading_std_dev =
@@ -2375,6 +2648,9 @@ void GroupMap::CollectGroupPossibleLanes(
             lane_seg->right_boundary->mean_end_heading_std_dev;
         lane->right_boundary->mean_end_interval =
             lane_seg->right_boundary->mean_end_interval;
+        for (const auto& delete_id : lane_seg->right_boundary->deteled_ids) {
+          lane->right_boundary->deteled_ids.emplace_back(delete_id);
+        }
         for (const auto& pt : lane_seg->right_boundary->pts) {
           lane->right_boundary->pts.emplace_back(pt);
         }
@@ -3008,12 +3284,20 @@ void GroupMap::BuildVirtualGroup(std::vector<Lane::Ptr> virtual_lanes,
                                  double stamp) {
   Group grp;
   grp.stamp = stamp;
-  for (const auto& lane : virtual_lanes) {
-    grp.lanes.emplace_back(lane);
-  }
+  grp.lanes.emplace_back(virtual_lanes[0]);
   grp.str_id = virtual_lanes[0]->str_id_with_group.substr(
       0, virtual_lanes[0]->str_id_with_group.find(":"));
   (*group_virtual).emplace_back(std::make_shared<Group>(grp));
+  if (virtual_lanes.size() > 1) {
+    Group grp;
+    grp.stamp = stamp;
+    for (int i = 1; i < virtual_lanes.size(); ++i) {
+      grp.lanes.emplace_back(virtual_lanes[i]);
+    }
+    grp.str_id = virtual_lanes[1]->str_id_with_group.substr(
+        0, virtual_lanes[1]->str_id_with_group.find(":"));
+    (*group_virtual).emplace_back(std::make_shared<Group>(grp));
+  }
 }
 
 void GroupMap::CatmullRom(const std::vector<Eigen::Vector3f>& pts,
@@ -3531,6 +3815,12 @@ void GroupMap::EraseIntersectLane(Group::Ptr curr_group,
             (lane_j->left_boundary->pts[0].type == gm::RAW ||
              lane_j->right_boundary->pts[0].type == gm::RAW)) {
           continue;
+        } else if (lane_i->left_boundary->id == ego_line_id_.left_id &&
+                   lane_i->right_boundary->id == ego_line_id_.right_id) {
+          erase_next_lane_str_id.insert(lane_j->str_id_with_group);
+        } else if (lane_j->left_boundary->id == ego_line_id_.left_id &&
+                   lane_j->right_boundary->id == ego_line_id_.right_id) {
+          erase_next_lane_str_id.insert(lane_i->str_id_with_group);
         } else if ((lane_i->left_boundary->pts[0].type != gm::RAW) &&
                    (lane_i->right_boundary->pts[0].type != gm::RAW) &&
                    (lane_j->left_boundary->pts[0].type == gm::RAW ||
@@ -3622,6 +3912,9 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           lane_in_curr->left_boundary->mean_end_heading_std_dev;
       left_bound.mean_end_interval =
           lane_in_curr->left_boundary->mean_end_interval;
+      for (auto& delete_id : lane_in_curr->left_boundary->deteled_ids) {
+        left_bound.deteled_ids.emplace_back(delete_id);
+      }
       right_bound.id = lane_in_curr->right_boundary->id;
       right_bound.lanepos = lane_in_curr->right_boundary->lanepos;
       right_bound.type = lane_in_curr->right_boundary->type;
@@ -3632,6 +3925,9 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           lane_in_curr->right_boundary->mean_end_heading_std_dev;
       right_bound.mean_end_interval =
           lane_in_curr->right_boundary->mean_end_interval;
+      for (auto& delete_id : lane_in_curr->right_boundary->deteled_ids) {
+        right_bound.deteled_ids.emplace_back(delete_id);
+      }
       // HLOG_ERROR << "lane_in_curr->str_id_with_group = "
       //            << lane_in_curr->str_id_with_group
       //            << "  lane_in_curr->left_boundary->id = "
@@ -4011,6 +4307,9 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
           lane_in_next->left_boundary->mean_end_heading_std_dev;
       left_bound.mean_end_interval =
           lane_in_next->left_boundary->mean_end_interval;
+      for (auto& delete_id : lane_in_next->left_boundary->deteled_ids) {
+        left_bound.deteled_ids.emplace_back(delete_id);
+      }
       right_bound.id = lane_in_next->right_boundary->id;
       right_bound.lanepos = lane_in_next->right_boundary->lanepos;
       right_bound.type = lane_in_next->right_boundary->type;
@@ -4021,6 +4320,9 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
           lane_in_next->right_boundary->mean_end_heading_std_dev;
       right_bound.mean_end_interval =
           lane_in_next->right_boundary->mean_end_interval;
+      for (auto& delete_id : lane_in_next->right_boundary->deteled_ids) {
+        right_bound.deteled_ids.emplace_back(delete_id);
+      }
       // 判断左右line是否已经存在
       int left_bound_exist = 0, right_bound_exist = 0;
       for (auto& lane_in_curr : curr_group->lanes) {
@@ -4360,6 +4662,9 @@ void GroupMap::BuildVirtualMergeLane(Group::Ptr curr_group,
   left_bound.mean_end_heading_std_dev =
       lane_in_curr->left_boundary->mean_end_heading_std_dev;
   left_bound.mean_end_interval = lane_in_curr->left_boundary->mean_end_interval;
+  for (const auto& delete_id : lane_in_curr->left_boundary->deteled_ids) {
+    left_bound.deteled_ids.emplace_back(delete_id);
+  }
   size_t index_left = lane_in_curr->left_boundary->pts.size();
 
   Point left_pt_pred(PREDICTED,
@@ -4411,6 +4716,9 @@ void GroupMap::BuildVirtualMergeLane(Group::Ptr curr_group,
       lane_in_curr->right_boundary->mean_end_heading_std_dev;
   right_bound.mean_end_interval =
       lane_in_curr->right_boundary->mean_end_interval;
+  for (const auto& delete_id : lane_in_curr->right_boundary->deteled_ids) {
+    right_bound.deteled_ids.emplace_back(delete_id);
+  }
   size_t index_right = lane_in_curr->right_boundary->pts.size();
   Point right_pt_pred(
       PREDICTED, lane_in_curr->right_boundary->pts[index_right - 1].pt.x(),
@@ -4562,7 +4870,9 @@ void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
   left_bound.mean_end_heading_std_dev =
       curr_lane->left_boundary->mean_end_heading_std_dev;
   left_bound.mean_end_interval = curr_lane->left_boundary->mean_end_interval;
-
+  for (const auto& delete_id : curr_lane->left_boundary->deteled_ids) {
+    left_bound.deteled_ids.emplace_back(delete_id);
+  }
   if (curr_lane->left_boundary != nullptr &&
       !curr_lane->left_boundary->pts.empty()) {
     Eigen::Vector2f back_pt = curr_lane->left_boundary->pts.back().pt.head<2>();
@@ -4591,7 +4901,9 @@ void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
   right_bound.mean_end_heading_std_dev =
       curr_lane->right_boundary->mean_end_heading_std_dev;
   right_bound.mean_end_interval = curr_lane->right_boundary->mean_end_interval;
-
+  for (const auto& delete_id : curr_lane->right_boundary->deteled_ids) {
+    right_bound.deteled_ids.emplace_back(delete_id);
+  }
   if (curr_lane->right_boundary != nullptr &&
       !curr_lane->right_boundary->pts.empty()) {
     Eigen::Vector2f back_pt =
@@ -4788,6 +5100,9 @@ std::shared_ptr<hozon::mp::mf::em::ElementMapOut> GroupMap::ConvertToElementMap(
         left_bound.is_ego = lane->left_boundary->isego;
         left_bound.linetype = lane->left_boundary->type;
         left_bound.lanepos = lane->left_boundary->lanepos;
+        for (const auto& delete_id : lane->left_boundary->deteled_ids) {
+          left_bound.delete_ids.emplace_back(delete_id);
+        }
         ele_lane.left_boundary_ids.emplace_back(left_bound.id);
         ele_map->boundaries[left_bound.id] =
             std::make_shared<em::BoundaryDetailed>(left_bound);
@@ -4813,6 +5128,9 @@ std::shared_ptr<hozon::mp::mf::em::ElementMapOut> GroupMap::ConvertToElementMap(
         right_bound.is_ego = lane->right_boundary->isego;
         right_bound.linetype = lane->right_boundary->type;
         right_bound.lanepos = lane->right_boundary->lanepos;
+        for (const auto& delete_id : lane->right_boundary->deteled_ids) {
+          right_bound.delete_ids.emplace_back(delete_id);
+        }
         ele_lane.right_boundary_ids.emplace_back(right_bound.id);
         ele_map->boundaries[right_bound.id] =
             std::make_shared<em::BoundaryDetailed>(right_bound);

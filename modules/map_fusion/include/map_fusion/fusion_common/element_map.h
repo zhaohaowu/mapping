@@ -202,6 +202,8 @@ struct Boundary : public BaseElement {
   std::vector<Id> prev_boundary_ids;
   // ids of next boundaries
   std::vector<Id> next_boundary_ids;
+  // 存储历史的id 对应localmap删除的线
+  std::vector<Id> delete_ids;
   LanePos lanepos = LanePositionType_OTHER;
   LineType linetype = LaneType_UNKNOWN;
   IsEgo is_ego = Ego_Road;
@@ -216,6 +218,8 @@ struct BoundaryDetailed : public BaseElement {
   std::vector<Id> prev_boundary_ids;
   // ids of next boundaries
   std::vector<Id> next_boundary_ids;
+  // 存储历史的id 对应localmap删除的线
+  std::vector<Id> delete_ids;
   LanePos lanepos = LanePositionType_OTHER;
   LineType linetype = LaneType_UNKNOWN;
   IsEgo is_ego = Ego_Road;

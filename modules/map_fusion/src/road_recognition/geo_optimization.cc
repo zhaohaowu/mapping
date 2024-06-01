@@ -1376,6 +1376,196 @@ void GeoOptimization::FilterOppositeLine() {
     }
   }
 }
+
+void GeoOptimization::FilterReverseLine() {
+  // 处理路口逆向车道的车道线
+  /*
+    路口场景
+              |    |    |
+              |    |    |
+              |  ↓ |  ↑ |
+              |    |    |
+              /         \
+             /           \
+
+
+
+             \           /
+              \         /
+               | | | | |
+               | | |↑| |
+               | | | | |
+    方案： 1.获取起始点大于0的模型路沿，并使用平均y值进行排序
+          2.计算相邻两根车道线平均距离，根据距离和相对关系判断是否是逆向车道
+          3.如果是，对逆向车道中的车道线进行标识，供下游使用和判别
+  */
+  if (!local_map_) {
+    HLOG_ERROR << "local_map_ is nullptr";
+    return;
+  }
+  std::vector<std::vector<Eigen::Vector3d>> forward_road_edges;
+  for (const auto& local_road : local_map_->road_edges()) {
+    if (local_road.points_size() < 2 ||
+        (!local_road.points().empty() && local_road.points().at(0).x() < 0)) {
+      continue;
+    }
+    std::vector<Eigen::Vector3d> pts;
+    for (const auto& it : local_road.points()) {
+      Eigen::Vector3d pt(it.x(), it.y(), it.z());
+      pts.emplace_back(pt);
+    }
+    forward_road_edges.emplace_back(pts);
+  }
+  std::vector<Eigen::Vector3d> road_edge_pts;
+  road_edge_pts = FindTargetPoints(forward_road_edges);
+
+  // 双黄线
+  std::vector<std::vector<Eigen::Vector3d>> double_solid_yellow_line;
+  for (const auto& line_vec : all_lines_) {
+    if (line_vec.second.empty()) {
+      continue;
+    }
+    for (const auto& line : line_vec.second) {
+      if (line.line->lanetype() ==
+              hozon::mapping::LaneType::LaneType_DOUBLE_SOLID &&
+          line.line->color() == hozon::mapping::Color::YELLOW &&
+          line.line->points_size() > 1 && line.line->points().at(0).x() > 0) {
+        std::vector<Eigen::Vector3d> pts;
+        for (const auto& it : line.line->points()) {
+          Eigen::Vector3d pt(it.x(), it.y(), it.z());
+          pts.emplace_back(pt);
+        }
+        double_solid_yellow_line.emplace_back(pts);
+      }
+    }
+  }
+
+  // 确定双黄线的左右侧是否有车道线
+  std::vector<Eigen::Vector3d> double_solid_yellow_pts;
+  double_solid_yellow_pts = FindTargetPoints(double_solid_yellow_line);
+  // 确定路口逆向车道(是否可以考虑双黄线？或者结合OCC进行判别？)
+  /*
+    1.若有双黄线，将双黄线左侧的车道线做标记
+    2.若无双黄线，根据模型路沿或者occ路沿的相对关系来进行判别
+  */
+  if (!road_edge_pts.empty()) {
+    HandleOppisiteLine(road_edge_pts);
+  } else {
+    if (!double_solid_yellow_pts.empty()) {
+      HandleOppisiteLine(double_solid_yellow_pts);
+    }
+  }
+}
+
+std::vector<Eigen::Vector3d> GeoOptimization::FindTargetPoints(
+    const std::vector<std::vector<Eigen::Vector3d>>& forward_road_edges) {
+  std::vector<Eigen::Vector3d> res;
+  for (const auto& road_edge : forward_road_edges) {
+    bool have_left_line = false;
+    bool have_right_line = false;
+    for (const auto& line_vec : all_lines_) {
+      if (line_vec.second.empty()) {
+        continue;
+      }
+      for (const auto& line : line_vec.second) {
+        if (line.line->points_size() < 2 ||
+            (!line.line->points().empty() &&
+             line.line->points().at(0).x() < 0)) {
+          continue;
+        }
+        std::vector<double> widths;
+        std::vector<Eigen::Vector3d> line_pts;
+        for (const auto& it : line.line->points()) {
+          Eigen::Vector3d pt(it.x(), it.y(), it.z());
+          line_pts.emplace_back(pt);
+        }
+        ComputerLineDis(road_edge, line_pts, &widths);
+        double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
+                           static_cast<double>(widths.size());
+        if (IsTatgetOnLineRight(road_edge, line) && avg_width > 3.0) {
+          have_right_line = true;
+        } else if (!IsTatgetOnLineRight(road_edge, line) && avg_width > 3.0) {
+          have_left_line = true;
+        }
+        if (have_left_line && have_right_line) {
+          res = road_edge;
+          return res;
+        }
+      }
+    }
+  }
+  return res;
+}
+
+bool GeoOptimization::IsTatgetOnLineRight(
+    const std::vector<Eigen::Vector3d>& target_line, const Line_kd& line) {
+  int num_thresh = 0, num_calculate = 0;
+  for (const auto& point : target_line) {
+    if (std::isnan(point.x()) || std::isnan(point.y()) ||
+        std::isnan(point.z())) {
+      HLOG_ERROR << "found nan point in double_solid_yellow_line";
+      continue;
+    }
+    int dim = 2;
+    std::vector<int> nearest_index(dim);
+    std::vector<float> nearest_dis(dim);
+    std::vector<float> query_point = std::vector<float>{
+        static_cast<float>(point.x()), static_cast<float>(point.y())};
+    line.line_kdtree->knnSearch(query_point, nearest_index, nearest_dis, dim,
+                                cv::flann::SearchParams(-1));
+    if (nearest_index.size() < 2) {
+      continue;
+    }
+    Eigen::Vector3d point_e(point.x(), point.y(), point.z());
+    Eigen::Vector3d linel1(line.line->points(nearest_index[0]).x(),
+                           line.line->points(nearest_index[0]).y(), 0.0);
+    Eigen::Vector3d linel2(line.line->points(nearest_index[1]).x(),
+                           line.line->points(nearest_index[1]).y(), 0.0);
+    if (ComputerPointIsInLine(point_e, linel1, linel2)) {
+      num_calculate++;
+      if (IsRight(point_e, linel1, linel2)) {
+        num_thresh++;
+      }
+    }
+  }
+  if (num_calculate < 1 || num_thresh < 1 ||
+      (num_calculate != 0 && (static_cast<double>(num_thresh) /
+                              static_cast<double>(num_calculate)) < 0.5)) {
+    return false;
+  }
+  return true;
+}
+
+void GeoOptimization::HandleOppisiteLine(
+    const std::vector<Eigen::Vector3d>& target_line) {
+  if (target_line.empty()) {
+    return;
+  }
+  for (auto& line_vector : all_lines_) {
+    if (line_vector.second.empty()) {
+      continue;
+    }
+    for (auto& line : line_vector.second) {
+      if (line.line->points_size() < 2 ||
+          (!line.line->points().empty() && line.line->points().at(0).x() < 0)) {
+        continue;
+      }
+      std::vector<double> widths;
+      std::vector<Eigen::Vector3d> line_pts;
+      for (const auto& it : line.line->points()) {
+        Eigen::Vector3d pt(it.x(), it.y(), it.z());
+        line_pts.emplace_back(pt);
+      }
+      ComputerLineDis(target_line, line_pts, &widths);
+      double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
+                         static_cast<double>(widths.size());
+      if (IsTatgetOnLineRight(target_line, line) && avg_width > 3.0) {
+        line.is_ego_road = false;
+      }
+    }
+  }
+}
+
 void GeoOptimization::FitLaneLine(
     const std::shared_ptr<hozon::mapping::LaneLine>& pts,
     std::vector<double>* c) {
@@ -1864,7 +2054,10 @@ void GeoOptimization::OnLocalMap(
   FilterLocalMapLine(local_map_);
 
   // 路沿标记本road以外的车道
-  FilterOppositeLine();
+  // FilterOppositeLine();
+
+  // 处理路口场景逆向车道车道线
+  FilterReverseLine();
 
   // 过滤路口场景或“y”行场景等车道线检测不准导致检测出多条线的情况
   // 车道线相交，长度不长，斜率曲率等与其他线的斜率有一定差距（可以换成车后方的斜率差距）

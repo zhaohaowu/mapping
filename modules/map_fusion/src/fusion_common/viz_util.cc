@@ -507,6 +507,66 @@ void ElementBoundaryToMarker(const em::Boundary& boundary,
   }
 }
 
+void ElementOccEgoToMarker(const em::Boundary& boundary,
+                           const std::string& frame_id, const std::string& ns,
+                           int32_t id, double stamp, double lifetime,
+                           Color color, adsfi_proto::viz::Marker* marker) {
+  // 可视化ego
+  if (!marker) {
+    return;
+  }
+  marker->Clear();
+  marker->mutable_header()->set_frameid(frame_id);
+  auto sec = static_cast<uint32_t>(stamp);
+  auto nsec = static_cast<uint32_t>((stamp - sec) * 1e9);
+  marker->mutable_header()->mutable_timestamp()->set_sec(sec);
+  marker->mutable_header()->mutable_timestamp()->set_nsec(nsec);
+  std::string ns_nodes = ns + "/" + ID_PREFIX_BOUNDARY;
+  marker->set_ns(ns_nodes);
+  marker->set_id(id);
+  marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
+  marker->mutable_pose()->mutable_orientation()->set_x(0.);
+  marker->mutable_pose()->mutable_orientation()->set_y(0.);
+  marker->mutable_pose()->mutable_orientation()->set_z(0.);
+  marker->mutable_pose()->mutable_orientation()->set_w(1.);
+
+  marker->mutable_pose()->mutable_position()->set_x(
+      boundary.nodes.at(0)->point.x());
+  marker->mutable_pose()->mutable_position()->set_y(
+      boundary.nodes.at(0)->point.y());
+  marker->mutable_pose()->mutable_position()->set_z(
+      boundary.nodes.at(0)->point.z());
+
+  double width = 0.5;
+  marker->mutable_scale()->set_z(width);
+  sec = static_cast<uint32_t>(lifetime);
+  nsec = static_cast<uint32_t>((lifetime - sec) * 1e9);
+  marker->mutable_lifetime()->set_sec(sec);
+  marker->mutable_lifetime()->set_nsec(nsec);
+  // if (occ_road.is_forward) {
+  //   color = RED;
+  // }
+  Rgb rgb = ColorRgb(color);
+  marker->mutable_color()->set_a(1.0);
+  marker->mutable_color()->set_r(rgb.r);
+  marker->mutable_color()->set_g(rgb.g);
+  marker->mutable_color()->set_b(rgb.b);
+  marker->set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+
+  // if (occ_road.road_points.empty()) {
+  //   HLOG_ERROR << "try viz nullptr occ_road";
+  //   return;
+  // }
+  // for (const auto& it : occ_road.road_points) {
+  //   auto* pt = marker->add_points();
+  //   pt->set_x(it.x());
+  //   pt->set_y(it.y());
+  //   pt->set_z(it.z());
+  // }
+  auto* text = marker->mutable_text();
+  *text = "Geo: " + std::to_string(boundary.is_ego);
+}
+
 MarkerArrayPtr ElementMapToMarkers(const em::ElementMap& map,
                                    const std::string& frame_id,
                                    const std::string& ns, double stamp,
@@ -547,6 +607,29 @@ MarkerArrayPtr ElementMapToMarkers(const em::ElementMap& map,
     }
   }
 
+  int idd = 0;
+  // for (const auto& occ : map.occ_roads) {
+  //   if (!occ.second) {
+  //     HLOG_ERROR << "nullptr occ";
+  //     continue;
+  //   }
+  //   auto* mc = ma->add_markers();
+  //   ElementOccRoadToMarker(*occ.second, frame_id, ns,
+  //   static_cast<int32_t>(idd),
+  //                          stamp, lifetime, viz::BLUE, mc);
+  //   idd++;
+  // }
+  for (const auto& it : map.boundaries) {
+    if (!it.second) {
+      HLOG_ERROR << "nullptr boundary";
+      continue;
+    }
+    // int id = it.second->id;
+    auto* md = ma->add_markers();
+    ElementOccEgoToMarker(*it.second, frame_id, ns, static_cast<int32_t>(idd),
+                          stamp, lifetime, viz::RED, md);
+    idd++;
+  }
   if (!untracked_nodes.empty()) {
     auto* mn = ma->add_markers();
     ElementBoundaryNodesToMarker(nodes, frame_id, ns, -1, stamp, lifetime,

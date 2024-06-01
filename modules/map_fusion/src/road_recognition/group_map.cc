@@ -474,6 +474,9 @@ void GroupMap::SplitPtsToGroupSeg(std::deque<Line::Ptr>* lines,
     Eigen::Vector2f end_po = end_slice.po.head<2>();
     Eigen::Vector2f end_pl = end_slice.pl.head<2>();
     for (auto& line : *lines) {
+      if (!line->isego) {
+        continue;
+      }
       auto line_seg = std::make_shared<LineSegment>();
       line_seg->id = line->id;
       line_seg->type = line->type;

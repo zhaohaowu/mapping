@@ -303,6 +303,8 @@ class GeoOptimization {
   void ContinueLocalMapUseLine();
   void FilterShortLine();
   void FilterOppositeLine();
+  void FilterReverseLine();
+  void HandleOppisiteLine(const std::vector<Eigen::Vector3d>& target_line);
   bool IsOppisiteLine(Line_kd* line);
   bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
                const Eigen::Vector3d& B);
@@ -339,6 +341,11 @@ class GeoOptimization {
                  const hozon::common::Point3D& line2_s,
                  const hozon::common::Point3D& line2_e);
   void MergeCount(int* num, Eigen::MatrixXi* intersect_mat);
+  std::vector<Eigen::Vector3d> FindTargetPoints(
+      const std::vector<std::vector<Eigen::Vector3d>>& forward_road_edges);
+
+  bool IsTatgetOnLineRight(const std::vector<Eigen::Vector3d>& target_line,
+                           const Line_kd& lane_line);
 };
 }  // namespace mf
 }  // namespace mp

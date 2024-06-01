@@ -5,6 +5,7 @@ show_usage() {
     echo "Usage: $0 [OPTIONS]"
     echo "Options:"
     echo "  -c, --count   Specify the number of commits (default: 5)"
+    echo "  -a, --hash   Specify hash of the latest version"
     echo "  -t, --tag     Filter commits by tag"
     echo "  -h, --help    Display this help message"
     exit 0
@@ -26,6 +27,11 @@ while [[ $# -gt 0 ]]; do
         ;;
         count)
         commit_count="$2"
+        shift
+        shift
+        ;;
+        -a|--hash)
+        hash="$2"
         shift
         shift
         ;;
@@ -51,6 +57,12 @@ while [[ $# -gt 0 ]]; do
         ;;
     esac
 done
+
+# 如果用户提供了最近一次发版本时的hash值，则使用该hash值计算commit_count
+if [ -n "$hash" ]; then
+    commit_count=$(git rev-list --count $hash..HEAD)
+    echo "Hash provided: $hash, commit_count: $commit_count"
+fi
 
 # 如果没有提供标签，也无法从 version.json 中获取，则直接返回
 if [ -z "$commit_count" ]; then
@@ -84,7 +96,7 @@ if [ -z "$tag_name" ]; then
 fi
 
 # 获取前N个提交的提交消息
-commit_messages=$(git log -n $commit_count --pretty=format:"%s" | sed 's/URL:.*$//' | tail -n +2 | awk '{print NR". "$0}')
+commit_messages=$(git log -n $commit_count --pretty=format:"%s" | sed '/^ORIN_EP41_MAL/d' | sed 's/URL:.*$//' | sed 's/\[SkipMRScan\]//g' | sed 's/\[DebugBuild_ORIN_EP41\]//g' | nl -w1 -s". ")
 echo "$commit_messages"
 
 # 检查是否存在重名的标签

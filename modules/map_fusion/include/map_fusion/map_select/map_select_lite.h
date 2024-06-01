@@ -271,6 +271,7 @@ class MapSelectLite {
   int nearest_index_;
   float max_half_lane_dis_ = 3.5;
   float min_half_lane_dis_ = 1.35;
+  bool is_routing_null_ = false;
 };
 }  // namespace select
 }  // namespace mf

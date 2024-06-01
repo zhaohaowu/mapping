@@ -135,7 +135,7 @@ MapSelectResult MapSelectLite::Process(
     HLOG_INFO << "fct valid, nnp off, percep unavailable";
     return {MapMsg::INVALID, false, 0};
   }
-
+  is_routing_null_ = false;
   bool fusion_available =
       FusionMapAvailable(fusion_map, localization, localization);
   if (fusion_available) {
@@ -147,6 +147,9 @@ MapSelectResult MapSelectLite::Process(
   bool percep_available = PercepMapAvailable(perc_map, localization);
   if (percep_available) {
     HLOG_INFO << "fct valid, nnp on, fusion unavailable, percep available";
+    if (is_routing_null_) {
+      return {MapMsg::PERCEP_MAP, true, 2};
+    }
     return {MapMsg::PERCEP_MAP, true, 1};
   }
   HLOG_INFO << "fct valid, nnp on, fusion unavailable, percep unavailable";
@@ -1568,9 +1571,17 @@ bool MapSelectLite::CheckMapMsg(
     const std::shared_ptr<hozon::localization::Localization>& localization,
     bool loc_state, bool is_fusion_map) {
   if (map == nullptr) {
+    if (is_fusion_map) {
+      HLOG_ERROR << "fusion map is null";
+      is_routing_null_ = true;
+    }
     return false;
   }
   if (map->lane().empty()) {
+    if (is_fusion_map) {
+      HLOG_ERROR << "the lane of fusion map is empty";
+      is_routing_null_ = true;
+    }
     return false;
   }
 

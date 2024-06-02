@@ -19,23 +19,28 @@ namespace hozon {
 namespace mp {
 namespace mf {
 // 系统接口 demo
-SystemDeviceImp::SystemDeviceImp() : listener_(nullptr) {
+
+std::string GetVehicleType() {
   std::ifstream ifs;
+  std::string vehicle_platform_type;
   ifs.open("/cfg/system/vehicle_flag.cfg", std::ios::in);
   if (ifs.is_open()) {
-    std::getline(ifs, vehicle_platform_type_);
-    HLOG_INFO << "vehicle_platform_type_ is " << vehicle_platform_type_;
+    std::getline(ifs, vehicle_platform_type);
+    HLOG_INFO << "vehicle_platform_type is " << vehicle_platform_type;
   }
   ifs.close();
-  if (vehicle_platform_type_.empty()) {
+  if (vehicle_platform_type.empty()) {
     HLOG_ERROR << "No /cfg/system/vehicle_flag.cfg value!";
-    vehicle_platform_type_ = "EP41";  // 改用默认值
+    vehicle_platform_type = "EP41";  // 改用默认值
   }
-  if (vehicle_platform_type_ != "EP41" && vehicle_platform_type_ != "EP40") {
+  if (vehicle_platform_type != "EP41" && vehicle_platform_type != "EP40") {
     HLOG_ERROR << "The vehicle_flag invalid!";
-    vehicle_platform_type_ = "EP41";
+    vehicle_platform_type = "EP41";
   }
+  return vehicle_platform_type;
 }
+
+SystemDeviceImp::SystemDeviceImp() : listener_(nullptr) {}
 
 SystemDeviceImp::~SystemDeviceImp() { listener_ = nullptr; }
 
@@ -46,10 +51,12 @@ const char* SystemDeviceImp::getUid() {
 }
 
 const char* SystemDeviceImp::getCustomConfig() {
-  if (vehicle_platform_type_ == "EP41") {
+  std::string vehicle_type{GetVehicleType()};
+  HLOG_DEBUG << "vehicle_type:" << vehicle_type;
+  if (vehicle_type == "EP41") {
     return R"({"adapter.transmit.idc.host.ip":"172.16.80.50"})";
   }
-  if (vehicle_platform_type_ == "EP40") {
+  if (vehicle_type == "EP40") {
     return R"({"adapter.transmit.idc.host.ip":"172.16.1.60"})";
   }
   return R"({"adapter.transmit.idc.host.ip":"172.16.80.50"})";

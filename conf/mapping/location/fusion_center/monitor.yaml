@@ -14,6 +14,6 @@ ts_err_buf: 2
 data_err_buf: 10
 fc_ts_maxdiff: 0.015  # single s--100ms
 fc_yaw_maxdiff: 0.04  # rad，暂时设定很宽松    1度对应0.0175弧度
-fc_max_float_ratio_vert: 1.5
+fc_max_float_ratio_vert: 2.0
 fc_max_single_dist_hori: 0.05  # uint m
-fc_minvel: 0.1  # m/s,最小速度，小于该速度不进行检查
+fc_minvel: 5  # m/s,最小速度，小于该速度不进行检查

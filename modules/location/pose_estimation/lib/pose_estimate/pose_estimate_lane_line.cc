@@ -206,6 +206,8 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
   if (fil_line_list.empty()) {
     return;
   }
+  uint32_t percep_left_cnt = 0;
+  uint32_t percep_right_cnt = 0;
   double left_dist_near_v = 0.0;
   double left_dist_far_v = 0.0;
   double right_dist_near_v = 0.0;
@@ -215,6 +217,14 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
   double left_far_check_dist_v = 0.0;
   double right_far_check_dist_v = 0.0;
   double far_dis_last = 0.0;
+  for (const auto& line : fil_line_list) {
+    if (line->lane_position_type() == -1) {
+      ++percep_left_cnt;
+    }
+    if (line->lane_position_type() == 1) {
+      ++percep_right_cnt;
+    }
+  }
   std::unordered_map<std::string, std::vector<V3>> filtered_fcmap_lines;
   SE3 T_V_W = FC_pose.inverse();
   for (const auto& map_line : merged_fcmap_lines_) {
@@ -224,33 +234,15 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
       filtered_fcmap_lines[line_idx].emplace_back(points);
     }
   }
-  std::unordered_map<std::string, std::vector<ControlPoint>>
-      filtered_fcmap_edges;
-  for (const auto& map_edge : merged_map_edges_) {
-    const auto line_idx = map_edge.first;
-    for (auto& control_point : map_edge.second) {
-      ControlPoint cpoint(0, {0, 0, 0});
-      V3 edge_point = control_point.point;
-      cpoint.line_type = -1;
-      cpoint.point = edge_point;
-      if (edge_point.x() < -15) {
-        continue;
-      }
-      filtered_fcmap_edges[line_idx].emplace_back(cpoint);
-    }
-  }
   std::pair<std::string, std::vector<ControlPoint>> nearest_left_edge;
   std::pair<std::string, std::vector<ControlPoint>> nearest_right_edge;
   uint32_t map_edge_posi_cnt = 0;
   uint32_t map_edge_nag_cnt = 0;
   V3 map_left_point(DOUBLE_MAX, DOUBLE_MAX, DOUBLE_MAX);
   V3 map_right_point(DOUBLE_MIN, DOUBLE_MIN, DOUBLE_MIN);
-  for (auto& map_edge : filtered_fcmap_edges) {
+  for (const auto& map_edge : merged_map_edges_) {
     const auto edge_idx = map_edge.first;
     // 获取当前边界的拟合点
-    if (map_edge.second.begin()->point.x() > 20) {  // 过滤过远的路沿
-      continue;
-    }
     V3 map_point(0, 0, 0);
     bool flag_fit0 =
         GetFitMapPoints(map_edge.second, FC_vel(0) * 1.5, &map_point);
@@ -401,11 +393,13 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
   } else {
     match_single_err_cnt = 0;
   }
-  if (match_double_err_cnt > mm_params.map_lane_match_ser_buff ||
-      match_single_err_cnt > mm_params.map_lane_match_buff ||
-      check_exceed_edge_cnt > mm_params.map_lane_match_buff) {
-    err_type_ = ERROR_TYPE::MAP_LANE_MATCH_FAIL;
-    check_error_last_ = true;
+  if (percep_left_cnt > 0 && percep_right_cnt > 0) {
+    if (match_double_err_cnt > mm_params.map_lane_match_ser_buff ||
+        match_single_err_cnt > mm_params.map_lane_match_buff ||
+        check_exceed_edge_cnt > mm_params.map_lane_match_buff) {
+      err_type_ = ERROR_TYPE::MAP_LANE_MATCH_FAIL;
+      check_error_last_ = true;
+    }
   }
   bool fc_good_match_check_last = false;
   bool fc_good_match_check_nonzero_last = false;
@@ -551,6 +545,9 @@ void MatchLaneLine::CalLinesMinDist(
           min_y_near = y_near;
         }
       }
+    }
+    if ((w_p_far.y() > 0 && v_p_far.y() > 0) ||
+        (w_p_far.y() < 0 && v_p_far.y() < 0)) {
       if (flag_fit1 && flag_fit3) {
         y_far = w_p_far.y() - v_p_far.y();
         if (fabs(y_far) < fabs(min_y_far)) {

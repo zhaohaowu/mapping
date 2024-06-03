@@ -1446,7 +1446,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
       auto next_group_v = (next_group->group_segments[1]->end_slice.po -
                            next_group->group_segments[0]->end_slice.po)
                               .normalized();
-      if (cur_group_v.dot(next_group_v) > 0.8) {
+      if (cur_group_v.dot(next_group_v) > 0.707) {
         // 直行场景
         auto next_grp_start_slice =
             next_group->group_segments.front()->start_slice;
@@ -1468,17 +1468,15 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
           Lane::Ptr ego_curr_lane = nullptr;
           FindNearestLaneToHisVehiclePosition(curr_group, &ego_curr_lane);
           Lane::Ptr best_next_lane = nullptr;
-          if (dist_to_slice <= 30) {
-            FindBestNextLane(next_group, dist_to_slice, &best_next_lane);
-          }
-
+          FindBestNextLane(next_group, dist_to_slice, &best_next_lane);
           // 条件判断，分三种情况
-          if (ego_curr_lane != nullptr && best_next_lane != nullptr) {
+          if (ego_curr_lane != nullptr && best_next_lane != nullptr &&
+              dist_to_slice <= 30) {
             GenerateTransitionLane(ego_curr_lane, best_next_lane,
                                    &virtual_lanes);
           } else if (ego_curr_lane == nullptr) {
             HLOG_ERROR << "ego_curr_lane nullptr";
-          } else if (best_next_lane == nullptr) {
+          } else if (best_next_lane == nullptr || dist_to_slice > 30) {
             // 30m内没找到对应的可连接车道，直接退出
             erase_grp_idx = grp_idx + 1;
             HLOG_WARN << "best_next_lane nullptr";
@@ -2897,6 +2895,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
         false;  // 前后group是否存在某个车道根据trackid关联
     bool is_all_next_lane_exit =
         true;  // currgroup的车道是否全部都有nextgroup关联
+    //! TBD:
+    //! 把分合流场景判断进来，使得分合流的场景不向前延伸。FindGroupNextLane不用再判断一遍前后继了直接沿用
     for (auto& lane_in_curr : curr_group->lanes) {
       bool next_lane_exit = false;  // currlane是否有后继
       // HLOG_ERROR << "curr+lane = " << lane_in_curr->str_id_with_group;

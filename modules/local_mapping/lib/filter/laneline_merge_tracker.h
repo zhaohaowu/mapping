@@ -28,6 +28,9 @@ class LaneLineMergeTrack {
   // 以此来优化分合流场景时的merge处理。
   bool IsForkConvergelike(const LaneTargetConstPtr& left_line,
                           const LaneTargetConstPtr& right_line);
+  // 选择merge后的车道线类型
+  void SetLaneLineType(const LaneTargetPtr& curr_line,
+                       const LaneTargetPtr& deleted_line);
 };
 
 }  // namespace lm

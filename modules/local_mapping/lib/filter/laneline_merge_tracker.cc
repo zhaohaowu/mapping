@@ -58,7 +58,48 @@ void LaneLineMergeTrack::MergeTrackPoints(
   // 插入最新的后处理跟踪点
   left_pts.insert(left_pts.begin(), insert_pts.begin(), insert_pts.end());
 }
+// 选择merge后的车道线类型，merge前后虚实不同则相信是实线
+void LaneLineMergeTrack::SetLaneLineType(const LaneTargetPtr& curr_line,
+                                         const LaneTargetPtr& deleted_line) {
+  auto curr_line_type = curr_line->GetTrackedObject()->type;
+  auto deleted_line_type = deleted_line->GetTrackedObject()->type;
+  // 判断都是虚线
+  bool bothDashed =
+      (curr_line_type == LaneLineType::DASHED_LINE ||
+       curr_line_type == LaneLineType::SHORT_DASHED_LINE ||
+       curr_line_type == LaneLineType::DOUBLE_DASHED_LINE ||
+       curr_line_type == LaneLineType::LEFT_SOLID_RIGHT_DASHED ||
+       curr_line_type == LaneLineType::FISHBONE_DASHED_LINE) &&
+      (deleted_line_type == LaneLineType::DASHED_LINE ||
+       deleted_line_type == LaneLineType::SHORT_DASHED_LINE ||
+       deleted_line_type == LaneLineType::DOUBLE_DASHED_LINE ||
+       deleted_line_type == LaneLineType::LEFT_SOLID_RIGHT_DASHED ||
+       deleted_line_type == LaneLineType::FISHBONE_DASHED_LINE);
+  // 判断都是实线
+  bool bothSolid =
+      (curr_line_type == LaneLineType::SOLID_LINE ||
+       curr_line_type == LaneLineType::DOUBLE_SOLID_LINE ||
+       curr_line_type == LaneLineType::RIGHT_SOLID_LEFT_DASHED ||
+       curr_line_type == LaneLineType::FISHBONE) &&
+      (deleted_line_type == LaneLineType::SOLID_LINE ||
+       deleted_line_type == LaneLineType::DOUBLE_SOLID_LINE ||
+       deleted_line_type == LaneLineType::RIGHT_SOLID_LEFT_DASHED ||
+       deleted_line_type == LaneLineType::FISHBONE);
 
+  // 如果一条为虚线另一条为实线，则将两者都设为实线类型
+  if (!bothDashed && !bothSolid) {
+    // 找出实线类型并赋值给两者
+    curr_line->GetTrackedObject()->type =
+        (curr_line_type == LaneLineType::SOLID_LINE ||
+         curr_line_type == LaneLineType::DOUBLE_SOLID_LINE ||
+         curr_line_type == LaneLineType::RIGHT_SOLID_LEFT_DASHED ||
+         curr_line_type == LaneLineType::FISHBONE)
+            ? curr_line_type
+            : deleted_line_type;
+    deleted_line->GetTrackedObject()->type =
+        curr_line->GetTrackedObject()->type;  // 保证两者类型一致
+  }
+}
 // 两条Tracker重合度很高
 bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
                                               const LaneTargetPtr& right_line) {
@@ -81,10 +122,12 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
       if (time_diff > 0) {
         right_line->SetDeleteFlag(true);
         left_line->SetDeletedTrackIds(*right_line);
+        SetLaneLineType(left_line, right_line);
         MergeTrackPoints(left_line, right_line);
       } else {
         left_line->SetDeleteFlag(true);
         right_line->SetDeletedTrackIds(*left_line);
+        SetLaneLineType(right_line, left_line);
         MergeTrackPoints(right_line, left_line);
       }
     } else {
@@ -92,9 +135,11 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
       if (left_line->Count() > right_line->Count()) {
         right_line->SetDeleteFlag(true);
         left_line->SetDeletedTrackIds(*right_line);
+        SetLaneLineType(left_line, right_line);
       } else {
         left_line->SetDeleteFlag(true);
         right_line->SetDeletedTrackIds(*left_line);
+        SetLaneLineType(right_line, left_line);
       }
     }
     return true;
@@ -131,10 +176,12 @@ bool LaneLineMergeTrack::MergeOverlayCrossStrategy(
       if (time_diff > 0) {
         right_line->SetDeleteFlag(true);
         left_line->SetDeletedTrackIds(*right_line);
+        SetLaneLineType(left_line, right_line);
         MergeTrackPoints(left_line, right_line);
       } else {
         left_line->SetDeleteFlag(true);
         right_line->SetDeletedTrackIds(*left_line);
+        SetLaneLineType(right_line, left_line);
         MergeTrackPoints(right_line, left_line);
       }
     } else {
@@ -142,9 +189,11 @@ bool LaneLineMergeTrack::MergeOverlayCrossStrategy(
       if (left_line->Count() > right_line->Count()) {
         right_line->SetDeleteFlag(true);
         left_line->SetDeletedTrackIds(*right_line);
+        SetLaneLineType(left_line, right_line);
       } else {
         left_line->SetDeleteFlag(true);
         right_line->SetDeletedTrackIds(*left_line);
+        SetLaneLineType(right_line, left_line);
       }
     }
     return true;

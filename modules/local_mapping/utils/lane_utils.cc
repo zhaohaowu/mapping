@@ -696,6 +696,9 @@ bool LaneLineIntersection(const std::vector<Eigen::Vector3d>& point_set1,
            lane_long[long_index2].x() < b.x()) {
       long_index2++;
     }
+    if (long_index2 == lane_long.size()) {
+      return false;
+    }
     c = lane_long[long_index1];
     d = lane_long[long_index2];
     if (CommonUtil::SegmentIntersection(a, b, c, d, intersect_pt)) {

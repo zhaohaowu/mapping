@@ -759,6 +759,9 @@ bool MatchLaneLine::GetNeighboringMapLines(
   for (auto& map_lane : map_points_cache) {
     auto map_line_id = map_lane.first;
     auto map_points = map_lane.second;
+    if (map_points.empty()) {
+      continue;
+    }
     V3 map_line_nearest_point;
     V3 map_line_farest_point;
     nearest_map_pt_flag =
@@ -771,6 +774,9 @@ bool MatchLaneLine::GetNeighboringMapLines(
     if (nearest_map_pt_flag && (map_line_nearest_point).norm() > 1e-10) {
       nearest_delta_y = fabs(target_perception_line_nearest_point.y() -
                              (map_line_nearest_point).y());
+      HLOG_DEBUG << "nearest_delta_y: " << nearest_delta_y
+                 << ", map_line_id: " << map_line_id
+                 << ", ts: " << ins_timestamp_;
       if (nearest_delta_y < min_delta_y) {
         nearest_line_match_pairs->emplace_back(
             make_pair(target_perception_line_nearest_point, map_line_id));
@@ -779,7 +785,30 @@ bool MatchLaneLine::GetNeighboringMapLines(
     if (farest_map_pt_flag && (map_line_farest_point).norm() > 1e-10) {
       farest_delta_y = fabs(target_perception_line_farest_point.y() -
                             (map_line_farest_point).y());
+      HLOG_DEBUG << "farest_delta_y: " << farest_delta_y
+                 << ", map_line_id: " << map_line_id
+                 << ", ts: " << ins_timestamp_;
       if (farest_delta_y < min_delta_y) {
+        // check
+        if (!nearest_map_pt_flag) {
+          std::sort(map_points.begin(), map_points.end(),
+                    [](const ControlPoint& cpt_1, const ControlPoint& cpt_2) {
+                      return cpt_1.point.x() < cpt_2.point.x();
+                    });
+          double nearest_point_distance =
+              CalCulatePointToLineDistance(target_perception_line_nearest_point,
+                                           map_points[0].point, map_points[1].point);
+          HLOG_DEBUG << "point_distance: " << nearest_point_distance
+                     << ", map_id: " << map_line_id;
+          if (nearest_point_distance > 1.5) {
+            continue;
+          }
+        } else if (nearest_delta_y > 1.5) {
+          HLOG_DEBUG << "nearest_delta_y > 1.5, so dont add this farest map "
+                        "line, map_line_id: "
+                     << map_line_id;
+          continue;
+        }
         farest_line_match_pairs->emplace_back(
             std::make_pair(target_perception_line_farest_point, map_line_id));
       }
@@ -1065,7 +1094,8 @@ void MatchLaneLine::EdgesTraversal(const V3& root_start_point,
         cur_loop--;
       }
       if (cur_line_ids.size() > 50) {
-        HLOG_ERROR << "EDGE Traversal: cur_line_ids size > 50!!!, break loop!!!";
+        HLOG_ERROR
+            << "EDGE Traversal: cur_line_ids size > 50!!!, break loop!!!";
         break;
       }
     } else {

@@ -7,13 +7,18 @@
 
 #pragma once
 
+#include <depend/common/math/vec2d.h>
+
 #include <deque>
 #include <map>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <vector>
 
 #include "map_fusion/fusion_common/common_data.h"
+
+using hozon::common::math::Vec2d;
 
 namespace hozon {
 namespace mp {
@@ -46,8 +51,8 @@ struct Line {
   std::deque<Point> pts;
   // 末端方向向量与x轴夹角
   double mean_end_heading = 0;  // in rad, [-pi, +pi]
-  // 末端预测方向向量，由mean_end_heading聚类计算而来
-  double pred_end_heading = 0;
+  // 1.heading 2.kappa 3.dkappa
+  std::tuple<double, double, double> pred_end_heading{};
   // 末端heading角的标准差
   double mean_end_heading_std_dev = 0;
   // 末端平均点间距
@@ -302,7 +307,7 @@ class GroupMap {
   float PointToLaneDis(const Lane::Ptr& lane_ptr, Eigen::Vector3f point);
   void HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
                       std::vector<LineSegment::Ptr>* lines_need_pred,
-                      double threshold);
+                      double threshold, bool need_pred_kappa);
   void RelateGroups(std::vector<Group::Ptr>* groups, double stamp);
   bool MatchLanePtAndStopLine(const em::Point& left_pt,
                               const em::Point& right_pt, const Stpl& stop_line);

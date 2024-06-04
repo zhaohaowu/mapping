@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <depend/common/math/double_type.h>
 #include <depend/common/math/vec2d.h>
 
 #include <deque>
@@ -495,6 +496,17 @@ bool CalculateLambda(const hozon::common::math::Vec2d& p1,
                      const hozon::common::math::Vec2d& p2,
                      const hozon::common::math::Vec2d& p3,
                      const hozon::common::math::Vec2d& p4, double* lambda);
+bool ComputeDiscretePointsProfile(
+    const std::vector<hozon::common::math::Vec2d>& xy_points,
+    std::vector<double>* headings, std::vector<double>* accumulated_s,
+    std::vector<double>* kappas, std::vector<double>* dkappas);
+bool ComputeDiscretePoints(
+    const std::vector<hozon::common::math::Vec2d>& xy_points,
+    const std::vector<double> coeffs, std::vector<double>* kappas,
+    std::vector<double>* dkappas);
+bool DoubleHasSameSign(double first, double second);
+void FitLaneLinePoint(const std::vector<hozon::common::math::Vec2d>& pts,
+                      std::vector<double>* c);
 
 }  // namespace math
 

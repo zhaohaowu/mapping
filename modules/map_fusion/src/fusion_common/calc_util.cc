@@ -488,6 +488,233 @@ bool CalculateLambda(const hozon::common::math::Vec2d& p1,
   return false;
 }
 
+bool ComputeDiscretePointsProfile(
+    const std::vector<hozon::common::math::Vec2d>& xy_points,
+    std::vector<double>* headings, std::vector<double>* accumulated_s,
+    std::vector<double>* kappas, std::vector<double>* dkappas) {
+  // CHECK_NOTNULL(headings);
+  // CHECK_NOTNULL(kappas);
+  // CHECK_NOTNULL(dkappas);
+  // CHECK_NOTNULL(accumulated_s);
+  if (headings == nullptr || kappas == nullptr || dkappas == nullptr ||
+      accumulated_s == nullptr) {
+    return false;
+  }
+  headings->clear();
+  kappas->clear();
+  dkappas->clear();
+  accumulated_s->clear();
+
+  if (xy_points.size() < 2) {
+    HLOG_ERROR << "xy_points size < 2!";
+    return false;
+  }
+  std::vector<double> dxs;
+  std::vector<double> dys;
+  std::vector<double> y_over_s_first_derivatives;
+  std::vector<double> x_over_s_first_derivatives;
+  std::vector<double> y_over_s_second_derivatives;
+  std::vector<double> x_over_s_second_derivatives;
+
+  dxs.reserve(xy_points.size());
+  dys.reserve(xy_points.size());
+  y_over_s_first_derivatives.reserve(xy_points.size());
+  x_over_s_first_derivatives.reserve(xy_points.size());
+  y_over_s_second_derivatives.reserve(xy_points.size());
+  x_over_s_second_derivatives.reserve(xy_points.size());
+
+  // Get finite difference approximated dx and dy for heading and kappa
+  // calculation
+  std::size_t points_size = xy_points.size();
+  for (std::size_t i = 0; i < points_size; ++i) {
+    double x_delta = 0.0;
+    double y_delta = 0.0;
+    if (i == 0) {
+      x_delta = (xy_points[i + 1].x() - xy_points[i].x());
+      y_delta = (xy_points[i + 1].y() - xy_points[i].y());
+    } else if (i == points_size - 1) {
+      x_delta = (xy_points[i].x() - xy_points[i - 1].x());
+      y_delta = (xy_points[i].y() - xy_points[i - 1].y());
+    } else {
+      x_delta = 0.5 * (xy_points[i + 1].x() - xy_points[i - 1].x());
+      y_delta = 0.5 * (xy_points[i + 1].y() - xy_points[i - 1].y());
+    }
+    dxs.push_back(x_delta);
+    dys.push_back(y_delta);
+  }
+
+  // Heading calculation
+  for (std::size_t i = 0; i < points_size; ++i) {
+    headings->push_back(std::atan2(dys[i], dxs[i]));
+  }
+
+  // Get linear interpolated s for dkappa calculation
+  double distance = 0.0;
+  accumulated_s->push_back(distance);
+  double fx = xy_points[0].x();
+  double fy = xy_points[0].y();
+  double nx = 0.0;
+  double ny = 0.0;
+  for (std::size_t i = 1; i < points_size; ++i) {
+    nx = xy_points[i].x();
+    ny = xy_points[i].y();
+    double end_segment_s =
+        std::sqrt((fx - nx) * (fx - nx) + (fy - ny) * (fy - ny));
+    accumulated_s->push_back(end_segment_s + distance);
+    distance += end_segment_s;
+    fx = nx;
+    fy = ny;
+  }
+
+  // Get finite difference approximated first derivative of y and x respective
+  // to s for kappa calculation
+  for (std::size_t i = 0; i < points_size; ++i) {
+    double xds = 0.0;
+    double yds = 0.0;
+    if (i == 0) {
+      xds = (xy_points[i + 1].x() - xy_points[i].x()) /
+            (accumulated_s->at(i + 1) - accumulated_s->at(i));
+      yds = (xy_points[i + 1].y() - xy_points[i].y()) /
+            (accumulated_s->at(i + 1) - accumulated_s->at(i));
+    } else if (i == points_size - 1) {
+      xds = (xy_points[i].x() - xy_points[i - 1].x()) /
+            (accumulated_s->at(i) - accumulated_s->at(i - 1));
+      yds = (xy_points[i].y() - xy_points[i - 1].y()) /
+            (accumulated_s->at(i) - accumulated_s->at(i - 1));
+    } else {
+      xds = (xy_points[i + 1].x() - xy_points[i - 1].x()) /
+            (accumulated_s->at(i + 1) - accumulated_s->at(i - 1));
+      yds = (xy_points[i + 1].y() - xy_points[i - 1].y()) /
+            (accumulated_s->at(i + 1) - accumulated_s->at(i - 1));
+    }
+    x_over_s_first_derivatives.push_back(xds);
+    y_over_s_first_derivatives.push_back(yds);
+  }
+
+  // Get finite difference approximated second derivative of y and x respective
+  // to s for kappa calculation
+  for (std::size_t i = 0; i < points_size; ++i) {
+    double xdds = 0.0;
+    double ydds = 0.0;
+    if (i == 0) {
+      xdds =
+          (x_over_s_first_derivatives[i + 1] - x_over_s_first_derivatives[i]) /
+          (accumulated_s->at(i + 1) - accumulated_s->at(i));
+      ydds =
+          (y_over_s_first_derivatives[i + 1] - y_over_s_first_derivatives[i]) /
+          (accumulated_s->at(i + 1) - accumulated_s->at(i));
+    } else if (i == points_size - 1) {
+      xdds =
+          (x_over_s_first_derivatives[i] - x_over_s_first_derivatives[i - 1]) /
+          (accumulated_s->at(i) - accumulated_s->at(i - 1));
+      ydds =
+          (y_over_s_first_derivatives[i] - y_over_s_first_derivatives[i - 1]) /
+          (accumulated_s->at(i) - accumulated_s->at(i - 1));
+    } else {
+      xdds = (x_over_s_first_derivatives[i + 1] -
+              x_over_s_first_derivatives[i - 1]) /
+             (accumulated_s->at(i + 1) - accumulated_s->at(i - 1));
+      ydds = (y_over_s_first_derivatives[i + 1] -
+              y_over_s_first_derivatives[i - 1]) /
+             (accumulated_s->at(i + 1) - accumulated_s->at(i - 1));
+    }
+    x_over_s_second_derivatives.push_back(xdds);
+    y_over_s_second_derivatives.push_back(ydds);
+  }
+
+  for (std::size_t i = 0; i < points_size; ++i) {
+    double xds = x_over_s_first_derivatives[i];
+    double yds = y_over_s_first_derivatives[i];
+    double xdds = x_over_s_second_derivatives[i];
+    double ydds = y_over_s_second_derivatives[i];
+    double kappa =
+        (xds * ydds - yds * xdds) /
+        (std::sqrt(xds * xds + yds * yds) * (xds * xds + yds * yds) + 1e-6);
+    kappas->push_back(kappa);
+  }
+
+  // Dkappa calculation
+  for (std::size_t i = 0; i < points_size; ++i) {
+    double dkappa = 0.0;
+    if (i == 0) {
+      dkappa = (kappas->at(i + 1) - kappas->at(i)) /
+               (accumulated_s->at(i + 1) - accumulated_s->at(i));
+    } else if (i == points_size - 1) {
+      dkappa = (kappas->at(i) - kappas->at(i - 1)) /
+               (accumulated_s->at(i) - accumulated_s->at(i - 1));
+    } else {
+      dkappa = (kappas->at(i + 1) - kappas->at(i - 1)) /
+               (accumulated_s->at(i + 1) - accumulated_s->at(i - 1));
+    }
+    dkappas->push_back(dkappa);
+  }
+  return true;
+}
+
+bool ComputeDiscretePoints(
+    const std::vector<hozon::common::math::Vec2d>& xy_points,
+    const std::vector<double> coeffs, std::vector<double>* kappas,
+    std::vector<double>* dkappas) {
+  if (kappas == nullptr || dkappas == nullptr) {
+    return false;
+  }
+
+  kappas->clear();
+  dkappas->clear();
+
+  if (xy_points.size() < 2) {
+    HLOG_ERROR << "xy_points size < 2!";
+    return false;
+  }
+
+  std::size_t points_size = xy_points.size();
+  for (std::size_t i = 0; i < points_size; ++i) {
+    double first_deriv = 3 * coeffs[3] * std::pow(xy_points[i].x(), 2) +
+                         2 * coeffs[2] * xy_points[i].x() + coeffs[1];
+    double second_deriv = 6 * coeffs[3] * xy_points[i].x() + 2 * coeffs[2];
+    double third_deriv = 6 * coeffs[3];
+    double kappa =
+        std::abs(second_deriv) / std::pow(1 + std::pow(first_deriv, 2), 1.5);
+    kappas->emplace_back(kappa);
+
+    double numerator = third_deriv * second_deriv;
+    double denominator =
+        std::pow(second_deriv, 2) + std::pow(1 + pow(first_deriv, 2), 1.5);
+    double dkappa = denominator == 0. ? 0. : numerator / denominator;
+    dkappas->emplace_back(dkappa);
+  }
+  return true;
+}
+
+bool DoubleHasSameSign(double first, double second) {
+  return (hozon::common::math::double_type::ComparedToZero(first) >= 0 &&
+          hozon::common::math::double_type::ComparedToZero(second) >= 0) ||
+         (hozon::common::math::double_type::ComparedToZero(first) < 0 &&
+          hozon::common::math::double_type::ComparedToZero(second) < 0);
+}
+
+void FitLaneLinePoint(const std::vector<hozon::common::math::Vec2d>& pts,
+                      std::vector<double>* c) {
+  int n = static_cast<int>(pts.size());
+  Eigen::Matrix<double, Eigen::Dynamic, 4> A(n, 4);
+  Eigen::VectorXd b(n);
+  for (int i = 0; i < n; ++i) {
+    double xi = pts[i].x();
+    double yi = pts[i].y();
+    A(i, 0) = 1.0;
+    A(i, 1) = xi;
+    A(i, 2) = xi * xi;
+    A(i, 3) = xi * xi * xi;
+    b[i] = yi;
+  }
+  // x = (A.transpose() * A).inverse() * A.transpose() * b;
+  Eigen::VectorXd coeffs = A.householderQr().solve(b);
+  c->emplace_back(coeffs[0]);
+  c->emplace_back(coeffs[1]);
+  c->emplace_back(coeffs[2]);
+  c->emplace_back(coeffs[3]);
+}
+
 }  // namespace math
 
 }  // namespace mf

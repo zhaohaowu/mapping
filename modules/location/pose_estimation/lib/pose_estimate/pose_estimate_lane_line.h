@@ -159,11 +159,9 @@ class MatchLaneLine {
                        const double& far_dis, const double& near_dis);
   bool GetEdgeFitPoints(const std::vector<ControlPoint>& points, const double x,
                         V3* pt);
-  void CalEdgeAndPercepMinDist(
-      const Eigen::Vector3d& FC_vel,
-      const std::pair<std::string, std::vector<ControlPoint>>& edge,
-      const LaneLinePerceptionPtr& line, V3* map_near_point, V3* map_far_point,
-      V3* percep_near_point, V3* percep_far_point);
+  void CalPercepMinDist(const Eigen::Vector3d& FC_vel,
+                        const LaneLinePerceptionPtr& line,
+                        V3* percep_near_point, V3* percep_far_point);
   static bool SortPairByX(const PointMatchPair& pair1,
                           const PointMatchPair& pair2) {
     return pair1.pecep_pv.x() < pair2.pecep_pv.x();
@@ -247,6 +245,7 @@ class MatchLaneLine {
    * @return true : get the fit pints; false : do not get the fit points
    */
   bool GetFitPoints(const VP& control_poins, const double x, V3* pt);
+  bool GetFcFitMapPoints(const VP& control_poins, const double x, V3* pt);
   bool GetFcFitPoints(const VP& control_poins, const double x, V3* pt);
   bool GetPerceFitPoints(const VP& points, const double x, V3* pt);
   bool GetFitMapPoints(const std::vector<ControlPoint>& control_poins,

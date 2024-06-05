@@ -378,6 +378,10 @@ class GroupMap {
   void GenerateTransitionLaneToAfter(Lane::Ptr lane_in_curr,
                                      Lane::Ptr lane_in_next,
                                      Lane::Ptr transition_lane);
+  bool DistanceInferenceLane(const LineSegment& left_line,
+                             const LineSegment& right_line);
+  bool Distanceline(const LineSegment& left_line, float line_front_x,
+                    float line_front_y);
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;
   std::map<em::Id, Arrow::Ptr> arrow_;

@@ -2967,6 +2967,23 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
         false;  // 前后group是否存在某个车道根据trackid关联
     bool is_all_next_lane_exit =
         true;  // currgroup的车道是否全部都有nextgroup关联
+    double group_distance = (curr_group->group_segments.back()->end_slice.po -
+                             next_group->group_segments.front()->start_slice.po)
+                                .norm();
+    double currgrp_nearest_mindis_to_nextgrp = DBL_MAX;
+    for (auto& cur_group_lane : curr_group->lanes) {
+      double calcu_dis = (cur_group_lane->center_line_pts.back().pt -
+                          next_group->group_segments.front()->start_slice.po)
+                             .norm();
+      if (calcu_dis < currgrp_nearest_mindis_to_nextgrp) {
+        currgrp_nearest_mindis_to_nextgrp = calcu_dis;
+      }
+    }
+
+    if (group_distance > 10 && currgrp_nearest_mindis_to_nextgrp > 10) {
+      // 路口场景不补全
+      continue;
+    }
     //! TBD:
     //! 把分合流场景判断进来，使得分合流的场景不向前延伸。FindGroupNextLane不用再判断一遍前后继了直接沿用
     for (auto& lane_in_curr : curr_group->lanes) {
@@ -3032,6 +3049,28 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
         }
       }
       if (!next_lane_exit) {
+        double curr_len = CalcLaneLength(lane_in_curr);
+        bool shrink = IsLaneShrink(lane_in_curr);
+        const float dis_thresh = 4.5;
+        if (lane_in_curr->str_id_with_group ==
+                curr_group->lanes[0]->str_id_with_group &&
+            curr_len > kMergeLengthThreshold && shrink &&
+            IsAccessLane(lane_in_curr, next_group->lanes[0]) &&
+            LaneDist(lane_in_curr, next_group->lanes[0]) < dis_thresh) {
+          lane_in_curr->next_lane_str_id_with_group.emplace_back(
+              next_group->lanes[0]->str_id_with_group);
+          next_lane_exit = true;
+        } else if (lane_in_curr->str_id_with_group ==
+                       curr_group->lanes.back()->str_id_with_group &&
+                   curr_len > kMergeLengthThreshold && shrink &&
+                   IsAccessLane(lane_in_curr, next_group->lanes.back()) &&
+                   LaneDist(lane_in_curr, next_group->lanes.back()) <
+                       dis_thresh) {
+          lane_in_curr->next_lane_str_id_with_group.emplace_back(
+              next_group->lanes.back()->str_id_with_group);
+        }
+      }
+      if (!next_lane_exit) {
         is_all_next_lane_exit = false;
       }
     }
@@ -3054,11 +3093,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
       //   // groups->erase(groups->begin() + i + 1);
       //   // i--;
       // }
-      double group_distance =
-          (curr_group->group_segments.back()->end_slice.po -
-           next_group->group_segments.front()->start_slice.po)
-              .norm();
-      if (!is_all_next_lane_exit && group_distance < 10.0) {
+
+      if (!is_all_next_lane_exit) {
         UpdateLaneBoundaryId(curr_group);
         // 后侧车道线补齐
         BuildVirtualLaneAfter(curr_group, next_group);
@@ -3066,6 +3102,11 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
         VirtualLaneLeftRight(curr_group, next_group);
       }
       DelLaneNextStrIdInGroup(curr_group);
+    } else {
+      if (curr_group->group_segments.back()->end_slice.po.x() > 2.0) {
+        groups->erase(groups->begin() + i + 1, groups->end());
+        break;
+      }
     }
   }
 
@@ -3141,7 +3182,7 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
           (curr_group->group_segments.back()->end_slice.po -
            next_group->group_segments.front()->start_slice.po)
               .norm();
-      if (max_length_lane <= 10.0 && !is_all_next_lane_exit &&
+      if (max_length_lane <= 15.0 && !is_all_next_lane_exit &&
           group_distance < 10.0) {
         HLOG_DEBUG << " is connect";
         BuildVirtualLaneBefore(curr_group, next_group);
@@ -4032,7 +4073,54 @@ bool GroupMap::BoundaryIsValid(const LineSegment& line) {
   }
   return true;
 }
-
+bool GroupMap::Distanceline(const LineSegment& left_line, float line_front_x,
+                            float line_front_y) {
+  int index_left = 0;
+  while (index_left < left_line.pts.size() - 1 &&
+         left_line.pts[index_left + 1].pt.x() < line_front_x) {
+    index_left++;
+  }
+  if (index_left < left_line.pts.size() - 1) {
+    int index_right = index_left + 1;
+    while (index_right < left_line.pts.size() &&
+           left_line.pts[index_right].pt.x() -
+                   left_line.pts[index_left].pt.x() <
+               0.1) {
+      index_right++;
+    }
+    if (index_right < left_line.pts.size()) {
+      float k = (left_line.pts[index_right].pt.y() -
+                 left_line.pts[index_left].pt.y()) /
+                (left_line.pts[index_right].pt.x() -
+                 left_line.pts[index_left].pt.x());
+      float b = left_line.pts[index_right].pt.y() -
+                k * left_line.pts[index_right].pt.x();
+      float dis = abs(line_front_x * k + b - line_front_y) / sqrt(1 + k * k);
+      if (dis < conf_.max_lane_width && dis > conf_.min_lane_width) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+  }
+  return false;
+}
+bool GroupMap::DistanceInferenceLane(const LineSegment& left_line,
+                                     const LineSegment& right_line) {
+  if (left_line.pts.empty() || right_line.pts.empty()) {
+    return false;
+  }
+  if (left_line.pts.front().pt.x() < right_line.pts.front().pt.x()) {
+    float right_line_front_x = right_line.pts.front().pt.x();
+    float right_line_front_y = right_line.pts.front().pt.y();
+    return Distanceline(left_line, right_line_front_x, right_line_front_y);
+  } else {
+    float left_line_front_x = left_line.pts.front().pt.x();
+    float left_line_front_y = left_line.pts.front().pt.y();
+    return Distanceline(right_line, left_line_front_x, left_line_front_y);
+  }
+  return false;
+}
 void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
                                      Group::Ptr next_group) {
   for (auto& lane_in_curr : curr_group->lanes) {
@@ -4145,8 +4233,10 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           right_bound_exist = 1;
         }
       }
-
-      if (left_bound_exist == 1 && right_bound_exist == 0) {
+      if (left_bound_exist == 1 && right_bound_exist == 1 &&
+          (!DistanceInferenceLane(left_bound, right_bound))) {
+        return;
+      } else if (left_bound_exist == 1 && right_bound_exist == 0) {
         size_t index_right = lane_in_curr->right_boundary->pts.size();
         Point right_pt_pred(
             PREDICTED,

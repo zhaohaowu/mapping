@@ -42,6 +42,24 @@ bool Monitor::Init(const std::string& configfile) {
   HLOG_INFO << "LOC-FC-Monitor Init Successfully";
   return true;
 }
+void Monitor::Clear() {
+  {
+    std::unique_lock<std::shared_mutex> lock(ins_deque_mutex_);
+    ins_deque_.clear();
+  }
+  {
+    std::unique_lock<std::shared_mutex> lock(fc_deque_mutex_);
+    fc_deque_.clear();
+  }
+  {
+    std::unique_lock<std::shared_mutex> lock(pe_fault_deque_mutex_);
+    pe_fault_deque_.clear();
+  }
+  {
+    std::unique_lock<std::shared_mutex> lock(fault_state_mutex_);
+    fault_state.Reset();
+  }
+}
 
 void Monitor::OnIns(const Node& node) {
   std::unique_lock<std::shared_mutex> lock(ins_deque_mutex_);
@@ -70,7 +88,7 @@ bool Monitor::MonitorFault() {
   if (!params_.use_fault) {
     return false;
   }
-
+  std::unique_lock<std::shared_mutex> lock(fault_state_mutex_);
   // pe传输过来的故障----fault 123,124,130
   if (params_.pe_fault) {
     uint32_t pe_fault_state = 0;

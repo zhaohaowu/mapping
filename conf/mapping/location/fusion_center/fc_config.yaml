@@ -15,6 +15,7 @@ ins_init_status:    # INS初始化的正常状态
   - sys_status: 2
     gps_status: 4
 
+refpoint_update_dist: 20000.0 #refpoint切换距离-m
 search_state_cnt: 45  # 在该帧数内有mm测量，loc = 2
 # 使用INS对MM进行补帧
 use_ins_predict_mm: false

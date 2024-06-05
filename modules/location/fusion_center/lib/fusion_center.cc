@@ -12,6 +12,7 @@
 
 #include <boost/filesystem.hpp>
 
+#include "Eigen/src/Core/Matrix.h"
 #include "modules/location/common/data_verify.h"
 #include "modules/location/fusion_center/lib/eulerangle.h"
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
@@ -82,6 +83,7 @@ bool FusionCenter::Init(const std::string& configfile,
   }
 
   fusion_run_ = true;
+  ref_init_ = false;
   th_fusion_ = std::make_shared<std::thread>(&FusionCenter::RunFusion, this);
 
   return true;
@@ -139,6 +141,13 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
   if (!ExtractBasicInfo(ins, &node)) {
     HLOG_WARN << "ExtractBasicInfo ins fail";
     return;
+  }
+  // 随距离切refpoint
+  if (node.enu.norm() > params_.refpoint_update_dist) {
+    SetRefpoint(node.blh);
+    monitor_->Clear();
+    HLOG_INFO << node.ticktime << " refpoint change to " << node.blh(0) << ","
+              << node.blh(1) << "," << node.blh(2);
   }
 
   std::unique_lock<std::mutex> lock(ins_deque_mutex_);
@@ -239,6 +248,7 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   } else {
     filter_valid_pe_ = true;
   }
+
   std::unique_lock<std::mutex> lock(pe_deque_mutex_);
   pe_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&pe_deque_, params_.pe_deque_max_size);
@@ -267,8 +277,8 @@ bool FusionCenter::GetCurrentOutput(Localization* const location) {
     return false;
   }
   Context ctx;
-  if (!init_dr_) {
-    HLOG_ERROR << "OnInitDR failed";
+  if (!init_dr_ || !ref_init_) {
+    HLOG_ERROR << "OnInitDR failed or ref_init fail";
     return false;
   }
   if (!GetCurrentContext(&ctx)) {
@@ -317,22 +327,28 @@ bool FusionCenter::GetCurrentContext(Context* const ctx) {
   if (!GetGlobalPose(ctx)) {
     HLOG_WARN << "get global pose failed";
   }
-  #ifdef ISORIN
-    // mapping trigger ins 状态或定位结果跳变
-    std::shared_ptr<Node> last_ins;
-    ins_deque_mutex_.lock();
-    if (!ins_deque_.empty()) {
-      last_ins = ins_deque_.back();
-    }
-    ins_deque_mutex_.unlock();
-    if (last_ins != nullptr) {
-      CheckTriggerInsStatePose(last_ins);
-    }
-  #endif
+
+#ifdef ISORIN
+  // mapping trigger ins 状态或定位结果跳变
+  std::shared_ptr<Node> last_ins;
+  ins_deque_mutex_.lock();
+  if (!ins_deque_.empty()) {
+    last_ins = ins_deque_.back();
+  }
+  ins_deque_mutex_.unlock();
+  if (last_ins != nullptr) {
+    CheckTriggerInsStatePose(last_ins);
+  }
+#endif
   return true;
 }
 
 bool FusionCenter::IsInsDrift(const std::shared_ptr<Node> ins_node) {
+  if (!ref_init_) {
+    HLOG_ERROR << "ref_init fail";
+    return false;
+  }
+  const Eigen::Vector3d refpoint = Refpoint();
   int i_size = ins_trig_deque_.size();
   if (i_size < 20) {
     ins_trig_deque_.push_back(ins_node);
@@ -344,10 +360,15 @@ bool FusionCenter::IsInsDrift(const std::shared_ptr<Node> ins_node) {
   }
   // Node curr_i_node, prev_i_node;
   auto curr_i_node = ins_trig_deque_.at(i_size - 1);
+  curr_i_node->enu = hmu::Geo::BlhToEnu(curr_i_node->blh, refpoint);
   auto prev_i_node = ins_trig_deque_.at(i_size - 2);
+  prev_i_node->enu = hmu::Geo::BlhToEnu(prev_i_node->blh, refpoint);
   // rtk状态正常时判断，异常直接返回
-  if (curr_i_node->rtk_status != 4 || curr_i_node->sys_status!= 2) return false;
-  const auto pose_diff = Node2SE3(*prev_i_node).inverse() * Node2SE3(*curr_i_node);
+  if (curr_i_node->rtk_status != 4 || curr_i_node->sys_status != 2) {
+    return false;
+  }
+  const auto pose_diff =
+      Node2SE3(*prev_i_node).inverse() * Node2SE3(*curr_i_node);
   if (fabs(pose_diff.translation().y()) > 0.5) {
     HLOG_INFO << "Vehicle y diff:" << fabs(pose_diff.translation().y())
               << " larger than thr:" << 0.5;
@@ -364,8 +385,9 @@ bool FusionCenter::IsInsStateChange(const std::shared_ptr<Node> node) {
     last_rtk = node->rtk_status;
     first_flag = false;
     return false;
-  } else if ((last_rtk == 4 && node->rtk_status != 4 && node->rtk_status != 5)
-          || (last_sys == 2 && node->sys_status != 2)) {
+  } else if ((last_rtk == 4 && node->rtk_status != 4 &&
+              node->rtk_status != 5) ||
+             (last_sys == 2 && node->sys_status != 2)) {
     HLOG_INFO << "node->rtk_status: " << node->rtk_status
               << " node->sys_status: " << node->sys_status;
     last_sys = node->sys_status;
@@ -377,7 +399,8 @@ bool FusionCenter::IsInsStateChange(const std::shared_ptr<Node> node) {
   return false;
 }
 
-void FusionCenter::CheckTriggerInsStatePose(const std::shared_ptr<Node> i_node) {
+void FusionCenter::CheckTriggerInsStatePose(
+    const std::shared_ptr<Node> i_node) {
   static double last_time = -1;
   static bool enable_02 = true;
   if (i_node->linear_vel_VRF(0) < 6.0) {
@@ -416,6 +439,7 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
   params_.smooth_outputs = node["smooth_outputs"].as<bool>();
   params_.use_smooth_yaw = node["use_smooth_yaw"].as<bool>();
   params_.search_state_cnt = node["search_state_cnt"].as<uint32_t>();
+  params_.refpoint_update_dist = node["refpoint_update_dist"].as<double>();
   params_.no_mm_min_time = node["no_mm_min_time"].as<double>();
   params_.no_mm_max_time = node["no_mm_max_time"].as<double>();
   params_.use_dr_measurement = node["use_dr_measurement"].as<bool>();
@@ -589,8 +613,16 @@ void FusionCenter::RunFusion() {
   pthread_setname_np(pthread_self(), "loc_fc_eskf");
 
   while (fusion_run_) {
+    // refpoint
+    if (!ref_init_) {
+      HLOG_ERROR << "ref_init fail";
+      usleep(params_.run_fusion_interval_ms * 1000);
+      continue;
+    }
+    const Eigen::Vector3d refpoint = Refpoint();
+
     // Init
-    if (!init_ins_ && !PoseInit()) {
+    if (!init_ins_ && !PoseInit(refpoint)) {
       usleep(params_.run_fusion_interval_ms * 1000);
       continue;
     }
@@ -600,7 +632,7 @@ void FusionCenter::RunFusion() {
     bool pre_flag = GenerateNewESKFPre();
 
     if (pre_flag && meas_flag) {
-      RunESKFFusion();
+      RunESKFFusion(refpoint);
     }
 
     PruneDeques();
@@ -1055,13 +1087,13 @@ bool FusionCenter::Interpolate(double ticktime,
   return true;
 }
 
-bool FusionCenter::PoseInit() {
+bool FusionCenter::PoseInit(const Eigen::Vector3d& refpoint) {
   // 1.使用ins初始化(if--->第一次初始化
   if (!prev_global_valid_) {
     std::unique_lock<std::mutex> lock(ins_deque_mutex_);
     for (auto iter = ins_deque_.rbegin(); iter != ins_deque_.rend(); ++iter) {
       if (AllowInit((*iter)->sys_status, (*iter)->rtk_status)) {
-        (*iter)->enu = hmu::Geo::BlhToEnu((*iter)->blh, (*iter)->refpoint);
+        (*iter)->enu = hmu::Geo::BlhToEnu((*iter)->blh, refpoint);
         InsertESKFFusionNode(**iter);
         init_ins_ = true;
         return true;
@@ -1079,6 +1111,8 @@ bool FusionCenter::PoseInit() {
     double ins_earliest_time = ins_deque_.front()->ticktime;
 
     if (prev_global_node_.ticktime > ins_earliest_time) {
+      prev_global_node_.enu =
+          hmu::Geo::BlhToEnu(prev_global_node_.blh, refpoint);
       InsertESKFFusionNode(prev_global_node_);
       HLOG_ERROR << "FusionDeque use prev_global_node_ reinit";
       init_ins_ = true;
@@ -1087,7 +1121,7 @@ bool FusionCenter::PoseInit() {
       // 2.2 备选使用INS测量进行初始化，防止上一次定位有效输出无法在INS队列插值
       for (auto iter = ins_deque_.rbegin(); iter != ins_deque_.rend(); ++iter) {
         if (AllowInit((*iter)->sys_status, (*iter)->rtk_status)) {
-          (*iter)->enu = hmu::Geo::BlhToEnu((*iter)->blh, (*iter)->refpoint);
+          (*iter)->enu = hmu::Geo::BlhToEnu((*iter)->blh, refpoint);
           InsertESKFFusionNode(**iter);
           HLOG_ERROR << "FusionDeque use ins meas reinit";
           init_ins_ = true;
@@ -1187,7 +1221,7 @@ bool FusionCenter::GenerateNewESKFMeas() {
       if (PredictMMMeas()) {
         meas_flag = true;
         HLOG_INFO << "No MM measurement,predict MM meas. time_diff:"
-                   << time_diff;
+                  << time_diff;
       }
 
       // (2)INS测量加入
@@ -1334,7 +1368,7 @@ void FusionCenter::InsertESKFFusionNode(const Node& node) {
   fusion_deque_mutex_.unlock();
 }
 
-void FusionCenter::RunESKFFusion() {
+void FusionCenter::RunESKFFusion(const Eigen::Vector3d& refpoint) {
   HLOG_DEBUG << "-------eskf前-------"
              << "pre_deque_.size():" << pre_deque_.size()
              << ", meas_deque_.size():" << meas_deque_.size()
@@ -1342,7 +1376,9 @@ void FusionCenter::RunESKFFusion() {
 
   // eskf开始
   fusion_deque_mutex_.lock();
-  eskf_->StateInit(fusion_deque_.back());
+  auto init_node = std::make_shared<Node>(*fusion_deque_.back());
+  init_node->enu = hmu::Geo::BlhToEnu(init_node->blh, refpoint);
+  eskf_->StateInit(init_node);
   HLOG_DEBUG << "-------eskf前------- fusion_deque.size():"
              << fusion_deque_.size();
   fusion_deque_mutex_.unlock();
@@ -1353,6 +1389,7 @@ void FusionCenter::RunESKFFusion() {
       return;
     }
     meas_node = *meas_deque_.front();
+    meas_node.enu = hmu::Geo::BlhToEnu(meas_node.blh, refpoint);
     predict_node = *pre_deque_.front();
 
     if (predict_node.ticktime < meas_node.ticktime) {
@@ -1379,7 +1416,7 @@ void FusionCenter::RunESKFFusion() {
     }
 
     State state = eskf_->GetState();
-    InsertESKFFusionNode(State2Node(state));
+    InsertESKFFusionNode(State2Node(state, refpoint));
   }
   can_output_ = true;
 
@@ -1389,9 +1426,9 @@ void FusionCenter::RunESKFFusion() {
              << ", meas_type:" << meas_deque_.back()->type;
 }
 
-Node FusionCenter::State2Node(const State& state) {
+Node FusionCenter::State2Node(const State& state,
+                              const Eigen::Vector3d& refpoint) {
   Node node;
-  const auto refpoint = Refpoint();
 
   node.refpoint = refpoint;
   node.ticktime = state.ticktime;
@@ -1500,17 +1537,22 @@ Sophus::SE3d FusionCenter::Node2SE3(const std::shared_ptr<Node>& node) {
   return Node2SE3(*node);
 }
 
-void FusionCenter::KalmanFiltering(Node* const node) {
+void FusionCenter::KalmanFiltering(Node* const node,
+                                   const Eigen::Vector3d& ref_point) {
   if (!node) {
     return;
   }
 
-  Eigen::VectorXd state(6, 1);
-  state << node->enu(0), node->enu(1), node->enu(2), node->orientation(0),
+  Eigen::VectorXd eskf_state(6, 1);
+  eskf_state << node->enu(0), node->enu(1), node->enu(2), node->orientation(0),
       node->orientation(1), node->orientation(2);
   if (!kalman_filter_.IsInitialized()) {
-    kalman_filter_.SetInitialState(state);
+    kalman_blh_ = node->blh;
+    kalman_filter_.SetInitialState(eskf_state);
   }
+  Eigen::Vector3d kalman_enu = hmu::Geo::BlhToEnu(kalman_blh_, ref_point);
+  kalman_filter_.SetEnuState(kalman_enu);
+
   double delta_t = 0.0;
   if (prev_global_valid_) {
     prev_global_node_mutex_.lock();
@@ -1521,9 +1563,11 @@ void FusionCenter::KalmanFiltering(Node* const node) {
   kalman_filter_.Predict(delta_t, node->linear_vel_VRF(0),
                          node->linear_vel_VRF(1), node->linear_vel_VRF(2),
                          node->angular_velocity(2) / 57.3);
-  kalman_filter_.MeasurementUpdate(state);
+  kalman_filter_.MeasurementUpdate(eskf_state);
 
   const auto curr_state = kalman_filter_.GetState();
+  kalman_enu << curr_state(0), curr_state(1), curr_state(2);
+  kalman_blh_ = hmu::Geo::EnuToBlh(kalman_enu, ref_point);
   node->enu << curr_state(0), curr_state(1), curr_state(2);
 
   node->orientation(0) = curr_state(3);
@@ -1554,6 +1598,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     auto it = fusion_deque_.rbegin();
     for (; it != fusion_deque_.rend(); ++it) {
       if ((*it)->type >= 0) {
+        (*it)->enu = hmu::Geo::BlhToEnu((*it)->blh, refpoint);
         fusion_node = *((*it));
         break;
       }
@@ -1586,7 +1631,8 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
       std::lock_guard<std::mutex> lock(dr_deque_mutex_);
       if (!Interpolate(refer_node.ticktime, dr_deque_, &ni)) {
         HLOG_ERROR << "interpolate dr output failed,fusion node time:"
-                   << refer_node.ticktime << ",ins_time:" << ctx->ins_node.ticktime;
+                   << refer_node.ticktime
+                   << ",ins_time:" << ctx->ins_node.ticktime;
         return false;
       }
     }
@@ -1596,9 +1642,9 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     // ctx->global_node.rtk_status = ctx->ins_node.rtk_status;
     ctx->global_node.location_state = loc_state;
     ctx->global_node.cov = fusion_node.cov;
-    #ifdef ISORIN
-      CheckTriggerLocState(ctx);
-    #endif
+#ifdef ISORIN
+    CheckTriggerLocState(ctx);
+#endif
     const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(ctx->dr_node);
     const auto& pose = Node2SE3(refer_node) * T_delta;
     ctx->global_node.enu = pose.translation();
@@ -1616,10 +1662,9 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
 
   // KF滤波
   if (params_.smooth_outputs) {
-    KalmanFiltering(&(ctx->global_node));
+    KalmanFiltering(&(ctx->global_node), refpoint);
   }
-  ctx->global_node.blh =
-      hmu::Geo::EnuToBlh(ctx->global_node.enu, ctx->global_node.refpoint);
+  ctx->global_node.blh = hmu::Geo::EnuToBlh(ctx->global_node.enu, refpoint);
   ctx->global_node.rtk_status = ctx->ins_node.rtk_status;
   monitor_->OnFc(ctx->global_node);
   prev_global_node_mutex_.lock();
@@ -1676,25 +1721,25 @@ void FusionCenter::CheckTriggerLocState(Context* const ctx) {
   auto curr_state = ctx->global_node.location_state;
   auto curr_time = ctx->global_node.ticktime;
   if (curr_state != last_state && curr_state == 123 && enable_05) {
-      // mapping trigger 无车道线
-      HLOG_WARN << "curr_loc_state: " << curr_state
-                << " Start to trigger dc 1005";
-      GLOBAL_DC_TRIGGER.TriggerCollect(1005);
-      enable_05 = false;
-      last_time_05 = curr_time;
+    // mapping trigger 无车道线
+    HLOG_WARN << "curr_loc_state: " << curr_state
+              << " Start to trigger dc 1005";
+    GLOBAL_DC_TRIGGER.TriggerCollect(1005);
+    enable_05 = false;
+    last_time_05 = curr_time;
   } else if (curr_state != last_state && curr_state == 128 && enable_10) {
-      // mapping trigger 定位结果跳变
-      HLOG_WARN << "curr_loc_state: " << curr_state
-                << " Start to trigger dc 1010";
-      GLOBAL_DC_TRIGGER.TriggerCollect(1010);
-      enable_10 = false;
-      last_time_10 = curr_time;
+    // mapping trigger 定位结果跳变
+    HLOG_WARN << "curr_loc_state: " << curr_state
+              << " Start to trigger dc 1010";
+    GLOBAL_DC_TRIGGER.TriggerCollect(1010);
+    enable_10 = false;
+    last_time_10 = curr_time;
   } else if (curr_state != last_state && curr_state == 130 && enable_03) {
-      HLOG_WARN << "curr_loc_state: " << curr_state
-                << " Start to trigger dc 1003";
-      GLOBAL_DC_TRIGGER.TriggerCollect(1003);
-      enable_03 = false;
-      last_time_03 = curr_time;
+    HLOG_WARN << "curr_loc_state: " << curr_state
+              << " Start to trigger dc 1003";
+    GLOBAL_DC_TRIGGER.TriggerCollect(1003);
+    enable_03 = false;
+    last_time_03 = curr_time;
   }
   last_state = curr_state;
   enable_05 = (curr_time - last_time_05) > 600;

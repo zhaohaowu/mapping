@@ -104,6 +104,12 @@ void KalmanFilter::SetInitialState(const Eigen::VectorXd& state) {
   init_ = true;
 }
 
+void KalmanFilter::SetEnuState(const Eigen::Vector3d& state) {
+  state_[0] = state[0];
+  state_[1] = state[1];
+  state_[2] = state[2];
+}
+
 void KalmanFilter::SetF(const Eigen::MatrixXd& F) { F_ = F; }
 
 void KalmanFilter::Predict(double t, double vx, double vy, double vz,
@@ -120,12 +126,14 @@ void KalmanFilter::Predict(double t, double vx, double vy, double vz,
 
   // 2.计算F
   Eigen::MatrixXd F = Eigen::MatrixXd::Identity(6, 6);
-  F.template block<3, 3>(0, 3) = -1 * state_rot.matrix() * SkewMatrix(angular_vel_VRF);
+  F.template block<3, 3>(0, 3) =
+      -1 * state_rot.matrix() * SkewMatrix(angular_vel_VRF);
   F.template block<3, 1>(0, 3) = Eigen::Vector3d::Zero();
   F.template block<3, 1>(0, 4) = Eigen::Vector3d::Zero();
   Sophus::SO3d delta_rot = Sophus::SO3d::exp(angular_vel_VRF);
   Eigen::Vector3d JrSO3_input = (state_rot * delta_rot).log();
-  F.template block<3, 3>(3, 3) = JrSO3(JrSO3_input).inverse() * delta_rot.matrix().transpose();
+  F.template block<3, 3>(3, 3) =
+      JrSO3(JrSO3_input).inverse() * delta_rot.matrix().transpose();
   F.template block<3, 1>(3, 3) = Eigen::Vector3d::Zero();
   F.template block<3, 1>(3, 4) = Eigen::Vector3d::Zero();
   F.template block<2, 1>(3, 5) = Eigen::Vector2d::Zero();

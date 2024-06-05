@@ -44,7 +44,7 @@ struct Params {
   double max_dr_pe_horizontal_dist_error = 1.0;
   double max_dr_pe_heading_error = 2.5;
   double max_fc_pe_horizontal_dist_error = 0.1;
-
+  double refpoint_update_dist = 20000.0;
 
   std::vector<std::pair<uint32_t, uint32_t>> ins_init_status;
 };

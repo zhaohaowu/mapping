@@ -15,13 +15,15 @@
 #include <utility>
 
 #include <Sophus/se3.hpp>
+
+#include "Eigen/src/Core/Matrix.h"
 #include "modules/location/fusion_center/lib/eskf.h"
 #include "modules/location/fusion_center/lib/kalman_filter.h"
 #include "modules/location/fusion_center/lib/monitor.h"
+#include "proto/dead_reckoning/dr.pb.h"
 #include "proto/localization/localization.pb.h"
 #include "proto/localization/node_info.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
-#include "proto/dead_reckoning/dr.pb.h"
 
 namespace hozon {
 namespace mp {
@@ -53,17 +55,18 @@ class FusionCenter {
   template <typename T>
   void ShrinkQueue(T* const deque, uint32_t maxsize);
   bool ExtractBasicInfo(const HafNodeInfo& msg, Node* const node);
-  bool DrToBasicInfo(const hozon::dead_reckoning::DeadReckoning& msg, Node* const node);
+  bool DrToBasicInfo(const hozon::dead_reckoning::DeadReckoning& msg,
+                     Node* const node);
   void SetRefpoint(const Eigen::Vector3d& blh);
   Eigen::Vector3d Refpoint();
   void Node2Localization(const Context& ctx, Localization* const location);
   void RunFusion();
-  bool PoseInit();
+  bool PoseInit(const Eigen::Vector3d& refpoint);
   bool GenerateNewESKFPre();   // 用于收集融合的预测
   bool GenerateNewESKFMeas();  // 用于收集融合的观测
-  Node State2Node(const State& state);
+  Node State2Node(const State& state, const Eigen::Vector3d& refpoint);
   void InsertESKFFusionNode(const Node& node);
-  void RunESKFFusion();
+  void RunESKFFusion(const Eigen::Vector3d& refpoint);
   bool AllowInsMeas(uint32_t sys_status, uint32_t rtk_status);
   bool InsertESKFMeasDR();  // 用于插入DR相对测量值
   bool PredictMMMeas();     // 当无MM测量时，用INS递推MM
@@ -80,7 +83,7 @@ class FusionCenter {
                           double ang_tol = 0.3, double time_tol = 0.5);
   static Sophus::SE3d Node2SE3(const Node& node);
   static Sophus::SE3d Node2SE3(const std::shared_ptr<Node>& node);
-  void KalmanFiltering(Node* const node);
+  void KalmanFiltering(Node* const node, const Eigen::Vector3d& ref_point);
 
   template <typename T>
   void CutoffDeque(double timestamp, std::deque<std::shared_ptr<T>>* const d);
@@ -111,10 +114,10 @@ class FusionCenter {
 
   std::atomic<bool> fusion_run_{false};
   std::atomic<bool> filter_valid_pe_{false};
+  std::atomic<bool> ref_init_{false};
 
   std::mutex refpoint_mutex_;
   Eigen::Vector3d init_refpoint_ = Eigen::Vector3d::Zero();
-  bool ref_init_ = false;
   Eigen::Vector3d refpoint_ = Eigen::Vector3d::Zero();
 
   std::mutex imuins_deque_mutex_;
@@ -167,6 +170,7 @@ class FusionCenter {
   double y_lateral_error_ = 0;
   bool init_dr_ins_ = false;
   Node init_ins_node_;
+  Eigen::Vector3d kalman_blh_;
 
   // mapping trigger
   std::deque<std::shared_ptr<Node>> ins_trig_deque_;

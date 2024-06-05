@@ -89,6 +89,7 @@ class Monitor {
 
  public:
   FaultState fault_state;
+  std::shared_mutex fault_state_mutex_;
 
  private:
   MonitorParams params_;

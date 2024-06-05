@@ -25,6 +25,7 @@ class KalmanFilter {
   bool Init(const std::string& configfile);
   void Reinit();
   void SetInitialState(const Eigen::VectorXd& state);
+  void SetEnuState(const Eigen::Vector3d& state);
   void SetF(const Eigen::MatrixXd& F);
   void Predict(double t, double vx, double vy, double vz, double avy);
   void MeasurementUpdate(const Eigen::VectorXd& z);
@@ -50,4 +51,3 @@ class KalmanFilter {
 }  // namespace loc
 }  // namespace mp
 }  // namespace hozon
-

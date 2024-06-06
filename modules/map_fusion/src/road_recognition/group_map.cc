@@ -430,17 +430,17 @@ void GroupMap::EgoLineTrajectory(std::vector<GroupSegment::Ptr>* grp_segment,
     if (seg->end_slice.po.x() > -5 && seg->start_slice.po.x() < 5) {
       if (seg->line_segments.size() > 1) {
         for (unsigned int i = 0; i < seg->line_segments.size() - 1; ++i) {
-          if (seg->line_segments[i]->dist_to_path *
-                  seg->line_segments[i + 1]->dist_to_path <
-              0.1) {
+          if ((seg->line_segments[i]->dist_to_path *
+                   seg->line_segments[i + 1]->dist_to_path <
+               0.1) &&
+              fabs(seg->line_segments[i]->dist_to_path < 3.75) &&
+              fabs(seg->line_segments[i + 1]->dist_to_path < 3.75)) {
             line1_id = seg->line_segments[i]->id;
             line2_id = seg->line_segments[i + 1]->id;
             near_line = (abs(seg->line_segments[i]->dist_to_path) <
                          abs(seg->line_segments[i + 1]->dist_to_path))
                             ? line1_id
                             : line2_id;
-            // HLOG_ERROR << "line1_id = " << line1_id
-            //            << "  line2_id = " << line2_id;
             flag = 1;
             break;
           }
@@ -459,6 +459,8 @@ void GroupMap::EgoLineTrajectory(std::vector<GroupSegment::Ptr>* grp_segment,
   }
   ego_line_id_.left_id = line1_id;
   ego_line_id_.right_id = line2_id;
+  HLOG_DEBUG << "ego line id:" << ego_line_id_.left_id << ","
+             << ego_line_id_.right_id;
 }
 
 // 将所有GroupSegments聚合成一个个Group
@@ -3609,6 +3611,7 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
   if (!fabs(ego_lane_heading - 9.9) < 1e-1) {
     predict_heading = ego_lane_heading;
     predict_heading = 0.6 * last_predict_angle + 0.4 * predict_heading;
+    HLOG_WARN << "heading mode 1:" << predict_heading;
   } else {
     if (heading_cluster_indices.size() == 1) {
       double heading_sum = 0.;

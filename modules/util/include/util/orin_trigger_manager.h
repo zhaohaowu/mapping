@@ -9,7 +9,7 @@
 #include <mutex>
 #include <deque>
 #include <condition_variable>
-
+#include <atomic>
 
 #ifdef ISORIN
 #include "dc/include/dc_client.h"

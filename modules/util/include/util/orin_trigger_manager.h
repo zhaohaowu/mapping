@@ -5,6 +5,12 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <thread>
+#include <mutex>
+#include <deque>
+#include <condition_variable>
+
+
 #ifdef ISORIN
 #include "dc/include/dc_client.h"
 using namespace hozon::netaos::cm;// NOLINT
@@ -24,6 +30,8 @@ class OrinTriggerManager {  // NOLINT
   OrinTriggerManager();
   ~OrinTriggerManager();
 
+  void Core();
+  void SendTrigger(uint32_t trigger_id);
   /**
    * @brief 根据事件信息触发数据收集上云接口
    *
@@ -35,6 +43,12 @@ class OrinTriggerManager {  // NOLINT
 #ifdef ISORIN
   std::unique_ptr<hozon::netaos::dc::DcClient> dc_client_ = nullptr;
 #endif
+  std::shared_ptr<std::deque<uint32_t>> trigger_id_queue_;
+  std::shared_ptr<std::thread> thread_;
+  std::atomic<bool> exit_thread_flag_;
+  std::mutex mtx_;
+  std::condition_variable cv_;
+
  public:
   static OrinTriggerManager& Instance() {
     static OrinTriggerManager instance;

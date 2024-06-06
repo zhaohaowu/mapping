@@ -403,7 +403,7 @@ void FusionCenter::CheckTriggerInsStatePose(
     const std::shared_ptr<Node> i_node) {
   static double last_time = -1;
   static bool enable_02 = true;
-  if (i_node->linear_vel_VRF(0) < 6.0) {
+  if (i_node->linear_vel_VRF(0) < 6.0 || i_node->sys_status != 2) {
     return;
   }
   if (IsInsStateChange(i_node)) {

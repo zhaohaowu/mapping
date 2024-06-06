@@ -266,6 +266,8 @@ class GeoOptimization {
 
   void FitMissedLaneLine(const hozon::mapping::LanePositionType& ex);
 
+  double ComputeLineHeading(const std::vector<Eigen::Vector3d>& line_pts);
+
   void HandleSingleSideLine();
 
   static double ComputeVecToLaneDis(

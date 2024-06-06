@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <limits>
+#include <numeric>
 #include <unordered_map>
 
 #include "base/utils/log.h"
@@ -2538,13 +2539,20 @@ void GeoOptimization::FitMissedLaneLine(
   auto ex_pts = local_line_table_.at(ex).local_line_pts;
   auto right_ex_pts = local_line_table_.at(right_ex).local_line_pts;
 
-  // 根据车离两侧线的距离来确认base线
+  // 根据车离两侧线的距离以及两根线的heading来确认base线
   auto left_dis = ComputeVecToLaneDis(ex_pts);
   auto right_dis = ComputeVecToLaneDis(right_ex_pts);
+  // 计算两根线的平均heading
+  auto left_heading = ComputeLineHeading(ex_pts);
+  auto right_heading = ComputeLineHeading(right_ex_pts);
+  if (left_heading < 0 || right_heading < 0) {
+    return;
+  }
   std::vector<std::vector<Eigen::Vector3d>> new_lines;
   std::vector<Eigen::Vector3d> base_line;
   std::vector<double> base_width;
-  if (left_dis < right_dis) {
+  if ((std::abs(left_dis - right_dis) > 3.5 && left_dis < right_dis) ||
+      (std::abs(left_dis - right_dis) < 3.5 && left_heading < right_heading)) {
     // vehicle left line is baseline
     for (const auto& P : ex_pts) {
       for (size_t i = 1; i < right_ex_pts.size(); i++) {
@@ -2579,7 +2587,9 @@ void GeoOptimization::FitMissedLaneLine(
       //     base_width.size();
     }
     FitSingleSideLine(&base_line, &new_lines, lane_num, true, 0, lane_width);
-  } else {
+  } else if ((std::abs(left_dis - right_dis) > 3.5 && right_dis < left_dis) ||
+             (std::abs(left_dis - right_dis) < 3.5 &&
+              right_heading < left_heading)) {
     // vecicle right line is baseline
     for (const auto& P : right_ex_pts) {
       for (size_t i = 1; i < ex_pts.size(); i++) {
@@ -2609,9 +2619,6 @@ void GeoOptimization::FitMissedLaneLine(
     double lane_width = 3.75;
     if (!base_width.empty()) {
       lane_width = base_width.back();
-      // double lane_width =
-      //     std::reduce(base_width.begin(), base_width.end()) /
-      //     base_width.size();
     }
     FitSingleSideLine(&base_line, &new_lines, lane_num, false, 0, lane_width);
   }
@@ -2638,6 +2645,31 @@ void GeoOptimization::FitMissedLaneLine(
     // new_line->set_confidence(static_cast<hozon::mapping::LanePositionType>(500));
     new_line->set_lanetype(static_cast<hozon::mapping::LaneType>(2));
   }
+}
+
+double GeoOptimization::ComputeLineHeading(
+    const std::vector<Eigen::Vector3d>& line_pts) {
+  // 计算车前方每根线的heading
+  if (line_pts.empty()) {
+    return -1;
+  }
+  std::vector<double> headings;
+  for (int i = 0; i < line_pts.size() - 1; ++i) {
+    if (line_pts[i].x() < 0) {
+      continue;
+    }
+    auto pt_heading =
+        std::abs((std::atan2((line_pts[i + 1].y() - line_pts[i].y()),
+                             (line_pts[i + 1].x() - line_pts[i].x()))) *
+                 (180 / M_PI));
+    headings.emplace_back(pt_heading);
+  }
+  if (headings.empty()) {
+    return -1;
+  }
+  double mean_heading = std::accumulate(headings.begin(), headings.end(), 0.0) /
+                        static_cast<double>(headings.size());
+  return mean_heading;
 }
 
 void GeoOptimization::HandleSingleSideLine() {

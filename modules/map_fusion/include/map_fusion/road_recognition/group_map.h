@@ -17,6 +17,8 @@
 #include <vector>
 
 #include "map_fusion/fusion_common/common_data.h"
+#include "opencv2/core/core.hpp"
+#include "opencv2/features2d.hpp"
 
 using hozon::common::math::Vec2d;
 
@@ -255,6 +257,11 @@ class GroupMap {
 
   void RetrieveBoundaries(const em::ElementMap::Ptr& ele_map, float interp_dist,
                           std::deque<Line::Ptr>* lines);
+  void BuildKDtrees(std::deque<Line::Ptr>* lines);
+  float DistByKDtree(const em::Point& ref_point, const LineSegment& line);
+  float GetDistPointLane(const em::Point&  point_a,
+                        const em::Point&  point_b,
+                        const em::Point&  point_c);
   void BuildGroupSegments(
       const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
       const KinePose::Ptr& curr_pose, std::deque<Line::Ptr>* lines,
@@ -397,6 +404,8 @@ class GroupMap {
   std::vector<GroupSegment::Ptr> group_segments_;
   EgoLane ego_line_id_;
   Lane::Ptr history_best_lane_ = nullptr;
+  std::map<int, std::shared_ptr<cv::flann::Index>> KDTrees_;
+  std::map<int, std::shared_ptr<std::vector<cv::Point2f>>> line_points_;
 };
 
 }  // namespace gm

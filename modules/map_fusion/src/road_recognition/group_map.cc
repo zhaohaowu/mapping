@@ -136,6 +136,7 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
   std::deque<Line::Ptr> lines;
   // lane_line_interp_dist可以设为-1，当前上游点间隔已经是1m，这里不用插值出更细的点
   RetrieveBoundaries(ele_map, conf_.lane_line_interp_dist, &lines);
+  BuildKDtrees(&lines);
   UpdatePathInCurrPose(*path, *curr_pose);
   BuildGroupSegments(path, curr_pose, &lines, &group_segments_, ele_map);
   BuildGroups(ele_map->map_info.stamp, group_segments_, &groups_);
@@ -337,6 +338,44 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
     zbr.polygon = zebra.second->polygon;
     zebra_[zbr.id] = std::make_shared<Zebra>(zbr);
   }
+}
+
+void GroupMap::BuildKDtrees(std::deque<Line::Ptr>* lines) {
+  HLOG_INFO << "BuildKDtrees";
+  // Check if there are any lines
+  if (lines == nullptr) {
+    return;
+  }
+  if (!KDTrees_.empty()) {
+    KDTrees_.clear();
+  }
+  if (!line_points_.empty()) {
+    line_points_.clear();
+  }
+
+  for (auto& line : *lines) {
+    if (line->pts.size() < 5) {
+      break;
+    }
+
+    auto cv_points = std::make_shared<std::vector<cv::Point2f>>();
+    for (auto& p : line->pts) {
+      if (std::isnan(p.pt.x()) || std::isnan(p.pt.y())) {
+        break;
+      }
+      cv_points->emplace_back(p.pt.x(), p.pt.y());
+    }
+    if (cv_points->size() < 5) {
+      break;
+    }
+    cv::flann::KDTreeIndexParams index_params(1);
+    auto kdtree =
+        std::make_shared<cv::flann::Index>(cv::Mat(*cv_points).reshape(1), index_params);
+    KDTrees_[line->id] = kdtree;
+    line_points_[line->id] = cv_points;
+    // HLOG_INFO << "build kdtree: " << line->id << ", size: " << cv_points->size();
+  }
+  return;
 }
 
 // 按轨迹方向生成所有GroupSegments
@@ -596,6 +635,71 @@ void GroupMap::SplitPtsToGroupSeg(std::deque<Line::Ptr>* lines,
   }
 }
 
+float GroupMap::DistByKDtree(const em::Point& ref_point,
+                              const LineSegment& LineSegment) {
+  HLOG_INFO << "DistByKDtree";
+  int id = LineSegment.id;
+  if (KDTrees_[id] == nullptr) {
+    return 0.0;
+  }
+
+  float ref_x = static_cast<float>(ref_point.x());
+  float ref_y = static_cast<float>(ref_point.y());
+  HLOG_INFO << "ref_point: " << ref_x << ", " << ref_y;
+  if (std::isnan(ref_x) || std::isnan(ref_y)) {
+    return 0.0;
+  }
+
+  const int dim = 1;
+  std::vector<int> nearest_index(dim);
+  std::vector<float> nearest_dist(dim);
+  std::vector<float> query_point = {ref_x, ref_y};
+  auto kdtree_tofind = KDTrees_[id];
+  auto line_tofind = *line_points_[id];
+
+  kdtree_tofind->knnSearch(query_point, nearest_index, nearest_dist,
+                          dim, cv::flann::SearchParams(-1));
+  HLOG_INFO << "nearest_index: " << nearest_index[0];
+  HLOG_INFO << "nearest_dist: " << std::sqrt(nearest_dist[0]);
+
+  em::Point tar_point;
+  tar_point.x() = line_tofind[nearest_index[0]].x;
+  tar_point.y() = line_tofind[nearest_index[0]].y;
+  HLOG_INFO << "tar_point: " << tar_point.x() << " " << tar_point.y();
+
+  int id_next = 0;
+  if (nearest_index[0] < line_tofind.size() - 1) {
+    id_next = nearest_index[0] + 1;
+  } else {
+    id_next = nearest_index[0] - 1;
+  }
+  em::Point tar_point_next;
+  tar_point_next.x() = line_tofind[id_next].x;
+  tar_point_next.y() = line_tofind[id_next].y;
+  HLOG_INFO << "tar_point_next: " << tar_point_next.x() << " " << tar_point_next.y();
+
+  return GetDistPointLane(ref_point, tar_point, tar_point_next);
+}
+
+float GroupMap::GetDistPointLane(const em::Point&  point_a,
+                                  const em::Point&  point_b,
+                                  const em::Point&  point_c) {
+  Eigen::Vector2f A(point_a.x(), point_a.y()), B(point_b.x(), point_b.y()),
+      C(point_c.x(), point_c.y());
+  // 以B为起点计算向量BA 在向量BC上的投影
+  Eigen::Vector2f BC = C - B;
+  Eigen::Vector2f BA = A - B;
+
+  if (abs(BC.norm()) < 0.0001) {
+    return abs(BA.y());
+  }
+
+  float dist_proj = BA.dot(BC) / BC.norm();
+  // 计算点到直线的距离
+  float point_dist = sqrt(pow(BA.norm(), 2) - pow(dist_proj, 2));
+  return point_dist;
+}
+
 // 从GroupSegment包含的所有线中，聚合出一个个小的LaneSegment
 void GroupMap::GenLaneSegInGroupSeg(std::vector<GroupSegment::Ptr>* segments) {
   std::string last_seg_id = "";
@@ -614,7 +718,7 @@ void GroupMap::GenLaneSegInGroupSeg(std::vector<GroupSegment::Ptr>* segments) {
         auto& right_line = seg->line_segments.at(i + 1);
         auto& left_center = left_line->center;
         auto right_center = right_line->center;
-        auto dist = Dist(left_center, right_center);
+        auto dist = DistByKDtree(left_center, *right_line);
         if (dist < conf_.min_lane_width) {
           // if (i == 0 && line_seg_num > 2) {
           //   std::string index =

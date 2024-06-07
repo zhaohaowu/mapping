@@ -119,7 +119,7 @@ void MapMatching::ProcData(
     const std::shared_ptr<hozon::localization::Localization>& fc,
     const hozon::perception::TransportElement& perception,
     const std::vector<hozon::hdmap::LaneInfoConstPtr>& lanes,
-    const Eigen::Vector3d& ref_point, double ins_height) {
+    const Eigen::Vector3d& ref_point, double ins_height, int sys_status) {
   // 地图数据处理
   auto hdmap = SetHdMap(lanes, ref_point);
 
@@ -130,21 +130,19 @@ void MapMatching::ProcData(
   // 定位输入数据获取
   double cur_stamp = fc->header().data_stamp();
   int loc_state = static_cast<int>(fc->location_state());
+  Eigen::Vector3d linear_vel(fc->pose().linear_velocity_vrf().x(),
+                             fc->pose().linear_velocity_vrf().y(),
+                             fc->pose().linear_velocity_vrf().z());
   ValidPose fc_msg;
   fc_msg.valid = true;
   fc_msg.timeStamp = cur_stamp;
-  fc_msg.velocity_vrf = {fc->pose().linear_velocity_vrf().x(),
-                         fc->pose().linear_velocity_vrf().y(),
-                         fc->pose().linear_velocity_vrf().z()};
+  fc_msg.velocity_vrf = linear_vel;
   Eigen::Quaterniond fc_q(
       fc->pose().quaternion().w(), fc->pose().quaternion().x(),
       fc->pose().quaternion().y(), fc->pose().quaternion().z());
   Eigen::Vector3d fc_t(fc->pose().position().x(), fc->pose().position().y(),
                        fc->pose().position().z());
   fc_msg.pose = SE3(fc_q, fc_t);
-  Eigen::Vector3d linear_vel(fc->pose().linear_velocity_vrf().x(),
-                             fc->pose().linear_velocity_vrf().y(),
-                             fc->pose().linear_velocity_vrf().z());
 
   // 获取匹配对
   map_match_->SetInsTs(cur_stamp);
@@ -201,17 +199,21 @@ void MapMatching::ProcData(
       static_cast<uint64_t>((cur_stamp - static_cast<double>(cur_sec)) * 1e9);
   mm_output_lck_.lock();
   if (!output_valid) {
-    mm_node_info_ =
-        generateNodeInfo(T_output, 0, 0, true, ref_point, ins_height);
+    mm_node_info_ = generateNodeInfo(T_output, 0, 0, true, ref_point,
+                                     ins_height, sys_status);
   } else {
     mm_node_info_ = generateNodeInfo(T_output, cur_sec, cur_nsec, false,
-                                     ref_point, ins_height);
+                                     ref_point, ins_height, sys_status);
   }
   mm_output_lck_.unlock();
 
   // 可视化
   if (RVIZ_AGENT.Ok() && use_rviz) {
-    RvizFunc(cur_sec, cur_nsec, connect, T_output);
+    timespec cur_time{};
+    clock_gettime(CLOCK_REALTIME, &cur_time);
+    auto sec = cur_time.tv_sec;
+    auto nsec = cur_time.tv_nsec;
+    RvizFunc(sec, nsec, connect, T_output);
   }
 }
 
@@ -269,11 +271,12 @@ PtrNodeInfo MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V,
                                           uint64_t sec, uint64_t nsec,
                                           const bool& has_err,
                                           const Eigen::Vector3d& ref_point,
-                                          double ins_height) {
+                                          double ins_height, int sys_status) {
   PtrNodeInfo node_info =
       std::make_shared<::hozon::localization::HafNodeInfo>();
   auto blh = hozon::mp::util::Geo::EnuToGcj02(
       T_W_V.translation().cast<double>(), ref_point);
+  node_info->set_sys_status(sys_status);
   node_info->set_type(::hozon::localization::HafNodeInfo_NodeType::
                           HafNodeInfo_NodeType_MapMatcher);
   double node_stamp =

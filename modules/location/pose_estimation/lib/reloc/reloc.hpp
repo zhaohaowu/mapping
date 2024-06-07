@@ -38,7 +38,7 @@ enum LaneType {
 
 struct LaneLine {
   LaneType lane_type;
-  std::vector<Point3D_t> points;
+  std::vector<Eigen::Vector3d> points;
 };
 
 struct MappingManager {
@@ -151,14 +151,14 @@ class VoxelIndexConverter {
   ~VoxelIndexConverter() = default;
 
   // @brief: converter methods
-  VoxelIndex PointInnerToVoxelIndex(const Point2D_t& point) const {
-    return {Index(point.x, res_x_), Index(point.y, res_y_)};
+  VoxelIndex PointInnerToVoxelIndex(const Eigen::Vector2d& point) const {
+    return {Index(point.x(), res_x_), Index(point.y(), res_y_)};
   }
   VoxelIndex PointEigenToVoxelIndex(const Eigen::Vector2d& vec) const {
     return {Index(vec(0), res_x_), Index(vec(1), res_y_)};
   }
 
-  Point2D_t VoxelIndexToPointInner(const VoxelIndex& index) const {
+  Eigen::Vector2d VoxelIndexToPointInner(const VoxelIndex& index) const {
     return {Center(index.x_idx, res_x_), Center(index.y_idx, res_y_)};
   }
   Eigen::Vector2d VoxelIndexToPointEigen(const VoxelIndex& index) const {
@@ -348,7 +348,7 @@ class Reloc {
 
   struct LineTypeCentroid {  // NOLINT
     MatchSemanticType line_type;
-    Point2D_t line_centroid;
+    Eigen::Vector2d line_centroid;
   };
 
   struct MatchScore {
@@ -366,7 +366,7 @@ class Reloc {
     DEFINE_SMART_PTR(ConsistencyDistDB)
 
     void AddElement(int id, SemanticType type,
-                    const std::vector<Point3D_t>& points) {
+                    const std::vector<Eigen::Vector3d>& points) {
       if (element_points_.count(id) != 0U) {
         HLOG_ERROR << "element " << id << "already exists!";
         return;
@@ -412,7 +412,7 @@ class Reloc {
                           points1.size() == 1 && points2.size() == 1;
       if (p2p_distance) {
         // unsigned point to point distance
-        distance = (points1[0] - points2[0]).Norm2D();
+        distance = (points1[0] - points2[0]).norm();
         valid_num = 1;
       } else if (points1.size() <= points2.size()) {
         distance = Line2LineDistance2D(points1, points2, &valid_num, true);
@@ -446,7 +446,7 @@ class Reloc {
       }
       auto type_other = iter_other->second.first;
       const auto& points_other = iter_other->second.second;
-      std::vector<Point3D_t> points_other_transed =
+      std::vector<Eigen::Vector3d> points_other_transed =
           TransformPoints(points_other, T_this_other);
 
       double distance = 0;
@@ -455,7 +455,7 @@ class Reloc {
                           type_other != SemanticType::LaneLine &&
                           points.size() == 1 && points_other.size() == 1;
       if (p2p_distance) {
-        distance = (points[0] - points_other_transed[0]).Norm2D();
+        distance = (points[0] - points_other_transed[0]).norm();
         valid_num = 1;
       } else {
         distance =
@@ -470,7 +470,8 @@ class Reloc {
 
    private:
     // element points with id and semantic type
-    std::unordered_map<int, std::pair<SemanticType, std::vector<Point3D_t>>>
+    std::unordered_map<int,
+                       std::pair<SemanticType, std::vector<Eigen::Vector3d>>>
         element_points_;
     // distance btw element pairs
     std::unordered_map<MatchPair, double, MatchPairHash> consistency_dists_;
@@ -534,7 +535,7 @@ class Reloc {
   std::vector<PoseScore> lateral_peaks_;
 
   // smm reloc match inlier points
-  std::vector<Point3D_t> inlier_points_;
+  std::vector<Eigen::Vector3d> inlier_points_;
 
   // estimate reloc pose cov related
   double converge_travel_dist_{0};
@@ -552,7 +553,7 @@ class Reloc {
 };
 
 inline std::vector<int> VoxelDownSample2D(
-    const std::vector<Point3D_t>& points,
+    const std::vector<Eigen::Vector3d>& points,
     const std::vector<Eigen::Matrix2d>& covs, double sample_dist,
     double min_x = -100, double max_x = 100, double min_y = -100,
     double max_y = 100) {
@@ -560,10 +561,11 @@ inline std::vector<int> VoxelDownSample2D(
   VoxelIndexConverter voxel_converter(sample_dist);
   for (int i = 0; i < static_cast<int>(points.size()); ++i) {
     const auto& pt = points[i];
-    if (pt.x < min_x || pt.x > max_x || pt.y < min_y || pt.y > max_y) {
+    if (pt.x() < min_x || pt.x() > max_x || pt.y() < min_y || pt.y() > max_y) {
       continue;
     }
-    auto index = voxel_converter.PointInnerToVoxelIndex(Point2D_t(pt.x, pt.y));
+    auto index =
+        voxel_converter.PointInnerToVoxelIndex(Eigen::Vector2d(pt.x(), pt.y()));
     auto iter = voxels.find(index);
     if (iter == voxels.end()) {
       voxels.insert({index, i});

@@ -17,7 +17,7 @@ input:
   - topic: dr
   - topic: percep_transport
   - topic: local_map
-#  - topic: /location/pose_estimation
+  - topic: pe
 #  - topic: tlr_fusion
   - topic: driving_status
 
@@ -76,17 +76,17 @@ trigger:
     type: EVENT
     mainSources:
       - name: percep_transport
-        timeout: 1000
+        timeout: 100
   - name: recv_local_map
     type: EVENT
     mainSources:
       - name: local_map
         timeout: 100
-#  - name: recv_pose_estimation
-#    type: EVENT
-#    mainSources:
-#      - name: pose_estimation
-#        timeout: 10000
+  - name: recv_pe
+    type: EVENT
+    mainSources:
+      - name: pe
+        timeout: 1000
 #  - name: recv_tlr_fusion
 #    type: EVENT
 #    mainSources:

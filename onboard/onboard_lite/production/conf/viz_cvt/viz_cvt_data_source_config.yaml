@@ -56,10 +56,10 @@ dataSourcesIn:
     type: proto_proxy
     cmTopic: /localization/local_map
     cmDomainId: 0
-#  - topic: /location/pose_estimation
-#    type: proto_proxy
-#    cmTopic: /localization/pe
-#    cmDomainId: 0
+  - topic: pe
+    type: proto_proxy
+    cmTopic: /localization/pe
+    cmDomainId: 0
 #  - topic: tlr_fusion
 #    type: proto_proxy
 #    cmTopic: /mapping/junction_passable

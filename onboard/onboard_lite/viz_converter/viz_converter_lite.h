@@ -30,6 +30,7 @@ class VizConverterLite : public hozon::netaos::adf_lite::Executor {
 
  private:
   int32_t OnLocalization(hozon::netaos::adf_lite::Bundle* input);
+  int32_t OnPoseEstimation(hozon::netaos::adf_lite::Bundle* input);
   int32_t OnCamera0(hozon::netaos::adf_lite::Bundle* input);
   int32_t OnImuIns(hozon::netaos::adf_lite::Bundle* input);
   int32_t OnInsPlugin(hozon::netaos::adf_lite::Bundle* input);
@@ -42,6 +43,7 @@ class VizConverterLite : public hozon::netaos::adf_lite::Executor {
   int32_t OnDrivingStatus(hozon::netaos::adf_lite::Bundle* input);
 
   const std::string kTopicLocalization = "localization";
+  const std::string kTopicPoseEstimation = "pe";
   const std::string kVizTopicLocalization = "localization";
   const std::string kVizTopicLocalizationLocalPose =
       kVizTopicLocalization + "/local_pose";

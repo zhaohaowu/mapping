@@ -15,7 +15,6 @@
 #include <map>
 #include <memory>
 #include <string>
-#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -136,141 +135,6 @@ bool FloatEqual(const T x, const T y) {
   const T max_val = std::max({1.0, std::fabs(x), std::fabs(y)});
   return std::fabs(x - y) <= std::numeric_limits<T>::epsilon() * max_val;
 }
-
-// Base geometry structure: Point2D_t
-struct Point2D_t {
-  float64_t x = 0;
-  float64_t y = 0;
-  Point2D_t() = default;
-  Point2D_t(float64_t _x, float64_t _y) : x(_x), y(_y) {}
-
-  float64_t Norm() const { return std::sqrt(x * x + y * y); }
-  float64_t SquaredNorm() const { return (x * x + y * y); }
-
-  float64_t Dot(const Point2D_t& p) const { return p.x * x + p.y * y; }
-  float64_t Cross(const Point2D_t& p) const {
-    return this->x * p.y - this->y * p.x;
-  }
-
-  Point2D_t operator-() const {
-    Point2D_t p;
-    p.x = -this->x;
-    p.y = -this->y;
-    return p;
-  }
-
-  Point2D_t operator+(const Point2D_t& b) const {
-    Point2D_t c;
-    c.x = this->x + b.x;
-    c.y = this->y + b.y;
-    return c;
-  }
-
-  Point2D_t operator-(const Point2D_t& b) const {
-    Point2D_t c;
-    c.x = this->x - b.x;
-    c.y = this->y - b.y;
-    return c;
-  }
-
-  template <typename N, std::enable_if_t<std::is_arithmetic<N>::value, int> = 0>
-  Point2D_t operator*(const N scalar) const {
-    Point2D_t q;
-    q.x = this->x * scalar;
-    q.y = this->y * scalar;
-    return q;
-  }
-
-  template <typename N, std::enable_if_t<std::is_arithmetic<N>::value, int> = 0>
-  Point2D_t operator/(const N scalar) {
-    Point2D_t c;
-    c.x = this->x / scalar;
-    c.y = this->y / scalar;
-    return c;
-  }
-
-  bool operator==(const Point2D_t& b) const {
-    return FloatEqual(this->x, b.x) && FloatEqual(this->y, b.y);
-  }
-
-  friend std::ostream& operator<<(std::ostream& out,  // NOLINT
-                                  const Point2D_t& point) {
-    out << "(" << point.x << ", " << point.y << ")";
-    return out;
-  }
-};
-
-// Base geometry structure: Point3D_t
-struct Point3D_t {
-  float64_t x = 0;
-  float64_t y = 0;
-  float64_t z = 0;
-  Point3D_t() = default;
-  Point3D_t(float64_t _x, float64_t _y, float64_t _z = 0)
-      : x(_x), y(_y), z(_z) {}
-
-  float64_t Norm() const { return std::sqrt(x * x + y * y + z * z); }
-  float64_t Norm2D() const { return std::sqrt(x * x + y * y); }
-  float64_t SquaredNorm() const { return (x * x + y * y + z * z); }
-  float64_t SquaredNorm2D() const { return (x * x + y * y); }
-
-  float64_t Dot(const Point3D_t& p) const {
-    return p.x * x + p.y * y + p.z * z;
-  }
-
-  Point3D_t operator-() const {
-    Point3D_t p;
-    p.x = -this->x;
-    p.y = -this->y;
-    p.z = -this->z;
-    return p;
-  }
-
-  Point3D_t operator+(const Point3D_t& b) const {
-    Point3D_t c;
-    c.x = this->x + b.x;
-    c.y = this->y + b.y;
-    c.z = this->z + b.z;
-    return c;
-  }
-
-  Point3D_t operator-(const Point3D_t& b) const {
-    Point3D_t c;
-    c.x = this->x - b.x;
-    c.y = this->y - b.y;
-    c.z = this->z - b.z;
-    return c;
-  }
-
-  template <typename N, std::enable_if_t<std::is_arithmetic<N>::value, int> = 0>
-  Point3D_t operator*(const N scalar) const {
-    Point3D_t q;
-    q.x = this->x * scalar;
-    q.y = this->y * scalar;
-    q.z = this->z * scalar;
-    return q;
-  }
-
-  template <typename N, std::enable_if_t<std::is_arithmetic<N>::value, int> = 0>
-  Point3D_t operator/(const N scalar) {
-    Point3D_t c;
-    c.x = this->x / scalar;
-    c.y = this->y / scalar;
-    c.z = this->z / scalar;
-    return c;
-  }
-
-  bool operator==(const Point3D_t& b) const {
-    return FloatEqual(this->x, b.x) && FloatEqual(this->y, b.y) &&
-           FloatEqual(this->z, b.z);
-  }
-
-  friend std::ostream& operator<<(std::ostream& out,  // NOLINT
-                                  const Point3D_t& point) {
-    out << "(" << point.x << ", " << point.y << ", " << point.z << ")";
-    return out;
-  }
-};
 
 // Position in the East North Up (ENU) coordinate system, origin defined by map
 struct PointENU_t {
@@ -560,9 +424,9 @@ class MatchIndex {
 template <typename T>
 bool IsPointInLineRange(const T& pt, const T& start_pt, const T& end_pt) {
   T direct = end_pt - start_pt;
-  direct = direct / direct.Norm();
-  double proj1 = (pt - start_pt).Dot(direct);
-  double proj2 = (pt - end_pt).Dot(direct);
+  direct = direct / direct.norm();
+  double proj1 = (pt - start_pt).dot(direct);
+  double proj2 = (pt - end_pt).dot(direct);
   return proj1 >= 0 && proj2 <= 0;
 }
 
@@ -576,15 +440,15 @@ bool BinarySearchTwoNearestPoints(const T& search_pt,
   }
 
   T direct = points.back() - points.front();
-  direct = direct / direct.Norm();
+  direct = direct / direct.norm();
 
-  double pt_proj = (search_pt - points.front()).Dot(direct);
+  double pt_proj = (search_pt - points.front()).dot(direct);
 
   int left = 0;
   int right = static_cast<int>(points.size() - 1);
   while (right - left > 1) {
     int mid = left + (right - left) / 2;
-    double proj = (points[mid] - points.front()).Dot(direct);
+    double proj = (points[mid] - points.front()).dot(direct);
     if (proj < pt_proj) {
       left = mid;
     } else {
@@ -602,28 +466,28 @@ float64_t Point2LineDist(const T& p, const T& q1, const T q2,
                          bool signed_dist = false) {
   T line_q1q2 = q2 - q1;
   T line_q1p = p - q1;
-  line_q1q2 = line_q1q2 / line_q1q2.Norm();
-  float64_t project_dist = line_q1p.Dot(line_q1q2);
-  if (line_q1p.Norm() <= project_dist) {
+  line_q1q2 = line_q1q2 / line_q1q2.norm();
+  float64_t project_dist = line_q1p.dot(line_q1q2);
+  if (line_q1p.norm() <= project_dist) {
     return 0.0;
   }
 
   double sign = 1.0;
   if (signed_dist) {
-    if (line_q1q2.Cross(line_q1p) < 0) {
+    if ((line_q1q2.x() * line_q1p.y() - line_q1q2.y() * line_q1p.x()) < 0) {
       sign = -1;
     }
   }
-  return sign * std::sqrt(line_q1p.SquaredNorm() - project_dist * project_dist);
+  return sign * std::sqrt(line_q1p.squaredNorm() - project_dist * project_dist);
 }
 
 // point to line 2D(X-Y) distance
 template <typename T>
 float64_t Point2LineDist2D(const T& p, const T& q1, const T q2,
                            bool signed_dist = false) {
-  Point2D_t p_2d(p.x, p.y);
-  Point2D_t q1_2d(q1.x, q1.y);
-  Point2D_t q2_2d(q2.x, q2.y);
+  Eigen::Vector2d p_2d(p.x(), p.y());
+  Eigen::Vector2d q1_2d(q1.x(), q1.y());
+  Eigen::Vector2d q2_2d(q2.x(), q2.y());
   return Point2LineDist(p_2d, q1_2d, q2_2d, signed_dist);
 }
 
@@ -690,12 +554,15 @@ enum class MatchSemanticType {
 
 // data struct definition for internal use
 struct PerceptPoint {
-  PerceptPoint(const Point2D_t& pt, Eigen::Matrix2d cov, MatchSemanticType type)
-      : point(pt), cov(std::move(cov)), type(type) {}
-  PerceptPoint(const Point2D_t& pt, Eigen::Matrix2d cov, MatchSemanticType type,
+  PerceptPoint(Eigen::Vector2d pt, Eigen::Matrix2d cov, MatchSemanticType type)
+      : point(std::move(pt)), cov(std::move(cov)), type(type) {}
+  PerceptPoint(Eigen::Vector2d pt, Eigen::Matrix2d cov, MatchSemanticType type,
                int obs_cnt)
-      : point(pt), cov(std::move(cov)), type(type), observ_cnt(obs_cnt) {}
-  Point2D_t point;
+      : point(std::move(pt)),
+        cov(std::move(cov)),
+        type(type),
+        observ_cnt(obs_cnt) {}
+  Eigen::Vector2d point;
   Eigen::Matrix2d cov;
   MatchSemanticType type;
   int observ_cnt{1};
@@ -703,18 +570,18 @@ struct PerceptPoint {
 };
 struct Point2DWithCov {
   Point2DWithCov() = default;
-  Point2DWithCov(const Point2D_t& pt, Eigen::Matrix2d cov)
-      : point(pt), cov(std::move(cov)) {}
-  Point2D_t point;
+  Point2DWithCov(Eigen::Vector2d pt, Eigen::Matrix2d cov)
+      : point(std::move(pt)), cov(std::move(cov)) {}
+  Eigen::Vector2d point;
   Eigen::Matrix2d cov;
 };
 
 struct MapPoint {
-  MapPoint(int id, const Point2D_t& pt) : id(id), point(pt) {}
-  MapPoint(int id, const Point2D_t& pt, double heading)
-      : id(id), point(pt), local_heading(heading) {}
+  MapPoint(int id, Eigen::Vector2d pt) : id(id), point(std::move(pt)) {}
+  MapPoint(int id, Eigen::Vector2d pt, double heading)
+      : id(id), point(std::move(pt)), local_heading(heading) {}
   int id;
-  Point2D_t point;
+  Eigen::Vector2d point;
   double local_heading{0};
 };
 
@@ -723,8 +590,8 @@ inline double CalculateDistbtwTwoPerceptPoints(
     const std::vector<Point2DWithCov>& percept_points2) {
   int percept_points1_size = static_cast<int>(percept_points1.size());
   int percept_points2_size = static_cast<int>(percept_points2.size());
-  std::vector<Point2D_t> src_points;
-  std::vector<Point2D_t> tgt_points;
+  std::vector<Eigen::Vector2d> src_points;
+  std::vector<Eigen::Vector2d> tgt_points;
   src_points.reserve(percept_points1_size);
   tgt_points.reserve(percept_points2_size);
   for (const auto& percept_point : percept_points1) {
@@ -783,16 +650,16 @@ inline double CalculateDistbtwPerceptPointsMapLine(
   double y_mean = 0.;
   double w_sum = 0.;
   for (const auto& percept_point : percept_points) {
-    if (percept_point.point.x < -10. || percept_point.point.x > 20.) {
+    if (percept_point.point.x() < -10. || percept_point.point.x() > 20.) {
       continue;
     }
-    Eigen::Vector2d p{percept_point.point.x, percept_point.point.y};
+    Eigen::Vector2d p{percept_point.point.x(), percept_point.point.y()};
     Eigen::Vector2d t = transform * p;
-    Point2D_t transformed_point;
-    transformed_point.x = t.x();
-    transformed_point.y = t.y();
-    double map_y = FourDegreePolyFunc(map_line_param, transformed_point.x);
-    double y_diff = transformed_point.y - map_y;
+    Eigen::Vector2d transformed_point;
+    transformed_point.x() = t.x();
+    transformed_point.y() = t.y();
+    double map_y = FourDegreePolyFunc(map_line_param, transformed_point.x());
+    double y_diff = transformed_point.y() - map_y;
     double weight = 1.0 / std::max(percept_point.cov.diagonal().norm(), 1e-4);
     y_diffs.emplace_back(y_diff);
     weights.emplace_back(weight);
@@ -885,13 +752,12 @@ struct PerceptPointsToMapLineDist {
 };
 
 // transform points
-inline std::vector<Point3D_t> TransformPoints(
-    const std::vector<Point3D_t>& points, const Sophus::SE3d& pose) {
-  std::vector<Point3D_t> trans_pts;
+inline std::vector<Eigen::Vector3d> TransformPoints(
+    const std::vector<Eigen::Vector3d>& points, const Sophus::SE3d& pose) {
+  std::vector<Eigen::Vector3d> trans_pts;
   trans_pts.reserve(points.size());
   for (const auto& pt : points) {
-    Eigen::Vector3d p{pt.x, pt.y, pt.z};
-    Eigen::Vector3d t = pose * p;
+    Eigen::Vector3d t = pose * pt;
     trans_pts.emplace_back(t.x(), t.y(), t.z());
   }
   return trans_pts;
@@ -907,11 +773,10 @@ inline double NormalizeAngleDiff(double diff) {
   return diff;
 }
 
-inline bool PolyLineLeastSquareFitting(const std::vector<Point3D_t>& points,
-                                       const std::vector<double>& weights,
-                                       int order, Eigen::VectorXd* line_param,
-                                       double* residual_mean,
-                                       double* residual_max) {
+inline bool PolyLineLeastSquareFitting(
+    const std::vector<Eigen::Vector3d>& points,
+    const std::vector<double>& weights, int order, Eigen::VectorXd* line_param,
+    double* residual_mean, double* residual_max) {
   if (points.size() < 2) {
     HLOG_ERROR << "ORDER " << order << "points.size() < 2";
     return false;
@@ -935,10 +800,10 @@ inline bool PolyLineLeastSquareFitting(const std::vector<Point3D_t>& points,
   }
   for (int i = 0; i < static_cast<int>(points.size()); ++i) {
     for (int j = order - 1; j >= 0; --j) {
-      A(i, j) = std::pow(points[i].x, order - j) * weights[i];
+      A(i, j) = std::pow(points[i].x(), order - j) * weights[i];
       // A(i, j) = std::pow(points[i].x, order - j - 1) * weights[i];
     }
-    b(i) = points[i].y * weights[i];
+    b(i) = points[i].y() * weights[i];
   }
 
   *line_param = (A.transpose() * A).llt().solve(A.transpose() * b);
@@ -957,15 +822,19 @@ inline bool PolyLineLeastSquareFitting(const std::vector<Point3D_t>& points,
     double mean_residual = 0;
     double max_residual = 0;
     for (const auto& pt : points) {
-      double res = std::fabs(pt.y - PolyFunc(*line_param, pt.x));
+      double res = std::fabs(pt.y() - PolyFunc(*line_param, pt.x()));
       mean_residual += res;
       if (res > max_residual) {
         max_residual = res;
       }
     }
     mean_residual /= static_cast<double>(points.size());
-    if (residual_mean != nullptr) *residual_mean = mean_residual;
-    if (residual_max != nullptr) *residual_max = max_residual;
+    if (residual_mean != nullptr) {
+      *residual_mean = mean_residual;
+    }
+    if (residual_max != nullptr) {
+      *residual_max = max_residual;
+    }
   }
   return true;
 }

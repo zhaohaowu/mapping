@@ -303,29 +303,29 @@ bool Reloc::GenerateSearchPose() {
   // 从右到左排序
   std::sort(map_grid_points.begin(), map_grid_points.end(),
             [](const MapPoint& a, const MapPoint& b) {
-              return a.point.y < b.point.y;
+              return a.point.y() < b.point.y();
             });
 
   int left = static_cast<int>(map_grid_points.size() - 1);
   int right = 0;
   for (const auto& y : search_ys_) {
-    if (y < map_grid_points.front().point.y) {
+    if (y < map_grid_points.front().point.y()) {
       left = 0;
       right = -1;
     }
-    if (y > map_grid_points.back().point.y) {
+    if (y > map_grid_points.back().point.y()) {
       left = -1;
       right = static_cast<int>(map_grid_points.size()) - 1;
     }
-    Point2D_t search_pt(0, y);
-    Point2D_t direct =
+    Eigen::Vector2d search_pt(0, y);
+    Eigen::Vector2d direct =
         map_grid_points.back().point - map_grid_points.front().point;
-    direct = direct / direct.Norm();
-    double pt_proj = (search_pt - map_grid_points.front().point).Dot(direct);
+    direct = direct / std::max(1e-9, direct.norm());
+    double pt_proj = (search_pt - map_grid_points.front().point).dot(direct);
     while (left - right > 1) {
       int mid = (left + right) / 2;
       double proj = (map_grid_points[mid].point - map_grid_points.front().point)
-                        .Dot(direct);
+                        .dot(direct);
       if (proj < pt_proj) {
         right = mid;
       } else {
@@ -373,24 +373,24 @@ bool Reloc::ConstructMapGrids(
       continue;
     }
     int id = item.first;
-    std::vector<Point3D_t> ll_pts = item.second.points;
+    std::vector<Eigen::Vector3d> ll_pts = item.second.points;
     // estimate local heading
     std::vector<double> local_headings;
     double heading_x0 = 0;
     double dist_x0 = std::numeric_limits<double>::max();
     for (size_t i = 0; i < ll_pts.size() - 1; ++i) {
-      Point3D_t pi = ll_pts[i];
-      Point3D_t pj = ll_pts[i + 1];
-      if (pi.x > pj.x) {
+      Eigen::Vector3d pi = ll_pts[i];
+      Eigen::Vector3d pj = ll_pts[i + 1];
+      if (pi.x() > pj.x()) {
         pi = ll_pts[i + 1];
         pj = ll_pts[i];
       }
       double heading_line =
-          std::atan2(pj.y - pi.y, std::max(pj.x - pi.x, 1e-8));
+          std::atan2(pj.y() - pi.y(), std::max(pj.x() - pi.x(), 1e-8));
       local_headings.emplace_back(heading_line);
       // 估计x=0附近的heading
-      if (std::fabs(pi.x) < dist_x0) {
-        dist_x0 = std::fabs(pi.x);
+      if (std::fabs(pi.x()) < dist_x0) {
+        dist_x0 = std::fabs(pi.x());
         heading_x0 = heading_line;
       }
     }
@@ -405,7 +405,7 @@ bool Reloc::ConstructMapGrids(
     // upsample map points into continuous grid index
     std::unordered_set<VoxelIndex, VoxelIndexHash> index_added;
     for (size_t i = 0; i < ll_pts.size(); ++i) {
-      Point2D_t pt(ll_pts[i].x, ll_pts[i].y);
+      Eigen::Vector2d pt(ll_pts[i].x(), ll_pts[i].y());
       // 将每个地图点栅格化，栅格大小为1.2m
       auto index = grid_idx_converter_->PointInnerToVoxelIndex(pt);
       if (index_added.count(index) != 0) {
@@ -422,24 +422,24 @@ bool Reloc::ConstructMapGrids(
       }
 
       // upsample points if map points distance is larger than grid size
-      Point2D_t pt_last(ll_pts[i - 1].x, ll_pts[i - 1].y);
-      Point2D_t vec = pt - pt_last;
+      Eigen::Vector2d pt_last(ll_pts[i - 1].x(), ll_pts[i - 1].y());
+      Eigen::Vector2d vec = pt - pt_last;
       double scale_x = 1.0;
       double scale_y = 1.0;
       int sample_num = 0;
-      if (std::fabs(vec.x) > std::fabs(vec.y)) {
-        sample_num = static_cast<int>(std::round(vec.x));
-        scale_y = vec.y / vec.x;
+      if (std::fabs(vec.x()) > std::fabs(vec.y())) {
+        sample_num = static_cast<int>(std::round(vec.x()));
+        scale_y = vec.y() / std::max(1e-9, vec.x());
       } else {
-        sample_num = static_cast<int>(std::round(vec.y));
-        scale_x = vec.x / vec.y;
+        sample_num = static_cast<int>(std::round(vec.y()));
+        scale_x = vec.x() / std::max(1e-9, vec.y());
       }
       double heading_last = local_headings[i - 1];
       for (int j = 1; j <= sample_num; ++j) {
         double delta = j * MatchParam::grid_size;
-        double sample_x = pt_last.x + scale_x * delta;
-        double sample_y = pt_last.y + scale_y * delta;
-        Point2D_t pt_sample(sample_x, sample_y);
+        double sample_x = pt_last.x() + scale_x * delta;
+        double sample_y = pt_last.y() + scale_y * delta;
+        Eigen::Vector2d pt_sample(sample_x, sample_y);
         auto sample_index =
             grid_idx_converter_->PointInnerToVoxelIndex(pt_sample);
         if (index_added.count(sample_index) == 0) {
@@ -465,7 +465,7 @@ bool Reloc::EstimatePerceptLanelineHeading(
 
   // laneline process
   for (const auto& item : tracking_manager->lane_lines) {
-    std::vector<Point3D_t> points = item.second.points;
+    std::vector<Eigen::Vector3d> points = item.second.points;
     if (points.empty()) {
       HLOG_ERROR << "why percept line " << item.first << " is empty?";
       continue;
@@ -474,11 +474,11 @@ bool Reloc::EstimatePerceptLanelineHeading(
     Eigen::VectorXd line_param(4, 1);
     double mean_residual = 0;
     double max_residual = 0;
-    double line_length = (points.front() - points.back()).Norm();
+    double line_length = (points.front() - points.back()).norm();
     bool has_fit = false;
     int order = 0;
     std::vector<double> weights(static_cast<int>(points.size()), 1);
-    if (points.back().x < 0 || points.front().x > 2 || line_length < 5.0 ||
+    if (points.back().x() < 0 || points.front().x() > 2 || line_length < 5.0 ||
         points.size() < 10) {
       // line too short or far away from vehicle, straght line fitting
       order = 1;
@@ -663,9 +663,9 @@ double Reloc::ScorePose(
     // 计算每个感知点平移y和旋转yaw后，与地图点的差异
     LaneType percept_type = percept_elem.second.lane_type;
     for (const auto& pt : percept_elem.second.points) {
-      Eigen::Vector3d p_v{pt.x, pt.y, 0};
+      Eigen::Vector3d p_v{pt.x(), pt.y(), 0};
       Eigen::Vector3d p_v1 = T_v1_v * p_v;
-      Point2D_t percept_pt(p_v1.x(), p_v1.y());
+      Eigen::Vector2d percept_pt(p_v1.x(), p_v1.y());
       int hit_map_id = -1;  // -1 is not map id
       double score_for_pt = 0;
 
@@ -692,7 +692,7 @@ double Reloc::ScorePose(
 
         const auto& map_pt = grid_type_iter->second.front().point;
         double dt_score =
-            DTScore(percept_pt.y - map_pt.y, MatchParam::grid_size);
+            DTScore(percept_pt.y() - map_pt.y(), MatchParam::grid_size);
         // TODO(fy): weights are not used yet, as proning to overfit
         // to single line! need better cov/weight estimation
         score_for_pt = dt_score * 1.0;
@@ -1491,7 +1491,7 @@ double Reloc::FindGoodLane(const std::shared_ptr<T>& manager,
     }
     double y_mean = 0;
     for (const auto& pt : item.second.points) {
-      y_mean += pt.y;
+      y_mean += pt.y();
     }
     y_mean /= static_cast<int>(item.second.points.size());
     // get roadside id
@@ -1533,9 +1533,10 @@ void Reloc::ComputeRelocPose(
 }
 
 void Reloc::RvizFunc(const std::shared_ptr<TrackingManager>& tracking_manager) {
-  auto sec = static_cast<uint64_t>(tracking_manager->timestamp);
-  auto nsec = static_cast<uint64_t>(
-      (tracking_manager->timestamp - static_cast<double>(sec)) * 1e9);
+  timespec cur_time{};
+  clock_gettime(CLOCK_REALTIME, &cur_time);
+  auto sec = cur_time.tv_sec;
+  auto nsec = cur_time.tv_nsec;
   RelocRviz::PubPerceptionMarkerReloc(T_w_v_, *tracking_manager, sec, nsec,
                                       "/pe/perception_marker_reloc");
   RelocRviz::PubRelocOdom(T_w_v_, sec, nsec, "/pe/reloc_odom");

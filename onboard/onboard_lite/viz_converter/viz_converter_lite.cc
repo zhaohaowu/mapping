@@ -146,6 +146,8 @@ int32_t VizConverterLite::AlgInit() {
 
   REGISTER_PROTO_MESSAGE_TYPE(kTopicLocalization,
                               hozon::localization::Localization);
+  REGISTER_PROTO_MESSAGE_TYPE(kTopicPoseEstimation,
+                              hozon::localization::HafNodeInfo);
   REGISTER_PROTO_MESSAGE_TYPE(kTopicImuIns, hozon::soc::ImuIns);
   REGISTER_PROTO_MESSAGE_TYPE(kTopicInsPlugin,
                               hozon::localization::HafNodeInfo);
@@ -165,6 +167,8 @@ int32_t VizConverterLite::AlgInit() {
   RegistAlgProcessFunc("recv_localization",
                        std::bind(&VizConverterLite::OnLocalization, this,
                                  std::placeholders::_1));
+  RegistAlgProcessFunc("recv_pe", std::bind(&VizConverterLite::OnPoseEstimation,
+                                            this, std::placeholders::_1));
   RegistAlgProcessFunc("recv_imu_ins", std::bind(&VizConverterLite::OnImuIns,
                                                  this, std::placeholders::_1));
   RegistAlgProcessFunc("recv_inspva", std::bind(&VizConverterLite::OnInsPlugin,
@@ -407,6 +411,84 @@ int32_t VizConverterLite::OnLocalization(
   return 0;
 }
 
+int32_t VizConverterLite::OnPoseEstimation(
+    hozon::netaos::adf_lite::Bundle* input) {
+  if (input == nullptr) {
+    HLOG_ERROR << "nullptr input Bundle";
+    return -1;
+  }
+
+  auto input_msg = input->GetOne(kTopicPoseEstimation);
+  if (input_msg == nullptr) {
+    HLOG_ERROR << "GetOne " << kTopicPoseEstimation << " nullptr";
+    return -1;
+  }
+
+  const auto proto_msg =
+      std::static_pointer_cast<hozon::localization::HafNodeInfo>(
+          input_msg->proto_msg);
+  if (proto_msg == nullptr) {
+    HLOG_ERROR << "proto_msg is nullptr in Bundle input";
+    return -1;
+  }
+
+  auto loc = std::make_shared<hozon::localization::HafNodeInfo>();
+  loc->CopyFrom(*proto_msg);
+
+  static bool register_flag = true;
+  if (register_flag) {
+    register_flag = false;
+    RVIZ_AGENT.Register<adsfi_proto::viz::Odometry>(kTopicPoseEstimation +
+                                                    "/local_enu_pose");
+  }
+  uint32_t sec = 0;
+  uint32_t nsec = 0;
+  SplitStamp(loc->header().data_stamp(), &sec, &nsec);
+  Eigen::Vector3d gcj(loc->pos_gcj02().x(), loc->pos_gcj02().y(),
+                      loc->pos_gcj02().z());
+  Eigen::Vector3d pos_veh_in_enu = mp::util::Geo::Gcj02ToEnu(gcj, enu_station_);
+  Eigen::Quaterniond quat_veh_in_enu(
+      loc->quaternion().w(), loc->quaternion().x(), loc->quaternion().y(),
+      loc->quaternion().z());
+  adsfi_proto::viz::Odometry odom_veh_in_local_enu;
+  odom_veh_in_local_enu.mutable_header()->mutable_timestamp()->set_sec(sec);
+  odom_veh_in_local_enu.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+
+  odom_veh_in_local_enu.mutable_header()->set_frameid(mp::util::kFrameLocalEnu);
+  odom_veh_in_local_enu.set_child_frame_id(mp::util::kFrameVehicle);
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_position()
+      ->set_x(pos_veh_in_enu.x());
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_position()
+      ->set_y(pos_veh_in_enu.y());
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_position()
+      ->set_z(pos_veh_in_enu.z());
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_orientation()
+      ->set_w(quat_veh_in_enu.w());
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_orientation()
+      ->set_x(quat_veh_in_enu.x());
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_orientation()
+      ->set_y(quat_veh_in_enu.y());
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_orientation()
+      ->set_z(quat_veh_in_enu.z());
+  RVIZ_AGENT.Publish(kTopicPoseEstimation + "/local_enu_pose",
+                     odom_veh_in_local_enu);
+  return 0;
+}
+
 int32_t VizConverterLite::OnCamera0(hozon::netaos::adf_lite::Bundle* input) {
   auto image_msg = input->GetOne(kTopicCamera0);
   if (image_msg == nullptr) {
@@ -514,6 +596,56 @@ int32_t VizConverterLite::OnInsPlugin(hozon::netaos::adf_lite::Bundle* input) {
   *text = "gps_status: " + std::to_string(msg->gps_status()) +
           "\nsys_status: " + std::to_string(msg->sys_status());
   RVIZ_AGENT.Publish(kVizTopicInsPluginStatus, marker_status);
+
+  static bool register_flag = true;
+  if (register_flag) {
+    register_flag = false;
+    RVIZ_AGENT.Register<adsfi_proto::viz::Odometry>(kVizTopicInsPlugin +
+                                                    "/local_enu_pose");
+  }
+
+  Eigen::Vector3d gcj(msg->pos_gcj02().x(), msg->pos_gcj02().y(),
+                      msg->pos_gcj02().z());
+  Eigen::Vector3d pos_veh_in_enu = mp::util::Geo::Gcj02ToEnu(gcj, enu_station_);
+  Eigen::Quaterniond quat_veh_in_enu(
+      msg->quaternion().w(), msg->quaternion().x(), msg->quaternion().y(),
+      msg->quaternion().z());
+  adsfi_proto::viz::Odometry odom_veh_in_local_enu;
+  odom_veh_in_local_enu.mutable_header()->mutable_timestamp()->set_sec(sec);
+  odom_veh_in_local_enu.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+
+  odom_veh_in_local_enu.mutable_header()->set_frameid(mp::util::kFrameLocalEnu);
+  odom_veh_in_local_enu.set_child_frame_id(mp::util::kFrameVehicle);
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_position()
+      ->set_x(pos_veh_in_enu.x());
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_position()
+      ->set_y(pos_veh_in_enu.y());
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_position()
+      ->set_z(pos_veh_in_enu.z());
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_orientation()
+      ->set_w(quat_veh_in_enu.w());
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_orientation()
+      ->set_x(quat_veh_in_enu.x());
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_orientation()
+      ->set_y(quat_veh_in_enu.y());
+  odom_veh_in_local_enu.mutable_pose()
+      ->mutable_pose()
+      ->mutable_orientation()
+      ->set_z(quat_veh_in_enu.z());
+  RVIZ_AGENT.Publish(kVizTopicInsPlugin + "/local_enu_pose",
+                     odom_veh_in_local_enu);
 
   return 0;
 }
@@ -708,7 +840,6 @@ int32_t VizConverterLite::OnPercepTransport(
     hozon::netaos::adf_lite::Bundle* input) {
   static std::shared_ptr<adsfi_proto::viz::MarkerArray> last_trans_ele_ma =
       nullptr;
-
   if (input == nullptr) {
     HLOG_ERROR << "nullptr input Bundle";
     return -1;

@@ -365,7 +365,7 @@ void MapLaneBoundaryToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
   }
 
   const std::string curve_ns = ns + "/curve";
-  const double line_width = 0.2;
+  const double line_width = 0.05;
   MapCurveToMarkers(header, lifetime, curve_ns, used_rgba, line_width, curve,
                     ma, is_dashed);
 
@@ -406,7 +406,7 @@ void MapLaneToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
   }
 
   const std::string lane_ns = "lane_" + lane.id().id();
-  const double line_width = 0.2;
+  const double line_width = 0.05;
 
   // some lane info
   const auto& central_seg = lane.central_curve().segment();
@@ -653,7 +653,8 @@ void MapMsgStatusToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
 
   std::string valid_str;
   if (map_msg.has_is_valid()) {
-    valid_str = "valid: " + (map_msg.is_valid() ? std::string("TRUE") : std::string("FALSE"));
+    valid_str = "valid: " + (map_msg.is_valid() ? std::string("TRUE")
+                                                : std::string("FALSE"));
   }
 
   std::string level_str;
@@ -726,7 +727,7 @@ void TeLaneToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
   marker_line->mutable_pose()->mutable_orientation()->set_y(0.);
   marker_line->mutable_pose()->mutable_orientation()->set_z(0.);
   marker_line->mutable_pose()->mutable_orientation()->set_w(1.);
-  const double line_width = 0.4;
+  const double line_width = 0.05;
   marker_line->mutable_scale()->set_x(line_width);
   marker_line->mutable_color()->CopyFrom(rgba);
   for (const auto& pt : lane.points()) {
@@ -804,7 +805,7 @@ void TeRoadEdgeToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
   marker_line->mutable_pose()->mutable_orientation()->set_y(0.);
   marker_line->mutable_pose()->mutable_orientation()->set_z(0.);
   marker_line->mutable_pose()->mutable_orientation()->set_w(1.);
-  const double line_width = 0.4;
+  const double line_width = 0.05;
   marker_line->mutable_scale()->set_x(line_width);
   marker_line->mutable_color()->CopyFrom(rgba);
   for (const auto& pt : edge.points()) {
@@ -1175,7 +1176,7 @@ void LmRoadEdgeToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
   marker_line->mutable_pose()->mutable_orientation()->set_y(0.);
   marker_line->mutable_pose()->mutable_orientation()->set_z(0.);
   marker_line->mutable_pose()->mutable_orientation()->set_w(1.);
-  const double line_width = 0.2;
+  const double line_width = 0.05;
   marker_line->mutable_scale()->set_x(line_width);
   marker_line->mutable_color()->CopyFrom(rgba);
   for (const auto& pt : line.points()) {
@@ -1250,7 +1251,7 @@ void LmLaneLineToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
   marker_line->mutable_pose()->mutable_orientation()->set_y(0.);
   marker_line->mutable_pose()->mutable_orientation()->set_z(0.);
   marker_line->mutable_pose()->mutable_orientation()->set_w(1.);
-  const double line_width = 0.2;
+  const double line_width = 0.05;
   marker_line->mutable_scale()->set_x(line_width);
   marker_line->mutable_color()->CopyFrom(rgba);
   for (const auto& pt : line.points()) {

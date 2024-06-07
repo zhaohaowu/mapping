@@ -63,8 +63,7 @@ class PoseEstimation {
   bool CheckMmTrackingState();
 
   void ProcData();
-  void SetInputPose(const LocalizationPtr& fc_pose_ptr,
-                    const LocalizationPtr& ins_pose_ptr, Sophus::SE3d* T_input);
+  Eigen::Affine3d Localization2Eigen(const LocalizationPtr& pose_ptr);
   template <typename T>
   void ShrinkQueue(T* deque, int maxsize);
   template <typename T0, typename T1, typename T2>
@@ -118,13 +117,18 @@ class PoseEstimation {
   std::atomic<int> location_state_{2};
   std::atomic<double> velocity_{0.0};
   std::atomic<bool> use_rviz_{false};
-  std::atomic<bool> reloc_flag_{false};
-  std::atomic<int> reloc_cnt_ = 30;
   std::atomic<bool> reloc_test_ = false;
   std::atomic<double> ins_height_ = 0.0;
+  std::atomic<bool> rviz_init_ = false;
+  std::atomic<double> fc_heading_ = 0.0;
+  std::atomic<double> ins_heading_ = 0.0;
+  std::string conv_;
+
   std::string rviz_addr_;
-  Eigen::Affine3d T_fc_;
-  Eigen::Affine3d T_ins_;
+  Eigen::Affine3d T_fc_100hz_;
+  Eigen::Affine3d T_dr_100hz_;
+  Eigen::Affine3d T_ins_100hz_;
+  Eigen::Affine3d T_fc_10hz_;
   Eigen::Affine3d T_input_;
   TrackingManager tracking_manager_;
   MappingManager map_manager_;

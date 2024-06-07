@@ -4,7 +4,7 @@
             "SDK": "20231121",
             "ORIN_X_SDK" : "orin-x_sdk_20231122",
             "ADF": {"name":"EP40_ADC_ADF_05.29.19_0430_1206_20231206","extractPath":"./depend/ap-release"},
-            "middleWare": {"name":"EP41_ORIN_NOS_02.25.21_20240319_0508d_20240528","extractPath":"./depend/nos"},
+            "middleWare": {"name":"EP41_ORIN_NOS_02.26.22_20240319_0515c_20240606","extractPath":"./depend/nos"},
             "third_party": {"name":"v5.2.36_x86_2004_20240524","extractPath":"./depend"},
             "CUDA": {"name":"cuda_11.4.327_20231011","extractPath":"./depend/third_party/x86"},
             "release": {
@@ -15,7 +15,7 @@
                     "compileCmd": "bash build.sh orin --release --clean --plugin -j32",
                     "outputPath": ["release", "mal_orin"]
             },
-            "releaseVersion": "ORIN_EP41_MAL_05.07.25_20240319_0508d_20240607"
+            "releaseVersion": "ORIN_EP41_MAL_05.08.01_20240319_0515c_20240607"
         }
     }
 }

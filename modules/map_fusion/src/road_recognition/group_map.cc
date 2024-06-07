@@ -309,8 +309,8 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
         dkappa = (dkappas[select_back_index] + dkappas[select_back_index + 1] +
                   dkappas[select_back_index + 2]) /
                  3;
-        kappa = kappa / 10.;
-        dkappa = dkappa / 10;
+        kappa = kappa / 8.;
+        dkappa = dkappa / 8.;
       }
       line->pred_end_heading = std::make_tuple(mean_theta, kappa, dkappa);
     }
@@ -369,11 +369,12 @@ void GroupMap::BuildKDtrees(std::deque<Line::Ptr>* lines) {
       break;
     }
     cv::flann::KDTreeIndexParams index_params(1);
-    auto kdtree =
-        std::make_shared<cv::flann::Index>(cv::Mat(*cv_points).reshape(1), index_params);
+    auto kdtree = std::make_shared<cv::flann::Index>(
+        cv::Mat(*cv_points).reshape(1), index_params);
     KDTrees_[line->id] = kdtree;
     line_points_[line->id] = cv_points;
-    // HLOG_INFO << "build kdtree: " << line->id << ", size: " << cv_points->size();
+    // HLOG_INFO << "build kdtree: " << line->id << ", size: " <<
+    // cv_points->size();
   }
   return;
 }
@@ -636,7 +637,7 @@ void GroupMap::SplitPtsToGroupSeg(std::deque<Line::Ptr>* lines,
 }
 
 float GroupMap::DistByKDtree(const em::Point& ref_point,
-                              const LineSegment& LineSegment) {
+                             const LineSegment& LineSegment) {
   HLOG_INFO << "DistByKDtree";
   int id = LineSegment.id;
   if (KDTrees_[id] == nullptr) {
@@ -657,8 +658,8 @@ float GroupMap::DistByKDtree(const em::Point& ref_point,
   auto kdtree_tofind = KDTrees_[id];
   auto line_tofind = *line_points_[id];
 
-  kdtree_tofind->knnSearch(query_point, nearest_index, nearest_dist,
-                          dim, cv::flann::SearchParams(-1));
+  kdtree_tofind->knnSearch(query_point, nearest_index, nearest_dist, dim,
+                           cv::flann::SearchParams(-1));
   HLOG_INFO << "nearest_index: " << nearest_index[0];
   HLOG_INFO << "nearest_dist: " << std::sqrt(nearest_dist[0]);
 
@@ -676,14 +677,15 @@ float GroupMap::DistByKDtree(const em::Point& ref_point,
   em::Point tar_point_next;
   tar_point_next.x() = line_tofind[id_next].x;
   tar_point_next.y() = line_tofind[id_next].y;
-  HLOG_INFO << "tar_point_next: " << tar_point_next.x() << " " << tar_point_next.y();
+  HLOG_INFO << "tar_point_next: " << tar_point_next.x() << " "
+            << tar_point_next.y();
 
   return GetDistPointLane(ref_point, tar_point, tar_point_next);
 }
 
-float GroupMap::GetDistPointLane(const em::Point&  point_a,
-                                  const em::Point&  point_b,
-                                  const em::Point&  point_c) {
+float GroupMap::GetDistPointLane(const em::Point& point_a,
+                                 const em::Point& point_b,
+                                 const em::Point& point_c) {
   Eigen::Vector2f A(point_a.x(), point_a.y()), B(point_b.x(), point_b.y()),
       C(point_c.x(), point_c.y());
   // 以B为起点计算向量BA 在向量BC上的投影
@@ -3767,8 +3769,8 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
   last_predict_angle = predict_heading;
   // HLOG_INFO << "predict heading:" << predict_heading;
 
-  kappa = 0.6 * last_predict_kappa + 0.4 * kappa;
-  dkappa = 0.6 * last_predict_dkappa + 0.4 * dkappa;
+  kappa = 0.4 * last_predict_kappa + 0.6 * kappa;
+  dkappa = 0.4 * last_predict_dkappa + 0.6 * dkappa;
 
   last_predict_kappa = kappa;
   last_predict_dkappa = dkappa;
@@ -5237,14 +5239,19 @@ void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
 
     for (int i = 0; i <= pred_counts; ++i) {
       new_kappa =
-          left_kappa - std::get<2>(curr_lane->left_boundary->pred_end_heading);
+          left_kappa + std::get<2>(curr_lane->left_boundary->pred_end_heading);
       // new_kappa = left_kappa;
       if (math::DoubleHasSameSign(
               new_kappa,
               std::get<1>(curr_lane->left_boundary->pred_end_heading))) {
         left_kappa = new_kappa;
       }
-      left_heading -= left_kappa;
+      if (left_heading >= 0.) {
+        left_heading += left_kappa;
+      } else {
+        left_heading -= left_kappa;
+      }
+
       Eigen::Vector2f n(std::cos(left_heading), std::sin(left_heading));
       Eigen::Vector2f pt = back_pt + i * mean_interval * n;
       Point pred_pt;
@@ -5284,7 +5291,7 @@ void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
     double new_kappa = 0.0;
 
     for (int i = 0; i <= pred_counts; ++i) {
-      new_kappa = right_kappa -
+      new_kappa = right_kappa +
                   std::get<2>(curr_lane->right_boundary->pred_end_heading);
       // new_kappa = right_kappa;
       if (math::DoubleHasSameSign(
@@ -5292,7 +5299,12 @@ void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
               std::get<1>(curr_lane->right_boundary->pred_end_heading))) {
         right_kappa = new_kappa;
       }
-      right_heading -= right_kappa;
+      if (right_heading >= 0.) {
+        right_heading += right_kappa;
+      } else {
+        right_heading -= right_kappa;
+      }
+
       Eigen::Vector2f n(std::cos(right_heading), std::sin(right_heading));
       Eigen::Vector2f pt = back_pt + i * mean_interval * n;
       Point pred_pt;
@@ -5324,7 +5336,7 @@ void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
     double new_kappa = 0.0;
 
     for (int i = 0; i <= pred_counts; ++i) {
-      new_kappa = center_kappa -
+      new_kappa = center_kappa +
                   (std::get<2>(curr_lane->left_boundary->pred_end_heading) +
                    std::get<2>(curr_lane->right_boundary->pred_end_heading)) /
                       2;
@@ -5336,7 +5348,12 @@ void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
                   2)) {
         center_kappa = new_kappa;
       }
-      center_heading -= center_kappa;
+      if (center_heading >= 0.) {
+        center_heading += center_kappa;
+      } else {
+        center_heading -= center_kappa;
+      }
+
       Eigen::Vector2f n(std::cos(center_heading), std::sin(center_heading));
       Eigen::Vector2f pt = back_pt + i * mean_interval * n;
       Point pred_pt;

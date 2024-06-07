@@ -5183,7 +5183,7 @@ bool GroupMap::LaneLineNeedToPredict(const LineSegment& line, bool check_back) {
   auto mean_interval = line.mean_end_interval;
   float dist_to_veh = back_pt.norm();
   bool valid_back = true;
-  if (check_back && back_pt.x() < -40) {
+  if (check_back && back_pt.x() < -conf_.junction_predict_distance) {
     valid_back = false;
   }
   if (valid_back &&

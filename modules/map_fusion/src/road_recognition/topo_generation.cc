@@ -108,6 +108,9 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
       static_cast<float>(DegToRad(conf["max_heading_degree"].as<double>()));
   gm_conf_.junction_heading_diff =
       static_cast<float>(DegToRad(conf["junction_heading_diff"].as<double>()));
+  gm_conf_.junction_predict_distance =
+      static_cast<float>(conf["junction_predict_distance"].as<double>());
+
   is_cross_.cross_after_lane_ = 0;
   is_cross_.cross_before_lane_ = 0;
   is_cross_.is_crossing_ = 0;

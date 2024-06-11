@@ -203,6 +203,7 @@ struct GroupMapConf {
   float min_predict_interval = 0;
   float junction_heading_diff = 0;
   float junction_predict_distance = 40;
+  float next_group_max_distance = 30;
 };
 
 struct IsCross {
@@ -260,9 +261,8 @@ class GroupMap {
                           std::deque<Line::Ptr>* lines);
   void BuildKDtrees(std::deque<Line::Ptr>* lines);
   float DistByKDtree(const em::Point& ref_point, const LineSegment& line);
-  float GetDistPointLane(const em::Point&  point_a,
-                        const em::Point&  point_b,
-                        const em::Point&  point_c);
+  float GetDistPointLane(const em::Point& point_a, const em::Point& point_b,
+                         const em::Point& point_c);
   void BuildGroupSegments(
       const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
       const KinePose::Ptr& curr_pose, std::deque<Line::Ptr>* lines,

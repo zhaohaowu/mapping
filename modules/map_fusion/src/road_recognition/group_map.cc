@@ -1645,12 +1645,13 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
           FindBestNextLane(next_group, dist_to_slice, &best_next_lane);
           // 条件判断，分三种情况
           if (ego_curr_lane != nullptr && best_next_lane != nullptr &&
-              dist_to_slice <= 30) {
+              dist_to_slice <= conf_.next_group_max_distance) {
             GenerateTransitionLane(ego_curr_lane, best_next_lane,
                                    &virtual_lanes);
           } else if (ego_curr_lane == nullptr) {
             HLOG_ERROR << "ego_curr_lane nullptr";
-          } else if (best_next_lane == nullptr || dist_to_slice > 30) {
+          } else if (best_next_lane == nullptr ||
+                     dist_to_slice > conf_.next_group_max_distance) {
             // 30m内没找到对应的可连接车道，直接退出
             erase_grp_idx = grp_idx + 1;
             HLOG_WARN << "best_next_lane nullptr";

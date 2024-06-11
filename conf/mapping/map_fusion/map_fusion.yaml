@@ -46,4 +46,5 @@ RoadRecognition:
     min_predict_interval: 0.2
     max_heading_degree: 50
     junction_heading_diff: 5 # degree
-    junction_predict_distance: 40 # m
+    junction_predict_distance: 40 # m 路口内预瞄最大距离，这个未加防抖机制
+    next_group_max_distance: 50 # m 离下一个连接group的最大距离

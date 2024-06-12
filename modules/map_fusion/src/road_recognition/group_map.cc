@@ -341,7 +341,7 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
 }
 
 void GroupMap::BuildKDtrees(std::deque<Line::Ptr>* lines) {
-  HLOG_INFO << "BuildKDtrees";
+  HLOG_DEBUG << "BuildKDtrees";
   // Check if there are any lines
   if (lines == nullptr) {
     return;
@@ -638,7 +638,6 @@ void GroupMap::SplitPtsToGroupSeg(std::deque<Line::Ptr>* lines,
 
 float GroupMap::DistByKDtree(const em::Point& ref_point,
                              const LineSegment& LineSegment) {
-  HLOG_INFO << "DistByKDtree";
   int id = LineSegment.id;
   if (KDTrees_[id] == nullptr) {
     return 0.0;
@@ -646,7 +645,6 @@ float GroupMap::DistByKDtree(const em::Point& ref_point,
 
   float ref_x = static_cast<float>(ref_point.x());
   float ref_y = static_cast<float>(ref_point.y());
-  HLOG_INFO << "ref_point: " << ref_x << ", " << ref_y;
   if (std::isnan(ref_x) || std::isnan(ref_y)) {
     return 0.0;
   }
@@ -660,13 +658,10 @@ float GroupMap::DistByKDtree(const em::Point& ref_point,
 
   kdtree_tofind->knnSearch(query_point, nearest_index, nearest_dist, dim,
                            cv::flann::SearchParams(-1));
-  HLOG_INFO << "nearest_index: " << nearest_index[0];
-  HLOG_INFO << "nearest_dist: " << std::sqrt(nearest_dist[0]);
 
   em::Point tar_point;
   tar_point.x() = line_tofind[nearest_index[0]].x;
   tar_point.y() = line_tofind[nearest_index[0]].y;
-  HLOG_INFO << "tar_point: " << tar_point.x() << " " << tar_point.y();
 
   int id_next = 0;
   if (nearest_index[0] < line_tofind.size() - 1) {
@@ -677,8 +672,6 @@ float GroupMap::DistByKDtree(const em::Point& ref_point,
   em::Point tar_point_next;
   tar_point_next.x() = line_tofind[id_next].x;
   tar_point_next.y() = line_tofind[id_next].y;
-  HLOG_INFO << "tar_point_next: " << tar_point_next.x() << " "
-            << tar_point_next.y();
 
   return GetDistPointLane(ref_point, tar_point, tar_point_next);
 }

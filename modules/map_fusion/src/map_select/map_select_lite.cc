@@ -64,7 +64,6 @@ const double kSegmentationEpsilon = 0.2;
 const std::size_t kLanePointMinSize = 2U;
 constexpr double epslion = 1e-8;
 std::string boolToString(bool value) { return value ? "true" : "false"; }
-
 using hozon::navigation_hdmap::MapMsg;
 
 bool ValidQuaternion(const hozon::common::Quaternion& quat);
@@ -1618,7 +1617,6 @@ bool MapSelectLite::CheckGlobalLoc(
     return false;
   }
   const auto loc_state = loc->location_state();
-
   std::set<uint32_t> normal_loc_states = {
       2,  // 组合导航+MM+DR
   };
@@ -1771,96 +1769,92 @@ bool MapSelectLite::IsCarInLanes(
       nearest_index_ = nearest_index[0];
     }
   }
-  if (lanes_lines_map_.find(min_dist_id_) != lanes_lines_map_.end()) {
-    auto line_points_size =
-        lanes_lines_map_[min_dist_id_].lane_line_points.size();
-    UpdateThresholdValue(map, &curr_dist_value);
-    if ((min_dist_value_ > curr_dist_value) && (line_points_size > 1)) {
-      int second_point_index = 0;
-      if (nearest_index_ <= line_points_size - 2) {
-        second_point_index = nearest_index_ + 1;
-      } else {
-        second_point_index = nearest_index_ - 1;
-      }
-
-      auto nearest_point =
-          lanes_lines_map_[min_dist_id_].lane_line_points[nearest_index_];
-      auto second_point =
-          lanes_lines_map_[min_dist_id_].lane_line_points[second_point_index];
-
-      min_dist_value_ = PointToVectorDist(nearest_point, second_point, car_pos);
-    }
-  }
+  UpdateThresholdValue(map, min_dist_id_, &curr_dist_value);
 
   bool upate_lane_id = false;
-  if (min_dist_value_ > curr_dist_value) {
-    for (const auto& lane_lines : lanes_lines_map_) {
-      auto lane_id = lane_lines.first;
-      auto lane_nearest_index = lane_lines.second.nearest_index;
-      int second_lane_index = 0;
-      auto line_points_size = lanes_lines_map_[lane_id].lane_line_points.size();
-      if (line_points_size < 2) {
-        continue;
-      }
-      if (lane_nearest_index <= line_points_size - 2) {
-        second_lane_index = lane_nearest_index + 1;
-      } else {
-        second_lane_index = lane_nearest_index - 1;
-      }
-      auto nearest_point =
-          lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index];
-      auto second_point =
-          lanes_lines_map_[lane_id].lane_line_points[second_lane_index];
-      auto line_dist_value =
-          PointToVectorDist(nearest_point, second_point, car_pos);
-      if (min_dist_value_ > line_dist_value) {
-        upate_lane_id = true;
-        min_dist_value_ = line_dist_value;
-        min_dist_id_ = lane_id;
-      }
-    }
-  }
-
-  if (upate_lane_id) {
-    UpdateThresholdValue(map, &curr_dist_value);
-  }
-
+  dis_infos_.clear();
   if (min_dist_value_ <= curr_dist_value) {
-    std::vector<Eigen::Vector2d> left_start_end_points;
-    std::vector<Eigen::Vector2d> right_start_end_points;
-    bool out_of_end_scope = false;
-    if (UpdateSelfBoundaryPoints(map, min_dist_id_, &left_start_end_points,
-                                 &right_start_end_points)) {
-      if (PointInVectorSide(left_start_end_points.back(),
-                            right_start_end_points.back(), car_pos) < 0) {
-        HLOG_ERROR << "the car out the end point scope";
-        out_of_end_scope = true;
-        // return false;
-      }
-      if (PointInVectorSide(left_start_end_points.front(),
-                            right_start_end_points.front(), car_pos) > 0) {
-        HLOG_ERROR << "the car out the start point scope";
-        return false;
-      }
-    }
-    if (out_of_end_scope) {
-      if ((left_start_end_points.size() == 3) &&
-          (right_start_end_points.size() == 3)) {
-        if (PointInVectorSide(left_start_end_points.at(1),
-                              right_start_end_points.at(1), car_pos) > 0) {
-          return true;
-        }
-      }
-      return false;
-    }
     return true;
   }
-  HLOG_ERROR << "dis between car and the nearest cental line :"
-             << min_dist_value_
-             << "lanes_lines_  size:" << lanes_lines_map_.size()
-             << "location_state:  " << localization->location_state()
-             << "min dis lane id  " << min_dist_id_
-             << "curr_dist_value :" << curr_dist_value;
+  for (const auto& lane_lines : lanes_lines_map_) {
+    auto lane_id = lane_lines.first;
+    auto lane_nearest_index = lane_lines.second.nearest_index;
+    int second_lane_index = 0;
+    auto line_points_size = lanes_lines_map_[lane_id].lane_line_points.size();
+    if (line_points_size < 2) {
+      continue;
+    }
+    if (lane_nearest_index <= line_points_size - 2) {
+      second_lane_index = lane_nearest_index + 1;
+    } else {
+      second_lane_index = lane_nearest_index - 1;
+    }
+    auto nearest_point =
+        lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index];
+    auto second_point =
+        lanes_lines_map_[lane_id].lane_line_points[second_lane_index];
+    auto line_dist_value =
+        PointToVectorDist(nearest_point, second_point, car_pos);
+    if (line_dist_value < dis_scope_) {
+      DistanceInfo dis_info;
+      dis_info.car_cental_line_dis = line_dist_value;
+      float half_lane_dis;
+      if (UpdateThresholdValue(map, lane_id, &half_lane_dis)) {
+        dis_info.half_lane_width = half_lane_dis;
+      }
+      dis_infos_[lane_id] = dis_info;
+      upate_lane_id = true;
+    }
+  }
+  bool is_perce_map = false;
+  if (upate_lane_id && (!dis_infos_.empty())) {
+    for (const auto& dis_info : dis_infos_) {
+      auto lane_id = dis_info.first;
+      if (dis_info.second.car_cental_line_dis <=
+          (dis_info.second.half_lane_width + lane_range_value_)) {
+        if ((!ForkLaneCheck(map))&&is_perce_map) {
+          std::vector<Eigen::Vector2d> left_start_end_points;
+          std::vector<Eigen::Vector2d> right_start_end_points;
+          if (UpdateSelfBoundaryPoints(map, lane_id, &left_start_end_points,
+                                       &right_start_end_points)) {
+            if (PointInVectorSide(left_start_end_points.back(),
+                                  right_start_end_points.back(), car_pos) < 0) {
+              if ((left_start_end_points.size() == 4) &&
+                  (right_start_end_points.size() == 4)) {
+                if (PointInVectorSide(left_start_end_points.at(2),
+                                      right_start_end_points.at(2),
+                                      car_pos) < 0) {
+                  continue;
+                }
+              }
+            }
+            if (PointInVectorSide(left_start_end_points.front(),
+                                  right_start_end_points.front(),
+                                  car_pos) > 0) {
+              if ((left_start_end_points.size() == 4) &&
+                  (right_start_end_points.size() == 4)) {
+                if (PointInVectorSide(left_start_end_points.at(1),
+                                      right_start_end_points.at(1),
+                                      car_pos) > 0) {
+                  continue;
+                }
+              }
+            }
+          }
+        }
+        return true;
+      }
+    }
+  }
+  return false;
+}
+bool MapSelectLite::ForkLaneCheck(
+    const std::shared_ptr<hozon::hdmap::Map>& map) {
+  for (const auto& lane : map->lane()) {
+    if ((lane.predecessor_id_size() > 1) || (lane.successor_id_size() > 1)) {
+      return true;
+    }
+  }
   return false;
 }
 
@@ -1978,7 +1972,13 @@ bool MapSelectLite::UpdateSelfBoundaryPoints(
                             left_boundary_points_.front().y());
   right_points->emplace_back(right_boundary_points_.front().x(),
                              right_boundary_points_.front().y());
-  if ((left_size > 5) && (right_size > 5)) {
+  if ((left_size > 8) && (right_size > 8)) {
+    left_points->emplace_back(left_boundary_points_.at(left_size / 8).x(),
+                              left_boundary_points_.at(left_size / 8).y());
+
+    right_points->emplace_back(right_boundary_points_.at(right_size / 8).x(),
+                               right_boundary_points_.at(right_size / 8).y());
+
     left_points->emplace_back(left_boundary_points_.at(left_size / 2).x(),
                               left_boundary_points_.at(left_size / 2).y());
 
@@ -1993,16 +1993,17 @@ bool MapSelectLite::UpdateSelfBoundaryPoints(
 }
 
 bool MapSelectLite::UpdateThresholdValue(
-    const std::shared_ptr<hozon::hdmap::Map>& map, float* dis_value) {
+    const std::shared_ptr<hozon::hdmap::Map>& map, const std::string lane_id,
+    float* dis_value) {
   for (const auto& lane : map->lane()) {
-    if ((min_dist_id_ == lane.id().id()) &&
-        (lanes_lines_map_.find(min_dist_id_) != lanes_lines_map_.end())) {
-      auto index = lanes_lines_map_[min_dist_id_].nearest_index;
-      auto points_size = lanes_lines_map_[min_dist_id_].lane_line_points.size();
+    if ((lane_id == lane.id().id()) &&
+        (lanes_lines_map_.find(lane_id) != lanes_lines_map_.end())) {
+      auto index = lanes_lines_map_[lane_id].nearest_index;
+      auto points_size = lanes_lines_map_[lane_id].lane_line_points.size();
       if ((index > points_size - 1) || (index < 0)) {
         break;
       }
-      auto eigen_point = lanes_lines_map_[min_dist_id_].lane_line_points[index];
+      auto eigen_point = lanes_lines_map_[lane_id].lane_line_points[index];
       hozon::common::math::Vec2d nearest_point{eigen_point.x(),
                                                eigen_point.y()};
       std::vector<hozon::common::math::Vec2d> lbundary_points;

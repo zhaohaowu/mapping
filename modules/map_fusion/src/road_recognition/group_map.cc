@@ -354,19 +354,13 @@ void GroupMap::BuildKDtrees(std::deque<Line::Ptr>* lines) {
   }
 
   for (auto& line : *lines) {
-    if (line->pts.size() < 5) {
-      break;
-    }
-
     auto cv_points = std::make_shared<std::vector<cv::Point2f>>();
     for (auto& p : line->pts) {
       if (std::isnan(p.pt.x()) || std::isnan(p.pt.y())) {
+        HLOG_DEBUG << "Nan points";
         break;
       }
       cv_points->emplace_back(p.pt.x(), p.pt.y());
-    }
-    if (cv_points->size() < 5) {
-      break;
     }
     cv::flann::KDTreeIndexParams index_params(1);
     auto kdtree = std::make_shared<cv::flann::Index>(
@@ -663,17 +657,21 @@ float GroupMap::DistByKDtree(const em::Point& ref_point,
   tar_point.x() = line_tofind[nearest_index[0]].x;
   tar_point.y() = line_tofind[nearest_index[0]].y;
 
-  int id_next = 0;
-  if (nearest_index[0] < line_tofind.size() - 1) {
-    id_next = nearest_index[0] + 1;
+  if (line_tofind.size() == 1) {
+    return nearest_dist[0];
   } else {
-    id_next = nearest_index[0] - 1;
-  }
-  em::Point tar_point_next;
-  tar_point_next.x() = line_tofind[id_next].x;
-  tar_point_next.y() = line_tofind[id_next].y;
+    int id_next = 0;
+    if (nearest_index[0] < line_tofind.size() - 1) {
+      id_next = nearest_index[0] + 1;
+    } else {
+      id_next = nearest_index[0] - 1;
+    }
+    em::Point tar_point_next;
+    tar_point_next.x() = line_tofind[id_next].x;
+    tar_point_next.y() = line_tofind[id_next].y;
 
-  return GetDistPointLane(ref_point, tar_point, tar_point_next);
+    return GetDistPointLane(ref_point, tar_point, tar_point_next);
+  }
 }
 
 float GroupMap::GetDistPointLane(const em::Point& point_a,

@@ -76,6 +76,7 @@ class RoadEdgeMappingPipeline : public BaseMappingPipeline {
   std::unique_ptr<PostRoadEdgePositionManager> post_roadedge_position_manager_ =
       nullptr;
   int limit_max_tracker_nums_ = 50;
+  bool reverse_x_y_flag_ = false;
   //   ProcessInitOption tracker_init_option_;
   //   ProcessInitOption target_init_option_;
 };

@@ -201,9 +201,6 @@ void LaneLineMappingPipeline::UpdateTracks() {
     }
     if (vehicle_points.front().x() > vehicle_points.back().x()) {
       std::reverse(vehicle_points.begin(), vehicle_points.end());
-      target->SetReverseFlag(true);
-    } else {
-      target->SetReverseFlag(false);
     }
   }
 }

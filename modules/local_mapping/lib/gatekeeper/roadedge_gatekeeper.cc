@@ -84,7 +84,17 @@ bool RoadEdgeGatekeeper::AbleToOutput(
         // short life_time track
         is_short = target->Count() < targets[i]->Count();
       }
-      if (is_lateral_overlap && is_short) {
+      float overlap_start =
+          std::max(point_set1.front().x(), point_set2.front().x());
+      float overlap_end =
+          std::min(point_set1.back().x(), point_set2.back().x());
+      float iou = (overlap_end < overlap_start)
+                      ? 0
+                      : (overlap_end - overlap_start) / (len1 + 1e-9);
+
+      bool is_longitudinal_overlap =
+          iou > output_roadedge_longitudinal_overlap_iou_;
+      if (is_longitudinal_overlap && is_lateral_overlap && is_short) {
         HLOG_DEBUG << " RoadEdge LaneTarget " << target->Id()
                    << " is big_overlap with LaneTarget " << targets[i]->Id()
                    << ", len1:" << len1 << ", len2:" << len2

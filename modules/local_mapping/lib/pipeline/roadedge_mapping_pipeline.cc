@@ -117,6 +117,7 @@ void RoadEdgeMappingPipeline::UpdateTracks() {
 
   const Eigen::Affine3d T_cur_last_ = POSE_MANAGER->GetDeltaPose();
 
+  reverse_x_y_flag_ = false;
   for (auto& target : targets) {
     auto& vehicle_points = target->GetTrackedObject()->vehicle_points;
     for (auto& point : vehicle_points) {
@@ -124,9 +125,7 @@ void RoadEdgeMappingPipeline::UpdateTracks() {
     }
     if (vehicle_points.front().x() > vehicle_points.back().x()) {
       std::reverse(vehicle_points.begin(), vehicle_points.end());
-      target->SetReverseFlag(true);
-    } else {
-      target->SetReverseFlag(false);
+      reverse_x_y_flag_ = true;
     }
   }
 }
@@ -159,15 +158,17 @@ void RoadEdgeMappingPipeline::MergeTracks(
           right_line->GetConstTrackedObject()->vehicle_points);
       double time_diff = left_line->GetLastestTrackedTimestamp() -
                          right_line->GetLastestTrackedTimestamp();
+      bool over_lay_y_condition = reverse_x_y_flag_ && over_lay_y_ratio > 0.7;
       HLOG_DEBUG << "roadedge MergeTracks: id " << left_line->Id() << ", id "
                  << right_line->Id() << ", avg_dist: " << avg_dist
                  << ", overlay_ratio: " << over_lay_ratio
                  << ", overlay_y_ratio: " << over_lay_y_ratio
+                 << ", reverse_x_y_flag_: " << reverse_x_y_flag_
                  << ", time_diff: " << time_diff;
       // 两条Tracker重合度很高
       // 根据线的质量来做删除,需要根据case专门抽一个评估函数
-      if ((over_lay_ratio > 0.7 || over_lay_y_ratio > 0.7) && avg_dist < 1.5) {
-        if (over_lay_y_ratio > 0.7) {
+      if ((over_lay_ratio > 0.7 || over_lay_y_condition) && avg_dist < 1.5) {
+        if (over_lay_y_condition) {
           // 转弯场景，xy轴互换了
           const auto& pts1 = left_line->GetConstTrackedObject()->vehicle_points;
           auto end_y_1 =

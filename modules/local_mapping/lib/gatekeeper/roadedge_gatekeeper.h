@@ -32,6 +32,7 @@ class RoadEdgeGatekeeper {
   float output_nms_distance_ = 1.0;
   float output_nms_length_ratio_ = 0.6;
   bool use_debug_mode_ = false;
+  float output_roadedge_longitudinal_overlap_iou_ = 0.6;
 };
 
 }  // namespace lm

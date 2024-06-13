@@ -73,12 +73,8 @@ class BaseTarget {
   }
 
   inline int GetLostAge() const { return lost_age_; }
-  inline bool GetReverseFlag() const { return reverse_flag_; }
 
   inline void SetLostAge(int lost_age) { lost_age_ = lost_age; }
-  inline void SetReverseFlag(bool reverse_flag) {
-    reverse_flag_ = reverse_flag;
-  }
 
   inline void SetDeleteFlag(bool delete_flag) { delete_flag_ = delete_flag; }
   inline bool GetDeleteFlag() const { return delete_flag_; }
@@ -130,7 +126,6 @@ class BaseTarget {
   std::vector<std::pair<int, double>> deleted_track_ids_;
   int id_ = 0;
   int lost_age_ = 0;
-  bool reverse_flag_ = false;
   int tracked_count_ = 0;
   bool send_postlane_ = true;  // 是否后处理的车道线发送给定位用
   bool delete_flag_ = false;  // merge 或者删除逻辑标记是否被删除掉了

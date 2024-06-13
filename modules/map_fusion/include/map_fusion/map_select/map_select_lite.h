@@ -54,9 +54,9 @@ struct LaneInMapInfo {
   std::string successor_id;
   hozon::hdmap::Lane lane;
 };
-struct DistanceInfo{
-    float car_cental_line_dis;
-    float half_lane_width;
+struct DistanceInfo {
+  float car_cental_line_dis;
+  float half_lane_width;
 };
 constexpr double kDfaultLaneWidth = 1.875;
 constexpr int kLaneMarkerDelaySize = 5;
@@ -203,8 +203,8 @@ class MapSelectLite {
                                 std::string lane_id,
                                 std::vector<Eigen::Vector2d>* left_points,
                                 std::vector<Eigen::Vector2d>* right_points);
-  bool UpdateThresholdValue(const std::shared_ptr<hozon::hdmap::Map>& map,const std::string lane_id,
-                            float* dis_value);
+  bool UpdateThresholdValue(const std::shared_ptr<hozon::hdmap::Map>& map,
+                            const std::string lane_id, float* dis_value);
   LaneInMapInfo IsLaneInMap(const std::shared_ptr<hozon::hdmap::Map>& map,
                             std::string lane_id);
   bool ForkLaneCheck(const std::shared_ptr<hozon::hdmap::Map>& map);
@@ -271,7 +271,7 @@ class MapSelectLite {
   std::map<std::string, SelectLaneLine> lanes_lines_map_;
   std::vector<hozon::common::math::Vec2d> left_boundary_points_;
   std::vector<hozon::common::math::Vec2d> right_boundary_points_;
-  std::map<std::string,DistanceInfo>dis_infos_;
+  std::map<std::string, DistanceInfo> dis_infos_;
   float min_dist_value_;
   std::string min_dist_id_;
   int nearest_index_;

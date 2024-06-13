@@ -501,7 +501,8 @@ void LaneLineMappingPipeline::CollectOutputObjects(
       HLOG_DEBUG << "LaneTrack NOT OUTPUT!";
       HLOG_DEBUG << "MinningTimestamp: "
                  << std::to_string(output_lane_object->latest_tracked_time)
-                 << " " << "Buffer LaneTarget "
+                 << " "
+                 << "Buffer LaneTarget "
                  << "TrackStatus: " << lane_target->ToStr() << " "
                  << "LaneTrack NOT OUTPUT!";
       // HLOG_INFO << "use_debug_mode_" << use_debug_mode_;

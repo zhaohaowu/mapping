@@ -68,6 +68,8 @@ void MappingPositionManager::Process(const LaneLinesPtr& laneline_ptrs) {
 void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
   const auto& last_local_map = MAP_MANAGER->GetLocalMap();
   double min_intersection_x = FLT_MAX;
+  bool zebra_enable = true;
+  int cross_num = 0;
   if (last_local_map->stop_lines_ptr != nullptr) {
     for (const auto& stop_line_ptr :
          last_local_map->stop_lines_ptr->stoplines) {
@@ -86,6 +88,23 @@ void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
       }
     }
   }
+  for (auto& laneline : laneline_ptrs->lanelines) {
+    if (laneline->vehicle_points.size() == 0) {
+      continue;
+    }
+    // 防止误检斑马线场景，车道线整个穿过斑马线，且起点在车后面，不用此斑马线。
+    if ((laneline->vehicle_points.front().x() < min_intersection_x) &&
+        (laneline->vehicle_points.back().x() > min_intersection_x)) {
+      cross_num++;
+    }
+  }
+  // 穿过的条数要满足大于80%,防止检测车道线的跳变，还有两边路沿边车道线的影响。
+  if (cross_num > 0.8 * laneline_ptrs->lanelines.size()) {
+    zebra_enable = false;
+  }
+  HLOG_DEBUG << "min_intersection_x:" << min_intersection_x
+             << " ,zebra_enable:" << zebra_enable;
+
   for (auto& lane_line : laneline_ptrs->lanelines) {
     if (lane_line->vehicle_points.size() == 0) {
       continue;
@@ -93,7 +112,13 @@ void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
     double mid_point_x = (lane_line->vehicle_points.front().x() +
                           lane_line->vehicle_points.back().x()) /
                          2.0;
-    lane_line->after_intersection = mid_point_x > min_intersection_x;
+    HLOG_DEBUG << "mid_point_x:" << mid_point_x;
+    if (zebra_enable) {
+      lane_line->after_intersection = mid_point_x > min_intersection_x;
+    } else {
+      lane_line->after_intersection = false;
+    }
+    HLOG_DEBUG << "after_intersection:" << lane_line->after_intersection;
   }
 }
 

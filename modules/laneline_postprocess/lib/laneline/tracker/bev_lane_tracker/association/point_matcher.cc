@@ -291,9 +291,10 @@ void PointMatcher::AssociationKnn(
                                         ->GetConstLaneTarget()
                                         ->GetConstTrackedLaneLine()
                                         ->point_set;
-      int dist_match_cnt = 0;
-      double dist_match_sum = 0;
-      double dist_sum = 0;
+      int near_dist_match_cnt = 0;     // 考虑近处的匹配结果
+      int far_dist_match_cnt = 0;      // 考虑整个的匹配结果
+      double near_dist_match_sum = 0;  // 考虑近处的匹配距离误差
+      double far_dist_match_sum = 0;   // 考虑整个的匹配距离误差
       std::vector<double> dist_list;
       dist_list.clear();
       PointIndexPointsPairPtr point_dist_ptr =
@@ -305,7 +306,17 @@ void PointMatcher::AssociationKnn(
                                    track_point_set.front().vehicle_point.x);
       float overlay_max = std::min(det_point_set.back().vehicle_point.x,
                                    track_point_set.back().vehicle_point.x);
-
+      bool close_near_match = false;
+      // 相交重叠很少或者不重叠可能是遮挡引起的，用整条线点做匹配
+      if (std::abs(overlay_min - overlay_max) < 2.0) {
+        overlay_min = static_cast<float>(det_point_set.front().vehicle_point.x);
+        overlay_max = static_cast<float>(det_point_set.back().vehicle_point.x);
+        point_match_dis_thresh_ = 0.4;
+        close_near_match = true;
+      }
+      int near_count_point =
+          2;  // overlay_min 到 near_max总共的点数(2作为初值兜底)
+      float near_max = overlay_min + 0.25F * (overlay_max - overlay_min);
       for (size_t k = 0; k < det_point_set.size(); ++k) {
         // 找最近的一个点
         const int dim = 1;
@@ -316,6 +327,11 @@ void PointMatcher::AssociationKnn(
         if (std::isnan(query_point[0]) || std::isnan(query_point[1])) {
           continue;
         }
+        if ((det_point_set[k].vehicle_point.x > overlay_min) &&
+            (det_point_set[k].vehicle_point.x < near_max)) {
+          near_count_point++;
+        }
+
         // 用检测和跟踪公共部分的点来计算距离
         if ((det_point_set[k].vehicle_point.x < overlay_min) ||
             (det_point_set[k].vehicle_point.x > overlay_max))
@@ -329,36 +345,71 @@ void PointMatcher::AssociationKnn(
                      det_point_set[k].vehicle_point.y);
 
         if (y_dist < point_match_dis_thresh_) {
-          dist_match_sum += y_dist;
-          dist_match_cnt++;
-          PointPair pt = std::make_tuple(k, nearest_index[0], nearest_dist[0]);
-          point_dist_ptr->emplace_back(pt);
-          dist_list.push_back(y_dist);
+          if (det_point_set[k].vehicle_point.x > overlay_min &&
+              det_point_set[k].vehicle_point.x < near_max) {
+            near_dist_match_sum += y_dist;
+            near_dist_match_cnt++;
+            PointPair pt =
+                std::make_tuple(k, nearest_index[0], nearest_dist[0]);
+            point_dist_ptr->emplace_back(pt);
+          } else {
+            far_dist_match_sum += y_dist;
+            far_dist_match_cnt++;
+            dist_list.push_back(y_dist);
+            PointPair pt =
+                std::make_tuple(k, nearest_index[0], nearest_dist[0]);
+            point_dist_ptr->emplace_back(pt);
+          }
         }
-        dist_sum += det_knn_thd_[i][k];
       }
-      HLOG_DEBUG << "point_match_debug timestamp: " << debug_timestamp_
-                 << ", trackId: "
-                 << lane_trackers[j]->GetConstLaneTarget()->Id()
-                 << ", detectId: " << detected_lanelines->at(i)->id
-                 << ", match_point_num: " << dist_match_cnt
-                 << ", dist_match_sum: " << dist_match_sum
-                 << ", average distance: " << dist_match_sum / dist_match_cnt
-                 << ", y err: " << track_lanes_y_err_[j];
-      double score = dist_match_sum / dist_match_cnt;
-      float total_score = 5.0 / score;
+      near_dist_match_cnt = near_dist_match_cnt > 0 ? near_dist_match_cnt : 1;
+      far_dist_match_cnt = far_dist_match_cnt > 0 ? far_dist_match_cnt : 1;
+      double near_score = near_dist_match_sum / near_dist_match_cnt;
+      double far_score = far_dist_match_sum / far_dist_match_cnt;
 
-      if (dist_match_cnt < point_match_num_thresh_ ||
-          total_score < match_score_thresh_)
+      HLOG_DEBUG << "laneline point_match_debug timestamp: " << debug_timestamp_
+                 << ", track index: " << j << ", trackId: "
+                 << lane_trackers[j]->GetConstLaneTarget()->Id()
+                 << ", detect index: " << i
+                 << ", detectId: " << detected_lanelines->at(i)->id
+                 << ", near_match_point_num: " << near_dist_match_cnt
+                 << ", near_dist_match_sum: " << near_dist_match_sum
+                 << ", near_average distance: " << near_score
+                 << ", far_match_point_num: " << far_dist_match_cnt
+                 << ", far_dist_match_sum: " << far_dist_match_sum
+                 << ", far_average distance: " << far_score
+                 << ", y err: " << track_lanes_y_err_[j]
+                 << ", close_near_match: " << close_near_match
+                 << ", overlay_min: " << overlay_min
+                 << ", near_max: " << near_max;
+
+      int near_match_cnt_threshold =
+          std::min(static_cast<int>(near_count_point * 0.5),
+                   3);  // 存在近处不足3个点的情况
+      bool near_threshold_flag =
+          near_dist_match_cnt < near_match_cnt_threshold || near_score > 0.6;
+      bool threshold_flag = far_dist_match_cnt < 6 || far_score > 1.0;
+      if (close_near_match) {
+        near_threshold_flag = false;  // 调头时近处匹配阈值不生效
+        near_score = 0.0;
+      }
+      if (near_threshold_flag || threshold_flag) {
         continue;
+      }
+      // 匹配分用于二分匹配
+      float total_score = 5.0f / (near_score + far_score);
       // 匹配分考虑匹配点数
-      total_score = total_score * std::log2f(dist_match_cnt);
+      total_score =
+          total_score * std::log2f(static_cast<float>(far_dist_match_cnt));
       if (dist_list.size() > 0) {
         std::sort(dist_list.begin(), dist_list.end());
         int key_idx = static_cast<int>(dist_list.size() * 0.70);
-        // HLOG_DEBUG << "50 percent distance:" << dist_list[key_idx];
-        if (dist_list[key_idx] > point_quantile_thresh_ * track_lanes_y_err_[j])
+        HLOG_DEBUG << "point_match_debug 50 percent distance:"
+                   << dist_list[key_idx];
+        if (dist_list[key_idx] >
+            point_quantile_thresh_ * track_lanes_y_err_[j]) {
           continue;
+        }
       }
 
       // 0: track_index, 1: detect_index
@@ -400,9 +451,10 @@ void PointMatcher::AssociationKnn(
                                         ->GetConstTrackedLaneLine()
                                         ->point_set;
 
-      int dist_match_cnt = 0;
-      double dist_match_sum = 0;
-      double dist_sum = 0;
+      int near_dist_match_cnt = 0;     // 考虑近处的匹配结果
+      int far_dist_match_cnt = 0;      // 考虑整个的匹配结果
+      double near_dist_match_sum = 0;  // 考虑近处的匹配距离误差
+      double far_dist_match_sum = 0;   // 考虑整个的匹配距离误差
       PointIndexPointsPairPtr point_dist_ptr =
           std::make_shared<PointIndexPointsPair>();
       point_dist_ptr->reserve(det_point_set.size());
@@ -412,7 +464,17 @@ void PointMatcher::AssociationKnn(
                                    track_point_set.front().vehicle_point.x);
       float overlay_max = std::min(det_point_set.back().vehicle_point.x,
                                    track_point_set.back().vehicle_point.x);
-
+      bool close_near_match = false;
+      // 相交重叠很少或者不重叠可能是遮挡引起的，用整条线点做匹配
+      if (std::abs(overlay_min - overlay_max) < 2.0) {
+        overlay_min = static_cast<float>(det_point_set.front().vehicle_point.x);
+        overlay_max = static_cast<float>(det_point_set.back().vehicle_point.x);
+        point_match_dis_thresh_ = 0.4;
+        close_near_match = true;
+      }
+      int near_count_point =
+          2;  // overlay_min 到 near_max总共的点数(2作为初值兜底)
+      float near_max = overlay_min + 0.25F * (overlay_max - overlay_min);
       for (size_t k = 0; k < det_point_set.size(); ++k) {
         // 找最近的一个点
         const int dim = 1;
@@ -423,6 +485,11 @@ void PointMatcher::AssociationKnn(
         if (std::isnan(query_point[0]) || std::isnan(query_point[1])) {
           continue;
         }
+        if ((det_point_set[k].vehicle_point.x > overlay_min) &&
+            (det_point_set[k].vehicle_point.x < near_max)) {
+          near_count_point++;
+        }
+
         // 用检测和跟踪公共部分的点来计算距离
         if ((det_point_set[k].vehicle_point.x < overlay_min) ||
             (det_point_set[k].vehicle_point.x > overlay_max))
@@ -434,27 +501,62 @@ void PointMatcher::AssociationKnn(
         float y_dist =
             std::abs(track_point_set[nearest_index[0]].vehicle_point.y -
                      det_point_set[k].vehicle_point.y);
-        if (y_dist < point_match_dis_thresh_) {
-          dist_match_sum += y_dist;
-          dist_match_cnt++;
-          PointPair pt = std::make_tuple(k, nearest_index[0], nearest_dist[0]);
-          point_dist_ptr->emplace_back(pt);
-        }
-        dist_sum += det_knn_thd_[i][k];
-      }
-      HLOG_DEBUG << "point_match_debug timestamp: " << debug_timestamp_
-                 << ", trackId: "
-                 << lane_trackers[j]->GetConstLaneTarget()->Id()
-                 << ", detectId: " << detected_lanelines->at(i)->id
-                 << ", match_point_num: " << dist_match_cnt
-                 << ", dist_match_sum: " << dist_match_sum
-                 << ", average distance: " << dist_match_sum / dist_match_cnt;
-      double score = dist_match_sum / dist_match_cnt;
-      float total_score = 5.0 / score;
 
-      if (dist_match_cnt < point_match_num_thresh_ ||
-          total_score < match_score_thresh_)
+        if (y_dist < point_match_dis_thresh_) {
+          if (det_point_set[k].vehicle_point.x > overlay_min &&
+              det_point_set[k].vehicle_point.x < near_max) {
+            near_dist_match_sum += y_dist;
+            near_dist_match_cnt++;
+            PointPair pt =
+                std::make_tuple(k, nearest_index[0], nearest_dist[0]);
+            point_dist_ptr->emplace_back(pt);
+          } else {
+            far_dist_match_sum += y_dist;
+            far_dist_match_cnt++;
+            PointPair pt =
+                std::make_tuple(k, nearest_index[0], nearest_dist[0]);
+            point_dist_ptr->emplace_back(pt);
+          }
+        }
+      }
+      near_dist_match_cnt = near_dist_match_cnt > 0 ? near_dist_match_cnt : 1;
+      far_dist_match_cnt = far_dist_match_cnt > 0 ? far_dist_match_cnt : 1;
+      double near_score = near_dist_match_sum / near_dist_match_cnt;
+      double far_score = far_dist_match_sum / far_dist_match_cnt;
+
+      HLOG_DEBUG << "roadedge point_match_debug timestamp: " << debug_timestamp_
+                 << ", track index: " << j << ", trackId: "
+                 << lane_trackers[j]->GetConstLaneTarget()->Id()
+                 << ", detect index: " << i
+                 << ", detectId: " << detected_lanelines->at(i)->id
+                 << ", near_match_point_num: " << near_dist_match_cnt
+                 << ", near_dist_match_sum: " << near_dist_match_sum
+                 << ", near_average distance: " << near_score
+                 << ", far_match_point_num: " << far_dist_match_cnt
+                 << ", far_dist_match_sum: " << far_dist_match_sum
+                 << ", far_average distance: " << far_score
+                 << ", close_near_match: " << close_near_match
+                 << ", overlay_min: " << overlay_min
+                 << ", near_max: " << near_max;
+
+      int near_match_cnt_threshold =
+          std::min(static_cast<int>(near_count_point * 0.5),
+                   3);  // 存在近处不足3个点的情况
+      bool near_threshold_flag =
+          near_dist_match_cnt < near_match_cnt_threshold || near_score > 0.6;
+      bool threshold_flag = far_dist_match_cnt < 6 || far_score > 1.0;
+      if (close_near_match) {
+        near_threshold_flag = false;  // 调头时近处匹配阈值不生效
+        near_score = 0.0;
+      }
+      if (near_threshold_flag || threshold_flag) {
         continue;
+      }
+      // 匹配分用于二分匹配
+      float total_score = 5.0f / (near_score + far_score);
+      // 匹配分考虑匹配点数
+      total_score =
+          total_score * std::log2f(static_cast<float>(far_dist_match_cnt));
 
       // 0: track_index, 1: detect_index
       std::get<0>(match_score_tuple_) = j;

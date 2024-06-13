@@ -25,7 +25,7 @@ void RoadEdgePositionManager::Process(const RoadEdgesPtr& roadedges_ptr) {
     if (road_edge->vehicle_points.back().x() -
                 road_edge->vehicle_points.front().x() <
             10 ||
-        road_edge->vehicle_points.back().x() < -10 ||
+        road_edge->vehicle_points.back().x() < 0 ||
         road_edge->vehicle_points.front().x() > 60) {
       road_edge->position = LaneLinePosition::OTHER;
       unknown_positionroad_edges.emplace_back(road_edge);

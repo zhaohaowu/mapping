@@ -31,6 +31,9 @@ class LaneLineMergeTrack {
   // 选择merge后的车道线类型
   void SetLaneLineType(const LaneTargetPtr& curr_line,
                        const LaneTargetPtr& deleted_line);
+  void SetTrackIdPair(const LaneTargetPtr& curr_line,
+                      const LaneTargetPtr& delete_line);
+  std::unordered_map<int, int> line_id_pairs_;
 };
 
 }  // namespace lm

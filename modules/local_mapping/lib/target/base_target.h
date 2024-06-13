@@ -71,7 +71,26 @@ class BaseTarget {
   inline double GetLastestTrackedTimestamp() const {
     return lastest_tracked_timestamp_;
   }
+  inline void SetStartTrackedTimestamp(const double& timestamp) {
+    if (!ts_initialized_) {
+      start_tracked_timestamp_ = timestamp;
+      ts_initialized_ = true;
+    }
+  }
 
+  inline double GetStartTrackedTimestamp() const {
+    return start_tracked_timestamp_;
+  }
+  inline void SetMatureTrackedTimestamp(const double& timestamp) {
+    if (!ts_matured_ && track_status_ == TrackStatus::TRACKED) {
+      mature_tracked_timestamp_ = timestamp;
+      ts_matured_ = true;
+    }
+  }
+
+  inline double GetMatureTrackedTimestamp() const {
+    return mature_tracked_timestamp_;
+  }
   inline int GetLostAge() const { return lost_age_; }
 
   inline void SetLostAge(int lost_age) { lost_age_ = lost_age; }
@@ -117,7 +136,7 @@ class BaseTarget {
     return deleted_ids;
   }
   inline int Id() const { return id_; }
-
+  inline void SetId(int id) { id_ = id; }
   inline int Count() const { return tracked_count_; }
   boost::circular_buffer<bool> lastest_n_tracked_state_;
 
@@ -132,7 +151,10 @@ class BaseTarget {
   TrackStatus track_status_ = TrackStatus::MAX_TRACK_STATUS_NUM;
   double start_tracked_timestamp_ = 0.0;
   double lastest_tracked_timestamp_ = 0.0;
+  double mature_tracked_timestamp_ = 0.0;
   double tracking_time_ = 0.0;
+  bool ts_initialized_ = false;  // 新建标志位
+  bool ts_matured_ = false;      // 成熟标志位
 
  protected:
   // 后续需要放到配置文件中 TODO(张文海)。
@@ -159,6 +181,8 @@ bool BaseTarget<Element>::InitBase(const ProcessOption& options,
   tracked_count_++;
   start_tracked_timestamp_ = options.timestamp;
   lastest_tracked_timestamp_ = options.timestamp;
+  // 第一次成熟时的时间戳
+  mature_tracked_timestamp_ = options.timestamp;
   UpdateTrackStatus(false);
   return true;
 }
@@ -234,10 +258,14 @@ void BaseTarget<Element>::UpdateWithDetectedObject(
   UpdateTrackStatus(false);
   if (track_status_ == TrackStatus::TRACKED) {
     tracked_element_->state = TrackState::MATURED;
+
   } else {
     tracked_element_->state = TrackState::NOTMATURED;
   }
   SetLastestTrackedTimestamp(options.timestamp);
+  SetStartTrackedTimestamp(options.timestamp);
+  SetMatureTrackedTimestamp(options.timestamp);
+
   tracking_time_ = lastest_tracked_timestamp_ - start_tracked_timestamp_;
   lastest_n_tracked_state_.push_back(true);
   tracked_element_->tracking_time = tracking_time_;

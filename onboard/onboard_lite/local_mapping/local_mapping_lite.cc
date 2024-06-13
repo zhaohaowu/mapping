@@ -39,6 +39,8 @@ namespace lm {
 int32_t LocalMappingOnboard::AlgInit() {
   REGISTER_PROTO_MESSAGE_TYPE("percep_detection",
                               hozon::perception::measurement::MeasurementPb);
+  REGISTER_PROTO_MESSAGE_TYPE("localization",
+                              hozon::localization::Localization);
   REGISTER_PROTO_MESSAGE_TYPE("camera_0", hozon::soc::Image);
   REGISTER_PROTO_MESSAGE_TYPE("running_mode",
                               hozon::perception::common_onboard::running_mode);

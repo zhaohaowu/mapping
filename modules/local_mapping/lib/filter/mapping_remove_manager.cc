@@ -372,7 +372,7 @@ LaneTargetPtr MappingRemoveManager::DeleteLinebetweenRefLane(
              << ref_id_delta_pairs[index].first->Id();
   HLOG_DEBUG << "left_delta:" << left_delta << " ,right_delta:" << right_delta;
 
-  if ((std::abs(left_delta) < 2.5 || std::abs(right_delta) < 2.5) &&
+  if ((std::abs(left_delta) < 3.5 / 2 || std::abs(right_delta) < 3.5 / 2) &&
       lanetarget->GetConstTarget()->GetConstTrackedObject()->lost_age > 4) {
     // 查找对应的ref_id, 以left为准
     return ref_id_delta_pairs[index - 1].first;

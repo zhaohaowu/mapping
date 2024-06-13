@@ -3650,7 +3650,7 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
     point.y = 0.0;
     point.z = 0.0;
     heading_data->emplace_back(point);
-    HLOG_INFO << "----mean_heading:" << line->mean_end_heading;
+    HLOG_DEBUG << "----mean_heading:" << line->mean_end_heading;
 
     if (line->id == ego_line_id_.left_id) {
       ego_left_heading = line->mean_end_heading;

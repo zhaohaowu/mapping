@@ -688,7 +688,7 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
           }
         } else if (groups[i]->group_segments[0]->start_slice.po.x() < 0.0) {
           //  如果找到车所在的group
-          HLOG_ERROR << "groups[i]->str_id = " << groups[i]->str_id;
+          HLOG_INFO << "cur group id:" << groups[i]->str_id;
           iscross->is_crossing_ = 0;
           iscross->next_lane_left = -1000;
           iscross->next_lane_right = -1000;

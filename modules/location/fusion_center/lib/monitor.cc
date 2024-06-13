@@ -96,21 +96,21 @@ bool Monitor::MonitorFault() {
     pe_fault_state = MergePeFault();
     if (pe_fault_state == 123) {
       fault_state.pecep_lane_error = true;
-      HLOG_ERROR << "pe fault(123):PE No Peception lane";
+      HLOG_DEBUG << "pe fault(123):PE No Peception lane";
     } else {
       fault_state.pecep_lane_error = false;
     }
 
     if (pe_fault_state == 124) {
       fault_state.map_lane_error = true;
-      HLOG_ERROR << "pe fault(124):PE No Map lane";
+      HLOG_DEBUG << "pe fault(124):PE No Map lane";
     } else {
       fault_state.map_lane_error = false;
     }
 
     if (pe_fault_state == 130) {
       fault_state.fc_map_lane_match_error = true;
-      HLOG_ERROR << "fc fault(130):Map and Peception Lane Mismatch With FC";
+      HLOG_DEBUG << "fc fault(130):Map and Peception Lane Mismatch With FC";
     } else {
       fault_state.fc_map_lane_match_error = false;
     }
@@ -120,7 +120,7 @@ bool Monitor::MonitorFault() {
   if (params_.fault_128) {
     if (PoseJumpSingleFrameVehicle()) {
       fault_state.fc_single_jump_error = true;
-      HLOG_ERROR << "fc fault(128):FC SingleFrame Mutation";
+      HLOG_DEBUG << "fc fault(128):FC SingleFrame Mutation";
     } else {
       fault_state.fc_single_jump_error = false;
     }

@@ -2246,7 +2246,7 @@ void GeoOptimization::CreateLocalLineTable() {
     }
     if (local_line_table_.find(right_line_pos) == local_line_table_.end()) {
       local_line_table_.at(lane_pos).flag = 1;
-      HLOG_WARN << "right_line_pos not in local_line_table";
+      HLOG_DEBUG << "right_line_pos not in local_line_table";
       continue;
     }
     if (local_line_table_.find(left_line_pos) == local_line_table_.end()) {

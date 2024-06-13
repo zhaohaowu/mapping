@@ -281,9 +281,8 @@ class GroupMap {
                                   std::vector<Group::Ptr>* groups);
   void GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp);
   bool LaneLineNeedToPredict(const LineSegment& line, bool check_back = true);
-  void PredictLaneLine(const Group::Ptr curr_group,
-                       std::vector<Group::Ptr>* groups,
-                       const Lane::Ptr curr_lane, double stamp);
+  void PredictLaneLine(std::vector<Lane::Ptr>* pred_lane,
+                       const Lane::Ptr curr_lane);
   std::shared_ptr<hozon::hdmap::Map> ConvertToProtoMap(
       const std::vector<Group::Ptr>& groups, const KinePose::Ptr& curr_pose,
       const em::ElementMap::Ptr& ele, HistoryId* history_id);

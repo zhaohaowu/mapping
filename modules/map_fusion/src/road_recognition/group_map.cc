@@ -231,14 +231,13 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
         const Eigen::Vector2f pb = last_n_pts.at(i + 1).pt.head<2>();
         Eigen::Vector2f v = pb - pa;
         double theta = 0;
-        if (std::abs(v.x()) > 0.8) {
+        if (v.norm() > 0.2) {
           theta = atan2(v.y(), v.x());  // atan2计算出的角度范围是[-pi, pi]
-          thetas.push_back(theta);
+          thetas.emplace_back(theta);
           mean_theta += theta;
           mean_interval += v.norm();
         }
       }
-
       mean_interval /= (static_cast<double>(thetas.size()) + 1e-1);
       mean_theta /= (static_cast<double>(thetas.size()) + 1e-1);
       double square_sum =
@@ -3473,9 +3472,15 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
                        heading_threshold, need_pred_kappa);
 
         // 重新构建group 线的类型为虚线
+        std::vector<Lane::Ptr> center_line_pred;
         for (auto& lane : center_line_need_pred) {
-          PredictLaneLine(last_grp, groups, lane, stamp);
+          PredictLaneLine(&center_line_pred, lane);
         }
+        Group grp;
+        grp.stamp = stamp;
+        grp.str_id = last_grp->str_id + "P";
+        grp.lanes = center_line_pred;
+        (*groups).emplace_back(std::make_shared<Group>(grp));
       }
     }
   }
@@ -5193,13 +5198,8 @@ bool GroupMap::LaneLineNeedToPredict(const LineSegment& line, bool check_back) {
 
 // 对line从最后一个点开始，沿着heading方向直线预测
 //! TBD：当前直接按直线预测，后续考虑对弯道继续非直线预测，比如按曲率
-void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
-                               std::vector<Group::Ptr>* groups,
-                               const Lane::Ptr curr_lane, double stamp) {
-  Group grp;
-  grp.stamp = stamp;
-  grp.str_id = curr_group->str_id + "P";
-
+void GroupMap::PredictLaneLine(std::vector<Lane::Ptr>* pred_lane,
+                               const Lane::Ptr curr_lane) {
   // 预测左边线
   Lane lane_pre;
   LineSegment left_bound;
@@ -5372,10 +5372,8 @@ void GroupMap::PredictLaneLine(const Group::Ptr curr_group,
   if (lane_pre.left_boundary->pts.size() > 1 &&
       lane_pre.right_boundary->pts.size() > 1 &&
       lane_pre.center_line_pts.size() > 1) {
-    grp.lanes.emplace_back(std::make_shared<Lane>(lane_pre));
+    pred_lane->emplace_back(std::make_shared<Lane>(lane_pre));
   }
-
-  (*groups).emplace_back(std::make_shared<Group>(grp));
 }
 
 // 判断车道是否收缩，即宽度越来越小

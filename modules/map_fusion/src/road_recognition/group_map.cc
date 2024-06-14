@@ -142,6 +142,9 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
   BuildGroups(ele_map->map_info.stamp, group_segments_, &groups_);
   is_cross->next_lane_left = is_cross_.next_lane_left;
   is_cross->next_lane_right = is_cross_.next_lane_right;
+  is_cross->is_connect_ = is_cross_.is_connect_;
+  is_cross->is_crossing_ = is_cross_.is_crossing_;
+  is_cross->along_path_dis_ = is_cross_.along_path_dis_;
   return true;
 }
 
@@ -816,6 +819,7 @@ void GroupMap::GenLaneSegInGroupSeg(std::vector<GroupSegment::Ptr>* segments) {
 void GroupMap::UniteGroupSegmentsToGroups(
     double stamp, std::vector<GroupSegment::Ptr> group_segments,
     std::vector<Group::Ptr>* groups) {
+  // HLOG_ERROR << "group_segments.size() = " << group_segments.size();
   if (group_segments.size() > 1) {
     while (group_segments.size() > 1 &&
            group_segments[0]->str_id != group_segments[1]->str_id) {
@@ -831,7 +835,6 @@ void GroupMap::UniteGroupSegmentsToGroups(
       }
     }
   }
-
   if (group_segments.size() > 3) {
     for (size_t i = 1; i < group_segments.size() - 2; ++i) {
       if ((group_segments[i]->str_id != group_segments[i - 1]->str_id) &&
@@ -842,6 +845,13 @@ void GroupMap::UniteGroupSegmentsToGroups(
       }
     }
   }
+  // for (size_t i = 0; i < group_segments.size(); ++i) {
+  //   if (group_segments[i]->str_id == "") {
+  //     group_segments.erase(group_segments.begin() + i);
+  //     i--;
+  //   }
+  // }
+  // HLOG_ERROR << "group_segments2.size() = " << group_segments.size();
 
   int grp_idx = -1;
   for (const auto& seg : group_segments) {
@@ -862,6 +872,8 @@ void GroupMap::UniteGroupSegmentsToGroups(
     grp->stamp = stamp;
     groups->emplace_back(grp);
   }
+  // HLOG_ERROR << "grp_idx = " << grp_idx
+  //            << "groups->size() = " << groups->size();
   if (grp_idx > 2) {
     for (size_t i = 1; i < groups->size() - 1; ++i) {
       if (groups->at(i - 1)->seg_str_id == groups->at(i + 1)->seg_str_id &&
@@ -1627,7 +1639,8 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
         //! group就变成最后一个group了，后续就能正常使用其向前预测了.
         HLOG_INFO << "curr_group NAME = " << curr_group->str_id
                   << "  dist_to_slice = " << dist_to_slice
-                  << "  veh_in_this_junction = " << veh_in_this_junction;
+                  << "  veh_in_this_junction = " << veh_in_this_junction
+                  << "  next_group_name = " << next_group->str_id;
         if (veh_in_this_junction) {
           Lane::Ptr ego_curr_lane = nullptr;
           FindNearestLaneToHisVehiclePosition(curr_group, &ego_curr_lane);
@@ -1635,7 +1648,14 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
           FindBestNextLane(next_group, dist_to_slice, &best_next_lane);
           // 条件判断，分三种情况
           if (ego_curr_lane != nullptr && best_next_lane != nullptr &&
-              dist_to_slice <= conf_.next_group_max_distance) {
+              (dist_to_slice <= conf_.next_group_max_distance ||
+               is_cross_.is_connect_)) {
+            HLOG_INFO << "best_next_lane = "
+                      << best_next_lane->str_id_with_group;
+            is_cross_.is_crossing_ = 1;
+            is_cross_.is_connect_ = 1;
+            is_cross_.along_path_dis_ =
+                curr_group->group_segments.back()->end_slice.po;
             GenerateTransitionLane(ego_curr_lane, best_next_lane,
                                    &virtual_lanes);
           } else if (ego_curr_lane == nullptr) {
@@ -1681,7 +1701,8 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
       groups->insert(groups->begin() + i + 1, group_virtual.back());
       group_virtual.pop_back();
     }
-    if (groups->at(i)->str_id + 'V' == group_virtual.back()->str_id) {
+    if (!group_virtual.empty() &&
+        groups->at(i)->str_id + 'V' == group_virtual.back()->str_id) {
       groups->insert(groups->begin() + i + 1, group_virtual.back());
       group_virtual.pop_back();
     }
@@ -1817,9 +1838,10 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
       float pre_y = param_left[0] + param_left[1] * pre_x;
       left_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
     }
-    if (left_bound.pts.empty()) {
-      return;
-    }
+    // HLOG_INFO << "left_bound.pts.size() = " << left_bound.pts.size();
+    // if (left_bound.pts.empty()) {
+    //   return;
+    // }
 
     tmp_pts.clear();
     tmp_pts.emplace_back(lane_in_curr->right_boundary->pts[index_right - 1]);
@@ -1831,9 +1853,10 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
       float pre_y = param_left[0] + param_left[1] * pre_x;
       right_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
     }
-    if (right_bound.pts.empty()) {
-      return;
-    }
+    // HLOG_INFO << "right_bound.pts.size() = " << right_bound.pts.size();
+    // if (right_bound.pts.empty()) {
+    //   return;
+    // }
     tmp_pts.clear();
     tmp_pts.emplace_back(lane_in_curr->center_line_pts[index_center - 1]);
     tmp_pts.emplace_back(lane_in_next->center_line_pts[0]);
@@ -1845,6 +1868,7 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
       center_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
     }
     ctr_pts.emplace_back(lane_in_next->center_line_pts.front());
+    // HLOG_INFO << "ctr_pts.pts.size() = " << ctr_pts.size();
     if (ctr_pts.empty()) {
       return;
     }
@@ -2079,6 +2103,9 @@ void GroupMap::GenerateTransitionLane(Lane::Ptr lane_in_curr,
   Lane::Ptr transition_lane = std::make_shared<Lane>();
   transition_lane->left_boundary = std::make_shared<LineSegment>();
   transition_lane->right_boundary = std::make_shared<LineSegment>();
+  // HLOG_INFO << "is_cross_.is_crossing_ = " << is_cross_.is_crossing_
+  //            << "   is_cross_.along_path_dis_.norm() = "
+  //            << is_cross_.along_path_dis_.norm();
   if (is_cross_.is_crossing_ && is_cross_.along_path_dis_.norm() > 2.0) {
     GenerateTransitionLaneToBefore(lane_in_curr, transition_lane);
     (*virtual_lanes).emplace_back(transition_lane);
@@ -2104,9 +2131,7 @@ void GroupMap::GenerateTransitionLane(Lane::Ptr lane_in_curr,
     GenerateTransitionLaneGeo(lane_in_curr, lane_in_next, transition_lane);
     GenerateTransitionLaneToPo(lane_in_curr, lane_in_next, transition_lane);
 
-    if (transition_lane->left_boundary->pts.size() > 1 &&
-        transition_lane->right_boundary->pts.size() > 1 &&
-        transition_lane->center_line_pts.size() > 1) {
+    if (transition_lane->center_line_pts.size() > 1) {
       (*virtual_lanes).emplace_back(transition_lane);
     }
   }
@@ -2317,6 +2342,7 @@ void GroupMap::FindBestNextLane(Group::Ptr next_group,
       max_len = len;
       *best_next_lane = next_lane;
     }
+    // HLOG_INFO << "len = " << acos(len) * 180 / pi_;
   }
 
   float min_offset = FLT_MAX;
@@ -5406,7 +5432,8 @@ bool GroupMap::IsLaneShrink(Lane::Ptr lane) {
   auto left_mid_dist = PointToVectorDist(rmvpt0, rmvpt1, lmpt);
   auto left_diff_dist = left_mid_dist - left_back_dist;
   const float kShrinkDiffThreshold = 0.5;
-  if (left_diff_dist > 0 && std::abs(left_diff_dist) > kShrinkDiffThreshold) {
+  if (left_diff_dist > 0 && std::abs(left_diff_dist) > kShrinkDiffThreshold &&
+      left_back_dist < conf_.min_lane_width + 0.5) {
     return true;
   }
 

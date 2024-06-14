@@ -121,6 +121,7 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
   is_cross_.along_path_dis_.z() = 0.0;
   is_cross_.next_lane_left = -1000;
   is_cross_.next_lane_right = -1000;
+  is_cross_.is_connect_ = 0;
   history_id_.lane_id = 0;
   history_id_.road_id = 0;
   history_id_.cicle = 2000;
@@ -692,6 +693,7 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
           iscross->is_crossing_ = 0;
           iscross->next_lane_left = -1000;
           iscross->next_lane_right = -1000;
+          iscross->is_connect_ = 0;
           break;
         }
       }

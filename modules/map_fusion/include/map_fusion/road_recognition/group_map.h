@@ -207,12 +207,13 @@ struct GroupMapConf {
 };
 
 struct IsCross {
-  int is_crossing_ = 0;
-  em::Point along_path_dis_;
-  size_t cross_before_lane_ = 0;
-  size_t cross_after_lane_ = 0;
-  em::Id next_lane_left = -1000;
-  em::Id next_lane_right = -1000;
+  int is_crossing_ = 0;       // 是否是路口场景
+  em::Point along_path_dis_;  // 自车与路口前的group的位移（向量）
+  size_t cross_before_lane_ = 0;  // 路口前group的lanes数量
+  size_t cross_after_lane_ = 0;   // 路口后group的lanes数量
+  em::Id next_lane_left = -1000;  // 记录与路口后某条lane连接的左边线trackid
+  em::Id next_lane_right = -1000;  // 记录与路口后某条lane连接的右边线trackid
+  int is_connect_ = 0;  // 防抖，防止这帧连下一帧不连导致画龙
 };
 
 struct HistoryId {

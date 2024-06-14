@@ -1483,14 +1483,23 @@ std::vector<Eigen::Vector3d> GeoOptimization::FindTargetPoints(
         ComputerLineDis(road_edge, line_pts, &widths);
         double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
                            static_cast<double>(widths.size());
-        if (IsTatgetOnLineRight(road_edge, line) && avg_width > 3.0) {
-          have_right_line = true;
-        } else if (!IsTatgetOnLineRight(road_edge, line) && avg_width > 3.0) {
+        if (IsTargetOnLineRight(road_edge, line) == RelativePosition::RIGHT &&
+            avg_width > 3.0) {
           have_left_line = true;
+        } else if (IsTargetOnLineRight(road_edge, line) ==
+                       RelativePosition::LEFT &&
+                   avg_width > 3.0) {
+          have_right_line = true;
         }
         if (have_left_line && have_right_line) {
-          res = road_edge;
-          return res;
+          double sum_y = 0;
+          for (const auto& point : road_edge) {
+            sum_y += point.y();
+          }
+          if (sum_y > 0) {
+            res = road_edge;
+            return res;
+          }
         }
       }
     }
@@ -1498,43 +1507,56 @@ std::vector<Eigen::Vector3d> GeoOptimization::FindTargetPoints(
   return res;
 }
 
-bool GeoOptimization::IsTatgetOnLineRight(
+RelativePosition GeoOptimization::IsTargetOnLineRight(
     const std::vector<Eigen::Vector3d>& target_line, const Line_kd& line) {
+  int line_size = line.line->points_size();
+  if (line_size < 2 || target_line.size() < 1) {
+    return RelativePosition::UNCERTAIN;
+  }
+  if (target_line.front().x() >= line.line->points(line_size - 1).x() &&
+      line.line->points(0).x() >= target_line.back().x()) {
+    return RelativePosition::UNCERTAIN;
+  }
   int num_thresh = 0, num_calculate = 0;
-  for (const auto& point : target_line) {
-    if (std::isnan(point.x()) || std::isnan(point.y()) ||
-        std::isnan(point.z())) {
-      HLOG_ERROR << "found nan point in double_solid_yellow_line";
+  for (int target_index = 0, line_index = 0; target_index < target_line.size();
+       target_index++) {
+    if (std::isnan(target_line.at(target_index).x()) ||
+        std::isnan(target_line.at(target_index).y()) ||
+        std::isnan(target_line.at(target_index).z())) {
+      HLOG_ERROR
+          << "found nan point in double_solid_yellow_line or road_edge_line";
       continue;
     }
-    int dim = 2;
-    std::vector<int> nearest_index(dim);
-    std::vector<float> nearest_dis(dim);
-    std::vector<float> query_point = std::vector<float>{
-        static_cast<float>(point.x()), static_cast<float>(point.y())};
-    line.line_kdtree->knnSearch(query_point, nearest_index, nearest_dis, dim,
-                                cv::flann::SearchParams(-1));
-    if (nearest_index.size() < 2) {
+    Eigen::Vector3d target_point(target_line.at(target_index).x(),
+                                 target_line.at(target_index).y(),
+                                 target_line.at(target_index).z());
+    if (target_point.x() < line.line->points(0).x()) {
       continue;
     }
-    Eigen::Vector3d point_e(point.x(), point.y(), point.z());
-    Eigen::Vector3d linel1(line.line->points(nearest_index[0]).x(),
-                           line.line->points(nearest_index[0]).y(), 0.0);
-    Eigen::Vector3d linel2(line.line->points(nearest_index[1]).x(),
-                           line.line->points(nearest_index[1]).y(), 0.0);
-    if (ComputerPointIsInLine(point_e, linel1, linel2)) {
-      num_calculate++;
-      if (IsRight(point_e, linel1, linel2)) {
-        num_thresh++;
-      }
+    while (line_index < line_size - 1 &&
+           line.line->points(line_index + 1).x() < target_point.x()) {
+      line_index++;
+    }
+    if (line_index == line_size - 1) {
+      break;
+    }
+    Eigen::Vector3d linel1(line.line->points(line_index).x(),
+                           line.line->points(line_index).y(),
+                           line.line->points(line_index).z());
+    Eigen::Vector3d linel2(line.line->points(line_index + 1).x(),
+                           line.line->points(line_index + 1).y(),
+                           line.line->points(line_index + 1).z());
+    num_calculate++;
+    if (IsRight(target_point, linel1, linel2)) {
+      num_thresh++;
     }
   }
-  if (num_calculate < 1 || num_thresh < 1 ||
+  if (num_thresh < 1 ||
       (num_calculate != 0 && (static_cast<double>(num_thresh) /
                               static_cast<double>(num_calculate)) < 0.5)) {
-    return false;
+    return RelativePosition::LEFT;
   }
-  return true;
+  return RelativePosition::RIGHT;
 }
 
 void GeoOptimization::HandleOppisiteLine(
@@ -1560,7 +1582,8 @@ void GeoOptimization::HandleOppisiteLine(
       ComputerLineDis(target_line, line_pts, &widths);
       double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
                          static_cast<double>(widths.size());
-      if (IsTatgetOnLineRight(target_line, line) && avg_width > 3.0) {
+      if (IsTargetOnLineRight(target_line, line) == RelativePosition::RIGHT &&
+          avg_width > 3.0) {
         line.is_ego_road = false;
       }
     }

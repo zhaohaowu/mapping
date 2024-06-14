@@ -106,6 +106,8 @@ enum Color {
   BLACK = 5
 };
 
+enum class RelativePosition { LEFT = 0, RIGHT = 1, UNCERTAIN = 2 };
+
 struct local_line_info {
   hozon::mapping::LanePositionType lane_pos;
   std::vector<Eigen::Vector3d> local_line_pts;
@@ -346,8 +348,9 @@ class GeoOptimization {
   std::vector<Eigen::Vector3d> FindTargetPoints(
       const std::vector<std::vector<Eigen::Vector3d>>& forward_road_edges);
 
-  bool IsTatgetOnLineRight(const std::vector<Eigen::Vector3d>& target_line,
-                           const Line_kd& lane_line);
+  RelativePosition IsTargetOnLineRight(
+      const std::vector<Eigen::Vector3d>& target_line,
+      const Line_kd& lane_line);
 };
 }  // namespace mf
 }  // namespace mp

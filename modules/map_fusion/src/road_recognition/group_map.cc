@@ -273,9 +273,9 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
       std::vector<double> fit_result;
       std::vector<Vec2d> fit_points;
       // std::vector<Vec2d> sample_points;
-      const int select_back_index = 3;
-      if (points.size() >= 10) {
-        std::copy(points.rbegin(), points.rbegin() + 10,
+      // const int select_back_index = 3;
+      if (points.size() >= 20) {
+        std::copy(points.rbegin(), points.rbegin() + 20,
                   std::back_inserter(fit_points));
         math::FitLaneLinePoint(fit_points, &fit_result);
 
@@ -295,22 +295,23 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
         math::ComputeDiscretePoints(fit_points, fit_result, &kappas, &dkappas);
 
         // 整体平均
-        // kappa = kappas.empty()
-        //             ? 0.0
-        //             : std::accumulate(kappas.begin(), kappas.end(), 0.) /
-        //                   kappas.size();
-        // dkappa = dkappas.empty()
-        //              ? 0.0
-        //              : std::accumulate(dkappas.begin(), dkappas.end(), 0.) /
-        //                    dkappas.size();
+        kappa = kappas.empty()
+                    ? 0.0
+                    : std::accumulate(kappas.begin(), kappas.end(), 0.) /
+                          kappas.size();
+        dkappa = dkappas.empty()
+                     ? 0.0
+                     : std::accumulate(dkappas.begin(), dkappas.end(), 0.) /
+                           dkappas.size();
 
         // 选取一个点的kappa和dkappa
-        kappa = (kappas[select_back_index - 1] + kappas[select_back_index] +
-                 kappas[select_back_index + 1]) /
-                3;
-        dkappa = (dkappas[select_back_index] + dkappas[select_back_index + 1] +
-                  dkappas[select_back_index + 2]) /
-                 3;
+        // kappa = (kappas[select_back_index - 1] + kappas[select_back_index] +
+        //          kappas[select_back_index + 1]) /
+        //         3;
+        // dkappa = (dkappas[select_back_index] + dkappas[select_back_index + 1]
+        // +
+        //           dkappas[select_back_index + 2]) /
+        //          3;
         kappa = kappa / 8.;
         dkappa = dkappa / 8.;
       }
@@ -3794,6 +3795,9 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
 
   kappa = 0.4 * last_predict_kappa + 0.6 * kappa;
   dkappa = 0.4 * last_predict_dkappa + 0.6 * dkappa;
+
+  // 对曲率kappa做一个阈值限制 曲率半径180m
+  kappa = std::min(kappa, static_cast<double>(1.0 / 180.0));
 
   last_predict_kappa = kappa;
   last_predict_dkappa = dkappa;

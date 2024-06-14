@@ -1657,6 +1657,19 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
             is_cross_.is_connect_ = 1;
             is_cross_.along_path_dis_ =
                 curr_group->group_segments.back()->end_slice.po;
+            if (best_next_lane->left_boundary->id ==
+                    ego_curr_lane->left_boundary->id ||
+                best_next_lane->right_boundary->id ==
+                    ego_curr_lane->right_boundary->id) {
+              // 如果是三分四场景没有车道线的情况
+              best_next_lane->prev_lane_str_id_with_group.emplace_back(
+                  ego_curr_lane->str_id_with_group);
+              ego_curr_lane->next_lane_str_id_with_group.emplace_back(
+                  best_next_lane->str_id_with_group);
+              ego_curr_lane->center_line_pts.emplace_back(
+                  best_next_lane->center_line_pts.front());
+              break;
+            }
             GenerateTransitionLane(ego_curr_lane, best_next_lane,
                                    &virtual_lanes);
           } else if (ego_curr_lane == nullptr) {

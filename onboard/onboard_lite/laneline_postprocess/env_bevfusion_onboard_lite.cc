@@ -33,20 +33,12 @@ int32_t EnvBevfusionOnboard::AlgInit() {
   REGISTER_PROTO_MESSAGE_TYPE("percep_detection",
                               hozon::perception::measurement::MeasurementPb);
 
-  REGISTER_PROTO_MESSAGE_TYPE("/localization/deadreckoning",
-                              hozon::dead_reckoning::DeadReckoning);
-
   REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
   REGISTER_PROTO_MESSAGE_TYPE("running_mode",
                               hozon::perception::common_onboard::running_mode);
   RegistAlgProcessFunc("recv_detection_bevfusion_lane_proto",
                        std::bind(&EnvBevfusionOnboard::ReceiveDetectLaneLine,
                                  this, std::placeholders::_1));
-
-  // RegistAlgProcessFunc(
-  //     "recv_dr_proto",
-  //     std::bind(&EnvBevfusionOnboard::ReceiveDr, this,
-  //     std::placeholders::_1));
 
   RegistAlgProcessFunc("recv_dr", std::bind(&EnvBevfusionOnboard::ReceiveDr,
                                             this, std::placeholders::_1));
@@ -246,7 +238,11 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
       data_msg->measurement_frame->header.timestamp);
   transport_element->mutable_header()->set_seq(
       data_msg->measurement_frame->header.sequence_num);
-
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now());
+  transport_element->mutable_header()->set_publish_stamp(
+      tp.time_since_epoch().count() * 1.0e-9);
   auto EnvDataPtr = std::make_shared<hozon::netaos::adf_lite::BaseData>();
   EnvDataPtr->proto_msg = transport_element;
 

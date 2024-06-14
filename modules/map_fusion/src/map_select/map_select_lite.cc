@@ -1577,7 +1577,7 @@ bool MapSelectLite::CheckMapMsg(
       HLOG_ERROR << "fusion map is null";
       switch_map_reason_ = "fusion map is null";
       is_routing_null_ = true;
-    }else{
+    } else {
       switch_map_reason_ = "perception map is null";
     }
     return false;
@@ -1587,7 +1587,7 @@ bool MapSelectLite::CheckMapMsg(
       HLOG_ERROR << "the lane of fusion map is empty";
       switch_map_reason_ = "the lane of fusion map is empty";
       is_routing_null_ = true;
-    }else{
+    } else {
       switch_map_reason_ = "the lane of perception map is empty";
     }
     return false;
@@ -1601,7 +1601,7 @@ bool MapSelectLite::CheckMapMsg(
     if (!IsCarInLanes(map, localization)) {
       HLOG_ERROR << "Car is not in lanes scope"
                  << "is_fusion_map: " << is_fusion_map;
-      switch_map_reason_ ="Car is not in lanes scope";
+      switch_map_reason_ = "Car is not in lanes scope";
       return false;
     }
   }
@@ -1631,7 +1631,7 @@ bool MapSelectLite::CheckGlobalLoc(
       2,  // 组合导航+MM+DR
   };
   if (normal_loc_states.find(loc_state) == normal_loc_states.end()) {
-    switch_map_reason_ ="loc_states is not 2";
+    switch_map_reason_ = "loc_states is not 2";
     return false;
   }
 
@@ -1823,7 +1823,7 @@ bool MapSelectLite::IsCarInLanes(
       auto lane_id = dis_info.first;
       if (dis_info.second.car_cental_line_dis <=
           (dis_info.second.half_lane_width + lane_range_value_)) {
-        if ((!ForkLaneCheck(map))&&is_perce_map) {
+        if ((!ForkLaneCheck(map)) && is_perce_map) {
           std::vector<Eigen::Vector2d> left_start_end_points;
           std::vector<Eigen::Vector2d> right_start_end_points;
           if (UpdateSelfBoundaryPoints(map, lane_id, &left_start_end_points,

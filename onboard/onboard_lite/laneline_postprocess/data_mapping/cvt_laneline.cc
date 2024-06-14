@@ -242,10 +242,6 @@ bool DataMapping::CvtMultiLanesToPb(
   auto pb_header = pb_objects->mutable_header();
   static uint32_t seq = 1;
   pb_header->set_seq(seq++);
-  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
-      tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
-          std::chrono::system_clock::now());
-  pb_header->set_publish_stamp(tp.time_since_epoch().count() * 1.0e-9);
   uint32_t lanes_size = lanes_msg.size();
   for (size_t i = 0; i < lanes_size; ++i) {
     auto pb_lane = pb_objects->add_lane();

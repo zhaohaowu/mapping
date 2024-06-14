@@ -749,11 +749,12 @@ int MapFusionLite::SendFusionResult(
       }
     }
   }
-
   map_fusion->mutable_routing()->CopyFrom(*routing);
 
   map_fusion->mutable_routing()->mutable_header()->set_publish_stamp(
       location->header().publish_stamp());
+  std::string switch_reason = map_select_->GetSwitchMapReason();
+  map_fusion->mutable_routing()->add_origin_response(switch_reason);
   map_fusion->set_map_type(select.map_type);
   map_fusion->set_is_valid(select.valid);
   map_fusion->set_fault_level(select.fault_level);
@@ -788,6 +789,15 @@ int MapFusionLite::SendPercepResult(
       location->header());
   percep_result->mutable_routing()->mutable_header()->set_frame_id(
       "percep_map");
+  std::string switch_reason = map_select_->GetSwitchMapReason();
+  if (curr_routing_.get() == nullptr) {
+    switch_reason = "fusion map routing from mapservice is nullptr";
+  } else {
+    if (curr_routing_.get()->road().empty()) {
+      switch_reason = "the road of fusion map routing from mapservice is empty";
+    }
+  }
+  percep_result->mutable_routing()->add_origin_response(switch_reason);
   if (curr_routing_.get() != nullptr) {
     if (curr_routing_.get()->has_ehp_reason()) {
       percep_result->mutable_routing()->set_ehp_reason(

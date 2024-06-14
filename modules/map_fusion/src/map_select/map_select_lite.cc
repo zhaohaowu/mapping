@@ -114,6 +114,7 @@ MapSelectResult MapSelectLite::Process(
     const std::shared_ptr<hozon::hdmap::Map>& fusion_map,
     const std::shared_ptr<hozon::hdmap::Map>& perc_map,
     const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in) {
+  switch_map_reason_ = "nothing is unnormal";
   bool fct_valid = CheckFctIn(fct_in);
   if (!fct_valid) {
     bool percep_available = PercepMapAvailable(perc_map, localization);
@@ -1555,11 +1556,13 @@ bool MapSelectLite::CheckFctIn(
     const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in) {
   if (nullptr == fct_in) {
     HLOG_ERROR << "fct msg is null";
+    switch_map_reason_ = "fct msg is null";
     return false;
   }
 
   if (!fct_in->has_fct_2_soc_tbd_u32_03()) {
     HLOG_ERROR << "nnp switch message not in fct in msg";
+    switch_map_reason_ = "nnp switch message not in fct in msg";
     return false;
   }
   return true;
@@ -1572,14 +1575,20 @@ bool MapSelectLite::CheckMapMsg(
   if (map == nullptr) {
     if (is_fusion_map) {
       HLOG_ERROR << "fusion map is null";
+      switch_map_reason_ = "fusion map is null";
       is_routing_null_ = true;
+    }else{
+      switch_map_reason_ = "perception map is null";
     }
     return false;
   }
   if (map->lane().empty()) {
     if (is_fusion_map) {
       HLOG_ERROR << "the lane of fusion map is empty";
+      switch_map_reason_ = "the lane of fusion map is empty";
       is_routing_null_ = true;
+    }else{
+      switch_map_reason_ = "the lane of perception map is empty";
     }
     return false;
   }
@@ -1592,6 +1601,7 @@ bool MapSelectLite::CheckMapMsg(
     if (!IsCarInLanes(map, localization)) {
       HLOG_ERROR << "Car is not in lanes scope"
                  << "is_fusion_map: " << is_fusion_map;
+      switch_map_reason_ ="Car is not in lanes scope";
       return false;
     }
   }
@@ -1621,6 +1631,7 @@ bool MapSelectLite::CheckGlobalLoc(
       2,  // 组合导航+MM+DR
   };
   if (normal_loc_states.find(loc_state) == normal_loc_states.end()) {
+    switch_map_reason_ ="loc_states is not 2";
     return false;
   }
 

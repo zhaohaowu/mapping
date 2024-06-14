@@ -44,6 +44,7 @@ struct MapMatchLaneLineParams {
   // 130fault
   bool use_map_lane_match_fault;
   double min_vel;
+  double single_error_min_vel;
   double map_lane_match_diver;
   double fault_restore_dis;
   double fault_restore_ave_dis;

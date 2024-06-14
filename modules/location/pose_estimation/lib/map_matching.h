@@ -60,7 +60,8 @@ class MapMatching {
   PtrNodeInfo generateNodeInfo(const Sophus::SE3d& T_W_V, uint64_t sec,
                                uint64_t nsec, const bool& has_err,
                                const Eigen::Vector3d& ref_point,
-                               double ins_height, int sys_status);
+                               double ins_height, int sys_status,
+                               bool is_big_curvature_frame);
   void RvizFunc(uint64_t cur_sec, uint64_t cur_nsec,
                 const hozon::mp::loc::Connect& connect, const SE3& T_output);
   void setPoints(const PerceptionLaneLineList& line_list, const SE3& T_W_V,

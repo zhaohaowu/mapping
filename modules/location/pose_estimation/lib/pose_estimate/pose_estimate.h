@@ -38,6 +38,7 @@ class MapMatch {
   void SetVel(const Eigen::Vector3d &linear_vel);
   int GetLanePairSize() { return lane_line_->get_match_line_size(); }
   int GetMatchPairSize() { return connect_.lane_line_match_pairs.size(); }
+  bool GetMatchBigCurvature() { return lane_line_->get_big_curvature(); }
   VP GetRvizMergeMapLines() { return lane_line_->SetRvizMergeMapLines(); }
 
  private:

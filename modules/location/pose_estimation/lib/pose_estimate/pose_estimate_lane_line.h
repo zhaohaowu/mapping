@@ -121,6 +121,7 @@ class MatchLaneLine {
    */
   void set_ins_ts(const double& ins_ts);
   void set_linear_vel(const Eigen::Vector3d& linear_vel);
+  bool get_big_curvature() { return big_curvature_; }
   inline void GetError(bool* has_err, int* err_type) {
     *has_err = has_err_;
     *err_type = static_cast<int>(err_type_);

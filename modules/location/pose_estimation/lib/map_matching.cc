@@ -32,6 +32,7 @@ bool MapMatching::Init(const std::string& config_file) {
   mm_params.use_map_lane_match_fault =
       config["use_map_lane_match_fault"].as<bool>();
   mm_params.min_vel = config["min_vel"].as<double>();
+  mm_params.single_error_min_vel = config["single_error_min_vel"].as<double>();
   mm_params.map_lane_match_diver = config["map_lane_match_diver"].as<double>();
   mm_params.fault_restore_dis = config["fault_restore_dis"].as<double>();
   mm_params.edge_line_err = config["edge_line_err"].as<double>();
@@ -198,12 +199,15 @@ void MapMatching::ProcData(
   auto cur_nsec =
       static_cast<uint64_t>((cur_stamp - static_cast<double>(cur_sec)) * 1e9);
   mm_output_lck_.lock();
+  bool big_curvature_frame = map_match_->GetMatchBigCurvature();
   if (!output_valid) {
-    mm_node_info_ = generateNodeInfo(T_output, 0, 0, true, ref_point,
-                                     ins_height, sys_status);
+    mm_node_info_ =
+        generateNodeInfo(T_output, 0, 0, true, ref_point, ins_height,
+                         sys_status, big_curvature_frame);
   } else {
-    mm_node_info_ = generateNodeInfo(T_output, cur_sec, cur_nsec, false,
-                                     ref_point, ins_height, sys_status);
+    mm_node_info_ =
+        generateNodeInfo(T_output, cur_sec, cur_nsec, false, ref_point,
+                         ins_height, sys_status, big_curvature_frame);
   }
   mm_output_lck_.unlock();
 
@@ -271,7 +275,8 @@ PtrNodeInfo MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V,
                                           uint64_t sec, uint64_t nsec,
                                           const bool& has_err,
                                           const Eigen::Vector3d& ref_point,
-                                          double ins_height, int sys_status) {
+                                          double ins_height, int sys_status,
+                                          bool is_big_curvature_frame) {
   PtrNodeInfo node_info =
       std::make_shared<::hozon::localization::HafNodeInfo>();
   auto blh = hozon::mp::util::Geo::EnuToGcj02(
@@ -300,6 +305,10 @@ PtrNodeInfo MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V,
       static_cast<float>(T_W_V.unit_quaternion().z()));
   node_info->mutable_quaternion()->set_w(
       static_cast<float>(T_W_V.unit_quaternion().w()));
+  // sd_velocity 用这个字段的x 填充一下该帧是否大曲率信息： 1 是 0 否
+  node_info->mutable_sd_velocity()->set_x(is_big_curvature_frame);
+  node_info->mutable_sd_velocity()->set_y(0);
+  node_info->mutable_sd_velocity()->set_z(0);
   if (!has_err) {
     node_info->set_valid_estimate(true);
   } else {

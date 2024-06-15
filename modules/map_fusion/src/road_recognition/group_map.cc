@@ -143,8 +143,6 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
   is_cross->next_lane_left = is_cross_.next_lane_left;
   is_cross->next_lane_right = is_cross_.next_lane_right;
   is_cross->is_connect_ = is_cross_.is_connect_;
-  is_cross->is_crossing_ = is_cross_.is_crossing_;
-  is_cross->along_path_dis_ = is_cross_.along_path_dis_;
   return true;
 }
 
@@ -1653,10 +1651,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
                is_cross_.is_connect_)) {
             HLOG_INFO << "best_next_lane = "
                       << best_next_lane->str_id_with_group;
-            is_cross_.is_crossing_ = 1;
             is_cross_.is_connect_ = 1;
-            is_cross_.along_path_dis_ =
-                curr_group->group_segments.back()->end_slice.po;
             if (best_next_lane->left_boundary->id ==
                     ego_curr_lane->left_boundary->id ||
                 best_next_lane->right_boundary->id ==
@@ -2121,6 +2116,7 @@ void GroupMap::GenerateTransitionLane(Lane::Ptr lane_in_curr,
   //            << "   is_cross_.along_path_dis_.norm() = "
   //            << is_cross_.along_path_dis_.norm();
   if (is_cross_.is_crossing_ && is_cross_.along_path_dis_.norm() > 2.0) {
+    // 自车在路口里的连接策略
     GenerateTransitionLaneToBefore(lane_in_curr, transition_lane);
     (*virtual_lanes).emplace_back(transition_lane);
     Lane::Ptr transition_lane_after1 = std::make_shared<Lane>();
@@ -2142,6 +2138,7 @@ void GroupMap::GenerateTransitionLane(Lane::Ptr lane_in_curr,
       (*virtual_lanes).emplace_back(transition_lane_after2);
     }
   } else {
+    // 自车快进入路口里的路口连接策略
     GenerateTransitionLaneGeo(lane_in_curr, lane_in_next, transition_lane);
     GenerateTransitionLaneToPo(lane_in_curr, lane_in_next, transition_lane);
 

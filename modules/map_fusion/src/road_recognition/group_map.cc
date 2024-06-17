@@ -272,8 +272,8 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
       std::vector<Vec2d> fit_points;
       // std::vector<Vec2d> sample_points;
       // const int select_back_index = 3;
-      if (points.size() >= 20) {
-        std::copy(points.rbegin(), points.rbegin() + 20,
+      if (points.size() >= 23) {
+        std::copy(points.rbegin() + 3, points.rbegin() + 23,
                   std::back_inserter(fit_points));
         math::FitLaneLinePoint(fit_points, &fit_result);
 
@@ -295,12 +295,12 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
         // 整体平均
         kappa = kappas.empty()
                     ? 0.0
-                    : std::accumulate(kappas.begin(), kappas.end(), 0.) /
-                          kappas.size();
-        dkappa = dkappas.empty()
-                     ? 0.0
-                     : std::accumulate(dkappas.begin(), dkappas.end(), 0.) /
-                           dkappas.size();
+                    : std::accumulate(kappas.begin(), kappas.begin() + 10, 0.) /
+                          10.;
+        dkappa = dkappas.empty() ? 0.0
+                                 : std::accumulate(dkappas.begin(),
+                                                   dkappas.begin() + 10, 0.) /
+                                       10.;
 
         // 选取一个点的kappa和dkappa
         // kappa = (kappas[select_back_index - 1] + kappas[select_back_index] +
@@ -3807,7 +3807,7 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
   dkappa = 0.4 * last_predict_dkappa + 0.6 * dkappa;
 
   // 对曲率kappa做一个阈值限制 曲率半径180m
-  kappa = std::min(kappa, static_cast<double>(1.0 / 180.0));
+  kappa = std::min(kappa, static_cast<double>(1.0 / 200.0));
 
   last_predict_kappa = kappa;
   last_predict_dkappa = dkappa;
@@ -5272,6 +5272,7 @@ void GroupMap::PredictLaneLine(std::vector<Lane::Ptr>* pred_lane,
     for (int i = 0; i <= pred_counts; ++i) {
       new_kappa =
           left_kappa + std::get<2>(curr_lane->left_boundary->pred_end_heading);
+      new_kappa = std::min(new_kappa, static_cast<double>(1.0 / 150.0));
       // new_kappa = left_kappa;
       if (math::DoubleHasSameSign(
               new_kappa,
@@ -5325,6 +5326,7 @@ void GroupMap::PredictLaneLine(std::vector<Lane::Ptr>* pred_lane,
     for (int i = 0; i <= pred_counts; ++i) {
       new_kappa = right_kappa +
                   std::get<2>(curr_lane->right_boundary->pred_end_heading);
+      new_kappa = std::min(new_kappa, static_cast<double>(1.0 / 150.0));
       // new_kappa = right_kappa;
       if (math::DoubleHasSameSign(
               right_kappa,
@@ -5372,6 +5374,7 @@ void GroupMap::PredictLaneLine(std::vector<Lane::Ptr>* pred_lane,
                   (std::get<2>(curr_lane->left_boundary->pred_end_heading) +
                    std::get<2>(curr_lane->right_boundary->pred_end_heading)) /
                       2;
+      new_kappa = std::min(new_kappa, static_cast<double>(1.0 / 150.0));
       // new_kappa = center_kappa;
       if (math::DoubleHasSameSign(
               center_kappa,

@@ -100,7 +100,7 @@ class MapSelectLite {
   enum LocErrState { Loc_Init, Shift, Err };
   hozon::navigation_hdmap::MapMsg_MapType GetMapTypeByRoadType();
   hozon::routing::RoutingResponse GetDebug() { return debug_; }
-  std::string GetSwitchMapReason(){return switch_map_reason_;}
+  std::string GetSwitchMapReason() { return switch_map_reason_; }
 
  private:
   int LocationErrDecider(
@@ -281,7 +281,7 @@ class MapSelectLite {
   float lane_range_value_ = 0.5;
   bool is_routing_null_ = false;
   float dis_scope_ = 5;
-  std::string  switch_map_reason_;
+  std::string switch_map_reason_;
 };
 }  // namespace select
 }  // namespace mf

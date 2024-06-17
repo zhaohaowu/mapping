@@ -21,11 +21,14 @@
 #include "base/utils/log.h"
 #include "depend/common/utm_projection/coordinate_convertor.h"
 #include "map_fusion/fusion_common/calc_util.h"
+#include "map_fusion/map_prediction/viz_map.h"
 #include "map_fusion/map_service/global_hd_map.h"
 #include "util/mapping_log.h"
 #include "util/tic_toc.h"
 
 #define PI acos(-1)
+
+using hozon::common::math::Vec2d;
 
 DEFINE_bool(road_recognition_rviz, false, "road recognition use rviz or not");
 
@@ -2225,6 +2228,7 @@ void GeoOptimization::CreateLocalLineTable() {
   for (const auto& local_line : local_map_use_->lane_lines()) {
     local_line_info line_info;
     auto lane_pos = local_line.lanepos();
+    auto line_track_id = local_line.track_id();
     std::vector<Eigen::Vector3d> local_pts;
     for (const auto& pt : local_line.points()) {
       Eigen::Vector3d point(pt.x(), pt.y(), pt.z());
@@ -2232,6 +2236,7 @@ void GeoOptimization::CreateLocalLineTable() {
     }
     line_info.lane_pos = lane_pos;
     line_info.local_line_pts = local_pts;
+    line_info.line_track_id = line_track_id;
     local_line_table_.insert_or_assign(lane_pos, line_info);
   }
 
@@ -2539,6 +2544,13 @@ void GeoOptimization::HandleExtraWideLane() {
       extra_pos.emplace_back(local_line.lanepos());
     }
   }
+  if (extra_pos.empty()) {
+    // 重置
+    base_line_.base_line_flag = 0;
+    base_line_.base_width = -1;
+    base_line_.base_line_left_id = -1;
+    base_line_.base_line_right_id = -1;
+  }
   // 针对超宽（漏检）车道进行拟合漏检车道线
   for (const auto& ex : extra_pos) {
     FitMissedLaneLine(ex);
@@ -2562,87 +2574,91 @@ void GeoOptimization::FitMissedLaneLine(
   auto ex_pts = local_line_table_.at(ex).local_line_pts;
   auto right_ex_pts = local_line_table_.at(right_ex).local_line_pts;
 
-  // 根据车离两侧线的距离以及两根线的heading来确认base线
+  auto left_line_id = local_line_table_.at(ex).line_track_id;
+  auto right_line_id = local_line_table_.at(right_ex).line_track_id;
+  // 判断主车道的左右id是否突变
+  if (base_line_.base_line_left_id != left_line_id ||
+      base_line_.base_line_right_id != right_line_id) {
+    base_line_.base_line_flag = 0;
+    base_line_.base_width = -1;
+    base_line_.base_line_left_id = -1;
+    base_line_.base_line_right_id = -1;
+    base_line_.base_line_left_id = left_line_id;
+    base_line_.base_line_right_id = right_line_id;
+  }
+  // 根据车离两侧线的距离以及两根线的heading或平均曲率变化率来确认base线
   auto left_dis = ComputeVecToLaneDis(ex_pts);
   auto right_dis = ComputeVecToLaneDis(right_ex_pts);
   // 计算两根线的平均heading
   auto left_heading = ComputeLineHeading(ex_pts);
   auto right_heading = ComputeLineHeading(right_ex_pts);
-  if (left_heading < 0 || right_heading < 0) {
+  // 计算两根线的平均曲率变化率
+  auto left_curve = ComputeCurvature(ex_pts);
+  auto right_curve = ComputeCurvature(right_ex_pts);
+  // if (left_heading < 0 || right_heading < 0) {
+  //   return;
+  // }
+  if (left_curve < 0 || right_curve < 0) {
     return;
   }
   std::vector<std::vector<Eigen::Vector3d>> new_lines;
   std::vector<Eigen::Vector3d> base_line;
   std::vector<double> base_width;
-  if ((std::abs(left_dis - right_dis) > 3.5 && left_dis < right_dis) ||
-      (std::abs(left_dis - right_dis) < 3.5 && left_heading < right_heading)) {
+  if (base_line_.base_line_flag == 0) {
+    if ((std::abs(left_dis - right_dis) > 3.5 && left_dis < right_dis) ||
+        (std::abs(left_dis - right_dis) < 3.5 && left_curve < right_curve)) {
+      // vehicle left line is baseline
+      ObtainBaseLine(&base_line, &base_width, ex_pts, right_ex_pts);
+      double lane_width = 3.75;
+      if (!base_width.empty()) {
+        lane_width = base_width.front();
+        // double lane_width =
+        //     std::reduce(base_width.begin(), base_width.end()) /
+        //     base_width.size();
+      }
+      if (lane_width > 5.5) {
+        lane_width = 3.75;
+      }
+      int lane_num = std::ceil(right_dis / lane_width);
+      FitSingleSideLine(&base_line, &new_lines, lane_num, true, 0, lane_width);
+      base_line_.base_line_flag = 1;
+      base_line_.base_width = lane_width;
+    } else if ((std::abs(left_dis - right_dis) > 3.5 && right_dis < left_dis) ||
+               (std::abs(left_dis - right_dis) < 3.5 &&
+                right_curve < left_curve)) {
+      // vecicle right line is baseline
+      ObtainBaseLine(&base_line, &base_width, right_ex_pts, ex_pts);
+      double lane_width = 3.75;
+      if (!base_width.empty()) {
+        lane_width = base_width.front();
+      }
+      if (lane_width > 5.5) {
+        lane_width = 3.75;
+      }
+      int lane_num = std::ceil(right_dis / lane_width);
+      FitSingleSideLine(&base_line, &new_lines, lane_num, false, 0, lane_width);
+      base_line_.base_line_flag = 2;
+      base_line_.base_width = lane_width;
+    }
+  } else if (base_line_.base_line_flag == 1) {
     // vehicle left line is baseline
-    for (const auto& P : ex_pts) {
-      for (size_t i = 1; i < right_ex_pts.size(); i++) {
-        const auto& A = right_ex_pts[i - 1];
-        const auto& B = right_ex_pts[i];
-        const auto& AB = B - A;
-        const auto& AP = P - A;
-        double ABLengthSquared = AB.squaredNorm();
-        if (std::fabs(ABLengthSquared) < 1e-6) {
-          continue;
-        }
-        double t = AB.dot(AP) / ABLengthSquared;
-        if (t < 0 || t > 1) {
-          continue;
-        }
-        t = std::max(0.0, std::min(t, 1.0));
-        auto C = A + t * AB;  // 点到线段的最近点
-        if ((P - C).norm() > 5.5) {
-          base_line.emplace_back(P);
-        } else {
-          base_width.emplace_back((P - C).norm());
-        }
-        break;
-      }
-    }
-    int lane_num = std::ceil(left_dis / 3.75);
+    ObtainBaseLine(&base_line, &base_width, ex_pts, right_ex_pts);
     double lane_width = 3.75;
-    if (!base_width.empty()) {
-      lane_width = base_width.back();
-      // double lane_width =
-      //     std::reduce(base_width.begin(), base_width.end()) /
-      //     base_width.size();
-    }
+    // if (!base_width.empty()) {
+    //   lane_width = base_width.back();
+    // }
+    lane_width = base_line_.base_width;
+    int lane_num = std::ceil(right_dis / lane_width);
     FitSingleSideLine(&base_line, &new_lines, lane_num, true, 0, lane_width);
-  } else if ((std::abs(left_dis - right_dis) > 3.5 && right_dis < left_dis) ||
-             (std::abs(left_dis - right_dis) < 3.5 &&
-              right_heading < left_heading)) {
+  } else if (base_line_.base_line_flag == 2) {
     // vecicle right line is baseline
-    for (const auto& P : right_ex_pts) {
-      for (size_t i = 1; i < ex_pts.size(); i++) {
-        const auto& A = ex_pts[i - 1];
-        const auto& B = ex_pts[i];
-        const auto& AB = B - A;
-        const auto& AP = P - A;
-        double ABLengthSquared = AB.squaredNorm();
-        if (std::fabs(ABLengthSquared) < 1e-6) {
-          continue;
-        }
-        double t = AB.dot(AP) / ABLengthSquared;
-        if (t < 0 || t > 1) {
-          continue;
-        }
-        t = std::max(0.0, std::min(t, 1.0));
-        auto C = A + t * AB;  // 点到线段的最近点
-        if ((P - C).norm() > 5.0) {
-          base_line.emplace_back(P);
-        } else {
-          base_width.emplace_back((P - C).norm());
-        }
-        break;
-      }
-    }
-    int lane_num = std::ceil(right_dis / 3.75);
+    ObtainBaseLine(&base_line, &base_width, right_ex_pts, ex_pts);
     double lane_width = 3.75;
-    if (!base_width.empty()) {
-      lane_width = base_width.back();
-    }
+    // if (!base_width.empty()) {
+    //   lane_width = base_width.back();
+    // }
+    lane_width = base_line_.base_width;
+    int lane_num = std::ceil(right_dis / lane_width);
     FitSingleSideLine(&base_line, &new_lines, lane_num, false, 0, lane_width);
   }
 
@@ -2670,6 +2686,48 @@ void GeoOptimization::FitMissedLaneLine(
   }
 }
 
+void GeoOptimization::ObtainBaseLine(
+    std::vector<Eigen::Vector3d>* base_line, std::vector<double>* base_width,
+    const std::vector<Eigen::Vector3d>& base_pts,
+    const std::vector<Eigen::Vector3d>& line_pts) {
+  // 获取base_line信息
+  for (const auto& P : base_pts) {
+    for (size_t i = 1; i < line_pts.size(); i++) {
+      const auto& A = line_pts[i - 1];
+      const auto& B = line_pts[i];
+      const auto& AB = B - A;
+      const auto& AP = P - A;
+      double ABLengthSquared = AB.squaredNorm();
+      if (std::fabs(ABLengthSquared) < 1e-6) {
+        continue;
+      }
+      double t = AB.dot(AP) / ABLengthSquared;
+      if (t < 0 || t > 1) {
+        continue;
+      }
+      t = std::max(0.0, std::min(t, 1.0));
+      auto C = A + t * AB;  // 点到线段的最近点
+      // if ((P - C).norm() > 5.5) {
+      //   base_line->emplace_back(P);
+      // } else {
+      //   base_width->emplace_back((P - C).norm());
+      // }
+
+      if (base_line_.base_line_flag == 0) {
+        if (P.x() > 0.0) {
+          base_line->emplace_back(P);
+          base_width->emplace_back((P - C).norm());
+        }
+      } else {
+        if ((P - C).norm() >= base_line_.base_width) {
+          base_line->emplace_back(P);
+        }
+      }
+      break;
+    }
+  }
+}
+
 double GeoOptimization::ComputeLineHeading(
     const std::vector<Eigen::Vector3d>& line_pts) {
   // 计算车前方每根线的heading
@@ -2693,6 +2751,39 @@ double GeoOptimization::ComputeLineHeading(
   double mean_heading = std::accumulate(headings.begin(), headings.end(), 0.0) /
                         static_cast<double>(headings.size());
   return mean_heading;
+}
+
+double GeoOptimization::ComputeCurvature(
+    const std::vector<Eigen::Vector3d>& line_pts) {
+  if (line_pts.empty()) {
+    return -1;
+  }
+  std::vector<Vec2d> fit_points;
+  std::vector<double> fit_result;
+  Vec2d dist_point;
+  for (const auto& point : line_pts) {
+    if (point.x() < 0) {
+      continue;
+    }
+    Vec2d temp_point;
+    temp_point.set_x(dist_point.x() - point.x());
+    temp_point.set_y(dist_point.y() - point.y());
+    if (temp_point.Length() >= 0.9) {
+      fit_points.emplace_back(point.x(), point.y());
+    }
+    dist_point.set_x(point.x());
+    dist_point.set_y(point.y());
+  }
+  std::vector<double> kappas;
+  std::vector<double> dkappas;
+  math::FitLaneLinePoint(fit_points, &fit_result);
+  math::ComputeDiscretePoints(fit_points, fit_result, &kappas, &dkappas);
+  if (kappas.empty()) {
+    return -1;
+  }
+  double avg_curve = std::accumulate(kappas.begin(), kappas.end(), 0.0) /
+                     static_cast<double>(kappas.size());
+  return avg_curve;
 }
 
 void GeoOptimization::HandleSingleSideLine() {

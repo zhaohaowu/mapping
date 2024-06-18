@@ -390,6 +390,7 @@ class GroupMap {
                              const LineSegment& right_line);
   bool Distanceline(const LineSegment& left_line, float line_front_x,
                     float line_front_y);
+  bool IsInGroupAndNoLane(Group::Ptr group);
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;
   std::map<em::Id, Arrow::Ptr> arrow_;

@@ -143,6 +143,7 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
   is_cross->next_lane_left = is_cross_.next_lane_left;
   is_cross->next_lane_right = is_cross_.next_lane_right;
   is_cross->is_connect_ = is_cross_.is_connect_;
+  is_cross->is_crossing_ = is_cross_.is_crossing_;
   return true;
 }
 
@@ -1652,18 +1653,8 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
             HLOG_INFO << "best_next_lane = "
                       << best_next_lane->str_id_with_group;
             is_cross_.is_connect_ = 1;
-            if (best_next_lane->left_boundary->id ==
-                    ego_curr_lane->left_boundary->id ||
-                best_next_lane->right_boundary->id ==
-                    ego_curr_lane->right_boundary->id) {
-              // 如果是三分四场景没有车道线的情况
-              best_next_lane->prev_lane_str_id_with_group.emplace_back(
-                  ego_curr_lane->str_id_with_group);
-              ego_curr_lane->next_lane_str_id_with_group.emplace_back(
-                  best_next_lane->str_id_with_group);
-              ego_curr_lane->center_line_pts.emplace_back(
-                  best_next_lane->center_line_pts.front());
-              break;
+            if (curr_group->group_segments.back()->end_slice.po.x() < -2.0) {
+              is_cross_.is_crossing_ = 1;
             }
             GenerateTransitionLane(ego_curr_lane, best_next_lane,
                                    &virtual_lanes);
@@ -3028,6 +3019,10 @@ bool GroupMap::OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups) {
         if (next_line->pts.empty()) {
           continue;
         }
+        if ((curr_line.second->pts.back().pt - next_line->pts.front().pt)
+                .norm() > 10.0) {
+          continue;
+        }
         curr_line.second->pts.emplace_back(next_line->pts.front());
       }
     }
@@ -3318,8 +3313,9 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
           (curr_group->group_segments.back()->end_slice.po -
            next_group->group_segments.front()->start_slice.po)
               .norm();
-      if (max_length_lane <= 15.0 && !is_all_next_lane_exit &&
-          group_distance < 10.0) {
+      if (((IsInGroupAndNoLane(curr_group) && max_length_lane <= 50.0) ||
+           max_length_lane <= 15.0) &&
+          !is_all_next_lane_exit && group_distance < 10.0) {
         HLOG_DEBUG << " is connect";
         BuildVirtualLaneBefore(curr_group, next_group);
         // groups->erase(groups->begin() + i - 1);
@@ -3328,6 +3324,34 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
     }
   }
 
+  return true;
+}
+
+bool GroupMap::IsInGroupAndNoLane(Group::Ptr group) {
+  if (group->group_segments.size() < 2.0) {
+    return false;
+  }
+  if (group->group_segments.front()->start_slice.po.x() > 2.0 ||
+      group->group_segments.back()->end_slice.po.x() < -2.0) {
+    return false;
+  }
+  for (auto& lane : group->lanes) {
+    if (lane->left_boundary->pts.empty() || lane->right_boundary->pts.empty()) {
+      continue;
+    }
+    auto left_front_point = lane->left_boundary->pts[0].pt;
+    auto left_back_point = lane->left_boundary->pts.back().pt;
+    auto right_front_point = lane->right_boundary->pts[0].pt;
+    auto right_back_point = lane->right_boundary->pts.back().pt;
+    float is_leftline_right =
+        left_front_point.y() * left_back_point.x() -
+        left_front_point.x() * left_back_point.y();  // >0在右侧 <0 在左侧
+    float is_rightline_right = right_front_point.y() * right_back_point.x() -
+                               right_front_point.x() * right_back_point.y();
+    if (is_leftline_right * is_rightline_right <= 0.0) {
+      return false;
+    }
+  }
   return true;
 }
 

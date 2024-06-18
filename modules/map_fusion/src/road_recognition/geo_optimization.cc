@@ -2801,6 +2801,10 @@ void GeoOptimization::HandleSingleSideLine() {
     if (local_line.points().size() < 2) {
       continue;
     }
+    if (local_line.points(0).x() > 0 ||
+        local_line.points(local_line.points_size() - 1).x() < 0) {
+      continue;
+    }
     if (static_cast<int>(local_line.lanepos()) < 0) {
       left_lanepos.emplace_back(static_cast<int>(local_line.lanepos()));
     } else if (static_cast<int>(local_line.lanepos()) > 0 &&
@@ -2811,6 +2815,10 @@ void GeoOptimization::HandleSingleSideLine() {
   std::vector<Eigen::Vector3d> right_road_pts;
   std::vector<Eigen::Vector3d> left_road_pts;
   for (const auto& local_road : local_map_->road_edges()) {
+    if (local_road.points(0).x() > 0 ||
+        local_road.points(local_road.points_size() - 1).x() < 0) {
+      continue;
+    }
     if (static_cast<int>(local_road.lanepos()) == 1) {
       for (const auto& road_pt : local_road.points()) {
         Eigen::Vector3d pt(road_pt.x(), road_pt.y(), road_pt.z());

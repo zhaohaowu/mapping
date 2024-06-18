@@ -275,10 +275,15 @@ void BaseTarget<Element>::UpdateWithDetectedObject(
 // LaneTarget 定义
 // 特殊函数可以在cc文件复写基类的函数
 class LaneTarget : public BaseTarget<LaneLine> {
+ private:
+  double truncation_x_ = std::numeric_limits<double>::max();
+
  public:
   bool Init(const ProcessOption& options,
             const LaneLinePtr& detected_lane_line);
   inline bool SendPostLane() const { return send_postlane_; }
+  inline void SetTruncation(double x) { truncation_x_ = x; }
+  inline double GetTruncation() const { return truncation_x_; }
 };
 
 using LaneTargetPtr = std::shared_ptr<LaneTarget>;

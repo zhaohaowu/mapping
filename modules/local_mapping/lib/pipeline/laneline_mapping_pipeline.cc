@@ -71,8 +71,8 @@ void LaneLineMappingPipeline::DeleteOutlierLaneLines(
 bool LaneLineMappingPipeline::Process(
     const ProcessOption& option, MeasurementFrameConstPtr measurement_frame_ptr,
     LocalMapFramePtr localmap_frame_ptr) {
-  // HLOG_INFO << " cam timestamp:"
-  //           << std::to_string(measurement_frame_ptr->header.timestamp);
+  HLOG_DEBUG << " cam timestamp:"
+             << std::to_string(measurement_frame_ptr->header.timestamp);
   // PERF_BLOCK_START();
   auto& tracked_lanes = localmap_frame_ptr->lane_lines_ptr;
   tracked_lanes->lanelines.clear();
@@ -142,11 +142,9 @@ bool LaneLineMappingPipeline::Process(
   // 7. created new lane_tracks for unmatched detected_lanes
   CreateNewTracks(option, detect_measurements, point_association_result);
   // PERF_BLOCK_END("laneline_CreateNewTracks");
-  // 8. 输出准出结果
-  // 新建线前做过滤
-  const auto match_score_list = laneline_matcher_->GetMatchScoreList();
-  // lane_meas_filter_->DelNearTrackers(&detect_measurements, match_score_list,
-  //                                    &lane_trackers_);
+  // 8. 脑补情况删除
+  lane_meas_filter_->SetLostTrackerTruncation(&detect_measurements,
+                                              &lane_trackers_);
   HLOG_DEBUG << "lane tracker size:" << lane_trackers_.size();
   laneline_merge_tracker_->MergeTracks(&lane_trackers_);
   HLOG_DEBUG << "after mergeTracks lane tracker size:" << lane_trackers_.size();
@@ -501,8 +499,7 @@ void LaneLineMappingPipeline::CollectOutputObjects(
       HLOG_DEBUG << "LaneTrack NOT OUTPUT!";
       HLOG_DEBUG << "MinningTimestamp: "
                  << std::to_string(output_lane_object->latest_tracked_time)
-                 << " "
-                 << "Buffer LaneTarget "
+                 << " " << "Buffer LaneTarget "
                  << "TrackStatus: " << lane_target->ToStr() << " "
                  << "LaneTrack NOT OUTPUT!";
       // HLOG_INFO << "use_debug_mode_" << use_debug_mode_;
@@ -511,6 +508,16 @@ void LaneLineMappingPipeline::CollectOutputObjects(
     // output_lane_object->after_intersection =
     //     output_lane_object->vehicle_points.front().x() >
     //     min_intersection_x_;
+    // 临时对点删除操作，解决脑补case
+    auto& pts = output_lane_object->vehicle_points;
+    pts.erase(std::remove_if(pts.begin(), pts.end(),
+                             [&](const auto& pt) {
+                               return pt.x() > lane_target->GetTruncation();
+                             }),
+              pts.end());
+    if (pts.empty()) {
+      continue;
+    }
     // 供map_lane使用
     output_lane_object->id = lane_target->Id();
     output_lane_object->send_postlane = lane_target->SendPostLane();

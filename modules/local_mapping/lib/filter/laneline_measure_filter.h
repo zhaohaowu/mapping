@@ -25,9 +25,8 @@ class LaneMeasurementFilter {
   bool Init();
   bool Process(const std::vector<LaneLinePtr>& input_measurements,
                std::vector<LaneLinePtr>* out_measurements);
-  bool DelNearTrackers(std::vector<LaneLinePtr>* out_measurements,
-                       const std::vector<MatchScoreTuple>& association_result,
-                       std::vector<LaneTrackerPtr>* lane_trackers);
+  bool SetLostTrackerTruncation(std::vector<LaneLinePtr>* measurements,
+                                std::vector<LaneTrackerPtr>* lane_trackers);
 
   bool AssginForkOrConvergeType(std::vector<LaneLinePtr>* out_measurements,
                                 std::vector<LaneTrackerPtr>* lane_trackers);

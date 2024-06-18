@@ -135,60 +135,135 @@ bool LaneMeasurementFilter::Process(
   return true;
 }
 
-bool LaneMeasurementFilter::DelNearTrackers(
-    std::vector<LaneLinePtr>* out_measurements,
-    const std::vector<MatchScoreTuple>& match_score_list,
-    std::vector<LaneTrackerPtr>* lane_trackers) {
-  // 结合tracker的过滤策略
-
-  if (match_score_list.size() < 2) {
-    return true;
-  }
-  std::unordered_set<int> remove_indexs;
-  size_t track_id2 = 0;
-  size_t detect_id2 = 0;
-  size_t track_id1 = 0;
-  size_t detect_id1 = 0;
-  float score_1 = 0.0;
-  float score_2 = 0.0;
-
-  std::unordered_set<int> track_id_set;
-  for (auto& lane_tracker : *lane_trackers) {
-    track_id_set.insert(lane_tracker->GetConstTarget()->Id());
-  }
-
-  for (int i = 0; i < match_score_list.size() - 1; ++i) {
-    track_id1 = std::get<0>(match_score_list[i]);
-    if (track_id_set.count(track_id1) == 0) {
+bool FindFarGroup(std::vector<LaneTrackerPtr>* lane_trackers,
+                  std::pair<double, std::vector<LaneLinePtr>>* vec_lines) {
+  std::vector<std::pair<double, std::vector<LaneLinePtr>>> group_pts;
+  for (const auto& tracker : *lane_trackers) {
+    if (!tracker->GetConstTarget()->IsTracked()) {
       continue;
     }
-
-    detect_id1 = std::get<1>(match_score_list[i]);
-    score_1 = std::get<2>(match_score_list[i]);
-    for (int j = i + 1; j < match_score_list.size(); ++j) {
-      track_id2 = std::get<0>(match_score_list[j]);
-      if (track_id_set.count(track_id2) == 0) {
-        continue;
-      }
-      detect_id2 = std::get<1>(match_score_list[j]);
-      score_2 = std::get<2>(match_score_list[j]);
-      if (detect_id1 == detect_id2) {
-        if (score_1 <= score_2) {
-          remove_indexs.insert(track_id1);
-        } else {
-          remove_indexs.insert(track_id2);
+    const auto& line = tracker->GetConstTarget()->GetConstTrackedObject();
+    // 能否找到分组标志
+    bool find_flag = false;
+    double start_pt_x = line->vehicle_points.front().x();
+    if (start_pt_x > 5.0 && start_pt_x < 80.0) {
+      for (auto& range_elem : group_pts) {
+        // 端点范围4m内认为是一组
+        if (std::abs(start_pt_x - range_elem.first) < 4) {
+          range_elem.second.push_back(line);
+          // 近似平均
+          range_elem.first = (range_elem.first + start_pt_x) / 2.0;
+          find_flag = true;
         }
+      }
+      // 没找到分组则插入
+      if (!find_flag) {
+        std::vector<LaneLinePtr> vec{line};
+        group_pts.emplace_back(start_pt_x, vec);
       }
     }
   }
+  // 找到远端目标group
+  bool group_flag = false;
+  int count_group = 0;
+  for (const auto& range_elem : group_pts) {
+    if (range_elem.second.size() >= 2) {
+      // 检查任意两条线间的宽度
+      count_group++;
+      bool find_group_flag = true;
+      for (size_t i = 0; i < range_elem.second.size(); ++i) {
+        const auto& left_line = range_elem.second[i];
+        for (size_t j = i + 1; j < range_elem.second.size(); ++j) {
+          const auto& right_line = range_elem.second[j];
+          float length = GetDistBetweenTwoLane(left_line->vehicle_points,
+                                               right_line->vehicle_points);
+          // 任意两条间距小于1.5米则不成立
+          if (length < 1.5) {
+            find_group_flag = false;
+          }
+        }
+      }
+      // 找到一个group
+      if (find_group_flag) {
+        group_flag = true;
+        *vec_lines = range_elem;
+      }
+    }
+  }
+  if (count_group > 1) {
+    group_flag = false;
+  }
+  return group_flag;
+}
 
-  lane_trackers->erase(
-      std::remove_if(lane_trackers->begin(), lane_trackers->end(),
-                     [&](LaneTrackerPtr& track) {
-                       return remove_indexs.count(
-                                  track->GetConstTarget()->Id()) > 0;
-                     }),
-      lane_trackers->end());
+bool LaneMeasurementFilter::SetLostTrackerTruncation(
+    std::vector<LaneLinePtr>* measurements,
+    std::vector<LaneTrackerPtr>* lane_trackers) {
+  // 结合measurements的确定点删除策略(目前改成用已有trackers，检测有抖动)
+  // 有些场景由于模型脑补问题导致local_map的线长度一直错误
+  // 当这些线后续没有匹配到时由于其一直存在地图中，长度是错误的
+  // 少变多的场景case较多
+  // 策略：根据检测线确定远方车道线的起点,tracker没有匹配上时根据起点做删除
+  // | | | | |
+  // | | | | |
+  // |       |
+  // |       |
+  //  |  |  |
+  //  |  |  |
+  // 先对匹配上tracker清空
+  const int lost_age_threshold = 5;
+  for (auto& tracker : *lane_trackers) {
+    if (tracker->GetConstTarget()->GetLostAge() <= lost_age_threshold) {
+      tracker->GetTarget()->SetTruncation(std::numeric_limits<double>::max());
+    } else {
+      double last_truncation = tracker->GetTarget()->GetTruncation();
+      // 映射到当前帧迭代更新
+      if (last_truncation < 1.0) {
+        const Eigen::Affine3d T_cur_last_ = POSE_MANAGER->GetDeltaPose();
+        Eigen::Vector3d truncation_pt(last_truncation, 0.0, 0.0);
+        truncation_pt = T_cur_last_ * truncation_pt;
+        tracker->GetTarget()->SetTruncation(truncation_pt.x());
+      }
+    }
+  }
+  std::pair<double, std::vector<LaneLinePtr>> vec_lines;
+  if (!FindFarGroup(lane_trackers, &vec_lines)) {
+    return false;
+  }
+  for (auto& tracker : *lane_trackers) {
+    // 匹配到了不做删除点
+    if (tracker->GetConstTarget()->GetLostAge() <= lost_age_threshold) {
+      continue;
+    }
+    // 已经确定删除了不再更新截断阈值
+    if (tracker->GetConstTarget()->GetTruncation() <= 1.0) {
+      continue;
+    }
+    auto pts =
+        tracker->GetConstTarget()->GetConstTrackedObject()->vehicle_points;
+    pts.erase(std::remove_if(
+                  pts.begin(), pts.end(),
+                  [&](const auto& pt) { return pt.x() < vec_lines.first; }),
+              pts.end());
+    // 没有重叠不做删除点
+    if (pts.empty()) {
+      continue;
+    }
+    for (const auto& line : vec_lines.second) {
+      if (tracker->GetConstTarget()->GetConstTrackedObject()->id == line->id) {
+        continue;
+      }
+      double dist = GetDistBetweenTwoLane(pts, line->vehicle_points);
+      auto truncation = tracker->GetTarget()->GetTruncation();
+      // 需要删除
+      HLOG_DEBUG << tracker->GetTarget()->ToStr() << ", detect id: " << line->id
+                 << ", " << dist << ", truncation: " << truncation;
+      if (dist < 2.0) {
+        tracker->GetTarget()->SetTruncation(0.0);
+        break;
+      }
+    }
+  }
   return true;
 }
 

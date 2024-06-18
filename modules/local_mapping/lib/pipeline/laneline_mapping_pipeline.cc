@@ -326,7 +326,7 @@ std::vector<LaneTargetPtr> LaneLineMappingPipeline::GetAllTarget() {
 void LaneLineMappingPipeline::CatmullRomFit(LaneLinesPtr tracked_lanelines) {
   auto euclidean_distance = [](const Eigen::Vector3d& p0,
                                const Eigen::Vector3d& p1) {
-    return static_cast<int>(round(std::sqrt(std::pow(p0.x() - p1.x(), 2) +
+    return static_cast<int>(ceil(std::sqrt(std::pow(p0.x() - p1.x(), 2) +
                                             std::pow(p0.y() - p1.y(), 2))));
   };
   for (auto& lanelineptr : tracked_lanelines->lanelines) {
@@ -449,28 +449,29 @@ void LaneLineMappingPipeline::AdjustIntersectionLines(
                        2) {
           point_delete_index++;
         }
-        // 删除目标车道线被交点分成的两段线中较短的那段
-        DeleteLaneLineShortPart(
-            point_delete_index,
-            &(tracked_lanelines->lanelines[laneline_delete_index]
-                  ->vehicle_points));
-        HLOG_WARN << "delete some intersection laneline";
-        HLOG_WARN << "intersect_pt.x()" << intersect_pt.x();
-        HLOG_WARN << "point_delete_index: " << point_delete_index;
-        // 继续判断这两条线是否相交，防止出现多个交点
-        j--;
+        // 删除目标车道线被交点分成的两段线中较短的那段,删除长度阈值20m
+        if (DeleteLaneLineShortPart(
+                point_delete_index,
+                &(tracked_lanelines->lanelines[laneline_delete_index]
+                      ->vehicle_points))) {
+          // 继续判断这两条线是否相交，防止出现多个交点
+          j--;
+        };
       }
     }
   }
 }
 
-void LaneLineMappingPipeline::DeleteLaneLineShortPart(
+bool LaneLineMappingPipeline::DeleteLaneLineShortPart(
     size_t point_delete_index, std::vector<Eigen::Vector3d>* vehicle_points) {
   double length1 =
       (vehicle_points->back() - vehicle_points->at(point_delete_index + 1))
           .norm();
   double length2 =
       (vehicle_points->front() - vehicle_points->at(point_delete_index)).norm();
+  if (std::min(length1, length2) > max_delet_dis) {
+    return false;
+  }
   std::vector<Eigen::Vector3d> new_points;
   auto& points = *vehicle_points;
   if (length1 < length2) {
@@ -484,6 +485,9 @@ void LaneLineMappingPipeline::DeleteLaneLineShortPart(
         points.end());
     *vehicle_points = new_points;
   }
+  HLOG_WARN << "delete some intersection laneline";
+  HLOG_WARN << "point_delete_index: " << point_delete_index;
+  return true;
 }
 
 void LaneLineMappingPipeline::CollectOutputObjects(

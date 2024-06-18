@@ -52,7 +52,7 @@ class LaneLineMappingPipeline : public BaseMappingPipeline {
   void CollectOutputObjects(LaneLinesPtr tracked_lanelines);
   void CatmullRomFit(LaneLinesPtr tracked_lanelines);
   void AdjustIntersectionLines(LaneLinesPtr tracked_lanelines);
-  void DeleteLaneLineShortPart(size_t laneline_delete_index,
+  bool DeleteLaneLineShortPart(size_t laneline_delete_index,
                                std::vector<Eigen::Vector3d>* vehicle_points);
   void RemoveLostTracks();
   void SetIntersectionThreshold();
@@ -89,6 +89,7 @@ class LaneLineMappingPipeline : public BaseMappingPipeline {
       nullptr;  // local map position管理器
 
   int limit_max_tracker_nums_ = 100;
+  double max_delet_dis = 20.0;
 };
 
 }  // namespace lm

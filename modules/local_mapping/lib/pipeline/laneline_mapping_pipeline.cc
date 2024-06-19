@@ -456,7 +456,7 @@ void LaneLineMappingPipeline::AdjustIntersectionLines(
                       ->vehicle_points))) {
           // 继续判断这两条线是否相交，防止出现多个交点
           j--;
-        };
+        }
       }
     }
   }

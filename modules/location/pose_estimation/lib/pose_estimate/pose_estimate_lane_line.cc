@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "modules/util/include/util/orin_trigger_manager.h"
+#include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 
 namespace hozon {
 namespace mp {
@@ -72,6 +73,7 @@ void MatchLaneLine::Match(const HdMap& hd_map,
   static double invalid_map_duration = 0;
   SE3 FC_pose = T_fc.pose;
   Eigen::Vector3d FC_vel = T_fc.velocity_vrf;
+  loc_state_ = T_fc.fc_loc_state;
   auto map_elment =
       hd_map.GetElement(hozon::mp::loc::HD_MAP_LANE_BOUNDARY_LINE);
   if (map_elment == nullptr) {
@@ -1395,6 +1397,9 @@ void MatchLaneLine::ComputeCurvature(const std::vector<double>& coeffs,
 }
 
 void MatchLaneLine::CheckTriggerBigCurv(double cur_time) {
+  if (FLAGS_map_service_mode != 1 || loc_state_ != 2) {
+    return;
+  }
   static bool enable_11 = true;
   static double last_time_11 = ins_timestamp_;
   if (enable_11) {

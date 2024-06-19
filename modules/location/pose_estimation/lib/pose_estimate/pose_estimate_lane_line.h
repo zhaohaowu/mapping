@@ -36,6 +36,7 @@ struct ValidPose {
   double timeStamp = -1;
   SE3 pose;
   Eigen::Vector3d velocity_vrf;
+  int fc_loc_state = -1;
 };
 
 struct ControlPointInfo {
@@ -291,6 +292,7 @@ class MatchLaneLine {
   ERROR_TYPE err_type_;
   SE3 T_W_V_;
   SE3 T_V_W_;
+  int loc_state_;
   PerceptionLaneLineFitting percep_lane_line_curve_fitting_;
   using LineSegment =
       std::pair<std::string, V3>;  // LineSegment: {id, end_point}

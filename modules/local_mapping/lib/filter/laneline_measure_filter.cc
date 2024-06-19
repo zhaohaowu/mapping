@@ -6,6 +6,8 @@
 #include <math.h>
 
 #include <unordered_set>
+#include <limits>
+#include <utility>
 
 #include "modules/local_mapping/utils/lane_utils.h"
 #include "perception-lib/lib/config_manager/config_manager.h"

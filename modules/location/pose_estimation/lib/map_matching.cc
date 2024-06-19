@@ -138,6 +138,7 @@ void MapMatching::ProcData(
   fc_msg.valid = true;
   fc_msg.timeStamp = cur_stamp;
   fc_msg.velocity_vrf = linear_vel;
+  fc_msg.fc_loc_state = loc_state;
   Eigen::Quaterniond fc_q(
       fc->pose().quaternion().w(), fc->pose().quaternion().x(),
       fc->pose().quaternion().y(), fc->pose().quaternion().z());

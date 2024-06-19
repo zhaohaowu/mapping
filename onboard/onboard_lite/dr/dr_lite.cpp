@@ -13,6 +13,7 @@
 #include "gtest/gtest.h"
 #include "modules/dr/include/dr.h"
 #include "modules/util/include/util/orin_trigger_manager.h"
+#include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 #include "perception-lib/lib/environment/environment.h"
 #include "proto/dead_reckoning/dr.pb.h"
 #include "proto/soc/chassis.pb.h"
@@ -63,11 +64,10 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
   void AlgRelease() override {}
   void CheckTriggerDrDrift(double vel_x, double p_x, double p_y,
                            double cur_time);
-  bool IsDrDrift(double p_x, double p_y);
+  bool IsDrDrift(double cur_time, double vel_x, double p_x, double p_y);
 
  private:
   std::shared_ptr<hozon::mp::dr::DRInterface> dr_interface_ = nullptr;
-  std::deque<std::pair<double, double>> pose_que_;
 };
 
 REGISTER_ADF_CLASS(DeadReckoning, DeadReckoning);
@@ -185,69 +185,56 @@ int32_t DeadReckoning::receive_chassis(Bundle* input) {
   return 0;
 }
 
-bool DeadReckoning::IsDrDrift(double p_x, double p_y) {
-  static double pose_diff_avg = 0.0, d_p = 0.0;
-  if (pose_que_.empty()) {
-    pose_que_.push_back(std::make_pair(p_x, p_y));
+bool DeadReckoning::IsDrDrift(double cur_time, double vel_x, double p_x,
+                              double p_y) {
+  static double d_p = 0.0, d_p_vt = 0.0;
+  static std::vector<double> last_po{-1.0, 0.0, 0.0, 0.0};
+  std::vector<double> curr_po{cur_time, vel_x, p_x, p_y};
+
+  if (last_po[0] < 0) {
+    last_po = curr_po;
     return false;
   }
-  if (!pose_que_.empty() && pose_que_.size() < 21) {
-    pose_diff_avg += 0.05 * std::sqrt(((p_x - pose_que_.back().first) *
-                                       (p_x - pose_que_.back().first)) +
-                                      ((p_y - pose_que_.back().second) *
-                                       (p_y - pose_que_.back().second)));
-    pose_que_.push_back(std::make_pair(p_x, p_y));
-    return false;
-  } else {
-    d_p = std::sqrt(
-        ((p_x - pose_que_.back().first) * (p_x - pose_que_.back().first)) +
-        ((p_y - pose_que_.back().second)) * (p_y - pose_que_.back().second));
-    pose_diff_avg += 0.05 * d_p;
-    pose_diff_avg -=
-        0.05 * std::sqrt(((pose_que_[0].first - pose_que_[1].first) *
-                          (pose_que_[0].first - pose_que_[1].first)) +
-                         ((pose_que_[0].second - pose_que_[1].second) *
-                          (pose_que_[0].second - pose_que_[1].second)));
-    if (pose_diff_avg < 0.01 || d_p < 0.01) return false;
-    if (pose_diff_avg > 0.1) {
-      if (d_p < pose_diff_avg * 1.5) {
-        pose_que_.pop_front();
-        pose_que_.push_back(std::make_pair(p_x, p_y));
-        return false;
-      } else {
-        HLOG_WARN << "d_p: " << d_p << " is larger than pose_diff_avg * 1.5: "
-                  << pose_diff_avg * 1.5;
-        pose_que_.clear();
-        return true;
-      }
-    } else {
-      if (std::abs(d_p - pose_diff_avg) > 0.05) {
-        HLOG_WARN << "diff between d_p and pose_diff_avg: "
-                    << std::abs(d_p - pose_diff_avg) << " is larger than 0.05!";
-        pose_que_.clear();
-        return true;
-      }
+  if (curr_po[0] - last_po[0] >= 0.03) {
+    HLOG_WARN << "last_time: " << last_po[0]
+              << " curr_time: " << curr_po[0]
+              << " diff is larger than 0.03s !!!";
+    last_po = curr_po;
+    return true;
+  }
+
+  if (last_po[1] > 6.0 && curr_po[1] > 6.0) {
+    d_p_vt = (curr_po[0] - last_po[0]) * last_po[1];
+    d_p = std::sqrt(((curr_po[2] - last_po[2]) * (curr_po[2] - last_po[2])) +
+                    ((curr_po[3] - last_po[3]) * (curr_po[3] - last_po[3])));
+    if (std::abs(d_p_vt - d_p) > 0.02) {
+      HLOG_WARN << "d_p_vt: " << d_p_vt << " d_p: " << d_p
+                << " diff is larger than 0.02m!!!";
+      last_po = curr_po;
+      return true;
     }
   }
+  last_po = curr_po;
   return false;
 }
 
 void DeadReckoning::CheckTriggerDrDrift(double vel_x, double p_x, double p_y,
                                         double cur_time) {
-  // 6.0 m/s
-  if (vel_x > 6.0) {
-    static bool enable_12 = true;
-    static double last_time_12 = -1;
-    if (IsDrDrift(p_x, p_y)) {
-      if (enable_12) {
-        HLOG_WARN << "DR: vel_x = " << vel_x << " Start to trigger dc 1012";
-        GLOBAL_DC_TRIGGER.TriggerCollect(1012);
-        enable_12 = false;
-        last_time_12 = cur_time;
-      }
-    }
-    enable_12 = (cur_time - last_time_12) > 600;
+  if (FLAGS_map_service_mode != 1) {
+    return;
   }
+
+  static bool enable_12 = true;
+  static double last_time_12 = -1;
+  if (IsDrDrift(cur_time, vel_x, p_x, p_y)) {
+    if (enable_12) {
+      HLOG_WARN << "Start to trigger dc 1012";
+      GLOBAL_DC_TRIGGER.TriggerCollect(1012);
+      enable_12 = false;
+      last_time_12 = cur_time;
+    }
+  }
+  enable_12 = (cur_time - last_time_12) > 600;
 }
 
 int32_t DeadReckoning::receive_imu(Bundle* input) {
@@ -306,9 +293,8 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
           hozon::perception::base::FaultStatus::OCCUR,
           hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
       input_time_error_flag = true;
-      HLOG_ERROR << "DR: receive imu data stamp is error:"
-                 << "cur_imu_time:" << cur_imu_time << ","
-                 << "last_imu_time:" << last_imu_time;
+      HLOG_ERROR << "DR: receive imu data stamp is error:" << "cur_imu_time:"
+                 << cur_imu_time << "," << "last_imu_time:" << last_imu_time;
     } else {
       if (input_time_error_flag) {
         dr_fault->Report(MAKE_FM_TUPLE(
@@ -327,9 +313,8 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
           hozon::perception::base::FaultStatus::OCCUR,
           hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
       input_time_error_delay_flag = true;
-      HLOG_ERROR << "DR: receive imu data stamp is delay:"
-                 << "cur_imu_time:" << cur_imu_time << ","
-                 << "last_imu_time:" << last_imu_time;
+      HLOG_ERROR << "DR: receive imu data stamp is delay:" << "cur_imu_time:"
+                 << cur_imu_time << "," << "last_imu_time:" << last_imu_time;
     } else {
       if (input_time_error_delay_flag) {
         dr_fault->Report(MAKE_FM_TUPLE(

@@ -19,6 +19,7 @@
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
 #include "modules/util/include/util/orin_trigger_manager.h"
+#include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 
 namespace hozon {
 namespace mp {
@@ -1720,6 +1721,9 @@ void FusionCenter::CheckTriggerLocState(Context* const ctx) {
   static double last_time_05 = -1, last_time_10 = -1, last_time_03 = -1;
   auto curr_state = ctx->global_node.location_state;
   auto curr_time = ctx->global_node.ticktime;
+  if (FLAGS_map_service_mode != 1 || last_state != 2) {
+    return;
+  }
   if (curr_state != last_state && curr_state == 123 && enable_05) {
     // mapping trigger 无车道线
     HLOG_WARN << "curr_loc_state: " << curr_state

@@ -45,6 +45,10 @@ struct Params {
   double max_dr_pe_heading_error = 2.5;
   double max_fc_pe_horizontal_dist_error = 0.1;
   double refpoint_update_dist = 20000.0;
+  double loc2_posx_conv = 55.0;
+  double loc2_posy_conv = 55.0;
+  double loc2_yaw_conv = 55.0;
+  double exit_multiple = 1.6;
 
   std::vector<std::pair<uint32_t, uint32_t>> ins_init_status;
 };

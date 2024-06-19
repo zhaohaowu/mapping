@@ -450,6 +450,10 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
   params_.require_local_pose = node["require_local_pose"].as<bool>();
   params_.use_ins_predict_mm = node["use_ins_predict_mm"].as<bool>();
   params_.use_debug_txt = node["use_debug_txt"].as<bool>();
+  params_.loc2_posx_conv = node["loc2_posx_conv"].as<double>();
+  params_.loc2_posy_conv = node["loc2_posy_conv"].as<double>();
+  params_.loc2_yaw_conv = node["loc2_yaw_conv"].as<double>();
+  params_.exit_multiple = node["exit_multiple"].as<double>();
   params_.ins_init_status.clear();
   const auto& init_status_node = node["ins_init_status"];
   for (const auto& init_status : init_status_node) {
@@ -1752,17 +1756,39 @@ void FusionCenter::CheckTriggerLocState(Context* const ctx) {
 }
 
 uint32_t FusionCenter::GetGlobalLocationState() {
-  uint32_t state = 5;
+  static uint32_t state = 5;
   uint32_t search_cnt = 0;
 
   std::unique_lock<std::mutex> lock(fusion_deque_mutex_);
-  for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
-    if ((*it)->type == NodeType::POSE_ESTIMATE) {
-      state = 2;
-      return state;
+  // 进入loc=2条件
+  if (state != 2) {
+    for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
+      if ((*it)->type == NodeType::POSE_ESTIMATE &&
+          (*it)->cov(0, 0) <= params_.loc2_posx_conv * 1e-10 &&
+          (*it)->cov(1, 1) <= params_.loc2_posy_conv * 1e-10 &&
+          (*it)->cov(8, 8) <= params_.loc2_yaw_conv * 1e-10) {
+        state = 2;
+      }
+      if ((++search_cnt) > params_.search_state_cnt) {
+        break;
+      }
     }
-    if ((++search_cnt) > params_.search_state_cnt) {
-      break;
+  } else {
+    // 退出loc=2条件
+    for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
+      if ((*it)->type == NodeType::POSE_ESTIMATE &&
+          (*it)->cov(0, 0) <=
+              +params_.exit_multiple * params_.loc2_posx_conv * 1e-10 &&
+          (*it)->cov(1, 1) <=
+              +params_.exit_multiple * params_.loc2_posy_conv * 1e-10 &&
+          (*it)->cov(8, 8) <=
+              +params_.exit_multiple * params_.loc2_yaw_conv * 1e-10) {
+        break;
+      }
+      if ((++search_cnt) > params_.search_state_cnt) {
+        state = 5;
+        break;
+      }
     }
   }
 

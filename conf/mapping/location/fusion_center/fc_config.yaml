@@ -30,6 +30,11 @@ smooth_outputs: true # 开启KF平滑滤波
 use_smooth_yaw: true
 # fc使用txt调试mm,fc与INS差值
 use_debug_txt: false
+# LOC=2、5 进入退出协方差限制条件 * 1e-10
+loc2_posx_conv: 65.0
+loc2_posy_conv: 65.0
+loc2_yaw_conv: 0.11
+exit_multiple: 8
 
 require_local_pose: false
 lateral_error_compensation: false

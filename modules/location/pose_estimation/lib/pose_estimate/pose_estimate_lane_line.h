@@ -158,7 +158,8 @@ class MatchLaneLine {
                        const std::unordered_map<std::string, std::vector<V3>>&
                            filtered_fcmap_lines,
                        double* const near, double* const far,
-                       const double& far_dis, const double& near_dis);
+                       const double& far_dis, const double& near_dis,
+                       std::string* cur_line_id, V3* pt);
   bool GetEdgeFitPoints(const std::vector<ControlPoint>& points, const double x,
                         V3* pt);
   void CalPercepMinDist(const Eigen::Vector3d& FC_vel,

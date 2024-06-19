@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <limits>
 #include <list>
 #include <map>
@@ -211,6 +212,14 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
   }
   uint32_t percep_left_cnt = 0;
   uint32_t percep_right_cnt = 0;
+  std::string map_left_near_id = "0_0";
+  std::string map_left_check_near_id = "0_0";
+  std::string map_right_near_id = "0_0";
+  std::string map_right_check_near_id = "0_0";
+  V3 percep_left_target_point(0, 0, 0);
+  V3 percep_right_target_point(0, 0, 0);
+  V3 percep_left_check_target_point(0, 0, 0);
+  V3 percep_right_check_target_point(0, 0, 0);
   double left_dist_near_v = 0.0;
   double left_dist_far_v = 0.0;
   double right_dist_near_v = 0.0;
@@ -275,7 +284,7 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
     bool flag_fit0 =
         GetFitMapPoints(map_edge.second, FC_vel(0) * 2.0, &map_point);
     // 比较并更新左右边界
-    if (map_point.y() > 0 && !big_curvature_) {
+    if (map_point.y() > mm_params.left_edge_y_err && !big_curvature_) {
       ++map_edge_posi_cnt;
       if (nearest_left_edge.second.empty() ||
           (map_point.y() < map_left_point.y() && map_left_point.y() > 0)) {
@@ -283,7 +292,7 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
         nearest_left_edge = std::make_pair(edge_idx, map_edge.second);
       }
     }
-    if (map_point.y() < 0 && !big_curvature_) {
+    if (map_point.y() < mm_params.right_edge_y_err && !big_curvature_) {
       ++map_edge_nag_cnt;
       if (nearest_right_edge.second.empty() ||
           (map_point.y() > map_right_point.y() && map_right_point.y() < 0)) {
@@ -331,18 +340,22 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
     }
     if (line->lane_position_type() == -1) {
       CalLinesMinDist(line, left_filtered_fcmap_lines, &left_dist_near_v,
-                      &left_dist_far_v, far_dis, near_dis);
+                      &left_dist_far_v, far_dis, near_dis, &map_left_near_id,
+                      &percep_left_target_point);
       CalLinesMinDist(line, left_filtered_fcmap_lines, &left_near_check_dist_v,
                       &left_far_check_dist_v, far_dis_last,
-                      std::max(2.0, static_cast<double>(line->Min())));
+                      std::max(2.0, static_cast<double>(line->Min())),
+                      &map_left_check_near_id, &percep_left_check_target_point);
     }
     if (line->lane_position_type() == 1) {
       CalLinesMinDist(line, right_filtered_fcmap_lines, &right_dist_near_v,
-                      &right_dist_far_v, far_dis, near_dis);
-      CalLinesMinDist(line, right_filtered_fcmap_lines,
-                      &right_near_check_dist_v, &right_far_check_dist_v,
-                      far_dis_last,
-                      std::max(2.0, static_cast<double>(line->Min())));
+                      &right_dist_far_v, far_dis, near_dis, &map_right_near_id,
+                      &percep_right_target_point);
+      CalLinesMinDist(
+          line, right_filtered_fcmap_lines, &right_near_check_dist_v,
+          &right_far_check_dist_v, far_dis_last,
+          std::max(2.0, static_cast<double>(line->Min())),
+          &map_right_check_near_id, &percep_right_check_target_point);
     }
   }
   HLOG_DEBUG << "left_dist_near_v = " << left_dist_near_v
@@ -389,6 +402,70 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
           fabs(right_error) >= mm_params.map_lane_match_diver) {
         HLOG_ERROR << "130 : single both sides distance exceed thr";
         fc_good_match_single_check = false;
+      }
+      if (!fc_good_match_single_check) {
+        double left_near_point_distance = DOUBLE_MAX;
+        double right_near_point_distance = DOUBLE_MAX;
+        V3 map_line_far_point(0, 0, 0);
+        V3 map_line_near_point(0, 0, 0);
+        if (fabs(left_dist_near_v) >= mm_params.map_lane_match_diver &&
+            fabs(left_near_check_dist_v) < mm_params.ramp_judg_thre) {
+          for (const auto& map_line : left_filtered_fcmap_lines) {
+            const auto line_idx = map_line.first;
+            const auto map_point = map_line.second;
+            if (line_idx != map_left_check_near_id) {
+              continue;
+            }
+            if (map_line.second.back().x() < FC_vel(0) * 2.0) {
+              V3 map_point1 = map_line.second.back();
+              V3 map_point2 = map_line.second[map_line.second.size() - 2];
+              left_near_point_distance = CalCulatePointToLineDistance(
+                  percep_left_target_point, map_point1, map_point2);
+            } else {
+              bool flag0 = GetFitPoints(map_point, FC_vel(0) * 1.5,
+                                        &map_line_near_point);
+              bool flag1 =
+                  GetFitPoints(map_point, FC_vel(0) * 2.0, &map_line_far_point);
+              if (flag0 && flag1) {
+                left_near_point_distance = CalCulatePointToLineDistance(
+                    percep_left_target_point, map_line_far_point,
+                    map_line_near_point);
+              }
+            }
+          }
+        }
+        if (fabs(right_dist_near_v) >= mm_params.map_lane_match_diver &&
+            fabs(right_near_check_dist_v) < mm_params.ramp_judg_thre) {
+          for (const auto& map_line : right_filtered_fcmap_lines) {
+            const auto line_idx = map_line.first;
+            const auto map_point = map_line.second;
+            if (line_idx != map_right_check_near_id) {
+              continue;
+            }
+            if (map_line.second.back().x() < FC_vel(0) * 2.0) {
+              V3 map_point1 = map_line.second.back();
+              V3 map_point2 = map_line.second[map_line.second.size() - 2];
+              right_near_point_distance = CalCulatePointToLineDistance(
+                  percep_right_target_point, map_point1, map_point2);
+            } else {
+              bool flag0 = GetFitPoints(map_point, FC_vel(0) * 1.5,
+                                        &map_line_near_point);
+              bool flag1 =
+                  GetFitPoints(map_point, FC_vel(0) * 2.0, &map_line_far_point);
+              if (flag0 && flag1) {
+                right_near_point_distance = CalCulatePointToLineDistance(
+                    percep_right_target_point, map_line_far_point,
+                    map_line_near_point);
+              }
+            }
+          }
+        }
+        if ((left_near_point_distance <= mm_params.map_lane_match_diver &&
+             right_error != 0) ||
+            (right_near_point_distance <= mm_params.map_lane_match_diver &&
+             left_error != 0)) {
+          fc_good_match_single_check = true;
+        }
       }
     }
   }
@@ -465,12 +542,14 @@ void MatchLaneLine::CalLinesMinDist(
     const std::unordered_map<std::string, std::vector<V3>>&
         filtered_fcmap_lines,
     double* const near, double* const far, const double& far_dis,
-    const double& near_dis) {
-  if (!percep || !near || !far) {
+    const double& near_dis, std::string* cur_line_id, V3* pt) {
+  if (!percep || !near || !far || !cur_line_id || !pt) {
     return;
   }
   double min_y_near = DOUBLE_MAX;
   double min_y_far = DOUBLE_MAX;
+  std::string map_line_id = "0_0";
+  V3 percep_target_point(0, 0, 0);
   V3 anchor_pt0(near_dis, 0, 0);
   V3 anchor_pt1(far_dis, 0, 0);
   V3 anchor_pt2(near_dis, 0, 0);
@@ -508,6 +587,8 @@ void MatchLaneLine::CalLinesMinDist(
       y_near = w_p_near.y() - v_p_near.y();
       if (fabs(y_near) < fabs(min_y_near)) {
         min_y_near = y_near;
+        map_line_id = line_idx;
+        percep_target_point = w_p_near;
       }
     }
     if (flag_fit1 && flag_fit3) {
@@ -525,6 +606,8 @@ void MatchLaneLine::CalLinesMinDist(
   }
   *near = min_y_near;
   *far = min_y_far;
+  *cur_line_id = map_line_id;
+  *pt = percep_target_point;
 }
 
 bool MatchLaneLine::GetFcFitMapPoints(const VP& points, const double x,

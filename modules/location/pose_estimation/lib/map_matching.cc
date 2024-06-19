@@ -34,8 +34,10 @@ bool MapMatching::Init(const std::string& config_file) {
   mm_params.min_vel = config["min_vel"].as<double>();
   mm_params.single_error_min_vel = config["single_error_min_vel"].as<double>();
   mm_params.map_lane_match_diver = config["map_lane_match_diver"].as<double>();
+  mm_params.ramp_judg_thre = config["ramp_judg_thre"].as<double>();
   mm_params.fault_restore_dis = config["fault_restore_dis"].as<double>();
-  mm_params.edge_line_err = config["edge_line_err"].as<double>();
+  mm_params.left_edge_y_err = config["left_edge_y_err"].as<double>();
+  mm_params.right_edge_y_err = config["right_edge_y_err"].as<double>();
   mm_params.map_lane_match_buff = config["map_lane_match_buff"].as<int>();
   mm_params.map_lane_match_ser_max =
       config["map_lane_match_ser_max"].as<double>();

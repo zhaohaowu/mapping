@@ -30,9 +30,11 @@ use_map_lane_match_fault: true        #fault-130
 use_valid_estimate_last_fault: false  #已关闭(old fault-125)
 ##map_lane_match_fault (fault-130)
 map_lane_match_diver: 1.5       # 单边判断的阈值1.5
+ramp_judg_thre: 0.5             # 匝道单边策略阈值0.5
 fault_restore_dis: 0.15         # 退出130的近端点阈值
 fault_restore_ave_dis: 0.3      # 退出130的平均阈值
-edge_line_err: 0.1              # 地图路沿和感知车道线的允许误差阈值
+left_edge_y_err: 1.0
+right_edge_y_err: -1.0
 map_lane_match_buff: 10         # 超过buff次就上报故障
 map_lane_match_ser_max: 0.8     # 双边判断的阈值0.8
 map_lane_match_ser_buff: 5

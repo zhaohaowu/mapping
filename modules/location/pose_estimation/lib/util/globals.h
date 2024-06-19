@@ -46,9 +46,11 @@ struct MapMatchLaneLineParams {
   double min_vel;
   double single_error_min_vel;
   double map_lane_match_diver;
+  double ramp_judg_thre;
   double fault_restore_dis;
   double fault_restore_ave_dis;
-  double edge_line_err;
+  double left_edge_y_err;
+  double right_edge_y_err;
   int map_lane_match_buff;
   double map_lane_match_ser_max;
   int map_lane_match_ser_buff;

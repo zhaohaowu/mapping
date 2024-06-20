@@ -12,6 +12,7 @@
 #include <deque>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -214,6 +215,8 @@ struct IsCross {
   em::Id next_lane_left = -1000;  // 记录与路口后某条lane连接的左边线trackid
   em::Id next_lane_right = -1000;  // 记录与路口后某条lane连接的右边线trackid
   int is_connect_ = 0;  // 防抖，防止这帧连下一帧不连导致画龙
+  std::set<std::string>
+      next_satisefy_lane_seg;  // 记录路口后满足连接条件的所有lane名称
 };
 
 struct HistoryId {
@@ -391,6 +394,17 @@ class GroupMap {
   bool Distanceline(const LineSegment& left_line, float line_front_x,
                     float line_front_y);
   bool IsInGroupAndNoLane(Group::Ptr group);
+  void GenerateTransitionLaneToPo3(Lane::Ptr lane_in_curr,
+                                   Lane::Ptr lane_in_next,
+                                   Lane::Ptr transition_lane);
+  void GenerateLane(Lane::Ptr lane_next, Lane::Ptr transition_lane);
+  void FindSatisefyNextLane(Group::Ptr next_group, const float& dist_to_slice,
+                            std::vector<Lane::Ptr>* satisfy_next_lane);
+  void GenerateAllSatisfyTransitionLane(
+      Lane::Ptr lane_in_curr, std::vector<Lane::Ptr>* virtual_lanes,
+      std::vector<Lane::Ptr> history_satisfy_lane_);
+  void BuildVirtualGroup2(std::vector<Lane::Ptr> virtual_lanes,
+                          std::vector<Group::Ptr>* group_virtual, double stamp);
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;
   std::map<em::Id, Arrow::Ptr> arrow_;

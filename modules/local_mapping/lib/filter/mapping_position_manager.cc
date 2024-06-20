@@ -174,10 +174,10 @@ void MappingPositionManager::SetLaneLinePosition(
       lane_lines[lane_index]->position = LaneLinePosition::FOURTH_RIGHT;
     }
   }
-  //   for (const auto& lane : lane_lines) {
-  //     HLOG_INFO << "cam lane id:" << lane->id
-  //               << " lane pos:" << static_cast<int>(lane->position);
-  //   }
+  // for (const auto& lane : lane_lines) {
+  //   HLOG_DEBUG << "cam lane id:" << lane->id
+  //              << " lane pos:" << static_cast<int>(lane->position);
+  // }
 }
 
 void MappingPositionManager::SetC0(const LaneLinesPtr& laneline_ptrs) {
@@ -192,8 +192,8 @@ void MappingPositionManager::SetC0(const LaneLinesPtr& laneline_ptrs) {
       }
     }
     lane_line->theory_c0 = final_y;
-    // HLOG_INFO << "cam lane_line id" << lane_line->id
-    //           << ", lane_line->theory_c0:" << lane_line->theory_c0;
+    HLOG_DEBUG << "cam lane_line id" << lane_line->id
+               << ", lane_line->theory_c0:" << lane_line->theory_c0;
   }
 }
 
@@ -205,44 +205,48 @@ void MappingPositionManager::SetReferC0(const LaneLinesPtr& laneline_ptrs) {
     int use_point_num =
         static_cast<int>(0.2 * lane_line->vehicle_points.size());
     double avg_interval_xy = 0.0;
-    double sum_interval_xy = 0.0;
+    double sum_interval_xy_pt = 0.0;
     // 只选择车距离本车最近的20%的点
     std::vector<std::pair<Eigen::Vector3d, double>> dist_points_pairs;
+    dist_points_pairs.clear();
     if (lane_line->vehicle_points.size() == 0) {
       continue;
     }
     for (auto& point : lane_line->vehicle_points) {
+      if (lane_line->vehicle_points.back().x() > 10 && point.x() < 0) {
+        continue;
+      }
       double distance = sqrt(point.x() * point.x() + point.y() * point.y());
       dist_points_pairs.emplace_back(
           std::pair<Eigen::Vector3d, double>(point, distance));
     }
 
-    if (lane_line->vehicle_points.size() > 0) {
-      float interval_x =
-          lane_line->vehicle_points[lane_line->vehicle_points.size() - 1].x() -
-          lane_line->vehicle_points[0].x();
-      float interval_y =
-          lane_line->vehicle_points[lane_line->vehicle_points.size() - 1].y() -
-          lane_line->vehicle_points[0].y();
-      sum_interval_xy =
-          std::sqrt(interval_x * interval_x + interval_y * interval_y);
-    }
-    // 计算x方向平均间隔
-    avg_interval_xy =
-        sum_interval_xy / (lane_line->vehicle_points.size() + 0.00001);
     std::sort(dist_points_pairs.begin(), dist_points_pairs.end(),
               [](std::pair<Eigen::Vector3d, double>& a,
                  std::pair<Eigen::Vector3d, double>& b) {
                 return a.second < b.second;
               });
     int select_num = 0;
-
-    auto ref_point = dist_points_pairs[0].first;
+    auto ref_point = dist_points_pairs.front().first;
+    for (int i = 1; i < dist_points_pairs.size(); ++i) {
+      float diff_pt =
+          (dist_points_pairs[i].first - dist_points_pairs[i - 1].first).norm();
+      sum_interval_xy_pt += diff_pt;
+    }
+    // 计算xy方向平均间隔
+    avg_interval_xy =
+        sum_interval_xy_pt / (lane_line->vehicle_points.size() - 1 + 0.00001);
     for (int i = 1; i < dist_points_pairs.size() - 1; ++i) {
       float diff = (dist_points_pairs[i].first - ref_point).norm();
-      // diff需要大于x方向平均间隔才加入计算（防止聚集在一起的点团点）
+      float diff_y = dist_points_pairs[i].first.y() - ref_point.y();
+      HLOG_DEBUG << "x:" << dist_points_pairs[i].first.x()
+                 << " ,y:" << dist_points_pairs[i].first.y()
+                 << " ,ref x:" << ref_point.x() << " ,ref y:" << ref_point.y()
+                 << " ,diff:" << diff
+                 << " ,avg_interval_xy:" << avg_interval_xy;
+      // diff需要大于xy方向平均间隔，且横向有10cm的差距才加入计算（防止聚集在一起的点团点）
       if ((select_num < use_point_num) &&
-          (abs(diff) >= (abs(avg_interval_xy)))) {
+          (abs(diff) >= (abs(avg_interval_xy))) && (abs(diff_y) > 0.1)) {
         sum_y += dist_points_pairs[i].first.y();
         ref_point = dist_points_pairs[i].first;
         select_num += 1;
@@ -254,8 +258,8 @@ void MappingPositionManager::SetReferC0(const LaneLinesPtr& laneline_ptrs) {
     }
     avg_y = sum_y / (use_point_num + 0.00001);
     lane_line->refer_c0 = avg_y;
-    // HLOG_DEBUG << "cam lane_line id" << lane_line->id
-    //            << ", lane_line->refer_c0:" << lane_line->refer_c0;
+    HLOG_DEBUG << "cam lane_line id" << lane_line->id
+               << ", lane_line->refer_c0:" << lane_line->refer_c0;
   }
 }
 void MappingPositionManager::IfCross(const LaneLinesPtr& laneline_ptrs) {
@@ -267,6 +271,8 @@ void MappingPositionManager::IfCross(const LaneLinesPtr& laneline_ptrs) {
     for (int j = i + 1; j < laneline_ptrs->lanelines.size(); ++j) {
       double tmp_c0 = laneline_ptrs->lanelines[j]->theory_c0;
       if (abs(c0 - tmp_c0) < 0.5) {
+        HLOG_DEBUG << "cross_id: " << laneline_ptrs->lanelines[i]->id
+                   << " ,cross_id:" << laneline_ptrs->lanelines[j]->id;
         laneline_ptrs->lanelines[i]->cross = true;
         laneline_ptrs->lanelines[j]->cross = true;
       }

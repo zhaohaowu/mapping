@@ -24,7 +24,7 @@ namespace environment_onboard {
 // EnvBevfusionOnboard::~EnvBevfusionOnboard() {}
 
 int32_t EnvBevfusionOnboard::AlgInit() {
-  HLOG_DEBUG << "EnvBevfusionOnboard AlgInit Start...";
+  HLOG_INFO << "EnvBevfusionOnboard AlgInit Start...";
 
   perception_lib::LocationManager::Instance()->Init(100, 0.5);
 
@@ -63,7 +63,7 @@ int32_t EnvBevfusionOnboard::AlgInit() {
       std::make_unique<environment::RoadEdgePostProcess>();
   CHECK(roadedge_postprocessor_->Init(init_option));
   HLOG_DEBUG << "roadedge_postprocessor_ init successfully";
-  HLOG_DEBUG << "EnvBevfusionOnboard AlgInit End...";
+  HLOG_INFO << "EnvBevfusionOnboard AlgInit End...";
 
   return 0;
 }

@@ -30,7 +30,8 @@ bool MappingRemoveManager::IsForkConvergelike(
   if (point_set1.empty() || point_set2.empty()) {
     return false;
   }
-
+  HLOG_DEBUG << "left_line id" << left_line->Id()
+             << " ,right_line id:" << right_line->Id();
   // 分合流线场景
   float line1_length = GetLength(point_set1);
   float line2_length = GetLength(point_set2);
@@ -130,9 +131,9 @@ bool MappingRemoveManager::IsForkConvergelike(
   }
 
   // 以下是判定两条线是否是分合流场景还是一条线存在误检的情况，重叠区域小于20m
-  if ((1.0 * order_times / (bins - ambiguous_times + 0.001) > 0.65 ||
-       1.0 * reorder_times / (bins - ambiguous_times + 0.001) > 0.65) &&
-      equal_length < 15) {
+  if ((1.0 * order_times / (bins - ambiguous_times + 0.001) > 0.45 ||
+       1.0 * reorder_times / (bins - ambiguous_times + 0.001) > 0.45) &&
+      equal_length < 30) {
     return true;
   }
 
@@ -338,6 +339,7 @@ LaneTargetPtr MappingRemoveManager::DeleteLinebetweenRefLane(
         lanetarget->GetConstTarget()->GetConstTrackedObject();
     if (IsForkConvergelike(lanetarget->GetConstTarget(),
                            ref_track->GetConstTarget())) {
+      HLOG_DEBUG << "is fork!!!";
       return nullptr;
     }
     double over_lay_ratio =

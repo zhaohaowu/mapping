@@ -101,7 +101,7 @@ bool DataMapping::CvtRoadEdge2TePb(const RoadEdgePtr& roadedge_msg,
   //     CvtRoadEdgePosType2TePb(roadedge_msg->te_position);
   hozon::perception::LanePositionType send_pos_type =
       CvtRoadEdgePosType2TePb(roadedge_msg->position);
-
+  pb_roadedge->set_lanepos(send_pos_type);
   // 只发送车前的点
   for (auto& item_pt : roadedge_msg->vehicle_points) {
     if (item_pt.x() < 0) {

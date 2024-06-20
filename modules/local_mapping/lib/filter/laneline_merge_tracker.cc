@@ -209,8 +209,9 @@ bool LaneLineMergeTrack::MergeOverlayCrossStrategy(
       right_line->GetConstTrackedObject()->vehicle_points, thresh_width);
   double time_diff = left_line->GetLastestTrackedTimestamp() -
                      right_line->GetLastestTrackedTimestamp();
-  HLOG_DEBUG << "laneline MergeTracks: id " << left_line->Id() << ", id "
-             << right_line->Id() << ", over_lay_ratio: " << over_lay_ratio
+  HLOG_DEBUG << "MergeOverlayCrossStrategy laneline MergeTracks: id "
+             << left_line->Id() << ", id " << right_line->Id()
+             << ", over_lay_ratio: " << over_lay_ratio
              << ", avg_dist: " << avg_dist << ", time_diff: " << time_diff
              << ", overlay_min_length:" << overlay_min_length;
   // 根据线的质量来做删除,需要根据case专门抽一个评估函数

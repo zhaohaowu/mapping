@@ -59,7 +59,7 @@ offset_maplane_min_dis: -20     # m，车道线最近距离
 offset_maplane_max_dis: 40      # m，车道线最远距离
 offset_maxlane: 9               # m，车道线阈值，只使用9m内的车道线
 ##valid_pecep_lane_fault(123)
-invalid_pecep_thr: 2            # s，秒
+invalid_pecep_thr: 5            # s，秒
 ##valid_map_lane_fault(124)
 invalid_map_thr: 1              # s，秒    
 

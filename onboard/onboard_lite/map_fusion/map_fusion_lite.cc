@@ -797,13 +797,19 @@ int MapFusionLite::SendPercepResult(
       switch_reason = "the road of fusion map routing from mapservice is empty";
     }
   }
-  percep_result->mutable_routing()->add_origin_response(switch_reason);
   if (curr_routing_.get() != nullptr) {
     if (curr_routing_.get()->has_ehp_reason()) {
+      std::string::size_type idx =
+          curr_routing_.get()->ehp_reason().find("finish");
+      if (idx != std::string::npos) {
+        select.fault_level = 2;
+        switch_reason = "reason message is 3, Route finish";
+      }
       percep_result->mutable_routing()->set_ehp_reason(
           curr_routing_.get()->ehp_reason());
     }
   }
+  percep_result->mutable_routing()->add_origin_response(switch_reason);
   percep_result->set_map_type(select.map_type);
   percep_result->set_is_valid(select.valid);
   percep_result->set_fault_level(select.fault_level);

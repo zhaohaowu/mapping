@@ -279,7 +279,6 @@ class MapSelectLite {
   float max_half_lane_dis_ = 3.5;
   float min_half_lane_dis_ = 1.35;
   float lane_range_value_ = 0.5;
-  bool is_routing_null_ = false;
   float dis_scope_ = 5;
   std::string switch_map_reason_;
 };

@@ -395,6 +395,17 @@ struct TrafficLight : public BaseElement {
 
 // enum CoordType { kCoordLocalEnu = 0, kCoordWgs, kCoordGcj, kCoordUtm };
 
+struct OccRoad {
+  Id track_id;
+  Id detect_id;
+  std::vector<Eigen::Vector3d> road_points;  // 默认front为豁口点
+  // int road_flag;  // 路沿类型0-->隔断路沿，1-->实线路沿
+  Id left_occ_id = -1;   // 左侧能构成道的id
+  Id right_occ_id = -1;  // 右侧能构成道的id
+  bool is_forward;       // 车前方true,车侧或车后false(且满足条件)
+
+  DEFINE_PTR(OccRoad)
+};
 struct MapInfo {
   std::string frame_id;
   double stamp = 0.;
@@ -415,6 +426,7 @@ struct ElementMap {
   std::map<Id, StopLine::Ptr> stop_lines;
   std::map<Id, Symbol::Ptr> symbols;
   std::map<Id, TrafficLight::Ptr> traffic_lights;
+  std::map<Id, OccRoad::Ptr> occ_roads;
 
   DEFINE_PTR(ElementMap)
 
@@ -433,6 +445,7 @@ struct ElementMapOut {
   std::map<Id, StopLine::Ptr> stop_lines;
   std::map<Id, Symbol::Ptr> symbols;
   std::map<Id, TrafficLight::Ptr> traffic_lights;
+  std::map<Id, OccRoad::Ptr> occ_roads;
 
   DEFINE_PTR(ElementMapOut)
 

@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "adsfi_proto/viz/sensor_msgs.pb.h"
 #include "map_fusion/fusion_common/calc_util.h"
 #include "map_fusion/fusion_common/viz_util.h"
 #include "map_fusion/road_recognition/group_map.h"
@@ -45,6 +46,12 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
       "min_predict_interval",
       "max_heading_degree",
       "junction_heading_diff",
+      "junction_guide_angle_ratio",
+      "junction_heading_along_length",
+      "use_occ_roadedge",
+      "use_bev_roadedge",
+      "junction_guide_min_dis",
+      "junction_guide_max_degree",
   };
   for (const auto& it : required) {
     if (!conf[it].IsDefined()) {
@@ -83,6 +90,16 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
         HLOG_ERROR << "RvizAgent register pose array failed";
         return false;
       }
+
+      std::vector<std::string> guide_points_topic = {
+          viz_topic_guidepoints_,
+      };
+      ret = RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(
+          viz_topic_guidepoints_);
+      if (ret < 0) {
+        HLOG_ERROR << "RvizAgent register guide point failed";
+        return false;
+      }
     }
   }
 
@@ -112,6 +129,17 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
       static_cast<float>(conf["junction_predict_distance"].as<double>());
   gm_conf_.next_group_max_distance =
       static_cast<float>(conf["next_group_max_distance"].as<double>());
+
+  gm_conf_.junction_guide_angle_ratio =
+      conf["junction_guide_angle_ratio"].as<double>();
+  gm_conf_.junction_heading_along_length =
+      conf["junction_heading_along_length"].as<double>();
+  gm_conf_.use_bev_roadedge = conf["use_bev_roadedge"].as<bool>();
+  gm_conf_.use_occ_roadedge = conf["use_occ_roadedge"].as<bool>();
+
+  gm_conf_.junction_guide_min_dis = conf["junction_guide_min_dis"].as<double>();
+  gm_conf_.junction_guide_max_degree =
+      conf["junction_guide_max_degree"].as<double>();
 
   is_cross_.cross_after_lane_ = 0;
   is_cross_.cross_before_lane_ = 0;
@@ -204,6 +232,7 @@ std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap() {
   group_map.GetGroups(&groups);
   IsInCrossing(groups, &is_cross_);
   VizGroup(groups, ele_map_->map_info.stamp);
+  VizGuidePoint(groups, ele_map_->map_info.stamp);
 
   proto_map = group_map.Export(ele_map_, &history_id_);
   ele_map_output_ = group_map.AddElementMap(ele_map_);
@@ -605,7 +634,39 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
     RVIZ_AGENT.Publish(viz_topic_group_, marker_array);
   }
 }
+void TopoGeneration::VizGuidePoint(const std::vector<gm::Group::Ptr>& groups,
+                                   double stamp) {
+  if (!viz_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
 
+  adsfi_proto::viz::PointCloud points_msg;
+  // adsfi_proto::hz_Adsfi::AlgHeader viz_header;
+  // viz_header.set_frameid("vehicle");
+  // points_msg.mutable_header(CopyFrom(viz_header));
+  uint32_t sec = 0;
+  uint32_t nsec = 0;
+  SplitSeconds(stamp, &sec, &nsec);
+  points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+  points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+  points_msg.mutable_header()->set_frameid("vehicle");
+  auto* channels = points_msg.add_channels();
+  channels->set_name("rgb");
+
+  // // 增加引导点的可视化
+  if (groups.empty()) {
+    return;
+  }
+  auto guide_points = groups.front()->guide_points_toviz;
+  for (const auto& p : guide_points) {
+    auto* point_msg = points_msg.add_points();
+    point_msg->set_x(p.pt.x());
+    point_msg->set_y(p.pt.y());
+    point_msg->set_z(p.pt.z());
+  }
+
+  RVIZ_AGENT.Publish(viz_topic_guidepoints_, points_msg);
+}
 bool TopoGeneration::IsValid(const std::vector<gm::Group::Ptr>& groups) {
   int is_in_group = 0;  // 是否在所构建的group里
   for (size_t i = 0; i < groups.size(); ++i) {

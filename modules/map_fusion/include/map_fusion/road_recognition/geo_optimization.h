@@ -264,6 +264,8 @@ class GeoOptimization {
 
   void CompleteLocalMap();
 
+  void ExtractOccRoadGap();
+
   void UpdateLocalMapLine();
 
   void CreateLocalLineTable();

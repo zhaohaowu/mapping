@@ -37,6 +37,6 @@ executors:
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/local_mapping/lm_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/map_fusion/mf_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/map_fusion/tlr_config.yaml
-#  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/viz_cvt/viz_cvt_config.yaml
-#    order: 4
-#    quit_order: 9
+  # - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/viz_cvt/viz_cvt_config.yaml
+  #   order: 4
+  #   quit_order: 9

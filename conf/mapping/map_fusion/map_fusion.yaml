@@ -48,3 +48,12 @@ RoadRecognition:
     junction_heading_diff: 8 # degree
     junction_predict_distance: 40 # m 路口内预瞄最大距离，这个未加防抖机制
     next_group_max_distance: 50 # m 离下一个连接group的最大距离
+
+    # 路口引导点的配置参数
+    junction_guide_angle_ratio: 0.5 # 角度衰减比例
+    junction_guide_min_dis: 25.0 # 自车距离进入车道至少25米才允许预测
+    junction_guide_max_degree: 5.0  # 引导点与自车角度最大阈值 
+    junction_heading_along_length: 25.0 
+    use_occ_roadedge: false
+    use_bev_roadedge: false
+    

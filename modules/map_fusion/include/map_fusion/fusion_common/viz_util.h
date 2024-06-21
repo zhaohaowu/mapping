@@ -128,6 +128,11 @@ void ElementOccEgoToMarker(const em::Boundary& boundary,
                            int32_t id, double stamp, double lifetime,
                            Color color, adsfi_proto::viz::Marker* marker);
 
+void ElementOccRoadToMarker(const em::OccRoad& occ_road,
+                            const std::string& frame_id, const std::string& ns,
+                            int32_t id, double stamp, double lifetime,
+                            Color color, adsfi_proto::viz::Marker* marker);
+
 MarkerArrayPtr ElementMapToMarkers(const em::ElementMap& map,
                                    const std::string& frame_id,
                                    const std::string& ns, double stamp,

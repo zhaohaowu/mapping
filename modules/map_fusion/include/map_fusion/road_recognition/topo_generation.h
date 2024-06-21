@@ -42,11 +42,13 @@ class TopoGeneration {
   void VizPath(const std::vector<KinePose::Ptr>& path,
                const KinePose& curr_pose);
   void VizGroup(const std::vector<gm::Group::Ptr>& groups, double stamp);
+  void VizGuidePoint(const std::vector<gm::Group::Ptr>& groups, double stamp);
   bool viz_ = false;
   std::string viz_topic_input_ele_map_;
   std::string viz_topic_output_ele_map_;
   std::string viz_topic_path_;
   std::string viz_topic_group_;
+  std::string viz_topic_guidepoints_ = "/mapfusion/guide_points";
   double viz_lifetime_ = 0;
   double path_predict_range_ = 0.;
   gm::GroupMapConf gm_conf_;

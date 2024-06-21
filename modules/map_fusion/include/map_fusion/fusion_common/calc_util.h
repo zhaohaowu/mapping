@@ -508,6 +508,19 @@ bool DoubleHasSameSign(double first, double second);
 void FitLaneLinePoint(const std::vector<hozon::common::math::Vec2d>& pts,
                       std::vector<double>* c);
 
+Eigen::Vector2f FindPointOnExtendedLine(Eigen::Vector2f point1,
+                                        Eigen::Vector2f point2,
+                                        float angleRadians);
+
+Eigen::Vector2f AddPointAlongHeading(Eigen::Vector2f origin, float headingRad,
+                                     float distance);
+
+std::vector<hozon::common::math::Vec2d> LinearInterp(
+    hozon::common::math::Vec2d start_point,
+    hozon::common::math::Vec2d end_point, float interp_dist);
+
+double CalCubicCurveY(const std::vector<double> vehicle_curve, const double& x);
+
 }  // namespace math
 
 }  // namespace mf

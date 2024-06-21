@@ -2131,6 +2131,191 @@ void GeoOptimization::OnLocalMap(
 
   // 将输出填入elementmap
   AppendElemtMap(local_map_use_);
+
+  // 处理OCC提取路沿豁口，并填入elementmap
+  ExtractOccRoadGap();
+}
+
+void GeoOptimization::ExtractOccRoadGap() {
+  // 通过OCC提取路沿豁口信息
+  /*
+         路口场景
+        |        |
+        |        |
+        |        |
+        -        - ------目标豁口
+        /         \
+       /           \
+
+
+
+       \           /
+        \         /
+         | | | | |
+         | | |↑| |
+         | | | | |
+  方案： 1.获取起始点大于0的occ，并按照对应的y值从小到大进行排序
+        2.计算相邻两根车道线平均距离
+        3.判断是否属于同一个包络，如果是，继续遍历，如果不是判断两根线能否构成道；
+  */
+  // if (local_map_->occs().empty()) {
+  //   HLOG_WARN << "occs is empty!";
+  //   return;
+  // }
+  if (local_map_->road_edges().empty()) {
+    HLOG_WARN << "road edge is empty!";
+    return;
+  }
+  std::vector<std::pair<int, em::OccRoad>> vec_occ_line;
+  // 模型路沿
+  for (const auto& road : local_map_->road_edges()) {
+    if (road.points_size() < 2 || road.points().at(0).x() < 0) {
+      continue;
+    }
+    em::OccRoad occ_road;
+    for (const auto& pt : road.points()) {
+      Eigen::Vector3d point(pt.x(), pt.y(), pt.z());
+      occ_road.road_points.emplace_back(point);
+    }
+    occ_road.track_id = road.track_id();
+    occ_road.detect_id = road.lanepos();
+    vec_occ_line.emplace_back(road.track_id(), occ_road);
+  }
+#if 0
+  // OCC路沿
+  for (const auto& occ : local_map_->occs()) {
+    // 注意！！!一个occ表示一根线，如果occ中的detect_id
+    // 一致表明两根线属于同一个包络 过滤point_size小于2和起始点x小于0的occ
+    if (occ.points_size() < 2 || occ.points().at(0).x() < 0) {
+      continue;
+    }
+    em::OccRoad occ_road;
+    std::vector<Eigen::Vector3d> pts;
+    for (int i = 0; i < occ.points().size() - 1; ++i) {
+      auto pt_heading =
+          (std::atan2((occ.points().at(i + 1).y() - occ.points().at(i).y()),
+                      (occ.points().at(i + 1).x() - occ.points().at(i).x()))) *
+          (180 / M_PI);
+      if (std::abs(pt_heading) > 10) {
+        continue;
+      }
+      // Eigen::Vector3d point(occ.points().at(i).x(), occ.points().at(i).y(),
+      //                       occ.points().at(i).z());
+      occ_road.road_points.emplace_back(
+          Eigen::Vector3d{occ.points().at(i).x(), occ.points().at(i).y(),
+                          occ.points().at(i).z()});
+    }
+    if (occ_road.road_points.empty()) {
+      continue;
+    }
+    // for (const auto& pt : occ.points()) {
+    //   Eigen::Vector3d point(pt.x(), pt.y(), pt.z());
+    //   occ_road.road_points.emplace_back(point);
+    // }
+    occ_road.track_id = occ.track_id();
+    occ_road.detect_id = occ.detect_id();
+    vec_occ_line.emplace_back(occ.track_id(), occ_road);
+  }
+#endif
+  // if (vec_occ_line.empty()) {
+  //   HLOG_WARN << "vec_occ_line is empty!";
+  //   return;
+  // }
+  // 对occ_line按照每根线的起点的y值从小到大进行排序
+  // std::sort(vec_occ_line.begin(), vec_occ_line.end(),
+  //           [](const auto& a, const auto& b) {
+  //             return a.second.road_points.front().y() <
+  //                    b.second.road_points.front().y();
+  //           });
+
+  // 对occ_line按照每根线的y值平均值大小进行排序
+  std::sort(vec_occ_line.begin(), vec_occ_line.end(),
+            [](const auto& a, const auto& b) {
+              double sumY_A = 0.0, sumY_B = 0.0;
+              for (const auto& vec : a.second.road_points) {
+                sumY_A += vec.y();
+              }
+              double avgY_A = sumY_A / a.second.road_points.size();
+              for (const auto& vec : b.second.road_points) {
+                sumY_B += vec.y();
+              }
+              double avgY_B = sumY_B / b.second.road_points.size();
+              return avgY_A < avgY_B;
+            });
+
+  // 遍历vec_occ_line，计算平均距离，判断是否是一个包络，并判断能否构成道
+  if (!vec_occ_line.empty()) {
+    for (int i = 0; i < vec_occ_line.size() - 1; ++i) {
+      // occ路沿才会判别
+      // if (vec_occ_line[i].second.detect_id ==
+      //     vec_occ_line[i + 1].second.detect_id) {
+      //   HLOG_WARN << "have the same detect_id!";
+      //   continue;
+      // }
+      auto occ_l1 = vec_occ_line[i].second.road_points;
+      auto occ_l2 = vec_occ_line[i + 1].second.road_points;
+
+      // 对occ_l1和occ_l2排序
+      // std::sort(occ_l1.begin(), occ_l1.end(),
+      //           [](const Eigen::Vector3d& a, const Eigen::Vector3d& b) {
+      //             return a.x() < b.x();
+      //           });
+      // std::sort(occ_l2.begin(), occ_l2.end(),
+      //           [](const Eigen::Vector3d& a, const Eigen::Vector3d& b) {
+      //             return a.x() < b.x();
+      //           });
+
+      std::vector<double> l_widths;
+      ComputerLineDis(occ_l1, occ_l2, &l_widths);
+      if (l_widths.empty()) {
+        continue;
+      }
+      auto ave_width = std::accumulate(l_widths.begin(), l_widths.end(), 0.0) /
+                       static_cast<double>(l_widths.size());
+      if (ave_width < 5) {
+        HLOG_WARN << "the lane width is invalid!";
+        continue;
+      }
+      // 满足构建道的要求occ塞到element_map中
+      if (elem_map_->occ_roads.find(vec_occ_line[i].first) ==
+          elem_map_->occ_roads.end()) {
+        em::OccRoad occ_road1;
+        occ_road1.track_id = vec_occ_line[i].first;
+        occ_road1.road_points = vec_occ_line[i].second.road_points;
+        occ_road1.left_occ_id = vec_occ_line[i + 1].first;
+        occ_road1.is_forward = true;
+        elem_map_->occ_roads[occ_road1.track_id] =
+            std::make_shared<em::OccRoad>(occ_road1);
+      }
+
+      if (elem_map_->occ_roads.find(vec_occ_line[i + 1].first) ==
+          elem_map_->occ_roads.end()) {
+        em::OccRoad occ_road2;
+        occ_road2.track_id = vec_occ_line[i + 1].first;
+        occ_road2.road_points = vec_occ_line[i + 1].second.road_points;
+        occ_road2.right_occ_id = vec_occ_line[i].first;
+        occ_road2.is_forward = true;
+        elem_map_->occ_roads[occ_road2.track_id] =
+            std::make_shared<em::OccRoad>(occ_road2);
+      }
+    }
+  }
+
+  for (const auto& occ : local_map_->road_edges()) {
+    if (elem_map_->occ_roads.find(occ.track_id()) !=
+        elem_map_->occ_roads.end()) {
+      continue;
+    }
+    em::OccRoad occ_road;
+    occ_road.track_id = occ.track_id();
+    for (const auto& pt : occ.points()) {
+      Eigen::Vector3d p(pt.x(), pt.y(), pt.z());
+      occ_road.road_points.emplace_back(p);
+    }
+    occ_road.is_forward = false;
+    elem_map_->occ_roads[occ_road.track_id] =
+        std::make_shared<em::OccRoad>(occ_road);
+  }
 }
 
 void GeoOptimization::CompleteLocalMap() {

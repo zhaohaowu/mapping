@@ -169,12 +169,22 @@ struct GroupSegment {
 };
 
 struct Group {
+  enum GroupState {
+    NORMAL = 0,
+    DELETE = 1,
+    VIRTUAL = 2,
+  };
   std::vector<GroupSegment::Ptr> group_segments;
   std::vector<Lane::Ptr> lanes;
   std::string str_id;
   std::string seg_str_id;
   double stamp = 0;
   bool is_last_after_erased = false;
+
+  GroupState group_state = GroupState::NORMAL;
+
+  // 临时增加， 用于可视化
+  std::vector<Point> guide_points_toviz;
 
   DEFINE_PTR(Group)
 };
@@ -203,8 +213,17 @@ struct GroupMapConf {
   // 车道线末端点间距阈值
   float min_predict_interval = 0;
   float junction_heading_diff = 0;
+
+  // 路口引导点相关配置参数
+  float junction_guide_angle_ratio = 0.2;
+  float junction_heading_along_length = 25.0;
   float junction_predict_distance = 40;
   float next_group_max_distance = 30;
+  bool use_occ_roadedge = false;
+  bool use_bev_roadedge = false;
+
+  float junction_guide_min_dis = 25.0;
+  float junction_guide_max_degree = 5;
 };
 
 struct IsCross {
@@ -229,9 +248,41 @@ struct EgoLane {
   int right_id = -200;
 };
 
+enum RoadScene {
+  NON_JUNCTION = 0,
+  BIG_JUNCTUIN = 1,
+  SMALL_JUNCTION = 2,
+};
+
+class GuidePathManager {
+ public:
+  explicit GuidePathManager(const GroupMapConf& conf) : conf_(conf) {
+    lane_groups_ = nullptr;
+    occ_roads_ = nullptr;
+  }
+  void LoadData(std::vector<Group::Ptr>* groups,
+                std::map<em::Id, em::OccRoad::Ptr>* occ_roads);
+  std::vector<Point> GetGuidePath();
+
+ protected:
+  RoadScene GetCurrentRoadScene();
+  std::vector<Point> GetCwForwardLaneGuidePoints();  // 获取路口前向车道引导点
+  std::vector<Point> GetRoadEdgeGuidePoints();  // 获取模型路沿引导点
+  // void GetSDPlanningNodesGuidePoint(){};  // 获取定位/sd数据引导点
+  // void GetModelGuideLineGuidePoint(){};   // 获取模型引导线引导点
+
+ private:
+  std::vector<Group::Ptr>* lane_groups_;
+  std::map<em::Id, em::OccRoad::Ptr>* occ_roads_;
+
+  GroupMapConf conf_;
+};
+
 class GroupMap {
  public:
-  explicit GroupMap(const GroupMapConf& conf) : conf_(conf) {}
+  explicit GroupMap(const GroupMapConf& conf) : conf_(conf) {
+    guide_path_manager_ = std::make_shared<GuidePathManager>(conf);
+  }
   ~GroupMap() = default;
 
   bool Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
@@ -257,7 +308,8 @@ class GroupMap {
   bool GenLaneCenterLine(std::vector<Group::Ptr>* groups);
   bool OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups);
   bool SetLaneStatus(std::vector<Group::Ptr>* groups);
-  bool LaneForwardPredict(std::vector<Group::Ptr>* groups, const double& stamp);
+  bool LaneForwardPredict(std::vector<Group::Ptr>* groups,
+                          std::vector<Point> guide_points, const double& stamp);
   bool OptiNextLane(std::vector<Group::Ptr>* groups);
   bool InferenceLaneLength(std::vector<Group::Ptr>* groups);
 
@@ -278,12 +330,15 @@ class GroupMap {
   void SplitPtsToGroupSeg(std::deque<Line::Ptr>* lines,
                           std::vector<GroupSegment::Ptr>* segments);
   void GenLaneSegInGroupSeg(std::vector<GroupSegment::Ptr>* segments);
-  void BuildGroups(double stamp, std::vector<GroupSegment::Ptr> group_segments,
+  void BuildGroups(const em::ElementMap::Ptr& ele_map,
+                   std::vector<GroupSegment::Ptr> group_segments,
                    std::vector<Group::Ptr>* groups);
   void UniteGroupSegmentsToGroups(double stamp,
                                   std::vector<GroupSegment::Ptr> group_segments,
                                   std::vector<Group::Ptr>* groups);
-  void GenLanesInGroups(std::vector<Group::Ptr>* groups, double stamp);
+  void GenLanesInGroups(std::vector<Group::Ptr>* groups,
+                        std::map<em::Id, em::OccRoad::Ptr> occ_roads,
+                        double stamp);
   bool LaneLineNeedToPredict(const LineSegment& line, bool check_back = true);
   void PredictLaneLine(std::vector<Lane::Ptr>* pred_lane,
                        const Lane::Ptr curr_lane);
@@ -320,6 +375,11 @@ class GroupMap {
                       std::vector<LineSegment::Ptr>* lines_need_pred,
                       double threshold, bool need_pred_kappa);
   void RelateGroups(std::vector<Group::Ptr>* groups, double stamp);
+  std::vector<Point> PredictGuidewirePath(
+      std::vector<Group::Ptr>* groups,
+      std::map<em::Id, em::OccRoad::Ptr> occ_roads);
+  void RemoveNullGroup(std::vector<Group::Ptr>* groups);
+  void RemainOnlyOneForwardCrossWalk(std::vector<Group::Ptr>* groups);
   bool MatchLanePtAndStopLine(const em::Point& left_pt,
                               const em::Point& right_pt, const Stpl& stop_line);
   bool MatchLaneAndStopLine(const Lane::Ptr& lane, const Stpl::Ptr& stop_line);
@@ -374,6 +434,15 @@ class GroupMap {
                                            Lane::Ptr* ego_curr_lane);
   void FindBestNextLane(Group::Ptr next_group, const float& dist_to_slice,
                         Lane::Ptr* best_next_lane);
+  void ComputeLineCurvature(const std::vector<Point>& guide_points,
+                            std::vector<Group::Ptr>* groups);
+  void ComputeLineCurvatureV2(const std::vector<Point>& guide_points,
+                              std::vector<Group::Ptr>* groups, double stamp);
+  void GenetateGuideLaneGeo(std::vector<Vec2d>* fit_points,
+                            Lane::Ptr* guide_lane,
+                            const Lane::Ptr& last_ego_lane);
+  void GenerateGuideLaneToPo(Lane::Ptr lane_in_curr, Lane::Ptr guide_lane);
+  void ComputeLineHeading(Line::Ptr* line);
   void SmoothCenterline(std::vector<Group::Ptr>* groups);
   void VirtualLaneLeftRight(Group::Ptr curr_group, Group::Ptr next_group);
   std::vector<Point> SlidingWindow(std::vector<Point> centerline, int w);
@@ -419,6 +488,7 @@ class GroupMap {
   KinePose::Ptr curr_pose_ = nullptr;
   std::vector<GroupSegment::Ptr> group_segments_;
   EgoLane ego_line_id_;
+  std::shared_ptr<GuidePathManager> guide_path_manager_;
   Lane::Ptr history_best_lane_ = nullptr;
   Lane::Ptr ego_curr_lane_ = nullptr;
   std::map<int, std::shared_ptr<cv::flann::Index>> KDTrees_;

@@ -714,6 +714,74 @@ void FitLaneLinePoint(const std::vector<hozon::common::math::Vec2d>& pts,
   c->emplace_back(coeffs[2]);
   c->emplace_back(coeffs[3]);
 }
+// 计算两直线交点坐标
+Eigen::Vector2f FindPointOnExtendedLine(Eigen::Vector2f p1, Eigen::Vector2f p2,
+                                        float angleRadians = 0.017f) {
+  // 计算给定两点的直线斜率，处理垂直线情况
+  double m1 =
+      p1.x() == p2.x() ? INFINITY : (p2.y() - p1.y()) / (p2.x() - p1.x());
+  double b1 = m1 * (-p1.x()) + p1.y();  // 使用任一点计算y轴截距
+  double m2 = tan(angleRadians);
+
+  // 由于经过原点，该直线的y轴截距为0
+  double b2 = 0;
+
+  // 解方程组求交点
+  if (m1 == INFINITY) {  // 第一条直线垂直时
+    return {p1.x(), m2 * p1.x()};
+  } else if (m2 == INFINITY) {  // 不适用，因为我们已知m2是基于非垂直角度计算的
+  } else {
+    double x = (b2 - b1) / (m1 - m2);
+    double y = m1 * x + b1;
+    return {x, y};
+  }
+
+  return 0.5 * (p1 + p2);  // 如果没有交点或计算错误返回NaN
+}
+
+Eigen::Vector2f AddPointAlongHeading(Eigen::Vector2f origin, float headingRad,
+                                     float distance) {
+  /**
+   * 在给定的heading方向上，从origin点出发，补充一个距离为distance的新点。
+   *
+   * @param origin: 原始点的坐标 (Eigen::Vector2f)
+   * @param headingRad: 航向角，以弧度表示
+   * @param distance: 新点与原点之间的距离
+   * @return: 沿heading方向的新点坐标
+   */
+  // 根据heading计算x和y方向的偏移量
+  float offsetX = distance * cos(headingRad);
+  float offsetY = distance * sin(headingRad);
+
+  // 计算新点坐标
+  Eigen::Vector2f newPoint;
+  newPoint.x() = origin.x() + offsetX;
+  newPoint.y() = origin.y() + offsetY;
+
+  return newPoint;
+}
+
+std::vector<hozon::common::math::Vec2d> LinearInterp(
+    hozon::common::math::Vec2d start_point,
+    hozon::common::math::Vec2d end_point, float interp_dist) {
+  std::vector<hozon::common::math::Vec2d> out_interp_points;
+  hozon::common::math::Vec2d dist = end_point - start_point;
+  int interp_nums = std::floor(dist.Length() / interp_dist);
+  hozon::common::math::Vec2d interval = dist / (interp_nums + 1);
+  for (int i = 1; i <= interp_nums; ++i) {
+    hozon::common::math::Vec2d interval_point = start_point + i * interval;
+    out_interp_points.emplace_back(interval_point);
+  }
+
+  return out_interp_points;
+}
+
+double CalCubicCurveY(const std::vector<double> vehicle_curve,
+                      const double& x) {
+  double y = vehicle_curve[0] + vehicle_curve[1] * x +
+             vehicle_curve[2] * x * x + vehicle_curve[3] * x * x * x;
+  return y;
+}
 
 }  // namespace math
 

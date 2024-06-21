@@ -3273,6 +3273,28 @@ void GroupMap::SmoothCenterline(std::vector<Group::Ptr>* groups) {
       lane_grp_index[grp->lanes[index]->str_id_with_group] = index;
     }
   }
+  // forbiden lane->next_lane_str_id_with_group and
+  // lane->prev_lane_str_id_with_group don't exist grouplane
+  for (auto& grp : *groups) {
+    for (auto lane : grp->lanes) {
+      for (int index = lane->next_lane_str_id_with_group.size() - 1; index >= 0;
+           --index) {
+        if (lane_grp_index.find(lane->next_lane_str_id_with_group[index]) ==
+            lane_grp_index.end()) {
+          lane->next_lane_str_id_with_group.erase(
+              lane->next_lane_str_id_with_group.begin() + index);
+        }
+      }
+      for (int index = lane->prev_lane_str_id_with_group.size() - 1; index >= 0;
+           --index) {
+        if (lane_grp_index.find(lane->prev_lane_str_id_with_group[index]) ==
+            lane_grp_index.end()) {
+          lane->prev_lane_str_id_with_group.erase(
+              lane->prev_lane_str_id_with_group.begin() + index);
+        }
+      }
+    }
+  }
   for (size_t i = 0; i < groups->size() - 1; ++i) {
     auto& curr_grp = groups->at(i);
     auto& next_grp = groups->at(i + 1);
@@ -7217,7 +7239,7 @@ std::vector<Point> GuidePathManager::GetCwForwardLaneGuidePoints() {
 
   // 进入车道距离自车长度短，则约束角度为0.1度.
   if (center_first_point.x() < conf_.junction_guide_min_dis) {
-    guide_heading_value = guide_heading_value > 0 ? 0.0017 :-0.0017;
+    guide_heading_value = guide_heading_value > 0 ? 0.0017 : -0.0017;
   }
 
   HLOG_DEBUG << "guide_heading_value:" << guide_heading_value;

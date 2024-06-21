@@ -102,9 +102,9 @@ bool PhmComponent::FaultReport(const int32_t& faultid, const int32_t& objid,
         debounceCount;
     cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
         debounceTime;
-    phm_client_->ReportFault(cFault);
     HLOG_DEBUG << "[DEBUG_PHM] FaultManager reset fault_name " << fault_name;
     if (it != faultmap_.end()) {
+      phm_client_->ReportFault(cFault);
       faultmap_.erase(it);
     }
   }

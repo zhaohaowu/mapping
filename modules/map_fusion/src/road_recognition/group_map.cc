@@ -979,13 +979,13 @@ bool GroupMap::AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
   float dis_pt = CalculateDistPt(lane_in_next, lane_in_curr, sizet);
   float angel_thresh{0.0};
   float dis_thresh{0.0};
-  if (dis_pt < 5 || (lane_in_curr->lanepos_id == lane_in_next->lanepos_id &&
+  if (dis_pt < 8 || (lane_in_curr->lanepos_id == lane_in_next->lanepos_id &&
                      lane_in_curr->lanepos_id != "99_99")) {
-    HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group
-               << "   lane_in_next" << lane_in_next->str_id_with_group
-               << "  dis_pt = " << dis_pt
-               << " lane_in_curr->lanepos_id =" << lane_in_curr->lanepos_id
-               << "  lane_in_next->lanepos_id = " << lane_in_next->lanepos_id;
+    // HLOG_INFO << "lane_in_curr=" << lane_in_curr->str_id_with_group
+    //           << "   lane_in_next" << lane_in_next->str_id_with_group
+    //           << "  dis_pt = " << dis_pt
+    //           << " lane_in_curr->lanepos_id =" << lane_in_curr->lanepos_id
+    //           << "  lane_in_next->lanepos_id = " << lane_in_next->lanepos_id;
     return true;
   } else if (!lane_in_curr->center_line_param.empty() &&
              !lane_in_next->center_line_pts.empty()) {
@@ -997,17 +997,31 @@ bool GroupMap::AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
       angel_thresh = 10;
       dis_thresh = 3;
     } else {
-      angel_thresh = 10;
+      angel_thresh = 18;
       dis_thresh = 1.5;
     }
     float dis = CalculatePoint2CenterLine(lane_in_next, lane_in_curr);
     float angle = Calculate2CenterlineAngle(lane_in_next, lane_in_curr, sizet);
     // HLOG_DEBUG << "angle = "<<angle*180/pi_;
-    HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group
-               << "   lane_in_next" << lane_in_next->str_id_with_group
-               << "  dis2l = " << dis << "  dis thresh = " << dis_thresh
-               << " angle = " << abs(angle) * 180 / pi_
-               << "  angel_thresh = " << angel_thresh;
+    // HLOG_INFO << "lane angle lane_in_next->center_line_pts[0].pt  "
+    //           << lane_in_next->center_line_pts[0].pt.y() << "   "
+    //           << lane_in_next->center_line_pts[0].pt.x();
+    // HLOG_INFO << "lane_in_curr->center_line_pts[sizet - 1].pt  "
+    //           << lane_in_curr->center_line_pts[sizet - 1].pt.y() << "   "
+    //           << lane_in_curr->center_line_pts[sizet - 1].pt.x()
+    //           << "  angle is "
+    //           << atan((lane_in_next->center_line_pts[0].pt.y() -
+    //                    lane_in_curr->center_line_pts[sizet - 1].pt.y()) /
+    //                   (lane_in_next->center_line_pts[0].pt.x() -
+    //                    lane_in_curr->center_line_pts[sizet - 1].pt.x())) *
+    //                  180 / pi_;
+    // HLOG_INFO << "lane_in_curr->center_line_param[1] is"
+    //           << atan(lane_in_curr->center_line_param[1]) * 180 / pi_;
+    // HLOG_INFO << "lane_in_curr=" << lane_in_curr->str_id_with_group
+    //           << "   lane_in_next" << lane_in_next->str_id_with_group
+    //           << "  dis2l = " << dis << "  dis thresh = " << dis_thresh
+    //           << " angle = " << abs(angle) * 180 / pi_
+    //           << "  angel_thresh = " << angel_thresh;
     if ((dis < dis_thresh && abs(angle) * 180 / pi_ < angel_thresh)) {
       // HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group
       //            << "   lane_in_next" << lane_in_next->str_id_with_group
@@ -1034,7 +1048,7 @@ bool GroupMap::AreLaneConnect(
   float dis_pt = CalculateDistPt(lane_in_next, lane_in_curr, sizet);
   float angel_thresh{0.0};
   float dis_thresh{0.0};
-  if (dis_pt < 5 || (lane_in_curr->lanepos_id == lane_in_next->lanepos_id &&
+  if (dis_pt < 8 || (lane_in_curr->lanepos_id == lane_in_next->lanepos_id &&
                      lane_in_curr->lanepos_id != "99_99")) {
     if (curr_group_next_lane->find(i) != curr_group_next_lane->end()) {
       curr_group_next_lane->at(i).emplace_back(j);
@@ -1064,7 +1078,7 @@ bool GroupMap::AreLaneConnect(
       angel_thresh = 10;
       dis_thresh = 3;
     } else {
-      angel_thresh = 10;
+      angel_thresh = 18;
       dis_thresh = 1.5;
     }
     float dis = CalculatePoint2CenterLine(lane_in_next, lane_in_curr);
@@ -1688,6 +1702,13 @@ void GroupMap::FindSatisefyNextLane(Group::Ptr next_group,
   Eigen::Vector2f thresh_v(std::cos(conf_.junction_heading_diff),
                            std::sin(conf_.junction_heading_diff));
   Eigen::Vector2f n(1, 0);  // 车前向量
+  if (ego_curr_lane_ != nullptr &&
+      ego_curr_lane_->center_line_pts.back().pt.x() > 0.0 &&
+      !ego_curr_lane_->center_line_param.empty()) {
+    // 对场景分类讨论。过路口前应该按照所在道的朝向来选择连接；在路口中可以按照车头方向来选择。
+    n = Eigen::Vector2f(1, ego_curr_lane_->center_line_param[1]);
+    n.normalize();
+  }
   float thresh_len = std::abs(thresh_v.transpose() * n);
   for (auto& next_lane : next_group->lanes) {
     Eigen::Vector2f p0(0, 0);
@@ -1915,7 +1936,9 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
         if (veh_in_this_junction) {
           Lane::Ptr ego_curr_lane = nullptr;
           FindNearestLaneToHisVehiclePosition(curr_group, &ego_curr_lane);
-          HLOG_INFO << "ego_curr_lane is " << ego_curr_lane->str_id_with_group;
+          ego_curr_lane_ = ego_curr_lane;
+          // HLOG_INFO << "ego_curr_lane is " <<
+          // ego_curr_lane->str_id_with_group;
           std::vector<Lane::Ptr> history_satisfy_lane_;
           FindSatisefyNextLane(next_group, dist_to_slice,
                                &history_satisfy_lane_);
@@ -2599,6 +2622,17 @@ void GroupMap::FindNearestLaneToHisVehiclePosition(Group::Ptr curr_group,
     for (auto& curr_lane : curr_group->lanes) {
       Eigen::Vector2f pt(curr_lane->center_line_pts.back().pt.x(),
                          curr_lane->center_line_pts.back().pt.y());
+      // 把最近的centerline添加进来，要不然太远了角度有问题
+      float pt_dis = (pt - p0).norm();
+      for (auto it = curr_lane->center_line_pts.rbegin();
+           it != curr_lane->center_line_pts.rend(); ++it) {
+        Eigen::Vector2f point_center(it->pt.x(), it->pt.y());
+        if ((point_center - p0).norm() > pt_dis) {
+          break;
+        }
+        pt = point_center;
+        pt_dis = (point_center - p0).norm();
+      }
       float dist = PointToVectorDist(p0, p1, pt);
       if (dist < min_dist) {
         min_dist = dist;
@@ -3425,8 +3459,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
           // 目前这个是否有next是为了记录是否需要补道，如果有后继就不用补道
           lane_in_curr->next_lane_str_id_with_group.emplace_back(
               lane_in_next->str_id_with_group);
-          // HLOG_ERROR << "the next lane is "
-          //            << lane_in_next->str_id_with_group;
+          // HLOG_ERROR << "the next lane is " <<
+          // lane_in_next->str_id_with_group;
           lane_in_curr->left_boundary->id_next =
               lane_in_next->left_boundary->id;
           lane_in_curr->right_boundary->id_next =
@@ -3461,7 +3495,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
               lane_in_next->left_boundary->id;
           lane_in_curr->right_boundary->id_next =
               lane_in_next->right_boundary->id;
-
+          // HLOG_ERROR << "the next lane is " <<
+          // lane_in_next->str_id_with_group;
           is_any_next_lane_exit = true;
           next_lane_exit = true;
           // if (lane_in_next->center_line_param.empty()) {
@@ -3487,6 +3522,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
           lane_in_curr->next_lane_str_id_with_group.emplace_back(
               next_group->lanes[0]->str_id_with_group);
           next_lane_exit = true;
+          // HLOG_ERROR << "the next lane is "
+          //            << next_group->lanes[0]->str_id_with_group;
         } else if (lane_in_curr->str_id_with_group ==
                        curr_group->lanes.back()->str_id_with_group &&
                    curr_len > kMergeLengthThreshold && shrink &&
@@ -3495,6 +3532,9 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
                        dis_thresh) {
           lane_in_curr->next_lane_str_id_with_group.emplace_back(
               next_group->lanes.back()->str_id_with_group);
+          next_lane_exit = true;
+          // HLOG_ERROR << "the next lane is "
+          //            << next_group->lanes.back()->str_id_with_group;
         }
       }
       if (!next_lane_exit) {

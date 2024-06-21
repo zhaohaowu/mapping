@@ -420,6 +420,7 @@ class GroupMap {
   std::vector<GroupSegment::Ptr> group_segments_;
   EgoLane ego_line_id_;
   Lane::Ptr history_best_lane_ = nullptr;
+  Lane::Ptr ego_curr_lane_ = nullptr;
   std::map<int, std::shared_ptr<cv::flann::Index>> KDTrees_;
   std::map<int, std::shared_ptr<std::vector<cv::Point2f>>> line_points_;
 };

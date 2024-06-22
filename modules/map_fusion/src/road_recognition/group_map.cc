@@ -3586,6 +3586,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
   HLOG_DEBUG << "current stamp is:" << std::to_string(stamp);
   std::vector<Point> guide_points;
   guide_points = PredictGuidewirePath(groups, occ_roads);
+  guide_points.clear();
   if (guide_points.empty()) {
     HLOG_DEBUG << "point empty!!!";
   }

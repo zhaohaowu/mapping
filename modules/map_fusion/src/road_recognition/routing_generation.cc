@@ -85,7 +85,7 @@ void RoutingGeneration::SetRouting() {
                                      .line_segment()
                                      .point();
   common::PointENU start_point = adc_lane_segment_points[0];
-  int max_index = adc_lane_segment_points.size() - 1;
+  int max_index = static_cast<int>(adc_lane_segment_points.size()) - 1;
   common::PointENU end_point = adc_lane_segment_points[max_index];
   auto* routing_request = routing_->mutable_routing_request();
   routing::LaneWaypoint waypoint;

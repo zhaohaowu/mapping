@@ -429,7 +429,7 @@ void CenterPoint(const std::vector<hozon::common::math::Vec2d>& project_points,
   cent_point->emplace_back(
       (project_points.front().x() + points.front().x()) / 2,
       (project_points.front().y() + points.front().y()) / 2);
-  for (int i = 1; i < project_points.size() - 1; ++i) {
+  for (int i = 1; i < static_cast<int>(project_points.size()) - 1; ++i) {
     bool found(false);
     int point_count(0);
     double lambda(0.0);

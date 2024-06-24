@@ -1671,7 +1671,7 @@ Eigen::Vector3d GeoOptimization::fitCubicCurveRANSAC(
   // 随机数生成器
   std::random_device rd;
   std::mt19937 gen(rd());
-  std::uniform_int_distribution<int> dist(0, data.size() - 1);
+  std::uniform_int_distribution<int> dist(0, static_cast<int>(data.size()) - 1);
 
   Eigen::Vector3d bestCoefficients;  // 最佳拟合系数
   int bestInliersCount = 0;
@@ -2245,7 +2245,7 @@ void GeoOptimization::ExtractOccRoadGap() {
 
   // 遍历vec_occ_line，计算平均距离，判断是否是一个包络，并判断能否构成道
   if (!vec_occ_line.empty()) {
-    for (int i = 0; i < vec_occ_line.size() - 1; ++i) {
+    for (int i = 0; i < static_cast<int>(vec_occ_line.size()) - 1; ++i) {
       // occ路沿才会判别
       // if (vec_occ_line[i].second.detect_id ==
       //     vec_occ_line[i + 1].second.detect_id) {
@@ -2575,7 +2575,7 @@ void GeoOptimization::AlignmentVecLane() {
     Eigen::Vector3d end_dir(-(right_line[1] - right_line[0]).normalized().y(),
                             (right_line[1] - right_line[0]).normalized().x(),
                             0);
-    for (int i = 0; i < right_line.size() - 1; ++i) {
+    for (int i = 0; i < static_cast<int>(right_line.size()) - 1; ++i) {
       const auto& A = right_line[i];
       const auto& B = right_line[i + 1];
       const auto& AB = B - A;
@@ -2616,7 +2616,7 @@ void GeoOptimization::AlignmentVecLane() {
     double dis = 0.;
     Eigen::Vector3d end_dir(-(left_line[1] - left_line[0]).normalized().y(),
                             (left_line[1] - left_line[0]).normalized().x(), 0);
-    for (int i = 0; i < left_line.size() - 1; ++i) {
+    for (int i = 0; i < static_cast<int>(left_line.size()) - 1; ++i) {
       const auto& A = left_line[i];
       const auto& B = left_line[i + 1];
       const auto& AB = B - A;
@@ -2921,7 +2921,7 @@ double GeoOptimization::ComputeLineHeading(
     return -1;
   }
   std::vector<double> headings;
-  for (int i = 0; i < line_pts.size() - 1; ++i) {
+  for (int i = 0; i < static_cast<int>(line_pts.size()) - 1; ++i) {
     if (line_pts[i].x() < 0) {
       continue;
     }
@@ -3141,7 +3141,7 @@ void GeoOptimization::HandleSingleSideLine() {
   }
 
   // 将虚拟的路沿线设置为实线，非路沿线设置为虚线
-  for (size_t i = 0; i < new_lines.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(new_lines.size()); ++i) {
     auto* new_line = local_map_use_->add_lane_lines();
     for (const auto& pt : new_lines[i]) {
       auto* new_pt = new_line->add_points();
@@ -3157,7 +3157,7 @@ void GeoOptimization::HandleSingleSideLine() {
     new_line->set_color(static_cast<hozon::mapping::Color>(1));
     // new_line->set_allocated_lane_param(static_cast<hozon::mapping::LaneCubicSpline>(500));
     // new_line->set_confidence(static_cast<hozon::mapping::LanePositionType>(500));
-    if (i == new_lines.size() - 1) {
+    if (i == static_cast<int>(new_lines.size()) - 1) {
       new_line->set_lanetype(static_cast<hozon::mapping::LaneType>(1));
       continue;
     }
@@ -3243,7 +3243,7 @@ void GeoOptimization::FitSingleSideLine(
 
   if (flag) {
     // predict the right line
-    for (size_t i = 0; i < base_line->size() - 1; ++i) {
+    for (int i = 0; i < static_cast<int>(base_line->size()) - 1; ++i) {
       if (base_line->at(i + 1) == base_line->at(i) ||
           base_line->at(i + 1).x() == base_line->at(i).x() ||
           (base_line->at(i + 1) - base_line->at(i)).norm() < 0.1) {
@@ -3259,7 +3259,7 @@ void GeoOptimization::FitSingleSideLine(
     }
   } else {
     // predict the left line
-    for (size_t i = 0; i < base_line->size() - 1; ++i) {
+    for (int i = 0; i < static_cast<int>(base_line->size()) - 1; ++i) {
       if (base_line->at(i + 1) == base_line->at(i) ||
           base_line->at(i + 1).x() == base_line->at(i).x() ||
           (base_line->at(i + 1) - base_line->at(i)).norm() < 0.1) {

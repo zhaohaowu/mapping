@@ -669,7 +669,7 @@ void TopoGeneration::VizGuidePoint(const std::vector<gm::Group::Ptr>& groups,
 }
 bool TopoGeneration::IsValid(const std::vector<gm::Group::Ptr>& groups) {
   int is_in_group = 0;  // 是否在所构建的group里
-  for (size_t i = 0; i < groups.size(); ++i) {
+  for (int i = 0; i < static_cast<int>(groups.size()); ++i) {
     auto group = groups[i];
     size_t group_segments_size = group->group_segments.size();
     if (group_segments_size < 2) {
@@ -681,7 +681,7 @@ bool TopoGeneration::IsValid(const std::vector<gm::Group::Ptr>& groups) {
       if (group->str_id.back() == 'V') {
         return false;
       }
-      if (i == groups.size() - 1) {
+      if (i == static_cast<int>(groups.size()) - 1) {
         // 判断路口前还是路口后
         if (group->group_segments[group_segments_size - 1]->end_slice.po.x() <
             10) {
@@ -706,7 +706,7 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
   if (groups.size() < 1) {
     return;
   }
-  int index = groups.size() - 1;
+  int index = static_cast<int>(groups.size()) - 1;
   while (index >= 0 && groups[index]->group_segments.size() < 2) {
     index--;
   }

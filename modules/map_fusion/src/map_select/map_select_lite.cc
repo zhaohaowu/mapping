@@ -1067,7 +1067,7 @@ std::vector<hozon::common::math::Vec2d> MapSelectLite::InterPolateVec2dPoints(
     const std::vector<hozon::common::math::Vec2d>& map_points, double start_x,
     double end_x, double delta) {
   std::vector<hozon::common::math::Vec2d> out_points;
-  for (uint64_t i = 0; i < map_points.size() - 1; i++) {
+  for (int i = 0; i < static_cast<int>(map_points.size()) - 1; i++) {
     auto bus_point_next = map_points[i + 1];
     if (map_points[i].x() < 0 && map_points[i + 1].x() > 0) {
       auto point = InterPolateVec2dPoint(map_points[i], map_points[i + 1],
@@ -1365,7 +1365,7 @@ std::tuple<double, double, double> MapSelectLite::CheckerDistance(
   double left_check_start_x = map_bound_points.back().x();
   auto lane_attribute = lane_info.lane_param().cubic_curve_set(0);
   // double left_check_recorve_x = map_bound_points.back().x();
-  for (uint64_t i = 0; i < map_bound_points.size() - 1; i++) {
+  for (int i = 0; i < static_cast<int>(map_bound_points.size()) - 1; i++) {
     auto bus_point = map_bound_points[i];
     auto y = CalculateLanemarkerY(bus_point.x(), lane_attribute);
     double delta_y = std::fabs(bus_point.y() - y);

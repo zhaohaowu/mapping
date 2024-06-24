@@ -173,7 +173,7 @@ void LineCubicToMarker(const LineCubic& cubic, const Rgb& rgb, LineType type,
 
     // solid left
     if (type == DOUBLE_SOLID || type == LEFT_SOLID_RIGHT_DASHED) {
-      for (size_t i = 0; i != (sampled_left.size() - 1); i++) {
+      for (int i = 0; i != (static_cast<int>(sampled_left.size()) - 1); i++) {
         auto pt = marker->add_points();
         pt->CopyFrom(sampled_left[i]);
         pt = marker->add_points();
@@ -183,7 +183,7 @@ void LineCubicToMarker(const LineCubic& cubic, const Rgb& rgb, LineType type,
 
     // solid right
     if (type == DOUBLE_SOLID || type == LEFT_DASHED_RIGHT_SOLID) {
-      for (size_t i = 0; i != (sampled_right.size() - 1); i++) {
+      for (int i = 0; i != (static_cast<int>(sampled_right.size()) - 1); i++) {
         auto pt = marker->add_points();
         pt->CopyFrom(sampled_right[i]);
         pt = marker->add_points();

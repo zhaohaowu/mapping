@@ -35,7 +35,7 @@ class Delay {
    */
   T GetAverageValue();
   /**
-   * @description: 该函数将当前数据存入， 
+   * @description: 该函数将当前数据存入，
    * @param {T&} input
    * @return {*}
    */
@@ -146,7 +146,7 @@ T Delay<T>::GetDelay(int num) {
   if (num < 1) {
     return deque_data_.front();
   }
-  if (num > (deque_data_.size() - 1)) {
+  if (num > (static_cast<int>(deque_data_.size()) - 1)) {
     return deque_data_.back();
   }
   return deque_data_.at(num);

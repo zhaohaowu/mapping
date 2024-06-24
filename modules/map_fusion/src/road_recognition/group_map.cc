@@ -363,7 +363,7 @@ void GroupMap::EgoLineTrajectory(std::vector<GroupSegment::Ptr>* grp_segment,
     int flag = 0;
     if (seg->end_slice.po.x() > -5 && seg->start_slice.po.x() < 5) {
       if (seg->line_segments.size() > 1) {
-        for (unsigned int i = 0; i < seg->line_segments.size() - 1; ++i) {
+        for (int i = 0; i < static_cast<int>(seg->line_segments.size()) - 1; ++i) {
           if ((seg->line_segments[i]->dist_to_path *
                    seg->line_segments[i + 1]->dist_to_path <
                0.1) &&
@@ -565,7 +565,7 @@ float GroupMap::DistByKDtree(const em::Point& ref_point,
     return nearest_dist[0];
   } else {
     int id_next = 0;
-    if (nearest_index[0] < line_tofind.size() - 1) {
+    if (nearest_index[0] < static_cast<int>(line_tofind.size()) - 1) {
       id_next = nearest_index[0] + 1;
     } else {
       id_next = nearest_index[0] - 1;
@@ -728,7 +728,7 @@ void GroupMap::UniteGroupSegmentsToGroups(
       group_segments.erase(group_segments.begin());
     }
     if (group_segments.size() > 1) {
-      for (size_t i = group_segments.size() - 1; i > 0; i--) {
+      for (int i = static_cast<int>(group_segments.size()) - 1; i > 0; i--) {
         if (group_segments[i]->str_id != group_segments[i - 1]->str_id) {
           group_segments.erase(group_segments.begin() + i);
         } else {
@@ -777,7 +777,7 @@ void GroupMap::UniteGroupSegmentsToGroups(
   // HLOG_ERROR << "grp_idx = " << grp_idx
   //            << "groups->size() = " << groups->size();
   if (grp_idx > 2) {
-    for (size_t i = 1; i < groups->size() - 1; ++i) {
+    for (int i = 1; i < static_cast<int>(groups->size()) - 1; ++i) {
       if (groups->at(i - 1)->seg_str_id == groups->at(i + 1)->seg_str_id &&
           groups->at(i)->group_segments.size() < 6) {
         groups->erase(groups->begin() + i);
@@ -1162,15 +1162,15 @@ void GroupMap::FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group) {
                 LaneDist(lane_in_curr, next_group->lanes[0]) < dis_thresh) {
               curr_group_next_lane[i].emplace_back(0);
               next_group_prev_lane[0].emplace_back(i);
-            } else if (i == curr_group->lanes.size() - 1 &&
+            } else if (i == static_cast<int>(curr_group->lanes.size()) - 1 &&
                        curr_len > kMergeLengthThreshold && shrink &&
                        IsAccessLane(lane_in_curr, next_group->lanes.back()) &&
                        LaneDist(lane_in_curr, next_group->lanes.back()) <
                            dis_thresh) {
-              curr_group_next_lane[i].emplace_back(next_group->lanes.size() -
+              curr_group_next_lane[i].emplace_back(static_cast<int>(next_group->lanes.size()) -
                                                    1);
 
-              next_group_prev_lane[static_cast<int>(next_group->lanes.size() -
+              next_group_prev_lane[static_cast<int>(static_cast<int>(next_group->lanes.size()) -
                                                     1)]
                   .emplace_back(i);
             }
@@ -1285,7 +1285,7 @@ void GroupMap::FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group) {
                 next_group_prev_lane[i].emplace_back(0);
                 curr_group_next_lane[0].emplace_back(i);
               }
-            } else if (i == next_group->lanes.size() - 1 &&
+            } else if (i == static_cast<int>(next_group->lanes.size()) - 1 &&
                        (!curr_group->lanes.empty()) &&
                        (!curr_group->lanes.back()->center_line_pts.empty())) {
               auto& lane_in_curr = curr_group->lanes.back();
@@ -1295,10 +1295,10 @@ void GroupMap::FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group) {
               float dist = PointToVectorDist(next_pt0, next_pt1, curr_pt);
               if (dist < kSplitDistThreshold &&
                   IsAccessLane(lane_in_curr, lane_in_next)) {
-                next_group_prev_lane[i].emplace_back(curr_group->lanes.size() -
+                next_group_prev_lane[i].emplace_back(static_cast<int>(curr_group->lanes.size()) -
                                                      1);
-                curr_group_next_lane[static_cast<int>(curr_group->lanes.size() -
-                                                      1)]
+                curr_group_next_lane[static_cast<int>(curr_group->lanes.size()) -
+                                                      1]
                     .emplace_back(i);
               }
             }
@@ -1776,7 +1776,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
       return;
     }
   }
-  for (size_t grp_idx = 0; grp_idx < groups->size() - 1; ++grp_idx) {
+  for (int grp_idx = 0; grp_idx < static_cast<int>(groups->size()) - 1; ++grp_idx) {
     std::vector<Lane::Ptr> virtual_lanes;
     auto& curr_group = groups->at(grp_idx);
     auto& next_group = groups->at(grp_idx + 1);
@@ -1921,7 +1921,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
   }
 
   // 增加虚拟车道到groups中
-  for (int i = groups->size() - 1; i >= 0; --i) {
+  for (int i = static_cast<int>(groups->size()) - 1; i >= 0; --i) {
     if (group_virtual.empty()) {
       break;
     }
@@ -2706,7 +2706,7 @@ std::vector<Point> GroupMap::SigmoidFunc(std::vector<Point> centerline,
   std::vector<Point> center;
   center.emplace_back(centerline[0]);
 
-  for (int i = 1; i < centerline.size() - 1; ++i) {
+  for (int i = 1; i < static_cast<int>(centerline.size()) - 1; ++i) {
     Point ctp(VIRTUAL, 0.0, 0.0, 0.0);
     if (center.back().pt.x() < centerline[i + 1].pt.x()) {
       ctp.pt.x() = centerline[i + 1].pt.x();
@@ -3049,7 +3049,7 @@ void GroupMap::ComputeLineCurvatureV2(const std::vector<Point>& guide_points,
   std::vector<Group::Ptr> group_virtual;
   BuildVirtualGroup(virtual_lanes, &group_virtual, stamp);
   // 增加虚拟车道到groups中
-  for (int i = groups->size() - 1; i >= 0; --i) {
+  for (int i = static_cast<int>(groups->size()) - 1; i >= 0; --i) {
     if (group_virtual.empty()) {
       break;
     }
@@ -3106,7 +3106,7 @@ void GroupMap::GenetateGuideLaneGeo(std::vector<Vec2d>* fit_points,
   // 根据宽度和fit_points计算虚拟车道
   std::vector<Vec2d> left_pts;
   std::vector<Vec2d> right_pts;
-  for (int i = 0; i < fit_points->size() - 1; i++) {
+  for (int i = 0; i < static_cast<int>(fit_points->size()) - 1; i++) {
     auto dir_vec = fit_points->at(i + 1) - fit_points->at(i);
     dir_vec.Normalize();
     auto normal_vec = Vec2d(-dir_vec.y(), dir_vec.x());
@@ -3186,7 +3186,7 @@ void GroupMap::ComputeLineHeading(const Line::Ptr& line) {
   // 计算末端平均heading
   double heading = 0;
   std::vector<double> thetas;
-  for (int i = line->pts.size() - 1; i > 0; i--) {
+  for (int i = static_cast<int>(line->pts.size()) - 1; i > 0; i--) {
     int j = i - 1;
     for (; j >= 0; j--) {
       const Eigen::Vector2f pb(line->pts[i].pt[0], line->pts[i].pt[1]);
@@ -3277,7 +3277,7 @@ void GroupMap::SmoothCenterline(std::vector<Group::Ptr>* groups) {
   // lane->prev_lane_str_id_with_group don't exist grouplane
   for (auto& grp : *groups) {
     for (auto lane : grp->lanes) {
-      for (int index = lane->next_lane_str_id_with_group.size() - 1; index >= 0;
+      for (int index = static_cast<int>(lane->next_lane_str_id_with_group.size()) - 1; index >= 0;
            --index) {
         if (lane_grp_index.find(lane->next_lane_str_id_with_group[index]) ==
             lane_grp_index.end()) {
@@ -3285,7 +3285,7 @@ void GroupMap::SmoothCenterline(std::vector<Group::Ptr>* groups) {
               lane->next_lane_str_id_with_group.begin() + index);
         }
       }
-      for (int index = lane->prev_lane_str_id_with_group.size() - 1; index >= 0;
+      for (int index = static_cast<int>(lane->prev_lane_str_id_with_group.size()) - 1; index >= 0;
            --index) {
         if (lane_grp_index.find(lane->prev_lane_str_id_with_group[index]) ==
             lane_grp_index.end()) {
@@ -3295,7 +3295,7 @@ void GroupMap::SmoothCenterline(std::vector<Group::Ptr>* groups) {
       }
     }
   }
-  for (size_t i = 0; i < groups->size() - 1; ++i) {
+  for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
     auto& curr_grp = groups->at(i);
     auto& next_grp = groups->at(i + 1);
 
@@ -3714,7 +3714,7 @@ bool GroupMap::FilterGroupBadLane(const std::vector<Lane::Ptr>& possible_lanes,
 
 bool GroupMap::MatchLRLane(Group::Ptr grp) {
   if (grp->lanes.size() > 1) {
-    for (size_t i = 0; i < grp->lanes.size() - 1; ++i) {
+    for (int i = 0; i < static_cast<int>(grp->lanes.size()) - 1; ++i) {
       auto& curr = grp->lanes.at(i);
       for (size_t j = i + 1; j < grp->lanes.size(); ++j) {
         const auto& right = grp->lanes.at(j);
@@ -3722,7 +3722,7 @@ bool GroupMap::MatchLRLane(Group::Ptr grp) {
             right->str_id_with_group);
       }
     }
-    for (size_t i = grp->lanes.size() - 1; i > 0; --i) {
+    for (int i = static_cast<int>(grp->lanes.size()) - 1; i > 0; --i) {
       auto& curr = grp->lanes.at(i);
       for (int j = i - 1; j >= 0; --j) {
         const auto& left = grp->lanes.at(j);
@@ -3802,7 +3802,7 @@ bool GroupMap::GenLaneCenterLine(std::vector<Group::Ptr>* groups) {
 }
 
 bool GroupMap::OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups) {
-  for (size_t i = 0; i < groups->size() - 1; ++i) {
+  for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
     auto& curr_grp = groups->at(i);
     auto& next_grp = groups->at(i + 1);
     std::map<em::Id, LineSegment::Ptr> curr_lines;
@@ -3909,7 +3909,7 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
     return true;
   }
 
-  for (size_t i = 0; i < groups->size() - 1; ++i) {
+  for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
     auto& curr_group = groups->at(i);
     auto& next_group = groups->at(i + 1);
     bool is_any_next_lane_exit =
@@ -4066,7 +4066,7 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
   }
 
   // 从后往前
-  for (size_t i = groups->size() - 1; i > 0; --i) {
+  for (int i = static_cast<int>(groups->size()) - 1; i > 0; --i) {
     auto& curr_group = groups->at(i - 1);
     auto& next_group = groups->at(i);
     bool is_any_next_lane_exit =
@@ -4212,7 +4212,7 @@ bool GroupMap::OptiNextLane(std::vector<Group::Ptr>* groups) {
   HLOG_INFO << "get success of smallest angle";
   std::map<std::string, LaneWithNextLanes> lanes_has_next;
   if (groups->size() > 1) {
-    for (size_t i = 0; i < groups->size() - 1; ++i) {
+    for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
       auto& curr_grp = groups->at(i);
       auto& next_grp = groups->at(i + 1);
       for (auto& curr_lane : curr_grp->lanes) {
@@ -5070,7 +5070,7 @@ void GroupMap::EraseIntersectLane(Group::Ptr curr_group,
       lane->next_lane_str_id_with_group.clear();
     }
   }
-  for (int i = next_group->lanes.size() - 1; i >= 0; i--) {
+  for (int i = static_cast<int>(next_group->lanes.size()) - 1; i >= 0; i--) {
     if (erase_next_lane_str_id.find(next_group->lanes[i]->str_id_with_group) !=
         erase_next_lane_str_id.end()) {
       next_group->lanes.erase(next_group->lanes.begin() + i);
@@ -5087,7 +5087,7 @@ bool GroupMap::BoundaryIsValid(const LineSegment& line) {
   x2 = line.pts[1].pt;
   int index2 = 1;
   // HLOG_ERROR << "X1=" << x1.x() << "  " << x1.y();
-  while ((x2 - x1).norm() < 0.2 && index2 < line.pts.size() - 1) {
+  while ((x2 - x1).norm() < 0.2 && index2 < static_cast<int>(line.pts.size()) - 1) {
     index2++;
     x2 = line.pts[index2].pt;
   }
@@ -5097,12 +5097,12 @@ bool GroupMap::BoundaryIsValid(const LineSegment& line) {
   }
   int index3 = index2 + 1;
   x3 = line.pts[index3].pt;
-  while ((x2 - x3).norm() < 0.2 && index3 < line.pts.size() - 1) {
+  while ((x2 - x3).norm() < 0.2 && index3 < static_cast<int>(line.pts.size()) - 1) {
     index3++;
     x3 = line.pts[index3].pt;
   }
   // HLOG_ERROR << "x3=" << x3.x() << "  " << x3.y();
-  if (index3 > line.pts.size() - 1) {
+  if (index3 > static_cast<int>(line.pts.size()) - 1) {
     return true;
   }
   em::Point norm_x12 = (x1 - x2).normalized();
@@ -5115,19 +5115,19 @@ bool GroupMap::BoundaryIsValid(const LineSegment& line) {
 bool GroupMap::Distanceline(const LineSegment& left_line, float line_front_x,
                             float line_front_y) {
   int index_left = 0;
-  while (index_left < left_line.pts.size() - 1 &&
+  while (index_left < static_cast<int>(left_line.pts.size()) - 1 &&
          left_line.pts[index_left + 1].pt.x() < line_front_x) {
     index_left++;
   }
-  if (index_left < left_line.pts.size() - 1) {
+  if (index_left < static_cast<int>(left_line.pts.size()) - 1) {
     int index_right = index_left + 1;
-    while (index_right < left_line.pts.size() &&
+    while (index_right < static_cast<int>(left_line.pts.size()) &&
            left_line.pts[index_right].pt.x() -
                    left_line.pts[index_left].pt.x() <
                0.1) {
       index_right++;
     }
-    if (index_right < left_line.pts.size()) {
+    if (index_right < static_cast<int>(left_line.pts.size())) {
       float k = (left_line.pts[index_right].pt.y() -
                  left_line.pts[index_left].pt.y()) /
                 (left_line.pts[index_right].pt.x() -
@@ -5645,7 +5645,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
                             lane_in_next->right_boundary->pts[0].pt.x(),
                             lane_in_next->right_boundary->pts[0].pt.y(),
                             lane_in_next->right_boundary->pts[0].pt.z());
-        size_t left_index = left_bound.pts.size() - 1;
+        int left_index = static_cast<int>(left_bound.pts.size()) - 1;
         right_bound.pts.insert(right_bound.pts.begin(), right_pt_pred);
         float dx = left_bound.pts[left_index].pt.x() -
                    left_bound.pts[left_index - 1].pt.x();
@@ -5674,7 +5674,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
                            lane_in_next->left_boundary->pts[0].pt.x(),
                            lane_in_next->left_boundary->pts[0].pt.y(),
                            lane_in_next->left_boundary->pts[0].pt.z());
-        size_t right_index = right_bound.pts.size() - 1;
+        int right_index = static_cast<int>(right_bound.pts.size()) - 1;
         left_bound.pts.insert(left_bound.pts.begin(), left_pt_pred);
         float dx = right_bound.pts[right_index].pt.x() -
                    right_bound.pts[right_index - 1].pt.x();
@@ -6324,8 +6324,8 @@ bool GroupMap::IsLaneShrink(Lane::Ptr lane) {
   const auto& left_back_pt = left.back().pt;
   const auto& left_mid_pt = left.at(left.size() / 2).pt;
 
-  const auto& right_back_v_pt0 = right.at(right.size() - 2).pt;
-  const auto& right_back_v_pt1 = right.at(right.size() - 1).pt;
+  const auto& right_back_v_pt0 = right.at(static_cast<int>(right.size()) - 2).pt;
+  const auto& right_back_v_pt1 = right.at(static_cast<int>(right.size()) - 1).pt;
 
   size_t right_mid_idx = right.size() / 2;
   const auto& right_mid_v_pt0 = right.at(right_mid_idx - 1).pt;
@@ -6355,7 +6355,7 @@ double GroupMap::CalcLaneLength(Lane::Ptr lane) {
     return 0;
   }
   double len = 0;
-  for (size_t i = 0; i < lane->center_line_pts.size() - 1; ++i) {
+  for (int i = 0; i < static_cast<int>(lane->center_line_pts.size()) - 1; ++i) {
     Eigen::Vector3f p0(lane->center_line_pts.at(i).pt.x(),
                        lane->center_line_pts.at(i).pt.y(), 0);
     Eigen::Vector3f p1(lane->center_line_pts.at(i + 1).pt.x(),
@@ -7082,7 +7082,7 @@ void GroupMap::RemainOnlyOneForwardCrossWalk(std::vector<Group::Ptr>* groups) {
   }
 
   // 存在两个及以上的车道组,考虑删除其他路口， 只保留前向一个路口。
-  for (size_t grp_idx = 0; grp_idx < groups->size() - 1; ++grp_idx) {
+  for (int grp_idx = 0; grp_idx < static_cast<int>(groups->size()) - 1; ++grp_idx) {
     auto& curr_group = groups->at(grp_idx);
     auto& next_group = groups->at(grp_idx + 1);
     if (AreAdjacentLaneGroupsDisconnected(curr_group, next_group)) {
@@ -7125,8 +7125,8 @@ RoadScene GuidePathManager::GetCurrentRoadScene() {
   // 返回值表示是否存在路口进入车道组。
   bool has_cw_forward_group = false;
   if (lane_groups_->size() >= 2) {
-    auto& curr_group = lane_groups_->at(lane_groups_->size() - 2);
-    auto& next_group = lane_groups_->at(lane_groups_->size() - 1);
+    auto& curr_group = lane_groups_->at(static_cast<int>(lane_groups_->size()) - 2);
+    auto& next_group = lane_groups_->at(static_cast<int>(lane_groups_->size()) - 1);
     if (curr_group->group_state == Group::GroupState::VIRTUAL ||
         next_group->group_state == Group::GroupState::VIRTUAL) {
       return RoadScene::NON_JUNCTION;

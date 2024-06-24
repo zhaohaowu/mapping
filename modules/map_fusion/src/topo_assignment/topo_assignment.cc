@@ -773,8 +773,8 @@ void TopoAssignment::AppendLaneLineLeftOutside(
     if (head_lane_id_p1.empty()) {
       return;
     }
-    auto size = head_lane_id_p1.size() - 1;
-    for (size_t i = size; i < head_lane_id_p0.size(); ++i) {
+    int size = static_cast<int>(head_lane_id_p1.size()) - 1;
+    for (int i = size; i < static_cast<int>(head_lane_id_p0.size()); ++i) {
       lane_line->left_lanes.emplace_back(head_lane_id_p0[i]);
     }
     std::reverse(lane_line->left_lanes.begin(), lane_line->left_lanes.end());
@@ -794,8 +794,8 @@ void TopoAssignment::AppendLaneLineLeftOutside(
     if (tail_lane_id_p0.empty()) {
       return;
     }
-    auto size = tail_lane_id_p0.size() - 1;
-    for (size_t i = size; i < tail_lane_id_p1.size(); ++i) {
+    int size = static_cast<int>(tail_lane_id_p0.size()) - 1;
+    for (int i = size; i < static_cast<int>(tail_lane_id_p1.size()); ++i) {
       lane_line->left_lanes.emplace_back(tail_lane_id_p1[i]);
     }
     if (lane_line->left_lanes.empty()) {
@@ -873,8 +873,8 @@ void TopoAssignment::AppendLaneLineRightOutside(
     if (head_lane_id_p1.empty()) {
       return;
     }
-    auto size = head_lane_id_p1.size() - 1;
-    for (size_t i = size; i < head_lane_id_p0.size(); ++i) {
+    int size = static_cast<int>(head_lane_id_p1.size()) - 1;
+    for (int i = size; i < static_cast<int>(head_lane_id_p0.size()); ++i) {
       lane_line->right_lanes.emplace_back(head_lane_id_p0[i]);
     }
     std::reverse(lane_line->right_lanes.begin(), lane_line->right_lanes.end());
@@ -894,8 +894,8 @@ void TopoAssignment::AppendLaneLineRightOutside(
     if (tail_lane_id_p0.empty()) {
       return;
     }
-    auto size = tail_lane_id_p0.size() - 1;
-    for (size_t i = size; i < tail_lane_id_p1.size(); ++i) {
+    int size = static_cast<int>(tail_lane_id_p0.size()) - 1;
+    for (int i = size; i < static_cast<int>(tail_lane_id_p1.size()); ++i) {
       lane_line->right_lanes.emplace_back(tail_lane_id_p1[i]);
     }
     if (lane_line->right_lanes.empty()) {

@@ -246,7 +246,7 @@ int32_t PoseEstimationLite::OnPoseEstimation(Bundle* input) {
   }
   const auto pe_node_info = pose_estimation_->GetMmNodeInfo();
   if (!pe_node_info) {
-    HLOG_ERROR << "onboard get pose estimation result error!";
+    HLOG_WARN << "onboard get pose estimation result error!";
     return -1;
   }
 

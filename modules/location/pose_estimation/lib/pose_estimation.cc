@@ -276,7 +276,7 @@ void PoseEstimation::ProcData() {
     LocalizationPtr fc_pose_ptr =
         GetFcPoseForTimestamp(ref_point, perception.header().data_stamp());
     if (!fc_pose_ptr) {
-      HLOG_ERROR << "GetFcPoseForTimestamp Failed";
+      HLOG_WARN << "GetFcPoseForTimestamp Failed";
       continue;
     }
     // 获取同步后的ins定位数据
@@ -402,7 +402,7 @@ LocalizationPtr PoseEstimation::GetFcPoseForTimestamp(
   auto fc_deque = fc_deque_;
   fc_deque_mutex_.unlock();
   if (fc_deque.empty()) {
-    HLOG_ERROR << "fc_deque is empty!";
+    HLOG_WARN << "fc_deque is empty!";
     return nullptr;
   }
   // | __ fc队列的时间在感知时间前面很远

@@ -1596,7 +1596,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
   {
     std::unique_lock<std::mutex> lock(fusion_deque_mutex_);
     if (fusion_deque_.empty()) {
-      HLOG_ERROR << "fusion deque is empty";
+      HLOG_WARN << "fusion deque is empty";
       return false;
     }
     // 判断融合队列的值是通过Ins、MM观测更新的才有效输出

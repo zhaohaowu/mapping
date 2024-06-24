@@ -3263,6 +3263,9 @@ void GroupMap::ComputeLineHeading(const Line::Ptr& line) {
 }
 
 void GroupMap::SmoothCenterline(std::vector<Group::Ptr>* groups) {
+  if (groups->empty()) {
+    return;
+  }
   std::unordered_map<std::string, int>
       lane_grp_index;  // lane所在对应group的index
   for (auto& grp : *groups) {

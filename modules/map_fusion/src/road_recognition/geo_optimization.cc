@@ -2387,6 +2387,7 @@ void GeoOptimization::CompleteLocalMap() {
     2、根据距离判断是否有缺失的车道线；
     3、根据车道线和路沿进行补全；
   */
+
   if (!local_map_use_) {
     HLOG_ERROR << "local_map_use_ is nullptr";
     return;
@@ -2400,7 +2401,7 @@ void GeoOptimization::CompleteLocalMap() {
   // 存储local map中的line信息，便于查找
   CreateLocalLineTable();
   // 对自车相邻的两个车道线进行补齐
-  AlignmentVecLane();
+  // AlignmentVecLane();
   // // 处理超宽车道
   HandleExtraWideLane();
   // 处理单边线

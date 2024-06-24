@@ -206,16 +206,14 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
           }
         }
       }
-
       Point pt(gm::RAW, curr_raw.x(), curr_raw.y(), curr_raw.z());
       line->pts.emplace_back(pt);
       last_raw = curr_raw;
     }
-
     if (line->pts.empty()) {
       continue;
     }
-    ComputeLineHeading(&line);
+    ComputeLineHeading(line);
     lines->emplace_back(line);
   }
 
@@ -3130,7 +3128,7 @@ void GroupMap::GenetateGuideLaneGeo(std::vector<Vec2d>* fit_points,
     pt.pt.z() = 0.0;
     left_line->pts.emplace_back(pt);
   }
-  ComputeLineHeading(&left_line);
+  ComputeLineHeading(left_line);
   auto right_line = std::make_shared<Line>();
   for (const auto& it : right_pts) {
     Point pt;
@@ -3139,7 +3137,7 @@ void GroupMap::GenetateGuideLaneGeo(std::vector<Vec2d>* fit_points,
     pt.pt.z() = 0.0;
     right_line->pts.emplace_back(pt);
   }
-  ComputeLineHeading(&right_line);
+  ComputeLineHeading(right_line);
   // 将构造出的几何点塞到guide_lane中
   for (const auto& it : *fit_points) {
     Point pt;
@@ -3184,59 +3182,48 @@ void GroupMap::GenetateGuideLaneGeo(std::vector<Vec2d>* fit_points,
       right_line->mean_end_heading_std_dev;
 }
 
-void GroupMap::ComputeLineHeading(Line::Ptr* line) {
-  // 计算末端平均heading、平均间距
-  const int kAvgPtCount = 40;
-  int avg_n = std::min(static_cast<int>((*line)->pts.size()), kAvgPtCount);
-  if (avg_n < 2) {
-    (*line)->mean_end_interval = 0;
-    (*line)->mean_end_heading = 0;
-    (*line)->mean_end_heading_std_dev = 0;
-    (*line)->pred_end_heading = std::make_tuple(0., 0., 0.);
-  } else {
-    std::vector<Point> last_n_pts((*line)->pts.end() - avg_n,
-                                  (*line)->pts.end());
-    // 计算前后两点连成的向量与x的夹角theta的均值
-    std::vector<double> thetas;
-    double mean_theta = 0.;
-    double mean_interval = 0.;
-    for (size_t i = 0; i < last_n_pts.size() - 1; ++i) {
-      const Eigen::Vector2f pa = last_n_pts.at(i).pt.head<2>();
-      const Eigen::Vector2f pb = last_n_pts.at(i + 1).pt.head<2>();
+void GroupMap::ComputeLineHeading(const Line::Ptr& line) {
+  // 计算末端平均heading
+  double heading = 0;
+  std::vector<double> thetas;
+  for (int i = line->pts.size() - 1; i > 0; i--) {
+    int j = i - 1;
+    for (; j >= 0; j--) {
+      const Eigen::Vector2f pb(line->pts[i].pt[0], line->pts[i].pt[1]);
+      const Eigen::Vector2f pa(line->pts[j].pt[0], line->pts[j].pt[1]);
       Eigen::Vector2f v = pb - pa;
-      double theta = 0;
-      if (std::abs(v.x()) > 0.8) {
-        theta = atan2(v.y(), v.x());  // atan2计算出的角度范围是[-pi, pi]
-        thetas.push_back(theta);
-        mean_theta += theta;
-        mean_interval += v.norm();
+      if (v.norm() > 5.0) {
+        double theta = atan2(v.y(), v.x());
+        thetas.emplace_back(theta);
+        i = j;
+        break;
       }
     }
-
-    mean_interval /= (static_cast<double>(thetas.size()) + 1e-1);
-    mean_theta /= (static_cast<double>(thetas.size()) + 1e-1);
-    double square_sum =
-        std::inner_product(thetas.begin(), thetas.end(), thetas.begin(), 0.0);
-    double std_theta =
-        std::sqrt(square_sum / static_cast<double>(thetas.size()) -
-                  mean_theta * mean_theta);
-    (*line)->mean_end_interval = mean_interval;
-    (*line)->mean_end_heading = mean_theta;
-    (*line)->mean_end_heading_std_dev = std_theta;
-
+    if (thetas.size() >= 1) {
+      break;
+    }
+  }
+  heading = thetas.empty() ? 0.0
+                           : std::accumulate(thetas.begin(), thetas.end(), 0.) /
+                                 thetas.size();
+  if (line->pts.size() < 2) {
+    line->mean_end_interval = 0;
+    line->mean_end_heading = 0;
+    line->mean_end_heading_std_dev = 0;
+    line->pred_end_heading = std::make_tuple(0., 0., 0.);
+  } else {
     std::vector<Vec2d> points;
-    std::vector<double> headings;
     std::vector<double> kappas;
     std::vector<double> dkappas;
     std::vector<double> accumulated_s;
     double kappa = 0.;
     double dkappa = 0.;
     Vec2d dist_point;
-    for (const auto& point : (*line)->pts) {
+    for (const auto& point : line->pts) {
       Vec2d temp_point;
       temp_point.set_x(dist_point.x() - point.pt.x());
       temp_point.set_y(dist_point.y() - point.pt.y());
-      if (temp_point.Length() >= 0.9) {
+      if (temp_point.Length() >= 0.4) {
         points.emplace_back(point.pt.x(), point.pt.y());
       }
       dist_point.set_x(point.pt.x());
@@ -3244,24 +3231,34 @@ void GroupMap::ComputeLineHeading(Line::Ptr* line) {
     }
     std::vector<double> fit_result;
     std::vector<Vec2d> fit_points;
-    // std::vector<Vec2d> sample_points;
-    const int select_back_index = 3;
+
     if (points.size() >= 10) {
-      std::copy(points.rbegin(), points.rbegin() + 10,
+      int fit_num = std::min(50, static_cast<int>(points.size()));
+      std::copy(points.rbegin(), points.rbegin() + fit_num,
                 std::back_inserter(fit_points));
       math::FitLaneLinePoint(fit_points, &fit_result);
-      math::ComputeDiscretePoints(fit_points, fit_result, &kappas, &dkappas);
-      // 选取一个点的kappa和dkappa
-      kappa = (kappas[select_back_index - 1] + kappas[select_back_index] +
-               kappas[select_back_index + 1]) /
-              3;
-      dkappa = (dkappas[select_back_index] + dkappas[select_back_index + 1] +
-                dkappas[select_back_index + 2]) /
-               3;
-      kappa = kappa / 10.;
-      dkappa = dkappa / 10;
+      std::vector<Vec2d> cmp_points;
+      std::copy(points.rbegin(), points.rbegin() + 10,
+                std::back_inserter(cmp_points));
+      math::ComputeDiscretePoints(cmp_points, fit_result, &kappas, &dkappas);
+      // 整体平均
+      kappa = kappas.empty() ? 0.0
+                             : std::accumulate(kappas.begin() + 3,
+                                               kappas.begin() + 8, 0.) /
+                                   5.;
+      dkappa = dkappas.empty() ? 0.0
+                               : std::accumulate(dkappas.begin() + 3,
+                                                 dkappas.begin() + 8, 0.) /
+                                     5.;
+      kappa = kappa / 8.;
+      dkappa = dkappa / 8.;
     }
-    (*line)->pred_end_heading = std::make_tuple(mean_theta, kappa, dkappa);
+    line->mean_end_interval = 1.0;
+    line->mean_end_heading = heading;
+    line->mean_end_heading_std_dev = 0;
+    line->pred_end_heading = std::make_tuple(heading, kappa, dkappa);
+    HLOG_INFO << "line id:" << line->id << "," << line->mean_end_heading << ","
+              << line->mean_end_interval << "," << kappas.size();
   }
 }
 
@@ -4330,7 +4327,7 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
         }
       }
       std::vector<LineSegment::Ptr> lines_need_pred;
-      std::vector<Lane::Ptr> center_line_need_pred;
+      std::vector<Lane::Ptr> lanes_need_pred;
       for (auto& lane : lanes_wo_next) {
         int lane_center_need_pre = 0;
         if (lane->left_boundary != nullptr &&
@@ -4345,7 +4342,7 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
         if (lane_center_need_pre == 2) {
           lines_need_pred.emplace_back(lane->left_boundary);
           lines_need_pred.emplace_back(lane->right_boundary);
-          center_line_need_pred.emplace_back(lane);
+          lanes_need_pred.emplace_back(lane);
         }
       }
       // 使用平均heading，这样可以使得预测的线都是平行的，不交叉
@@ -4353,13 +4350,17 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
       // 现增加pred_end_heading字段用于预测，使用PCL欧式聚类对heading进行聚类
       if (!lines_need_pred.empty()) {
         // PCL欧式聚类 阈值为10度
+        size_t index = last_grp->str_id.find("-");
+        index++;
+        std::string last_grp_lines_id =
+            last_grp->str_id.substr(index, last_grp->str_id.size() - index);
         const double heading_threshold = 10. / 180. * M_PI;
-        HeadingCluster(center_line_need_pred, &lines_need_pred,
+        HeadingCluster(lanes_need_pred, &lines_need_pred, last_grp_lines_id,
                        heading_threshold, need_pred_kappa);
 
         // 重新构建group 线的类型为虚线
         std::vector<Lane::Ptr> center_line_pred;
-        for (auto& lane : center_line_need_pred) {
+        for (auto& lane : lanes_need_pred) {
           PredictLaneLine(&center_line_pred, lane);
         }
         Group grp;
@@ -4555,51 +4556,64 @@ float GroupMap::PointToLaneDis(const Lane::Ptr& lane_ptr,
 
 void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
                               std::vector<LineSegment::Ptr>* lines_need_pred,
+                              const std::string& last_grp_lines_id,
                               double threshold, bool need_pred_kappa) {
   static double last_predict_angle = 0.0;
   static double last_predict_kappa = 0.0;
   static double last_predict_dkappa = 0.0;
-  double ego_left_heading = 9.9;
-  double ego_right_heading = 9.9;
-  double ego_lane_heading = 9.9;
 
-  std::tuple<double, double, double> ego_left_kappa{};
-  std::tuple<double, double, double> ego_right_kappa{};
-
+  std::tuple<double, double, double> ego_left_pred_data{0, 0, 0};
+  std::tuple<double, double, double> ego_right_pred_data{0, 0, 0};
   pcl::PointCloud<pcl::PointXYZ>::Ptr heading_data(
       new pcl::PointCloud<pcl::PointXYZ>);
   for (const auto& line : *lines_need_pred) {
+    if (last_grp_lines_id.find(std::to_string(line->id)) == std::string::npos) {
+      continue;
+    }
     pcl::PointXYZ point;
     point.x =
         static_cast<float>(line->mean_end_heading);  // 将一维heading添加到x轴上
     point.y = 0.0;
     point.z = 0.0;
     heading_data->emplace_back(point);
-    HLOG_DEBUG << "----mean_heading:" << line->mean_end_heading;
+    HLOG_WARN << "----mean_heading:" << line->id << ","
+              << line->mean_end_heading * 180 / M_PI;
 
     if (line->id == ego_line_id_.left_id) {
-      ego_left_heading = line->mean_end_heading;
-      ego_left_kappa = line->pred_end_heading;
+      ego_left_pred_data = line->pred_end_heading;
     }
     if (line->id == ego_line_id_.right_id) {
-      ego_right_heading = line->mean_end_heading;
-      ego_right_kappa = line->pred_end_heading;
+      ego_right_pred_data = line->pred_end_heading;
     }
   }
 
-  double heading = (ego_left_heading + ego_right_heading) / 2.0;
+  double heading = 0.0;
   double kappa = 0.;
   double dkappa = 0.;
+  bool ego_line_flag = false;
 
-  if (std::get<1>(ego_left_kappa) != 0. && std::get<1>(ego_right_kappa) != 0.) {
-    kappa = (std::get<1>(ego_left_kappa) + std::get<1>(ego_right_kappa)) / 2;
-    dkappa = (std::get<2>(ego_left_kappa) + std::get<2>(ego_right_kappa)) / 2;
-  } else if (std::get<1>(ego_left_kappa) != 0.) {
-    kappa = std::get<1>(ego_left_kappa);
-    dkappa = std::get<2>(ego_left_kappa);
-  } else if (std::get<1>(ego_right_kappa) != 0.) {
-    kappa = std::get<1>(ego_right_kappa);
-    dkappa = std::get<2>(ego_right_kappa);
+  if (std::get<1>(ego_left_pred_data) != 0. &&
+      std::get<1>(ego_right_pred_data) != 0.) {
+    heading =
+        (std::get<0>(ego_left_pred_data) + std::get<0>(ego_right_pred_data)) /
+        2;
+    kappa =
+        (std::get<1>(ego_left_pred_data) + std::get<1>(ego_right_pred_data)) /
+        2;
+    dkappa =
+        (std::get<2>(ego_left_pred_data) + std::get<2>(ego_right_pred_data)) /
+        2;
+    ego_line_flag = true;
+  } else if (std::get<1>(ego_left_pred_data) != 0.) {
+    heading = std::get<0>(ego_left_pred_data);
+    kappa = std::get<1>(ego_left_pred_data);
+    dkappa = std::get<2>(ego_left_pred_data);
+    ego_line_flag = true;
+  } else if (std::get<1>(ego_right_pred_data) != 0.) {
+    heading = std::get<0>(ego_right_pred_data);
+    kappa = std::get<1>(ego_right_pred_data);
+    dkappa = std::get<2>(ego_right_pred_data);
+    ego_line_flag = true;
   }
 
   if (math::DoubleHasSameSign(kappa, dkappa) ||
@@ -4612,14 +4626,6 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
     dkappa = 0.;
   }
 
-  if (!fabs(ego_left_heading - 9.9) < 1e-1 &&
-      !fabs(ego_right_heading - 9.9) < 1e-1) {
-    ego_lane_heading = (ego_left_heading + ego_right_heading) / 2.0;
-  } else if (!fabs(ego_left_heading - 9.9) < 1e-1) {
-    ego_lane_heading = ego_left_heading;
-  } else if (!fabs(ego_right_heading - 9.9) < 1e-1) {
-    ego_lane_heading = ego_right_heading;
-  }
   pcl::search::KdTree<pcl::PointXYZ>::Ptr heading_data_tree(
       new pcl::search::KdTree<pcl::PointXYZ>);
   heading_data_tree->setInputCloud(heading_data);
@@ -4636,9 +4642,9 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
   heading_cluster.extract(heading_cluster_indices);
   HLOG_INFO << "cluser size:" << heading_cluster_indices.size();
   double predict_heading = 0.0;
-  if (!fabs(ego_lane_heading - 9.9) < 1e-1) {
-    predict_heading = ego_lane_heading;
-    predict_heading = 0.6 * last_predict_angle + 0.4 * predict_heading;
+  if (ego_line_flag) {
+    predict_heading = heading;
+    predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
     HLOG_WARN << "heading mode 1:" << predict_heading;
   } else {
     if (heading_cluster_indices.size() == 1) {
@@ -4652,7 +4658,7 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
       predict_heading =
           heading_data_size != 0 ? heading_sum / heading_data_size : 0;
       HLOG_WARN << "heading mode 2:" << predict_heading;
-      predict_heading = 0.6 * last_predict_angle + 0.4 * predict_heading;
+      predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
     } else {
       int nearest_lane_index = -1;
       double nearest_lane_dist = std::numeric_limits<float>::max();
@@ -4666,7 +4672,6 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
           nearest_lane_index = i;
         }
       }
-
       if (nearest_lane_index != -1) {
         auto lane_ptr = lanes_need_pred[nearest_lane_index];
         predict_heading = (lane_ptr->left_boundary->mean_end_heading +
@@ -4674,7 +4679,7 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
                           2.0;
         HLOG_WARN << "heading mode 3:" << predict_heading << ","
                   << nearest_lane_dist;
-        predict_heading = 0.6 * last_predict_angle + 0.4 * predict_heading;
+        predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
       } else {
         // 求平均值
         double sum = 0;
@@ -4684,22 +4689,19 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
         predict_heading =
             lines_need_pred->empty() ? 0.0 : (sum / lines_need_pred->size());
         HLOG_WARN << "heading mode 4:" << predict_heading;
-        predict_heading = 0.6 * last_predict_angle + 0.4 * predict_heading;
+        predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
       }
     }
   }
-  last_predict_angle = predict_heading;
-  HLOG_ERROR << "predict heading:" << predict_heading;
 
   kappa = 0.4 * last_predict_kappa + 0.6 * kappa;
   dkappa = 0.4 * last_predict_dkappa + 0.6 * dkappa;
-
   // 对曲率kappa做一个阈值限制 曲率半径180m
   kappa = std::min(kappa, static_cast<double>(1.0 / 200.0));
 
+  last_predict_angle = predict_heading;
   last_predict_kappa = kappa;
   last_predict_dkappa = dkappa;
-
   for (auto& line : *lines_need_pred) {
     line->pred_end_heading = std::make_tuple(predict_heading, kappa, dkappa);
   }
@@ -7017,14 +7019,14 @@ void GroupMap::UpdatePathInCurrPose(const std::vector<KinePose::Ptr>& path,
 void GroupMap::RemoveNullGroup(std::vector<Group::Ptr>* groups) {
   for (size_t grp_idx = 0; grp_idx < groups->size(); ++grp_idx) {
     auto& curr_group = groups->at(grp_idx);
-    HLOG_ERROR << "REMOVE1 curr_group->group_segments.size()"
-               << curr_group->group_segments.size();
-    HLOG_ERROR << "REMOVE1 curr_group->lanes.size()"
+    HLOG_DEBUG << "REMOVE1 curr_group->group_segments.size()"
+               << curr_group->group_segments.size()
+               << "REMOVE1 curr_group->lanes.size()"
                << curr_group->lanes.size();
     if (curr_group->group_segments.size() < 2 || curr_group->lanes.size() < 1) {
-      HLOG_ERROR << "REMOVE curr_group->group_segments.size()"
-                 << curr_group->group_segments.size();
-      HLOG_ERROR << "REMOVE curr_group->lanes.size()"
+      HLOG_DEBUG << "REMOVE curr_group->group_segments.size()"
+                 << curr_group->group_segments.size()
+                 << "REMOVE curr_group->lanes.size()"
                  << curr_group->lanes.size();
       groups->erase(groups->begin() + grp_idx);
     }
@@ -7046,9 +7048,9 @@ bool IsAngleOkOfCurGrpAndNextGrp(Group::Ptr curr_group, Group::Ptr next_group) {
 bool AreAdjacentLaneGroupsDisconnected(Group::Ptr curr_group,
                                        Group::Ptr next_group) {
   // 判断curr_group的最后一个groupsegment的中心点和next_group的第一个groupsegment的中心点的距离
-  HLOG_ERROR << "curr_group->group_segments size:"
-             << curr_group->group_segments.size();
-  HLOG_ERROR << "next_group->group_segments size:"
+  HLOG_DEBUG << "curr_group->group_segments size:"
+             << curr_group->group_segments.size()
+             << "next_group->group_segments size:"
              << next_group->group_segments.size();
   double group_distance = (curr_group->group_segments.back()->end_slice.po -
                            next_group->group_segments.front()->start_slice.po)
@@ -7226,8 +7228,8 @@ std::vector<Point> GuidePathManager::GetCwForwardLaneGuidePoints() {
 
   float ego_to_lane_center =
       std::atan2(center_first_point.y(), center_first_point.x());
-  HLOG_DEBUG << "forward center point:"
-             << ", center.x()" << center_first_point.x() << ", center.y()"
+  HLOG_DEBUG << "forward center point:" << ", center.x()"
+             << center_first_point.x() << ", center.y()"
              << center_first_point.y() << "atan2:" << ego_to_lane_center
              << ", line_radians_mean_heading" << line_radians_mean_heading;
 
@@ -7368,10 +7370,9 @@ std::vector<Point> GuidePathManager::GetRoadEdgeGuidePoints() {
     const auto& query_point =
         0.5 * (right_first_point_2f + left_first_point_2f);
 
-    HLOG_DEBUG << "roadedge center point:"
-               << ", center.x()" << query_point.x() << ", center.y()"
-               << query_point.y() << ", line_radians_mean_heading"
-               << line_radians_mean_heading;
+    HLOG_DEBUG << "roadedge center point:" << ", center.x()" << query_point.x()
+               << ", center.y()" << query_point.y()
+               << ", line_radians_mean_heading" << line_radians_mean_heading;
     // float junction_guide_angle_ratio = 0.2;
 
     // heading方向补个50米长度。

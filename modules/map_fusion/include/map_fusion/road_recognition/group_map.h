@@ -373,6 +373,7 @@ class GroupMap {
   float PointToLaneDis(const Lane::Ptr& lane_ptr, Eigen::Vector3f point);
   void HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
                       std::vector<LineSegment::Ptr>* lines_need_pred,
+                      const std::string& last_grp_lines_id,
                       double threshold, bool need_pred_kappa);
   void RelateGroups(std::vector<Group::Ptr>* groups, double stamp);
   std::vector<Point> PredictGuidewirePath(
@@ -442,7 +443,7 @@ class GroupMap {
                             Lane::Ptr* guide_lane,
                             const Lane::Ptr& last_ego_lane);
   void GenerateGuideLaneToPo(Lane::Ptr lane_in_curr, Lane::Ptr guide_lane);
-  void ComputeLineHeading(Line::Ptr* line);
+  void ComputeLineHeading(const Line::Ptr& line);
   void SmoothCenterline(std::vector<Group::Ptr>* groups);
   void VirtualLaneLeftRight(Group::Ptr curr_group, Group::Ptr next_group);
   std::vector<Point> SlidingWindow(std::vector<Point> centerline, int w);

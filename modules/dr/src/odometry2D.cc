@@ -48,13 +48,15 @@ bool Odometry2D::update() {
     }
     int count_vel = 0;
     for (const auto vel : vel_deque_) {
-      if (vel_deque_.size() < 3) {
+      int vel_size = static_cast<int>(vel_deque_.size());
+      if (vel_size < 3) {
         is_static_ = false;
+        break;
       }
       if (fabs(vel.x()) < 1.0e-6) {
         count_vel++;
       }
-      if (fabs(count_vel - vel_deque_.size()) < 1.0e-6) {
+      if (fabs(count_vel - vel_size) < 1.0e-6) {
         is_static_ = true;
       } else {
         is_static_ = false;

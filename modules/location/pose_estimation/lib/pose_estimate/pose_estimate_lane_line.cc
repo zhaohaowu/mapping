@@ -413,12 +413,16 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
           for (const auto& map_line : left_filtered_fcmap_lines) {
             const auto line_idx = map_line.first;
             const auto map_point = map_line.second;
+            int point_size = static_cast<int>(map_line.second.size());
+            if (point_size < 2) {
+              continue;
+            }
             if (line_idx != map_left_check_near_id) {
               continue;
             }
             if (map_line.second.back().x() < FC_vel(0) * 2.0) {
               V3 map_point1 = map_line.second.back();
-              V3 map_point2 = map_line.second[map_line.second.size() - 2];
+              V3 map_point2 = map_line.second[point_size - 2];
               left_near_point_distance = CalCulatePointToLineDistance(
                   percep_left_target_point, map_point1, map_point2);
             } else {
@@ -439,12 +443,16 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
           for (const auto& map_line : right_filtered_fcmap_lines) {
             const auto line_idx = map_line.first;
             const auto map_point = map_line.second;
+            int point_size = static_cast<int>(map_line.second.size());
+            if (point_size < 2) {
+              continue;
+            }
             if (line_idx != map_right_check_near_id) {
               continue;
             }
             if (map_line.second.back().x() < FC_vel(0) * 2.0) {
               V3 map_point1 = map_line.second.back();
-              V3 map_point2 = map_line.second[map_line.second.size() - 2];
+              V3 map_point2 = map_line.second[point_size - 2];
               right_near_point_distance = CalCulatePointToLineDistance(
                   percep_right_target_point, map_point1, map_point2);
             } else {

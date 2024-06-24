@@ -306,7 +306,7 @@ bool Reloc::GenerateSearchPose() {
               return a.point.y() < b.point.y();
             });
 
-  int left = static_cast<int>(map_grid_points.size() - 1);
+  int left = static_cast<int>(map_grid_points.size()) - 1;
   int right = 0;
   for (const auto& y : search_ys_) {
     if (y < map_grid_points.front().point.y()) {
@@ -378,7 +378,7 @@ bool Reloc::ConstructMapGrids(
     std::vector<double> local_headings;
     double heading_x0 = 0;
     double dist_x0 = std::numeric_limits<double>::max();
-    for (size_t i = 0; i < ll_pts.size() - 1; ++i) {
+    for (int i = 0; i < static_cast<int>(ll_pts.size()) - 1; ++i) {
       Eigen::Vector3d pi = ll_pts[i];
       Eigen::Vector3d pj = ll_pts[i + 1];
       if (pi.x() > pj.x()) {
@@ -1093,7 +1093,8 @@ bool Reloc::HistogramPeakDetection() {
     cluster_ids.emplace_back(split_i, j - 1);
     split_i = j;
   }
-  cluster_ids.emplace_back(split_i, thresholded_lateral_scores_.size() - 1);
+  cluster_ids.emplace_back(
+      split_i, static_cast<int>(thresholded_lateral_scores_.size()) - 1);
   // get center of each cluster
   for (const auto& pair : cluster_ids) {
     if (pair.first > pair.second) {

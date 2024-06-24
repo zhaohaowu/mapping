@@ -132,7 +132,7 @@ bool Monitor::PoseJumpSingleFrameVehicle() {
   Node curr_node, prev_node;
   {
     std::unique_lock<std::shared_mutex> lock(fc_deque_mutex_);
-    uint32_t size = fc_deque_.size();
+    int size = static_cast<int>(fc_deque_.size());
     if (size < 2) {
       return false;
     }

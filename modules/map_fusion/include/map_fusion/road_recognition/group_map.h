@@ -373,8 +373,8 @@ class GroupMap {
   float PointToLaneDis(const Lane::Ptr& lane_ptr, Eigen::Vector3f point);
   void HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
                       std::vector<LineSegment::Ptr>* lines_need_pred,
-                      const std::string& last_grp_lines_id,
-                      double threshold, bool need_pred_kappa);
+                      const std::string& last_grp_lines_id, double threshold,
+                      bool need_pred_kappa);
   void RelateGroups(std::vector<Group::Ptr>* groups, double stamp);
   std::vector<Point> PredictGuidewirePath(
       std::vector<Group::Ptr>* groups,
@@ -472,7 +472,8 @@ class GroupMap {
                             std::vector<Lane::Ptr>* satisfy_next_lane);
   void GenerateAllSatisfyTransitionLane(
       Lane::Ptr lane_in_curr, std::vector<Lane::Ptr>* virtual_lanes,
-      std::vector<Lane::Ptr> history_satisfy_lane_);
+      std::vector<Lane::Ptr> history_satisfy_lane_,
+      float dist_to_next_group_slice);
   void BuildVirtualGroup2(std::vector<Lane::Ptr> virtual_lanes,
                           std::vector<Group::Ptr>* group_virtual, double stamp);
   const double pi_ = acos(-1);
@@ -494,6 +495,8 @@ class GroupMap {
   Lane::Ptr ego_curr_lane_ = nullptr;
   std::map<int, std::shared_ptr<cv::flann::Index>> KDTrees_;
   std::map<int, std::shared_ptr<std::vector<cv::Point2f>>> line_points_;
+  float incross_before_virtual_lane_length_ =
+      6.0;  // 过路口多条选择时，车后方的虚拟车道往前延伸长度
 };
 
 }  // namespace gm

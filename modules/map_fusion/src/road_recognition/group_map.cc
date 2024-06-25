@@ -1698,8 +1698,12 @@ void GroupMap::FindSatisefyNextLane(Group::Ptr next_group,
 
 void GroupMap::GenerateAllSatisfyTransitionLane(
     Lane::Ptr lane_in_curr, std::vector<Lane::Ptr>* virtual_lanes,
-    std::vector<Lane::Ptr> history_satisfy_lane_) {
-  if (is_cross_.is_crossing_ && is_cross_.along_path_dis_.norm() > 2.0) {
+    std::vector<Lane::Ptr> history_satisfy_lane_,
+    float dist_to_next_group_slice) {
+  // HLOG_ERROR << "dist_to_next_group_slice = " << dist_to_next_group_slice;
+  if (is_cross_.is_crossing_ && is_cross_.along_path_dis_.norm() > 2.0 &&
+      dist_to_next_group_slice > incross_before_virtual_lane_length_) {
+    //&&dist_to_next_group_slice > conf_.incross_before_virtual_lane_length
     // 自车在路口里的连接策略
     Lane::Ptr transition_lane = std::make_shared<Lane>();
     transition_lane->left_boundary = std::make_shared<LineSegment>();
@@ -1731,6 +1735,7 @@ void GroupMap::GenerateAllSatisfyTransitionLane(
     }
   } else {
     // 自车快进入路口里的路口连接策略
+    // HLOG_INFO << "路口连接策略";
     for (int i = 0; i < history_satisfy_lane_.size(); ++i) {
       Lane::Ptr transition_lane_after2 = std::make_shared<Lane>();
       transition_lane_after2->left_boundary = std::make_shared<LineSegment>();
@@ -1854,8 +1859,10 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
             } else {
               is_cross_.is_crossing_ = 0;
             }
+            auto dist_to_next_group_x = next_grp_start_slice.po.x();
             GenerateAllSatisfyTransitionLane(ego_curr_lane, &virtual_lanes,
-                                             history_satisfy_lane_);
+                                             history_satisfy_lane_,
+                                             dist_to_next_group_x);
           } else if (ego_curr_lane == nullptr) {
             HLOG_ERROR << "ego_curr_lane nullptr";
           } else if (history_satisfy_lane_.empty() ||
@@ -1995,121 +2002,121 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
                        lane_in_curr->center_line_pts[index_center - 1].pt.x(),
                        lane_in_curr->center_line_pts[index_center - 1].pt.y(),
                        lane_in_curr->center_line_pts[index_center - 1].pt.z());
-  if (is_cross_.is_crossing_ && is_cross_.along_path_dis_.norm() > 2.0) {
-    float i = 0.0;
-    float len = is_cross_.along_path_dis_.norm();
+  // if (is_cross_.is_crossing_ && is_cross_.along_path_dis_.norm() > 2.0) {
+  //   float i = 0.0;
+  //   float len = is_cross_.along_path_dis_.norm();
+  //   left_bound.pts.emplace_back(left_pt_pred);
+  //   right_bound.pts.emplace_back(right_pt_pred);
+  //   ctr_pts.emplace_back(center_pt_pred);
+  //   while (i < len - 1.0) {
+  //     i = i + 1.0;
+  //     float minus_x = 1 / len * is_cross_.along_path_dis_.x();
+  //     float minus_y = 1 / len * is_cross_.along_path_dis_.y();
+  //     float pre_x = left_pt_pred.pt.x() - minus_x;
+  //     float pre_y = left_pt_pred.pt.y() - minus_y;
+  //     left_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+  //     left_bound.pts.emplace_back(left_pt_pred);
+
+  //     pre_x = right_pt_pred.pt.x() - minus_x;
+  //     pre_y = right_pt_pred.pt.y() - minus_y;
+  //     right_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+  //     right_bound.pts.emplace_back(right_pt_pred);
+
+  //     pre_x = center_pt_pred.pt.x() - minus_x;
+  //     pre_y = center_pt_pred.pt.y() - minus_y;
+  //     center_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+  //     ctr_pts.emplace_back(center_pt_pred);
+  //   }
+  //   i = 0.0;
+  //   em::Point param_left =
+  //       lane_in_next->left_boundary->pts[0].pt - left_bound.pts.back().pt;
+  //   len = param_left.norm();
+  //   while (i < len - 1.0) {
+  //     left_bound.pts.emplace_back(left_pt_pred);
+  //     i = i + 1.0;
+  //     float pre_x = left_pt_pred.pt.x() + 1 / len * param_left.x();
+  //     float pre_y = left_pt_pred.pt.y() + 1 / len * param_left.y();
+  //     left_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+  //   }
+  //   if (left_bound.pts.empty()) {
+  //     return;
+  //   }
+  //   i = 0.0;
+  //   em::Point param_right =
+  //       lane_in_next->right_boundary->pts[0].pt - right_bound.pts.back().pt;
+  //   len = param_right.norm();
+  //   while (i < len - 1.0) {
+  //     right_bound.pts.emplace_back(right_pt_pred);
+  //     i = i + 1.0;
+  //     float pre_x = right_pt_pred.pt.x() + 1 / len * param_right.x();
+  //     float pre_y = right_pt_pred.pt.y() + 1 / len * param_right.y();
+  //     right_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+  //   }
+  //   if (right_bound.pts.empty()) {
+  //     return;
+  //   }
+  //   i = 0.0;
+  //   em::Point param_center =
+  //       lane_in_next->center_line_pts[0].pt - ctr_pts.back().pt;
+  //   len = param_center.norm();
+  //   while (i < len - 1.0) {
+  //     i = i + 1.0;
+  //     ctr_pts.emplace_back(center_pt_pred);
+  //     float pre_x = center_pt_pred.pt.x() + 1 / len * param_center.x();
+  //     float pre_y = center_pt_pred.pt.y() + 1 / len * param_center.y();
+  //     center_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+  //   }
+  //   ctr_pts.emplace_back(lane_in_next->center_line_pts.front());
+  //   if (ctr_pts.empty()) {
+  //     return;
+  //   }
+
+  // } else {
+  std::vector<Point> tmp_pts;
+  tmp_pts.emplace_back(lane_in_curr->left_boundary->pts[index_left - 1]);
+  tmp_pts.emplace_back(lane_in_next->left_boundary->pts[0]);
+  std::vector<double> param_left = FitLaneline(tmp_pts);
+  while (left_pt_pred.pt.x() < lane_in_next->left_boundary->pts[0].pt.x()) {
     left_bound.pts.emplace_back(left_pt_pred);
-    right_bound.pts.emplace_back(right_pt_pred);
-    ctr_pts.emplace_back(center_pt_pred);
-    while (i < len - 1.0) {
-      i = i + 1.0;
-      float minus_x = 1 / len * is_cross_.along_path_dis_.x();
-      float minus_y = 1 / len * is_cross_.along_path_dis_.y();
-      float pre_x = left_pt_pred.pt.x() - minus_x;
-      float pre_y = left_pt_pred.pt.y() - minus_y;
-      left_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
-      left_bound.pts.emplace_back(left_pt_pred);
-
-      pre_x = right_pt_pred.pt.x() - minus_x;
-      pre_y = right_pt_pred.pt.y() - minus_y;
-      right_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
-      right_bound.pts.emplace_back(right_pt_pred);
-
-      pre_x = center_pt_pred.pt.x() - minus_x;
-      pre_y = center_pt_pred.pt.y() - minus_y;
-      center_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
-      ctr_pts.emplace_back(center_pt_pred);
-    }
-    i = 0.0;
-    em::Point param_left =
-        lane_in_next->left_boundary->pts[0].pt - left_bound.pts.back().pt;
-    len = param_left.norm();
-    while (i < len - 1.0) {
-      left_bound.pts.emplace_back(left_pt_pred);
-      i = i + 1.0;
-      float pre_x = left_pt_pred.pt.x() + 1 / len * param_left.x();
-      float pre_y = left_pt_pred.pt.y() + 1 / len * param_left.y();
-      left_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
-    }
-    if (left_bound.pts.empty()) {
-      return;
-    }
-    i = 0.0;
-    em::Point param_right =
-        lane_in_next->right_boundary->pts[0].pt - right_bound.pts.back().pt;
-    len = param_right.norm();
-    while (i < len - 1.0) {
-      right_bound.pts.emplace_back(right_pt_pred);
-      i = i + 1.0;
-      float pre_x = right_pt_pred.pt.x() + 1 / len * param_right.x();
-      float pre_y = right_pt_pred.pt.y() + 1 / len * param_right.y();
-      right_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
-    }
-    if (right_bound.pts.empty()) {
-      return;
-    }
-    i = 0.0;
-    em::Point param_center =
-        lane_in_next->center_line_pts[0].pt - ctr_pts.back().pt;
-    len = param_center.norm();
-    while (i < len - 1.0) {
-      i = i + 1.0;
-      ctr_pts.emplace_back(center_pt_pred);
-      float pre_x = center_pt_pred.pt.x() + 1 / len * param_center.x();
-      float pre_y = center_pt_pred.pt.y() + 1 / len * param_center.y();
-      center_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
-    }
-    ctr_pts.emplace_back(lane_in_next->center_line_pts.front());
-    if (ctr_pts.empty()) {
-      return;
-    }
-
-  } else {
-    std::vector<Point> tmp_pts;
-    tmp_pts.emplace_back(lane_in_curr->left_boundary->pts[index_left - 1]);
-    tmp_pts.emplace_back(lane_in_next->left_boundary->pts[0]);
-    std::vector<double> param_left = FitLaneline(tmp_pts);
-    while (left_pt_pred.pt.x() < lane_in_next->left_boundary->pts[0].pt.x()) {
-      left_bound.pts.emplace_back(left_pt_pred);
-      float pre_x = left_pt_pred.pt.x() + 1.0;
-      float pre_y = param_left[0] + param_left[1] * pre_x;
-      left_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
-    }
-    // HLOG_INFO << "left_bound.pts.size() = " << left_bound.pts.size();
-    // if (left_bound.pts.empty()) {
-    //   return;
-    // }
-
-    tmp_pts.clear();
-    tmp_pts.emplace_back(lane_in_curr->right_boundary->pts[index_right - 1]);
-    tmp_pts.emplace_back(lane_in_next->right_boundary->pts[0]);
-    param_left = FitLaneline(tmp_pts);
-    while (right_pt_pred.pt.x() < lane_in_next->right_boundary->pts[0].pt.x()) {
-      right_bound.pts.emplace_back(right_pt_pred);
-      float pre_x = right_pt_pred.pt.x() + 1.0;
-      float pre_y = param_left[0] + param_left[1] * pre_x;
-      right_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
-    }
-    // HLOG_INFO << "right_bound.pts.size() = " << right_bound.pts.size();
-    // if (right_bound.pts.empty()) {
-    //   return;
-    // }
-    tmp_pts.clear();
-    tmp_pts.emplace_back(lane_in_curr->center_line_pts[index_center - 1]);
-    tmp_pts.emplace_back(lane_in_next->center_line_pts[0]);
-    param_left = FitLaneline(tmp_pts);
-    while (center_pt_pred.pt.x() < lane_in_next->center_line_pts[0].pt.x()) {
-      ctr_pts.emplace_back(center_pt_pred);
-      float pre_x = center_pt_pred.pt.x() + 1.0;
-      float pre_y = param_left[0] + param_left[1] * pre_x;
-      center_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
-    }
-    ctr_pts.emplace_back(lane_in_next->center_line_pts.front());
-    // HLOG_INFO << "ctr_pts.pts.size() = " << ctr_pts.size();
-    if (ctr_pts.empty()) {
-      return;
-    }
+    float pre_x = left_pt_pred.pt.x() + 1.0;
+    float pre_y = param_left[0] + param_left[1] * pre_x;
+    left_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
   }
+  // HLOG_INFO << "left_bound.pts.size() = " << left_bound.pts.size();
+  // if (left_bound.pts.empty()) {
+  //   return;
+  // }
+
+  tmp_pts.clear();
+  tmp_pts.emplace_back(lane_in_curr->right_boundary->pts[index_right - 1]);
+  tmp_pts.emplace_back(lane_in_next->right_boundary->pts[0]);
+  param_left = FitLaneline(tmp_pts);
+  while (right_pt_pred.pt.x() < lane_in_next->right_boundary->pts[0].pt.x()) {
+    right_bound.pts.emplace_back(right_pt_pred);
+    float pre_x = right_pt_pred.pt.x() + 1.0;
+    float pre_y = param_left[0] + param_left[1] * pre_x;
+    right_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+  }
+  // HLOG_INFO << "right_bound.pts.size() = " << right_bound.pts.size();
+  // if (right_bound.pts.empty()) {
+  //   return;
+  // }
+  tmp_pts.clear();
+  tmp_pts.emplace_back(lane_in_curr->center_line_pts[index_center - 1]);
+  tmp_pts.emplace_back(lane_in_next->center_line_pts[0]);
+  param_left = FitLaneline(tmp_pts);
+  while (center_pt_pred.pt.x() < lane_in_next->center_line_pts[0].pt.x()) {
+    ctr_pts.emplace_back(center_pt_pred);
+    float pre_x = center_pt_pred.pt.x() + 1.0;
+    float pre_y = param_left[0] + param_left[1] * pre_x;
+    center_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
+  }
+  ctr_pts.emplace_back(lane_in_next->center_line_pts.front());
+  // HLOG_INFO << "ctr_pts.pts.size() = " << ctr_pts.size();
+  if (ctr_pts.empty()) {
+    return;
+  }
+  // }
 }
 
 void GroupMap::GenerateTransitionLaneToPo(Lane::Ptr lane_in_curr,
@@ -2201,6 +2208,9 @@ void GroupMap::GenerateTransitionLaneToBefore(Lane::Ptr lane_in_curr,
                        lane_in_curr->center_line_pts[index_center - 1].pt.y(),
                        lane_in_curr->center_line_pts[index_center - 1].pt.z());
   float i = 0.0;
+  is_cross_.along_path_dis_.x() =
+      is_cross_.along_path_dis_.x() -
+      incross_before_virtual_lane_length_;  // conf_.incross_before_virtual_lane_length
   float len = is_cross_.along_path_dis_.norm();
   left_bound.pts.emplace_back(left_pt_pred);
   right_bound.pts.emplace_back(right_pt_pred);
@@ -7017,6 +7027,9 @@ void GroupMap::UpdatePathInCurrPose(const std::vector<KinePose::Ptr>& path,
   pose.pos.setZero();
   pose.quat.setIdentity();
   path_in_curr_pose_.emplace_back(pose);
+  incross_before_virtual_lane_length_ =
+      std::max(static_cast<float>(curr_pose.vel.head<2>().norm() * 0.4),
+               incross_before_virtual_lane_length_);
 }
 
 void GroupMap::RemoveNullGroup(std::vector<Group::Ptr>* groups) {
@@ -7231,8 +7244,8 @@ std::vector<Point> GuidePathManager::GetCwForwardLaneGuidePoints() {
 
   float ego_to_lane_center =
       std::atan2(center_first_point.y(), center_first_point.x());
-  HLOG_DEBUG << "forward center point:" << ", center.x()"
-             << center_first_point.x() << ", center.y()"
+  HLOG_DEBUG << "forward center point:"
+             << ", center.x()" << center_first_point.x() << ", center.y()"
              << center_first_point.y() << "atan2:" << ego_to_lane_center
              << ", line_radians_mean_heading" << line_radians_mean_heading;
 
@@ -7373,9 +7386,10 @@ std::vector<Point> GuidePathManager::GetRoadEdgeGuidePoints() {
     const auto& query_point =
         0.5 * (right_first_point_2f + left_first_point_2f);
 
-    HLOG_DEBUG << "roadedge center point:" << ", center.x()" << query_point.x()
-               << ", center.y()" << query_point.y()
-               << ", line_radians_mean_heading" << line_radians_mean_heading;
+    HLOG_DEBUG << "roadedge center point:"
+               << ", center.x()" << query_point.x() << ", center.y()"
+               << query_point.y() << ", line_radians_mean_heading"
+               << line_radians_mean_heading;
     // float junction_guide_angle_ratio = 0.2;
 
     // heading方向补个50米长度。

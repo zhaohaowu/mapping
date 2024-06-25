@@ -412,8 +412,7 @@ bool TransformLaneLineCurveInNovatel(const LaneLineCurve& curve,
     // Eigen::Vector3d point_old(curve_p, point, 0);
     Eigen::Vector3d point_old(point, curve_p, 0);
     Eigen::Vector3d point_new = transform_matrix * point_old;
-    HLOG_DEBUG << "point x:" << point << ","
-               << "curve y:" << curve_p << ","
+    HLOG_DEBUG << "point x:" << point << "," << "curve y:" << curve_p << ","
                << "x new:" << point_new.x() << ", y new:" << point_new.y();
     float x = point_new.x();
     float x2 = x * x;
@@ -604,10 +603,10 @@ float GetDistPointLane(const Eigen::Vector3d& point_a,
   }
 
   float dist_proj = BA.dot(BC) / BC.norm();
-  // 计算点到直线的距离
-  double point_dist = sqrt(pow(BA.norm(), 2) - pow(dist_proj, 2));
-
-  return point_dist;
+  // A到BC的垂心为P
+  Eigen::Vector2f BP = dist_proj * BC.normalized();
+  Eigen::Vector2f AP = (B - A) + BP;
+  return AP.norm();
 }
 
 float GetDistBetweenTwoLane(const std::vector<Eigen::Vector3d>& point_set1,

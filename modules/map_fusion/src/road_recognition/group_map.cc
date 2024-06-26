@@ -1703,7 +1703,7 @@ void GroupMap::GenerateAllSatisfyTransitionLane(
   // HLOG_ERROR << "dist_to_next_group_slice = " << dist_to_next_group_slice;
   if (is_cross_.is_crossing_ && is_cross_.along_path_dis_.norm() > 2.0 &&
       dist_to_next_group_slice > incross_before_virtual_lane_length_) {
-    //&&dist_to_next_group_slice > conf_.incross_before_virtual_lane_length
+    // &&dist_to_next_group_slice > conf_.incross_before_virtual_lane_length
     // 自车在路口里的连接策略
     Lane::Ptr transition_lane = std::make_shared<Lane>();
     transition_lane->left_boundary = std::make_shared<LineSegment>();

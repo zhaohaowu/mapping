@@ -1660,23 +1660,24 @@ bool MatchLaneLine::GetFitMapPoints(const std::vector<ControlPoint>& points,
   return true;
 }
 
-bool MatchLaneLine::CompareLaneWidth(const SE3& T) {
+bool MatchLaneLine::CompareLaneWidth(const SE3& T,
+                                     double* lane_width_diff_value) {
   int size = match_pairs_.size();
-  if (size != 2) {
+  if (size != 2 || lane_width_diff_value == nullptr) {
     return false;
   }
-  double lane_width_diff = 0;
+  *lane_width_diff_value = 0;
   std::vector<PointMatchPair> match_pairs_0 = match_pairs_[0];
   std::vector<PointMatchPair> match_pairs_1 = match_pairs_[1];
   std::sort(match_pairs_0.begin(), match_pairs_0.end(), SortPairByX);
   std::sort(match_pairs_1.begin(), match_pairs_1.end(), SortPairByX);
   ComputeLaneWidthDiff(match_pairs_0, match_pairs_1, T.inverse(),
-                       &lane_width_diff);
+                       lane_width_diff_value);
   double lane_width_diff_thre = mm_params.lane_width_diff_thre;
   if (is_double_line_) {
     lane_width_diff_thre += mm_params.lane_width_diff_thre_offset;
   }
-  return lane_width_diff >= lane_width_diff_thre;
+  return *lane_width_diff_value >= lane_width_diff_thre;
 }
 
 void MatchLaneLine::ComputeLaneWidthDiff(

@@ -99,7 +99,7 @@ recur_input_in_ins_rtk_smooth: true
 recur_input_x_thr: 3
 
 # lane width check
-lane_width_diff_thre: 0.8
+lane_width_diff_thre: 1.2
 lane_width_diff_thre_offset: 0.07
 lane_width_check_switch: true
 max_pair_count_thre: 10

@@ -66,7 +66,7 @@ class MatchLaneLine {
    * @return
    */
   bool CheckIsGoodMatch(const SE3& T);
-  bool CompareLaneWidth(const SE3& T);
+  bool CompareLaneWidth(const SE3& T, double* lane_width_diff_value);
 
   /**
    * @brief filter perception lane lines

@@ -190,11 +190,25 @@ void MapMatching::ProcData(
   }
 
   // 感知和地图宽度校验
-  if (mm_params.lane_width_check_switch &&
-      map_match_->CheckLaneWidth(T_output)) {
-    HLOG_ERROR << "cur_stamp" << cur_stamp
-               << "difference between map_width and perception_width > 0.8m";
-    output_valid = false;
+  double lane_width_diff_value = 0.0;
+  double lane_width_check_coeff = 1.0;
+  if (mm_params.lane_width_check_switch) {
+    bool check_failed =
+        map_match_->CheckLaneWidth(T_output, &lane_width_diff_value);
+    if (check_failed) {
+      output_valid = false;
+      HLOG_ERROR << "cur_stamp" << cur_stamp
+                 << ", lane_width_check failed, lane_width_diff_value: "
+                 << lane_width_diff_value;
+    } else if (!check_failed &&
+               lane_width_diff_value < mm_params.lane_width_diff_thre &&
+               lane_width_diff_value > 0.8) {
+      lane_width_check_coeff = std::exp(lane_width_diff_value - 0.8);
+      HLOG_DEBUG << "lane_width_check_coeff: " << lane_width_check_coeff
+                 << ", lane_width_diff_value: " << lane_width_diff_value
+                 << "ts: " << cur_stamp;
+      output_valid = true;
+    }
   }
 
   // 对无效位姿增加无效标记并赋为输入位姿，有效位姿增加有效标记并赋为输出位姿
@@ -204,13 +218,13 @@ void MapMatching::ProcData(
   mm_output_lck_.lock();
   bool big_curvature_frame = map_match_->GetMatchBigCurvature();
   if (!output_valid) {
-    mm_node_info_ =
-        generateNodeInfo(T_output, 0, 0, true, ref_point, ins_height,
-                         sys_status, big_curvature_frame);
+    mm_node_info_ = generateNodeInfo(
+        T_output, 0, 0, true, ref_point, ins_height, sys_status,
+        big_curvature_frame, lane_width_check_coeff);
   } else {
-    mm_node_info_ =
-        generateNodeInfo(T_output, cur_sec, cur_nsec, false, ref_point,
-                         ins_height, sys_status, big_curvature_frame);
+    mm_node_info_ = generateNodeInfo(
+        T_output, cur_sec, cur_nsec, false, ref_point, ins_height, sys_status,
+        big_curvature_frame, lane_width_check_coeff);
   }
   mm_output_lck_.unlock();
 
@@ -274,12 +288,10 @@ PtrNodeInfo MapMatching::getMmNodeInfo() {
   return output_node_info;
 }
 
-PtrNodeInfo MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V,
-                                          uint64_t sec, uint64_t nsec,
-                                          const bool& has_err,
-                                          const Eigen::Vector3d& ref_point,
-                                          double ins_height, int sys_status,
-                                          bool is_big_curvature_frame) {
+PtrNodeInfo MapMatching::generateNodeInfo(
+    const Sophus::SE3d& T_W_V, uint64_t sec, uint64_t nsec, const bool& has_err,
+    const Eigen::Vector3d& ref_point, double ins_height, int sys_status,
+    bool is_big_curvature_frame, double lane_width_check_coeff) {
   PtrNodeInfo node_info =
       std::make_shared<::hozon::localization::HafNodeInfo>();
   auto blh = hozon::mp::util::Geo::EnuToGcj02(
@@ -310,7 +322,8 @@ PtrNodeInfo MapMatching::generateNodeInfo(const Sophus::SE3d& T_W_V,
       static_cast<float>(T_W_V.unit_quaternion().w()));
   // sd_velocity 用这个字段的x 填充一下该帧是否大曲率信息： 1 是 0 否
   node_info->mutable_sd_velocity()->set_x(is_big_curvature_frame);
-  node_info->mutable_sd_velocity()->set_y(0);
+  // sd_velocity 用这个字段的y 填充一下该帧宽度校验系数
+  node_info->mutable_sd_velocity()->set_y(lane_width_check_coeff);
   node_info->mutable_sd_velocity()->set_z(0);
   if (!has_err) {
     node_info->set_valid_estimate(true);

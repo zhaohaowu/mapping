@@ -30,8 +30,11 @@ bool MapMatch::GoodMatchCheck(const SE3 &T) {
   return lane_line_->CheckIsGoodMatch(T);
 }
 
-bool MapMatch::CheckLaneWidth(const SE3 &T) {
-  return lane_line_->CompareLaneWidth(T);
+bool MapMatch::CheckLaneWidth(const SE3 &T, double* lane_width_diff) {
+  if (lane_width_diff == nullptr) {
+    return false;
+  }
+  return lane_line_->CompareLaneWidth(T, lane_width_diff);
 }
 
 void MapMatch::Match(const HdMap &hd_map,

@@ -33,7 +33,7 @@ class MapMatch {
   inline bool hasError() { return has_err_; }
   inline int GetErrorType() { return err_type_; }
   bool GoodMatchCheck(const SE3 &T);
-  bool CheckLaneWidth(const SE3 &T);
+  bool CheckLaneWidth(const SE3 &T, double* lane_width_diff);
   void SetInsTs(const double &ins_ts);
   void SetVel(const Eigen::Vector3d &linear_vel);
   int GetLanePairSize() { return lane_line_->get_match_line_size(); }

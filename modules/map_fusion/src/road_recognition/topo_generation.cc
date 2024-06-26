@@ -140,7 +140,7 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
   gm_conf_.junction_guide_min_dis = conf["junction_guide_min_dis"].as<double>();
   gm_conf_.junction_guide_max_degree =
       conf["junction_guide_max_degree"].as<double>();
-
+  gm_conf_.delay_connect_hz = conf["delay_connect_hz"].as<int>();
   is_cross_.cross_after_lane_ = 0;
   is_cross_.cross_before_lane_ = 0;
   is_cross_.is_crossing_ = 0;
@@ -150,6 +150,7 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
   is_cross_.next_lane_left = -1000;
   is_cross_.next_lane_right = -1000;
   is_cross_.is_connect_ = 0;
+  is_cross_.delay_hz = 0;
   is_cross_.next_satisefy_lane_seg.clear();
   history_id_.lane_id = 0;
   history_id_.road_id = 0;
@@ -756,6 +757,7 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
           iscross->next_lane_left = -1000;
           iscross->next_lane_right = -1000;
           iscross->is_connect_ = 0;
+          iscross->delay_hz = 0;
           iscross->next_satisefy_lane_seg.clear();
           break;
         }

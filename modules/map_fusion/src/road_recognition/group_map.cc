@@ -144,6 +144,7 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
   is_cross->next_lane_left = is_cross_.next_lane_left;
   is_cross->next_lane_right = is_cross_.next_lane_right;
   is_cross->is_connect_ = is_cross_.is_connect_;
+  is_cross->delay_hz = is_cross_.delay_hz;
   is_cross->is_crossing_ = is_cross_.is_crossing_;
   is_cross->next_satisefy_lane_seg = is_cross_.next_satisefy_lane_seg;
   return true;
@@ -741,20 +742,17 @@ void GroupMap::UniteGroupSegmentsToGroups(
   if (group_segments.size() > 3) {
     for (size_t i = 1; i < group_segments.size() - 2; ++i) {
       if ((group_segments[i]->str_id != group_segments[i - 1]->str_id) &&
-          ((group_segments[i]->str_id != group_segments[i + 1]->str_id))) {
-        // ||(group_segments[i]->str_id != group_segments[i + 2]->str_id)
+          ((group_segments[i]->str_id != group_segments[i + 1]->str_id) ||
+           (group_segments[i]->str_id != group_segments[i + 2]->str_id))) {
         group_segments.erase(group_segments.begin() + i);
         i--;
       }
     }
   }
-  // for (size_t i = 0; i < group_segments.size(); ++i) {
-  //   if (group_segments[i]->str_id == "") {
-  //     group_segments.erase(group_segments.begin() + i);
-  //     i--;
-  //   }
+
+  // if (!group_segments.empty()) {
+  //   HLOG_ERROR << "group_segments2.size() = " << group_segments.size();
   // }
-  // HLOG_ERROR << "group_segments2.size() = " << group_segments.size();
 
   int grp_idx = -1;
   for (const auto& seg : group_segments) {
@@ -777,6 +775,10 @@ void GroupMap::UniteGroupSegmentsToGroups(
   }
   // HLOG_ERROR << "grp_idx = " << grp_idx
   //            << "groups->size() = " << groups->size();
+  // for (auto grp : *groups) {
+  //   HLOG_ERROR << "group name is " << grp->str_id;
+  //   HLOG_ERROR << "group segment size is " << grp->group_segments.size();
+  // }
   if (grp_idx > 2) {
     for (int i = 1; i < static_cast<int>(groups->size()) - 1; ++i) {
       if (groups->at(i - 1)->seg_str_id == groups->at(i + 1)->seg_str_id &&
@@ -1841,7 +1843,9 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
         HLOG_INFO << "curr_group NAME = " << curr_group->str_id
                   << "  dist_to_slice = " << dist_to_slice
                   << "  veh_in_this_junction = " << veh_in_this_junction
-                  << "  next_group_name = " << next_group->str_id;
+                  << "  next_group_name = " << next_group->str_id
+                  << "  delay_connect_hz = " << conf_.delay_connect_hz
+                  << "  cross delay = " << is_cross_.delay_hz;
         if (veh_in_this_junction) {
           Lane::Ptr ego_curr_lane = nullptr;
           FindNearestLaneToHisVehiclePosition(curr_group, &ego_curr_lane);
@@ -1851,10 +1855,12 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
           std::vector<Lane::Ptr> history_satisfy_lane_;
           FindSatisefyNextLane(next_group, dist_to_slice,
                                &history_satisfy_lane_);
+
           if (ego_curr_lane != nullptr && !history_satisfy_lane_.empty() &&
               (dist_to_slice <= conf_.next_group_max_distance ||
                is_cross_.is_connect_)) {
             is_cross_.is_connect_ = 1;
+            is_cross_.delay_hz = is_cross_.delay_hz + 1;
             if (curr_group->group_segments.back()->end_slice.po.x() < -2.0) {
               is_cross_.is_crossing_ = 1;
               is_cross_.along_path_dis_ =
@@ -1862,10 +1868,15 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
             } else {
               is_cross_.is_crossing_ = 0;
             }
-            auto dist_to_next_group_x = next_grp_start_slice.po.x();
-            GenerateAllSatisfyTransitionLane(ego_curr_lane, &virtual_lanes,
-                                             history_satisfy_lane_,
-                                             dist_to_next_group_x);
+            if (is_cross_.delay_hz > conf_.delay_connect_hz) {
+              auto dist_to_next_group_x = next_grp_start_slice.po.x();
+              GenerateAllSatisfyTransitionLane(ego_curr_lane, &virtual_lanes,
+                                               history_satisfy_lane_,
+                                               dist_to_next_group_x);
+            } else {
+              erase_grp_idx = grp_idx + 1;
+              HLOG_WARN << "delay is small than conf_delay";
+            }
           } else if (ego_curr_lane == nullptr) {
             HLOG_ERROR << "ego_curr_lane nullptr";
           } else if (history_satisfy_lane_.empty() ||
@@ -3486,7 +3497,6 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
     HLOG_WARN << "*********[CrossWalk]*******delete null group nums: "
               << after_remove_grp_nums - before_remove_grp_nums;
   }
-
   // 停止线斑马线路面箭头与车道绑定
   if (groups->size() > 1) {
     // 仅保留前向只有一个路口存在
@@ -3507,7 +3517,6 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
     HLOG_DEBUG << "guide point idx: " << i << ", x:" << point.pt.x()
                << ", y:" << point.pt.y() << ", z:" << point.pt.z();
   }
-
   // //
   // 根据guide_points和path生成参考线以及三次曲线方程和曲线变化率,并更新groups中的对应字段
   ComputeLineCurvatureV2(&guide_points, groups, stamp);
@@ -5632,7 +5641,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
           left_pt_pred =
               Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
         }
-        if (left_bound.pts.size() < 2) {
+        if (left_bound.pts.empty()) {
           return;
         }
         Point right_pt_pred(PREDICTED,
@@ -5651,7 +5660,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
           right_pt_pred =
               Point(PREDICTED, pre_x, pre_y, static_cast<float>(0.0));
         }
-        if (right_bound.pts.size() < 2) {
+        if (right_bound.pts.empty()) {
           return;
         }
       }

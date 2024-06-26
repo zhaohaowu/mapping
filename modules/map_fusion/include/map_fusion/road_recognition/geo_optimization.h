@@ -109,8 +109,8 @@ enum Color {
 enum class RelativePosition { LEFT = 0, RIGHT = 1, UNCERTAIN = 2 };
 
 struct local_line_info {
-  hozon::mapping::LanePositionType lane_pos;
   int line_track_id;
+  hozon::mapping::LanePositionType lane_pos;
   std::vector<Eigen::Vector3d> local_line_pts;
   std::vector<double> right_width;       // 距离右边线的距离
   std::vector<double> right_road_width;  // 距离右侧路沿距离
@@ -177,8 +177,7 @@ class GeoOptimization {
   // std::shared_ptr<std::vector<LanePilot>> map_lanes_ = nullptr;
   // std::shared_ptr<hozon::hdmap::Map> pilot_map_ = nullptr;
   std::map<int, std::vector<Line_kd>> all_lines_;  // 用于存储当前所有line信息
-  std::unordered_map<hozon::mapping::LanePositionType, local_line_info>
-      local_line_table_;
+  std::unordered_map<int, local_line_info> local_line_table_;
   int extra_val = 100;  // 暂时临时这样设定，后面需要整合优化
   base_line_info base_line_;
   std::set<int> last_track_id_;  // 记录上一帧不进行跟踪的trackid
@@ -270,6 +269,15 @@ class GeoOptimization {
 
   void CreateLocalLineTable();
 
+  void MakeRoadEdgeToLaneLine();
+
+  void CompareRoadAndLines(
+      const std::vector<Eigen::Vector3d>& road_pts,
+      std::vector<std::vector<Eigen::Vector3d>>* new_lines);
+
+  void ConstructLaneLine(
+      const std::vector<std::vector<Eigen::Vector3d>>& new_lines);
+
   void AlignmentVecLane();
 
   void ComputerLineDis(const std::vector<Eigen::Vector3d>& line_pts,
@@ -278,12 +286,11 @@ class GeoOptimization {
 
   void HandleExtraWideLane();
 
-  void FitMissedLaneLine(const hozon::mapping::LanePositionType& ex);
+  void FitMissedLaneLine(const std::pair<int, int>& ex);
 
   double ComputeLineHeading(const std::vector<Eigen::Vector3d>& line_pts);
 
-  double ComputeCurvature(
-      const std::vector<Eigen::Vector3d>& line_pts);
+  double ComputeCurvature(const std::vector<Eigen::Vector3d>& line_pts);
 
   void ObtainBaseLine(std::vector<Eigen::Vector3d>* base_line,
                       std::vector<double>* base_width,

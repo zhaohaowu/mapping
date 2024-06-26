@@ -15,12 +15,15 @@
 #include <cstdint>
 #include <cstdlib>
 #include <limits>
+#include <map>
 #include <numeric>
 #include <unordered_map>
+#include <utility>
 
 #include "base/utils/log.h"
 #include "depend/common/utm_projection/coordinate_convertor.h"
 #include "map_fusion/fusion_common/calc_util.h"
+#include "map_fusion/fusion_common/element_map.h"
 #include "map_fusion/map_prediction/viz_map.h"
 #include "map_fusion/map_service/global_hd_map.h"
 #include "util/mapping_log.h"
@@ -2079,7 +2082,6 @@ void GeoOptimization::OnLocalMap(
   // 4. 处理merge或者split对线段进行拆分，并填入element_map包括line的前后继关系
   // 还是根据具体case分析具体问题
   FilterLocalMapLine(local_map_);
-
   // 路沿标记本road以外的车道
   // FilterOppositeLine();
 
@@ -2400,6 +2402,8 @@ void GeoOptimization::CompleteLocalMap() {
   // UpdateLocalMapLine();
   // 存储local map中的line信息，便于查找
   CreateLocalLineTable();
+  // 将路沿构建成车道线
+  MakeRoadEdgeToLaneLine();
   // 对自车相邻的两个车道线进行补齐
   // AlignmentVecLane();
   // // 处理超宽车道
@@ -2423,13 +2427,14 @@ void GeoOptimization::CreateLocalLineTable() {
     line_info.lane_pos = lane_pos;
     line_info.local_line_pts = local_pts;
     line_info.line_track_id = line_track_id;
-    local_line_table_.insert_or_assign(lane_pos, line_info);
+    local_line_table_.insert_or_assign(line_track_id, line_info);
   }
 
+#if 0
   // 存储local map中每根道路边沿的几何
   std::vector<Eigen::Vector3d> right_road_pts;
   std::vector<Eigen::Vector3d> left_road_pts;
-  for (const auto& local_road : local_map_use_->road_edges()) {
+  for (const auto& local_road : local_map_->road_edges()) {
     if (static_cast<int>(local_road.lanepos()) == 1) {
       for (const auto& road_pt : local_road.points()) {
         Eigen::Vector3d pt(road_pt.x(), road_pt.y(), road_pt.z());
@@ -2460,7 +2465,6 @@ void GeoOptimization::CreateLocalLineTable() {
     }
     if (local_line_table_.find(right_line_pos) == local_line_table_.end()) {
       local_line_table_.at(lane_pos).flag = 1;
-      HLOG_DEBUG << "right_line_pos not in local_line_table";
       continue;
     }
     if (local_line_table_.find(left_line_pos) == local_line_table_.end()) {
@@ -2482,6 +2486,127 @@ void GeoOptimization::CreateLocalLineTable() {
     std::vector<double> line_road_l;
     ComputerLineDis(line_pts, left_road_pts, &line_road_l);
     local_line_table_.at(lane_pos).left_road_width = line_road_l;
+  }
+#endif
+}
+
+void GeoOptimization::MakeRoadEdgeToLaneLine() {
+  // 将满足条件的路沿更新为车道线
+  /*
+    1.找到lane_pos为-1或1的路沿，并计算离路沿最近的车道线
+    2.判断路沿和车道线距离是否满足条件
+    3.判断车道线的属性是否是虚线
+  */
+  if (!local_map_use_ || local_map_use_->lane_lines_size() == 0) {
+    return;
+  }
+  // 存储路沿(自车左右)
+  std::vector<std::vector<Eigen::Vector3d>> new_lines;
+  for (const auto& road : local_map_->road_edges()) {
+    if (road.lanepos() == -1 || road.lanepos() == 1) {
+      std::vector<Eigen::Vector3d> road_pts;
+      for (const auto& pt : road.points()) {
+        Eigen::Vector3d point(pt.x(), pt.y(), pt.z());
+        road_pts.emplace_back(point);
+      }
+      CompareRoadAndLines(road_pts, &new_lines);
+    }
+  }
+  if (new_lines.empty()) {
+    return;
+  }
+  // ConstructLaneLine(new_lines);
+  for (const auto& line : new_lines) {
+    auto* new_line = local_map_use_->add_lane_lines();
+    for (const auto& pt : line) {
+      auto* new_pt = new_line->add_points();
+      new_pt->set_x(pt.x());
+      new_pt->set_y(pt.y());
+      new_pt->set_z(pt.z());
+    }
+
+    new_line->set_lanepos(
+        static_cast<hozon::mapping::LanePositionType>(extra_val));
+    new_line->set_track_id(extra_val);
+    new_line->set_color(static_cast<hozon::mapping::Color>(1));
+    new_line->set_lanetype(static_cast<hozon::mapping::LaneType>(1));
+
+    // 更新哈希表
+    local_line_info local_line;
+    local_line.line_track_id = extra_val;
+    local_line.local_line_pts = line;
+    local_line.lane_pos =
+        static_cast<hozon::mapping::LanePositionType>(extra_val);
+    local_line_table_.insert_or_assign(extra_val, local_line);
+    extra_val++;
+  }
+}
+
+void GeoOptimization::CompareRoadAndLines(
+    const std::vector<Eigen::Vector3d>& road_pts,
+    std::vector<std::vector<Eigen::Vector3d>>* new_lines) {
+  // 比较路沿和车道线
+  hozon::mapping::LaneLine target_line;
+  double min_dis = std::numeric_limits<double>::max();
+  for (const auto& line : local_map_use_->lane_lines()) {
+    std::vector<Eigen::Vector3d> line_pts;
+    for (const auto& pt : line.points()) {
+      Eigen::Vector3d point(pt.x(), pt.y(), pt.z());
+      line_pts.emplace_back(point);
+    }
+    std::vector<double> road_line_dis;
+    ComputerLineDis(road_pts, line_pts, &road_line_dis);
+    if (road_line_dis.empty()) {
+      continue;
+    }
+    auto road_avg_dis =
+        std::accumulate(road_line_dis.begin(), road_line_dis.end(), 0.0) /
+        static_cast<double>(road_line_dis.size());
+    if (road_avg_dis < min_dis) {
+      min_dis = road_avg_dis;
+      target_line = line;
+    }
+  }
+
+  // 判断是否满足条件
+  if (min_dis < 2.0 || min_dis > 5.5) {
+    HLOG_DEBUG << "road and line min distance < 2m or > 5.5m";
+    return;
+  }
+  if (target_line.lanetype() != em::LineType::LaneType_DASHED) {
+    HLOG_DEBUG << "the line type is not dashed";
+    return;
+  }
+  new_lines->emplace_back(road_pts);
+}
+
+void GeoOptimization::ConstructLaneLine(
+    const std::vector<std::vector<Eigen::Vector3d>>& new_lines) {
+  for (const auto& line : new_lines) {
+    auto* new_line = local_map_use_->add_lane_lines();
+    for (const auto& pt : line) {
+      auto* new_pt = new_line->add_points();
+      new_pt->set_x(pt.x());
+      new_pt->set_y(pt.y());
+      new_pt->set_z(pt.z());
+    }
+
+    new_line->set_lanepos(
+        static_cast<hozon::mapping::LanePositionType>(extra_val));
+    new_line->set_track_id(extra_val);
+    new_line->set_color(static_cast<hozon::mapping::Color>(1));
+    // new_line->set_allocated_lane_param(static_cast<hozon::mapping::LaneCubicSpline>(500));
+    // new_line->set_confidence(static_cast<hozon::mapping::LanePositionType>(500));
+    new_line->set_lanetype(static_cast<hozon::mapping::LaneType>(2));
+
+    // 更新哈希表
+    local_line_info local_line;
+    local_line.line_track_id = extra_val;
+    local_line.local_line_pts = line;
+    local_line.lane_pos =
+        static_cast<hozon::mapping::LanePositionType>(extra_val);
+    local_line_table_.insert_or_assign(extra_val, local_line);
+    extra_val++;
   }
 }
 
@@ -2709,28 +2834,46 @@ void GeoOptimization::HandleExtraWideLane() {
   if (!local_map_use_ || local_map_use_->lane_lines_size() == 0) {
     return;
   }
-  std::vector<hozon::mapping::LanePositionType> extra_pos;
+  std::vector<std::pair<int, int>> extra_ids;
+  std::vector<int> left_track_ids;
+  std::vector<int> right_track_ids;
   for (const auto& local_line : local_map_use_->lane_lines()) {
-    if (local_line_table_.find(local_line.lanepos()) ==
+    if (local_line_table_.find(local_line.track_id()) ==
         local_line_table_.end()) {
       continue;
     }
-    auto lane_width = local_line_table_.at(local_line.lanepos()).right_width;
-    // 检测是否有超宽（漏检）车道
-    bool width_flag = false;
-    for (const auto& wid : lane_width) {
-      if (wid >= 5.5) {
-        HLOG_WARN << "have extra wide lanes!";
-        width_flag = true;  // 漏检
-        break;
-      }
+    // 确定主车道左右两根线
+    if (local_line.lanepos() == -1) {
+      left_track_ids.emplace_back(local_line.track_id());
     }
-    // 这里是否要考虑超宽车道是否是在车的两侧
-    if (width_flag && static_cast<int>(local_line.lanepos()) == -1) {
-      extra_pos.emplace_back(local_line.lanepos());
+    if (local_line.lanepos() == 1) {
+      right_track_ids.emplace_back(local_line.track_id());
     }
   }
-  if (extra_pos.empty()) {
+  // 确定是否存在超宽车道
+  if (left_track_ids.empty() || right_track_ids.empty()) {
+    return;
+  }
+  for (const auto& left_id : left_track_ids) {
+    for (const auto& right_id : right_track_ids) {
+      auto left_pts = local_line_table_.at(left_id).local_line_pts;
+      auto right_pts = local_line_table_.at(right_id).local_line_pts;
+      std::vector<double> line_wids;
+      ComputerLineDis(left_pts, right_pts, &line_wids);
+      if (line_wids.empty()) {
+        continue;
+      }
+      for (const auto& wid : line_wids) {
+        if (wid >= 5.5) {
+          HLOG_WARN << "have extra wide lanes!";
+          extra_ids.emplace_back(left_id, right_id);
+          break;
+        }
+      }
+    }
+  }
+
+  if (extra_ids.empty()) {
     // 重置
     base_line_.base_line_flag = 0;
     base_line_.base_width = -1;
@@ -2738,39 +2881,30 @@ void GeoOptimization::HandleExtraWideLane() {
     base_line_.base_line_right_id = -1;
   }
   // 针对超宽（漏检）车道进行拟合漏检车道线
-  for (const auto& ex : extra_pos) {
+  for (const auto& ex : extra_ids) {
     FitMissedLaneLine(ex);
   }
 }
 
-void GeoOptimization::FitMissedLaneLine(
-    const hozon::mapping::LanePositionType& ex) {
+void GeoOptimization::FitMissedLaneLine(const std::pair<int, int>& ex) {
   // 拟合漏检车道线
-  if (local_line_table_.find(ex) == local_line_table_.end()) {
+  if (local_line_table_.find(ex.first) == local_line_table_.end() ||
+      local_line_table_.find(ex.second) == local_line_table_.end()) {
     HLOG_ERROR << "ex not in local_line_table_";
     return;
   }
-  auto right_ex = static_cast<hozon::mapping::LanePositionType>(ex + 1);
-  if (ex + 1 == 0) {
-    right_ex = static_cast<hozon::mapping::LanePositionType>(ex + 2);
-  }
-  if (local_line_table_.find(right_ex) == local_line_table_.end()) {
-    HLOG_ERROR << "right_ex not in local_line_table_";
-  }
-  auto ex_pts = local_line_table_.at(ex).local_line_pts;
-  auto right_ex_pts = local_line_table_.at(right_ex).local_line_pts;
+  auto ex_pts = local_line_table_.at(ex.first).local_line_pts;
+  auto right_ex_pts = local_line_table_.at(ex.second).local_line_pts;
 
-  auto left_line_id = local_line_table_.at(ex).line_track_id;
-  auto right_line_id = local_line_table_.at(right_ex).line_track_id;
   // 判断主车道的左右id是否突变
-  if (base_line_.base_line_left_id != left_line_id ||
-      base_line_.base_line_right_id != right_line_id) {
+  if (base_line_.base_line_left_id != ex.first ||
+      base_line_.base_line_right_id != ex.second) {
     base_line_.base_line_flag = 0;
     base_line_.base_width = -1;
     base_line_.base_line_left_id = -1;
     base_line_.base_line_right_id = -1;
-    base_line_.base_line_left_id = left_line_id;
-    base_line_.base_line_right_id = right_line_id;
+    base_line_.base_line_left_id = ex.first;
+    base_line_.base_line_right_id = ex.second;
   }
   // 根据车离两侧线的距离以及两根线的heading或平均曲率变化率来确认base线
   auto left_dis = ComputeVecToLaneDis(ex_pts);
@@ -2852,24 +2986,7 @@ void GeoOptimization::FitMissedLaneLine(
     HLOG_WARN << "fit new line failed";
     return;
   }
-  for (const auto& line : new_lines) {
-    auto* new_line = local_map_use_->add_lane_lines();
-    for (const auto& pt : line) {
-      auto* new_pt = new_line->add_points();
-      new_pt->set_x(pt.x());
-      new_pt->set_y(pt.y());
-      new_pt->set_z(pt.z());
-    }
-
-    new_line->set_lanepos(
-        static_cast<hozon::mapping::LanePositionType>(extra_val));
-    new_line->set_track_id(extra_val);
-    extra_val++;
-    new_line->set_color(static_cast<hozon::mapping::Color>(1));
-    // new_line->set_allocated_lane_param(static_cast<hozon::mapping::LaneCubicSpline>(500));
-    // new_line->set_confidence(static_cast<hozon::mapping::LanePositionType>(500));
-    new_line->set_lanetype(static_cast<hozon::mapping::LaneType>(2));
-  }
+  ConstructLaneLine(new_lines);
 }
 
 void GeoOptimization::ObtainBaseLine(
@@ -2979,11 +3096,10 @@ void GeoOptimization::HandleSingleSideLine() {
     2、如果是，找到离车最近的车道线或路沿
     3、根据单侧车道线和路沿预测车道线
   */
-  std::vector<int> left_lanepos;
-  std::vector<int> right_lanepos;
-  std::vector<hozon::mapping::LanePositionType> lane_pos;
+  std::vector<std::pair<int, double>> left_track_ids;
+  std::vector<std::pair<int, double>> right_track_ids;
+  // 判断离车最近点在车的左右
   for (const auto& local_line : local_map_use_->lane_lines()) {
-    lane_pos.emplace_back(local_line.lanepos());
     if (local_line.points().size() < 2) {
       continue;
     }
@@ -2991,13 +3107,35 @@ void GeoOptimization::HandleSingleSideLine() {
         local_line.points(local_line.points_size() - 1).x() < 0) {
       continue;
     }
-    if (static_cast<int>(local_line.lanepos()) < 0) {
-      left_lanepos.emplace_back(static_cast<int>(local_line.lanepos()));
-    } else if (static_cast<int>(local_line.lanepos()) > 0 &&
-               static_cast<int>(local_line.lanepos()) != 99) {
-      right_lanepos.emplace_back(static_cast<int>(local_line.lanepos()));
+    Eigen::Vector3d veh_pt(0., 0., 0.);
+    double min_dis = std::numeric_limits<double>::max();
+    Eigen::Vector3d min_pt;
+    for (const auto& it : local_line.points()) {
+      Eigen::Vector3d pt(it.x(), it.y(), it.z());
+      double dis = (veh_pt - pt).norm();
+      if (dis < min_dis) {
+        min_dis = dis;
+        min_pt = pt;
+      }
+    }
+    if (min_pt.y() > 0) {
+      left_track_ids.emplace_back(local_line.track_id(), min_pt.y());
+    } else {
+      right_track_ids.emplace_back(local_line.track_id(), min_pt.y());
     }
   }
+  // 排序
+  std::sort(
+      left_track_ids.begin(), left_track_ids.end(),
+      [](const std::pair<int, double>& a, const std::pair<int, double>& b) {
+        return a.second < b.second;
+      });
+  std::sort(
+      right_track_ids.begin(), right_track_ids.end(),
+      [](const std::pair<int, double>& a, const std::pair<int, double>& b) {
+        return a.second > b.second;
+      });
+
   std::vector<Eigen::Vector3d> right_road_pts;
   std::vector<Eigen::Vector3d> left_road_pts;
   for (const auto& local_road : local_map_->road_edges()) {
@@ -3052,21 +3190,19 @@ void GeoOptimization::HandleSingleSideLine() {
     }
   */
   std::vector<std::vector<Eigen::Vector3d>> new_lines;
-  if (right_lanepos.empty() && !right_road_pts.empty()) {
+  if (right_track_ids.empty() && !right_road_pts.empty()) {
     // 车右侧车道线为空，但路沿不为空，可以进行预测，但预测的车道线不能超过路沿
-    if (!left_lanepos.empty()) {
+    if (!left_track_ids.empty()) {
       // use the nearest line to predict
-      auto max_element_iter =
-          std::max_element(left_lanepos.begin(), left_lanepos.end());
-      auto max_pos =
-          static_cast<hozon::mapping::LanePositionType>(*max_element_iter);
-      if (local_line_table_.find(max_pos) == local_line_table_.end()) {
+      // 确定离车最近的车道线
+      auto nearest_id = left_track_ids.front().first;
+      if (local_line_table_.find(nearest_id) == local_line_table_.end()) {
         return;
       }
-      auto max_line = local_line_table_.at(max_pos).local_line_pts;
+      auto nearest_line = local_line_table_.at(nearest_id).local_line_pts;
       // compute lane nums
-      int lane_num = std::ceil(ComputeVecToLaneDis(max_line) / 3.5);
-      FitSingleSideLine(&max_line, &new_lines, lane_num, true, 0, 3.5);
+      int lane_num = std::ceil(ComputeVecToLaneDis(nearest_line) / 3.5);
+      FitSingleSideLine(&nearest_line, &new_lines, lane_num, true, 0, 3.5);
       // 检测预测的车道线是否会超过路沿，若超过路沿，则使用路沿线当做预测的边线
       if (!new_lines.empty() &&
           JudgeLineOverRoad(new_lines.back(), right_road_pts)) {
@@ -3075,12 +3211,12 @@ void GeoOptimization::HandleSingleSideLine() {
         }
         new_lines.back() = right_road_pts;
       }
-    } else if (left_lanepos.empty() && !left_road_pts.empty()) {
+    } else if (left_track_ids.empty() && !left_road_pts.empty()) {
       if (std::abs(left_road_pts.front().y()) <
           std::abs(right_road_pts.front().y())) {
         int lane_num = std::ceil(ComputeVecToLaneDis(left_road_pts) / 3.5);
         if (left_road_pts.front().x() > 0 || left_road_pts.back().x() < 0 ||
-            !lane_pos.empty()) {
+            !local_map_use_->lane_lines().empty()) {
           return;
         }
         FitSingleSideLine(&left_road_pts, &new_lines, lane_num, true, 1, 3.5);
@@ -3094,7 +3230,7 @@ void GeoOptimization::HandleSingleSideLine() {
       } else {
         int lane_num = std::ceil(ComputeVecToLaneDis(right_road_pts) / 3.5);
         if (right_road_pts.front().x() > 0 || right_road_pts.back().x() < 0 ||
-            !lane_pos.empty()) {
+            !local_map_use_->lane_lines().empty()) {
           return;
         }
         FitSingleSideLine(&right_road_pts, &new_lines, lane_num, false, 2, 3.5);
@@ -3110,20 +3246,17 @@ void GeoOptimization::HandleSingleSideLine() {
     }
   }
 
-  if (left_lanepos.empty() && !left_road_pts.empty()) {
-    if (!right_lanepos.empty()) {
+  if (left_track_ids.empty() && !left_road_pts.empty()) {
+    if (!right_track_ids.empty()) {
       // use the nearest line to predict
-      auto min_element_iter =
-          std::min_element(right_lanepos.begin(), right_lanepos.end());
-      auto min_pos =
-          static_cast<hozon::mapping::LanePositionType>(*min_element_iter);
-      if (local_line_table_.find(min_pos) == local_line_table_.end()) {
-        HLOG_ERROR << "max_pos not in local_line_table";
+      // 确定离车最近的车道线
+      auto nearest_id = right_track_ids.front().first;
+      if (local_line_table_.find(nearest_id) == local_line_table_.end()) {
         return;
       }
-      auto min_line = local_line_table_.at(min_pos).local_line_pts;
-      int lane_num = std::ceil(ComputeVecToLaneDis(min_line) / 3.5);
-      FitSingleSideLine(&min_line, &new_lines, lane_num, false, 0, 3.5);
+      auto nearest_line = local_line_table_.at(nearest_id).local_line_pts;
+      int lane_num = std::ceil(ComputeVecToLaneDis(nearest_line) / 3.5);
+      FitSingleSideLine(&nearest_line, &new_lines, lane_num, false, 0, 3.5);
       // 检测预测的车道线是否会超过路沿，若超过路沿，则使用路沿线当做预测的边线
       if (!new_lines.empty() &&
           JudgeLineOverRoad(new_lines.back(), left_road_pts)) {

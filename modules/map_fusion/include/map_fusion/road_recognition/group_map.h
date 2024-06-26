@@ -435,9 +435,7 @@ class GroupMap {
                                            Lane::Ptr* ego_curr_lane);
   void FindBestNextLane(Group::Ptr next_group, const float& dist_to_slice,
                         Lane::Ptr* best_next_lane);
-  void ComputeLineCurvature(const std::vector<Point>& guide_points,
-                            std::vector<Group::Ptr>* groups);
-  void ComputeLineCurvatureV2(const std::vector<Point>& guide_points,
+  void ComputeLineCurvatureV2(std::vector<Point>* guide_points,
                               std::vector<Group::Ptr>* groups, double stamp);
   void GenetateGuideLaneGeo(std::vector<Vec2d>* fit_points,
                             Lane::Ptr* guide_lane,

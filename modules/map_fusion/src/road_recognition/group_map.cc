@@ -363,7 +363,8 @@ void GroupMap::EgoLineTrajectory(std::vector<GroupSegment::Ptr>* grp_segment,
     int flag = 0;
     if (seg->end_slice.po.x() > -5 && seg->start_slice.po.x() < 5) {
       if (seg->line_segments.size() > 1) {
-        for (int i = 0; i < static_cast<int>(seg->line_segments.size()) - 1; ++i) {
+        for (int i = 0; i < static_cast<int>(seg->line_segments.size()) - 1;
+             ++i) {
           if ((seg->line_segments[i]->dist_to_path *
                    seg->line_segments[i + 1]->dist_to_path <
                0.1) &&
@@ -1167,12 +1168,13 @@ void GroupMap::FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group) {
                        IsAccessLane(lane_in_curr, next_group->lanes.back()) &&
                        LaneDist(lane_in_curr, next_group->lanes.back()) <
                            dis_thresh) {
-              curr_group_next_lane[i].emplace_back(static_cast<int>(next_group->lanes.size()) -
-                                                   1);
+              curr_group_next_lane[i].emplace_back(
+                  static_cast<int>(next_group->lanes.size()) - 1);
 
-              next_group_prev_lane[static_cast<int>(static_cast<int>(next_group->lanes.size()) -
-                                                    1)]
-                  .emplace_back(i);
+              next_group_prev_lane
+                  [static_cast<int>(static_cast<int>(next_group->lanes.size()) -
+                                    1)]
+                      .emplace_back(i);
             }
           }
         }
@@ -1295,11 +1297,11 @@ void GroupMap::FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group) {
               float dist = PointToVectorDist(next_pt0, next_pt1, curr_pt);
               if (dist < kSplitDistThreshold &&
                   IsAccessLane(lane_in_curr, lane_in_next)) {
-                next_group_prev_lane[i].emplace_back(static_cast<int>(curr_group->lanes.size()) -
-                                                     1);
-                curr_group_next_lane[static_cast<int>(curr_group->lanes.size()) -
-                                                      1]
-                    .emplace_back(i);
+                next_group_prev_lane[i].emplace_back(
+                    static_cast<int>(curr_group->lanes.size()) - 1);
+                curr_group_next_lane
+                    [static_cast<int>(curr_group->lanes.size()) - 1]
+                        .emplace_back(i);
               }
             }
           }
@@ -1781,7 +1783,8 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
       return;
     }
   }
-  for (int grp_idx = 0; grp_idx < static_cast<int>(groups->size()) - 1; ++grp_idx) {
+  for (int grp_idx = 0; grp_idx < static_cast<int>(groups->size()) - 1;
+       ++grp_idx) {
     std::vector<Lane::Ptr> virtual_lanes;
     auto& curr_group = groups->at(grp_idx);
     auto& next_group = groups->at(grp_idx + 1);
@@ -1950,6 +1953,15 @@ std::vector<Point> GroupMap::PredictGuidewirePath(
   // 目前只支持额外处理模型路沿数据（sd行驶点，模型引导线、occ路沿暂不支持）
   guide_path_manager_->LoadData(groups, &occ_roads);
   std::vector<Point> guide_points = guide_path_manager_->GetGuidePath();
+  if (guide_points.size() == 3) {
+    Eigen::Vector2f dst_point{guide_points[1].pt.x(), guide_points[1].pt.y()};
+    float dst_point_angle = std::atan2(dst_point.y(), dst_point.x());
+    HLOG_DEBUG << "dst_point_angle:" << dst_point_angle;
+    if (guide_points[1].pt.x() < 0.0 ||
+        std::abs(dst_point_angle) > M_PI / 2.0) {
+      guide_points.clear();
+    }
+  }
   return guide_points;
 }
 
@@ -2763,125 +2775,7 @@ std::vector<Point> GroupMap::SlidingWindow(std::vector<Point> centerline,
   return center;
 }
 
-void GroupMap::ComputeLineCurvature(const std::vector<Point>& guide_points,
-                                    std::vector<Group::Ptr>* groups) {
-  // 根据path和guide_points插值曲线并求曲率和曲率变化率
-  if (path_in_curr_pose_.empty()) {
-    HLOG_ERROR << "path is nullptr!";
-  }
-  if (guide_points.size() != 3) {
-    HLOG_ERROR << "guide_points size is not 3";
-    return;
-  }
-  std::vector<Vec2d> all_points;
-  for (const auto& it : path_in_curr_pose_) {
-    Vec2d pt(it.pos.x(), it.pos.y());
-    all_points.emplace_back(pt);
-  }
-  // 这里要对path最后一个点和guide_points中的点进行插值（一共4个）
-  std::vector<Eigen::Vector3f> pts;
-  all_points.pop_back();
-  Eigen::Vector3f first_pt(static_cast<float>(all_points.back().x()),
-                           static_cast<float>(all_points.back().y()), 0.0);
-  pts.emplace_back(first_pt);
-  for (const auto& it : guide_points) {
-    Eigen::Vector3f pt(static_cast<float>(it.pt.x()),
-                       static_cast<float>(it.pt.y()),
-                       static_cast<float>(it.pt.z()));
-    pts.emplace_back(pt);
-  }
-
-  for (auto point : pts) {
-    HLOG_DEBUG << "[predict] keypoint, x:" << point.x() << " y:" << point.y()
-               << " z:" << point.z();
-  }
-
-  std::vector<Eigen::Vector3f> new_pts;
-  CatmullRom(pts, &new_pts, 4);
-  for (size_t i = 1; i < new_pts.size(); i++) {
-    Vec2d pt(new_pts[i].x(), new_pts[i].y());
-    all_points.emplace_back(pt);
-  }
-  for (size_t i = 1; i < guide_points.size(); i++) {
-    Vec2d pt(guide_points[i].pt.x(), guide_points[i].pt.y());
-    all_points.emplace_back(pt);
-  }
-
-  for (auto point : all_points) {
-    HLOG_DEBUG << "[predict] after CatmullRom point, x:" << point.x()
-               << " y:" << point.y();
-  }
-
-  if (all_points.empty()) {
-    HLOG_ERROR << "path and guide_points is empty!";
-  }
-  // 求曲率及曲率变化率
-  std::vector<double> kappas;
-  std::vector<double> dkappas;
-  double kappa = 0.;
-  double dkappa = 0.;
-  std::vector<double> fit_result;
-  std::vector<Vec2d> fit_points;
-  const int select_back_index = 3;
-  if (all_points.size() >= 10) {
-    std::copy(all_points.rbegin(), all_points.rbegin() + 10,
-              std::back_inserter(fit_points));
-    math::FitLaneLinePoint(fit_points, &fit_result);
-    math::ComputeDiscretePoints(fit_points, fit_result, &kappas, &dkappas);
-  }
-
-  for (auto point : fit_points) {
-    HLOG_DEBUG << "[predict] after Fit point, x:" << point.x()
-               << " y:" << point.y();
-  }
-
-  // 取后6个的kappa平均值
-  for (int i = static_cast<int>(kappas.size()) - 1;
-       i >= static_cast<int>(kappas.size()) - 6; i--) {
-    kappa += kappas[i];
-  }
-  kappa = kappa / 6;
-  for (int i = static_cast<int>(dkappas.size()) - 1;
-       i >= static_cast<int>(dkappas.size()) - 6; i--) {
-    dkappa += dkappas[i];
-  }
-  dkappa = dkappa / 6;
-  // 找到最后一个非空的group，并修改主车道pred_end_heading
-  Group::Ptr last_grp = nullptr;
-  for (auto it = groups->rbegin(); it != groups->rend(); ++it) {
-    if ((*it) == nullptr || (*it)->lanes.empty()) {
-      continue;
-    }
-    last_grp = *it;
-    if (last_grp == nullptr) {
-      HLOG_ERROR << "last_grp is empty";
-      continue;
-    }
-    for (auto& lane : last_grp->lanes) {
-      if (lane == nullptr) {
-        HLOG_ERROR << "found nullptr lane";
-        continue;
-      }
-      // !!!注意：这里要确保lane->is_ego被正确赋值
-      if (lane->is_ego) {
-        HLOG_ERROR << "before pred_end_headingo"
-                   << std::get<1>(lane->left_boundary->pred_end_heading);
-        lane->left_boundary->pred_end_heading =
-            std::make_tuple(0, kappa, dkappa);
-
-        HLOG_ERROR << "after pred_end_headingo"
-                   << std::get<1>(lane->left_boundary->pred_end_heading);
-        lane->right_boundary->pred_end_heading =
-            std::make_tuple(0, kappa, dkappa);
-      }
-
-      HLOG_ERROR << "lane->is_ego" << lane->is_ego;
-    }
-    break;
-  }
-}
-
-void GroupMap::ComputeLineCurvatureV2(const std::vector<Point>& guide_points,
+void GroupMap::ComputeLineCurvatureV2(std::vector<Point>* guide_points,
                                       std::vector<Group::Ptr>* groups,
                                       double stamp) {
   // 1. 删除待删除状态的group
@@ -2893,13 +2787,11 @@ void GroupMap::ComputeLineCurvatureV2(const std::vector<Point>& guide_points,
       groups->end());
   // 如果能够生成引导线的话，
   // 需要加上is_last_after_erased标记，否则就不需要了。
-  if (!groups->empty() && guide_points.size() == 0) {
-    groups->back()->is_last_after_erased = true;
+  if (groups->empty()) {
     return;
   }
-
-  if (guide_points.size() == 0) {
-    HLOG_DEBUG << "guide_points size is not 3";
+  if (guide_points->empty()) {
+    groups->back()->is_last_after_erased = true;
     return;
   }
 
@@ -2925,19 +2817,19 @@ void GroupMap::ComputeLineCurvatureV2(const std::vector<Point>& guide_points,
 
   // 2. 生成拟合点
   static int idx = 0;
-  HLOG_INFO << "[predict] idx: " << ++idx;
+  HLOG_DEBUG << "[predict] idx: " << ++idx;
   std::vector<Eigen::Vector3f> pts;
   Eigen::Vector3f first_pt(-10.0, 0.0, 0.0);
   pts.emplace_back(first_pt);
-  for (const auto& it : guide_points) {
+  for (const auto& it : *guide_points) {
     Eigen::Vector3f pt(static_cast<float>(it.pt.x()),
                        static_cast<float>(it.pt.y()),
                        static_cast<float>(it.pt.z()));
     pts.emplace_back(pt);
   }
   for (auto point : pts) {
-    HLOG_INFO << "[predict] keypoint, x:" << point.x() << " y:" << point.y()
-              << " z:" << point.z();
+    HLOG_DEBUG << "[predict] keypoint, x:" << point.x() << " y:" << point.y()
+               << " z:" << point.z();
   }
 
   std::vector<Vec2d> all_points;
@@ -2960,8 +2852,8 @@ void GroupMap::ComputeLineCurvatureV2(const std::vector<Point>& guide_points,
   all_points.emplace_back(fourth_point);
 
   for (auto point : all_points) {
-    HLOG_INFO << "[predict] after CatmullRom point, x:" << point.x()
-              << " y:" << point.y();
+    HLOG_DEBUG << "[predict] after CatmullRom point, x:" << point.x()
+               << " y:" << point.y();
   }
 
   std::vector<double> fit_result;
@@ -2974,8 +2866,8 @@ void GroupMap::ComputeLineCurvatureV2(const std::vector<Point>& guide_points,
   }
 
   for (auto point : fit_points) {
-    HLOG_INFO << "[predict] after Fit point, x:" << point.x()
-              << " y:" << point.y();
+    HLOG_DEBUG << "[predict] after Fit point, x:" << point.x()
+               << " y:" << point.y();
   }
 
   // std::vector<Vec2d> key_guide_points;
@@ -2988,8 +2880,15 @@ void GroupMap::ComputeLineCurvatureV2(const std::vector<Point>& guide_points,
   // }
 
   for (auto point : fit_points) {
-    HLOG_INFO << "[predict] after Fit point, x:" << point.x()
-              << " y:" << point.y();
+    HLOG_DEBUG << "[predict] after Fit point, x:" << point.x()
+               << " y:" << point.y();
+  }
+
+  // if(fit_points )
+  if (fit_points.empty()) {
+    guide_points->clear();
+    groups->back()->is_last_after_erased = true;
+    return;
   }
 
   // 3. 生成引导线几何
@@ -2997,6 +2896,7 @@ void GroupMap::ComputeLineCurvatureV2(const std::vector<Point>& guide_points,
   guide_lane->left_boundary = std::make_shared<LineSegment>();
   guide_lane->right_boundary = std::make_shared<LineSegment>();
   GenetateGuideLaneGeo(&fit_points, &guide_lane, last_ego_lane);
+
   // 4. 生成引导线拓扑
   auto left_line = last_ego_lane->left_boundary->pts;
   auto right_line = last_ego_lane->right_boundary->pts;
@@ -3287,16 +3187,18 @@ void GroupMap::SmoothCenterline(std::vector<Group::Ptr>* groups) {
   // lane->prev_lane_str_id_with_group don't exist grouplane
   for (auto& grp : *groups) {
     for (auto lane : grp->lanes) {
-      for (int index = static_cast<int>(lane->next_lane_str_id_with_group.size()) - 1; index >= 0;
-           --index) {
+      for (int index =
+               static_cast<int>(lane->next_lane_str_id_with_group.size()) - 1;
+           index >= 0; --index) {
         if (lane_grp_index.find(lane->next_lane_str_id_with_group[index]) ==
             lane_grp_index.end()) {
           lane->next_lane_str_id_with_group.erase(
               lane->next_lane_str_id_with_group.begin() + index);
         }
       }
-      for (int index = static_cast<int>(lane->prev_lane_str_id_with_group.size()) - 1; index >= 0;
-           --index) {
+      for (int index =
+               static_cast<int>(lane->prev_lane_str_id_with_group.size()) - 1;
+           index >= 0; --index) {
         if (lane_grp_index.find(lane->prev_lane_str_id_with_group[index]) ==
             lane_grp_index.end()) {
           lane->prev_lane_str_id_with_group.erase(
@@ -3608,7 +3510,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
 
   // //
   // 根据guide_points和path生成参考线以及三次曲线方程和曲线变化率,并更新groups中的对应字段
-  ComputeLineCurvatureV2(guide_points, groups, stamp);
+  ComputeLineCurvatureV2(&guide_points, groups, stamp);
 
   SmoothCenterline(groups);
 
@@ -5097,7 +4999,8 @@ bool GroupMap::BoundaryIsValid(const LineSegment& line) {
   x2 = line.pts[1].pt;
   int index2 = 1;
   // HLOG_ERROR << "X1=" << x1.x() << "  " << x1.y();
-  while ((x2 - x1).norm() < 0.2 && index2 < static_cast<int>(line.pts.size()) - 1) {
+  while ((x2 - x1).norm() < 0.2 &&
+         index2 < static_cast<int>(line.pts.size()) - 1) {
     index2++;
     x2 = line.pts[index2].pt;
   }
@@ -5107,7 +5010,8 @@ bool GroupMap::BoundaryIsValid(const LineSegment& line) {
   }
   int index3 = index2 + 1;
   x3 = line.pts[index3].pt;
-  while ((x2 - x3).norm() < 0.2 && index3 < static_cast<int>(line.pts.size()) - 1) {
+  while ((x2 - x3).norm() < 0.2 &&
+         index3 < static_cast<int>(line.pts.size()) - 1) {
     index3++;
     x3 = line.pts[index3].pt;
   }
@@ -6334,8 +6238,10 @@ bool GroupMap::IsLaneShrink(Lane::Ptr lane) {
   const auto& left_back_pt = left.back().pt;
   const auto& left_mid_pt = left.at(left.size() / 2).pt;
 
-  const auto& right_back_v_pt0 = right.at(static_cast<int>(right.size()) - 2).pt;
-  const auto& right_back_v_pt1 = right.at(static_cast<int>(right.size()) - 1).pt;
+  const auto& right_back_v_pt0 =
+      right.at(static_cast<int>(right.size()) - 2).pt;
+  const auto& right_back_v_pt1 =
+      right.at(static_cast<int>(right.size()) - 1).pt;
 
   size_t right_mid_idx = right.size() / 2;
   const auto& right_mid_v_pt0 = right.at(right_mid_idx - 1).pt;
@@ -7095,7 +7001,9 @@ void GroupMap::RemainOnlyOneForwardCrossWalk(std::vector<Group::Ptr>* groups) {
   }
 
   // 存在两个及以上的车道组,考虑删除其他路口， 只保留前向一个路口。
-  for (int grp_idx = 0; grp_idx < static_cast<int>(groups->size()) - 1; ++grp_idx) {
+  std::vector<int> junction_group_idxs;
+  for (int grp_idx = 0; grp_idx < static_cast<int>(groups->size()) - 1;
+       ++grp_idx) {
     auto& curr_group = groups->at(grp_idx);
     auto& next_group = groups->at(grp_idx + 1);
     if (AreAdjacentLaneGroupsDisconnected(curr_group, next_group)) {
@@ -7116,13 +7024,13 @@ void GroupMap::RemainOnlyOneForwardCrossWalk(std::vector<Group::Ptr>* groups) {
       if (PointInVectorSide(next_start_pr, next_start_pl, ego_pos) > 0) {
         continue;
       }
-
-      if (grp_idx < groups->size() - 2) {
-        groups->erase(groups->begin() + grp_idx + 2, groups->end());
-      } else {
-        break;
-      }
+      junction_group_idxs.emplace_back(grp_idx);
     }
+  }
+
+  if (junction_group_idxs.size() >= 2) {
+    int second_grp_idx = junction_group_idxs[1];
+    groups->erase(groups->begin() + second_grp_idx + 1, groups->end());
   }
 }
 
@@ -7138,8 +7046,10 @@ RoadScene GuidePathManager::GetCurrentRoadScene() {
   // 返回值表示是否存在路口进入车道组。
   bool has_cw_forward_group = false;
   if (lane_groups_->size() >= 2) {
-    auto& curr_group = lane_groups_->at(static_cast<int>(lane_groups_->size()) - 2);
-    auto& next_group = lane_groups_->at(static_cast<int>(lane_groups_->size()) - 1);
+    auto& curr_group =
+        lane_groups_->at(static_cast<int>(lane_groups_->size()) - 2);
+    auto& next_group =
+        lane_groups_->at(static_cast<int>(lane_groups_->size()) - 1);
     if (curr_group->group_state == Group::GroupState::VIRTUAL ||
         next_group->group_state == Group::GroupState::VIRTUAL) {
       return RoadScene::NON_JUNCTION;
@@ -7194,10 +7104,9 @@ std::vector<Point> GuidePathManager::GetCwForwardLaneGuidePoints() {
   std::vector<float> all_lane_to_ego_heading;
   for (const auto& lane : cw_front_group->lanes) {
     const auto& center_first_point = lane->center_line_pts.front().pt;
-    // if (center_first_point.x() < conf_.junction_guide_min_dis) {
-    //   continue;
-    // }
-
+    if (center_first_point.x() < 0.0) {
+      continue;
+    }
     if (lane->center_line_pts.size() < 2 ||
         lane->left_boundary->pts.size() < 2 ||
         lane->right_boundary->pts.size() < 2) {

@@ -70,7 +70,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
       const std::shared_ptr<hozon::routing::RoutingResponse>& routing);
 
   int MapFusionOutputEvaluation(
-      const std::shared_ptr<hozon::navigation_hdmap::MapMsg>& map_fusion);
+      const std::shared_ptr<hozon::localization::Localization>& location);
   int MapServiceFaultOutput(const hozon::mp::mf::MapServiceFault& fault);
 
  private:
@@ -93,7 +93,8 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   std::shared_ptr<hozon::functionmanager::FunctionManagerIn> curr_fct_in_ =
       nullptr;
   std::mutex process_mtx_;
-  mp::mf::select::MapSelectResult curr_map_type_ = {hozon::navigation_hdmap::MapMsg_MapType_INVALID, false, 2};
+  mp::mf::select::MapSelectResult curr_map_type_ = {
+      hozon::navigation_hdmap::MapMsg_MapType_INVALID, false, 2};
   bool select_debug_ = true;
 };
 

@@ -553,7 +553,6 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
       if (ret < 0) {
         HLOG_ERROR << "SendFusionResult failed";
         latest_fusion_map->Clear();
-        return -1;
       }
     } else if (curr_map_type_.map_type ==
                hozon::navigation_hdmap::MapMsg_MapType_PERCEP_MAP) {
@@ -561,7 +560,6 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
                                  latest_percep_routing);
       if (ret < 0) {
         HLOG_ERROR << "SendPercepResult failed";
-        return -1;
       }
     } else if (curr_map_type_.map_type ==
                hozon::navigation_hdmap::MapMsg_MapType_INVALID) {
@@ -573,14 +571,16 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
       if (ret < 0) {
         HLOG_ERROR << "SendFusionResult failed during invalid map";
         latest_fusion_map->Clear();
-        return -1;
       }
     } else {
       HLOG_ERROR << "map select return wrong map type:"
                  << curr_map_type_.map_type << ", " << curr_map_type_.valid
                  << ", " << curr_map_type_.fault_level;
     }
+
+    MapFusionOutputEvaluation(latest_loc);
   }
+
   return 0;
 }
 
@@ -759,8 +759,6 @@ int MapFusionLite::SendFusionResult(
   map_fusion->set_is_valid(select.valid);
   map_fusion->set_fault_level(select.fault_level);
 
-  MapFusionOutputEvaluation(map_fusion);
-
   auto map_res = std::make_shared<hozon::netaos::adf_lite::BaseData>();
   map_res->proto_msg = map_fusion;
 
@@ -903,13 +901,27 @@ MapFusionLite::GetLatestFCTIn() {
 }
 
 int MapFusionLite::MapFusionOutputEvaluation(
-    const std::shared_ptr<hozon::navigation_hdmap::MapMsg>& map_fusion) {
+    const std::shared_ptr<hozon::localization::Localization>& location) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   static double pre_publish_stamp = 0;
   static bool map_fusion_outputs_abnormal_flags = false;
-  auto cur_publish_stamp = map_fusion->header().publish_stamp();
+  auto cur_publish_stamp = location->header().publish_stamp();
+  static double time_stamp_delta = 0;
+  static double time_stamp_start = 0;
+  if (pre_publish_stamp != 0 &&
+      (cur_publish_stamp - pre_publish_stamp > time_stamp_delta)) {
+    time_stamp_delta = cur_publish_stamp - pre_publish_stamp;
+  }
+
+  // 10分钟打印一次
+  if (pre_publish_stamp != 0 && (cur_publish_stamp - time_stamp_start > 600)) {
+    time_stamp_start = cur_publish_stamp;
+    HLOG_INFO << "mapfusion publish time_stamp delta max:"
+              << std::to_string(time_stamp_delta);
+  }
   // 时间戳可容忍程度
   auto epsilon = 0.05;
+
   if (pre_publish_stamp != 0 &&
       cur_publish_stamp - pre_publish_stamp > (0.1 + epsilon)) {
     phm_fault->Report(MAKE_FM_TUPLE(
@@ -918,9 +930,14 @@ int MapFusionLite::MapFusionOutputEvaluation(
             LOCALMAPPING_MAPFUSION_OUTPUT_MAP_DATA_ERROR,
         hozon::perception::base::FaultStatus::OCCUR,
         hozon::perception::base::SensorOrientation::UNKNOWN, 4, 1000));
+    HLOG_ERROR << "Map fusion outputs abnormal time difference between frames"
+               << " ,cur_publish_stamp:" << std::to_string(cur_publish_stamp)
+               << " ,pre_publish_stamp:" << std::to_string(pre_publish_stamp)
+               << " ,delta publish_stamp:"
+               << std::to_string(cur_publish_stamp - pre_publish_stamp);
     pre_publish_stamp = cur_publish_stamp;
     map_fusion_outputs_abnormal_flags = true;
-    HLOG_ERROR << "Map fusion outputs abnormal time difference between frames";
+
     return -1;
   } else {
     if (map_fusion_outputs_abnormal_flags) {

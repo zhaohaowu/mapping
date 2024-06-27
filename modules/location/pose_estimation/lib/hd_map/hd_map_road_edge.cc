@@ -48,19 +48,10 @@ void MapRoadEdge::Set(const std::vector<hozon::hdmap::LaneInfoConstPtr>& lane_pt
         }
         auto& el = edge_line_[edge_curve_id];
         el.id_edge = edge_curve_id;
-        const int zone = 51;
         for (const auto& curve_segment : edge_curve.segment()) {
           auto edge_line_segment = curve_segment.line_segment();
-          for (const auto& point : edge_line_segment.point()) {
-            double x = point.x();
-            double y = point.y();
-            auto ret =
-                hozon::common::coordinate_convertor::UTM2GCS(zone, &x, &y);
-            if (!ret) {
-              HLOG_ERROR << "utm2gcs failed";
-              continue;
-            }
-            Eigen::Vector3d p_gcj(y, x, 0);
+          for (const auto& point : edge_line_segment.original_point()) {
+            Eigen::Vector3d p_gcj(point.y(), point.x(), 0);
             Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
             ControlPoint cpoint(0, {0, 0, 0});
             cpoint.line_type = -1;

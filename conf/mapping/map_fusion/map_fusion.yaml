@@ -40,7 +40,7 @@ RoadRecognition:
     road_min_max_speed_kmph: 60 # km/h
     road_max_max_speed_kmph: 80 # km/h
     # 远端车道线预测距离，小于等于robust_percep_dist时不预测
-    predict_farthest_dist: 250
+    predict_farthest_dist: 260
     robust_percep_dist: 70
     max_heading_std_dev: 100
     min_predict_interval: 0.2

@@ -13,6 +13,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "map_fusion/fusion_common/element_map.h"
@@ -336,9 +337,13 @@ class GeoOptimization {
   void FilterOppositeLine();
   void FilterReverseLine();
   void HandleOppisiteLine(const std::vector<Eigen::Vector3d>& target_line);
+  void HandleOppisiteLineByStopline();
   bool IsOppisiteLine(Line_kd* line);
   bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
                const Eigen::Vector3d& B);
+  double CalMeanLineHeading(const std::vector<Eigen::Vector3d>& points);
+  RelativePosition IsRoadEdgeOnVehicleRight(
+      const std::vector<Eigen::Vector3d>& points, const double& heading);
   void MergeSplitLine();
   void FitLaneLine(const std::vector<Eigen::Vector3d>& pts,
                    std::vector<double>* c);

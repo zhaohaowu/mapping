@@ -1455,11 +1455,61 @@ void GeoOptimization::FilterReverseLine() {
     1.若有双黄线，将双黄线左侧的车道线做标记
     2.若无双黄线，根据模型路沿或者occ路沿的相对关系来进行判别
   */
+  // 优先用路沿，其次用双黄线，再次用停止线
   if (!road_edge_pts.empty()) {
     HandleOppisiteLine(road_edge_pts);
   } else {
     if (!double_solid_yellow_pts.empty()) {
       HandleOppisiteLine(double_solid_yellow_pts);
+    } else {
+      HandleOppisiteLineByStopline();
+    }
+  }
+}
+
+void GeoOptimization::HandleOppisiteLineByStopline() {
+  if (!local_map_) {
+    HLOG_ERROR << "local_map_ is nullptr";
+    return;
+  }
+  // 获取前向stopline集合
+  std::vector<std::vector<Eigen::Vector2f>> forward_stoplines;
+  for (const auto& local_stopline : local_map_->stop_lines()) {
+    if (!local_stopline.has_left_point() || !local_stopline.has_right_point() ||
+        local_stopline.left_point().x() < 0 ||
+        local_stopline.right_point().x() < 0) {
+      continue;
+    }
+    Eigen::Vector2f pt_left(local_stopline.left_point().x(),
+                            local_stopline.left_point().y());
+    Eigen::Vector2f pt_right(local_stopline.right_point().x(),
+                             local_stopline.right_point().y());
+    std::vector<Eigen::Vector2f> stopline_pts{pt_left, pt_right};
+    forward_stoplines.emplace_back(stopline_pts);
+  }
+  for (auto& line_vector : all_lines_) {
+    if (line_vector.second.empty()) {
+      continue;
+    }
+    for (auto& line : line_vector.second) {
+      if (line.line->points_size() < 2 ||
+          (!line.line->points().empty() && line.line->points().at(0).x() < 0)) {
+        continue;
+      }
+      // 前向车道线的第一个点能投影在前向停止线上,且投影距离<10,认为是对向车道线
+      Eigen::Vector2f line_first_point(line.line->points().at(0).x(),
+                                       line.line->points().at(0).y());
+      for (auto& forward_stopline : forward_stoplines) {
+        if (forward_stopline.size() < 2) {
+          continue;
+        }
+        if (ProjectedInSegment(forward_stopline[0], forward_stopline[1],
+                               line_first_point) &&
+            PointToVectorDist(forward_stopline[0], forward_stopline[1],
+                              line_first_point) < 10) {
+          line.is_ego_road = false;
+        }
+      }
     }
   }
 }
@@ -1498,11 +1548,9 @@ std::vector<Eigen::Vector3d> GeoOptimization::FindTargetPoints(
           have_right_line = true;
         }
         if (have_left_line && have_right_line) {
-          double sum_y = 0;
-          for (const auto& point : road_edge) {
-            sum_y += point.y();
-          }
-          if (sum_y > 0) {
+          double road_edge_heading = CalMeanLineHeading(road_edge);
+          if (IsRoadEdgeOnVehicleRight(road_edge, road_edge_heading) ==
+              RelativePosition::LEFT) {
             res = road_edge;
             return res;
           }
@@ -1511,6 +1559,65 @@ std::vector<Eigen::Vector3d> GeoOptimization::FindTargetPoints(
     }
   }
   return res;
+}
+
+RelativePosition GeoOptimization::IsRoadEdgeOnVehicleRight(
+    const std::vector<Eigen::Vector3d>& points, const double& heading) {
+  if (points.empty() || std::abs(heading) > PI) {
+    return RelativePosition::UNCERTAIN;
+  }
+  Eigen::Vector3d p1(0, 0, 0);
+  Eigen::Vector3d p2(cos(heading), sin(heading), 0);
+  int num_thresh = 0;
+  int num_calculate = 0;
+  for (const auto& point : points) {
+    if (std::isnan(point.x()) || std::isnan(point.y()) ||
+        std::isnan(point.z())) {
+      HLOG_ERROR << "found nan point in road_edge_line";
+      continue;
+    }
+    num_calculate++;
+    if (IsRight(point, p1, p2)) {
+      num_thresh++;
+    }
+  }
+  if (num_thresh < 1 ||
+      (num_calculate != 0 && (static_cast<double>(num_thresh) /
+                              static_cast<double>(num_calculate)) < 0.5)) {
+    return RelativePosition::LEFT;
+  }
+  return RelativePosition::RIGHT;
+}
+
+double GeoOptimization::CalMeanLineHeading(
+    const std::vector<Eigen::Vector3d>& points) {
+  if (points.size() < 2) {
+    return 0;
+  }
+  double mean_theta = 0.;
+  double count = 0;
+  for (size_t i = 0; i < points.size() - 1; i++) {
+    size_t j = i + 1;
+    for (; j < points.size(); j++) {
+      const Eigen::Vector2f pa(points[i].x(), points[i].y());
+      const Eigen::Vector2f pb(points[j].x(), points[j].y());
+      Eigen::Vector2f v = pb - pa;
+      if (v.norm() > 1.0) {
+        double theta = 0;
+        if (std::abs(v.x()) > 1e-2) {
+          theta = atan2(v.y(), v.x());  // atan2计算出的角度范围是[-pi, pi]
+          mean_theta += theta;
+          count++;
+          i = j;
+          break;
+        }
+      }
+    }
+  }
+  if (count > 0) {
+    mean_theta /= count;
+  }
+  return mean_theta;
 }
 
 RelativePosition GeoOptimization::IsTargetOnLineRight(
@@ -1589,7 +1696,7 @@ void GeoOptimization::HandleOppisiteLine(
       double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
                          static_cast<double>(widths.size());
       if (IsTargetOnLineRight(target_line, line) == RelativePosition::RIGHT &&
-          avg_width > 3.0) {
+          avg_width > 2.0) {
         line.is_ego_road = false;
       }
     }
@@ -1754,14 +1861,14 @@ void GeoOptimization::FilterShortLine() {
   //   }
   //   if (num < tmp_num - i + 1) {
   //     num = tmp_num - i + 1;
-  //     angel = accumulate(angle_all.begin() + i, angle_all.begin() + tmp_num +
-  //     1,
+  //     angel = accumulate(angle_all.begin() + i, angle_all.begin() + tmp_num
+  //     + 1,
   //                        0.0) /
   //             static_cast<double>(num);
   //     slope_ = angel;
   //   }
-  //   if (num > (angle_all.size() - 1) / 2) break;  // 如果已经是众数了，就退出
-  //   i = tmp_num + 1;
+  //   if (num > (angle_all.size() - 1) / 2) break;  //
+  //   如果已经是众数了，就退出 i = tmp_num + 1;
   // }
   // int i = 0;
   // for (auto& line : all_lines_) {
@@ -1935,7 +2042,8 @@ void GeoOptimization::MergeSplitLine() {
   // }
   // for (auto lines_ = all_lines_.begin(); lines_ != all_lines_.end();
   // lines_++) {
-  //   int lanepos1 = static_cast<int>(lines_->second.begin()->line->lanepos());
+  //   int lanepos1 =
+  //   static_cast<int>(lines_->second.begin()->line->lanepos());
   //   // HLOG_ERROR << "lanepos1 = " << lanepos1;
   //   int lanepos2 = lanepos1 + 1;
   //   if (lanepos1 == -1) lanepos2++;
@@ -2079,7 +2187,8 @@ void GeoOptimization::OnLocalMap(
   // 根据横向关系，将可能是自行车道等非机动车道滤除（根据左右车道线的横向距离是否小于三米），构建line_kdtree
   // 2. 根据线段过短等滤除一些杂乱的线
   // 3. 根据前后车道线的关系距离是否过近来融合相邻车道线并填入local_map_use_
-  // 4. 处理merge或者split对线段进行拆分，并填入element_map包括line的前后继关系
+  // 4.
+  // 处理merge或者split对线段进行拆分，并填入element_map包括line的前后继关系
   // 还是根据具体case分析具体问题
   FilterLocalMapLine(local_map_);
   // 路沿标记本road以外的车道
@@ -3799,8 +3908,8 @@ void GeoOptimization::FillLaneType(hozon::mp::mf::em::Boundary* lane_line,
 //     auto* central_segment = lane->mutable_central_curve()->add_segment();
 //     for (const auto& point_msg : lane_it->pilot_center_line_.points()) {
 //       Eigen::Vector3d point_local(point_msg.x(), point_msg.y(),
-//       point_msg.z()); Eigen::Vector3d point_enu = T_U_V_ * point_local; auto*
-//       point = central_segment->mutable_line_segment()->add_point();
+//       point_msg.z()); Eigen::Vector3d point_enu = T_U_V_ * point_local;
+//       auto* point = central_segment->mutable_line_segment()->add_point();
 //       point->set_x(point_enu.x());
 //       point->set_y(point_enu.y());
 //       point->set_z(point_enu.z());
@@ -3837,8 +3946,9 @@ void GeoOptimization::FillLaneType(hozon::mp::mf::em::Boundary* lane_line,
 //     //                                     &right_type);
 //     lane->mutable_right_boundary()->add_boundary_type()->add_types(right_type);
 //     lane->mutable_right_boundary()->set_length(0);
-//     segment = lane->mutable_right_boundary()->mutable_curve()->add_segment();
-//     for (const auto& point_msg : lane_it->pilot_right_line_.points()) {
+//     segment =
+//     lane->mutable_right_boundary()->mutable_curve()->add_segment(); for
+//     (const auto& point_msg : lane_it->pilot_right_line_.points()) {
 //       auto* right_point = segment->mutable_line_segment()->add_point();
 //       Eigen::Vector3d point_local(point_msg.x(), point_msg.y(),
 //       point_msg.z()); Eigen::Vector3d point_enu = T_U_V_ * point_local;
@@ -3897,10 +4007,11 @@ void GeoOptimization::FillLaneType(hozon::mp::mf::em::Boundary* lane_line,
 //   left_edge->set_type(hozon::hdmap::BoundaryEdge::UNKNOWN);
 //   auto* left_segment =
 //       left_edge->mutable_curve()->add_segment()->mutable_line_segment();
-//   for (const auto& point_msg : (*map_lanes_).begin()->left_line_.points()) {
+//   for (const auto& point_msg : (*map_lanes_).begin()->left_line_.points())
+//   {
 //     auto* left_edge_point = left_segment->add_point();
-//     Eigen::Vector3d point_local(point_msg.x(), point_msg.y(), point_msg.z());
-//     Eigen::Vector3d point_enu = T_U_V_ * point_local;
+//     Eigen::Vector3d point_local(point_msg.x(), point_msg.y(),
+//     point_msg.z()); Eigen::Vector3d point_enu = T_U_V_ * point_local;
 //     left_edge_point->set_x(point_enu.x());
 //     left_edge_point->set_y(point_enu.y());
 //     left_edge_point->set_z(point_enu.z());

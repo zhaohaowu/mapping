@@ -395,17 +395,28 @@ class CommonUtil {
       return 0;
     }
     double mean_theta = 0.;
+    double count = 0;
     for (size_t i = 0; i < points.size() - 1; i++) {
-      const Eigen::Vector2f pa(points[i].x(), points[i].y());
-      const Eigen::Vector2f pb(points[i + 1].x(), points[i + 1].y());
-      Eigen::Vector2f v = pb - pa;
-      double theta = 0;
-      if (std::abs(v.x()) > 1e-2) {
-        theta = atan2(v.y(), v.x());  // atan2计算出的角度范围是[-pi, pi]
+      size_t j = i + 1;
+      for (; j < points.size(); j++) {
+        const Eigen::Vector2f pa(points[i].x(), points[i].y());
+        const Eigen::Vector2f pb(points[j].x(), points[j].y());
+        Eigen::Vector2f v = pb - pa;
+        if (v.norm() > 1.0) {
+          double theta = 0;
+          if (std::abs(v.x()) > 1e-2) {
+            theta = atan2(v.y(), v.x());  // atan2计算出的角度范围是[-pi, pi]
+            mean_theta += theta;
+            count++;
+            i = j;
+            break;
+          }
+        }
       }
-      mean_theta += theta;
     }
-    mean_theta /= static_cast<double>(points.size());
+    if (count > 0) {
+      mean_theta /= count;
+    }
     return mean_theta;
   }
 

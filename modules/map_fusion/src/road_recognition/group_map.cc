@@ -3659,7 +3659,7 @@ bool GroupMap::MatchStopLineWithGroup(Group::Ptr grp) {
   for (const auto& lane : grp->lanes) {
     for (auto& stop_line : stopline_) {
       if (MatchLaneAndStopLine(lane, stop_line.second)) {
-        stop_line.second->lane_id.emplace_back(lane->str_id);
+        stop_line.second->lane_id.emplace_back(lane->str_id_with_group);
       }
     }
   }
@@ -6744,45 +6744,52 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
   history_id->road_id = grp_idx;
 
   // stop lines
-  // for (const auto& stopline_it : ele_map->stop_lines) {
-  //   auto* stop_line = map->add_stop_line();
-  //   stop_line->set_id(std::to_string(stopline_it.first));
-  //   Eigen::Vector3f left_point =
-  //       curr_pose->TransformPoint(stopline_it.second->points[0]);
-  //   auto* point_left = stop_line->mutable_shape()->add_point();
-  //   point_left->set_x(static_cast<double>(left_point.x()));
-  //   point_left->set_y(static_cast<double>(left_point.y()));
-  //   point_left->set_z(static_cast<double>(left_point.z()));
-  //   Eigen::Vector3f right_point =
-  //       curr_pose->TransformPoint(stopline_it.second->points[1]);
-
-  //   auto* point_right = stop_line->mutable_shape()->add_point();
-  //   point_right->set_x(static_cast<double>(right_point.x()));
-  //   point_right->set_y(static_cast<double>(right_point.y()));
-  //   point_right->set_z(static_cast<double>(right_point.z()));
-  // }
   for (const auto& stopline_it : ele_map->stop_lines) {
-    auto* signal = map->add_signal();
-    signal->mutable_id()->set_id(std::to_string(stopline_it.first));
+    auto* stop_line = map->add_stop_line();
+    stop_line->set_id(std::to_string(stopline_it.first));
     Eigen::Vector3f left_point =
         curr_pose->TransformPoint(stopline_it.second->points[0]);
-    auto* point_left = signal->add_stop_line()
-                           ->add_segment()
-                           ->mutable_line_segment()
-                           ->add_point();
+    auto* point_left = stop_line->mutable_shape()->add_point();
     point_left->set_x(static_cast<double>(left_point.x()));
     point_left->set_y(static_cast<double>(left_point.y()));
     point_left->set_z(static_cast<double>(left_point.z()));
     Eigen::Vector3f right_point =
         curr_pose->TransformPoint(stopline_it.second->points[1]);
-    auto* point_right = signal->add_stop_line()
-                            ->add_segment()
-                            ->mutable_line_segment()
-                            ->add_point();
+
+    auto* point_right = stop_line->mutable_shape()->add_point();
     point_right->set_x(static_cast<double>(right_point.x()));
     point_right->set_y(static_cast<double>(right_point.y()));
     point_right->set_z(static_cast<double>(right_point.z()));
+
+    for (const auto& lane_id_it : stopline_[stopline_it.first]->lane_id) {
+      if (lane_id_hash.find(lane_id_it) != lane_id_hash.end()) {
+        stop_line->add_lane_id(std::to_string(lane_id_hash[lane_id_it]));
+      }
+    }
   }
+
+  // for (const auto& stopline_it : ele_map->stop_lines) {
+  //   auto* signal = map->add_signal();
+  //   signal->mutable_id()->set_id(std::to_string(stopline_it.first));
+  //   Eigen::Vector3f left_point =
+  //       curr_pose->TransformPoint(stopline_it.second->points[0]);
+  //   auto* point_left = signal->add_stop_line()
+  //                          ->add_segment()
+  //                          ->mutable_line_segment()
+  //                          ->add_point();
+  //   point_left->set_x(static_cast<double>(left_point.x()));
+  //   point_left->set_y(static_cast<double>(left_point.y()));
+  //   point_left->set_z(static_cast<double>(left_point.z()));
+  //   Eigen::Vector3f right_point =
+  //       curr_pose->TransformPoint(stopline_it.second->points[1]);
+  //   auto* point_right = signal->add_stop_line()
+  //                           ->add_segment()
+  //                           ->mutable_line_segment()
+  //                           ->add_point();
+  //   point_right->set_x(static_cast<double>(right_point.x()));
+  //   point_right->set_y(static_cast<double>(right_point.y()));
+  //   point_right->set_z(static_cast<double>(right_point.z()));
+  // }
 
   // crosswalk
   for (const auto& crosswalk_it : ele_map->cross_walks) {

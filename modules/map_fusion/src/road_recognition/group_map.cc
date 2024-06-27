@@ -3136,7 +3136,6 @@ void GroupMap::ComputeLineHeading(const Line::Ptr& line) {
     std::vector<Vec2d> points;
     std::vector<double> kappas;
     std::vector<double> dkappas;
-    std::vector<double> accumulated_s;
     double kappa = 0.;
     double dkappa = 0.;
     Vec2d dist_point;
@@ -3526,7 +3525,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
 #if 0
   OptiNextLane(groups);
 #endif
-  LaneForwardPredict(groups, guide_points, stamp);
+  LaneForwardPredict(groups, stamp);
   // // 打印点
   // for (auto& grp : *groups) {
   //   for (auto& lane_grp : grp->lanes) {
@@ -4204,8 +4203,111 @@ bool GroupMap::OptiNextLane(std::vector<Group::Ptr>* groups) {
   return true;
 }
 
+void GroupMap::ComputeLineHeadingPredict(
+    std::vector<Group::Ptr>* groups,
+    std::vector<LineSegment::Ptr>* lines_need_pred) {
+  for (auto& line : *lines_need_pred) {
+    std::vector<Vec2d> line_points;
+    // 从group中往前递推寻找同一个track id的车道线并把点填充到line points当中
+    for (auto it = groups->rbegin(); it != groups->rend(); ++it) {
+      if ((*it) == nullptr || (*it)->lanes.empty()) {
+        continue;
+      }
+      std::vector<Vec2d> line_points_temp;
+      for (const auto& lane : (*it)->lanes) {
+        if (lane->left_boundary->id == line->id ||
+            lane->right_boundary->id == line->id) {
+          std::vector<Vec2d> lane_boundary_points;
+          if (lane->left_boundary->id == line->id) {
+            for (const auto& point : lane->left_boundary->pts) {
+              lane_boundary_points.emplace_back(point.pt.x(), point.pt.y());
+            }
+          } else {
+            for (const auto& point : lane->right_boundary->pts) {
+              lane_boundary_points.emplace_back(point.pt.x(), point.pt.y());
+            }
+          }
+          Vec2d dist_point_temp;
+          for (const auto& point : lane_boundary_points) {
+            Vec2d temp_point;
+            temp_point.set_x(dist_point_temp.x() - point.x());
+            temp_point.set_y(dist_point_temp.y() - point.y());
+            if (temp_point.Length() >= 0.4) {
+              line_points_temp.emplace_back(point.x(), point.y());
+            }
+            dist_point_temp.set_x(point.x());
+            dist_point_temp.set_y(point.y());
+          }
+          break;
+        }
+      }
+
+      line_points_temp.insert(line_points_temp.end(), line_points.begin(),
+                              line_points.end());
+      line_points.clear();
+      line_points = line_points_temp;
+      if (line_points.size() >= 10) {
+        break;
+      }
+    }
+
+    double heading = 0;
+    std::vector<double> thetas;
+    for (int i = static_cast<int>(line_points.size()) - 1; i > 0; i--) {
+      int j = i - 1;
+      for (; j >= 0; j--) {
+        const Eigen::Vector2f pb(line_points[i].x(), line_points[i].y());
+        const Eigen::Vector2f pa(line_points[j].x(), line_points[j].y());
+        Eigen::Vector2f v = pb - pa;
+        if (v.norm() > 5.0) {
+          double theta = atan2(v.y(), v.x());
+          thetas.emplace_back(theta);
+          i = j;
+          break;
+        }
+      }
+      if (thetas.size() >= 1) {
+        break;
+      }
+    }
+    heading =
+        thetas.empty()
+            ? 0.0
+            : std::accumulate(thetas.begin(), thetas.end(), 0.) / thetas.size();
+
+    std::vector<double> fit_result;
+    std::vector<Vec2d> fit_points;
+    std::vector<double> kappas;
+    std::vector<double> dkappas;
+    double kappa = 0.;
+    double dkappa = 0.;
+    if (line_points.size() >= 10) {
+      int fit_num = std::min(50, static_cast<int>(line_points.size()));
+      std::copy(line_points.rbegin(), line_points.rbegin() + fit_num,
+                std::back_inserter(fit_points));
+      math::FitLaneLinePoint(fit_points, &fit_result);
+      std::vector<Vec2d> cmp_points;
+      std::copy(line_points.rbegin(), line_points.rbegin() + 10,
+                std::back_inserter(cmp_points));
+      math::ComputeDiscretePoints(cmp_points, fit_result, &kappas, &dkappas);
+      // 整体平均
+      kappa = kappas.empty() ? 0.0
+                             : std::accumulate(kappas.begin() + 3,
+                                               kappas.begin() + 8, 0.) /
+                                   5.;
+      dkappa = dkappas.empty() ? 0.0
+                               : std::accumulate(dkappas.begin() + 3,
+                                                 dkappas.begin() + 8, 0.) /
+                                     5.;
+      kappa = kappa / 8.;
+      dkappa = dkappa / 8.;
+    }
+
+    line->pred_end_heading = std::make_tuple(heading, kappa, dkappa);
+  }
+}
+
 bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
-                                  std::vector<Point> guide_points,
                                   const double& stamp) {
   // 对远处车道线进行预测，仅对无后继的lane尝试预测
   HLOG_INFO << "predict success lane";
@@ -4269,6 +4371,8 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
           lanes_need_pred.emplace_back(lane);
         }
       }
+      // 计算切割并构建group之后的车道线heading避免local map尾端不准带来误差
+      ComputeLineHeadingPredict(groups, &lines_need_pred);
       // 使用平均heading，这样可以使得预测的线都是平行的，不交叉
       // 由于部分弯道heading偏差较大，导致整体平均heading发生偏差，
       // 现增加pred_end_heading字段用于预测，使用PCL欧式聚类对heading进行聚类
@@ -4620,7 +4724,7 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
 
   kappa = 0.4 * last_predict_kappa + 0.6 * kappa;
   dkappa = 0.4 * last_predict_dkappa + 0.6 * dkappa;
-  // 对曲率kappa做一个阈值限制 曲率半径180m
+  // 对曲率kappa做一个阈值限制 曲率半径200m
   kappa = std::min(kappa, static_cast<double>(1.0 / 200.0));
 
   last_predict_angle = predict_heading;

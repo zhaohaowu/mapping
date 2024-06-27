@@ -310,8 +310,10 @@ class GroupMap {
   bool GenLaneCenterLine(std::vector<Group::Ptr>* groups);
   bool OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups);
   bool SetLaneStatus(std::vector<Group::Ptr>* groups);
-  bool LaneForwardPredict(std::vector<Group::Ptr>* groups,
-                          std::vector<Point> guide_points, const double& stamp);
+  void ComputeLineHeadingPredict(
+      std::vector<Group::Ptr>* groups,
+      std::vector<LineSegment::Ptr>* lines_need_pred);
+  bool LaneForwardPredict(std::vector<Group::Ptr>* groups, const double& stamp);
   bool OptiNextLane(std::vector<Group::Ptr>* groups);
   bool InferenceLaneLength(std::vector<Group::Ptr>* groups);
 

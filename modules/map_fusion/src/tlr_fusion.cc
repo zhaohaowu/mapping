@@ -60,34 +60,50 @@ int TlrFusion::Proc(
   }
 
   if (tlr->passable_info().has_turn_around()) {
-    auto left_u_turn = junc_passable->add_direction_passable_infos();
-    left_u_turn->set_direction(
-        hozon::hdmap::JunctionPassable::JUNCTION_LEFT_U_TURN);
-    left_u_turn->set_passable_type(
-        ColorToPassable(tlr->passable_info().turn_around()));
+    if (tlr->passable_info().turn_around() != hozon::perception::NONE &&
+        tlr->passable_info().turn_around() !=
+            hozon::perception::NONE_NO_CROSSROAD) {
+      auto left_u_turn = junc_passable->add_direction_passable_infos();
+      left_u_turn->set_direction(
+          hozon::hdmap::JunctionPassable::JUNCTION_LEFT_U_TURN);
+      left_u_turn->set_passable_type(
+          ColorToPassable(tlr->passable_info().turn_around()));
+    }
   }
 
   if (tlr->passable_info().has_turn_left()) {
-    auto left_turn = junc_passable->add_direction_passable_infos();
-    left_turn->set_direction(
-        hozon::hdmap::JunctionPassable::JUNCTION_LEFT_TURN);
-    left_turn->set_passable_type(
-        ColorToPassable(tlr->passable_info().turn_left()));
+    if (tlr->passable_info().turn_left() != hozon::perception::NONE &&
+        tlr->passable_info().turn_left() !=
+            hozon::perception::NONE_NO_CROSSROAD) {
+      auto left_turn = junc_passable->add_direction_passable_infos();
+      left_turn->set_direction(
+          hozon::hdmap::JunctionPassable::JUNCTION_LEFT_TURN);
+      left_turn->set_passable_type(
+          ColorToPassable(tlr->passable_info().turn_left()));
+    }
   }
 
   if (tlr->passable_info().has_straight()) {
-    auto forward = junc_passable->add_direction_passable_infos();
-    forward->set_direction(hozon::hdmap::JunctionPassable::JUNCTION_FORWARD);
-    forward->set_passable_type(
-        ColorToPassable(tlr->passable_info().straight()));
+    if (tlr->passable_info().straight() != hozon::perception::NONE &&
+        tlr->passable_info().straight() !=
+            hozon::perception::NONE_NO_CROSSROAD) {
+      auto forward = junc_passable->add_direction_passable_infos();
+      forward->set_direction(hozon::hdmap::JunctionPassable::JUNCTION_FORWARD);
+      forward->set_passable_type(
+          ColorToPassable(tlr->passable_info().straight()));
+    }
   }
 
   if (tlr->passable_info().has_turn_right()) {
-    auto right_turn = junc_passable->add_direction_passable_infos();
-    right_turn->set_direction(
-        hozon::hdmap::JunctionPassable::JUNCTION_RIGHT_TURN);
-    right_turn->set_passable_type(
-        ColorToPassable(tlr->passable_info().turn_right()));
+    if (tlr->passable_info().turn_right() != hozon::perception::NONE &&
+        tlr->passable_info().turn_right() !=
+            hozon::perception::NONE_NO_CROSSROAD) {
+      auto right_turn = junc_passable->add_direction_passable_infos();
+      right_turn->set_direction(
+          hozon::hdmap::JunctionPassable::JUNCTION_RIGHT_TURN);
+      right_turn->set_passable_type(
+          ColorToPassable(tlr->passable_info().turn_right()));
+    }
   }
 
   return 0;

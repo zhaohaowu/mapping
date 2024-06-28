@@ -566,6 +566,10 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
       if (latest_fusion_map == nullptr) {
         latest_fusion_map = std::make_shared<hozon::hdmap::Map>();
       }
+      if (!latest_fusion_map->lane().empty()) {
+        latest_fusion_map = std::make_shared<hozon::hdmap::Map>();
+        curr_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
+      }
       int ret = SendFusionResult(latest_loc, latest_fusion_map, curr_map_type_,
                                  curr_routing_.get());
       if (ret < 0) {

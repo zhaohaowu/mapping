@@ -1462,7 +1462,7 @@ void GeoOptimization::FilterReverseLine() {
     if (!double_solid_yellow_pts.empty()) {
       HandleOppisiteLine(double_solid_yellow_pts);
     } else {
-      HandleOppisiteLineByStopline();
+      // HandleOppisiteLineByStopline();停止线过滤目前不稳定
     }
   }
 }

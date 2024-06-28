@@ -3177,8 +3177,8 @@ void GroupMap::ComputeLineHeading(const Line::Ptr& line) {
     line->mean_end_heading = heading;
     line->mean_end_heading_std_dev = 0;
     line->pred_end_heading = std::make_tuple(heading, kappa, dkappa);
-    HLOG_INFO << "line id:" << line->id << "," << line->mean_end_heading << ","
-              << line->mean_end_interval << "," << kappas.size();
+    HLOG_DEBUG << "line id:" << line->id << "," << line->mean_end_heading << ","
+               << line->mean_end_interval << "," << kappas.size();
   }
 }
 
@@ -4726,8 +4726,8 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
     point.y = 0.0;
     point.z = 0.0;
     heading_data->emplace_back(point);
-    HLOG_WARN << "----mean_heading:" << line->id << ","
-              << line->mean_end_heading * 180 / M_PI;
+    HLOG_DEBUG << "----mean_heading:" << line->id << ","
+               << line->mean_end_heading * 180 / M_PI;
 
     if (line->id == ego_line_id_.left_id) {
       ego_left_pred_data = line->pred_end_heading;
@@ -4790,7 +4790,6 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
 
   std::vector<pcl::PointIndices> heading_cluster_indices;
   heading_cluster.extract(heading_cluster_indices);
-  HLOG_INFO << "cluser size:" << heading_cluster_indices.size();
   double predict_heading = 0.0;
   if (ego_line_flag) {
     predict_heading = heading;
@@ -4807,7 +4806,8 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
       }
       predict_heading =
           heading_data_size != 0 ? heading_sum / heading_data_size : 0;
-      HLOG_WARN << "heading mode 2:" << predict_heading;
+      HLOG_WARN << "heading mode 2:" << predict_heading << ","
+                << heading_cluster_indices.size();
       predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
     } else {
       int nearest_lane_index = -1;
@@ -7478,8 +7478,8 @@ std::vector<Point> GuidePathManager::GetCwForwardLaneGuidePoints() {
 
   float ego_to_lane_center =
       std::atan2(center_first_point.y(), center_first_point.x());
-  HLOG_DEBUG << "forward center point:"
-             << ", center.x()" << center_first_point.x() << ", center.y()"
+  HLOG_DEBUG << "forward center point:" << ", center.x()"
+             << center_first_point.x() << ", center.y()"
              << center_first_point.y() << "atan2:" << ego_to_lane_center
              << ", line_radians_mean_heading" << line_radians_mean_heading;
 
@@ -7620,10 +7620,9 @@ std::vector<Point> GuidePathManager::GetRoadEdgeGuidePoints() {
     const auto& query_point =
         0.5 * (right_first_point_2f + left_first_point_2f);
 
-    HLOG_DEBUG << "roadedge center point:"
-               << ", center.x()" << query_point.x() << ", center.y()"
-               << query_point.y() << ", line_radians_mean_heading"
-               << line_radians_mean_heading;
+    HLOG_DEBUG << "roadedge center point:" << ", center.x()" << query_point.x()
+               << ", center.y()" << query_point.y()
+               << ", line_radians_mean_heading" << line_radians_mean_heading;
     // float junction_guide_angle_ratio = 0.2;
 
     // heading方向补个50米长度。

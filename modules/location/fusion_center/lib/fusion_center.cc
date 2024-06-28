@@ -278,8 +278,8 @@ bool FusionCenter::GetCurrentOutput(Localization* const location) {
     return false;
   }
   Context ctx;
-  if (!init_dr_ || !ref_init_) {
-    HLOG_ERROR << "OnInitDR failed or ref_init fail";
+  if (!init_dr_) {
+    HLOG_ERROR << "OnInitDR failed";
     return false;
   }
   if (!GetCurrentContext(&ctx)) {
@@ -1585,7 +1585,8 @@ void FusionCenter::KalmanFiltering(Node* const node,
 }
 
 bool FusionCenter::GetGlobalPose(Context* const ctx) {
-  if (!ctx) {
+  if (!ref_init_ || !ctx) {
+    HLOG_ERROR << "Ref_init fail or ctx is nullptr";
     return false;
   }
   if (params_.passthrough_ins) {

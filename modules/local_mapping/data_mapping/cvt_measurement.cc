@@ -89,7 +89,7 @@ bool DataMapping::CvtPb2Measurement(
   for (const auto& item : measurepb->transport_element().stopline()) {
     StopLinePtr stoplineptr = std::make_shared<StopLine>();
     CvtPb2StopLineMeasurement(item, stoplineptr);
-    PrintMeasurementStopLine(stoplineptr);
+    // PrintMeasurementStopLine(stoplineptr);
     measure_frame->stop_lines_ptr->stoplines.push_back(stoplineptr);
   }
   return true;

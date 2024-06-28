@@ -147,18 +147,18 @@ int MapFusion::ProcFusion(
     map_table_->OnLocalization(curr_loc, routing);
     auto map_info = map_table_->GetMapTable();
     topo_->OnLocalization(curr_loc);
-    HLOG_INFO << "topo OnLocalization cost " << local_tic.Toc();
+    HLOG_DEBUG << "topo OnLocalization cost " << local_tic.Toc();
     local_tic.Tic();
     topo_->OnLocalMap(curr_local_map, std::get<0>(map_info));
-    HLOG_INFO << "topo OnLocalMap cost " << local_tic.Toc();
+    HLOG_DEBUG << "topo OnLocalMap cost " << local_tic.Toc();
     local_tic.Tic();
     topo_->TopoAssign();
-    HLOG_INFO << "topo TopoAssign cost " << local_tic.Toc();
+    HLOG_DEBUG << "topo TopoAssign cost " << local_tic.Toc();
     local_tic.Tic();
     //! 注意：TopoAssignment内部保证每次返回的都是全新的ptr，
     //! 不会存在两次调用得到的ptr指向同一片空间;
     auto topo_map = topo_->GetTopoMap();
-    HLOG_INFO << "topo GetTopoMap cost " << local_tic.Toc();
+    HLOG_DEBUG << "topo GetTopoMap cost " << local_tic.Toc();
     local_tic.Tic();
 
     pred_->OnLocalization(curr_loc);
@@ -182,11 +182,11 @@ int MapFusion::ProcFusion(
     HLOG_ERROR << "get nullptr prediction map";
     return -1;
   }
-  HLOG_INFO << "pred cost " << local_tic.Toc();
+  HLOG_DEBUG << "pred cost " << local_tic.Toc();
   local_tic.Tic();
   fusion_map = map;
-  HLOG_INFO << "copy fusion_map cost " << local_tic.Toc();
-  HLOG_INFO << "topo+pred cost " << global_tic.Toc();
+  HLOG_DEBUG << "copy fusion_map cost " << local_tic.Toc();
+  HLOG_DEBUG << "topo+pred cost " << global_tic.Toc();
 
   return 0;
 }
@@ -213,17 +213,17 @@ int MapFusion::ProcPercep(
     HLOG_ERROR << "nullptr road recognition";
     return -1;
   }
-  HLOG_INFO << "Proc Pilot start!";
+  HLOG_DEBUG << "Proc Pilot start!";
   recog_->OnLocalization(curr_loc);
   recog_->OnLocalMap(curr_local_map);
-  HLOG_INFO << "OnLocalMap!";
+  HLOG_DEBUG << "OnLocalMap!";
   auto map = recog_->GetPercepMap();
   if (map == nullptr) {
     HLOG_ERROR << "get nullptr percep map";
     return -1;
   }
   percep_map->CopyFrom(*map);
-  HLOG_ERROR << "get routingrespose!";
+  HLOG_DEBUG << "get routingrespose!";
   auto routing = recog_->GetRouting();
 
   if (routing == nullptr) {

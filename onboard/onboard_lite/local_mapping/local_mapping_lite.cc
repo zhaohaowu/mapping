@@ -229,7 +229,13 @@ int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
   static bool input_data_loss_error_flag = false;
   static bool input_data_value_error_flag = false;
   static bool input_data_time_error_flag = false;
-  HLOG_DEBUG << "receive localization data...";
+  static int running_mode_count = 0;
+  ++running_mode_count;
+  if (running_mode_count >= 100) {
+    running_mode_count = 0;
+    HLOG_INFO << "receive localization data...";
+  }
+
   auto localization_msg = input->GetOne("localization");
   if (localization_msg == nullptr) {
     phm_fault->Report(MAKE_FM_TUPLE(

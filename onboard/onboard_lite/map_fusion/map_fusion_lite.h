@@ -28,6 +28,8 @@ using hozon::mp::mf::MapFusion;
 using hozon::mp::mf::select::MapSelectLite;
 using hozon::netaos::adf_lite::Bundle;
 
+enum WorkMode { PerceptMap, FusionMap, Normal };
+
 class MapFusionLite : public hozon::netaos::adf_lite::Executor {
  public:
   MapFusionLite() = default;
@@ -74,6 +76,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   int MapServiceFaultOutput(const hozon::mp::mf::MapServiceFault& fault);
 
  private:
+  WorkMode work_mode_;
   std::shared_ptr<hozon::routing::RoutingResponse> curr_routing_ = nullptr;
   std::unique_ptr<MapFusion> mf_ = nullptr;
   std::unique_ptr<MapSelectLite> map_select_ = nullptr;

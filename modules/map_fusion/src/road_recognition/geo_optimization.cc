@@ -3371,7 +3371,7 @@ void GeoOptimization::HandleSingleSideLine() {
   }
 
   if (new_lines.empty()) {
-    HLOG_ERROR << "fit new line failed";
+    HLOG_DEBUG << "fit new line failed";
     return;
   }
 

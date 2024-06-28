@@ -129,10 +129,10 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
   //     | 1 | 2 |
   //     |   |   |
   is_cross_ = *is_cross;
-  HLOG_INFO << "IS_CROSS" << is_cross_.cross_after_lane_ << "  "
-            << is_cross_.cross_before_lane_ << "  " << is_cross_.is_crossing_
-            << " " << is_cross_.next_lane_left << " "
-            << is_cross->next_lane_right;
+  HLOG_DEBUG << "IS_CROSS" << is_cross_.cross_after_lane_ << "  "
+             << is_cross_.cross_before_lane_ << "  " << is_cross_.is_crossing_
+             << " " << is_cross_.next_lane_left << " "
+             << is_cross->next_lane_right;
   curr_pose_ = curr_pose;
   std::deque<Line::Ptr> lines;
   // lane_line_interp_dist可以设为-1，当前上游点间隔已经是1m，这里不用插值出更细的点
@@ -157,7 +157,7 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
 void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
                                   float interp_dist,
                                   std::deque<Line::Ptr>* lines) {
-  HLOG_INFO << "RetrieveBoundaries";
+  HLOG_DEBUG << "RetrieveBoundaries";
   if (ele_map == nullptr || lines == nullptr) {
     return;
   }
@@ -280,7 +280,7 @@ void GroupMap::BuildGroupSegments(
     const KinePose::Ptr& curr_pose, std::deque<Line::Ptr>* lines,
     std::vector<GroupSegment::Ptr>* group_segments,
     const em::ElementMap::Ptr& ele_map) {
-  HLOG_INFO << "BuildGroupSegments";
+  HLOG_DEBUG << "BuildGroupSegments";
   if (path == nullptr || curr_pose == nullptr || lines == nullptr ||
       group_segments == nullptr) {
     return;
@@ -403,7 +403,7 @@ void GroupMap::EgoLineTrajectory(std::vector<GroupSegment::Ptr>* grp_segment,
 void GroupMap::BuildGroups(const em::ElementMap::Ptr& ele_map,
                            std::vector<GroupSegment::Ptr> group_segments,
                            std::vector<Group::Ptr>* groups) {
-  HLOG_INFO << "BuildGroups";
+  HLOG_DEBUG << "BuildGroups";
   if (group_segments.empty() || groups == nullptr) {
     return;
   }
@@ -885,7 +885,7 @@ bool GroupMap::AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
   float dis_thresh{0.0};
   if (dis_pt < 8 || (lane_in_curr->lanepos_id == lane_in_next->lanepos_id &&
                      lane_in_curr->lanepos_id != "99_99")) {
-    // HLOG_INFO << "lane_in_curr=" << lane_in_curr->str_id_with_group
+    // HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group
     //           << "   lane_in_next" << lane_in_next->str_id_with_group
     //           << "  dis_pt = " << dis_pt
     //           << " lane_in_curr->lanepos_id =" << lane_in_curr->lanepos_id
@@ -907,10 +907,10 @@ bool GroupMap::AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
     float dis = CalculatePoint2CenterLine(lane_in_next, lane_in_curr);
     float angle = Calculate2CenterlineAngle(lane_in_next, lane_in_curr, sizet);
     // HLOG_DEBUG << "angle = "<<angle*180/pi_;
-    // HLOG_INFO << "lane angle lane_in_next->center_line_pts[0].pt  "
+    // HLOG_DEBUG << "lane angle lane_in_next->center_line_pts[0].pt  "
     //           << lane_in_next->center_line_pts[0].pt.y() << "   "
     //           << lane_in_next->center_line_pts[0].pt.x();
-    // HLOG_INFO << "lane_in_curr->center_line_pts[sizet - 1].pt  "
+    // HLOG_DEBUG << "lane_in_curr->center_line_pts[sizet - 1].pt  "
     //           << lane_in_curr->center_line_pts[sizet - 1].pt.y() << "   "
     //           << lane_in_curr->center_line_pts[sizet - 1].pt.x()
     //           << "  angle is "
@@ -919,9 +919,9 @@ bool GroupMap::AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
     //                   (lane_in_next->center_line_pts[0].pt.x() -
     //                    lane_in_curr->center_line_pts[sizet - 1].pt.x())) *
     //                  180 / pi_;
-    // HLOG_INFO << "lane_in_curr->center_line_param[1] is"
+    // HLOG_DEBUG << "lane_in_curr->center_line_param[1] is"
     //           << atan(lane_in_curr->center_line_param[1]) * 180 / pi_;
-    // HLOG_INFO << "lane_in_curr=" << lane_in_curr->str_id_with_group
+    // HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group
     //           << "   lane_in_next" << lane_in_next->str_id_with_group
     //           << "  dis2l = " << dis << "  dis thresh = " << dis_thresh
     //           << " angle = " << abs(angle) * 180 / pi_
@@ -1739,7 +1739,7 @@ void GroupMap::GenerateAllSatisfyTransitionLane(
     }
   } else {
     // 自车快进入路口里的路口连接策略
-    // HLOG_INFO << "路口连接策略";
+    // HLOG_DEBUG << "路口连接策略";
     for (int i = 0; i < history_satisfy_lane_.size(); ++i) {
       Lane::Ptr transition_lane_after2 = std::make_shared<Lane>();
       transition_lane_after2->left_boundary = std::make_shared<LineSegment>();
@@ -1840,17 +1840,17 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
         //! 为了能使用curr group的车道向前预测，这里把next
         //! group的索引标记出来，后面会将next group 里车道都删掉，这样curr
         //! group就变成最后一个group了，后续就能正常使用其向前预测了.
-        HLOG_INFO << "curr_group NAME = " << curr_group->str_id
-                  << "  dist_to_slice = " << dist_to_slice
-                  << "  veh_in_this_junction = " << veh_in_this_junction
-                  << "  next_group_name = " << next_group->str_id
-                  << "  delay_connect_hz = " << conf_.delay_connect_hz
-                  << "  cross delay = " << is_cross_.delay_hz;
+        HLOG_DEBUG << "curr_group NAME = " << curr_group->str_id
+                   << "  dist_to_slice = " << dist_to_slice
+                   << "  veh_in_this_junction = " << veh_in_this_junction
+                   << "  next_group_name = " << next_group->str_id
+                   << "  delay_connect_hz = " << conf_.delay_connect_hz
+                   << "  cross delay = " << is_cross_.delay_hz;
         if (veh_in_this_junction) {
           Lane::Ptr ego_curr_lane = nullptr;
           FindNearestLaneToHisVehiclePosition(curr_group, &ego_curr_lane);
           ego_curr_lane_ = ego_curr_lane;
-          // HLOG_INFO << "ego_curr_lane is " <<
+          // HLOG_DEBUG << "ego_curr_lane is " <<
           // ego_curr_lane->str_id_with_group;
           std::vector<Lane::Ptr> history_satisfy_lane_;
           FindSatisefyNextLane(next_group, dist_to_slice,
@@ -1890,7 +1890,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
           // if (ego_curr_lane != nullptr && best_next_lane != nullptr &&
           //     (dist_to_slice <= conf_.next_group_max_distance ||
           //      is_cross_.is_connect_)) {
-          //   HLOG_INFO << "best_next_lane = "
+          //   HLOG_DEBUG << "best_next_lane = "
           //             << best_next_lane->str_id_with_group;
           //   is_cross_.is_connect_ = 1;
           //   if (curr_group->group_segments.back()->end_slice.po.x() < -2.0) {
@@ -2105,7 +2105,7 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
     float pre_y = param_left[0] + param_left[1] * pre_x;
     left_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
   }
-  // HLOG_INFO << "left_bound.pts.size() = " << left_bound.pts.size();
+  // HLOG_DEBUG << "left_bound.pts.size() = " << left_bound.pts.size();
   // if (left_bound.pts.empty()) {
   //   return;
   // }
@@ -2120,7 +2120,7 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
     float pre_y = param_left[0] + param_left[1] * pre_x;
     right_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
   }
-  // HLOG_INFO << "right_bound.pts.size() = " << right_bound.pts.size();
+  // HLOG_DEBUG << "right_bound.pts.size() = " << right_bound.pts.size();
   // if (right_bound.pts.empty()) {
   //   return;
   // }
@@ -2135,7 +2135,7 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
     center_pt_pred = Point(VIRTUAL, pre_x, pre_y, static_cast<float>(0.0));
   }
   ctr_pts.emplace_back(lane_in_next->center_line_pts.front());
-  // HLOG_INFO << "ctr_pts.pts.size() = " << ctr_pts.size();
+  // HLOG_DEBUG << "ctr_pts.pts.size() = " << ctr_pts.size();
   if (ctr_pts.empty()) {
     return;
   }
@@ -2373,7 +2373,7 @@ void GroupMap::GenerateTransitionLane(Lane::Ptr lane_in_curr,
   Lane::Ptr transition_lane = std::make_shared<Lane>();
   transition_lane->left_boundary = std::make_shared<LineSegment>();
   transition_lane->right_boundary = std::make_shared<LineSegment>();
-  // HLOG_INFO << "is_cross_.is_crossing_ = " << is_cross_.is_crossing_
+  // HLOG_DEBUG << "is_cross_.is_crossing_ = " << is_cross_.is_crossing_
   //            << "   is_cross_.along_path_dis_.norm() = "
   //            << is_cross_.along_path_dis_.norm();
   if (is_cross_.is_crossing_ && is_cross_.along_path_dis_.norm() > 2.0) {
@@ -2625,7 +2625,7 @@ void GroupMap::FindBestNextLane(Group::Ptr next_group,
       max_len = len;
       *best_next_lane = next_lane;
     }
-    // HLOG_INFO << "len = " << acos(len) * 180 / pi_;
+    // HLOG_DEBUG << "len = " << acos(len) * 180 / pi_;
   }
 
   float min_offset = FLT_MAX;
@@ -2922,39 +2922,39 @@ void GroupMap::ComputeLineCurvatureV2(std::vector<Point>* guide_points,
     transition_lane->right_boundary = std::make_shared<LineSegment>();
     GenerateTransitionLaneGeo(last_ego_lane, guide_lane, transition_lane);
     GenerateTransitionLaneToPo(last_ego_lane, guide_lane, transition_lane);
-    // HLOG_INFO << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxguide_lane left: " <<
-    // guide_lane->left_boundary->pts.size(); HLOG_INFO <<
+    // HLOG_DEBUG << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxguide_lane left: " <<
+    // guide_lane->left_boundary->pts.size(); HLOG_DEBUG <<
     // "xxxxxxxxxxxxxxxxxxxxxxxxxxxxguide_lane right: " <<
     // guide_lane->right_boundary->pts.size(); for (const auto& it :
     // guide_lane->left_boundary->pts) {
-    //   HLOG_INFO << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxpt: " << it.pt.x() << ", " <<
-    //   it.pt.y();
+    //   HLOG_DEBUG << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxpt: " << it.pt.x() << ", "
+    //   << it.pt.y();
     // }
-    // HLOG_INFO<<"transition_lane->left_boundary->pts.size() =
+    // HLOG_DEBUG<<"transition_lane->left_boundary->pts.size() =
     // "<<transition_lane->left_boundary->pts.size();
-    // HLOG_INFO<<"transition_lane->right_boundary->pts.size() =
+    // HLOG_DEBUG<<"transition_lane->right_boundary->pts.size() =
     // "<<transition_lane->right_boundary->pts.size();
-    // HLOG_INFO<<"transition_lane->center_line_pts.size() =
+    // HLOG_DEBUG<<"transition_lane->center_line_pts.size() =
     // "<<transition_lane->center_line_pts.size(); for (auto point :
     // transition_lane->center_line_pts) {
-    //   HLOG_INFO << "[debug] after Fit point, x:" << point.pt.x()
+    //   HLOG_DEBUG << "[debug] after Fit point, x:" << point.pt.x()
     //             << " y:" << point.pt.y();
     // }
-    // HLOG_INFO << "last_ego_lane id: " << last_ego_lane->str_id_with_group;
-    // HLOG_INFO << "transition_lane id: " <<
-    // transition_lane->str_id_with_group; HLOG_INFO << "guide_lane id: " <<
+    // HLOG_DEBUG << "last_ego_lane id: " << last_ego_lane->str_id_with_group;
+    // HLOG_DEBUG << "transition_lane id: " <<
+    // transition_lane->str_id_with_group; HLOG_DEBUG << "guide_lane id: " <<
     // guide_lane->str_id_with_group; for (const auto& it :
     // transition_lane->next_lane_str_id_with_group) {
-    //   HLOG_INFO << "transition_lane next: " << it;
+    //   HLOG_DEBUG << "transition_lane next: " << it;
     // }
     // for (const auto& it : transition_lane->prev_lane_str_id_with_group) {
-    //   HLOG_INFO << "transition_lane pre: " << it;
+    //   HLOG_DEBUG << "transition_lane pre: " << it;
     // }
     // for (const auto& it : guide_lane->prev_lane_str_id_with_group) {
-    //   HLOG_INFO << "guide_lane pre: " << it;
+    //   HLOG_DEBUG << "guide_lane pre: " << it;
     // }
     // for (const auto& it : last_ego_lane->next_lane_str_id_with_group) {
-    //   HLOG_INFO << "last_ego_lane next: " << it;
+    //   HLOG_DEBUG << "last_ego_lane next: " << it;
     // }
 
     if (transition_lane->left_boundary->pts.size() > 1 &&
@@ -3177,6 +3177,8 @@ void GroupMap::ComputeLineHeading(const Line::Ptr& line) {
     line->mean_end_heading = heading;
     line->mean_end_heading_std_dev = 0;
     line->pred_end_heading = std::make_tuple(heading, kappa, dkappa);
+    HLOG_DEBUG << "line id:" << line->id << "," << line->mean_end_heading << ","
+               << line->mean_end_interval << "," << kappas.size();
     HLOG_DEBUG << "line id:" << line->id << "," << line->mean_end_heading << ","
                << line->mean_end_interval << "," << kappas.size();
   }
@@ -3436,7 +3438,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
   if (groups->size() < 1) {
     return;
   }
-  HLOG_INFO << "GenLanesInGroups";
+  HLOG_DEBUG << "GenLanesInGroups";
   for (auto& grp : *groups) {
     std::vector<Lane::Ptr> possible_lanes;
     possible_lanes.clear();
@@ -3489,16 +3491,16 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
   //   }
   // }
   // for (auto& grp : *groups) {
-  //   HLOG_INFO << "grp name is " << grp->str_id;
+  //   HLOG_DEBUG << "grp name is " << grp->str_id;
   //   for (auto lane : grp->lanes) {
-  //     HLOG_INFO << "lane name is " << lane->str_id_with_group;
-  //     HLOG_INFO << "lane left neighbor lanes are ";
+  //     HLOG_DEBUG << "lane name is " << lane->str_id_with_group;
+  //     HLOG_DEBUG << "lane left neighbor lanes are ";
   //     for (auto lane_left : lane->left_lane_str_id_with_group) {
-  //       HLOG_INFO << lane_left;
+  //       HLOG_DEBUG << lane_left;
   //     }
-  //     HLOG_INFO << "lane right neighbor lanes are ";
+  //     HLOG_DEBUG << "lane right neighbor lanes are ";
   //     for (auto lane_right : lane->right_lane_str_id_with_group) {
-  //       HLOG_INFO << lane_right;
+  //       HLOG_DEBUG << lane_right;
   //     }
   //   }
   // }
@@ -3840,11 +3842,11 @@ void GroupMap::VirtualLaneLeftRight(Group::Ptr curr_group,
   if (next_group->lanes.size() > 1) {
     std::vector<int> next_group_lanes;  // lane对应group的下标
     for (auto& lane : next_group->lanes) {
-      // HLOG_INFO << "lane->str_id is " << lane->str_id
+      // HLOG_DEBUG << "lane->str_id is " << lane->str_id
       //           << "  next_group->str_id is " << next_group->str_id;
       if (next_group->str_id.find(lane->str_id) < next_group->str_id.length()) {
         // int index = next_group->str_id.find(lane->str_id);
-        // HLOG_INFO << "lane->str_id is " << lane->str_id
+        // HLOG_DEBUG << "lane->str_id is " << lane->str_id
         //           << "  next_group->str_id is " << next_group->str_id
         //           << "  index = " << index;
         next_group_lanes.emplace_back(next_lane_index[lane->str_id_with_group]);
@@ -4178,11 +4180,11 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
           (curr_group->group_segments.back()->end_slice.po -
            next_group->group_segments.front()->start_slice.po)
               .norm();
-      // HLOG_INFO << "max_length_lane = " << max_length_lane;
+      // HLOG_DEBUG << "max_length_lane = " << max_length_lane;
       if (((IsInGroupAndNoLane(curr_group) && max_length_lane <= 50.0) ||
            max_length_lane <= 15.0) &&
           !is_all_next_lane_exit && group_distance < 10.0) {
-        // HLOG_INFO << " is connect";
+        // HLOG_DEBUG << " is connect";
         BuildVirtualLaneBefore(curr_group, next_group);
         // groups->erase(groups->begin() + i - 1);
       }
@@ -4251,7 +4253,7 @@ bool GroupMap::SetLaneStatus(std::vector<Group::Ptr>* groups) {
 
 bool GroupMap::OptiNextLane(std::vector<Group::Ptr>* groups) {
   //! TBD: 临时修改，解除多个后继，仅保留角度变化最小的一个后继
-  HLOG_INFO << "get success of smallest angle";
+  HLOG_DEBUG << "get success of smallest angle";
   std::map<std::string, LaneWithNextLanes> lanes_has_next;
   if (groups->size() > 1) {
     for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
@@ -4432,7 +4434,7 @@ void GroupMap::ComputeLineHeadingPredict(
 bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
                                   const double& stamp) {
   // 对远处车道线进行预测，仅对无后继的lane尝试预测
-  HLOG_INFO << "predict success lane";
+  HLOG_DEBUG << "predict success lane";
   if (conf_.predict_farthest_dist > conf_.robust_percep_dist) {
     Group::Ptr last_grp = nullptr;
     // 找到最后一个非空的group，只预测最后一个group里的lane
@@ -4699,8 +4701,8 @@ float GroupMap::PointToLaneDis(const Lane::Ptr& lane_ptr,
     right_dist = PointToVectorDist(lane_ptr->right_boundary->pts[0].pt,
                                    lane_ptr->right_boundary->pts[1].pt, point);
   }
-  HLOG_INFO << "left_dist:" << left_dist << ",right_dist:" << right_dist << ","
-            << left_dist * right_dist;
+  HLOG_DEBUG << "left_dist:" << left_dist << ",right_dist:" << right_dist << ","
+             << left_dist * right_dist;
   return left_dist * right_dist;
 }
 
@@ -4726,6 +4728,8 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
     point.y = 0.0;
     point.z = 0.0;
     heading_data->emplace_back(point);
+    HLOG_DEBUG << "----mean_heading:" << line->id << ","
+               << line->mean_end_heading * 180 / M_PI;
     HLOG_DEBUG << "----mean_heading:" << line->id << ","
                << line->mean_end_heading * 180 / M_PI;
 
@@ -4790,11 +4794,12 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
 
   std::vector<pcl::PointIndices> heading_cluster_indices;
   heading_cluster.extract(heading_cluster_indices);
+  HLOG_DEBUG << "cluser size:" << heading_cluster_indices.size();
   double predict_heading = 0.0;
   if (ego_line_flag) {
     predict_heading = heading;
     predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
-    HLOG_WARN << "heading mode 1:" << predict_heading;
+    HLOG_DEBUG << "heading mode 1:" << predict_heading;
   } else {
     if (heading_cluster_indices.size() == 1) {
       double heading_sum = 0.;
@@ -4806,8 +4811,8 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
       }
       predict_heading =
           heading_data_size != 0 ? heading_sum / heading_data_size : 0;
-      HLOG_WARN << "heading mode 2:" << predict_heading << ","
-                << heading_cluster_indices.size();
+      HLOG_DEBUG << "heading mode 2:" << predict_heading << ","
+                 << heading_cluster_indices.size();
       predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
     } else {
       int nearest_lane_index = -1;
@@ -4827,8 +4832,8 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
         predict_heading = (lane_ptr->left_boundary->mean_end_heading +
                            lane_ptr->right_boundary->mean_end_heading) /
                           2.0;
-        HLOG_WARN << "heading mode 3:" << predict_heading << ","
-                  << nearest_lane_dist;
+        HLOG_DEBUG << "heading mode 3:" << predict_heading << ","
+                   << nearest_lane_dist;
         predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
       } else {
         // 求平均值
@@ -4838,7 +4843,7 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
         }
         predict_heading =
             lines_need_pred->empty() ? 0.0 : (sum / lines_need_pred->size());
-        HLOG_WARN << "heading mode 4:" << predict_heading;
+        HLOG_DEBUG << "heading mode 4:" << predict_heading;
         predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
       }
     }
@@ -5312,7 +5317,7 @@ bool GroupMap::DistanceInferenceLane(const LineSegment& left_line,
 void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
                                      Group::Ptr next_group) {
   for (auto& lane_in_curr : curr_group->lanes) {
-    // HLOG_INFO << "lane_in_curr name is " << lane_in_curr->str_id_with_group;
+    // HLOG_DEBUG << "lane_in_curr name is " << lane_in_curr->str_id_with_group;
     if (lane_in_curr->next_lane_str_id_with_group.empty()) {
       Lane lane_pre;
       LineSegment left_bound;
@@ -5493,7 +5498,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
         }
       }
 
-      // HLOG_INFO << "left_bound_exist " << left_bound_exist
+      // HLOG_DEBUG << "left_bound_exist " << left_bound_exist
       //           << "  right_bound_exist  " << right_bound_exist;
       if (left_bound_exist == 1 && right_bound_exist == 1 &&
           (!DistanceInferenceLane(left_bound, right_bound))) {
@@ -5537,7 +5542,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           left_index++;
         }
         if (!BoundaryIsValid(right_bound)) {
-          HLOG_INFO << "boundary not valid";
+          HLOG_WARN << "boundary not valid";
           continue;
         }
         if (right_bound.pts.empty()) {
@@ -5583,7 +5588,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           right_index++;
         }
         if (!BoundaryIsValid(left_bound)) {
-          HLOG_INFO << "boundary not valid";
+          HLOG_WARN << "boundary not valid";
           continue;
         }
         if (left_bound.pts.empty()) {
@@ -7478,8 +7483,8 @@ std::vector<Point> GuidePathManager::GetCwForwardLaneGuidePoints() {
 
   float ego_to_lane_center =
       std::atan2(center_first_point.y(), center_first_point.x());
-  HLOG_DEBUG << "forward center point:" << ", center.x()"
-             << center_first_point.x() << ", center.y()"
+  HLOG_DEBUG << "forward center point:"
+             << ", center.x()" << center_first_point.x() << ", center.y()"
              << center_first_point.y() << "atan2:" << ego_to_lane_center
              << ", line_radians_mean_heading" << line_radians_mean_heading;
 
@@ -7620,9 +7625,10 @@ std::vector<Point> GuidePathManager::GetRoadEdgeGuidePoints() {
     const auto& query_point =
         0.5 * (right_first_point_2f + left_first_point_2f);
 
-    HLOG_DEBUG << "roadedge center point:" << ", center.x()" << query_point.x()
-               << ", center.y()" << query_point.y()
-               << ", line_radians_mean_heading" << line_radians_mean_heading;
+    HLOG_DEBUG << "roadedge center point:"
+               << ", center.x()" << query_point.x() << ", center.y()"
+               << query_point.y() << ", line_radians_mean_heading"
+               << line_radians_mean_heading;
     // float junction_guide_angle_ratio = 0.2;
 
     // heading方向补个50米长度。

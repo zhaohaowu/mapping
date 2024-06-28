@@ -498,9 +498,13 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
       nullptr;
   // auto latest_map = std::make_shared<hozon::hdmap::Map>();
   // auto percep_map = std::make_shared<hozon::hdmap::Map>();
+  static WorkMode pre_word_mode = WorkMode::PerceptMap;
   if (FLAGS_work_mode == kWorkModeFusionMap ||
       FLAGS_work_mode == kWorkModeFusionAndPercepMap) {
-    HLOG_INFO << "ProcFusion";
+    work_mode_ = WorkMode::FusionMap;
+    if (work_mode_ != pre_word_mode) {
+      HLOG_INFO << "turn to FusionMap Mode...";
+    }
     std::shared_ptr<hozon::hdmap::Map> fusion_map = nullptr;
     int ret =
         mf_->ProcFusion(latest_plugin, latest_loc, latest_local_map,
@@ -514,7 +518,11 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
 
   if (FLAGS_work_mode == kWorkModePercepMap ||
       FLAGS_work_mode == kWorkModeFusionAndPercepMap) {
-    HLOG_INFO << "ProcPercep";
+    // HLOG_INFO << "ProcPercep";
+    work_mode_ = WorkMode::PerceptMap;
+    if (work_mode_ != pre_word_mode) {
+      HLOG_INFO << "turn to PerceptMap Mode...";
+    }
     auto percep_map = std::make_shared<hozon::hdmap::Map>();
     percep_map->Clear();
     auto percep_routing = std::make_shared<hozon::routing::RoutingResponse>();
@@ -528,18 +536,28 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
       latest_percep_routing = percep_routing;
     }
   }
+
+  pre_word_mode = work_mode_;
+
+  static mp::mf::select::MapSelectResult pre_map_type = {
+      hozon::navigation_hdmap::MapMsg_MapType_INVALID, false, 2};
   auto fault = mf_->GetMapServiceFault();
   MapServiceFaultOutput(fault);
   {
     std::lock_guard<std::mutex> lock(process_mtx_);
-    HLOG_INFO << ">>>>>>>>>>>START<<<<<<<<<<<<<<<<";
+    HLOG_DEBUG << ">>>>>>>>>>>START<<<<<<<<<<<<<<<<";
     curr_map_type_ = map_select_->Process(latest_loc, latest_fusion_map,
                                           latest_percep_map, latest_fct_in);
     if (select_debug_) {
       DebugSelectMap();
     }
-    HLOG_INFO << "select map_type:" << curr_map_type_.map_type << ", "
-              << curr_map_type_.valid;
+    if (pre_map_type.map_type != curr_map_type_.map_type ||
+        pre_map_type.valid != curr_map_type_.valid) {
+      HLOG_INFO << "select map type turn to:" << curr_map_type_.map_type << ", "
+                << curr_map_type_.valid;
+    }
+
+    pre_map_type = curr_map_type_;
     if (curr_map_type_.map_type ==
             hozon::navigation_hdmap::MapMsg_MapType_FUSION_NNP_MAP ||
         curr_map_type_.map_type ==

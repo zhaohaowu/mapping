@@ -119,36 +119,36 @@ MapSelectResult MapSelectLite::Process(
   if (!fct_valid) {
     bool percep_available = PercepMapAvailable(perc_map, localization);
     if (percep_available) {
-      HLOG_INFO << "fct invalid, percep available";
+      HLOG_DEBUG << "fct invalid, percep available";
       return {MapMsg::PERCEP_MAP, true, 2};
     }
-    HLOG_INFO << "fct invalid, percep unavailable";
+    HLOG_DEBUG << "fct invalid, percep unavailable";
     return {MapMsg::INVALID, false, 2};
   }
 
   if (!NnpSwitchOn(fct_in)) {
     bool percep_available = PercepMapAvailable(perc_map, localization);
     if (percep_available) {
-      HLOG_INFO << "fct valid, nnp off, percep available";
+      HLOG_DEBUG << "fct valid, nnp off, percep available";
       return {MapMsg::PERCEP_MAP, true, 0};
     }
-    HLOG_INFO << "fct valid, nnp off, percep unavailable";
+    HLOG_DEBUG << "fct valid, nnp off, percep unavailable";
     return {MapMsg::INVALID, false, 0};
   }
   bool fusion_available =
       FusionMapAvailable(fusion_map, localization, localization);
   if (fusion_available) {
-    HLOG_INFO << "fct valid, nnp on, fusion available";
+    HLOG_DEBUG << "fct valid, nnp on, fusion available";
     //! TBD：当前默认都是FUSION_NNP，不考虑FUSION_NCP
     return {MapMsg::FUSION_NNP_MAP, true, 0};
   }
 
   bool percep_available = PercepMapAvailable(perc_map, localization);
   if (percep_available) {
-    HLOG_INFO << "fct valid, nnp on, fusion unavailable, percep available";
+    HLOG_DEBUG << "fct valid, nnp on, fusion unavailable, percep available";
     return {MapMsg::PERCEP_MAP, true, 1};
   }
-  HLOG_INFO << "fct valid, nnp on, fusion unavailable, percep unavailable";
+  HLOG_DEBUG << "fct valid, nnp on, fusion unavailable, percep unavailable";
   return {MapMsg::INVALID, false, 2};
 }
 
@@ -421,40 +421,40 @@ int32_t MapSelectLite::ArbitrateMap(
     const auto is_lane_change_map =
         map_lanechange_observer_.Observer(left_map_lane, right_map_lane);
     LanechangeRiseDecider(is_lane_change_per, is_lane_change_map);
-    HLOG_INFO << "left_map_c0: " << left_map_c0_
-              << " , right_map_c0: " << right_map_c0_
-              << " , left_per lane_c0 : "
-              << ego_left_lane_.lane_param().cubic_curve_set(0).c0()
-              << " , right lane_c0: "
-              << ego_right_lane_.lane_param().cubic_curve_set(0).c0();
-    HLOG_INFO << "width_diff left: " << width_diff.first
-              << " , width_diff right: " << width_diff.second;
-    HLOG_INFO << " , is_lane_change_per left: " << is_lane_change_per.first
-              << " , is_lane_change_per right: " << is_lane_change_per.second
-              << " , is_lane_change_map left: " << is_lane_change_map.first
-              << " , is_lane_change_map right: " << is_lane_change_map.second
-              << " , is_lane_change: " << is_lane_change_;
+    HLOG_DEBUG << "left_map_c0: " << left_map_c0_
+               << " , right_map_c0: " << right_map_c0_
+               << " , left_per lane_c0 : "
+               << ego_left_lane_.lane_param().cubic_curve_set(0).c0()
+               << " , right lane_c0: "
+               << ego_right_lane_.lane_param().cubic_curve_set(0).c0();
+    HLOG_DEBUG << "width_diff left: " << width_diff.first
+               << " , width_diff right: " << width_diff.second;
+    HLOG_DEBUG << " , is_lane_change_per left: " << is_lane_change_per.first
+               << " , is_lane_change_per right: " << is_lane_change_per.second
+               << " , is_lane_change_map left: " << is_lane_change_map.first
+               << " , is_lane_change_map right: " << is_lane_change_map.second
+               << " , is_lane_change: " << is_lane_change_;
 
   } else {
     has_no_width_diff = true;
   }
-  HLOG_INFO << "ori_location_err_state = " << ori_location_err_state
-            << ", is_bad_lanemarkers = " << is_bad_lanemarkers
-            << ", has_no_width_diff = " << has_no_width_diff;
+  HLOG_DEBUG << "ori_location_err_state = " << ori_location_err_state
+             << ", is_bad_lanemarkers = " << is_bad_lanemarkers
+             << ", has_no_width_diff = " << has_no_width_diff;
   if (is_lane_change_) {
     width_diff.first = width_diff_history_.first;
     width_diff.second = width_diff_history_.second;
   }
-  HLOG_INFO << "left_width = " << left_width
-            << ", right_width = " << right_width << ", s = " << s
-            << ", l = " << lateral;
-  HLOG_INFO << "left_c0 = "
-            << ego_left_lane_.lane_param().cubic_curve_set(0).c0()
-            << ", left_map_c0 = " << left_map_c0_ << ", right_c0 = "
-            << ego_right_lane_.lane_param().cubic_curve_set(0).c0()
-            << ", right_map_c0 = " << right_map_c0_;
-  HLOG_INFO << "left_lane_err = " << width_diff.first
-            << ", right_lane_err = " << width_diff.second;
+  HLOG_DEBUG << "left_width = " << left_width
+             << ", right_width = " << right_width << ", s = " << s
+             << ", l = " << lateral;
+  HLOG_DEBUG << "left_c0 = "
+             << ego_left_lane_.lane_param().cubic_curve_set(0).c0()
+             << ", left_map_c0 = " << left_map_c0_ << ", right_c0 = "
+             << ego_right_lane_.lane_param().cubic_curve_set(0).c0()
+             << ", right_map_c0 = " << right_map_c0_;
+  HLOG_DEBUG << "left_lane_err = " << width_diff.first
+             << ", right_lane_err = " << width_diff.second;
   // 仅仅使用定位自己的故障进行降级
   if (only_using_locationself_err) {
     width_diff.first = 0.0;
@@ -889,7 +889,7 @@ bool MapSelectLite::MatchPerceLaneAndFusionLane(
   // }
   // const double start_s = pnc_map->GetADCWaypoint().s;
   double lane_length = curr_lane->total_length();
-  // HLOG_INFO << "lane_length: " << lane_length << " , view_range: " <<
+  // HLOG_DEBUG << "lane_length: " << lane_length << " , view_range: " <<
   // view_range
   //           << " , lane id: " << curr_lane->lane().id().id();
   AddMapPoints(&fusion_map_left_points, &fusion_map_right_points, curr_lane,
@@ -906,7 +906,7 @@ bool MapSelectLite::MatchPerceLaneAndFusionLane(
     }
 
     auto lane_id = next_lane->lane().successor_id().at(0);
-    HLOG_INFO << " success lane id: " << lane_id.id();
+    HLOG_DEBUG << " success lane id: " << lane_id.id();
     next_lane = GLOBAL_HD_MAP->GetLaneById(lane_id);
     if (next_lane == nullptr) {
       break;
@@ -914,16 +914,16 @@ bool MapSelectLite::MatchPerceLaneAndFusionLane(
     AddMapPoints(&fusion_map_left_points, &fusion_map_right_points, next_lane,
                  pose);
     lane_length += next_lane->total_length();
-    HLOG_INFO << "add lane length:" << next_lane->total_length()
-              << " , total lane length: " << lane_length;
+    HLOG_DEBUG << "add lane length:" << next_lane->total_length()
+               << " , total lane length: " << lane_length;
     add_lane_size++;
   }
-  HLOG_INFO << "left_point_size: " << fusion_map_left_points.size()
-            << " , add_lane_size: " << add_lane_size;
+  HLOG_DEBUG << "left_point_size: " << fusion_map_left_points.size()
+             << " , add_lane_size: " << add_lane_size;
   int i = 0;
   for (const auto point : fusion_map_left_points) {
-    HLOG_INFO << "fusion_map_left_points[" << i << "].x " << point.x()
-              << "  y:" << point.y();
+    HLOG_DEBUG << "fusion_map_left_points[" << i << "].x " << point.x()
+               << "  y:" << point.y();
     i++;
   }
 
@@ -945,8 +945,8 @@ bool MapSelectLite::MatchPerceLaneAndFusionLane(
   }
   int z = 0;
   for (const auto point : left_bus_bound_points) {
-    HLOG_INFO << "left_bus_bound_points[" << z << "].x " << point.x()
-              << "  y:" << point.y();
+    HLOG_DEBUG << "left_bus_bound_points[" << z << "].x " << point.x()
+               << "  y:" << point.y();
     z++;
   }
 
@@ -955,17 +955,17 @@ bool MapSelectLite::MatchPerceLaneAndFusionLane(
       CheckerDistance(right_bus_bound_points, ego_right_lane_);
 
   // speed * kMinDeltaTm 容忍车道线最多比需求的短0.3s
-  HLOG_INFO << "speed: " << speed << "left_view_range:" << left_view_range
-            << "left_bus_bound_points.back().x():"
-            << left_bus_bound_points.back().x()
-            << "right_view_range:" << right_view_range
-            << "fusion_map_right_points.back().x():"
-            << fusion_map_right_points.back().x();
+  HLOG_DEBUG << "speed: " << speed << "left_view_range:" << left_view_range
+             << "left_bus_bound_points.back().x():"
+             << left_bus_bound_points.back().x()
+             << "right_view_range:" << right_view_range
+             << "fusion_map_right_points.back().x():"
+             << fusion_map_right_points.back().x();
 
-  HLOG_INFO << "ego_left_lane_ end_point_x(): "
-            << ego_left_lane_.lane_param().cubic_curve_set(0).end_point_x()
-            << "start point x"
-            << ego_left_lane_.lane_param().cubic_curve_set(0).start_point_x();
+  HLOG_DEBUG << "ego_left_lane_ end_point_x(): "
+             << ego_left_lane_.lane_param().cubic_curve_set(0).end_point_x()
+             << "start point x"
+             << ego_left_lane_.lane_param().cubic_curve_set(0).start_point_x();
   const bool left_match_prerequisite =
       match_prerequisite && speed > 10.0 &&
       left_view_range + speed * kMinDeltaTm > max_lanemarker_dis &&
@@ -974,9 +974,9 @@ bool MapSelectLite::MatchPerceLaneAndFusionLane(
       match_prerequisite && speed > 10.0 &&
       right_view_range + speed * kMinDeltaTm > max_lanemarker_dis &&
       right_bus_bound_points.back().x() > right_view_range;
-  HLOG_INFO << "left_match_prerequisite: " << left_match_prerequisite
-            << " , right_match_prerequisite: " << right_match_prerequisite
-            << " , match_prerequisite: " << match_prerequisite;
+  HLOG_DEBUG << "left_match_prerequisite: " << left_match_prerequisite
+             << " , right_match_prerequisite: " << right_match_prerequisite
+             << " , match_prerequisite: " << match_prerequisite;
 
   // left match state
   if (left_match_state_ == 0) {
@@ -989,7 +989,7 @@ bool MapSelectLite::MatchPerceLaneAndFusionLane(
     if (std::get<0>(left_dis) < check_dis) {
       left_check_dis_count_++;
     }
-    HLOG_INFO << " left_match_state_count: " << left_match_state_count_;
+    HLOG_DEBUG << " left_match_state_count: " << left_match_state_count_;
     if (!left_match_prerequisite || left_check_dis_count_ > 3 ||
         std::get<1>(left_dis) > max_lanemarker_dis ||
         std::get<1>(left_dis) <
@@ -1024,7 +1024,7 @@ bool MapSelectLite::MatchPerceLaneAndFusionLane(
       right_check_dis_count_++;
     }
     right_match_state_count_++;
-    HLOG_INFO << " right_match_state_count: " << right_match_state_count_;
+    HLOG_DEBUG << " right_match_state_count: " << right_match_state_count_;
     if (!right_match_prerequisite || right_check_dis_count_ > 3 ||
         std::get<1>(right_dis) > max_lanemarker_dis ||
         std::get<1>(right_dis) <
@@ -1049,8 +1049,8 @@ bool MapSelectLite::MatchPerceLaneAndFusionLane(
     }
   }
 
-  HLOG_INFO << "--------left_match_state: " << left_match_state_
-            << " , right_match_state: " << right_match_state_;
+  HLOG_DEBUG << "--------left_match_state: " << left_match_state_
+             << " , right_match_state: " << right_match_state_;
   return left_match_state_ != 2 && right_match_state_ != 2;
 }
 
@@ -1369,7 +1369,7 @@ std::tuple<double, double, double> MapSelectLite::CheckerDistance(
     auto bus_point = map_bound_points[i];
     auto y = CalculateLanemarkerY(bus_point.x(), lane_attribute);
     double delta_y = std::fabs(bus_point.y() - y);
-    // HLOG_INFO << " bus_bound_points[" << index << "] x: " << bus_point.x()
+    // HLOG_DEBUG << " bus_bound_points[" << index << "] x: " << bus_point.x()
     //           << " , map_y: " << bus_point.y() << " ,lane_y: " << y
     //           << " , delta_y: " << delta_y;
     if (delta_y > kCheckErr && is_check_match) {
@@ -1390,7 +1390,7 @@ std::tuple<double, double, double> MapSelectLite::CheckerDistance(
     }
     index++;
   }
-  // HLOG_INFO << "left_map_match_x: " << left_map_match_x
+  // HLOG_DEBUG << "left_map_match_x: " << left_map_match_x
   //           << " , left_diff_x: " << left_diff_x
   //           << " , left_check_start_x: " << left_check_start_x;
   return {left_map_match_x, left_diff_x, left_check_start_x};
@@ -1534,8 +1534,8 @@ bool MapSelectLite::GetU32BitByIndex(const uint32_t input,
   return (input >> index) & 0x1;
 }
 hozon::navigation_hdmap::MapMsg_MapType MapSelectLite::GetMapTypeByRoadType() {
-  HLOG_INFO << "road_type: "
-            << hozon::hdmap::Road::Type_Name(current_road_type_);
+  HLOG_DEBUG << "road_type: "
+             << hozon::hdmap::Road::Type_Name(current_road_type_);
   if (hozon::hdmap::Road::Type::Road_Type_HIGHWAY == current_road_type_ ||
       hozon::hdmap::Road::Type::Road_Type_CITY_HIGHWAY == current_road_type_) {
     return hozon::navigation_hdmap::MapMsg_MapType_FUSION_NNP_MAP;
@@ -1656,9 +1656,11 @@ bool MapSelectLite::PercepMapAvailable(
   bool valid_local_loc = CheckLocalLoc(local_loc);
   bool valid_percep_map = CheckMapMsg(map, local_loc, valid_local_loc, false);
   bool available = valid_local_loc && valid_percep_map;
-  HLOG_INFO << "local_loc " << (valid_local_loc ? "valid" : "invalid")
-            << ", percep_map " << (valid_percep_map ? "valid" : "invalid")
-            << ", percep_map " << (available ? "available" : "unavailable");
+  if (!available) {
+    HLOG_INFO << "local_loc " << (valid_local_loc ? "valid" : "invalid")
+              << ", percep_map " << (valid_percep_map ? "valid" : "invalid")
+              << ", percep_map " << (available ? "available" : "unavailable");
+  }
   return available;
 }
 
@@ -1671,10 +1673,12 @@ bool MapSelectLite::FusionMapAvailable(
   bool valid_fusion_map =
       CheckMapMsg(map, local_loc, valid_local_loc && valid_global_loc, true);
   bool available = valid_local_loc && valid_global_loc && valid_fusion_map;
-  HLOG_INFO << "local_loc " << (valid_local_loc ? "valid" : "invalid")
-            << ", global_loc " << (valid_global_loc ? "valid" : "invalid")
-            << ", fusion_map " << (valid_fusion_map ? "valid" : "invalid")
-            << ", fusion_map " << (available ? "available" : "unavailable");
+  if (!available) {
+    HLOG_INFO << "local_loc " << (valid_local_loc ? "valid" : "invalid")
+              << ", global_loc " << (valid_global_loc ? "valid" : "invalid")
+              << ", fusion_map " << (valid_fusion_map ? "valid" : "invalid")
+              << ", fusion_map " << (available ? "available" : "unavailable");
+  }
   return available;
 }
 

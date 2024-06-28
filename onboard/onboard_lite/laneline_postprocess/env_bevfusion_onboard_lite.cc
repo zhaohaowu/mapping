@@ -71,6 +71,7 @@ int32_t EnvBevfusionOnboard::AlgInit() {
 void EnvBevfusionOnboard::AlgRelease() {}
 // // 状态机行泊信号
 int32_t EnvBevfusionOnboard::OnRunningMode(adf_lite_Bundle* input) {
+  static int running_mode_count = 0;
   auto rm_msg = input->GetOne("running_mode");
   if (rm_msg == nullptr) {
     HLOG_ERROR << "nullptr rm_msg plugin";
@@ -104,10 +105,21 @@ int32_t EnvBevfusionOnboard::OnRunningMode(adf_lite_Bundle* input) {
     }
     // HLOG_DEBUG << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
   }
+
+  ++running_mode_count;
+  if (running_mode_count >= 100) {
+    running_mode_count = 0;
+    HLOG_INFO << "on running model heartbeat";
+  }
   return 0;
 }
 int32_t EnvBevfusionOnboard::ReceiveDr(adf_lite_Bundle* input) {
-  HLOG_DEBUG << "*** RECEIVE DR DATA ***";
+  static int running_mode_count = 0;
+  ++running_mode_count;
+  if (running_mode_count >= 100) {
+    running_mode_count = 0;
+    HLOG_INFO << " * **RECEIVE DR DATA * **";
+  }
 
   auto dr_msg = input->GetOne("dr");
   if (dr_msg == nullptr) {
@@ -126,9 +138,9 @@ int32_t EnvBevfusionOnboard::ReceiveDr(adf_lite_Bundle* input) {
 }
 
 int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
-  HLOG_DEBUG << "EnvBevfusionOnboard LaneProcess start!!!";
+  HLOG_INFO << "LaneLine PostProcess Lite start!!!";
   if (nullptr == input) {
-    HLOG_ERROR << "input is nullptr.";
+    HLOG_ERROR << "input bundle is nullptr.";
     return -1;
   }
 
@@ -184,7 +196,7 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
       ts, data_msg->measurement_frame->lanelines_measurement_->lanelines);
 
   // 车道线后处理和结果转换
-  HLOG_DEBUG << "do laneline postprocess...";
+  HLOG_INFO << "do laneline postprocess...";
   if (!lane_postprocessor_) {
     HLOG_ERROR << "lane_postprocessor_ is nullptr";
     return -1;
@@ -202,7 +214,7 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
   }
 
   // 路沿后处理和结果转换
-  HLOG_DEBUG << "do roadedge_postprocess...";
+  HLOG_INFO << "do roadedge_postprocess...";
   if (!roadedge_postprocessor_) {
     HLOG_ERROR << "roadedge_postprocessor_ is nullptr";
     return -1;
@@ -250,7 +262,7 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
   lane_node_bundle.Add("percep_transport", EnvDataPtr);
   SendOutput(&lane_node_bundle);
 
-  HLOG_DEBUG << "EnvBevfusionOnboard LaneProcess End...";
+  HLOG_INFO << "LaneLine PostProcess Lite End...";
   return 0;
 }
 

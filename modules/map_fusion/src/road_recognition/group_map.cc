@@ -901,7 +901,7 @@ bool GroupMap::AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
       angel_thresh = 10;
       dis_thresh = 3;
     } else {
-      angel_thresh = 18;
+      angel_thresh = 25;
       dis_thresh = 1.5;
     }
     float dis = CalculatePoint2CenterLine(lane_in_next, lane_in_curr);
@@ -982,7 +982,7 @@ bool GroupMap::AreLaneConnect(
       angel_thresh = 10;
       dis_thresh = 3;
     } else {
-      angel_thresh = 18;
+      angel_thresh = 25;
       dis_thresh = 1.5;
     }
     float dis = CalculatePoint2CenterLine(lane_in_next, lane_in_curr);
@@ -1651,7 +1651,7 @@ void GroupMap::FindSatisefyNextLane(Group::Ptr next_group,
       int32_t left = atoi(his_lane.substr(0, index).c_str());
       int32_t right = atoi(his_lane.substr(index + 1).c_str());
       for (auto& lane_ : next_group->lanes) {
-        if (LineIdConsistant(lane_->left_boundary, left) ||
+        if (LineIdConsistant(lane_->left_boundary, left) &&
             LineIdConsistant(lane_->right_boundary, right)) {
           satisfy_next_lane->emplace_back(lane_);
         }
@@ -1691,7 +1691,7 @@ void GroupMap::FindSatisefyNextLane(Group::Ptr next_group,
     }
     if (!exist) {
       for (auto& lane_ : next_group->lanes) {
-        if (LineIdConsistant(lane_->left_boundary, left) ||
+        if (LineIdConsistant(lane_->left_boundary, left) &&
             LineIdConsistant(lane_->right_boundary, right)) {
           satisfy_next_lane->emplace_back(lane_);
         }
@@ -3488,6 +3488,20 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
   //   for(size_t i = 0; i < groups.size()-2; i++){
   //   }
   // }
+  // for (auto& grp : *groups) {
+  //   HLOG_INFO << "grp name is " << grp->str_id;
+  //   for (auto lane : grp->lanes) {
+  //     HLOG_INFO << "lane name is " << lane->str_id_with_group;
+  //     HLOG_INFO << "lane left neighbor lanes are ";
+  //     for (auto lane_left : lane->left_lane_str_id_with_group) {
+  //       HLOG_INFO << lane_left;
+  //     }
+  //     HLOG_INFO << "lane right neighbor lanes are ";
+  //     for (auto lane_right : lane->right_lane_str_id_with_group) {
+  //       HLOG_INFO << lane_right;
+  //     }
+  //   }
+  // }
   // 删除空的group数据
   int before_remove_grp_nums = groups->size();
   RemoveNullGroup(groups);
@@ -3821,8 +3835,114 @@ void GroupMap::VirtualLaneLeftRight(Group::Ptr curr_group,
       lane_next->right_lane_str_id_with_group.emplace_back(right_lane_next_id);
     }
   }
+
+  // 存在少变多场景，导致误删左右邻。青鸾问题:1232877
+  if (next_group->lanes.size() > 1) {
+    std::vector<int> next_group_lanes;  // lane对应group的下标
+    for (auto& lane : next_group->lanes) {
+      // HLOG_INFO << "lane->str_id is " << lane->str_id
+      //           << "  next_group->str_id is " << next_group->str_id;
+      if (next_group->str_id.find(lane->str_id) < next_group->str_id.length()) {
+        // int index = next_group->str_id.find(lane->str_id);
+        // HLOG_INFO << "lane->str_id is " << lane->str_id
+        //           << "  next_group->str_id is " << next_group->str_id
+        //           << "  index = " << index;
+        next_group_lanes.emplace_back(next_lane_index[lane->str_id_with_group]);
+      }
+    }
+    if (next_group_lanes.empty()) {
+      return;
+    }
+    for (int i = 0; i < next_group_lanes.size(); i++) {
+      int cur_lane_index = next_group_lanes[i];
+      if (cur_lane_index >= next_group->lanes.size()) {
+        continue;
+      }
+      for (int j = i + 1; j < next_group_lanes.size(); ++j) {
+        int right_lane_inex = next_group_lanes[j];
+        if (right_lane_inex >= next_group->lanes.size()) {
+          continue;
+        }
+        bool exist = IsRightLane(next_group, cur_lane_index, right_lane_inex);
+
+        if (!exist) {
+          next_group->lanes[cur_lane_index]
+              ->right_lane_str_id_with_group.emplace_back(
+                  next_group->lanes[right_lane_inex]->str_id_with_group);
+          next_group->lanes[right_lane_inex]
+              ->left_lane_str_id_with_group.emplace_back(
+                  next_group->lanes[cur_lane_index]->str_id_with_group);
+        }
+      }
+    }
+    // 由于补全的车道都添加在group->lanes的后面，所以直接从后面找
+    for (int i = next_group_lanes.back() + 1; i < next_group->lanes.size();
+         ++i) {
+      int index =
+          next_group_lanes
+              .size();  // 补全的lane相对与实际lane所在的index，物理意义：实际从下标index开始的lane的左边
+      for (int j = 0; j < next_group_lanes.size(); ++j) {
+        int cur_lane_index = next_group_lanes[j];
+        bool exist_left = IsLeftLane(next_group, cur_lane_index, i);
+
+        if (exist_left) {
+          index = j;
+          break;
+        }
+      }
+      // 将这根虚拟道next_group->lanes[i]，添加到其左边的右邻
+      for (int j = 0; j < index; ++j) {
+        int cur_lane_index = next_group_lanes[j];
+        bool exist_right =
+            IsRightLane(next_group, cur_lane_index, i);  // 是否已经存在右邻
+        if (!exist_right) {
+          next_group->lanes[cur_lane_index]
+              ->right_lane_str_id_with_group.emplace_back(
+                  next_group->lanes[i]->str_id_with_group);
+          next_group->lanes[i]->left_lane_str_id_with_group.emplace_back(
+              next_group->lanes[cur_lane_index]->str_id_with_group);
+        }
+      }
+      // 将这根虚拟道next_group->lanes[i]，添加到其右边的左邻
+      for (int j = index; j < next_group_lanes.size(); ++j) {
+        int cur_lane_index = next_group_lanes[j];
+        bool exist_left =
+            IsLeftLane(next_group, cur_lane_index, i);  // 是否已经存在左邻
+        if (!exist_left) {
+          next_group->lanes[cur_lane_index]
+              ->left_lane_str_id_with_group.emplace_back(
+                  next_group->lanes[i]->str_id_with_group);
+          next_group->lanes[i]->right_lane_str_id_with_group.emplace_back(
+              next_group->lanes[cur_lane_index]->str_id_with_group);
+        }
+      }
+    }
+  }
+}
+bool GroupMap::IsRightLane(Group::Ptr next_group, int cur_lane_index,
+                           int right_lane_inex) {
+  for (auto right_lane_name :
+       next_group->lanes[cur_lane_index]->right_lane_str_id_with_group) {
+    if (right_lane_name ==
+        next_group->lanes[right_lane_inex]->str_id_with_group) {
+      return true;
+      break;
+    }
+  }
+  return false;
 }
 
+bool GroupMap::IsLeftLane(Group::Ptr next_group, int cur_lane_index,
+                          int left_lane_index) {
+  for (auto left_lane_name :
+       next_group->lanes[cur_lane_index]->left_lane_str_id_with_group) {
+    if (left_lane_name ==
+        next_group->lanes[left_lane_index]->str_id_with_group) {
+      return true;
+    }
+  }
+  return false;
+}
 bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
   // 从前往后
   if (groups->size() < 2) {
@@ -4004,8 +4124,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
                 lane_in_next->right_boundary->id) {
           is_any_next_lane_exit = true;
           next_lane_exit = true;
-          // HLOG_ERROR << "the prev lane is "
-          //            << lane_in_curr->str_id_with_group;
+          // HLOG_ERROR << "the prev lane is " <<
+          // lane_in_curr->str_id_with_group;
           lane_in_next->prev_lane_str_id_with_group.emplace_back(
               lane_in_curr->str_id_with_group);
           if (lane_in_curr->center_line_param.empty()) {
@@ -4023,7 +4143,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
           next_lane_exit = true;
           lane_in_next->prev_lane_str_id_with_group.emplace_back(
               lane_in_curr->str_id_with_group);
-          // HLOG_ERROR << "the prev lane is "
+          // HLOG_ERROR << "the prev lane is " <<
+          // lane_in_curr->str_id_with_group; HLOG_ERROR << "the prev lane is "
           //            << lane_in_curr->str_id_with_group;
           // if (lane_in_curr->center_line_param.empty()) {
           //   lane_in_curr->center_line_param =
@@ -4057,10 +4178,11 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
           (curr_group->group_segments.back()->end_slice.po -
            next_group->group_segments.front()->start_slice.po)
               .norm();
+      // HLOG_INFO << "max_length_lane = " << max_length_lane;
       if (((IsInGroupAndNoLane(curr_group) && max_length_lane <= 50.0) ||
            max_length_lane <= 15.0) &&
           !is_all_next_lane_exit && group_distance < 10.0) {
-        HLOG_DEBUG << " is connect";
+        // HLOG_INFO << " is connect";
         BuildVirtualLaneBefore(curr_group, next_group);
         // groups->erase(groups->begin() + i - 1);
       }
@@ -5190,6 +5312,7 @@ bool GroupMap::DistanceInferenceLane(const LineSegment& left_line,
 void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
                                      Group::Ptr next_group) {
   for (auto& lane_in_curr : curr_group->lanes) {
+    // HLOG_INFO << "lane_in_curr name is " << lane_in_curr->str_id_with_group;
     if (lane_in_curr->next_lane_str_id_with_group.empty()) {
       Lane lane_pre;
       LineSegment left_bound;
@@ -5236,9 +5359,10 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
       //            << lane_in_curr->right_boundary->id_next;
       // 判断现有的line是否已经存在
       int left_bound_exist = 0, right_bound_exist = 0;
+      int same_id = 0;  // 是否有左右边线trackid一致
       for (auto& lane_in_next : next_group->lanes) {
         if (lane_in_next->left_boundary->id ==
-                lane_in_curr->left_boundary->id_next &&
+                lane_in_curr->left_boundary->id &&
             !lane_in_next->left_boundary->pts.empty() &&
             lane_in_next->left_boundary->pts[0].type == gm::RAW) {
           // left_bound = *(lane_in_next->left_boundary);
@@ -5251,9 +5375,10 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
                          line_pt.pt.z());
             left_bound.pts.emplace_back(pt_pre);
           }
+          same_id = 1;
           left_bound_exist = 1;
         } else if (lane_in_next->right_boundary->id ==
-                       lane_in_curr->left_boundary->id_next &&
+                       lane_in_curr->left_boundary->id &&
                    !lane_in_next->right_boundary->pts.empty() &&
                    lane_in_next->right_boundary->pts[0].type == gm::RAW) {
           // left_bound = *(lane_in_next->right_boundary);
@@ -5266,9 +5391,10 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
                          line_pt.pt.z());
             left_bound.pts.emplace_back(pt_pre);
           }
+          same_id = 1;
           left_bound_exist = 1;
         } else if (lane_in_next->left_boundary->id ==
-                       lane_in_curr->right_boundary->id_next &&
+                       lane_in_curr->right_boundary->id &&
                    !lane_in_next->left_boundary->pts.empty() &&
                    lane_in_next->left_boundary->pts[0].type == gm::RAW) {
           // right_bound = *(lane_in_next->left_boundary);
@@ -5281,9 +5407,10 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
                          line_pt.pt.z());
             right_bound.pts.emplace_back(pt_pre);
           }
+          same_id = 1;
           right_bound_exist = 1;
         } else if (lane_in_next->right_boundary->id ==
-                       lane_in_curr->right_boundary->id_next &&
+                       lane_in_curr->right_boundary->id &&
                    !lane_in_next->right_boundary->pts.empty() &&
                    lane_in_next->right_boundary->pts[0].type == gm::RAW) {
           // right_bound = *(lane_in_next->right_boundary);
@@ -5296,9 +5423,78 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
                          line_pt.pt.z());
             right_bound.pts.emplace_back(pt_pre);
           }
+          same_id = 1;
           right_bound_exist = 1;
         }
       }
+      if (same_id == 0) {
+        for (auto& lane_in_next : next_group->lanes) {
+          if (lane_in_next->left_boundary->id ==
+                  lane_in_curr->left_boundary->id_next &&
+              !lane_in_next->left_boundary->pts.empty() &&
+              lane_in_next->left_boundary->pts[0].type == gm::RAW) {
+            // left_bound = *(lane_in_next->left_boundary);
+            // FillLineSegment(lane_in_next->left_boundary, &left_bound);
+            for (auto& line_pt : lane_in_next->left_boundary->pts) {
+              if (line_pt.type != gm::RAW) {
+                break;
+              }
+              Point pt_pre(gm::RAW, line_pt.pt.x(), line_pt.pt.y(),
+                           line_pt.pt.z());
+              left_bound.pts.emplace_back(pt_pre);
+            }
+            left_bound_exist = 1;
+          } else if (lane_in_next->right_boundary->id ==
+                         lane_in_curr->left_boundary->id_next &&
+                     !lane_in_next->right_boundary->pts.empty() &&
+                     lane_in_next->right_boundary->pts[0].type == gm::RAW) {
+            // left_bound = *(lane_in_next->right_boundary);
+            // FillLineSegment(lane_in_next->right_boundary, &left_bound);
+            for (auto& line_pt : lane_in_next->right_boundary->pts) {
+              if (line_pt.type != gm::RAW) {
+                break;
+              }
+              Point pt_pre(gm::RAW, line_pt.pt.x(), line_pt.pt.y(),
+                           line_pt.pt.z());
+              left_bound.pts.emplace_back(pt_pre);
+            }
+            left_bound_exist = 1;
+          } else if (lane_in_next->left_boundary->id ==
+                         lane_in_curr->right_boundary->id_next &&
+                     !lane_in_next->left_boundary->pts.empty() &&
+                     lane_in_next->left_boundary->pts[0].type == gm::RAW) {
+            // right_bound = *(lane_in_next->left_boundary);
+            // FillLineSegment(lane_in_next->left_boundary, &right_bound);
+            for (auto& line_pt : lane_in_next->left_boundary->pts) {
+              if (line_pt.type != gm::RAW) {
+                break;
+              }
+              Point pt_pre(gm::RAW, line_pt.pt.x(), line_pt.pt.y(),
+                           line_pt.pt.z());
+              right_bound.pts.emplace_back(pt_pre);
+            }
+            right_bound_exist = 1;
+          } else if (lane_in_next->right_boundary->id ==
+                         lane_in_curr->right_boundary->id_next &&
+                     !lane_in_next->right_boundary->pts.empty() &&
+                     lane_in_next->right_boundary->pts[0].type == gm::RAW) {
+            // right_bound = *(lane_in_next->right_boundary);
+            // FillLineSegment(lane_in_next->right_boundary, &right_bound);
+            for (auto& line_pt : lane_in_next->right_boundary->pts) {
+              if (line_pt.type != gm::RAW) {
+                break;
+              }
+              Point pt_pre(gm::RAW, line_pt.pt.x(), line_pt.pt.y(),
+                           line_pt.pt.z());
+              right_bound.pts.emplace_back(pt_pre);
+            }
+            right_bound_exist = 1;
+          }
+        }
+      }
+
+      // HLOG_INFO << "left_bound_exist " << left_bound_exist
+      //           << "  right_bound_exist  " << right_bound_exist;
       if (left_bound_exist == 1 && right_bound_exist == 1 &&
           (!DistanceInferenceLane(left_bound, right_bound))) {
         return;
@@ -5341,6 +5537,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           left_index++;
         }
         if (!BoundaryIsValid(right_bound)) {
+          HLOG_INFO << "boundary not valid";
           continue;
         }
         if (right_bound.pts.empty()) {
@@ -5386,6 +5583,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           right_index++;
         }
         if (!BoundaryIsValid(left_bound)) {
+          HLOG_INFO << "boundary not valid";
           continue;
         }
         if (left_bound.pts.empty()) {
@@ -5465,7 +5663,14 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
       Lane::Ptr lane_ptr = std::make_shared<Lane>(lane_pre);
       FitCenterLine(lane_ptr);
       if (lane_ptr->center_line_param.empty()) {
-        lane_ptr->center_line_param = lane_in_curr->center_line_param;
+        // lane_ptr->center_line_para_line_pts.size() = "
+        //            << lane_pre.center_line_pts.size() << "   "
+        //            << lane_ptr->center_line_pts.size()
+        //            << "  lane_pre.left_boundary = "
+        //            << lane_pre.left_boundary->pts.size()
+        //            << "  lane_pre.right_boundary = "
+        //            << lane_pre.right_boundary->pm =
+        //            lane_in_curr->center_line_param;
       }
       if (lane_ptr->center_line_param_front.empty()) {
         lane_ptr->center_line_param_front = lane_in_curr->center_line_param;

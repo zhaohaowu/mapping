@@ -478,6 +478,11 @@ class GroupMap {
       float dist_to_next_group_slice);
   void BuildVirtualGroup2(std::vector<Lane::Ptr> virtual_lanes,
                           std::vector<Group::Ptr>* group_virtual, double stamp);
+  bool IsLeftLane(Group::Ptr next_group, int cur_lane_index,
+                  int left_lane_index);
+  bool IsRightLane(Group::Ptr next_group, int cur_lane_index,
+                   int right_lane_inex);
+
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;
   std::map<em::Id, Arrow::Ptr> arrow_;

@@ -26,6 +26,7 @@
 #include "map_fusion/fusion_common/element_map.h"
 #include "map_fusion/map_prediction/viz_map.h"
 #include "map_fusion/map_service/global_hd_map.h"
+#include "third_party/orin/gflags/include/gflags/gflags.h"
 #include "util/mapping_log.h"
 #include "util/tic_toc.h"
 
@@ -34,6 +35,7 @@
 using hozon::common::math::Vec2d;
 
 DEFINE_bool(road_recognition_rviz, false, "road recognition use rviz or not");
+DEFINE_int32(virtual_line_id, 2000, "the virtual line id");
 
 namespace hozon {
 namespace mp {
@@ -60,6 +62,7 @@ int GeoOptimization::Init() {
         KTopicRoadRecognitionTopoMapLane, KTopicRoadRecognitionElementMap,
         KTopicRoadRecognitionLineLable};
     ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(topic_vec);
+    extra_val_ = FLAGS_virtual_line_id;
   }
   elem_map_ = std::make_shared<hozon::mp::mf::em::ElementMap>();
   local_map_ = std::make_shared<hozon::mapping::LocalMap>();
@@ -2610,7 +2613,6 @@ void GeoOptimization::MakeRoadEdgeToLaneLine() {
     return;
   }
   // 存储路沿(自车左右)
-  std::vector<std::vector<Eigen::Vector3d>> new_lines;
   for (const auto& road : local_map_->road_edges()) {
     if (road.lanepos() == -1 || road.lanepos() == 1) {
       std::vector<Eigen::Vector3d> road_pts;
@@ -2618,42 +2620,13 @@ void GeoOptimization::MakeRoadEdgeToLaneLine() {
         Eigen::Vector3d point(pt.x(), pt.y(), pt.z());
         road_pts.emplace_back(point);
       }
-      CompareRoadAndLines(road_pts, &new_lines);
+      CompareRoadAndLines(road_pts, road.track_id());
     }
-  }
-  if (new_lines.empty()) {
-    return;
-  }
-  // ConstructLaneLine(new_lines);
-  for (const auto& line : new_lines) {
-    auto* new_line = local_map_use_->add_lane_lines();
-    for (const auto& pt : line) {
-      auto* new_pt = new_line->add_points();
-      new_pt->set_x(pt.x());
-      new_pt->set_y(pt.y());
-      new_pt->set_z(pt.z());
-    }
-
-    new_line->set_lanepos(
-        static_cast<hozon::mapping::LanePositionType>(extra_val));
-    new_line->set_track_id(extra_val);
-    new_line->set_color(static_cast<hozon::mapping::Color>(1));
-    new_line->set_lanetype(static_cast<hozon::mapping::LaneType>(1));
-
-    // 更新哈希表
-    local_line_info local_line;
-    local_line.line_track_id = extra_val;
-    local_line.local_line_pts = line;
-    local_line.lane_pos =
-        static_cast<hozon::mapping::LanePositionType>(extra_val);
-    local_line_table_.insert_or_assign(extra_val, local_line);
-    extra_val++;
   }
 }
 
 void GeoOptimization::CompareRoadAndLines(
-    const std::vector<Eigen::Vector3d>& road_pts,
-    std::vector<std::vector<Eigen::Vector3d>>* new_lines) {
+    const std::vector<Eigen::Vector3d>& road_pts, const int& road_id) {
   // 比较路沿和车道线
   hozon::mapping::LaneLine target_line;
   double min_dis = std::numeric_limits<double>::max();
@@ -2682,11 +2655,31 @@ void GeoOptimization::CompareRoadAndLines(
     HLOG_DEBUG << "road and line min distance < 2m or > 5.5m";
     return;
   }
-  if (target_line.lanetype() != em::LineType::LaneType_DASHED) {
-    HLOG_DEBUG << "the line type is not dashed";
-    return;
+  // if (target_line.lanetype() != em::LineType::LaneType_DASHED) {
+  //   HLOG_DEBUG << "the line type is not dashed";
+  //   return;
+  // }
+  auto* new_line = local_map_use_->add_lane_lines();
+  for (const auto& pt : road_pts) {
+    auto* new_pt = new_line->add_points();
+    new_pt->set_x(pt.x());
+    new_pt->set_y(pt.y());
+    new_pt->set_z(pt.z());
   }
-  new_lines->emplace_back(road_pts);
+  auto new_track_id = road_id + 1000;
+  new_line->set_lanepos(
+      static_cast<hozon::mapping::LanePositionType>(new_track_id));
+  new_line->set_track_id(new_track_id);
+  new_line->set_color(static_cast<hozon::mapping::Color>(1));
+  new_line->set_lanetype(static_cast<hozon::mapping::LaneType>(1));
+
+  // 更新哈希表
+  local_line_info local_line;
+  local_line.line_track_id = new_track_id;
+  local_line.local_line_pts = road_pts;
+  local_line.lane_pos =
+      static_cast<hozon::mapping::LanePositionType>(new_track_id);
+  local_line_table_.insert_or_assign(new_track_id, local_line);
 }
 
 void GeoOptimization::ConstructLaneLine(
@@ -2701,8 +2694,8 @@ void GeoOptimization::ConstructLaneLine(
     }
 
     new_line->set_lanepos(
-        static_cast<hozon::mapping::LanePositionType>(extra_val));
-    new_line->set_track_id(extra_val);
+        static_cast<hozon::mapping::LanePositionType>(extra_val_));
+    new_line->set_track_id(extra_val_);
     new_line->set_color(static_cast<hozon::mapping::Color>(1));
     // new_line->set_allocated_lane_param(static_cast<hozon::mapping::LaneCubicSpline>(500));
     // new_line->set_confidence(static_cast<hozon::mapping::LanePositionType>(500));
@@ -2710,12 +2703,12 @@ void GeoOptimization::ConstructLaneLine(
 
     // 更新哈希表
     local_line_info local_line;
-    local_line.line_track_id = extra_val;
+    local_line.line_track_id = extra_val_;
     local_line.local_line_pts = line;
     local_line.lane_pos =
-        static_cast<hozon::mapping::LanePositionType>(extra_val);
-    local_line_table_.insert_or_assign(extra_val, local_line);
-    extra_val++;
+        static_cast<hozon::mapping::LanePositionType>(extra_val_);
+    local_line_table_.insert_or_assign(extra_val_, local_line);
+    extra_val_++;
   }
 }
 
@@ -3393,9 +3386,9 @@ void GeoOptimization::HandleSingleSideLine() {
     }
 
     new_line->set_lanepos(
-        static_cast<hozon::mapping::LanePositionType>(extra_val));
-    new_line->set_track_id(extra_val);
-    extra_val++;
+        static_cast<hozon::mapping::LanePositionType>(extra_val_));
+    new_line->set_track_id(extra_val_);
+    extra_val_++;
     new_line->set_color(static_cast<hozon::mapping::Color>(1));
     // new_line->set_allocated_lane_param(static_cast<hozon::mapping::LaneCubicSpline>(500));
     // new_line->set_confidence(static_cast<hozon::mapping::LanePositionType>(500));
@@ -3474,9 +3467,9 @@ void GeoOptimization::FitSingleSideLine(
     }
 
     new_line->set_lanepos(
-        static_cast<hozon::mapping::LanePositionType>(extra_val));
-    new_line->set_track_id(extra_val);
-    extra_val++;
+        static_cast<hozon::mapping::LanePositionType>(extra_val_));
+    new_line->set_track_id(extra_val_);
+    extra_val_++;
     new_line->set_color(static_cast<hozon::mapping::Color>(1));
     // new_line->set_allocated_lane_param(static_cast<hozon::mapping::LaneCubicSpline>(500));
     // new_line->set_confidence(static_cast<hozon::mapping::LanePositionType>(500));

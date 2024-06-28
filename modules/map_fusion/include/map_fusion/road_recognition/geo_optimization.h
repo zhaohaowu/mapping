@@ -41,6 +41,7 @@
 #include "Eigen/src/Core/Matrix.h"
 #include "map_fusion/map_service/map_proto_maker.h"
 #include "map_fusion/map_service/map_table.h"
+#include "opencv2/core/hal/interface.h"
 #include "util/geo.h"
 #include "util/rviz_agent/rviz_agent.h"
 
@@ -179,7 +180,7 @@ class GeoOptimization {
   // std::shared_ptr<hozon::hdmap::Map> pilot_map_ = nullptr;
   std::map<int, std::vector<Line_kd>> all_lines_;  // 用于存储当前所有line信息
   std::unordered_map<int, local_line_info> local_line_table_;
-  int extra_val = 100;  // 暂时临时这样设定，后面需要整合优化
+  int32_t extra_val_ = 0;  // 暂时临时这样设定，后面需要整合优化
   base_line_info base_line_;
   std::set<int> last_track_id_;  // 记录上一帧不进行跟踪的trackid
   double slope_ = 0.;
@@ -274,7 +275,7 @@ class GeoOptimization {
 
   void CompareRoadAndLines(
       const std::vector<Eigen::Vector3d>& road_pts,
-      std::vector<std::vector<Eigen::Vector3d>>* new_lines);
+      const int& road_id);
 
   void ConstructLaneLine(
       const std::vector<std::vector<Eigen::Vector3d>>& new_lines);

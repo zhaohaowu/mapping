@@ -241,15 +241,20 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
 
 int32_t PoseEstimationLite::OnPoseEstimation(Bundle* input) {
   static int pe_count = 0;
+  static int pe_node_info_count = 0;
   if (input == nullptr) {
     return -1;
   }
   const auto pe_node_info = pose_estimation_->GetMmNodeInfo();
   if (!pe_node_info) {
-    HLOG_WARN << "onboard get pose estimation result error!";
+    ++pe_node_info_count;
+    if (pe_node_info_count >= 10) {
+      HLOG_WARN << "onboard get pose estimation result error!";
+      pe_node_info_count = 0;
+    }
     return -1;
   }
-
+  pe_node_info_count = 0;
   auto pe_workflow = std::make_shared<hozon::netaos::adf_lite::BaseData>();
   pe_workflow->proto_msg = pe_node_info;
   SendOutput(kPoseEstimationTopic, pe_workflow);

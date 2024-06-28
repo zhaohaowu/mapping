@@ -210,7 +210,7 @@ void ESKF::Correct(const Node& cur_meas_data) {
   P_ = (Mat15T::Identity() - K_ * H_) * P_;
   static int count = 0;
   ++count;
-  if (count >= 10) {
+  if (count >= 100) {
     HLOG_INFO << "meas_ticktime: " << cur_meas_data.ticktime
               << ",meas_type: " << X_.meas_type << ",ydiff_pos1:" << y_diff(0)
               << ",ydiff_pos2:" << y_diff(1) << ",ydiff_pos3:" << y_diff(2)

@@ -977,7 +977,7 @@ void FusionCenter::Node2Localization(const Context& ctx,
   location->mutable_mounting_error()->set_z(
       static_cast<float>(global_node.cov(8, 8) * 1e10));
   ++count;
-  if (count >= 50) {
+  if (count >= 100) {
     count = 0;
     HLOG_INFO << "dr_ticktime:" << ticktime
               << ",ESKF_Cov:" << global_node.cov(0, 0) << ", "

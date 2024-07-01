@@ -3430,6 +3430,158 @@ void GroupMap::SmoothCenterline(std::vector<Group::Ptr>* groups) {
     }
   }
 }
+void GroupMap::ErasePrevRelation(Group::Ptr curr_group, int curr_erase_index,
+                                 Group::Ptr next_group, int next_index) {
+  if (next_index < 0 || next_index >= next_group->lanes.size() ||
+      curr_erase_index < 0 || curr_erase_index >= curr_group->lanes.size()) {
+    return;
+  }
+  for (int next_before_index = 0;
+       next_before_index <
+       next_group->lanes[next_index]->prev_lane_str_id_with_group.size();
+       next_before_index++) {
+    if (next_group->lanes[next_index]
+            ->prev_lane_str_id_with_group[next_before_index] ==
+        curr_group->lanes[curr_erase_index]->str_id_with_group) {
+      next_group->lanes[next_index]->prev_lane_str_id_with_group.erase(
+          next_group->lanes[next_index]->prev_lane_str_id_with_group.begin() +
+          next_before_index);
+      return;
+    }
+  }
+}
+
+void GroupMap::EraseSucessorRelation(Group::Ptr curr_group,
+                                     int curr_erase_index,
+                                     Group::Ptr next_group, int next_index) {
+  if (next_index < 0 || next_index >= next_group->lanes.size() ||
+      curr_erase_index < 0 || curr_erase_index >= curr_group->lanes.size()) {
+    return;
+  }
+  for (int curr_next_index = 0;
+       curr_next_index <
+       curr_group->lanes[curr_erase_index]->next_lane_str_id_with_group.size();
+       ++curr_next_index) {
+    if (curr_group->lanes[curr_erase_index]
+            ->next_lane_str_id_with_group[curr_next_index] ==
+        next_group->lanes[next_index]->str_id_with_group) {
+      curr_group->lanes[curr_erase_index]->next_lane_str_id_with_group.erase(
+          curr_group->lanes[curr_erase_index]
+              ->next_lane_str_id_with_group.begin() +
+          curr_next_index);
+      return;
+    }
+  }
+}
+void GroupMap::AvoidSplitMergeLane(std::vector<Group::Ptr>* groups) {
+  //  青鸾号:1209412
+  for (int grp_idx = 0; grp_idx < static_cast<int>(groups->size()) - 2;
+       ++grp_idx) {
+    auto& before_group = groups->at(grp_idx);
+    auto& curr_group = groups->at(grp_idx + 1);
+    auto& next_group = groups->at(grp_idx + 2);
+    std::unordered_map<std::string, int> curr_group_lane_index;
+    std::unordered_map<std::string, int> next_group_lane_index;
+    for (int index_curr_goup_lane = 0;
+         index_curr_goup_lane < curr_group->lanes.size();
+         ++index_curr_goup_lane) {
+      curr_group_lane_index.insert_or_assign(
+          curr_group->lanes[index_curr_goup_lane]->str_id_with_group,
+          index_curr_goup_lane);
+    }
+    for (int index_next_goup_lane = 0;
+         index_next_goup_lane < next_group->lanes.size();
+         ++index_next_goup_lane) {
+      next_group_lane_index.insert_or_assign(
+          next_group->lanes[index_next_goup_lane]->str_id_with_group,
+          index_next_goup_lane);
+    }
+    for (int index_before_group_lane = 0;
+         index_before_group_lane < before_group->lanes.size();
+         ++index_before_group_lane) {
+      if (before_group->lanes[index_before_group_lane]
+              ->next_lane_str_id_with_group.size() > 1) {
+        std::unordered_map<std::string, int> successor_id_and_curr_index;
+        std::unordered_set<int>
+            erase_relate_curr_index;  // 需要被before_group->lanes[index_before_group_lane]删除后继关联的cur_group
+                                      // lane index
+        for (auto& lane_id : before_group->lanes[index_before_group_lane]
+                                 ->next_lane_str_id_with_group) {
+          if (curr_group_lane_index.find(lane_id) !=
+              curr_group_lane_index.end()) {
+            int curr_index = curr_group_lane_index[lane_id];
+            for (auto& lane_next_id :
+                 curr_group->lanes[curr_index]->next_lane_str_id_with_group) {
+              if (next_group_lane_index.find(lane_next_id) !=
+                  next_group_lane_index.end()) {
+                int next_index = next_group_lane_index[lane_next_id];
+                if (successor_id_and_curr_index.find(lane_next_id) !=
+                    successor_id_and_curr_index.end()) {
+                  // 有重合的后继 根据trackid来筛选保留的前后继
+                  if (curr_group->lanes[curr_index]->left_boundary->id ==
+                          before_group->lanes[index_before_group_lane]
+                              ->left_boundary->id ||
+                      curr_group->lanes[curr_index]->right_boundary->id ==
+                          before_group->lanes[index_before_group_lane]
+                              ->right_boundary->id) {
+                    erase_relate_curr_index.insert(
+                        successor_id_and_curr_index[lane_next_id]);
+                    int curr_erase_index =
+                        successor_id_and_curr_index[lane_next_id];
+                    successor_id_and_curr_index[lane_next_id] = curr_index;
+                    ErasePrevRelation(curr_group, curr_erase_index, next_group,
+                                      next_index);
+                    EraseSucessorRelation(curr_group, curr_erase_index,
+                                          next_group, next_index);
+                    ErasePrevRelation(before_group, index_before_group_lane,
+                                      curr_group, curr_erase_index);
+                  } else {
+                    erase_relate_curr_index.insert(curr_index);
+                    ErasePrevRelation(curr_group, curr_index, next_group,
+                                      next_index);
+                    EraseSucessorRelation(curr_group, curr_index, next_group,
+                                          next_index);
+                    ErasePrevRelation(before_group, index_before_group_lane,
+                                      curr_group, curr_index);
+                  }
+                } else {
+                  successor_id_and_curr_index[lane_next_id] = curr_index;
+                }
+              }
+            }
+          }
+        }
+        if (!erase_relate_curr_index.empty()) {
+          std::unordered_set<std::string>
+              erase_relate_curr_id;  // 需要被删除前后继关联的idname
+          for (int i = 0; i < curr_group->lanes.size(); ++i) {
+            if (erase_relate_curr_index.find(i) !=
+                erase_relate_curr_index.end()) {
+              erase_relate_curr_id.insert(
+                  curr_group->lanes[i]->str_id_with_group);
+            }
+          }
+          for (int before_next = 0;
+               before_next < before_group->lanes[index_before_group_lane]
+                                 ->next_lane_str_id_with_group.size();
+               ++before_next) {
+            std::string before_next_name =
+                before_group->lanes[index_before_group_lane]
+                    ->next_lane_str_id_with_group[before_next];
+            if (erase_relate_curr_id.find(before_next_name) !=
+                erase_relate_curr_id.end()) {
+              before_group->lanes[index_before_group_lane]
+                  ->next_lane_str_id_with_group.erase(
+                      before_group->lanes[index_before_group_lane]
+                          ->next_lane_str_id_with_group.begin() +
+                      before_next);
+            }
+          }
+        }
+      }
+    }
+  }
+}
 // 把Group里一个个GroupSegment中包含的小的LaneSegment，纵向上聚合成一个个大的Lane，
 // 并且生成出：左右关联、前后关联、远端预测线、中心线
 void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
@@ -3518,7 +3670,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
     RemainOnlyOneForwardCrossWalk(groups);
     RelateGroups(groups, stamp);
   }
-
+  AvoidSplitMergeLane(groups);
   // 拿车道组和模型路沿来做引导线
   HLOG_DEBUG << "current stamp is:" << std::to_string(stamp);
   std::vector<Point> guide_points;

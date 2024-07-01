@@ -408,7 +408,8 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
         double right_near_point_distance = DOUBLE_MAX;
         V3 map_line_far_point(0, 0, 0);
         V3 map_line_near_point(0, 0, 0);
-        if (fabs(left_dist_near_v) >= mm_params.map_lane_match_diver &&
+        if ((fabs(left_dist_near_v) >= mm_params.map_lane_match_diver ||
+             fabs(left_error) >= mm_params.map_lane_match_diver) &&
             fabs(left_near_check_dist_v) < mm_params.ramp_judg_thre) {
           for (const auto& map_line : left_filtered_fcmap_lines) {
             const auto line_idx = map_line.first;
@@ -438,7 +439,8 @@ void MatchLaneLine::CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
             }
           }
         }
-        if (fabs(right_dist_near_v) >= mm_params.map_lane_match_diver &&
+        if ((fabs(right_dist_near_v) >= mm_params.map_lane_match_diver ||
+             fabs(right_error) >= mm_params.map_lane_match_diver) &&
             fabs(right_near_check_dist_v) < mm_params.ramp_judg_thre) {
           for (const auto& map_line : right_filtered_fcmap_lines) {
             const auto line_idx = map_line.first;

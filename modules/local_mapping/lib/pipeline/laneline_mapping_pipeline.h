@@ -57,6 +57,7 @@ class LaneLineMappingPipeline : public BaseMappingPipeline {
   void RemoveLostTracks();
   void SetIntersectionThreshold();
   void AssginPosition(LaneLinesPtr localmap_frame_ptr);
+  void SetHistoryLaneLinePos(LaneLinesPtr tracked_lanelines);
   void DeleteOutlierLaneLines(std::vector<LaneTrackerPtr>* trackers);
   void LimitTracksNum();
   void SmoothEndPt();

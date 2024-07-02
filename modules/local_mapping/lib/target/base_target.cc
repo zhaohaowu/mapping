@@ -40,6 +40,7 @@ bool LaneTarget::Init(const ProcessOption& options,
   tracked_element_->tracked_count++;
   // 缓存N帧跟踪状态
   lastest_n_tracked_state_.set_capacity(10);
+  history_line_pos_.set_capacity(2);
   return true;
 }
 

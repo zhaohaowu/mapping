@@ -56,6 +56,17 @@ void LaneLineMappingPipeline::AssginPosition(
   if (localmap_laneline_ptr->lanelines.empty()) {
     return;
   }
+  for (auto& track_line : localmap_laneline_ptr->lanelines) {
+    auto track_id = track_line->id;
+    for (const auto& lane_tracker : lane_trackers_) {
+      LaneTargetConstPtr lane_target = lane_tracker->GetConstTarget();
+      if (lane_target->Id() == track_id) {
+        auto tmp_his_pos = lane_target->GetHistoryLinePos();
+        track_line->history_line_pos = lane_target->GetHistoryLinePos();
+        break;
+      }
+    }
+  }
   // set lane pose atrribute
   map_lane_position_manager_->Process(localmap_laneline_ptr);
   lane_position_manager_->Process(localmap_laneline_ptr);
@@ -161,6 +172,8 @@ bool LaneLineMappingPipeline::Process(
 
   // 10.车道线设置POS
   AssginPosition(tracked_lanes);
+
+  SetHistoryLaneLinePos(tracked_lanes);
   // for (const auto& lane : tracked_lanes->lanelines) {
   //   HLOG_INFO << "cam2 lane id:" << lane->id
   //             << " lane pos:" << static_cast<int>(lane->position);
@@ -327,7 +340,7 @@ void LaneLineMappingPipeline::CatmullRomFit(LaneLinesPtr tracked_lanelines) {
   auto euclidean_distance = [](const Eigen::Vector3d& p0,
                                const Eigen::Vector3d& p1) {
     return static_cast<int>(ceil(std::sqrt(std::pow(p0.x() - p1.x(), 2) +
-                                            std::pow(p0.y() - p1.y(), 2))));
+                                           std::pow(p0.y() - p1.y(), 2))));
   };
   for (auto& lanelineptr : tracked_lanelines->lanelines) {
     if (lanelineptr->vehicle_points.size() < 4) {
@@ -489,7 +502,21 @@ bool LaneLineMappingPipeline::DeleteLaneLineShortPart(
   HLOG_WARN << "point_delete_index: " << point_delete_index;
   return true;
 }
-
+void LaneLineMappingPipeline::SetHistoryLaneLinePos(
+    LaneLinesPtr tracked_lanelines) {
+  for (auto& track_line : tracked_lanelines->lanelines) {
+    auto track_id = track_line->id;
+    for (const auto& lane_tracker : lane_trackers_) {
+      LaneTargetPtr lane_target = lane_tracker->GetTarget();
+      if (lane_target->Id() == track_id) {
+        HLOG_DEBUG << " set track_id" << track_id
+                   << " pos:" << static_cast<int>(track_line->position);
+        lane_target->SetHistoryLinePos(track_line);
+        break;
+      }
+    }
+  }
+}
 void LaneLineMappingPipeline::CollectOutputObjects(
     LaneLinesPtr tracked_lanelines) {
   for (const auto& lane_tracker : lane_trackers_) {
@@ -503,7 +530,8 @@ void LaneLineMappingPipeline::CollectOutputObjects(
       HLOG_DEBUG << "LaneTrack NOT OUTPUT!";
       HLOG_DEBUG << "MinningTimestamp: "
                  << std::to_string(output_lane_object->latest_tracked_time)
-                 << " " << "Buffer LaneTarget "
+                 << " "
+                 << "Buffer LaneTarget "
                  << "TrackStatus: " << lane_target->ToStr() << " "
                  << "LaneTrack NOT OUTPUT!";
       // HLOG_INFO << "use_debug_mode_" << use_debug_mode_;

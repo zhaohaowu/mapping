@@ -136,7 +136,20 @@ void MappingPositionManager::SetLaneLinePosition(
     } else {
       d = lane_lines[i]->refer_c0;
     }
-    if (d > 0) {
+    float ref_thresh = 0;
+
+    if ((lane_lines[i]->history_line_pos.size() == 2)) {
+      int first_pos = static_cast<int>(lane_lines[i]->history_line_pos[0]);
+      int sec_pos = static_cast<int>(lane_lines[i]->history_line_pos[1]);
+      HLOG_DEBUG << "first_pos:" << first_pos << " ,sec_pos" << sec_pos;
+      if ((first_pos + sec_pos == 0) && first_pos > 0) {
+        ref_thresh = -0.2;
+
+      } else if ((first_pos + sec_pos == 0) && first_pos < 0) {
+        ref_thresh = 0.2;
+      }
+    }
+    if (d > ref_thresh) {
       left_lane_index.push_back(std::pair<int, float>(i, d));
     } else {
       right_lane_index.push_back(std::pair<int, float>(i, d));
@@ -159,8 +172,12 @@ void MappingPositionManager::SetLaneLinePosition(
     int temp = 0 - i - 1;
     if (kIndex2LanePosMap.count(temp) > 0) {
       lane_lines[lane_index]->position = kIndex2LanePosMap.at(temp);
+      lane_lines[lane_index]->history_line_pos.push_back(
+          lane_lines[lane_index]->position);
     } else {
       lane_lines[lane_index]->position = LaneLinePosition::FOURTH_LEFT;
+      lane_lines[lane_index]->history_line_pos.push_back(
+          lane_lines[lane_index]->position);
     }
   }
 
@@ -170,8 +187,12 @@ void MappingPositionManager::SetLaneLinePosition(
     int temp = i + 1;
     if (kIndex2LanePosMap.count(temp) > 0) {
       lane_lines[lane_index]->position = kIndex2LanePosMap.at(temp);
+      lane_lines[lane_index]->history_line_pos.push_back(
+          lane_lines[lane_index]->position);
     } else {
       lane_lines[lane_index]->position = LaneLinePosition::FOURTH_RIGHT;
+      lane_lines[lane_index]->history_line_pos.push_back(
+          lane_lines[lane_index]->position);
     }
   }
   // for (const auto& lane : lane_lines) {
@@ -214,6 +235,9 @@ void MappingPositionManager::SetReferC0(const LaneLinesPtr& laneline_ptrs) {
     }
     for (auto& point : lane_line->vehicle_points) {
       if (lane_line->vehicle_points.back().x() > 10 && point.x() < 0) {
+        HLOG_DEBUG << "lane_line id:" << lane_line->id
+                   << "lane_line->vehicle_points.back().x():"
+                   << lane_line->vehicle_points.back().x();
         continue;
       }
       double distance = sqrt(point.x() * point.x() + point.y() * point.y());
@@ -256,7 +280,12 @@ void MappingPositionManager::SetReferC0(const LaneLinesPtr& laneline_ptrs) {
       sum_y += dist_points_pairs[0].first.y();
       select_num += 1;
     }
-    avg_y = sum_y / (use_point_num + 0.00001);
+    if (select_num == 0) {
+      avg_y = ref_point.y();
+      select_num = 1;
+      sum_y = avg_y;
+    }
+    avg_y = sum_y / (select_num + 0.00001);
     lane_line->refer_c0 = avg_y;
     HLOG_DEBUG << "cam lane_line id" << lane_line->id
                << ", lane_line->refer_c0:" << lane_line->refer_c0;

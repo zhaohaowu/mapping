@@ -412,7 +412,8 @@ bool TransformLaneLineCurveInNovatel(const LaneLineCurve& curve,
     // Eigen::Vector3d point_old(curve_p, point, 0);
     Eigen::Vector3d point_old(point, curve_p, 0);
     Eigen::Vector3d point_new = transform_matrix * point_old;
-    HLOG_DEBUG << "point x:" << point << "," << "curve y:" << curve_p << ","
+    HLOG_DEBUG << "point x:" << point << ","
+               << "curve y:" << curve_p << ","
                << "x new:" << point_new.x() << ", y new:" << point_new.y();
     float x = point_new.x();
     float x2 = x * x;
@@ -707,21 +708,25 @@ bool LaneLineIntersection(const std::vector<Eigen::Vector3d>& point_set1,
   return false;
 }
 
-float GetOverLayLengthBetweenTwoLane(
+std::pair<double, double> GetOverLayLengthBetweenTwoLane(
     const std::vector<Eigen::Vector3d>& point_set1,
     const std::vector<Eigen::Vector3d>& point_set2, float thresh_length) {
   // 求重叠区域
   double min_x = MAX(point_set1.front().x(), point_set2.front().x());
   double max_x = MIN(point_set1.back().x(), point_set2.back().x());
   std::vector<std::pair<int, double>> point_dist;
-  double length_ovelay = 0;
+  double length_min_ovelay = 0;
   std::vector<double> x_list;
   std::vector<std::vector<double>> all_x_list;
   x_list.clear();
   all_x_list.clear();
+  double sum_dist = 0.0;
+  int total_num_pt = 0;
   // 求重叠区内的最近距离满足阈值的距离之和
   for (int i = 0; i < point_set1.size(); ++i) {
     point_dist.clear();
+    // 判断是否最后一个点
+    bool is_last_point = (i == (point_set1.size() - 1));
     if (point_set1[i].x() < min_x || point_set1[i].x() > max_x) {
       continue;
     }
@@ -729,9 +734,9 @@ float GetOverLayLengthBetweenTwoLane(
       if (point_set2[j].x() < min_x || point_set2[j].x() > max_x) {
         continue;
       }
-      double dist = sqrt(pow((point_set1[i].x() - point_set2[j].x()), 2) +
-                         pow((point_set1[i].y() - point_set2[j].y()), 2));
-      point_dist.emplace_back(std::make_pair(j, dist));
+      double dist_tmp = sqrt(pow((point_set1[i].x() - point_set2[j].x()), 2) +
+                             pow((point_set1[i].y() - point_set2[j].y()), 2));
+      point_dist.emplace_back(std::make_pair(j, dist_tmp));
     }
     if (point_dist.size() < 2) {
       continue;
@@ -747,20 +752,36 @@ float GetOverLayLengthBetweenTwoLane(
     double dist = GetDistPointLane(point_set1[i], point_set2[index_b],
                                    point_set2[index_c]);
 
-    if (dist < thresh_length) {
-      x_list.emplace_back(point_set1[i].x());
+    sum_dist += dist;
+    total_num_pt++;
+    // 如果是交集的终点，也算最后一个点
+    if (!is_last_point) {
+      if (point_set1[i + 1].x() < min_x || point_set1[i + 1].x() > max_x) {
+        is_last_point = true;
+      }
+    }
+    if (is_last_point || dist >= thresh_length) {
+      if (!x_list.empty()) {
+        all_x_list.emplace_back(x_list);
+        x_list.clear();
+      }
     } else {
-      all_x_list.emplace_back(x_list);
-      x_list.clear();
+      x_list.emplace_back(point_set1[i].x());
     }
   }
-  for (auto& x_list : all_x_list) {
-    if (x_list.size() <= 1) {
+  for (auto& x_list_tmp : all_x_list) {
+    if (x_list_tmp.size() <= 1) {
       continue;
     }
-    length_ovelay += abs(x_list.end() - x_list.begin());
+    length_min_ovelay += abs(x_list_tmp.back() - x_list_tmp.front());
   }
-  return length_ovelay;
+  double overlap_avg_dist = sum_dist / (total_num_pt + 0.00001);
+  // 无交集
+  if (sum_dist == 0 || total_num_pt == 0) {
+    overlap_avg_dist = FLT_MAX;
+  }
+
+  return std::pair(overlap_avg_dist, length_min_ovelay);
 }
 float GetLengthRatioBetweenTwoLane(const LaneLineConstPtr& curve1,
                                    const LaneLineConstPtr& curve2) {

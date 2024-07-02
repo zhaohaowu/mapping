@@ -12,11 +12,11 @@
 #include <vector>
 
 #include "Eigen/Core"
+#include "boost/circular_buffer.hpp"
 #include "depend/perception-base/base/laneline/base_laneline.h"
 #include "depend/perception-base/base/point/point.h"
 #include "depend/proto/local_mapping/local_map.pb.h"
 #include "modules/local_mapping/base/scene/base.h"
-
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -143,6 +143,8 @@ struct LaneLine : public BaseData {
   double refer_c0 = FLT_MAX;
   double theory_c0 = FLT_MAX;
   bool cross = false;
+  boost::circular_buffer<LaneLinePosition> history_line_pos;
+  explicit LaneLine(size_t capacity = 2) : history_line_pos(capacity) {}
 };
 
 using LaneLinePtr = std::shared_ptr<LaneLine>;

@@ -189,7 +189,7 @@ float GetDistPointLane(const Eigen::Vector3d& x, const Eigen::Vector3d& x1,
 
 float GetDistBetweenTwoLane(const std::vector<Eigen::Vector3d>& point_set1,
                             const std::vector<Eigen::Vector3d>& point_set2);
-float GetOverLayLengthBetweenTwoLane(
+std::pair<double, double> GetOverLayLengthBetweenTwoLane(
     const std::vector<Eigen::Vector3d>& point_set1,
     const std::vector<Eigen::Vector3d>& point_set2, float thresh_length);
 float GetLengthRatioBetweenTwoLane(const LaneLineConstPtr& curve1,

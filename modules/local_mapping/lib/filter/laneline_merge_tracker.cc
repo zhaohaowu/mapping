@@ -116,6 +116,10 @@ void LaneLineMergeTrack::SetTrackIdPair(const LaneTargetPtr& curr_line,
 // 两条Tracker重合度很高
 bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
                                               const LaneTargetPtr& right_line) {
+  if (left_line->GetConstTrackedObject()->vehicle_points.back().x() < -10 ||
+      right_line->GetConstTrackedObject()->vehicle_points.back().x() < -10) {
+    return true;
+  }
   // 如果其中之一是分流和合流线，则不进行merge（待加）；
   double over_lay_ratio = GetOverLayRatioBetweenTwoLane(
       left_line->GetConstTrackedObject(), right_line->GetConstTrackedObject());
@@ -124,7 +128,12 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
       right_line->GetConstTrackedObject()->vehicle_points);
   double time_diff = left_line->GetLastestTrackedTimestamp() -
                      right_line->GetLastestTrackedTimestamp();
-
+  double thresh_width = 1.0;
+  std::pair<double, double> overlay_length_out = GetOverLayLengthBetweenTwoLane(
+      left_line->GetConstTrackedObject()->vehicle_points,
+      right_line->GetConstTrackedObject()->vehicle_points, thresh_width);
+  double avg_overlap_dist = overlay_length_out.first;
+  double avg_overlap_under_thresh_length = overlay_length_out.second;
   float line_interval = 0;
   if (left_line->GetConstTrackedObject()->vehicle_points.back().x() >
       right_line->GetConstTrackedObject()->vehicle_points.back().x()) {
@@ -173,7 +182,10 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
       }
     }
     return true;
-  } else if (over_lay_ratio <= 0.2 && (line_interval > -4 && avg_dist < 1)) {
+  } else if (over_lay_ratio <= 0.2 &&
+             (line_interval > -4 &&
+              ((over_lay_ratio > 0 && avg_overlap_dist < 1) ||
+               (over_lay_ratio == 0 && avg_dist < 1)))) {
     if (left_line->GetConstTrackedObject()->vehicle_points.back().x() >
         right_line->GetConstTrackedObject()->vehicle_points.back().x()) {
       right_line->SetDeleteFlag(true);
@@ -188,6 +200,7 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
       MergeTrackPoints(right_line, left_line);
       SetTrackIdPair(right_line, left_line);
     }
+    return true;
   }
   return false;
 }
@@ -197,6 +210,11 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
 // tracker 重叠区域很近及分叉线的合并策略
 bool LaneLineMergeTrack::MergeOverlayCrossStrategy(
     const LaneTargetPtr& left_line, const LaneTargetPtr& right_line) {
+  // 尾端点在车身后10m的不merge
+  if (left_line->GetConstTrackedObject()->vehicle_points.back().x() < -10 ||
+      right_line->GetConstTrackedObject()->vehicle_points.back().x() < -10) {
+    return true;
+  }
   // 如果其中之一是分流和合流线，则不进行merge（待加）；
   double thresh_width = 1.0;
   double over_lay_ratio = GetOverLayRatioBetweenTwoLane(
@@ -204,47 +222,52 @@ bool LaneLineMergeTrack::MergeOverlayCrossStrategy(
   float avg_dist = GetDistBetweenTwoLane(
       left_line->GetConstTrackedObject()->vehicle_points,
       right_line->GetConstTrackedObject()->vehicle_points);
-  double overlay_min_length = GetOverLayLengthBetweenTwoLane(
+  std::pair<double, double> overlay_length_out = GetOverLayLengthBetweenTwoLane(
       left_line->GetConstTrackedObject()->vehicle_points,
       right_line->GetConstTrackedObject()->vehicle_points, thresh_width);
+
+  double avg_overlap_dist = overlay_length_out.first;
+  double avg_overlap_under_thresh_length = overlay_length_out.second;
   double time_diff = left_line->GetLastestTrackedTimestamp() -
                      right_line->GetLastestTrackedTimestamp();
+
+  // 前提两条线的车辆系下的点已经从近到远排好序
+  float overlay_min =
+      std::max(left_line->GetConstTrackedObject()->vehicle_points.front().x(),
+               right_line->GetConstTrackedObject()->vehicle_points.front().x());
+  float overlay_max =
+      std::min(left_line->GetConstTrackedObject()->vehicle_points.back().x(),
+               right_line->GetConstTrackedObject()->vehicle_points.back().x());
+  double over_lay_length = overlay_max - overlay_min;
+  double over_lay_length_ratio =
+      avg_overlap_under_thresh_length / (over_lay_length + 0.00001);
   HLOG_DEBUG << "MergeOverlayCrossStrategy laneline MergeTracks: id "
              << left_line->Id() << ", id " << right_line->Id()
              << ", over_lay_ratio: " << over_lay_ratio
              << ", avg_dist: " << avg_dist << ", time_diff: " << time_diff
-             << ", overlay_min_length:" << overlay_min_length;
+             << ", overlay_min_length:" << avg_overlap_under_thresh_length
+             << " ,over_lay_length:" << over_lay_length
+             << " ,over_lay_length_ratio:" << over_lay_length_ratio
+             << ", avg_overlap_dist:" << avg_overlap_dist;
   // 根据线的质量来做删除,需要根据case专门抽一个评估函数
   // 如果两条线有超过10m的重叠区域（需要过滤合流分流），则认为要合并为一条
-  if (overlay_min_length > 10 && over_lay_ratio > 0) {
-    // 两条tracker时间差超过2帧保存最新的
-    if (std::abs(time_diff) > 0.2) {
-      if (time_diff > 0) {
-        right_line->SetDeleteFlag(true);
-        left_line->SetDeletedTrackIds(*right_line);
-        SetLaneLineType(left_line, right_line);
-        MergeTrackPoints(left_line, right_line);
-        SetTrackIdPair(left_line, right_line);
-      } else {
-        left_line->SetDeleteFlag(true);
-        right_line->SetDeletedTrackIds(*left_line);
-        SetLaneLineType(right_line, left_line);
-        MergeTrackPoints(right_line, left_line);
-        SetTrackIdPair(right_line, left_line);
-      }
+  if (avg_overlap_under_thresh_length > 10 && over_lay_ratio > 0 &&
+      avg_overlap_dist < 1.0) {
+    // merge在一起
+    if (left_line->GetConstTrackedObject()->vehicle_points.back().x() >
+        right_line->GetConstTrackedObject()->vehicle_points.back().x()) {
+      right_line->SetDeleteFlag(true);
+      left_line->SetDeletedTrackIds(*right_line);
+      SetLaneLineType(left_line, right_line);
+      MergeTrackPoints(left_line, right_line);
+      SetTrackIdPair(left_line, right_line);
+
     } else {
-      // 时间差不超过2帧保存跟踪时间长的
-      if (left_line->Count() > right_line->Count()) {
-        right_line->SetDeleteFlag(true);
-        left_line->SetDeletedTrackIds(*right_line);
-        SetLaneLineType(left_line, right_line);
-        SetTrackIdPair(left_line, right_line);
-      } else {
-        left_line->SetDeleteFlag(true);
-        right_line->SetDeletedTrackIds(*left_line);
-        SetLaneLineType(right_line, left_line);
-        SetTrackIdPair(right_line, left_line);
-      }
+      left_line->SetDeleteFlag(true);
+      right_line->SetDeletedTrackIds(*left_line);
+      SetLaneLineType(right_line, left_line);
+      MergeTrackPoints(right_line, left_line);
+      SetTrackIdPair(right_line, left_line);
     }
     return true;
   }

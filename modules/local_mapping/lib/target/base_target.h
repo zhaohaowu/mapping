@@ -87,6 +87,12 @@ class BaseTarget {
       ts_matured_ = true;
     }
   }
+  inline void SetHistoryLinePos(const LaneLinePtr& laneline_ptr) {
+    history_line_pos_.push_back(laneline_ptr->position);
+  }
+  inline boost::circular_buffer<LaneLinePosition> GetHistoryLinePos() const {
+    return history_line_pos_;
+  }
 
   inline double GetMatureTrackedTimestamp() const {
     return mature_tracked_timestamp_;
@@ -143,6 +149,7 @@ class BaseTarget {
  protected:
   ElementPtr tracked_element_ = nullptr;
   std::vector<std::pair<int, double>> deleted_track_ids_;
+  boost::circular_buffer<LaneLinePosition> history_line_pos_;
   int id_ = 0;
   int lost_age_ = 0;
   int tracked_count_ = 0;
@@ -172,7 +179,8 @@ bool BaseTarget<Element>::InitBase(const ProcessOption& options,
                                    const ElementPtr& detected_element_ptr) {
   using baseType = BaseTarget<Element>;
   id_ = baseType::s_global_track_id_++;
-  if (baseType::s_global_track_id_ >= std::numeric_limits<int>::max()) {
+  // id大于1000从0开始
+  if (baseType::s_global_track_id_ >= 1000) {
     baseType::s_global_track_id_ = 0;
     id_ = baseType::s_global_track_id_;
   }

@@ -6498,6 +6498,9 @@ void GroupMap::BuildVirtualMergeLane(Group::Ptr curr_group,
 // 5.线末端平均点间距足够大；
 //! TBD：当前仅对比较平直的线进行直线预测，后续考虑对弯道进行预测
 bool GroupMap::LaneLineNeedToPredict(const LineSegment& line, bool check_back) {
+  if (line.pts.empty()) {
+    return false;
+  }
   Eigen::Vector2f back_pt = line.pts.back().pt.head<2>();
   auto mean_heading = line.mean_end_heading;
   auto mean_heading_std = line.mean_end_heading_std_dev;

@@ -36,7 +36,7 @@ enum PointType {
 };
 struct Point {
   PointType type = RAW;
-  em::Point pt;
+  em::Point pt{0.0, 0.0, 0.0};
 
   Point() = default;
   Point(PointType pt_type, float x, float y, float z)

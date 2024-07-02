@@ -195,10 +195,10 @@ bool DeadReckoning::IsDrDrift(double cur_time, double vel_x, double p_x,
     last_po = curr_po;
     return false;
   }
-  if (curr_po[0] - last_po[0] >= 0.03) {
+  if (curr_po[0] - last_po[0] >= 0.1) {
     HLOG_WARN << "last_time: " << last_po[0]
               << " curr_time: " << curr_po[0]
-              << " diff is larger than 0.03s !!!";
+              << " diff is larger than 0.1s !!!";
     last_po = curr_po;
     return true;
   }

@@ -5,4 +5,4 @@ rviz_addr: ipc:///tmp/rviz_agent_pose_estimation
 ins_deque_max_size: 100
 fc_deque_max_size: 100
 perception_deque_max_size: 2
-reloc_test: false
+reloc_test: true

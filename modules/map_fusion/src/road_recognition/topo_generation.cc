@@ -751,6 +751,12 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
             break;
           }
         } else if (groups[i]->group_segments[0]->start_slice.po.x() < 0.0) {
+          // HLOG_INFO << "index = " << index << "  i = " << i;
+          if (groups[index]->group_segments.size() > 0 &&
+              groups[index]->group_segments.back()->end_slice.po.x() < 20.0) {
+            // 放止检测不到一些小路口
+            break;
+          }
           if (i < index) {
             if (groups[i + 1]->group_segments.size() < 2) {
               break;
@@ -762,7 +768,7 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
             }
           }
           //  如果找到车所在的group
-          HLOG_DEBUG << "cur group id:" << groups[i]->str_id;
+          // HLOG_INFO << "cur group id:" << groups[i]->str_id;
           iscross->is_crossing_ = 0;
           iscross->next_lane_left = -1000;
           iscross->next_lane_right = -1000;

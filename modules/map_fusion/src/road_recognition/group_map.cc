@@ -1840,12 +1840,12 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
         //! 为了能使用curr group的车道向前预测，这里把next
         //! group的索引标记出来，后面会将next group 里车道都删掉，这样curr
         //! group就变成最后一个group了，后续就能正常使用其向前预测了.
-        HLOG_DEBUG << "curr_group NAME = " << curr_group->str_id
-                   << "  dist_to_slice = " << dist_to_slice
-                   << "  veh_in_this_junction = " << veh_in_this_junction
-                   << "  next_group_name = " << next_group->str_id
-                   << "  delay_connect_hz = " << conf_.delay_connect_hz
-                   << "  cross delay = " << is_cross_.delay_hz;
+        // HLOG_INFO << "curr_group NAME = " << curr_group->str_id
+        //           << "  dist_to_slice = " << dist_to_slice
+        //           << "  veh_in_this_junction = " << veh_in_this_junction
+        //           << "  next_group_name = " << next_group->str_id
+        //           << "  delay_connect_hz = " << conf_.delay_connect_hz
+        //           << "  cross delay = " << is_cross_.delay_hz;
         if (veh_in_this_junction) {
           Lane::Ptr ego_curr_lane = nullptr;
           FindNearestLaneToHisVehiclePosition(curr_group, &ego_curr_lane);
@@ -1855,7 +1855,6 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
           std::vector<Lane::Ptr> history_satisfy_lane_;
           FindSatisefyNextLane(next_group, dist_to_slice,
                                &history_satisfy_lane_);
-
           if (ego_curr_lane != nullptr && !history_satisfy_lane_.empty() &&
               (dist_to_slice <= conf_.next_group_max_distance ||
                is_cross_.is_connect_)) {
@@ -1909,7 +1908,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
         } else {
           // wait update
           // 对应应该是车已经走到了next_group里面，现在是默认是不连接
-          HLOG_DEBUG << "vehicle is not in junction";
+          HLOG_WARN << "vehicle is not in junction";
         }
       } else {
         // 转弯场景
@@ -4097,6 +4096,20 @@ bool GroupMap::IsLeftLane(Group::Ptr next_group, int cur_lane_index,
   }
   return false;
 }
+bool GroupMap::ContainEgoLane(std::vector<Group::Ptr>* groups,
+                              int next_grp_index) {
+  // 青鸾号:1250597
+  for (int grp_idx = next_grp_index; grp_idx < static_cast<int>(groups->size());
+       ++grp_idx) {
+    auto& next_groups = groups->at(grp_idx);
+    for (auto next_grp_lane : next_groups->lanes) {
+      if (next_grp_lane->lanepos_id == "-1_1") {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
   // 从前往后
   if (groups->size() < 2) {
@@ -4252,7 +4265,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
       }
       DelLaneNextStrIdInGroup(curr_group);
     } else {
-      if (curr_group->group_segments.back()->end_slice.po.x() > 2.0) {
+      if (!ContainEgoLane(groups, i + 1) &&
+          curr_group->group_segments.back()->end_slice.po.x() > 2.0) {
         groups->erase(groups->begin() + i + 1, groups->end());
         break;
       }
@@ -4315,7 +4329,7 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
         is_all_next_lane_exit = false;
       }
     }
-    if (is_any_next_lane_exit) {
+    if (is_any_next_lane_exit || ContainEgoLane(groups, i)) {
       // 查看trackid一致但是groupsize不一致的情况
       // 如果是线段长短不一致
       float max_length_lane = 0.0;

@@ -483,12 +483,14 @@ class GroupMap {
   bool IsRightLane(Group::Ptr next_group, int cur_lane_index,
                    int right_lane_inex);
   void AvoidSplitMergeLane(std::vector<Group::Ptr>* groups);
-  void ErasePrevRelation(
-      Group::Ptr curr_group, int curr_erase_index, Group::Ptr next_group,
-      int next_index);  // 删除next_group->lanes[next_index]的包含curr_group->lanes[curr_erase_index]->str_id_with_group的前继
-  void EraseSucessorRelation(
-      Group::Ptr curr_group, int curr_erase_index, Group::Ptr next_group,
-      int next_index);  // 删除curr_group->lanes[curr_erase_index]的包含next_group->lanes[next_index]->str_id_with_group的后继
+  // 删除next_group->lanes[next_index]的包含
+  // curr_group->lanes[curr_erase_index]->str_id_with_group的前继
+  void ErasePrevRelation(Group::Ptr curr_group, int curr_erase_index,
+                         Group::Ptr next_group, int next_index);
+  // 删除curr_group->lanes[curr_erase_index]的包含
+  //  next_group->lanes[next_index]->str_id_with_group的后继
+  void EraseSucessorRelation(Group::Ptr curr_group, int curr_erase_index,
+                             Group::Ptr next_group, int next_index);
   bool ContainEgoLane(std::vector<Group::Ptr>* groups, int next_grp_index);
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;

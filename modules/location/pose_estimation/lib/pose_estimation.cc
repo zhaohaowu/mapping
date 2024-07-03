@@ -452,17 +452,28 @@ LocalizationPtr PoseEstimation::GetFcPoseForTimestamp(
   Gcj2Enu(ref_point, &back);
   double front_scale =
       (back.header().data_stamp() - timestamp) /
-      (back.header().data_stamp() - front.header().data_stamp());
+      (back.header().data_stamp() - front.header().data_stamp() + 1e-6);
   double back_scale =
       (timestamp - front.header().data_stamp()) /
-      (back.header().data_stamp() - front.header().data_stamp());
+      (back.header().data_stamp() - front.header().data_stamp() + 1e-6);
   // 全局定位插值
   Vector3dToEnu3d(front.pose().position(), back.pose().position(),
                   fc_pose_ptr->mutable_pose()->mutable_position(), front_scale,
                   back_scale);
-  Vector4dToEnu4d(front.pose().quaternion(), back.pose().quaternion(),
-                  fc_pose_ptr->mutable_pose()->mutable_quaternion(),
-                  front_scale, back_scale);
+  // 球面插值
+  Eigen::Quaterniond front_q{
+      front.pose().quaternion().w(), front.pose().quaternion().x(),
+      front.pose().quaternion().y(), front.pose().quaternion().z()};
+  Eigen::Quaterniond back_q{
+      back.pose().quaternion().w(), back.pose().quaternion().x(),
+      back.pose().quaternion().y(), back.pose().quaternion().z()};
+  Eigen::Quaterniond result_q = front_q.slerp(back_scale, back_q);
+  SetXYZW(result_q, fc_pose_ptr->mutable_pose()->mutable_quaternion());
+  // 线性插值
+  //  Vector4dToEnu4d(front.pose().quaternion(), back.pose().quaternion(),
+  //                  fc_pose_ptr->mutable_pose()->mutable_quaternion(),
+  //                  front_scale, back_scale);
+
   // 速度插值
   Vector3dToEnu3d(front.pose().linear_velocity_vrf(),
                   back.pose().linear_velocity_vrf(),
@@ -472,10 +483,22 @@ LocalizationPtr PoseEstimation::GetFcPoseForTimestamp(
   Vector3dToEnu3d(front.pose_local().position(), back.pose_local().position(),
                   fc_pose_ptr->mutable_pose_local()->mutable_position(),
                   front_scale, back_scale);
-  Vector4dToEnu4d(front.pose_local().quaternion(),
-                  back.pose_local().quaternion(),
-                  fc_pose_ptr->mutable_pose_local()->mutable_quaternion(),
-                  front_scale, back_scale);
+  // 球面插值
+  Eigen::Quaterniond front_local_q{
+      front.pose().quaternion().w(), front.pose().quaternion().x(),
+      front.pose().quaternion().y(), front.pose().quaternion().z()};
+  Eigen::Quaterniond back_local_q{
+      back.pose().quaternion().w(), back.pose().quaternion().x(),
+      back.pose().quaternion().y(), back.pose().quaternion().z()};
+  Eigen::Quaterniond result_local_q =
+      front_local_q.slerp(back_scale, back_local_q);
+  SetXYZW(result_local_q,
+          fc_pose_ptr->mutable_pose_local()->mutable_quaternion());
+  // 线性插值
+  // Vector4dToEnu4d(front.pose_local().quaternion(),
+  //                 back.pose_local().quaternion(),
+  //                 fc_pose_ptr->mutable_pose_local()->mutable_quaternion(),
+  //                 front_scale, back_scale);
   return fc_pose_ptr;
 }
 
@@ -538,9 +561,19 @@ LocalizationPtr PoseEstimation::GetInsPoseForTimestamp(
   Vector3dToEnu3d(front.pose().position(), back.pose().position(),
                   ins_pose_ptr->mutable_pose()->mutable_position(), front_scale,
                   back_scale);
-  Vector4dToEnu4d(front.pose().quaternion(), back.pose().quaternion(),
-                  ins_pose_ptr->mutable_pose()->mutable_quaternion(),
-                  front_scale, back_scale);
+  // 球面插值
+  Eigen::Quaterniond front_q{
+      front.pose().quaternion().w(), front.pose().quaternion().x(),
+      front.pose().quaternion().y(), front.pose().quaternion().z()};
+  Eigen::Quaterniond back_q{
+      back.pose().quaternion().w(), back.pose().quaternion().x(),
+      back.pose().quaternion().y(), back.pose().quaternion().z()};
+  Eigen::Quaterniond result_q = front_q.slerp(back_scale, back_q);
+  SetXYZW(result_q, ins_pose_ptr->mutable_pose()->mutable_quaternion());
+  // 线性插值
+  //  Vector4dToEnu4d(front.pose().quaternion(), back.pose().quaternion(),
+  //                  ins_pose_ptr->mutable_pose()->mutable_quaternion(),
+  //                  front_scale, back_scale);
   return ins_pose_ptr;
 }
 
@@ -595,8 +628,8 @@ void PoseEstimation::Vector4dToEnu4d(const T0& front_vector,
                                      const T1& back_vector, T2* const enu3d,
                                      const double& front_scale,
                                      const double& back_scale) {
-  enu3d->set_z(front_vector.z() * static_cast<float>(front_scale) +
-               back_vector.z() * static_cast<float>(back_scale));
+  enu3d->set_w(front_vector.w() * static_cast<float>(front_scale) +
+               back_vector.w() * static_cast<float>(back_scale));
   enu3d->set_x(front_vector.x() * static_cast<float>(front_scale) +
                back_vector.x() * static_cast<float>(back_scale));
   enu3d->set_y(front_vector.y() * static_cast<float>(front_scale) +

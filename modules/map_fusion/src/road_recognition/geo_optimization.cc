@@ -2521,7 +2521,7 @@ void GeoOptimization::CompleteLocalMap() {
   // // 处理超宽车道
   HandleExtraWideLane();
   // 处理单边线
-  HandleSingleSideLine();
+  // HandleSingleSideLine();
 }
 
 void GeoOptimization::CreateLocalLineTable() {
@@ -2974,7 +2974,6 @@ void GeoOptimization::HandleExtraWideLane() {
       }
     }
   }
-
   if (extra_ids.empty()) {
     // 重置
     base_line_.base_line_flag = 0;
@@ -3027,8 +3026,8 @@ void GeoOptimization::FitMissedLaneLine(const std::pair<int, int>& ex) {
   std::vector<Eigen::Vector3d> base_line;
   std::vector<double> base_width;
   if (base_line_.base_line_flag == 0) {
-    if ((std::abs(left_dis - right_dis) > 3.5 && left_dis < right_dis) ||
-        (std::abs(left_dis - right_dis) < 3.5 && left_curve < right_curve)) {
+    if ((std::abs(left_dis - right_dis) > 0.7 && left_dis < right_dis) ||
+        (std::abs(left_dis - right_dis) < 0.7 && left_curve < right_curve)) {
       // vehicle left line is baseline
       ObtainBaseLine(&base_line, &base_width, ex_pts, right_ex_pts);
       double lane_width = 3.75;
@@ -3041,12 +3040,12 @@ void GeoOptimization::FitMissedLaneLine(const std::pair<int, int>& ex) {
       if (lane_width > 5.5) {
         lane_width = 3.75;
       }
-      int lane_num = std::ceil(right_dis / lane_width);
+      int lane_num = std::ceil(left_dis / lane_width);
       FitSingleSideLine(&base_line, &new_lines, lane_num, true, 0, lane_width);
       base_line_.base_line_flag = 1;
       base_line_.base_width = lane_width;
-    } else if ((std::abs(left_dis - right_dis) > 3.5 && right_dis < left_dis) ||
-               (std::abs(left_dis - right_dis) < 3.5 &&
+    } else if ((std::abs(left_dis - right_dis) > 0.7 && right_dis < left_dis) ||
+               (std::abs(left_dis - right_dis) < 0.7 &&
                 right_curve < left_curve)) {
       // vecicle right line is baseline
       ObtainBaseLine(&base_line, &base_width, right_ex_pts, ex_pts);
@@ -3070,7 +3069,7 @@ void GeoOptimization::FitMissedLaneLine(const std::pair<int, int>& ex) {
     //   lane_width = base_width.back();
     // }
     lane_width = base_line_.base_width;
-    int lane_num = std::ceil(right_dis / lane_width);
+    int lane_num = std::ceil(left_dis / lane_width);
     FitSingleSideLine(&base_line, &new_lines, lane_num, true, 0, lane_width);
   } else if (base_line_.base_line_flag == 2) {
     // vecicle right line is baseline

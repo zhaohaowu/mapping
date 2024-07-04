@@ -288,8 +288,8 @@ class GroupMap {
   ~GroupMap() = default;
 
   bool Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
-             const KinePose::Ptr& curr_pose, const em::ElementMap::Ptr& ele_map,
-             IsCross* is_cross);
+             const KinePose::Ptr& curr_pose, const KinePose::Ptr& last_pose,
+             const em::ElementMap::Ptr& ele_map, IsCross* is_cross);
   void GetGroups(std::vector<Group::Ptr>* groups);
   std::shared_ptr<hozon::hdmap::Map> Export(const em::ElementMap::Ptr& ele_map,
                                             HistoryId* history_id);
@@ -450,8 +450,6 @@ class GroupMap {
   void VirtualLaneLeftRight(Group::Ptr curr_group, Group::Ptr next_group);
   std::vector<Point> SlidingWindow(std::vector<Point> centerline, int w);
   std::vector<Point> SigmoidFunc(std::vector<Point> centerline, float sigma);
-  Eigen::Vector3f Qat2EulerAngle(const Eigen::Quaternionf& q);
-  float Angle_diff(float angle_0, float angle_1);
   bool IsIntersect(Lane::Ptr line1, Lane::Ptr line2);
   void EraseIntersectLane(Group::Ptr curr_group, Group::Ptr next_group);
   bool BoundaryIsValid(const LineSegment& line);
@@ -504,6 +502,7 @@ class GroupMap {
   std::vector<Pose> path_in_curr_pose_;
   std::vector<Group::Ptr> groups_;
   KinePose::Ptr curr_pose_ = nullptr;
+  double delta_pose_heading_ = 0.;
   std::vector<GroupSegment::Ptr> group_segments_;
   EgoLane ego_line_id_;
   std::shared_ptr<GuidePathManager> guide_path_manager_;

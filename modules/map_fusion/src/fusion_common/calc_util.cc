@@ -620,6 +620,47 @@ double CalCubicCurveY(const std::vector<double> vehicle_curve,
   return y;
 }
 
+Eigen::Vector3f Quat2EulerAngle(const Eigen::Quaternionf& q) {
+  Eigen::Vector3f eulerangle = {0, 0, 0};
+  float sinr_cosp = +2.0 * (q.w() * q.x() + q.y() * q.z());
+  float cosr_cosp = +1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y());
+  eulerangle[0] = atan2(sinr_cosp, cosr_cosp);
+
+  // pitch (y-axis rotation)
+  float sinp = +2.0 * (q.w() * q.y() - q.z() * q.x());
+  if (fabs(sinp) >= 1) {
+    eulerangle[1] = copysign(M_PI / 2, sinp);
+  } else {
+    eulerangle[1] = asin(sinp);
+  }
+  // yaw (z-axis rotation)
+  float siny_cosp = +2.0 * (q.w() * q.z() + q.x() * q.y());
+  float cosy_cosp = +1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z());
+  eulerangle[2] = atan2(siny_cosp, cosy_cosp);
+  return eulerangle;
+}
+
+float AngleDiff(float angle_0, float angle_1) {
+  float diff = angle_1 - angle_0;
+  if (diff > M_PI) {
+    diff -= 2 * M_PI;
+  }
+  if (diff < -M_PI) {
+    diff += 2 * M_PI;
+  }
+  return diff;
+}
+
+double CalculateHeading(const Eigen::Quaternionf& q1,
+                        const Eigen::Quaternionf& q2) {
+  auto pre_yaw = Quat2EulerAngle(q1).z();
+  auto cur_yaw = Quat2EulerAngle(q2).z();
+
+  auto angle_rad = static_cast<double>(AngleDiff(pre_yaw, cur_yaw));
+
+  return angle_rad;
+}
+
 }  // namespace math
 
 }  // namespace mf

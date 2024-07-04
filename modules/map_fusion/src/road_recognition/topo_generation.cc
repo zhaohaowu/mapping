@@ -216,7 +216,8 @@ std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap() {
   std::shared_ptr<hozon::hdmap::Map> proto_map = nullptr;
 
   gm::GroupMap group_map(gm_conf_);
-  auto ret = group_map.Build(path, curr_pose, ele_map_, &is_cross_);
+  auto ret = group_map.Build(path, curr_pose, last_pose_, ele_map_, &is_cross_);
+  last_pose_ = curr_pose;
   if (!ret) {
     HLOG_ERROR << "Build group map failed";
     return nullptr;

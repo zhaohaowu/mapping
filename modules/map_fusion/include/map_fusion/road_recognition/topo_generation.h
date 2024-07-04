@@ -54,6 +54,7 @@ class TopoGeneration {
   gm::GroupMapConf gm_conf_;
   gm::IsCross is_cross_;
   gm::HistoryId history_id_;
+  KinePose::Ptr last_pose_ = nullptr;
 
   std::shared_ptr<PathManager> path_ = nullptr;
   std::shared_ptr<hozon::mp::mf::em::ElementMap> ele_map_ = nullptr;

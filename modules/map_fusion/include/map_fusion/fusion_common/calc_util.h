@@ -517,6 +517,12 @@ std::vector<hozon::common::math::Vec2d> LinearInterp(
 
 double CalCubicCurveY(const std::vector<double> vehicle_curve, const double& x);
 
+Eigen::Vector3f Quat2EulerAngle(const Eigen::Quaternionf& q);
+float AngleDiff(float angle_0, float angle_1);
+
+double CalculateHeading(const Eigen::Quaternionf& q1,
+                        const Eigen::Quaternionf& q2);
+
 }  // namespace math
 
 }  // namespace mf

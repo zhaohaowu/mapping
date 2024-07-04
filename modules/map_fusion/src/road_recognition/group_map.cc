@@ -39,6 +39,7 @@ struct LaneWithNextLanes {
 
 bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
                      const KinePose::Ptr& curr_pose,
+                     const KinePose::Ptr& last_pose,
                      const em::ElementMap::Ptr& ele_map, IsCross* is_cross) {
   if (path == nullptr || curr_pose == nullptr || ele_map == nullptr) {
     HLOG_ERROR << "input nullptr";
@@ -133,6 +134,11 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
              << is_cross_.cross_before_lane_ << "  " << is_cross_.is_crossing_
              << " " << is_cross_.next_lane_left << " "
              << is_cross->next_lane_right;
+  // 计算上一帧和这一帧pose的heading偏差
+  if (last_pose != nullptr) {
+    delta_pose_heading_ =
+        math::CalculateHeading(last_pose->quat, curr_pose->quat);
+  }
   curr_pose_ = curr_pose;
   std::deque<Line::Ptr> lines;
   // lane_line_interp_dist可以设为-1，当前上游点间隔已经是1m，这里不用插值出更细的点
@@ -4622,7 +4628,7 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
                                last_grp_end_slice.pr.y());
         Eigen::Vector2f curr_pos(0, 0);
         auto dist_to_slice = PointToVectorDist(end_pl, end_pr, curr_pos);
-        if (dist_to_slice <= 15) {
+        if (dist_to_slice <= 30) {
           need_pred_kappa = false;
         }
       }
@@ -4805,37 +4811,6 @@ void GroupMap::CatmullRom(const std::vector<Eigen::Vector3f>& pts,
   }
 }
 
-Eigen::Vector3f GroupMap::Qat2EulerAngle(const Eigen::Quaternionf& q) {
-  Eigen::Vector3f eulerangle = {0, 0, 0};
-  float sinr_cosp = +2.0 * (q.w() * q.x() + q.y() * q.z());
-  float cosr_cosp = +1.0 - 2.0 * (q.x() * q.x() + q.y() * q.y());
-  eulerangle[0] = atan2(sinr_cosp, cosr_cosp);
-
-  // pitch (y-axis rotation)
-  float sinp = +2.0 * (q.w() * q.y() - q.z() * q.x());
-  if (fabs(sinp) >= 1) {
-    eulerangle[1] = copysign(M_PI / 2, sinp);
-  } else {
-    eulerangle[1] = asin(sinp);
-  }
-  // yaw (z-axis rotation)
-  float siny_cosp = +2.0 * (q.w() * q.z() + q.x() * q.y());
-  float cosy_cosp = +1.0 - 2.0 * (q.y() * q.y() + q.z() * q.z());
-  eulerangle[2] = atan2(siny_cosp, cosy_cosp);
-  return eulerangle;
-}
-
-float GroupMap::Angle_diff(float angle_0, float angle_1) {
-  float diff = angle_0 - angle_1;
-  if (diff > M_PI) {
-    diff -= 2 * M_PI;
-  }
-  if (diff < -M_PI) {
-    diff += 2 * M_PI;
-  }
-  return diff;
-}
-
 float GroupMap::PointToLaneDis(const Lane::Ptr& lane_ptr,
                                Eigen::Vector3f point) {
   if (lane_ptr == nullptr || lane_ptr->left_boundary == nullptr ||
@@ -4879,6 +4854,7 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
   static double last_predict_angle = 0.0;
   static double last_predict_kappa = 0.0;
   static double last_predict_dkappa = 0.0;
+  last_predict_angle -= delta_pose_heading_;
 
   std::tuple<double, double, double> ego_left_pred_data{0, 0, 0};
   std::tuple<double, double, double> ego_right_pred_data{0, 0, 0};
@@ -4889,15 +4865,15 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
       continue;
     }
     pcl::PointXYZ point;
-    point.x =
-        static_cast<float>(line->mean_end_heading);  // 将一维heading添加到x轴上
+    point.x = static_cast<float>(
+        std::get<0>(line->pred_end_heading));  // 将一维heading添加到x轴上
     point.y = 0.0;
     point.z = 0.0;
     heading_data->emplace_back(point);
     HLOG_DEBUG << "----mean_heading:" << line->id << ","
-               << line->mean_end_heading * 180 / M_PI;
+               << std::get<0>(line->pred_end_heading) * 180 / M_PI;
     HLOG_DEBUG << "----mean_heading:" << line->id << ","
-               << line->mean_end_heading * 180 / M_PI;
+               << std::get<0>(line->pred_end_heading) * 180 / M_PI;
 
     if (line->id == ego_line_id_.left_id) {
       ego_left_pred_data = line->pred_end_heading;
@@ -4995,9 +4971,10 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
       }
       if (nearest_lane_index != -1) {
         auto lane_ptr = lanes_need_pred[nearest_lane_index];
-        predict_heading = (lane_ptr->left_boundary->mean_end_heading +
-                           lane_ptr->right_boundary->mean_end_heading) /
-                          2.0;
+        predict_heading =
+            (std::get<0>(lane_ptr->left_boundary->pred_end_heading) +
+             std::get<0>(lane_ptr->right_boundary->pred_end_heading)) /
+            2.0;
         HLOG_DEBUG << "heading mode 3:" << predict_heading << ","
                    << nearest_lane_dist;
         predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
@@ -5005,7 +4982,7 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
         // 求平均值
         double sum = 0;
         for (const auto& line : *lines_need_pred) {
-          sum += line->mean_end_heading;
+          sum += std::get<0>(line->pred_end_heading);
         }
         predict_heading =
             lines_need_pred->empty() ? 0.0 : (sum / lines_need_pred->size());

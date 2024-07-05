@@ -453,9 +453,7 @@ LocalizationPtr PoseEstimation::GetFcPoseForTimestamp(
   double front_scale =
       (back.header().data_stamp() - timestamp) /
       (back.header().data_stamp() - front.header().data_stamp() + 1e-6);
-  double back_scale =
-      (timestamp - front.header().data_stamp()) /
-      (back.header().data_stamp() - front.header().data_stamp() + 1e-6);
+  double back_scale = 1 - front_scale;
   // 全局定位插值
   Vector3dToEnu3d(front.pose().position(), back.pose().position(),
                   fc_pose_ptr->mutable_pose()->mutable_position(), front_scale,
@@ -553,10 +551,8 @@ LocalizationPtr PoseEstimation::GetInsPoseForTimestamp(
   Gcj2Enu(ref_point, &back);
   double front_scale =
       (back.header().data_stamp() - timestamp) /
-      (back.header().data_stamp() - front.header().data_stamp());
-  double back_scale =
-      (timestamp - front.header().data_stamp()) /
-      (back.header().data_stamp() - front.header().data_stamp());
+      (back.header().data_stamp() - front.header().data_stamp() + 1e-6);
+  double back_scale = 1 - front_scale;
   // 全局定位插值
   Vector3dToEnu3d(front.pose().position(), back.pose().position(),
                   ins_pose_ptr->mutable_pose()->mutable_position(), front_scale,

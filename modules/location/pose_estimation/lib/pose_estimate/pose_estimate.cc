@@ -9,6 +9,9 @@
 
 #include <memory>
 #include <vector>
+#include <string>
+#include <unordered_map>
+#include <list>
 
 namespace hozon {
 namespace mp {
@@ -16,8 +19,6 @@ namespace loc {
 
 MapMatch::MapMatch() {
   lane_line_ = std::make_shared<MatchLaneLine>();
-  has_err_ = false;
-  err_type_ = static_cast<int>(ERROR_TYPE::NO_ERROR);
 }
 
 void MapMatch::SetInsTs(const double &ins_ts) { ins_timestamp_ = ins_ts; }
@@ -37,13 +38,14 @@ bool MapMatch::CheckLaneWidth(const SE3 &T, double* lane_width_diff) {
   return lane_line_->CompareLaneWidth(T, lane_width_diff);
 }
 
-void MapMatch::Match(const HdMap &hd_map,
-                     const std::shared_ptr<Perception> &perception,
-                     const SE3 &T02_W_V, const ValidPose &T_fc) {
+void MapMatch::Match(
+    const std::unordered_map<std::string, std::vector<ControlPoint>>&
+        merged_map_lines,
+    const std::list<std::list<LaneLinePerceptionPtr>>& percep_lanelines,
+    const SE3& T02_W_V, const ValidPose& T_fc) {
   lane_line_->set_ins_ts(ins_timestamp_);
   lane_line_->set_linear_vel(linear_vel_);
-  lane_line_->Match(hd_map, perception, T02_W_V, T_fc);
-  lane_line_->GetError(&has_err_, &err_type_);
+  lane_line_->Match(merged_map_lines, percep_lanelines, T02_W_V, T_fc);
   connect_.lane_line_match_pairs = lane_line_->get_match_pairs();
   origin_connect_.lane_line_match_pairs = lane_line_->get_origin_pairs();
   HLOG_DEBUG << "CONNECT LANE LINE SIZE: "

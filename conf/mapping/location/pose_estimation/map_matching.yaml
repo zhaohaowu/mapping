@@ -36,14 +36,15 @@ fault_restore_ave_dis: 0.3      # 退出130的平均阈值
 left_edge_y_err: 1.0
 right_edge_y_err: -1.0
 map_lane_match_buff: 10         # 超过buff次就上报故障
-map_lane_match_ser_max: 0.8     # 双边判断的阈值0.8
+fault_restore_buff: 20
+map_lane_match_ser_max: 0.6     # 双边判断的阈值0.6
 map_lane_match_ser_buff: 5
 straight_far_dis: 25            # 直道远段点距离
 curve_far_dis: 12               # 匝道远段点距离
 curvature_thr: 0.0005           # 感知车道线曲率阈值
 min_vel: 7                      # 低速阈值 m/s
 single_error_min_vel: 10        # 单边判断低速阈值 m/s
-line_error_normal_thr: 0.15
+line_error_normal_thr: 0.05
 ##valid_estimate_last_fault
 valid_estimate_last_buff: 100   # 持续valid_estimate_buff_* 0.033s
 invalid_estimate_last_buff: 3   # 失效invalid_estimate_buff_ * 0.033s

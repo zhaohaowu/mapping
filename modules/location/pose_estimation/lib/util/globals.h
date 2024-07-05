@@ -52,6 +52,7 @@ struct MapMatchLaneLineParams {
   double left_edge_y_err;
   double right_edge_y_err;
   int map_lane_match_buff;
+  int fault_restore_buff;
   double map_lane_match_ser_max;
   int map_lane_match_ser_buff;
   double far_dis;

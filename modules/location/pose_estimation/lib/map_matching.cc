@@ -9,10 +9,12 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cfloat>
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
+#include <stack>
 
 #include "Eigen/src/Core/Matrix.h"
 #include "Eigen/src/Geometry/Quaternion.h"
@@ -26,6 +28,15 @@ namespace hozon {
 namespace mp {
 namespace loc {
 
+MapMatching::MapMatching() {
+  visited_id_.clear();
+  edge_visited_id_.clear();
+  multi_linked_edges_.clear();
+  multi_linked_lines_.clear();
+  map_match_ = std::make_shared<hozon::mp::loc::MapMatch>();
+  mm_fault_ = std::make_shared<hozon::mp::loc::MmFault>();
+}
+
 bool MapMatching::Init(const std::string& config_file) {
   YAML::Node config = YAML::LoadFile(config_file);
 
@@ -38,6 +49,7 @@ bool MapMatching::Init(const std::string& config_file) {
   mm_params.fault_restore_dis = config["fault_restore_dis"].as<double>();
   mm_params.left_edge_y_err = config["left_edge_y_err"].as<double>();
   mm_params.right_edge_y_err = config["right_edge_y_err"].as<double>();
+  mm_params.fault_restore_buff = config["fault_restore_buff"].as<int>();
   mm_params.map_lane_match_buff = config["map_lane_match_buff"].as<int>();
   mm_params.map_lane_match_ser_max =
       config["map_lane_match_ser_max"].as<double>();
@@ -148,13 +160,29 @@ void MapMatching::ProcData(
                        fc->pose().position().z());
   fc_msg.pose = SE3(fc_q, fc_t);
 
+  // 过滤感知车道线
+  std::list<std::list<LaneLinePerceptionPtr>> percep_lanelines;
+  FilterPercpLane(all_perception, &percep_lanelines);
+  // 合并地图车道线
+  std::unordered_map<std::string, std::vector<ControlPoint>> merged_map_lines;
+  std::unordered_map<std::string, std::vector<ControlPoint>> merged_fcmap_lines;
+  std::unordered_map<std::string, std::vector<ControlPoint>> merged_map_edges;
+  MergeMapLanes(hdmap, T_input, fc_msg, &merged_map_lines, &merged_fcmap_lines,
+                &merged_map_edges);
+
   // 获取匹配对
   map_match_->SetInsTs(cur_stamp);
   map_match_->SetVel(linear_vel);
-  map_match_->Match(hdmap, all_perception, T_input, fc_msg);
+  map_match_->Match(merged_map_lines, percep_lanelines, T_input, fc_msg);
+  bool big_curvature_frame = map_match_->GetMatchBigCurvature();
+
+  // 故障检测
+  mm_fault_->set_ins_ts(cur_stamp);
+  mm_fault_->Fault(merged_fcmap_lines, merged_map_edges, percep_lanelines,
+                   fc_msg, big_curvature_frame);
 
   // 故障检测策略
-  ERROR_TYPE mm_err_type{static_cast<ERROR_TYPE>(map_match_->GetErrorType())};
+  ERROR_TYPE mm_err_type{static_cast<ERROR_TYPE>(mm_fault_->GetErrorType())};
   switch (mm_err_type) {
     case ERROR_TYPE::NO_ERROR:
       mmfault_.pecep_lane_error = false;
@@ -216,7 +244,6 @@ void MapMatching::ProcData(
   auto cur_nsec =
       static_cast<uint64_t>((cur_stamp - static_cast<double>(cur_sec)) * 1e9);
   mm_output_lck_.lock();
-  bool big_curvature_frame = map_match_->GetMatchBigCurvature();
   if (!output_valid) {
     mm_node_info_ = generateNodeInfo(
         T_output, 0, 0, true, ref_point, ins_height, sys_status,
@@ -234,7 +261,440 @@ void MapMatching::ProcData(
     clock_gettime(CLOCK_REALTIME, &cur_time);
     auto sec = cur_time.tv_sec;
     auto nsec = cur_time.tv_nsec;
-    RvizFunc(sec, nsec, connect, T_output);
+    VP rviz_merged_map_lines = SetRvizMergeMapLines(merged_map_lines, T_input);
+    RvizFunc(sec, nsec, connect, T_output, rviz_merged_map_lines);
+  }
+}
+
+VP MapMatching::SetRvizMergeMapLines(
+    std::unordered_map<std::string, std::vector<ControlPoint>> merged_map_lines,
+    const SE3& T02_W_V) {
+  VP control_ponits;
+  for (auto& merged_map_line : merged_map_lines) {
+    auto& control_ponits_vec = merged_map_line.second;
+    for (auto iter = control_ponits_vec.begin();
+         iter != control_ponits_vec.end(); ++iter) {
+      control_ponits.emplace_back(T02_W_V * (*iter).point);
+    }
+  }
+  return control_ponits;
+}
+
+void MapMatching::MergeMapLanes(
+    const HdMap& hd_map, const SE3& T_W_V, const ValidPose& T_fc,
+    std::unordered_map<std::string, std::vector<ControlPoint>>* const
+        merged_map_lines,
+    std::unordered_map<std::string, std::vector<ControlPoint>>* const
+        merged_fcmap_lines,
+    std::unordered_map<std::string, std::vector<ControlPoint>>* const
+        merged_map_edges) {
+  auto map_elment =
+      hd_map.GetElement(hozon::mp::loc::HD_MAP_LANE_BOUNDARY_LINE);
+  if (map_elment == nullptr) {
+    return;
+  }
+  std::shared_ptr<MapBoundaryLine> map_boundary_lines =
+      std::static_pointer_cast<MapBoundaryLine>(map_elment);
+  if (map_boundary_lines->boundary_line_.size() == 0) {
+    return;
+  }
+  auto map_road_edge = hd_map.GetElement(hozon::mp::loc::HD_MAP_ROAD_EDGE);
+  if (map_road_edge == nullptr) {
+    return;
+  }
+  std::shared_ptr<MapRoadEdge> map_road_edges =
+      std::static_pointer_cast<MapRoadEdge>(map_road_edge);
+  if (map_road_edges->edge_line_.size() == 0) {
+    return;
+  }
+  auto t1 = std::chrono::steady_clock::now();
+  auto t2 = std::chrono::steady_clock::now();
+  if (map_boundary_lines->boundary_line_.empty()) {
+    lane_control_pointInfo_.clear();
+  } else {
+    MergeMapLines(map_boundary_lines, T_W_V, merged_fcmap_lines,
+                  merged_map_lines);
+  }
+  if (map_road_edges->edge_line_.empty()) {
+    edge_control_pointInfo_.clear();
+  } else {
+    MergeMapEdges(map_road_edges, T_fc.pose, merged_map_edges);
+  }
+  t2 = std::chrono::steady_clock::now();
+  auto merge_map_lines_cost_time =
+      (t2.time_since_epoch() - t1.time_since_epoch()).count() / 1e9;
+  HLOG_DEBUG << "MatchLaneLine: merge_map_lines_cost_time: "
+             << merge_map_lines_cost_time << " ms";
+}
+
+void MapMatching::FilterPercpLane(
+    const std::shared_ptr<Perception>& perception,
+    std::list<std::list<LaneLinePerceptionPtr>>* const percep_lanelines) {
+  if (perception == nullptr) {
+    return;
+  }
+  for (const auto& p : perception->GetElement(PERCEPTYION_LANE_BOUNDARY_LINE)) {
+    auto lane = std::static_pointer_cast<PerceptionLaneLineList>(p);
+    std::list<LaneLinePerceptionPtr> fil_percep_laneline;
+    FilterPercpLaneline(lane->lane_line_list_, &fil_percep_laneline);
+    if (fil_percep_laneline.size() > 0) {
+      (*percep_lanelines).emplace_back(fil_percep_laneline);
+    }
+  }
+}
+
+void MapMatching::FilterPercpLaneline(
+    const std::list<LaneLinePerceptionPtr>& lanelines,
+    std::list<LaneLinePerceptionPtr>* const out) {
+  std::unordered_map<int, std::vector<LaneLinePerceptionPtr>> per_lines;
+  if (out == nullptr || lanelines.empty()) {
+    HLOG_ERROR << "FilterPercpLaneline: out == nullptr || lanelines.empty()";
+    return;
+  }
+  bool is_changing_lane = false;
+  int egolane_cnt = 0;
+  for (auto& line : lanelines) {
+    per_lines[line->lane_position_type()].emplace_back(line);
+    HLOG_DEBUG << "percep-laneinfo "
+               << line->curve_vehicle_coord_.lane_position_type_
+               << " confid|min|max: " << line->curve_vehicle_coord_.confidence_
+               << " " << line->Min() << " " << line->Max();
+    if (per_lines[line->lane_position_type()].size() < 2) {
+      continue;
+    }
+    double l0_fist_point_x = per_lines[line->lane_position_type()][0]->Min();
+    double l1_fist_point_x = per_lines[line->lane_position_type()][1]->Min();
+    if (fabs(l0_fist_point_x) > fabs(l1_fist_point_x)) {
+      per_lines[line->lane_position_type()].erase(
+          per_lines[line->lane_position_type()].begin());
+    } else {
+      per_lines[line->lane_position_type()].erase(
+          per_lines[line->lane_position_type()].begin() + 1);
+    }
+  }
+  for (auto line_elem : per_lines) {
+    if (line_elem.second.empty()) {
+      continue;
+    }
+    auto line = line_elem.second[0];
+    if (fabs(line->lane_position_type()) == 1) {
+      egolane_cnt++;
+    }
+    auto line_points = line->points();
+    if (line_points.empty()) {
+      continue;
+    }
+    if (fabs(line_points[0].y()) < 0.5) {
+      is_changing_lane = true;
+    }
+  }
+  for (auto line_elem : per_lines) {
+    if (line_elem.second.empty()) {
+      continue;
+    }
+    auto line = line_elem.second[0];
+    if (line->curve_vehicle_coord_.confidence_ <
+        mm_params.lane_confidence_thre) {
+      continue;
+    }
+    if (line->Max() < 0.f || line->Min() > 100.f ||
+        line->Max() - line->Min() < mm_params.perceplane_len_lowerbound) {
+      continue;
+    }
+    if (is_changing_lane) {
+      if (fabs(line->lane_position_type()) == 1 ||
+          fabs(line->lane_position_type()) == 2) {
+        (*out).emplace_back(line);
+      }
+    } else if (egolane_cnt == 2) {
+      if (fabs(line->lane_position_type()) == 1) {
+        (*out).emplace_back(line);
+      }
+    } else {
+      if (fabs(line->lane_position_type()) == 1 ||
+          fabs(line->lane_position_type()) == 2) {
+        (*out).emplace_back(line);
+      }
+    }
+  }
+}
+
+void MapMatching::MergeMapLines(
+    const std::shared_ptr<MapBoundaryLine>& boundary_lines, const SE3& T,
+    std::unordered_map<std::string, std::vector<ControlPoint>>* merged_fcmap_lines,
+    std::unordered_map<std::string, std::vector<ControlPoint>>* merged_map_lines) {
+  if (boundary_lines == nullptr) {
+    return;
+  }
+  if (!lines_map_.empty()) {
+    lines_map_.clear();
+  }
+  if (!lane_control_pointInfo_.empty()) {
+    lane_control_pointInfo_.clear();
+  }
+
+  auto T_V_W = T.inverse();
+  for (const auto& line : boundary_lines->boundary_line_) {
+    if (line.second.line_type == MapLineType::LaneChangeVirtualLine) {
+      continue;
+    }
+    auto id = line.first;
+    const auto& control_points = line.second.control_point;
+    auto control_points_size = control_points.size();
+    if (control_points_size <= 1) {
+      HLOG_DEBUG << "MergeMapLines: control_points size <= 1";
+      continue;
+    }
+    auto start_point = control_points.front().point;
+    auto start_point_v = T_V_W * start_point;
+    auto end_point = control_points.back().point;
+    auto end_point_v = T_V_W * end_point;
+    if (start_point.norm() == end_point.norm()) {
+      HLOG_DEBUG << "MergeMapLines: start_point.norm() == end_point.norm()";
+      continue;
+    }
+    ControlPointInfo cpt_info{start_point_v, end_point_v, control_points_size};
+    if (lane_control_pointInfo_.find(cpt_info) !=
+        lane_control_pointInfo_.end()) {
+      continue;
+    }
+    LineSegment line_segment{id, end_point_v};
+    lines_map_[start_point_v].emplace_back(std::move(line_segment));
+    lane_control_pointInfo_.insert(cpt_info);
+  }
+  if (!visited_id_.empty()) {
+    visited_id_.clear();
+  }
+  for (auto& line : lines_map_) {
+    auto root_segment_start_point = line.first;
+    std::vector<std::string> line_ids;
+    if (visited_id_.count(line.second.front().first) > 0) {
+      continue;
+    }
+    int loop = 0;
+    if (!linked_lines_id_.empty()) {
+      linked_lines_id_.clear();
+    }
+    Traversal(root_segment_start_point, line_ids, loop);
+    multi_linked_lines_.emplace_back(linked_lines_id_);
+  }
+  if (multi_linked_lines_.empty()) {
+    HLOG_DEBUG << "MergeMapLines: multi_linked_lines_ empty!";
+    return;
+  }
+  std::unordered_map<std::string, int> merge_lane_ids;
+  for (auto& lines : multi_linked_lines_) {
+    for (auto& line_ids : lines) {
+      if (line_ids.empty()) {
+        continue;
+      }
+      auto first_line_id = line_ids.front();
+      auto last_line_id = line_ids.back();
+      std::string merge_lane_id = first_line_id + "_" + last_line_id;
+      if (merge_lane_ids.find(merge_lane_id) != merge_lane_ids.end()) {
+        merge_lane_ids[merge_lane_id] += 1;
+        continue;
+      }
+      for (auto& line_id : line_ids) {
+        for (auto control_point :
+             boundary_lines->boundary_line_[line_id].control_point) {
+          (*merged_fcmap_lines)[merge_lane_id].emplace_back(control_point);
+          control_point.point = T_V_W * control_point.point;
+          (*merged_map_lines)[merge_lane_id].emplace_back(control_point);
+        }
+      }
+      merge_lane_ids[merge_lane_id] += 1;
+    }
+  }
+  multi_linked_lines_.clear();
+}
+
+void MapMatching::Traversal(const V3& root_start_point,
+                              std::vector<std::string> line_ids, int loop) {
+  if (lines_map_.empty()) {
+    return;
+  }
+
+  std::stack<std::tuple<V3, std::vector<std::string>, int>> stack;
+  stack.push(std::make_tuple(root_start_point, line_ids, loop));
+
+  while (!stack.empty()) {
+    auto [cur_start_point, cur_line_ids, cur_loop] = stack.top();
+    stack.pop();  // V3 cur_start_point = root_start_point;
+    auto cur_line_infos_iter = lines_map_.find(cur_start_point);
+    if (cur_line_infos_iter == lines_map_.end()) {
+      if (cur_line_ids.empty()) {
+        HLOG_DEBUG << "Traversal: traversal loop failed " << cur_loop;
+        continue;
+      }
+      linked_lines_id_.emplace_back(cur_line_ids);
+      continue;
+    }
+    auto successor_segments_info = cur_line_infos_iter->second;
+    int size = static_cast<int>(successor_segments_info.size());
+    if (size > 0) {
+      for (int i = 0; i < size; ++i) {
+        bool find_flag =
+            std::binary_search(cur_line_ids.begin(), cur_line_ids.end(),
+                               successor_segments_info[i].first);
+        if (find_flag) {
+          linked_lines_id_.emplace_back(cur_line_ids);
+          continue;
+        }
+        cur_line_ids.emplace_back(successor_segments_info[i].first);
+        cur_loop++;
+        visited_id_.insert(successor_segments_info[i].first);
+        stack.push(std::make_tuple(successor_segments_info[i].second,
+                                   cur_line_ids, cur_loop));
+        cur_line_ids.pop_back();
+        cur_loop--;
+      }
+      if (cur_line_ids.size() > 50) {
+        HLOG_ERROR << "Traversal: cur_line_ids size > 50!!!, break loop!!!";
+        break;
+      }
+    } else {
+      HLOG_DEBUG << "Traversal: traversal loop: " << cur_loop << " failed!";
+    }
+  }
+}
+
+void MapMatching::MergeMapEdges(
+    const std::shared_ptr<MapRoadEdge>& road_edges, const SE3& T,
+    std::unordered_map<std::string, std::vector<ControlPoint>>* merged_map_edges) {
+  if (road_edges == nullptr) {
+    return;
+  }
+  if (!edges_map_.empty()) {
+    edges_map_.clear();
+  }
+  if (!edge_control_pointInfo_.empty()) {
+    edge_control_pointInfo_.clear();
+  }
+
+  auto T_V_W = T.inverse();
+  for (const auto& line : road_edges->edge_line_) {
+    auto id = line.first;
+    const auto& control_points = line.second.control_point;
+    auto control_points_size = control_points.size();
+    if (control_points_size <= 1) {
+      HLOG_INFO << "MergeMapEdges: control_points size <= 1";
+      continue;
+    }
+    auto start_point = control_points.front().point;
+    auto start_point_v = T_V_W * start_point;
+    auto end_point = control_points.back().point;
+    auto end_point_v = T_V_W * end_point;
+    if (start_point.norm() == end_point.norm()) {
+      HLOG_DEBUG << "MergeMapEdges: start_point.norm() == end_point.norm()";
+      continue;
+    }
+    ControlPointInfo cpt_info{start_point_v, end_point_v, control_points_size};
+    if (edge_control_pointInfo_.find(cpt_info) !=
+        edge_control_pointInfo_.end()) {
+      continue;
+    }
+    LineSegment line_segment{id, end_point_v};
+    edges_map_[start_point_v].emplace_back(std::move(line_segment));
+    edge_control_pointInfo_.insert(cpt_info);
+  }
+  HLOG_INFO << "MergeMapEdges: reconstruct map road edges end!";
+  if (!edge_visited_id_.empty()) {
+    edge_visited_id_.clear();
+  }
+  for (auto& line : edges_map_) {
+    auto root_segment_start_point = line.first;
+    std::vector<std::string> line_ids;
+    if (edge_visited_id_.count(line.second.front().first) > 0) {
+      continue;
+    }
+    int loop = 0;
+    if (!linked_edges_id_.empty()) {
+      linked_edges_id_.clear();
+    }
+    EdgesTraversal(root_segment_start_point, line_ids, loop);
+    multi_linked_edges_.emplace_back(linked_edges_id_);
+  }
+  if (multi_linked_edges_.empty()) {
+    HLOG_DEBUG << "MergeMapEdges: multi_linked_edges_ empty!";
+    return;
+  }
+  std::unordered_map<std::string, int> merge_lane_ids;
+  for (auto& lines : multi_linked_edges_) {
+    for (auto& line_ids : lines) {
+      if (line_ids.empty()) {
+        continue;
+      }
+      auto first_line_id = line_ids.front();
+      auto last_line_id = line_ids.back();
+      std::string merge_lane_id = first_line_id + "_" + last_line_id;
+      if (merge_lane_ids.find(merge_lane_id) != merge_lane_ids.end()) {
+        merge_lane_ids[merge_lane_id] += 1;
+        continue;
+      }
+      for (auto& line_id : line_ids) {
+        for (auto control_point :
+             road_edges->edge_line_[line_id].control_point) {
+          control_point.point = T_V_W * control_point.point;
+          (*merged_map_edges)[merge_lane_id].emplace_back(control_point);
+        }
+      }
+      merge_lane_ids[merge_lane_id] += 1;
+    }
+  }
+  multi_linked_edges_.clear();
+}
+
+void MapMatching::EdgesTraversal(const V3& root_start_point,
+                                   std::vector<std::string> line_ids,
+                                   int loop) {
+  if (edges_map_.empty()) {
+    return;
+  }
+
+  std::stack<std::tuple<V3, std::vector<std::string>, int>> stack;
+  stack.push(std::make_tuple(root_start_point, line_ids, loop));
+
+  while (!stack.empty()) {
+    auto [cur_start_point, cur_line_ids, cur_loop] = stack.top();
+    stack.pop();  // V3 cur_start_point = root_start_point;
+    auto cur_line_infos_iter = edges_map_.find(cur_start_point);
+    if (cur_line_infos_iter == edges_map_.end()) {
+      if (cur_line_ids.empty()) {
+        HLOG_DEBUG << "Traversal: traversal loop failed " << cur_loop;
+        continue;
+      }
+      linked_edges_id_.emplace_back(cur_line_ids);
+      continue;
+    }
+    auto successor_segments_info = cur_line_infos_iter->second;
+    int size = static_cast<int>(successor_segments_info.size());
+    if (size > 0) {
+      for (int i = 0; i < size; ++i) {
+        bool find_flag =
+            std::binary_search(cur_line_ids.begin(), cur_line_ids.end(),
+                               successor_segments_info[i].first);
+        if (find_flag) {
+          linked_edges_id_.emplace_back(cur_line_ids);
+          continue;
+        }
+        cur_line_ids.emplace_back(successor_segments_info[i].first);
+        cur_loop++;
+        edge_visited_id_.insert(successor_segments_info[i].first);
+        stack.push(std::make_tuple(successor_segments_info[i].second,
+                                   cur_line_ids, cur_loop));
+        cur_line_ids.pop_back();
+        cur_loop--;
+      }
+      if (cur_line_ids.size() > 50) {
+        HLOG_ERROR
+            << "EDGE Traversal: cur_line_ids size > 50!!!, break loop!!!";
+        break;
+      }
+    } else {
+      HLOG_DEBUG << "EDGE Traversal: traversal loop: " << cur_loop
+                 << " failed!";
+    }
   }
 }
 
@@ -782,7 +1242,8 @@ void MapMatching::setOriginConnectMapPoints(const Connect& connect,
 
 void MapMatching::RvizFunc(uint64_t cur_sec, uint64_t cur_nsec,
                            const hozon::mp::loc::Connect& connect,
-                           const SE3& T_output) {
+                           const SE3& T_output,
+                           const VP& rviz_merged_map_lines) {
   RVIZ_AGENT.Register<adsfi_proto::viz::TransformStamped>(kTopicMmTf);
   RVIZ_AGENT.Register<adsfi_proto::viz::Path>(kTopicMmCarPath);
   RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(kTopicMmFrontPoints);
@@ -804,7 +1265,8 @@ void MapMatching::RvizFunc(uint64_t cur_sec, uint64_t cur_nsec,
       kTopicMmOriginConnectMapPoints);
   RVIZ_AGENT.Register<adsfi_proto::viz::Odometry>(kTopicInputOdom);
   // merge后地图车道线
-  VP merged_map_lane_lines = map_match_->GetRvizMergeMapLines();
+  VP merged_map_lane_lines;
+  merged_map_lane_lines = rviz_merged_map_lines;
   pubPoints(merged_map_lane_lines, cur_sec, cur_nsec,
             kTopicMmMergedMapLaneLinePoints);
   // 输出位姿投影关联后的感知车道线

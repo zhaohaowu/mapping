@@ -9,6 +9,9 @@
 
 #include <memory>
 #include <vector>
+#include <list>
+#include <unordered_map>
+#include <string>
 
 #include "modules/location/pose_estimation/lib/hd_map/hd_map.h"
 #include "modules/location/pose_estimation/lib/perception/perception.h"
@@ -26,28 +29,26 @@ struct Connect {
 class MapMatch {
  public:
   MapMatch();
-  void Match(const HdMap &hd_map, const std::shared_ptr<Perception> &perception,
-             const SE3 &T02_W_V, const ValidPose &T_fc);
+  void Match(
+      const std::unordered_map<std::string, std::vector<ControlPoint>>&
+          merged_map_lines,
+      const std::list<std::list<LaneLinePerceptionPtr>>& percep_lanelines,
+      const SE3& T02_W_V, const ValidPose& T_fc);
   Connect Result(void);
   Connect OriginResult(void);
-  inline bool hasError() { return has_err_; }
-  inline int GetErrorType() { return err_type_; }
-  bool GoodMatchCheck(const SE3 &T);
+  bool GoodMatchCheck(const SE3& T);
   bool CheckLaneWidth(const SE3 &T, double* lane_width_diff);
   void SetInsTs(const double &ins_ts);
   void SetVel(const Eigen::Vector3d &linear_vel);
   int GetLanePairSize() { return lane_line_->get_match_line_size(); }
   int GetMatchPairSize() { return connect_.lane_line_match_pairs.size(); }
   bool GetMatchBigCurvature() { return lane_line_->get_big_curvature(); }
-  VP GetRvizMergeMapLines() { return lane_line_->SetRvizMergeMapLines(); }
 
  private:
   MatchLaneLine::MatchLaneLinePtr lane_line_;
   Connect connect_;
   Connect origin_connect_;
   double ts_;
-  bool has_err_;
-  int err_type_;
   double ins_timestamp_;
   Eigen::Vector3d linear_vel_{0.0, 0.0, 0.0};
 };

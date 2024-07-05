@@ -39,12 +39,6 @@ struct ValidPose {
   int fc_loc_state = -1;
 };
 
-struct ControlPointInfo {
-  V3 last_start_point_v{0.0, 0.0, 0.0};
-  V3 last_end_point_v{0.0, 0.0, 0.0};
-  size_t last_control_points_size = 0;
-};
-
 class MatchLaneLine {
  public:
   MatchLaneLine();
@@ -56,8 +50,11 @@ class MatchLaneLine {
    * @param T_W_V : vehicle pose in enu
    * @return
    */
-  void Match(const HdMap& hd_map, const std::shared_ptr<Perception>& perception,
-             const SE3& T_W_V, const ValidPose& T_fc);
+  void Match(
+      const std::unordered_map<std::string, std::vector<ControlPoint>>&
+          merged_map_lines,
+      const std::list<std::list<LaneLinePerceptionPtr>>& percep_lanelines,
+      const SE3& T_W_V, const ValidPose& T_fc);
 
   /**
    * @brief check the solve result
@@ -123,10 +120,6 @@ class MatchLaneLine {
   void set_ins_ts(const double& ins_ts);
   void set_linear_vel(const Eigen::Vector3d& linear_vel);
   bool get_big_curvature() { return big_curvature_; }
-  inline void GetError(bool* has_err, int* err_type) {
-    *has_err = has_err_;
-    *err_type = static_cast<int>(err_type_);
-  }
   VP SetRvizMergeMapLines();
   inline std::vector<PointMatchPair> get_origin_pairs() {
     std::vector<PointMatchPair> match_pairs;
@@ -152,14 +145,6 @@ class MatchLaneLine {
                       const LaneLinePerceptionPtr& pecep,
                       const double& min_match_x, const double& max_match_x,
                       const double& sample_interval, const bool& is_good_check);
-  void CheckIsGoodMatchFCbyLine(const SE3& FC_pose,
-                                const Eigen::Vector3d& FC_vel);
-  void CalLinesMinDist(const LaneLinePerceptionPtr& percep,
-                       const std::unordered_map<std::string, std::vector<V3>>&
-                           filtered_fcmap_lines,
-                       double* const near, double* const far,
-                       const double& far_dis, const double& near_dis,
-                       std::string* cur_line_id, V3* pt);
   bool GetEdgeFitPoints(const std::vector<ControlPoint>& points, const double x,
                         V3* pt);
   void CalPercepMinDist(const Eigen::Vector3d& FC_vel,
@@ -248,8 +233,6 @@ class MatchLaneLine {
    * @return true : get the fit pints; false : do not get the fit points
    */
   bool GetFitPoints(const VP& control_poins, const double x, V3* pt);
-  bool GetFcFitMapPoints(const VP& control_poins, const double x, V3* pt);
-  bool GetFcFitPoints(const VP& control_poins, const double x, V3* pt);
   bool GetPerceFitPoints(const VP& points, const double x, V3* pt);
   bool GetFitMapPoints(const std::vector<ControlPoint>& control_poins,
                        const double x, V3* pt);
@@ -260,14 +243,6 @@ class MatchLaneLine {
    *
    * @return
    */
-  void MergeMapLines(const std::shared_ptr<MapBoundaryLine>& boundary_lines,
-                     const SE3& T);
-  void MergeMapEdges(const std::shared_ptr<MapRoadEdge>& road_edges,
-                     const SE3& T);
-  void Traversal(const V3& root_start_point, std::vector<std::string> line_ids,
-                 int loop);
-  void EdgesTraversal(const V3& root_start_point,
-                      std::vector<std::string> line_ids, int loop);
   void NormalizeWeight(
       std::vector<std::vector<PointMatchPair>>& match_pairs);  // NOLINT
   void ComputeCurvature(const std::vector<double>& coeffs, const double x,
@@ -284,13 +259,9 @@ class MatchLaneLine {
   std::vector<std::vector<PointMatchPair>> origin_match_pairs_;
   std::vector<std::vector<PointMatchPair>> match_pairs_;
   std::list<LineMatchPair> line_match_pairs_;
-  std::shared_ptr<Perception> percep_;
-  std::list<std::list<LaneLinePerceptionPtr>> percep_lanelines_;
   bool lanelineconnect_ = true;
   bool is_double_line_ = false;
   bool is_good_match_;
-  bool has_err_;
-  ERROR_TYPE err_type_;
   SE3 T_W_V_;
   SE3 T_V_W_;
   int loc_state_;
@@ -300,55 +271,7 @@ class MatchLaneLine {
   using MatchLaneLinePtr = std::shared_ptr<MatchLaneLine>;
 
  private:
-  struct EigenMatrixHash {
-    std::size_t operator()(const Eigen::Matrix<double, 3, 1>& matrix) const {
-      return std::hash<double>()(matrix(0)) ^ std::hash<double>()(matrix(1)) ^
-             std::hash<double>()(matrix(2));
-    }
-  };
-  struct ControlPointInfoEqual {
-    bool operator()(const ControlPointInfo& lhs,
-                    const ControlPointInfo& rhs) const {
-      return lhs.last_start_point_v.isApprox(rhs.last_start_point_v) &&
-             lhs.last_end_point_v.isApprox(rhs.last_end_point_v) &&
-             lhs.last_control_points_size == rhs.last_control_points_size;
-    }
-  };
-  struct ControlPointInfoHash {
-    std::size_t operator()(const ControlPointInfo& cpt_info) const {
-      std::size_t hashValue = 0;
-      hashValue ^= EigenMatrixHash()(cpt_info.last_start_point_v);
-      hashValue ^= EigenMatrixHash()(cpt_info.last_end_point_v);
-      hashValue ^= std::hash<size_t>()(cpt_info.last_control_points_size);
-      return hashValue;
-    }
-  };
-
- private:
   bool big_curvature_ = false;
-  bool check_error_last_ = false;
-  std::unordered_set<std::string> edge_visited_id_;
-  std::unordered_set<std::string> visited_id_;
-  std::map<V3, std::vector<LineSegment>, PointV3Comp<V3>>
-      edges_map_;  // map: {{start_point, LineSegment}}
-  std::vector<std::vector<std::string>> linked_edges_id_;
-  std::vector<std::vector<std::vector<std::string>>>
-      multi_linked_edges_;  // 内层vector是一组前后继链接的车道线
-  std::unordered_map<std::string, std::vector<ControlPoint>> merged_map_edges_;
-  std::map<V3, std::vector<LineSegment>, PointV3Comp<V3>>
-      lines_map_;  // map: {{start_point, LineSegment}}
-  std::vector<std::vector<std::string>> linked_lines_id_;
-  std::vector<std::vector<std::vector<std::string>>>
-      multi_linked_lines_;  // 内层vector是一组前后继链接的车道线
-  std::unordered_map<std::string, std::vector<ControlPoint>> merged_map_lines_;
-  std::unordered_map<std::string, std::vector<ControlPoint>>
-      merged_fcmap_lines_;
-  std::unordered_set<ControlPointInfo, ControlPointInfoHash,
-                     ControlPointInfoEqual>
-      lane_control_pointInfo_;
-  std::unordered_set<ControlPointInfo, ControlPointInfoHash,
-                     ControlPointInfoEqual>
-      edge_control_pointInfo_;
 };
 
 }  // namespace loc

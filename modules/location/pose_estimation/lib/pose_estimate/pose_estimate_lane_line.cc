@@ -496,6 +496,7 @@ void MatchLaneLine::LaneLineConnect(
       }
       max_match_x = mm_params.common_max_line_length;
     }
+    match_cache_size_ = match_mapline_cache.size();
     SelectBestMatchPairs(&match_mapline_cache);
   }
 }

@@ -120,6 +120,7 @@ class MatchLaneLine {
   void set_ins_ts(const double& ins_ts);
   void set_linear_vel(const Eigen::Vector3d& linear_vel);
   bool get_big_curvature() { return big_curvature_; }
+  int get_match_cache_size() { return match_cache_size_; }
   VP SetRvizMergeMapLines();
   inline std::vector<PointMatchPair> get_origin_pairs() {
     std::vector<PointMatchPair> match_pairs;
@@ -255,6 +256,7 @@ class MatchLaneLine {
   double ts_;
   double last_ins_timestamp_ = 0.f;
   double ins_timestamp_ = 0.f;
+  int match_cache_size_ = 0;
   Eigen::Vector3d match_linear_vel_{0.0, 0.0, 0.0};
   std::vector<std::vector<PointMatchPair>> origin_match_pairs_;
   std::vector<std::vector<PointMatchPair>> match_pairs_;

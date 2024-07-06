@@ -211,15 +211,21 @@ void MapMatching::ProcData(
   // ceres优化
   SE3 T_output;
   hozon::mp::loc::Connect connect = map_match_->Result();
+  double line_number_factor = 0.0;
+  int default_valid_number = 2;
   bool output_valid = true;
   if (!MapMatchSolver::solve2D(connect, T_input, &T_output)) {
     HLOG_ERROR << "cur_stamp " << cur_stamp << " ceres solve failed";
     output_valid = false;
+  } else {
+    int matching_cache_number = map_match_->GetMatchCacheNumber();
+    line_number_factor = std::fabs(
+        1 - 1.0 / ((std::min(default_valid_number, matching_cache_number) /
+                    static_cast<double>(default_valid_number))));
   }
-
   // 感知和地图宽度校验
   double lane_width_diff_value = 0.0;
-  double lane_width_check_coeff = 1.0;
+  double lane_width_check_factor = 0.0;
   if (mm_params.lane_width_check_switch) {
     bool check_failed =
         map_match_->CheckLaneWidth(T_output, &lane_width_diff_value);
@@ -231,27 +237,28 @@ void MapMatching::ProcData(
     } else if (!check_failed &&
                lane_width_diff_value < mm_params.lane_width_diff_thre &&
                lane_width_diff_value > 0.8) {
-      lane_width_check_coeff = std::exp(lane_width_diff_value - 0.8);
-      HLOG_DEBUG << "lane_width_check_coeff: " << lane_width_check_coeff
-                 << ", lane_width_diff_value: " << lane_width_diff_value
-                 << "ts: " << cur_stamp;
+      lane_width_check_factor = std::exp(lane_width_diff_value - 0.8);
       output_valid = true;
     }
   }
-
+  double a = 1.5;
+  double b = 10;
+  double final_coeff =
+      1 + a * lane_width_check_factor +
+      b * line_number_factor * std::pow(2, 1 + line_number_factor);
   // 对无效位姿增加无效标记并赋为输入位姿，有效位姿增加有效标记并赋为输出位姿
   auto cur_sec = static_cast<uint64_t>(cur_stamp);
   auto cur_nsec =
       static_cast<uint64_t>((cur_stamp - static_cast<double>(cur_sec)) * 1e9);
   mm_output_lck_.lock();
   if (!output_valid) {
-    mm_node_info_ = generateNodeInfo(
-        T_output, 0, 0, true, ref_point, ins_height, sys_status,
-        big_curvature_frame, lane_width_check_coeff);
+    mm_node_info_ =
+        generateNodeInfo(T_output, 0, 0, true, ref_point, ins_height,
+                         sys_status, big_curvature_frame, final_coeff);
   } else {
-    mm_node_info_ = generateNodeInfo(
-        T_output, cur_sec, cur_nsec, false, ref_point, ins_height, sys_status,
-        big_curvature_frame, lane_width_check_coeff);
+    mm_node_info_ = generateNodeInfo(T_output, cur_sec, cur_nsec, false,
+                                     ref_point, ins_height, sys_status,
+                                     big_curvature_frame, final_coeff);
   }
   mm_output_lck_.unlock();
 

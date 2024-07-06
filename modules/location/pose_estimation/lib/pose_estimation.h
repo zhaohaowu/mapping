@@ -130,6 +130,8 @@ class PoseEstimation {
   Eigen::Affine3d T_ins_100hz_;
   Eigen::Affine3d T_fc_10hz_;
   Eigen::Affine3d T_input_;
+  Eigen::Vector4d FC_KF_kydiff_100hz_;
+  Eigen::Vector4d FC_KF_cov_100hz_;
   TrackingManager tracking_manager_;
   MappingManager map_manager_;
 

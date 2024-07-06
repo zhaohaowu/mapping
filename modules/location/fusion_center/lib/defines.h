@@ -71,6 +71,9 @@ struct Node {
   Eigen::Vector3d b_g = Eigen::Vector3d::Zero();
   Eigen::Quaterniond quaternion;
   Eigen::Matrix<double, 15, 15> cov = Eigen::Matrix<double, 15, 15>::Zero();
+
+  Eigen::Matrix<double, 6, 1> KF_kdiff = Eigen::Matrix<double, 6, 1>::Zero();
+  Eigen::Matrix<double, 6, 6> KF_cov = Eigen::Matrix<double, 6, 6>::Zero();
   double pe_cov_coef = 0.0;
   uint32_t sys_status = 0;
   uint32_t rtk_status = 0;

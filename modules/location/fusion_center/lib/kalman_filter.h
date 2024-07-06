@@ -31,6 +31,8 @@ class KalmanFilter {
   void MeasurementUpdate(const Eigen::VectorXd& z);
   bool IsInitialized() const;
   Eigen::VectorXd GetState() const;
+  Eigen::VectorXd GetKydiff() const;
+  Eigen::MatrixXd GetP() const;
   Eigen::Matrix<double, 3, 3> JlSO3(const Eigen::Matrix<double, 3, 1>& w);
   Eigen::Matrix<double, 3, 3> JrSO3(const Eigen::Matrix<double, 3, 1>& w);
   Eigen::Matrix<double, 3, 3> SkewMatrix(Eigen::Vector3d v);
@@ -40,6 +42,7 @@ class KalmanFilter {
   std::string configfile_ = "";
   double angle_sign_change_thr_ = 0.0;
   Eigen::VectorXd state_;
+  Eigen::VectorXd Kydiff_;
   Eigen::MatrixXd F_;
   Eigen::MatrixXd P_;
   Eigen::MatrixXd Q_;

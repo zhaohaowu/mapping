@@ -29,7 +29,14 @@ bool MapMatchSolver::solve2D(const Connect& connect,
   }
   double x = input_pose.translation().x();
   double y = input_pose.translation().y();
-  double yaw = input_pose.log().tail<3>().z();
+
+  auto rotation_matrix = input_pose.rotationMatrix();
+  Sophus::SO3d rot(rotation_matrix);
+  Eigen::Vector3d euler = RotToEuler312(rot.matrix());
+  euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
+  double roll = euler[0];   // Roll
+  double pitch = euler[1];  // Pitch
+  double yaw = euler[2];    // Yaw
   Eigen::Vector3d pose_plane(x, y, yaw);
   ceres::Solver::Options options;
   ceres::Solver::Summary summary;
@@ -51,9 +58,11 @@ bool MapMatchSolver::solve2D(const Connect& connect,
     HLOG_ERROR << "num_successful_steps < 0";
     return false;
   }
-  Eigen::Matrix3d R;
-  R << cos(yaw), -sin(yaw), 0, sin(yaw), cos(yaw), 0, 0, 0, 1;
-  Eigen::Quaterniond q(R);
+  // Eigen::Matrix3d R;
+  Eigen::AngleAxisd rollAngle(roll, Eigen::Vector3d::UnitX());
+  Eigen::AngleAxisd pitchAngle(pitch, Eigen::Vector3d::UnitY());
+  Eigen::AngleAxisd yawAngle(yaw, Eigen::Vector3d::UnitZ());
+  Eigen::Quaterniond q = yawAngle * rollAngle * pitchAngle;
   *result_pose = Sophus::SE3d(q, Eigen::Vector3d(x, y, 0));
   return true;
 }

@@ -128,8 +128,8 @@ void KalmanFilter::Predict(double t, double vx, double vy, double vz,
   Eigen::MatrixXd F = Eigen::MatrixXd::Identity(6, 6);
   F.template block<3, 3>(0, 3) =
       -1 * state_rot.matrix() * SkewMatrix(angular_vel_VRF);
-  F.template block<3, 1>(0, 3) = Eigen::Vector3d::Zero();
-  F.template block<3, 1>(0, 4) = Eigen::Vector3d::Zero();
+  // F.template block<3, 1>(0, 3) = Eigen::Vector3d::Zero();
+  // F.template block<3, 1>(0, 4) = Eigen::Vector3d::Zero();
   Sophus::SO3d delta_rot = Sophus::SO3d::exp(angular_vel_VRF);
   Eigen::Vector3d JrSO3_input = (state_rot * delta_rot).log();
   F.template block<3, 3>(3, 3) =
@@ -155,14 +155,21 @@ void KalmanFilter::MeasurementUpdate(const Eigen::VectorXd& z) {
   const auto S = H_ * P_ * H_.transpose() + R_;
   const auto K = P_ * H_.transpose() * S.inverse();
   auto K_ydiff = K * y_diff;
+
   state_.head(3) = state_.head(3) + K_ydiff.head(3);
   state_.tail(3) = (state_rot * Sophus::SO3d::exp(K_ydiff.tail(3))).log();
   const int size = state_.size();
   const auto I = Eigen::MatrixXd::Identity(size, size);
   P_ = (I - K * H_) * P_;
+
+  Kydiff_ = K_ydiff;
 }
 
 Eigen::VectorXd KalmanFilter::GetState() const { return state_; }
+
+Eigen::VectorXd KalmanFilter::GetKydiff() const { return Kydiff_; }
+
+Eigen::MatrixXd KalmanFilter::GetP() const { return P_; }
 
 bool KalmanFilter::IsInitialized() const { return init_; }
 

@@ -180,7 +180,7 @@ void ESKF::Correct(const Node& cur_meas_data) {
     default:
       double pe_cov_coef = 1.0;
       if (cur_meas_data.pe_cov_coef > 1.0) {
-        pe_cov_coef = cur_meas_data.pe_cov_coef * 1.5;
+        pe_cov_coef = cur_meas_data.pe_cov_coef;
       }
       R = pe_cov_coef * R_mm_;
       break;

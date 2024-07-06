@@ -826,16 +826,6 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose->mutable_angular_velocity_vrf()->set_y(ins.angular_velocity().y());
   pose->mutable_angular_velocity_vrf()->set_z(ins.angular_velocity().z());
 
-  pose->mutable_wgs()->set_x(ins.pos_wgs().x());
-  pose->mutable_wgs()->set_y(ins.pos_wgs().y());
-  // pose->mutable_wgs()->set_z(ins.pos_wgs().z());
-  if (filter_valid_pe_) {
-    // filter mm valid
-    pose->mutable_wgs()->set_z(1.0);
-  } else {
-    pose->mutable_wgs()->set_z(2.0);
-  }
-
   pose->mutable_gcj02()->set_x(global_node.blh(0));
   pose->mutable_gcj02()->set_y(global_node.blh(1));
   pose->mutable_gcj02()->set_z(global_node.blh(2));
@@ -879,12 +869,12 @@ void FusionCenter::Node2Localization(const Context& ctx,
   // const std::string laneid = GetHdCurrLaneId(curr_utm,
   // ConvertHeading(heading)); location->set_laneid(laneid);
 
-  pose->mutable_linear_acceleration_raw_vrf()->set_x(
-      imu.imuvb_linear_acceleration().x());
-  pose->mutable_linear_acceleration_raw_vrf()->set_y(
-      imu.imuvb_linear_acceleration().y());
-  pose->mutable_linear_acceleration_raw_vrf()->set_z(
-      imu.imuvb_linear_acceleration().z());
+  // pose->mutable_linear_acceleration_raw_vrf()->set_x(
+  //     imu.imuvb_linear_acceleration().x());
+  // pose->mutable_linear_acceleration_raw_vrf()->set_y(
+  //     imu.imuvb_linear_acceleration().y());
+  // pose->mutable_linear_acceleration_raw_vrf()->set_z(
+  //     imu.imuvb_linear_acceleration().z());
 
   pose->mutable_linear_velocity()->set_x(global_node.velocity(0));
   pose->mutable_linear_velocity()->set_y(global_node.velocity(1));
@@ -904,12 +894,31 @@ void FusionCenter::Node2Localization(const Context& ctx,
   }
   pose->set_local_heading(local_heading);
 
-  pose->mutable_angular_velocity_raw_vrf()->set_x(
-      imu.imuvb_angular_velocity().x());
-  pose->mutable_angular_velocity_raw_vrf()->set_y(
-      imu.imuvb_angular_velocity().y());
-  pose->mutable_angular_velocity_raw_vrf()->set_z(
-      imu.imuvb_angular_velocity().z());
+  // pose->mutable_angular_velocity_raw_vrf()->set_x(
+  //     imu.imuvb_angular_velocity().x());
+  // pose->mutable_angular_velocity_raw_vrf()->set_y(
+  //     imu.imuvb_angular_velocity().y());
+  // pose->mutable_angular_velocity_raw_vrf()->set_z(
+  //     imu.imuvb_angular_velocity().z());
+  
+  // KF滤波参数
+  pose->mutable_linear_acceleration_raw_vrf()->set_x(global_node.KF_kdiff(0) * 1e5);
+  pose->mutable_linear_acceleration_raw_vrf()->set_y(global_node.KF_kdiff(1) * 1e5);
+  pose->mutable_linear_acceleration_raw_vrf()->set_z(global_node.KF_kdiff(2) * 1e5);
+
+  pose->mutable_angular_velocity_raw_vrf()->set_x(global_node.KF_cov(0, 0));
+  pose->mutable_angular_velocity_raw_vrf()->set_y(global_node.KF_cov(1, 1));
+  pose->mutable_angular_velocity_raw_vrf()->set_z(global_node.KF_cov(2, 2));
+
+  pose->mutable_wgs()->set_x(global_node.KF_kdiff(5) * 1e5);
+  pose->mutable_wgs()->set_y(global_node.KF_cov(5, 5) * 1e3);
+  // pose->mutable_wgs()->set_z(ins.pos_wgs().z());
+  if (filter_valid_pe_) {
+    // filter mm valid
+    pose->mutable_wgs()->set_z(1.0);
+  } else {
+    pose->mutable_wgs()->set_z(2.0);
+  }
 
   const Sophus::SO3d& rot_local = Sophus::SO3d::exp(local_node.orientation);
   Eigen::Vector3d euler_local = Rot2Euler312(rot_local.matrix());
@@ -1582,6 +1591,9 @@ void FusionCenter::KalmanFiltering(Node* const node,
   node->orientation(0) = curr_state(3);
   node->orientation(1) = curr_state(4);
   node->orientation(2) = curr_state(5);
+
+  node->KF_kdiff = kalman_filter_.GetKydiff();
+  node->KF_cov = kalman_filter_.GetP();
 }
 
 bool FusionCenter::GetGlobalPose(Context* const ctx) {
@@ -1658,6 +1670,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(ctx->dr_node);
     const auto& pose = Node2SE3(refer_node) * T_delta;
     ctx->global_node.enu = pose.translation();
+    ctx->global_node.blh = hmu::Geo::EnuToBlh(ctx->global_node.enu, refpoint);
     ctx->global_node.orientation = pose.so3().log();
     ctx->global_node.quaternion = pose.so3().unit_quaternion();
     ctx->global_node.velocity =

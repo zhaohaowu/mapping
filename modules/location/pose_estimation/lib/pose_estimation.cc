@@ -144,9 +144,20 @@ void PoseEstimation::OnLocation(
         msg->pose_local().quaternion().w(), msg->pose_local().quaternion().x(),
         msg->pose_local().quaternion().y(), msg->pose_local().quaternion().z());
     Eigen::Affine3d T_dr = Eigen::Translation3d(t_dr) * Eigen::Affine3d(q_dr);
+    // FC的KF协方差和Kydiff
+    Eigen::Vector4d KF_kydiff(msg->pose().linear_acceleration_raw_vrf().x(),
+                              msg->pose().linear_acceleration_raw_vrf().y(),
+                              msg->pose().linear_acceleration_raw_vrf().z(),
+                              msg->pose().wgs().x());
+    Eigen::Vector4d KF_cov(msg->pose().angular_velocity_raw_vrf().x(),
+                           msg->pose().angular_velocity_raw_vrf().y(),
+                           msg->pose().angular_velocity_raw_vrf().z(),
+                           msg->pose().wgs().y());
     rviz_mutex_.lock();
     T_fc_100hz_ = T_fc;
     T_dr_100hz_ = T_dr;
+    FC_KF_kydiff_100hz_ = KF_kydiff;
+    FC_KF_cov_100hz_ = KF_cov;
     auto ToString = [](double value) {
       std::stringstream ss;
       ss << std::fixed << std::setprecision(2) << value;
@@ -874,6 +885,8 @@ void PoseEstimation::RvizFunc() {
     Eigen::Affine3d T_dr_100hz = T_dr_100hz_;
     Eigen::Affine3d T_fc_10hz = T_fc_10hz_;
     Eigen::Affine3d T_input = T_input_;
+    Eigen::Vector4d FC_KF_kydiff_100hz = FC_KF_kydiff_100hz_;
+    Eigen::Vector4d FC_KF_cov_100hz = FC_KF_cov_100hz_;
     std::string conv = conv_;
     rviz_mutex_.unlock();
     timespec cur_time{};
@@ -893,6 +906,8 @@ void PoseEstimation::RvizFunc() {
                                     "/pe/perception_by_input");
     RelocRviz::PubPerceptionMarkerByFc(T_fc_10hz, perception, sec, nsec,
                                        "/pe/perception_marker_by_fc");
+    RelocRviz::PubKFParamsByFc(FC_KF_kydiff_100hz, FC_KF_cov_100hz, sec,
+                                     nsec, "/pe/KFParams_marker_by_fc");
     RelocRviz::PubHdmap(T_fc_10hz, hdmap, sec, nsec, "/pe/hdmap");
     RelocRviz::PubHdmapMarker(T_fc_10hz, hdmap, sec, nsec, "/pe/hdmap_marker");
     RelocRviz::PubInsLocationState(T_fc_100hz, ins_state_, sd_position_,

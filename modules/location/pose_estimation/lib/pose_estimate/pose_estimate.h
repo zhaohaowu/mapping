@@ -43,6 +43,7 @@ class MapMatch {
   int GetLanePairSize() { return lane_line_->get_match_line_size(); }
   int GetMatchPairSize() { return connect_.lane_line_match_pairs.size(); }
   bool GetMatchBigCurvature() { return lane_line_->get_big_curvature(); }
+  int GetMatchCacheNumber() { return lane_line_->get_match_cache_size(); }
 
  private:
   MatchLaneLine::MatchLaneLinePtr lane_line_;

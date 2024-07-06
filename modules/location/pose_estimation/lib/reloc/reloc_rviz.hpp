@@ -263,6 +263,42 @@ class RelocRviz {
     RVIZ_AGENT.Publish(topic, points_msg);
   }
 
+  static void PubKFParamsByFc(const Eigen::Vector4d& FC_KF_kydiff_100hz,
+                              const Eigen::Vector4d& FC_KF_cov_100hz,
+                              uint64_t sec, uint64_t nsec,
+                              const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      RVIZ_AGENT.Register<adsfi_proto::viz::Marker>(topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::Marker text_marker;
+    text_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    text_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    text_marker.set_id(0);
+    text_marker.mutable_lifetime()->set_sec(0);
+    text_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+    text_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    text_marker.mutable_header()->set_frameid("map");
+    text_marker.mutable_pose()->mutable_position()->set_x(
+        FC_KF_kydiff_100hz(0));
+    text_marker.mutable_pose()->mutable_position()->set_y(
+        FC_KF_kydiff_100hz(1));
+    text_marker.mutable_pose()->mutable_position()->set_z(
+        FC_KF_kydiff_100hz(3));
+    text_marker.mutable_pose()->mutable_orientation()->set_x(FC_KF_cov_100hz(0));
+    text_marker.mutable_pose()->mutable_orientation()->set_y(
+        FC_KF_cov_100hz(1));
+    text_marker.mutable_pose()->mutable_orientation()->set_z(FC_KF_cov_100hz(2));
+    text_marker.mutable_pose()->mutable_orientation()->set_w(FC_KF_cov_100hz(3));
+    text_marker.mutable_color()->set_r(FC_KF_kydiff_100hz(0));
+    text_marker.mutable_color()->set_g(FC_KF_kydiff_100hz(1));
+    text_marker.mutable_color()->set_b(FC_KF_kydiff_100hz(2));
+    text_marker.mutable_color()->set_a(FC_KF_kydiff_100hz(3));
+    text_marker.set_text("location_KF--Kydiff,Cov");
+    hozon::mp::util::RvizAgent::Instance().Publish(topic, text_marker);
+  }
+
   static void PubPerceptionMarkerByFc(const Eigen::Affine3d& T_W_V,
                                       const TrackingManager& perception,
                                       uint64_t sec, uint64_t nsec,

@@ -110,16 +110,6 @@ enum Color {
 
 enum class RelativePosition { LEFT = 0, RIGHT = 1, UNCERTAIN = 2 };
 
-struct local_line_info {
-  int line_track_id;
-  hozon::mapping::LanePositionType lane_pos;
-  std::vector<Eigen::Vector3d> local_line_pts;
-  std::vector<double> right_width;       // 距离右边线的距离
-  std::vector<double> right_road_width;  // 距离右侧路沿距离
-  std::vector<double> left_road_width;   // 距离左侧路沿距离
-  uint32_t flag;  // 0-->最左车道线，1-->最右车道线，2-->普通车道线
-};
-
 class LanePilot {
  public:
   int lane_id_ = 1000;
@@ -154,6 +144,17 @@ class Line_kd {
   bool is_ego_road =
       true;  // 是否是主路段的线。即road_edge lanepos为-1到1之间的line
   std::vector<double> param = std::vector<double>(3, 0.0);  // 存储c0 c1 c2
+};
+
+struct local_line_info {
+  int line_track_id;
+  hozon::mapping::LanePositionType lane_pos;
+  std::vector<Eigen::Vector3d> local_line_pts;
+  std::vector<double> right_width;       // 距离右边线的距离
+  std::vector<double> right_road_width;  // 距离右侧路沿距离
+  std::vector<double> left_road_width;   // 距离左侧路沿距离
+  uint32_t flag;  // 0-->最左车道线，1-->最右车道线，2-->普通车道线
+  Line_kd kd_line;
 };
 
 class GeoOptimization {
@@ -273,9 +274,8 @@ class GeoOptimization {
 
   void MakeRoadEdgeToLaneLine();
 
-  void CompareRoadAndLines(
-      const std::vector<Eigen::Vector3d>& road_pts,
-      const int& road_id);
+  void CompareRoadAndLines(const std::vector<Eigen::Vector3d>& road_pts,
+                           const int& road_id);
 
   void ConstructLaneLine(
       const std::vector<std::vector<Eigen::Vector3d>>& new_lines);
@@ -287,6 +287,12 @@ class GeoOptimization {
                        std::vector<double>* line_dis);
 
   void HandleExtraWideLane();
+
+  void VerifyEgoLane(const int& left_id, const int& right_id,
+                     const std::vector<int>& other_ids, bool* flag,
+                     std::pair<int, int>* ego_other_ids);
+
+  Eigen::Vector3d FindMinDisLinePoint(const Line_kd& kd_line);
 
   void FitMissedLaneLine(const std::pair<int, int>& ex);
 

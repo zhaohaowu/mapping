@@ -785,15 +785,15 @@ void GroupMap::UniteGroupSegmentsToGroups(
   //   HLOG_ERROR << "group name is " << grp->str_id;
   //   HLOG_ERROR << "group segment size is " << grp->group_segments.size();
   // }
-  if (grp_idx > 2) {
-    for (int i = 1; i < static_cast<int>(groups->size()) - 1; ++i) {
-      if (groups->at(i - 1)->seg_str_id == groups->at(i + 1)->seg_str_id &&
-          groups->at(i)->group_segments.size() < 6) {
-        groups->erase(groups->begin() + i);
-        i--;
-      }
-    }
-  }
+  // if (grp_idx > 2) {
+  //   for (int i = 1; i < static_cast<int>(groups->size()) - 1; ++i) {
+  //     if (groups->at(i - 1)->seg_str_id == groups->at(i + 1)->seg_str_id &&
+  //         groups->at(i)->group_segments.size() < 6) {
+  //       groups->erase(groups->begin() + i);
+  //       i--;
+  //     }
+  //   }
+  // }
 }
 
 float GroupMap::CalculateDistPt(Lane::Ptr lane_in_next, Lane::Ptr lane_in_curr,
@@ -1788,7 +1788,7 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
       virtual_lanes.emplace_back(transition_lane);
       BuildVirtualGroup(virtual_lanes, &group_virtual, stamp);
       groups->insert(groups->begin(), group_virtual[0]);
-      return;
+      group_virtual.clear();
     }
   }
   for (int grp_idx = 0; grp_idx < static_cast<int>(groups->size()) - 1;
@@ -1796,12 +1796,13 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
     std::vector<Lane::Ptr> virtual_lanes;
     auto& curr_group = groups->at(grp_idx);
     auto& next_group = groups->at(grp_idx + 1);
-    if (curr_group->group_segments.size() < 2 ||
+    if (curr_group->str_id.find("V") < curr_group->str_id.length() ||
+        next_group->str_id.find("V") < next_group->str_id.length() ||
+        curr_group->group_segments.size() < 2 ||
         next_group->group_segments.size() < 2 || curr_group->lanes.size() < 1 ||
         next_group->lanes.size() < 1) {
       continue;
     }
-
     // 判断curr_group的最后一个groupsegment的中心点和next_group的第一个groupsegment的中心点的距离
     auto curr_grp_gs_size = curr_group->group_segments.size();
     double group_distance =
@@ -1884,6 +1885,21 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
             }
           } else if (ego_curr_lane == nullptr) {
             HLOG_ERROR << "ego_curr_lane nullptr";
+            Lane::Ptr best_next_lane = nullptr;
+            FindBestNextLane(next_group, dist_to_slice, &best_next_lane);
+            if (best_next_lane != nullptr) {
+              Lane::Ptr transition_lane = std::make_shared<Lane>();
+              transition_lane->left_boundary = std::make_shared<LineSegment>();
+              transition_lane->right_boundary = std::make_shared<LineSegment>();
+              GenerateLane(best_next_lane, transition_lane);
+              std::vector<Lane::Ptr> virtual_lanes;
+              virtual_lanes.emplace_back(transition_lane);
+              BuildVirtualGroup(virtual_lanes, &group_virtual, stamp);
+              groups->insert(groups->begin() + grp_idx + 1, group_virtual[0]);
+              virtual_lanes.clear();
+              group_virtual.clear();
+              grp_idx++;
+            }
           } else if (history_satisfy_lane_.empty() ||
                      dist_to_slice > conf_.next_group_max_distance) {
             erase_grp_idx = grp_idx + 1;
@@ -1999,6 +2015,9 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
     left_bound.deteled_ids.emplace_back(delete_id);
   }
   size_t index_left = lane_in_curr->left_boundary->pts.size();
+  if (index_left < 1) {
+    return;
+  }
   Point left_pt_pred(VIRTUAL,
                      lane_in_curr->left_boundary->pts[index_left - 1].pt.x(),
                      lane_in_curr->left_boundary->pts[index_left - 1].pt.y(),
@@ -2020,12 +2039,18 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
     right_bound.deteled_ids.emplace_back(delete_id);
   }
   size_t index_right = lane_in_curr->right_boundary->pts.size();
+  if (index_right < 1) {
+    return;
+  }
   Point right_pt_pred(
       VIRTUAL, lane_in_curr->right_boundary->pts[index_right - 1].pt.x(),
       lane_in_curr->right_boundary->pts[index_right - 1].pt.y(),
       lane_in_curr->right_boundary->pts[index_right - 1].pt.z());
   std::vector<Point>& ctr_pts = transition_lane->center_line_pts;
   size_t index_center = lane_in_curr->center_line_pts.size();
+  if (index_center < 1) {
+    return;
+  }
   Point center_pt_pred(VIRTUAL,
                        lane_in_curr->center_line_pts[index_center - 1].pt.x(),
                        lane_in_curr->center_line_pts[index_center - 1].pt.y(),
@@ -2568,7 +2593,7 @@ void GroupMap::FindNearestLaneToHisVehiclePosition(Group::Ptr curr_group,
   }
 
   // 找到与历史车辆位置最接近的curr_lane作为当前所在lane
-  min_dist = FLT_MAX;
+  min_dist = 3.0;  // min_dist = FLT_MAX;
   if (nearest.stamp >= 0) {
     Eigen::Vector3f temp_pt(1, 0, 0);
     // 转到当前车体系下
@@ -3227,7 +3252,10 @@ void GroupMap::SmoothCenterline(std::vector<Group::Ptr>* groups) {
   for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
     auto& curr_grp = groups->at(i);
     auto& next_grp = groups->at(i + 1);
-
+    // // 过路口不平滑
+    // if (curr_grp->str_id.find("V") < curr_grp->str_id.length()) {
+    //   continue;
+    // }
     for (auto lane : curr_grp->lanes) {
       if (lane->is_smooth || lane->next_lane_str_id_with_group.empty()) {
         continue;

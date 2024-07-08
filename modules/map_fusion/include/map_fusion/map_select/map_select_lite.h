@@ -278,8 +278,11 @@ class MapSelectLite {
   int nearest_index_;
   float max_half_lane_dis_ = 3.5;
   float min_half_lane_dis_ = 1.35;
-  float lane_range_value_ = 0.5;
-  float dis_scope_ = 5;
+  float lane_range_value_ = 0.4;
+  float dis_scope_ = 40;
+  bool last_car_not_in_lanes_ = false;
+  int  in_lanes_after_not_count_ = 0;
+  int  in_lanes_count_ = 3;
   std::string switch_map_reason_;
 };
 }  // namespace select

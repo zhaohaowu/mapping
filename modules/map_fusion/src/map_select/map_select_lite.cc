@@ -1188,19 +1188,6 @@ int MapSelectLite::LocationErrDecider(
     } else {
       is_location_init_ = true;
     }
-
-    // ADEBUG << "history_location_point x = " << history_location_point_.x()
-    //        << ", y = " << history_location_point_.y()
-    //        << ", now_location_point x = " << pose.position().x()
-    //        << ", y = " << pose.position().y()
-    //        << ", x_diff = " << pose.linear_velocity().x() * time_diff
-    //        << ", pose_diff_x = "
-    //        << history_location_point_.x() - pose.position().x()
-    //        << ", pose_diff_y = "
-    //        << history_location_point_.y() - pose.position().y()
-    //        << ", y_diff = " << pose.linear_velocity().y() * time_diff
-    //        << ", vehicle_x_err = " << vehicle_pose_x
-    //        << ", vehicle_y_err = " << vehicle_pose_y;
   }
   history_pose_time_ = localization->header().data_stamp();
   history_location_point_.x = pose.position().x();
@@ -1404,17 +1391,6 @@ bool MapSelectLite::CheckPerceMsg(
     return false;
   }
 
-  // //! TBD: by
-  // taoshaoyuan，暂时直接返回true，即不对原始感知时间戳和内容进行检查. return
-  // true;
-
-  // if (last_perce_time_ == perception_msg->header().data_stamp()) {
-  //   HLOG_ERROR << "perception msg not update data_time"
-  //              << perception_msg->header().data_stamp();
-  //   return false;
-  // }
-  // last_perce_time_ = perception_msg->header().data_stamp();
-
   for (const auto& lane_info : perception_msg->lane()) {
     if (!lane_info.has_track_id() || !lane_info.has_lanepos() ||
         !lane_info.has_lane_param()) {
@@ -1595,8 +1571,21 @@ bool MapSelectLite::CheckMapMsg(
     if (!IsCarInLanes(map, localization)) {
       HLOG_ERROR << "Car is not in lanes scope"
                  << "is_fusion_map: " << is_fusion_map;
-      switch_map_reason_ = "Car is not in lanes scope";
+      last_car_not_in_lanes_ = true;
+      in_lanes_after_not_count_ = 0;
+      switch_map_reason_ = "car is not in lanes scope";
       return false;
+    } else {
+      if (last_car_not_in_lanes_) {
+        in_lanes_after_not_count_++;
+        if (in_lanes_after_not_count_ < in_lanes_count_) {
+          switch_map_reason_ = "car start in lanes scope";
+          HLOG_ERROR << "car start in lanes scope  count:"
+                     << in_lanes_after_not_count_;
+          return false;
+        }
+        last_car_not_in_lanes_ = false;
+      }
     }
   }
 
@@ -1790,7 +1779,7 @@ bool MapSelectLite::IsCarInLanes(
     auto lane_nearest_index = lane_lines.second.nearest_index;
     int second_lane_index = 0;
     auto line_points_size = lanes_lines_map_[lane_id].lane_line_points.size();
-    if (line_points_size < 2) {
+    if ((line_points_size < 2) || (lane_nearest_index < 1)) {
       continue;
     }
     if (lane_nearest_index <= line_points_size - 2) {
@@ -1798,13 +1787,17 @@ bool MapSelectLite::IsCarInLanes(
     } else {
       second_lane_index = lane_nearest_index - 1;
     }
+
     auto nearest_point =
         lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index];
     auto second_point =
         lanes_lines_map_[lane_id].lane_line_points[second_lane_index];
+    auto other_point =
+        lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index - 1];
     auto line_dist_value =
-        PointToVectorDist(nearest_point, second_point, car_pos);
-    if (line_dist_value < dis_scope_) {
+        std::min(PointToVectorDist(nearest_point, second_point, car_pos),
+                 PointToVectorDist(other_point, nearest_point, car_pos));
+    if (lane_lines.second.min_dist_value < dis_scope_) {
       DistanceInfo dis_info;
       dis_info.car_cental_line_dis = line_dist_value;
       float half_lane_dis;

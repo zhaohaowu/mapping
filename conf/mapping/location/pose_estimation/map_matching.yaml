@@ -33,8 +33,8 @@ map_lane_match_diver: 1.5       # 单边判断的阈值1.5
 ramp_judg_thre: 0.5             # 匝道单边策略阈值0.5
 fault_restore_dis: 0.15         # 退出130的近端点阈值
 fault_restore_ave_dis: 0.3      # 退出130的平均阈值
-left_edge_y_err: 1.0
-right_edge_y_err: -1.0
+left_edge_y_err: 0.0
+right_edge_y_err: 0.0
 map_lane_match_buff: 10         # 超过buff次就上报故障
 fault_restore_buff: 20
 map_lane_match_ser_max: 0.6     # 双边判断的阈值0.6

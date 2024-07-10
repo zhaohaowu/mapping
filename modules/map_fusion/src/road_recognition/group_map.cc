@@ -3252,10 +3252,10 @@ void GroupMap::SmoothCenterline(std::vector<Group::Ptr>* groups) {
   for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
     auto& curr_grp = groups->at(i);
     auto& next_grp = groups->at(i + 1);
-    // // 过路口不平滑
-    // if (curr_grp->str_id.find("V") < curr_grp->str_id.length()) {
-    //   continue;
-    // }
+    // 过路口不平滑
+    if (curr_grp->str_id.find("V") < curr_grp->str_id.length()) {
+      continue;
+    }
     for (auto lane : curr_grp->lanes) {
       if (lane->is_smooth || lane->next_lane_str_id_with_group.empty()) {
         continue;
@@ -5847,6 +5847,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
         //            << "  lane_pre.right_boundary = "
         //            << lane_pre.right_boundary->pm =
         //            lane_in_curr->center_line_param;
+        lane_ptr->center_line_param = lane_in_curr->center_line_param;
       }
       if (lane_ptr->center_line_param_front.empty()) {
         lane_ptr->center_line_param_front = lane_in_curr->center_line_param;

@@ -490,6 +490,11 @@ class GroupMap {
   void EraseSucessorRelation(Group::Ptr curr_group, int curr_erase_index,
                              Group::Ptr next_group, int next_index);
   bool ContainEgoLane(std::vector<Group::Ptr>* groups, int next_grp_index);
+  int FindEgoGroup(std::vector<Group::Ptr>*
+                       groups);  // 找到自车所在的group 返回值是groups的index
+  void EraseEgoGroupWithNoEgoLane(
+      std::vector<Group::Ptr>*
+          groups);  // 把自车所在group但是没有自车道和自车邻车道的group删除
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;
   std::map<em::Id, Arrow::Ptr> arrow_;

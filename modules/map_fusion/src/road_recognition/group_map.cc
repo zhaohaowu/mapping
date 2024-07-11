@@ -261,6 +261,9 @@ void GroupMap::BuildKDtrees(std::deque<Line::Ptr>* lines) {
   }
 
   for (auto& line : *lines) {
+    if (line->pts.empty()) {
+      continue;
+    }
     auto cv_points = std::make_shared<std::vector<cv::Point2f>>();
     for (auto& p : line->pts) {
       if (std::isnan(p.pt.x()) || std::isnan(p.pt.y())) {
@@ -912,11 +915,11 @@ bool GroupMap::AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
     }
     float dis = CalculatePoint2CenterLine(lane_in_next, lane_in_curr);
     float angle = Calculate2CenterlineAngle(lane_in_next, lane_in_curr, sizet);
-    // HLOG_DEBUG << "angle = "<<angle*180/pi_;
-    // HLOG_DEBUG << "lane angle lane_in_next->center_line_pts[0].pt  "
+    // HLOG_INFO << "angle = " << angle * 180 / pi_;
+    // HLOG_INFO << "lane angle lane_in_next->center_line_pts[0].pt  "
     //           << lane_in_next->center_line_pts[0].pt.y() << "   "
     //           << lane_in_next->center_line_pts[0].pt.x();
-    // HLOG_DEBUG << "lane_in_curr->center_line_pts[sizet - 1].pt  "
+    // HLOG_INFO << "lane_in_curr->center_line_pts[sizet - 1].pt  "
     //           << lane_in_curr->center_line_pts[sizet - 1].pt.y() << "   "
     //           << lane_in_curr->center_line_pts[sizet - 1].pt.x()
     //           << "  angle is "
@@ -925,23 +928,23 @@ bool GroupMap::AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
     //                   (lane_in_next->center_line_pts[0].pt.x() -
     //                    lane_in_curr->center_line_pts[sizet - 1].pt.x())) *
     //                  180 / pi_;
-    // HLOG_DEBUG << "lane_in_curr->center_line_param[1] is"
+    // HLOG_INFO << "lane_in_curr->center_line_param[1] is"
     //           << atan(lane_in_curr->center_line_param[1]) * 180 / pi_;
-    // HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group
+    // HLOG_INFO << "lane_in_curr=" << lane_in_curr->str_id_with_group
     //           << "   lane_in_next" << lane_in_next->str_id_with_group
     //           << "  dis2l = " << dis << "  dis thresh = " << dis_thresh
     //           << " angle = " << abs(angle) * 180 / pi_
     //           << "  angel_thresh = " << angel_thresh;
     if ((dis < dis_thresh && abs(angle) * 180 / pi_ < angel_thresh)) {
-      // HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group
-      //            << "   lane_in_next" << lane_in_next->str_id_with_group
-      //            << "  dis2l = " << dis << "  dis thresh = " << dis_thresh
-      //            << " angle = " << angle << "  angel_thresh = " <<
-      //            angel_thresh;
+      // HLOG_INFO << "lane_in_curr=" << lane_in_curr->str_id_with_group
+      //           << "   lane_in_next" << lane_in_next->str_id_with_group
+      //           << "  dis2l = " << dis << "  dis thresh = " << dis_thresh
+      //           << " angle = " << angle << "  angel_thresh = " <<
+      //           angel_thresh;
       return true;
     }
   }
-  HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group;
+  // HLOG_INFO << "lane_in_curr=" << lane_in_curr->str_id_with_group;
   return false;
 }
 
@@ -3615,6 +3618,68 @@ void GroupMap::AvoidSplitMergeLane(std::vector<Group::Ptr>* groups) {
     }
   }
 }
+int GroupMap::FindEgoGroup(std::vector<Group::Ptr>* groups) {
+  int index = -1;
+  for (auto& grp : *groups) {
+    index++;
+    if (grp->group_segments.size() < 1) {
+      continue;
+    }
+    if (grp->group_segments.front()->start_slice.po.x() > 0.0) {
+      // 前一个group是当前group或者没有找到当前group，需要再进行判断
+      return -1;
+    }
+    if (grp->group_segments.back()->end_slice.po.x() > 0.0) {
+      // 当前group是
+      return index;
+    }
+  }
+  return -1;
+}
+void GroupMap::EraseEgoGroupWithNoEgoLane(std::vector<Group::Ptr>* groups) {
+  int index = FindEgoGroup(groups);
+  if (index == -1 || groups->size() <= index) {
+    // 没找到自车所在group
+    return;
+  }
+  auto& ego_group = groups->at(index);
+  if (groups->size() > index + 1 && ego_group->group_segments.size() > 0 &&
+      ego_group->group_segments.back()->end_slice.po.x() < 0.0 &&
+      groups->at(index + 1)->group_segments.size() > 0 &&
+      groups->at(index + 1)->group_segments.front()->start_slice.po.x() > 0.0) {
+    // 没找到自车所在group
+    return;
+  }
+  if (groups->size() == index + 1 &&
+      ego_group->group_segments.back()->end_slice.po.x() < 0.0) {
+    return;
+  }
+  // 判断是否有自车道和邻车道
+  for (auto& lane : ego_group->lanes) {
+    if (lane->center_line_pts.size() < 1) {
+      continue;
+    }
+    int index = -1;  // centerpoint_index;
+    float best_dis = FLT_MAX;
+    for (int i = 0; i < lane->center_line_pts.size(); ++i) {
+      float dis = lane->center_line_pts[i].pt.norm();
+      if (dis < best_dis) {
+        index = i;
+        best_dis = dis;
+      } else {
+        // 点都是顺序排列的，所以如果距离变大的话就可以退出了
+        break;
+      }
+    }
+    if (index == -1) {
+      continue;
+    }
+    if (lane->center_line_pts[index].pt.norm() < conf_.max_lane_width) {
+      return;
+    }
+  }
+  groups->erase(groups->begin() + index);
+}
 // 把Group里一个个GroupSegment中包含的小的LaneSegment，纵向上聚合成一个个大的Lane，
 // 并且生成出：左右关联、前后关联、远端预测线、中心线
 void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
@@ -3665,7 +3730,8 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
   // 关联前后，并且把前后lane的中心线连接上
   // 关联同一个lanepos但不同trackid的前后继
   //! TBD:后续要加上斑马线、停止线等有标识的车道线前后继关系，以及前后关系计算
-
+  // 删除脑部多的ego_group，青鸾号:1273597
+  EraseEgoGroupWithNoEgoLane(groups);
   // 车道线补齐逻辑
   InferenceLaneLength(groups);
   // 设置lane属性(is_ego、is_tran)
@@ -3675,10 +3741,12 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
   //   for(size_t i = 0; i < groups.size()-2; i++){
   //   }
   // }
+  // HLOG_ERROR << "groups->size() = " << groups->size();
   // for (auto& grp : *groups) {
-  //   HLOG_DEBUG << "grp name is " << grp->str_id;
+  //   HLOG_INFO << "grp name is " << grp->str_id;
+  //   HLOG_ERROR << "group segment size is " << grp->group_segments.size();
   //   for (auto lane : grp->lanes) {
-  //     HLOG_DEBUG << "lane name is " << lane->str_id_with_group;
+  //     HLOG_INFO << "lane name is " << lane->str_id_with_group;
   //     HLOG_DEBUG << "lane left neighbor lanes are ";
   //     for (auto lane_left : lane->left_lane_str_id_with_group) {
   //       HLOG_DEBUG << lane_left;
@@ -4153,6 +4221,10 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
   for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
     auto& curr_group = groups->at(i);
     auto& next_group = groups->at(i + 1);
+    if (curr_group->group_segments.empty() ||
+        next_group->group_segments.empty()) {
+      continue;
+    }
     bool is_any_next_lane_exit =
         false;  // 前后group是否存在某个车道根据trackid关联
     bool is_all_next_lane_exit =
@@ -4289,8 +4361,11 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
       //   // groups->erase(groups->begin() + i + 1);
       //   // i--;
       // }
-
-      if (!is_all_next_lane_exit) {
+      double group_distance =
+          (curr_group->group_segments.back()->end_slice.po -
+           next_group->group_segments.front()->start_slice.po)
+              .norm();
+      if (!is_all_next_lane_exit && group_distance < 10.0) {
         UpdateLaneBoundaryId(curr_group);
         // 后侧车道线补齐
         BuildVirtualLaneAfter(curr_group, next_group);
@@ -4311,6 +4386,10 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
   for (int i = static_cast<int>(groups->size()) - 1; i > 0; --i) {
     auto& curr_group = groups->at(i - 1);
     auto& next_group = groups->at(i);
+    if (curr_group->group_segments.empty() ||
+        next_group->group_segments.empty()) {
+      continue;
+    }
     bool is_any_next_lane_exit =
         false;  // 前后group是否存在某个车道根据trackid关联
     bool is_all_next_lane_exit =
@@ -4346,9 +4425,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
           lane_in_next->prev_lane_str_id_with_group.emplace_back(
               lane_in_curr->str_id_with_group);
           // HLOG_ERROR << "the prev lane is " <<
-          // lane_in_curr->str_id_with_group; HLOG_ERROR << "the prev lane is "
-          //            << lane_in_curr->str_id_with_group;
-          // if (lane_in_curr->center_line_param.empty()) {
+          // lane_in_curr->str_id_with_group; if
+          // (lane_in_curr->center_line_param.empty()) {
           //   lane_in_curr->center_line_param =
           //       lane_in_next->center_line_param_front;
           // }
@@ -7511,6 +7589,10 @@ void GroupMap::RemainOnlyOneForwardCrossWalk(std::vector<Group::Ptr>* groups) {
        ++grp_idx) {
     auto& curr_group = groups->at(grp_idx);
     auto& next_group = groups->at(grp_idx + 1);
+    if (curr_group->group_segments.empty() ||
+        next_group->group_segments.empty()) {
+      continue;
+    }
     if (AreAdjacentLaneGroupsDisconnected(curr_group, next_group)) {
       if (!IsAngleOkOfCurGrpAndNextGrp(curr_group, next_group)) {
         // 路口转弯等场景则跳过。

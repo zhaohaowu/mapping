@@ -2528,6 +2528,9 @@ void GeoOptimization::CreateLocalLineTable() {
   // 存储local map每根车道线的lane_pos和几何
   local_line_table_.clear();
   for (const auto& local_line : local_map_use_->lane_lines()) {
+    if (local_line.points().empty()) {
+      continue;
+    }
     local_line_info line_info;
     std::vector<cv::Point2f> kdtree_points;
     Line_kd line_kd;
@@ -2535,6 +2538,9 @@ void GeoOptimization::CreateLocalLineTable() {
     auto line_track_id = local_line.track_id();
     std::vector<Eigen::Vector3d> local_pts;
     for (const auto& pt : local_line.points()) {
+      if (std::isnan(pt.x()) || std::isnan(pt.y())) {
+        continue;
+      }
       Eigen::Vector3d point(pt.x(), pt.y(), pt.z());
       local_pts.emplace_back(point);
       kdtree_points.emplace_back(static_cast<float>(pt.x()),
@@ -2628,8 +2634,14 @@ void GeoOptimization::MakeRoadEdgeToLaneLine() {
     if (road.lanepos() == -1 || road.lanepos() == 1) {
       std::vector<Eigen::Vector3d> road_pts;
       for (const auto& pt : road.points()) {
+        if (std::isnan(pt.x()) || std::isnan(pt.y())) {
+          continue;
+        }
         Eigen::Vector3d point(pt.x(), pt.y(), pt.z());
         road_pts.emplace_back(point);
+      }
+      if (road_pts.empty()) {
+        continue;
       }
       CompareRoadAndLines(road_pts, road.track_id());
     }
@@ -2721,8 +2733,14 @@ void GeoOptimization::CompareRoadAndLines(
 void GeoOptimization::ConstructLaneLine(
     const std::vector<std::vector<Eigen::Vector3d>>& new_lines) {
   for (const auto& line : new_lines) {
+    if (line.empty()) {
+      continue;
+    }
     auto* new_line = local_map_use_->add_lane_lines();
     for (const auto& pt : line) {
+      if (std::isnan(pt.x()) || std::isnan(pt.y())) {
+        continue;
+      }
       auto* new_pt = new_line->add_points();
       new_pt->set_x(pt.x());
       new_pt->set_y(pt.y());
@@ -2751,6 +2769,9 @@ void GeoOptimization::ConstructLaneLine(
     Line_kd line_kd;
     hozon::mapping::LaneLine kd_line;
     for (const auto& point : line) {
+      if (std::isnan(point.x()) || std::isnan(point.y())) {
+        continue;
+      }
       kdtree_points.emplace_back(static_cast<float>(point.x()),
                                  static_cast<float>(point.y()));
       kd_line.add_points()->set_x(point.x());
@@ -3568,8 +3589,14 @@ void GeoOptimization::HandleSingleSideLine() {
 
   // 将虚拟的路沿线设置为实线，非路沿线设置为虚线
   for (int i = 0; i < static_cast<int>(new_lines.size()); ++i) {
+    if (new_lines[i].empty()) {
+      continue;
+    }
     auto* new_line = local_map_use_->add_lane_lines();
     for (const auto& pt : new_lines[i]) {
+      if (std::isnan(pt.x()) || std::isnan(pt.y())) {
+        continue;
+      }
       auto* new_pt = new_line->add_points();
       new_pt->set_x(pt.x());
       new_pt->set_y(pt.y());
@@ -3600,6 +3627,9 @@ void GeoOptimization::HandleSingleSideLine() {
     Line_kd line_kd;
     hozon::mapping::LaneLine kd_line;
     for (const auto& point : new_lines[i]) {
+      if (std::isnan(point.x()) || std::isnan(point.y())) {
+        continue;
+      }
       kdtree_points.emplace_back(static_cast<float>(point.x()),
                                  static_cast<float>(point.y()));
       kd_line.add_points()->set_x(point.x());

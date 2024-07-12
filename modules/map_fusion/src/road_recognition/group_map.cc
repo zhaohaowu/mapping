@@ -4694,12 +4694,12 @@ void GroupMap::ComputeLineHeadingPredict(
       math::ComputeDiscretePoints(cmp_points, fit_result, &kappas, &dkappas);
       // 整体平均
       kappa = kappas.empty() ? 0.0
-                             : std::accumulate(kappas.begin() + 3,
-                                               kappas.begin() + 8, 0.) /
+                             : std::accumulate(kappas.begin() + 5,
+                                               kappas.begin() + 10, 0.) /
                                    5.;
       dkappa = dkappas.empty() ? 0.0
-                               : std::accumulate(dkappas.begin() + 3,
-                                                 dkappas.begin() + 8, 0.) /
+                               : std::accumulate(dkappas.begin() + 5,
+                                                 dkappas.begin() + 10, 0.) /
                                      5.;
       kappa = kappa / 8.;
       dkappa = dkappa / 8.;

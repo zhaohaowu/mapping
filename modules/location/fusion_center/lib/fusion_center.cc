@@ -443,6 +443,7 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
   params_.refpoint_update_dist = node["refpoint_update_dist"].as<double>();
   params_.no_mm_min_time = node["no_mm_min_time"].as<double>();
   params_.no_mm_max_time = node["no_mm_max_time"].as<double>();
+  params_.no_mm_max_dis = node["no_mm_max_dis"].as<double>();
   params_.use_dr_measurement = node["use_dr_measurement"].as<bool>();
   params_.run_fusion_interval_ms =
       node["run_fusion_interval_ms"].as<uint32_t>();
@@ -637,7 +638,7 @@ void FusionCenter::RunFusion() {
     }
 
     // ESKF
-    bool meas_flag = GenerateNewESKFMeas();
+    bool meas_flag = GenerateNewESKFMeas(refpoint);
     bool pre_flag = GenerateNewESKFPre();
 
     if (pre_flag && meas_flag) {
@@ -900,7 +901,7 @@ void FusionCenter::Node2Localization(const Context& ctx,
   //     imu.imuvb_angular_velocity().y());
   // pose->mutable_angular_velocity_raw_vrf()->set_z(
   //     imu.imuvb_angular_velocity().z());
-  
+
   // KF滤波参数
   pose->mutable_linear_acceleration_raw_vrf()->set_x(global_node.KF_kdiff(0) * 1e5);
   pose->mutable_linear_acceleration_raw_vrf()->set_y(global_node.KF_kdiff(1) * 1e5);
@@ -1172,11 +1173,12 @@ bool FusionCenter::GenerateNewESKFPre() {
   return pre_flag;
 }
 
-bool FusionCenter::GenerateNewESKFMeas() {
+bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
   // 进行优势传感器的测量数据收集（加入各种判断条件，如MM不工作时用INS）
   fusion_deque_mutex_.lock();
   auto last_fc_node = fusion_deque_.back();
   double cur_fusion_ticktime = last_fc_node->ticktime;
+  Eigen::Vector3d cur_eskf_enu = hmu::Geo::BlhToEnu(last_fc_node->blh, refpoint);
   fusion_deque_mutex_.unlock();
   bool meas_flag = false;
   meas_deque_.clear();
@@ -1232,18 +1234,21 @@ bool FusionCenter::GenerateNewESKFMeas() {
     }
     pe_deque_mutex_.unlock();
 
-    // (1)INS补帧MM测量
-    if (params_.use_ins_predict_mm && mm_size > 0 &&
-        time_diff > params_.no_mm_min_time &&
-        time_diff < params_.no_mm_max_time) {
-      if (PredictMMMeas()) {
-        meas_flag = true;
-        HLOG_INFO << "No MM measurement,predict MM meas. time_diff:"
-                  << time_diff;
-      }
+    // 对NCP增加距离和时间判断，持续超过100m或者150s无MM都会加入INS测量
+    double no_mm_max_time = params_.no_mm_max_time;
+    double dis_diff = 0.0;
 
-      // (2)INS测量加入
-    } else if (mm_size == 0 || time_diff >= params_.no_mm_max_time) {
+    prev_global_node_mutex_.lock();
+    if (prev_global_valid_) {
+      Eigen::Vector3d cur_output_enu =
+          hmu::Geo::BlhToEnu(prev_global_node_.blh, refpoint);
+      dis_diff = (cur_eskf_enu - cur_output_enu).norm();
+    }
+    prev_global_node_mutex_.unlock();
+
+    // (1)INS测量加入
+    if (mm_size == 0 || time_diff >= no_mm_max_time ||
+        dis_diff >= params_.no_mm_max_dis) {
       if (params_.lateral_error_compensation) {
         auto cnt = 0;
         if (!lateral_error_compensation_state_) {

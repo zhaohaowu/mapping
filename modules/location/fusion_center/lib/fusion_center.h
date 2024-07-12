@@ -63,7 +63,8 @@ class FusionCenter {
   void RunFusion();
   bool PoseInit(const Eigen::Vector3d& refpoint);
   bool GenerateNewESKFPre();   // 用于收集融合的预测
-  bool GenerateNewESKFMeas();  // 用于收集融合的观测
+  bool GenerateNewESKFMeas(
+      const Eigen::Vector3d& refpoint);  // 用于收集融合的观测
   Node State2Node(const State& state, const Eigen::Vector3d& refpoint);
   void InsertESKFFusionNode(const Node& node);
   void RunESKFFusion(const Eigen::Vector3d& refpoint);

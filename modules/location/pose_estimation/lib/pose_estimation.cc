@@ -340,6 +340,14 @@ void PoseEstimation::ProcData() {
     bool location_good = location_state_ == 2;
     Eigen::Affine3d T_input;
     int sys_status = 0;
+    static bool mm_init = false;
+    if (ins_good && !mm_init) {
+      mm_init = true;
+    }
+    if (!mm_init) {
+      HLOG_WARN << "ins is not good";
+      continue;
+    }
     if (ins_good) {
       T_input = T_ins;
       sys_status = 1;

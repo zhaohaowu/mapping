@@ -34,6 +34,7 @@ struct Params {
   uint32_t search_state_cnt = 30;
   double no_mm_min_time = 0.3;
   double no_mm_max_time = 3;
+  double no_mm_max_dis = 50;
   bool use_ins_predict_mm = true;
   bool use_dr_measurement = false;
   uint32_t run_fusion_interval_ms = 10;

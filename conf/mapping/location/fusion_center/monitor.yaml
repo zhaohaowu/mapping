@@ -1,6 +1,6 @@
 %YAML:1.0
 # Fault Total Switch
-use_fault: true
+use_fault: false
 # Fault Switch
 pe_fault: true     # fault-pe
 fault_128: true    # fault-128

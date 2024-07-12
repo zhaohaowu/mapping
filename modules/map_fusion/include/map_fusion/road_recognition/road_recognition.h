@@ -58,6 +58,8 @@ class RoadRecognition {
   std::shared_ptr<hozon::hdmap::Map> percep_map_ = nullptr;
   std::shared_ptr<RoutingGeneration> rout_ = nullptr;
   std::shared_ptr<hozon::routing::RoutingResponse> routingresponse_ = nullptr;
+  void AddRoadEdge(const std::shared_ptr<hozon::mapping::LocalMap>& msg,
+                   const std::shared_ptr<hozon::hdmap::Map>& percep_map);
 };
 
 }  // namespace mf

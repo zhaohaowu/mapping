@@ -30,7 +30,7 @@ class MessageBuffer {
  public:
   explicit MessageBuffer(int capacity);
   MessageBuffer();
-  ~MessageBuffer();
+  ~MessageBuffer() {}
 
   bool push_new_message(const double& timestamp, const MessageType& msg);
   bool pop_oldest_message();

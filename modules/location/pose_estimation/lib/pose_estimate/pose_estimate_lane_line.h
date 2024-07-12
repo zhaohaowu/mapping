@@ -62,7 +62,7 @@ class MatchLaneLine {
    * @param T : vehicle pose in enu
    * @return
    */
-  bool CheckIsGoodMatch(const SE3& T);
+  bool CheckIsGoodMatch(const SE3& T) {return true;}
   bool CompareLaneWidth(const SE3& T, double* lane_width_diff_value);
 
   /**

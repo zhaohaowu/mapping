@@ -6,7 +6,6 @@ file(GLOB_RECURSE PROTO_FILES "proto/*.proto")
 PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HEADERS ${PROTO_FILES})
 
 file(GLOB _SRCS "*.cc")
-message(status " ==================== ${_SRCS} ")
 
 set(LIBS
     ${DEPENDS_LIBS}

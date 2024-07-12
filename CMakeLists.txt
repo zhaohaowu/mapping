@@ -154,7 +154,7 @@ add_subdirectory(modules)
 add_subdirectory(onboard)
 add_subdirectory(depend/proto) # 必须是这个顺序，否则libglobalproto.so会被third_party覆盖
 
-if(${LOCAL_TARGET_PLATFORM} STREQUAL "x86")
+if(${LOCAL_TARGET_PLATFORM} STREQUAL "x86" AND ENABLE_UT)
     add_subdirectory(test)
 endif()
 

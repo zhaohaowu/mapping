@@ -175,7 +175,7 @@ def x86_build(workspace, platform, build_directory, release_directory, **kwargs)
     args['-DCMAKE_INSTALL_PREFIX'] = release_directory+"/mal_x86"
     args['-DCMAKE_BUILD_TYPE'] = "Release" if kwargs['release'] else "Debug"
     args['-DPLATFORM'] = 'x86_2004'
-    # args['-DENABLE_UT'] = 'FLASE' if not kwargs['ut'] else 'TRUE'
+    args['-DENABLE_UT'] = "ON" if kwargs['ut'] else "OFF"
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
     args['-DMAPPING_LIB_PREFIX'] = kwargs['prefix']
     args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'

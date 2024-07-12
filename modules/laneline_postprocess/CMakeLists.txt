@@ -21,6 +21,14 @@ PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HEADERS ${PROTO_FILES})
 
 add_library(laneline_postprocess_core SHARED ${_SRCS} ${PROTO_SRCS})
 
+if(${LOCAL_TARGET_PLATFORM} STREQUAL "x86" AND ENABLE_UT)
+  add_library(lane_post_inner_proto SHARED ${PROTO_SRCS})
+  install(
+    TARGETS lane_post_inner_proto
+    DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/lib
+  )
+endif()
+
 target_link_libraries(laneline_postprocess_core PRIVATE
     ${DEPENDS_LIBS}
     perception-base-mal

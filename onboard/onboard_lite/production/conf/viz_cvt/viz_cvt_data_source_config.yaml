@@ -28,6 +28,10 @@ dataSourcesIn:
     type: proto_proxy
     cmTopic: /perception/fsd/onboard/detection
     cmDomainId: 0
+  - topic: percep_obj
+    type: proto_proxy
+    cmTopic: /perception/fsd/obj_fusion_1 
+    cmDomainId: 0
   - topic: camera_0
     type: idl_proxy
     cmTopic: /soc/zerocopy/camera_0

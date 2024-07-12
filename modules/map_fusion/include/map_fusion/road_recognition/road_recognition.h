@@ -43,7 +43,9 @@ class RoadRecognition {
 
   void OnLocalization(
       const std::shared_ptr<hozon::localization::Localization>& msg);
-  void OnLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& msg);
+  void OnLocalMap(
+      const std::shared_ptr<hozon::mapping::LocalMap>& msg,
+      const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg);
   std::shared_ptr<hozon::hdmap::Map> GetPercepMap();
   std::shared_ptr<hozon::routing::RoutingResponse> GetRouting();
   std::shared_ptr<hozon::mp::mf::em::ElementMapOut> GetElementMap();

@@ -53,6 +53,7 @@ class MapFusion {
   int ProcPercep(
       const std::shared_ptr<hozon::localization::Localization>& curr_loc,
       const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
+      const std::shared_ptr<hozon::perception::PerceptionObstacles>& curr_obj,
       hozon::hdmap::Map* fusion_map, hozon::routing::RoutingResponse* routing);
 
  private:

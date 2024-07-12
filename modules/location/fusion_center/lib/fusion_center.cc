@@ -900,11 +900,14 @@ void FusionCenter::Node2Localization(const Context& ctx,
   //     imu.imuvb_angular_velocity().y());
   // pose->mutable_angular_velocity_raw_vrf()->set_z(
   //     imu.imuvb_angular_velocity().z());
-  
+
   // KF滤波参数
-  pose->mutable_linear_acceleration_raw_vrf()->set_x(global_node.KF_kdiff(0) * 1e5);
-  pose->mutable_linear_acceleration_raw_vrf()->set_y(global_node.KF_kdiff(1) * 1e5);
-  pose->mutable_linear_acceleration_raw_vrf()->set_z(global_node.KF_kdiff(2) * 1e5);
+  pose->mutable_linear_acceleration_raw_vrf()->set_x(global_node.KF_kdiff(0) *
+                                                     1e5);
+  pose->mutable_linear_acceleration_raw_vrf()->set_y(global_node.KF_kdiff(1) *
+                                                     1e5);
+  pose->mutable_linear_acceleration_raw_vrf()->set_z(global_node.KF_kdiff(2) *
+                                                     1e5);
 
   pose->mutable_angular_velocity_raw_vrf()->set_x(global_node.KF_cov(0, 0));
   pose->mutable_angular_velocity_raw_vrf()->set_y(global_node.KF_cov(1, 1));

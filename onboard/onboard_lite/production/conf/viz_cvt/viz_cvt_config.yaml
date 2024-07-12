@@ -10,6 +10,7 @@ input:
 #  - topic: gnssinfo
   - topic: chassis
   - topic: percep_detection
+  - topic: percep_obj
   - topic: camera_0
 #  - topic: tlr_percep
   - topic: localization
@@ -46,6 +47,11 @@ trigger:
     type: EVENT
     mainSources:
       - name: percep_detection
+        timeout: 100
+  - name: recv_percep_obj
+    type: EVENT
+    mainSources:
+      - name: percep_obj
         timeout: 100
   - name: recv_camera_0
     type: EVENT

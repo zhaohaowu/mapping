@@ -19,6 +19,8 @@ input:
       capacity: 5
     - topic: function_manager_in 
       capacity: 5
+    - topic: percep_obj 
+      capacity: 5
 
 output:
   - topic: map_fusion
@@ -65,3 +67,8 @@ trigger:
       mainSources:
         - name: function_manager_in
           timeout: 100
+    - name: recv_percep_obj
+      type: EVENT
+      mainSources:
+        - name: percep_obj
+          timeout: 1000

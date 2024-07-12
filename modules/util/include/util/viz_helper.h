@@ -151,7 +151,10 @@ void TransportElementToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
                                const adsfi_proto::hz_Adsfi::HafTime& lifetime,
                                const hozon::perception::TransportElement& te,
                                adsfi_proto::viz::MarkerArray* te_ma);
-
+void ObjToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
+                  const adsfi_proto::hz_Adsfi::HafTime& lifetime,
+                  const hozon::perception::PerceptionObstacles& objs,
+                  adsfi_proto::viz::MarkerArray* ma);
 void LmLaneLineToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
                          const adsfi_proto::hz_Adsfi::HafTime& lifetime,
                          const hozon::mapping::LaneLine& line,

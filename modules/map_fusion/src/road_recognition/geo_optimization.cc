@@ -69,6 +69,8 @@ int GeoOptimization::Init() {
   // pilot_map_ = std::make_shared<hozon::hdmap::Map>();
   local_map_use_ = std::make_shared<hozon::mapping::LocalMap>();
   // map_lanes_ = std::make_shared<std::vector<LanePilot>>();
+  history_objs_.set_capacity(history_objs_size_);
+  history_objs_.clear();
   HLOG_WARN << "inital success!";
   return 0;
 }
@@ -1413,6 +1415,8 @@ void GeoOptimization::FilterReverseLine() {
     HLOG_ERROR << "local_map_ is nullptr";
     return;
   }
+  // 根据障碍物过滤对向车道线
+  HandleOppisiteLineByObj();
   std::vector<std::vector<Eigen::Vector3d>> forward_road_edges;
   for (const auto& local_road : local_map_->road_edges()) {
     if (local_road.points_size() < 2 ||
@@ -1466,6 +1470,49 @@ void GeoOptimization::FilterReverseLine() {
       HandleOppisiteLine(double_solid_yellow_pts);
     } else {
       // HandleOppisiteLineByStopline();停止线过滤目前不稳定
+      HandleOppisiteLineByObjAndYelloLine();  // 融合障碍物和黄线过滤对向车道
+    }
+  }
+}
+
+void GeoOptimization::HandleOppisiteLineByObjAndYelloLine() {
+  double max_y = -DBL_MAX;
+  for (const auto& line_vec : all_lines_) {
+    if (line_vec.second.empty()) {
+      continue;
+    }
+    for (const auto& line : line_vec.second) {
+      if (!line.is_ego_road) {
+        continue;
+      }
+
+      if ((line.line->lanetype() ==
+               hozon::mapping::LaneType::LaneType_DOUBLE_SOLID ||
+           line.line->lanetype() == hozon::mapping::LaneType::LaneType_SOLID) &&
+          line.line->color() == hozon::mapping::Color::YELLOW &&
+          line.line->points_size() > 1 && line.line->points().at(0).x() > 0) {
+        if (line.line->points().at(0).y() > max_y) {
+          max_y = line.line->points().at(0).y();
+        }
+      }
+    }
+  }
+
+  if (max_y == -DBL_MAX) {
+    return;
+  }
+  for (auto& line_vec : all_lines_) {
+    if (line_vec.second.empty()) {
+      continue;
+    }
+    for (auto& line : line_vec.second) {
+      if (!line.is_ego_road) {
+        continue;
+      }
+      if (line.line->points_size() > 1 && line.line->points().at(0).x() > 0 &&
+          line.line->points().at(0).y() > max_y) {
+        line.is_ego_road = false;
+      }
     }
   }
 }
@@ -1511,6 +1558,65 @@ void GeoOptimization::HandleOppisiteLineByStopline() {
             PointToVectorDist(forward_stopline[0], forward_stopline[1],
                               line_first_point) < 10) {
           line.is_ego_road = false;
+        }
+      }
+    }
+  }
+}
+
+void GeoOptimization::HandleOppisiteLineByObj() {
+  std::vector<Eigen::Vector3d> obj_points;
+  for (const auto& history_obj : history_objs_) {
+    for (const auto& object : history_obj->perception_obstacle()) {
+      Eigen::Vector3d p_local(object.position().x(), object.position().y(),
+                              object.position().z());
+      Eigen::Vector3d p_veh = T_U_V_.inverse() * p_local;
+
+      if (object.type() != hozon::perception::PerceptionObstacle::VEHICLE ||
+          p_veh.x() <= 0 || object.velocity().x() > 0 ||
+          (PI * 3 / -4 < object.theta() && object.theta() < PI * 3 / 4)) {
+        continue;
+      }
+      obj_points.emplace_back(p_veh);
+    }
+  }
+  if (obj_points.empty()) {
+    return;
+  }
+  for (auto& line_vector : all_lines_) {
+    if (line_vector.second.empty()) {
+      continue;
+    }
+    for (auto& line : line_vector.second) {
+      int line_size = line.line->points_size();
+      if (line_size < 2 ||
+          (!line.line->points().empty() && line.line->points().at(0).x() < 0)) {
+        continue;
+      }
+      for (auto& obj_point : obj_points) {
+        if (obj_point.x() > line.line->points(line_size - 1).x() ||
+            obj_point.x() < line.line->points(0).x()) {
+          continue;
+        }
+        int num_thresh = 0;
+        int num_calculate = 0;
+        for (int line_index = 0; line_index < line_size - 1; line_index++) {
+          Eigen::Vector3d linel1(line.line->points(line_index).x(),
+                                 line.line->points(line_index).y(),
+                                 line.line->points(line_index).z());
+          Eigen::Vector3d linel2(line.line->points(line_index + 1).x(),
+                                 line.line->points(line_index + 1).y(),
+                                 line.line->points(line_index + 1).z());
+          num_calculate++;
+          if (IsRight(obj_point, linel1, linel2)) {
+            num_thresh++;
+          }
+        }
+        if (num_thresh >= 1 && (num_calculate != 0 &&
+                                (static_cast<double>(num_thresh) /
+                                 static_cast<double>(num_calculate)) > 0.5)) {
+          line.is_ego_road = false;
+          break;
         }
       }
     }
@@ -2152,7 +2258,8 @@ void GeoOptimization::ContinueLocalMapUseLine() {
 
 // 如果有sdmap再写个重载来实现函数
 void GeoOptimization::OnLocalMap(
-    const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
+    const std::shared_ptr<hozon::mapping::LocalMap>& msg,
+    const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg) {
   if (msg->lane_lines().empty()) {
     HLOG_ERROR << "lane lines empty!";
     return;
@@ -2175,6 +2282,20 @@ void GeoOptimization::OnLocalMap(
   }
   local_map_ = std::make_shared<hozon::mapping::LocalMap>();
   local_map_->CopyFrom(*msg);
+
+  if (obj_msg != nullptr) {
+    per_objs_ = std::make_shared<hozon::perception::PerceptionObstacles>();
+    per_objs_->CopyFrom(*obj_msg);
+    for (auto& object : *per_objs_->mutable_perception_obstacle()) {
+      Eigen::Vector3d p_v(object.position().x(), object.position().y(),
+                          object.position().z());
+      p_v = T_U_V_ * p_v;
+      object.mutable_position()->set_x(p_v.x());
+      object.mutable_position()->set_y(p_v.y());
+      object.mutable_position()->set_z(0.0);
+    }
+    history_objs_.push_back(per_objs_);
+  }
 
   // visual local map
   // 可视化 local map
@@ -2244,7 +2365,7 @@ void GeoOptimization::OnLocalMap(
   FilterReverseLine();
 
   // 将输出填入elementmap
-  AppendElemtMap(local_map_use_);
+  AppendElemtMap(local_map_use_, per_objs_);
 
   // 处理OCC提取路沿豁口，并填入elementmap
   ExtractOccRoadGap();
@@ -3802,7 +3923,8 @@ bool GeoOptimization::JudgeLineOverRoad(
 }
 
 void GeoOptimization::AppendElemtMap(
-    const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
+    const std::shared_ptr<hozon::mapping::LocalMap>& msg,
+    const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg) {
   // 将元素填充进element
   int32_t node_name = 1, centerline_name = 1, arrows_name = 1, stop_lines = 1;
 
@@ -3905,6 +4027,25 @@ void GeoOptimization::AppendElemtMap(
       crw.polygon.points.emplace_back(crwpt);
     }
     elem_map_->cross_walks[crw.id] = std::make_shared<em::CrossWalk>(crw);
+  }
+
+  // obj
+  for (const auto& i : obj_msg->perception_obstacle()) {
+    em::Obj obj;
+    obj.id = i.track_id();
+    FillObjType(&obj, i.type());
+    em::Point point(i.position().x(), i.position().y(), i.position().z());
+    obj.position = point;
+    em::Point v(i.velocity().x(), i.velocity().y(), i.velocity().z());
+    obj.velocity = v;
+    for (const auto& pt : i.polygon_point()) {
+      em::Point objpts(pt.x(), pt.y(), pt.z());
+      obj.polygon.points.emplace_back(objpts);
+    }
+    obj.heading = i.theta();
+    obj.length = i.length();
+    obj.width = i.width();
+    elem_map_->objs[obj.id] = std::make_shared<em::Obj>(obj);
   }
 }
 
@@ -4122,6 +4263,56 @@ void GeoOptimization::FillLaneType(hozon::mp::mf::em::Boundary* lane_line,
       break;
     default:
       lane_line->linetype = hozon::mp::mf::em::LineType::LaneType_OTHER;
+      break;
+  }
+}
+
+void GeoOptimization::FillObjType(
+    hozon::mp::mf::em::Obj* obj,
+    hozon::perception::PerceptionObstacle_Type objtype) {
+  switch (objtype) {
+    case hozon::perception::PerceptionObstacle_Type::
+        PerceptionObstacle_Type_UNKNOWN:
+      obj->type = hozon::mp::mf::em::ObjType::UNKNOWN;
+      break;
+    case hozon::perception::PerceptionObstacle_Type::
+        PerceptionObstacle_Type_UNKNOWN_UNMOVABLE:
+      obj->type = hozon::mp::mf::em::ObjType::UNKNOWN_UNMOVABLE;
+      break;
+    case hozon::perception::PerceptionObstacle_Type::
+        PerceptionObstacle_Type_UNKNOWN_MOVABLE:
+      obj->type = hozon::mp::mf::em::ObjType::UNKNOWN_MOVABLE;
+      break;
+    case hozon::perception::PerceptionObstacle_Type::
+        PerceptionObstacle_Type_PEDESTRIAN:
+      obj->type = hozon::mp::mf::em::ObjType::PEDESTRIAN;
+      break;
+    case hozon::perception::PerceptionObstacle_Type::
+        PerceptionObstacle_Type_BICYCLE:
+      obj->type = hozon::mp::mf::em::ObjType::BICYCLE;
+      break;
+    case hozon::perception::PerceptionObstacle_Type::
+        PerceptionObstacle_Type_VEHICLE:
+      obj->type = hozon::mp::mf::em::ObjType::VEHICLE;
+      break;
+    case hozon::perception::PerceptionObstacle_Type::
+        PerceptionObstacle_Type_CYCLIST:
+      obj->type = hozon::mp::mf::em::ObjType::CYCLIST;
+      break;
+    case hozon::perception::PerceptionObstacle_Type::
+        PerceptionObstacle_Type_STATIC_OBSTACLE:
+      obj->type = hozon::mp::mf::em::ObjType::STATIC_OBSTACLE;
+      break;
+    case hozon::perception::PerceptionObstacle_Type::
+        PerceptionObstacle_Type_TRANSPORT_ELEMENT:
+      obj->type = hozon::mp::mf::em::ObjType::TRANSPORT_ELEMENT;
+      break;
+    case hozon::perception::PerceptionObstacle_Type::
+        PerceptionObstacle_Type_ANIMAL:
+      obj->type = hozon::mp::mf::em::ObjType::ANIMAL;
+      break;
+    default:
+      obj->type = hozon::mp::mf::em::ObjType::UNKNOWN;
       break;
   }
 }

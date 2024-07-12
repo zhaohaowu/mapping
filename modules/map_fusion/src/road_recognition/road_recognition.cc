@@ -52,12 +52,13 @@ void RoadRecognition::OnLocalization(
 }
 
 void RoadRecognition::OnLocalMap(
-    const std::shared_ptr<hozon::mapping::LocalMap>& msg) {
+    const std::shared_ptr<hozon::mapping::LocalMap>& msg,
+    const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg) {
   if (geo_ == nullptr) {
     return;
   }
 
-  geo_->OnLocalMap(msg);
+  geo_->OnLocalMap(msg, obj_msg);
   auto ele = geo_->GetElemMap();
   topo_->OnElementMap(ele);
   percep_map_ = topo_->GetPercepMap();

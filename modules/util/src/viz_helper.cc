@@ -18,6 +18,7 @@ namespace util {
             << __FUNCTION__ << std::endl;
 
 #define FLOAT_RGB(IntRgb) (IntRgb / 255.0)
+#define PI acos(-1)
 
 Rgb ColorRgb(Color color) {
   // rgb value refers to: https://tool.oschina.net/commons?type=3
@@ -1583,6 +1584,59 @@ void LocalMapToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
     rgba.set_g(rgb.g);
     rgba.set_b(rgb.b);
     LmArrowToMarkers(header, lifetime, arrow, arrow_ns, rgba, ma);
+  }
+}
+
+void ObjToMarkers(const adsfi_proto::hz_Adsfi::AlgHeader& header,
+                  const adsfi_proto::hz_Adsfi::HafTime& lifetime,
+                  const hozon::perception::PerceptionObstacles& objs,
+                  adsfi_proto::viz::MarkerArray* ma) {
+  if (ma == nullptr) {
+    return;
+  }
+  const std::string& ns = "perception/";
+  for (const auto& object : objs.perception_obstacle()) {
+    if (object.type() != hozon::perception::PerceptionObstacle::VEHICLE ||
+        object.position().x() <= 0 || object.velocity().x() > 0 ||
+        (PI * 3 / -4 < object.theta() && object.theta() < PI * 3 / 4)) {
+      continue;
+    }
+    std::string obj_ns = ns + "obj/";
+    adsfi_proto::viz::ColorRGBA rgba;
+    Rgb rgb = ColorRgb(ORANGE);
+    rgba.set_a(0.8);
+    rgba.set_r(rgb.r);
+    rgba.set_g(rgb.g);
+    rgba.set_b(rgb.b);
+
+    const std::string object_point_ns =
+        obj_ns + "/" + std::to_string(object.track_id());
+
+    auto* marker_point = ma->add_markers();
+    marker_point->mutable_header()->CopyFrom(header);
+    marker_point->mutable_lifetime()->CopyFrom(lifetime);
+    marker_point->set_ns(object_point_ns);
+    marker_point->set_id(0);
+
+    marker_point->set_type(adsfi_proto::viz::MarkerType::POINTS);
+    marker_point->set_action(adsfi_proto::viz::MarkerAction::ADD);
+    marker_point->mutable_pose()->mutable_position()->set_x(0);
+    marker_point->mutable_pose()->mutable_position()->set_y(0);
+    marker_point->mutable_pose()->mutable_position()->set_z(0);
+    marker_point->mutable_pose()->mutable_orientation()->set_x(0.);
+    marker_point->mutable_pose()->mutable_orientation()->set_y(0.);
+    marker_point->mutable_pose()->mutable_orientation()->set_z(0.);
+    marker_point->mutable_pose()->mutable_orientation()->set_w(1.);
+    const double point_size = 1.0;
+    marker_point->mutable_scale()->set_x(point_size);
+    marker_point->mutable_scale()->set_y(point_size);
+    marker_point->mutable_scale()->set_z(point_size);
+    marker_point->mutable_color()->CopyFrom(rgba);
+
+    auto* mpt = marker_point->add_points();
+    mpt->set_x(object.position().x());
+    mpt->set_y(object.position().y());
+    mpt->set_z(object.position().z());
   }
 }
 

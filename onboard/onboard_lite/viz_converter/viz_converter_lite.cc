@@ -119,6 +119,7 @@ int32_t VizConverterLite::AlgInit() {
       kVizTopicMapMsgStatus,
       kVizTopicPercepDetectionTransportElement,
       kVizTopicPercepTransportTransportElement,
+      kTopicPercepObj,
       kVizTopicLocalMap,
   };
   ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(marker_array_topics);
@@ -158,6 +159,8 @@ int32_t VizConverterLite::AlgInit() {
   REGISTER_PROTO_MESSAGE_TYPE(kTopicCamera0, hozon::soc::Image);
   REGISTER_PROTO_MESSAGE_TYPE(kTopicPercepDetection,
                               hozon::perception::measurement::MeasurementPb);
+  REGISTER_PROTO_MESSAGE_TYPE(kTopicPercepObj,
+                              hozon::perception::PerceptionObstacles);
   REGISTER_PROTO_MESSAGE_TYPE(kTopicPercepTransport,
                               hozon::perception::TransportElement);
   REGISTER_PROTO_MESSAGE_TYPE(kTopicLocalMap, hozon::mapping::LocalMap);
@@ -185,6 +188,9 @@ int32_t VizConverterLite::AlgInit() {
   RegistAlgProcessFunc("recv_percep_detection",
                        std::bind(&VizConverterLite::OnPercepDetection, this,
                                  std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_percep_obj",
+      std::bind(&VizConverterLite::OnPercepObj, this, std::placeholders::_1));
   RegistAlgProcessFunc("recv_percep_transport",
                        std::bind(&VizConverterLite::OnPercepTransport, this,
                                  std::placeholders::_1));
@@ -832,6 +838,58 @@ int32_t VizConverterLite::OnPercepDetection(
                             last_trans_ele_ma.get());
   RVIZ_AGENT.Publish(kVizTopicPercepDetectionTransportElement,
                      last_trans_ele_ma);
+
+  return 0;
+}
+
+int32_t VizConverterLite::OnPercepObj(hozon::netaos::adf_lite::Bundle* input) {
+  static std::shared_ptr<adsfi_proto::viz::MarkerArray> last_trans_ele_ma =
+      nullptr;
+
+  if (input == nullptr) {
+    HLOG_ERROR << "nullptr input Bundle";
+    return -1;
+  }
+
+  auto input_msg = input->GetOne(kTopicPercepObj);
+  if (input_msg == nullptr) {
+    HLOG_ERROR << "GetOne " << kTopicPercepObj << " nullptr";
+
+    if (last_trans_ele_ma != nullptr) {
+      HLOG_WARN << "no new " << kVizTopicPercepObj << ", send last data";
+      RVIZ_AGENT.Publish(kVizTopicPercepObj, last_trans_ele_ma);
+    }
+    return -1;
+  }
+
+  const auto proto_msg =
+      std::static_pointer_cast<hozon::perception::PerceptionObstacles>(
+          input_msg->proto_msg);
+  if (proto_msg == nullptr) {
+    HLOG_ERROR << "proto_msg is nullptr in Bundle input";
+    last_trans_ele_ma = nullptr;
+    return -1;
+  }
+
+  uint32_t sec = 0;
+  uint32_t nsec = 0;
+  SplitStamp(proto_msg->header().data_stamp(), &sec, &nsec);
+  adsfi_proto::hz_Adsfi::AlgHeader viz_header;
+  viz_header.mutable_timestamp()->set_sec(sec);
+  viz_header.mutable_timestamp()->set_nsec(nsec);
+  viz_header.set_frameid(kFrameVehicle);
+
+  const double lifetime = 0.1;
+  uint32_t life_sec = 0;
+  uint32_t life_nsec = 0;
+  SplitStamp(lifetime, &life_sec, &life_nsec);
+  adsfi_proto::hz_Adsfi::HafTime viz_lifetime;
+  viz_lifetime.set_sec(life_sec);
+  viz_lifetime.set_nsec(life_nsec);
+
+  last_trans_ele_ma = std::make_shared<adsfi_proto::viz::MarkerArray>();
+  ObjToMarkers(viz_header, viz_lifetime, *proto_msg, last_trans_ele_ma.get());
+  RVIZ_AGENT.Publish(kVizTopicPercepObj, last_trans_ele_ma);
 
   return 0;
 }

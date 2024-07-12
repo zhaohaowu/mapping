@@ -50,6 +50,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   int32_t OnPercepTransport(Bundle* input);
   int32_t OnDR(Bundle* input);
   int32_t OnFCTIn(Bundle* input);
+  int32_t OnObj(Bundle* input);
   int DebugSelectMap();
   int32_t MapFusionOutput(Bundle* output);
 
@@ -58,6 +59,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   std::shared_ptr<hozon::mapping::LocalMap> GetLatestLocalMap();
   std::shared_ptr<hozon::localization::HafNodeInfo> GetLatestLocPlugin();
   std::shared_ptr<hozon::perception::TransportElement> GetLatestPercep();
+  std::shared_ptr<hozon::perception::PerceptionObstacles> GetLatestObj();
   std::shared_ptr<hozon::dead_reckoning::DeadReckoning> GetLatestDR();
   std::shared_ptr<hozon::functionmanager::FunctionManagerIn> GetLatestFCTIn();
   int SendFusionResult(
@@ -90,6 +92,8 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   int pre_fault_value_ = -1;
   std::mutex percep_map_mtx_;
   std::shared_ptr<hozon::perception::TransportElement> curr_percep_ = nullptr;
+  std::mutex percep_obj_mtx_;
+  std::shared_ptr<hozon::perception::PerceptionObstacles> curr_obj_ = nullptr;
   std::mutex dr_mtx_;
   std::shared_ptr<hozon::dead_reckoning::DeadReckoning> curr_dr_ = nullptr;
   std::mutex fct_mtx_;

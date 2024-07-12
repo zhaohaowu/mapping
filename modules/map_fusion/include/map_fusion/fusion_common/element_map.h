@@ -292,6 +292,19 @@ enum TurnType {
   LEFT_U_TURN,
 };
 
+enum ObjType {
+  UNKNOWN = 0,
+  UNKNOWN_UNMOVABLE,
+  UNKNOWN_MOVABLE,
+  PEDESTRIAN,
+  BICYCLE,
+  VEHICLE,
+  CYCLIST,
+  STATIC_OBSTACLE,
+  TRANSPORT_ELEMENT,
+  ANIMAL,
+};
+
 struct Lane : public BaseElement {
   LaneType lane_type = UNKNOWN_LANE_TYPE;
   TurnType turn_type = UNKNOWN_TURN_TYPE;
@@ -356,6 +369,19 @@ struct StopLine : public BaseElement {
   std::vector<Id> lane_ids;
 
   DEFINE_PTR(StopLine)
+};
+
+struct Obj : public BaseElement {
+  Id obj_id;
+  ObjType type = UNKNOWN;
+  Point position;
+  Polygon polygon;  // obstacle corner points.
+  Point velocity;
+  double heading;
+  double length;
+  double width;
+  // Size of obstacle bounding box.
+  DEFINE_PTR(Obj)
 };
 
 enum SymbolType {
@@ -427,6 +453,7 @@ struct ElementMap {
   std::map<Id, Symbol::Ptr> symbols;
   std::map<Id, TrafficLight::Ptr> traffic_lights;
   std::map<Id, OccRoad::Ptr> occ_roads;
+  std::map<Id, Obj::Ptr> objs;
 
   DEFINE_PTR(ElementMap)
 
@@ -446,6 +473,7 @@ struct ElementMapOut {
   std::map<Id, Symbol::Ptr> symbols;
   std::map<Id, TrafficLight::Ptr> traffic_lights;
   std::map<Id, OccRoad::Ptr> occ_roads;
+  std::map<Id, Obj::Ptr> objs;
 
   DEFINE_PTR(ElementMapOut)
 

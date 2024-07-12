@@ -44,6 +44,10 @@ dataSourcesIn:
     type: proto_proxy
     cmTopic: /planning/ego_trajectory
     cmDomainId: 0
+  - topic: percep_obj
+    type: proto_proxy
+    cmTopic: /perception/fsd/obj_fusion_1 
+    cmDomainId: 0
 
 dataSourcesOut:
   - topic: localization

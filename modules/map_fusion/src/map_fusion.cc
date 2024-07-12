@@ -201,6 +201,7 @@ MapServiceFault MapFusion::GetMapServiceFault() {
 int MapFusion::ProcPercep(
     const std::shared_ptr<hozon::localization::Localization>& curr_loc,
     const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
+    const std::shared_ptr<hozon::perception::PerceptionObstacles>& curr_obj,
     hozon::hdmap::Map* percep_map,
     hozon::routing::RoutingResponse* percep_routing) {
   if (curr_loc == nullptr || curr_local_map == nullptr ||
@@ -215,7 +216,7 @@ int MapFusion::ProcPercep(
   }
   HLOG_DEBUG << "Proc Pilot start!";
   recog_->OnLocalization(curr_loc);
-  recog_->OnLocalMap(curr_local_map);
+  recog_->OnLocalMap(curr_local_map, curr_obj);
   HLOG_DEBUG << "OnLocalMap!";
   auto map = recog_->GetPercepMap();
   if (map == nullptr) {

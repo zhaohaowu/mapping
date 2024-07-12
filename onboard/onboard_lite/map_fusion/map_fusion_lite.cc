@@ -111,6 +111,8 @@ void MapFusionLite::RegistMessageType() {
   REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
   REGISTER_PROTO_MESSAGE_TYPE("function_manager_in",
                               hozon::functionmanager::FunctionManagerIn);
+  REGISTER_PROTO_MESSAGE_TYPE("percep_obj",
+                              hozon::perception::PerceptionObstacles);
 }
 
 void MapFusionLite::RegistProcessFunc() {
@@ -138,6 +140,8 @@ void MapFusionLite::RegistProcessFunc() {
       "recv_dr", std::bind(&MapFusionLite::OnDR, this, std::placeholders::_1));
   RegistAlgProcessFunc("recv_fct_in", std::bind(&MapFusionLite::OnFCTIn, this,
                                                 std::placeholders::_1));
+  RegistAlgProcessFunc("recv_percep_obj", std::bind(&MapFusionLite::OnObj, this,
+                                                    std::placeholders::_1));
 }
 
 int32_t MapFusionLite::OnLocation(Bundle* input) {
@@ -420,6 +424,33 @@ int32_t MapFusionLite::OnDR(Bundle* input) {
   }
   return 0;
 }
+
+int32_t MapFusionLite::OnObj(Bundle* input) {
+  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+  if (!input) {
+    return -1;
+  }
+  auto p_per = input->GetOne("percep_obj");
+  if (!p_per) {
+    HLOG_ERROR << "nullptr percep_obj message";
+    return -1;
+  }
+  const auto percep_res =
+      std::static_pointer_cast<hozon::perception::PerceptionObstacles>(
+          p_per->proto_msg);
+
+  if (!percep_res) {
+    HLOG_ERROR << "nullptr percep_obj";
+    return -1;
+  }
+  {
+    std::lock_guard<std::mutex> lock(percep_obj_mtx_);
+    curr_obj_ =
+        std::make_shared<hozon::perception::PerceptionObstacles>(*percep_res);
+  }
+  return 0;
+}
+
 int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   if (!mf_) {
     HLOG_ERROR << "nullptr map fusion";
@@ -463,6 +494,13 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   //   HLOG_ERROR << "nullptr latest latest_percep";
   //   return -1;
   // }
+
+  std::shared_ptr<hozon::perception::PerceptionObstacles> latest_obj =
+      GetLatestObj();
+  if (latest_obj == nullptr) {
+    HLOG_ERROR << "nullptr latest latest_obj";
+    return -1;
+  }
 
   std::shared_ptr<hozon::dead_reckoning::DeadReckoning> latest_dr =
       GetLatestDR();
@@ -526,8 +564,8 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     auto percep_map = std::make_shared<hozon::hdmap::Map>();
     percep_map->Clear();
     auto percep_routing = std::make_shared<hozon::routing::RoutingResponse>();
-    int ret = mf_->ProcPercep(latest_loc, latest_local_map, percep_map.get(),
-                              percep_routing.get());
+    int ret = mf_->ProcPercep(latest_loc, latest_local_map, latest_obj,
+                              percep_map.get(), percep_routing.get());
     if (ret < 0) {
       HLOG_ERROR << "map fusion ProcPercep failed";
       percep_map->Clear();
@@ -900,6 +938,18 @@ MapFusionLite::GetLatestPercep() {
   }
   return latest_percep;
 }
+
+std::shared_ptr<hozon::perception::PerceptionObstacles>
+MapFusionLite::GetLatestObj() {
+  std::shared_ptr<hozon::perception::PerceptionObstacles> latest_obj = nullptr;
+  std::lock_guard<std::mutex> lock(percep_obj_mtx_);
+  if (curr_obj_ != nullptr) {
+    latest_obj =
+        std::make_shared<hozon::perception::PerceptionObstacles>(*curr_obj_);
+  }
+  return latest_obj;
+}
+
 std::shared_ptr<hozon::dead_reckoning::DeadReckoning>
 MapFusionLite::GetLatestDR() {
   std::shared_ptr<hozon::dead_reckoning::DeadReckoning> latest_dr = nullptr;

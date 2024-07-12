@@ -7025,6 +7025,7 @@ std::shared_ptr<hozon::mp::mf::em::ElementMapOut> GroupMap::ConvertToElementMap(
   ele_map->arrows = ele->arrows;
   ele_map->cross_walks = ele->cross_walks;
   ele_map->occ_roads = ele->occ_roads;
+  ele_map->objs = ele->objs;
   return ele_map;
 }
 

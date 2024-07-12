@@ -32,6 +32,7 @@
 // #include <utility>
 // #include <vector>
 
+#include <boost/circular_buffer.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d.hpp>
 
@@ -166,7 +167,9 @@ class GeoOptimization {
   void OnLocalization(
       const std::shared_ptr<hozon::localization::Localization>& msg);
   //! input
-  void OnLocalMap(const std::shared_ptr<hozon::mapping::LocalMap>& msg);
+  void OnLocalMap(
+      const std::shared_ptr<hozon::mapping::LocalMap>& msg,
+      const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg);
   // void OnPilotMap();  // 输出给规控用的pilotmap topo_generation发
   //! output
   std::shared_ptr<hozon::mp::mf::em::ElementMap> GetElemMap();
@@ -175,6 +178,11 @@ class GeoOptimization {
  private:
   std::shared_ptr<hozon::mp::mf::em::ElementMap> elem_map_ = nullptr;
   std::shared_ptr<hozon::mapping::LocalMap> local_map_ = nullptr;
+  std::shared_ptr<hozon::perception::PerceptionObstacles> per_objs_ = nullptr;
+  boost::circular_buffer<
+      std::shared_ptr<hozon::perception::PerceptionObstacles>>
+      history_objs_;
+  int history_objs_size_ = 10;
   std::shared_ptr<hozon::mapping::LocalMap> local_map_use_ =
       nullptr;  // 滤除一些不对的laneline,最终是可用的一些线
   // std::shared_ptr<std::vector<LanePilot>> map_lanes_ = nullptr;
@@ -318,7 +326,9 @@ class GeoOptimization {
   bool JudgeLineOverRoad(const std::vector<Eigen::Vector3d>& lane_line,
                          const std::vector<Eigen::Vector3d>& road_line);
 
-  void AppendElemtMap(const std::shared_ptr<hozon::mapping::LocalMap>& msg);
+  void AppendElemtMap(
+      const std::shared_ptr<hozon::mapping::LocalMap>& msg,
+      const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg);
 
   bool IsNeighberLine(int lanei_pos, int lanej_pos);
 
@@ -334,6 +344,8 @@ class GeoOptimization {
                    hozon::mapping::LanePositionType lanepostype);
   void FillLaneType(hozon::mp::mf::em::Boundary* lane_line,
                     hozon::mapping::LaneType lanetype);
+  void FillObjType(hozon::mp::mf::em::Obj* obj,
+                   hozon::perception::PerceptionObstacle_Type objtype);
   void FillLaneColor(hozon::mp::mf::em::Boundary* lane_line,
                      hozon::mapping::Color lanecolor);
   void FilterLocalMapLine(
@@ -345,6 +357,8 @@ class GeoOptimization {
   void FilterReverseLine();
   void HandleOppisiteLine(const std::vector<Eigen::Vector3d>& target_line);
   void HandleOppisiteLineByStopline();
+  void HandleOppisiteLineByObj();
+  void HandleOppisiteLineByObjAndYelloLine();
   bool IsOppisiteLine(Line_kd* line);
   bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
                const Eigen::Vector3d& B);

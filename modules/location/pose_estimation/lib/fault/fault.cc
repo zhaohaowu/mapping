@@ -152,7 +152,7 @@ void MmFault::CheckIsGoodMatchFCbyLine(
     // 获取当前边界的拟合点
     V3 map_point(0, 0, 0);
     bool flag_fit0 =
-        FaultGetFitMapPoints(map_edge.second, FC_vel(0) * 2.0, &map_point);
+        FaultGetFitMapPoints(map_edge.second, FC_vel(0) * 1.5, &map_point);
     // 比较并更新左右边界
     if (map_point.y() > mm_params.left_edge_y_err && !is_big_curvature_) {
       ++map_edge_posi_cnt;
@@ -283,7 +283,7 @@ void MmFault::CheckIsGoodMatchFCbyLine(
   if (percep_left_cnt > 0 && percep_right_cnt > 0) {
     if (match_double_err_cnt > mm_params.map_lane_match_ser_buff ||
         match_single_err_cnt > mm_params.map_lane_match_buff ||
-        check_exceed_edge_cnt > mm_params.map_lane_match_buff) {
+        check_exceed_edge_cnt > mm_params.map_lane_match_ser_buff) {
       err_type_ = ERROR_TYPE::MAP_LANE_MATCH_FAIL;
       check_error_last_ = true;
     }

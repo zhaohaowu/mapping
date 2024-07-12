@@ -495,11 +495,16 @@ void LaneLinePointFilter::MergeMapTrackLanePoints() {
   // 插入最新的后处理跟踪点
   target_vehicle_pts_.insert(target_vehicle_pts_.end(), tracked_points.begin(),
                              tracked_points.end());
+  int erase_pos = 0;
+  for (int i = 0; i < static_cast<int>(target_vehicle_pts_.size()); ++i) {
+    if (std::abs(target_vehicle_pts_[i].y()) > 80.0 ||
+        target_vehicle_pts_[i].x() < -80.0) {
+      erase_pos = i > erase_pos ? i : erase_pos;
+    }
+  }
   // 删除掉80m之后的点
-  target_vehicle_pts_.erase(
-      std::remove_if(target_vehicle_pts_.begin(), target_vehicle_pts_.end(),
-                     [&](const auto& pt) { return pt.x() < -80.0; }),
-      target_vehicle_pts_.end());
+  target_vehicle_pts_.erase(target_vehicle_pts_.begin(),
+                            target_vehicle_pts_.begin() + erase_pos);
   tracked_lane->vehicle_points = target_vehicle_pts_;
 }
 

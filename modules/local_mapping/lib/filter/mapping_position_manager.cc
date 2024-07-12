@@ -38,20 +38,45 @@ bool MappingPositionManager::IsUnknownLaneline(
   return false;
 }
 
+// void MappingPositionManager::Process(const LaneLinesPtr& laneline_ptrs) {
+//   HLOG_DEBUG << "***MappingPositionManager Process start***";
+
+//   // 给所有车道线打上一个是否位于路口前后的标记
+//   SetJunction(laneline_ptrs);
+//   SetC0(laneline_ptrs);
+//   SetReferC0(laneline_ptrs);
+//   IfCross(laneline_ptrs);
+
+//   std::vector<LaneLinePtr> forward_lanelines;  // 路口外侧
+//   std::vector<LaneLinePtr> behind_lanelines;   // 路口内侧
+//   std::vector<LaneLinePtr> unknown_lanelines;
+//   std::vector<LaneLinePtr> normal_lanelines;
+
+//   for (const auto& laneline : laneline_ptrs->lanelines) {
+//     if (IsUnknownLaneline(laneline)) {
+//       unknown_lanelines.emplace_back(laneline);
+//       laneline->position = LaneLinePosition::OTHER;
+//     } else {
+//       normal_lanelines.emplace_back(laneline);
+//     }
+//   }
+//   DivideLaneLines(normal_lanelines, &forward_lanelines, &behind_lanelines);
+//   SetLaneLinePosition(forward_lanelines);
+//   SetLaneLinePosition(behind_lanelines);
+// }
 void MappingPositionManager::Process(const LaneLinesPtr& laneline_ptrs) {
   HLOG_DEBUG << "***MappingPositionManager Process start***";
 
-  // 给所有车道线打上一个是否位于路口前后的标记
-  SetJunction(laneline_ptrs);
   SetC0(laneline_ptrs);
   SetReferC0(laneline_ptrs);
   IfCross(laneline_ptrs);
 
-  std::vector<LaneLinePtr> forward_lanelines;  // 路口外侧
-  std::vector<LaneLinePtr> behind_lanelines;   // 路口内侧
+  std::vector<LaneLinePtr> selected_lanelines;  // 被选中需要排序的线
   std::vector<LaneLinePtr> unknown_lanelines;
   std::vector<LaneLinePtr> normal_lanelines;
-
+  selected_lanelines.clear();
+  unknown_lanelines.clear();
+  normal_lanelines.clear();
   for (const auto& laneline : laneline_ptrs->lanelines) {
     if (IsUnknownLaneline(laneline)) {
       unknown_lanelines.emplace_back(laneline);
@@ -60,11 +85,10 @@ void MappingPositionManager::Process(const LaneLinesPtr& laneline_ptrs) {
       normal_lanelines.emplace_back(laneline);
     }
   }
-  DivideLaneLines(normal_lanelines, &forward_lanelines, &behind_lanelines);
-  SetLaneLinePosition(forward_lanelines);
-  SetLaneLinePosition(behind_lanelines);
+  // DivideLaneLines(normal_lanelines, &forward_lanelines, &behind_lanelines);
+  SelectLaneLines(normal_lanelines, &selected_lanelines);
+  SetLaneLinePosition(selected_lanelines);
 }
-
 void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
   const auto& last_local_map = MAP_MANAGER->GetLocalMap();
   double min_intersection_x = FLT_MAX;
@@ -114,7 +138,7 @@ void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
                          2.0;
     HLOG_DEBUG << "mid_point_x:" << mid_point_x;
     if (zebra_enable) {
-      lane_line->after_intersection = mid_point_x > min_intersection_x;
+      lane_line->after_intersection = (mid_point_x > min_intersection_x);
     } else {
       lane_line->after_intersection = false;
     }
@@ -127,34 +151,51 @@ void MappingPositionManager::SetLaneLinePosition(
   std::vector<std::pair<int, float>> left_lane_index;
   std::vector<std::pair<int, float>> right_lane_index;
   int size = lane_lines.size();
-
+  static int maintain_num = 0;
+  static float ref_thresh = 0;
   for (int i = 0; i < size; ++i) {
     float d = 0.f;
-    // 理论c0相距过近则用参考c0
+    // 理论c0相距过近则用参考c0,如果参考和理论符号相反，相信理论cO
+    if (lane_lines[i]->theory_c0 * lane_lines[i]->refer_c0 < 0) {
+      lane_lines[i]->refer_c0 = lane_lines[i]->theory_c0;
+    }
     if (!lane_lines[i]->cross) {
       d = lane_lines[i]->theory_c0;
     } else {
       d = lane_lines[i]->refer_c0;
     }
-    float ref_thresh = 0;
 
-    if ((lane_lines[i]->history_line_pos.size() == 2)) {
+    if ((lane_lines[i]->history_line_pos.size() == 2) && maintain_num == 0) {
       int first_pos = static_cast<int>(lane_lines[i]->history_line_pos[0]);
       int sec_pos = static_cast<int>(lane_lines[i]->history_line_pos[1]);
-      HLOG_DEBUG << "first_pos:" << first_pos << " ,sec_pos" << sec_pos;
+      HLOG_DEBUG << "id:" << lane_lines[i]->id << " ,d:" << d
+                 << " ,first_pos:" << first_pos << " ,sec_pos" << sec_pos;
       if ((first_pos + sec_pos == 0) && first_pos > 0) {
         ref_thresh = -0.2;
+        maintain_num++;
 
       } else if ((first_pos + sec_pos == 0) && first_pos < 0) {
         ref_thresh = 0.2;
+        maintain_num++;
       }
     }
+    // 阈值保持5帧（两次调用）
+    if (maintain_num > 10) {
+      ref_thresh = 0;
+      maintain_num = 0;
+    }
+    HLOG_DEBUG << "ref_thresh:" << ref_thresh
+               << " ,maintain_num:" << maintain_num;
     if (d > ref_thresh) {
       left_lane_index.push_back(std::pair<int, float>(i, d));
     } else {
       right_lane_index.push_back(std::pair<int, float>(i, d));
     }
   }
+  if (maintain_num > 0) {
+    maintain_num++;
+  }
+
   // left_lane: sort by decrease
   std::sort(left_lane_index.begin(), left_lane_index.end(),
             [](std::pair<int, float>& a, std::pair<int, float>& b) {
@@ -296,8 +337,16 @@ void MappingPositionManager::IfCross(const LaneLinesPtr& laneline_ptrs) {
   //             << laneline_ptrs->lanelines.size();
   for (int i = 0; i < laneline_ptrs->lanelines.size() - 1; ++i) {
     // HLOG_INFO << "=========== i:" << i;
+    if (laneline_ptrs->lanelines[i]->vehicle_points.back().x() < -10) {
+      laneline_ptrs->lanelines[i]->cross = false;
+      continue;
+    }
     double c0 = laneline_ptrs->lanelines[i]->theory_c0;
     for (int j = i + 1; j < laneline_ptrs->lanelines.size(); ++j) {
+      if (laneline_ptrs->lanelines[j]->vehicle_points.back().x() < -10) {
+        laneline_ptrs->lanelines[j]->cross = false;
+        continue;
+      }
       double tmp_c0 = laneline_ptrs->lanelines[j]->theory_c0;
       if (abs(c0 - tmp_c0) < 0.5) {
         HLOG_DEBUG << "cross_id: " << laneline_ptrs->lanelines[i]->id
@@ -326,6 +375,21 @@ void MappingPositionManager::DivideLaneLines(
   }
 }
 
+void MappingPositionManager::SelectLaneLines(
+    const std::vector<LaneLinePtr>& normal_lanelines,
+    std::vector<LaneLinePtr>* selected_lanelines) {
+  for (const auto& lane_line : normal_lanelines) {
+    if (lane_line->vehicle_points.empty()) {
+      continue;
+    }
+    if (lane_line->vehicle_points.front().x() < 0 &&
+        lane_line->vehicle_points.back().x() > 0) {
+      selected_lanelines->emplace_back(lane_line);
+    } else {
+      lane_line->position = LaneLinePosition::OTHER;
+    }
+  }
+}
 }  // namespace lm
 }  // namespace mp
 }  // namespace hozon

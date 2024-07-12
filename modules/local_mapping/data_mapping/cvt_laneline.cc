@@ -346,8 +346,8 @@ bool DataMapping::CvtLaneLine2Pb(const LaneLinePtr& lane_msg,
   pb_lane->set_confidence(1.0);
   // pb_lane->set_confidence(lane_msg->geo_confidence);
   pb_lane->set_lost_age(lane_msg->lost_age);
-  HLOG_DEBUG << "DEBUG:" << "id, " << lane_msg->id << ", lost_age, "
-             << lane_msg->lost_age
+  HLOG_DEBUG << "DEBUG:"
+             << "id, " << lane_msg->id << ", lost_age, " << lane_msg->lost_age
              << ", tracked_age: " << lane_msg->tracked_count
              << ", latest_tracked_age, "
              << std::to_string(lane_msg->latest_tracked_time);
@@ -370,6 +370,7 @@ bool DataMapping::CvtPb2LaneLineMeasurement(
   laneptr->type = CvtPb2LaneType(laneinfo.lanetype());
   laneptr->type_confidence = static_cast<float>(laneinfo.confidence());
   laneptr->color = CvtPb2LaneColor(laneinfo.color());
+  laneptr->color_confidence = static_cast<float>(laneinfo.confidence());
   laneptr->position = CvtPbLanePosType(laneinfo.lanepos());
 
   for (auto& item : laneinfo.points()) {

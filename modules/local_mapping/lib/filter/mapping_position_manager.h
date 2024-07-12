@@ -32,6 +32,8 @@ class MappingPositionManager {
   void DivideLaneLines(const std::vector<LaneLinePtr>& normal_lanelines,
                        std::vector<LaneLinePtr>* forward_lanelines,
                        std::vector<LaneLinePtr>* behind_lanelines);
+  void SelectLaneLines(const std::vector<LaneLinePtr>& normal_lanelines,
+                       std::vector<LaneLinePtr>* selected_lanelines);
   void GetMinDisPoint(const LaneLinesPtr& laneline_ptrs);
   bool IsUnknownLaneline(const LaneLinePtr& laneline_ptrs);
   void SetLaneLinePosition(const std::vector<LaneLinePtr>& lane_lines);

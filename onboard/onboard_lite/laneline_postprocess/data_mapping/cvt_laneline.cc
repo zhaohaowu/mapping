@@ -354,6 +354,7 @@ bool DataMapping::CvtPb2LaneLineMeasurement(
   laneptr->type = CvtPb2LaneType(laneinfo.lanetype());
   laneptr->type_confidence = laneinfo.confidence();
   laneptr->color = CvtPb2LaneColor(laneinfo.color());
+  laneptr->color_confidence = laneinfo.confidence();
   laneptr->position = CvtPbLanePosType(laneinfo.lanepos());
 
   for (auto& item : laneinfo.points()) {

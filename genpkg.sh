@@ -96,7 +96,7 @@ if [ -z "$tag_name" ]; then
 fi
 
 # 获取前N个提交的提交消息
-commit_messages=$(git log -n $commit_count --pretty=format:"%s" | sed '/^ORIN_EP41_MAL/d' | sed 's/URL:.*$//' | sed 's/\[SkipMRScan\]//g' | sed 's/\[DebugBuild_ORIN_EP41\]//g' | nl -w1 -s". ")
+commit_messages=$(git log -n $commit_count --pretty=format:"%s" | sed '/^ORIN_EP41_MAL/d' | sed 's/URL:.*$//' | sed 's/\[SkipMRScan\]//g' | sed 's/https:.*$//g' | sed 's/\[DebugBuild_ORIN_EP41\]//g' | nl -w1 -s". ")
 echo "$commit_messages"
 
 # 检查是否存在重名的标签

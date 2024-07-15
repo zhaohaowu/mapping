@@ -295,7 +295,7 @@ void GroupMap::BuildGroupSegments(
     return;
   }
 
-  CreateGroupSegFromPath(*path, *curr_pose, group_segments);
+  CreateGroupSegFromPath(path, *curr_pose, group_segments);
   SplitPtsToGroupSeg(lines, group_segments);
   GenLaneSegInGroupSeg(group_segments);
   EgoLineTrajectory(group_segments, ele_map);
@@ -424,18 +424,32 @@ void GroupMap::BuildGroups(const em::ElementMap::Ptr& ele_map,
   GenLanesInGroups(groups, occ_roads, stamp);
 }
 
+// 查找path中是否有掉头path_i，若有则删掉path_0到path_i
+void GroupMap::ProcessUTurn(
+    const std::shared_ptr<std::vector<KinePose::Ptr>>& path) {
+  for (int i = static_cast<int>(path->size() - 1); i > 0; i--) {
+    if ((*path)[i]->state == PoseState::UTURN) {
+      path->erase(path->begin(), (path->begin() + i));
+      break;
+    }
+  }
+}
+
 // 按轨迹方向计算出所有切分线，每两根相邻切分线组成一个GroupSegment
 void GroupMap::CreateGroupSegFromPath(
-    const std::vector<KinePose::Ptr>& path, const KinePose& curr_pose,
-    std::vector<GroupSegment::Ptr>* segments) {
+    const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
+    const KinePose& curr_pose, std::vector<GroupSegment::Ptr>* segments) {
   if (segments == nullptr) {
     HLOG_ERROR << "input nullptr";
     return;
   }
+  // 检查是否有掉头，并处理
+  ProcessUTurn(path);
+
   // 将path里一个个pose转换成分割线SliceLine
   std::vector<SliceLine> slice_lines;
   Pose pose_local_to_veh = curr_pose.Inverse();
-  for (const auto& p : path) {
+  for (auto& p : *path) {
     if (p == nullptr) {
       HLOG_ERROR << "found nullptr pose in path";
       continue;
@@ -7741,8 +7755,8 @@ std::vector<Point> GuidePathManager::GetCwForwardLaneGuidePoints() {
 
   float ego_to_lane_center =
       std::atan2(center_first_point.y(), center_first_point.x());
-  HLOG_DEBUG << "forward center point:"
-             << ", center.x()" << center_first_point.x() << ", center.y()"
+  HLOG_DEBUG << "forward center point:" << ", center.x()"
+             << center_first_point.x() << ", center.y()"
              << center_first_point.y() << "atan2:" << ego_to_lane_center
              << ", line_radians_mean_heading" << line_radians_mean_heading;
 

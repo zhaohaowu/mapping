@@ -328,7 +328,8 @@ class GroupMap {
       const KinePose::Ptr& curr_pose, std::deque<Line::Ptr>* lines,
       std::vector<GroupSegment::Ptr>* group_segments,
       const em::ElementMap::Ptr& ele_map);
-  void CreateGroupSegFromPath(const std::vector<KinePose::Ptr>& path,
+  void ProcessUTurn(const std::shared_ptr<std::vector<KinePose::Ptr>>& path);
+  void CreateGroupSegFromPath(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
                               const KinePose& curr_pose,
                               std::vector<GroupSegment::Ptr>* segments);
   void SplitPtsToGroupSeg(std::deque<Line::Ptr>* lines,

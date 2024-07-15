@@ -36,6 +36,13 @@ using HafNodeInfoPtr = std::shared_ptr<hozon::localization::HafNodeInfo>;
 using TransportElementPtr =
     std::shared_ptr<hozon::perception::TransportElement>;
 
+enum class PoseState {
+  NORMAL = 0,
+  UTURN = 1,
+  REVERS = 2,
+  STAY = 3,
+};
+
 struct Pose {
   Pose() : stamp(0) {
     pos.setZero();
@@ -64,6 +71,7 @@ struct Pose {
   double stamp = 0;
   Eigen::Vector3f pos;
   Eigen::Quaternionf quat;
+  PoseState state = PoseState::NORMAL;
 
   DEFINE_PTR(Pose)
 };

@@ -32,6 +32,7 @@ RoadRecognition:
     ## PathManager
     path_back_range: 80
     path_interval: 1.0
+    state_detect_range: 10 # 大于等于10，最少需要10帧判断
     ## GroupMap
     lane_line_interp_dist: -1 # < 0, not interpolate
     half_slice_length: 30

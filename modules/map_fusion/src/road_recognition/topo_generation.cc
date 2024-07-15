@@ -33,6 +33,7 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
       "path_predict_range",
       "path_back_range",
       "path_interval",
+      "state_detect_range",
       "lane_line_interp_dist",
       "half_slice_length",
       "min_lane_width",
@@ -107,6 +108,7 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
   PathManagerConf pm_conf;
   pm_conf.back_range = conf["path_back_range"].as<float>();
   pm_conf.interval = conf["path_interval"].as<float>();
+  pm_conf.state_detect_range = conf["state_detect_range"].as<int>();
   gm_conf_.lane_line_interp_dist = conf["lane_line_interp_dist"].as<float>();
   gm_conf_.half_slice_length = conf["half_slice_length"].as<float>();
   gm_conf_.min_lane_width = conf["min_lane_width"].as<float>();
@@ -211,12 +213,13 @@ std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap() {
   path_->GetPath(path.get(), static_cast<float>(path_predict_range_));
   auto curr_pose = path_->LatestPose();
 
-  VizPath(*path, *curr_pose);
+  // VizPath(*path, *curr_pose);
 
   std::shared_ptr<hozon::hdmap::Map> proto_map = nullptr;
 
   gm::GroupMap group_map(gm_conf_);
   auto ret = group_map.Build(path, curr_pose, last_pose_, ele_map_, &is_cross_);
+  VizPath(*path, *curr_pose);
   last_pose_ = curr_pose;
   if (!ret) {
     HLOG_ERROR << "Build group map failed";

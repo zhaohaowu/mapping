@@ -38,7 +38,7 @@ void PathManager::AddPose(const KinePose& pose) {
   if (dist < conf_.interval) {
     return;
   }
-
+  CheckPoseState(p);
   poses_.emplace_back(p);
   back_length_ += dist;
 
@@ -49,6 +49,83 @@ void PathManager::AddPose(const KinePose& pose) {
     poses_.pop_front();
     back_length_ -= front_dist;
   }
+}
+
+bool PathManager::CheckTurnBack(const std::vector<Pose>& poses) {
+  HLOG_DEBUG << "!!!!!CheckTurnBack!!!!!";
+  if (poses.size() < conf_.state_detect_range) {
+    return false;
+  }
+  int invers_cnt = 0, forward_cnt = 0;
+  bool last_forward = true;
+  std::vector<bool> is_forward;
+  is_forward.resize(poses.size());
+
+  for (int i = 0; i < static_cast<int>(poses.size() - 1); i++) {
+    Eigen::Vector3f euler = math::Quat2EulerAngle(poses[i].quat);
+    float yaw = euler[2];
+    HLOG_DEBUG << "yaw: " << yaw;
+    if (std::abs(yaw) < M_PI_2) {
+      is_forward[i] = true;
+    } else {
+      is_forward[i] = false;
+    }
+  }
+
+  for (int i = static_cast<int>(is_forward.size() - 1); i > 0; i--) {
+    if (is_forward[i] == is_forward[i - 1]) {
+      if (is_forward[i]) {
+        forward_cnt++;
+      } else {
+        invers_cnt++;
+      }
+    }
+    if (forward_cnt >= 3 && invers_cnt >= 3) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void PathManager::CheckPoseState(const KinePose::Ptr& cur_p) {
+  HLOG_DEBUG << "!!!!!CheckPoseState!!!!!";
+  if (poses_.size() < conf_.state_detect_range) {
+    return;
+  }
+  std::vector<Pose> pose_vehicle, check_window;
+  Eigen::Isometry3f T_local_v2;
+  T_local_v2.setIdentity();
+  T_local_v2.rotate(cur_p->quat);
+  T_local_v2.pretranslate(cur_p->pos);
+
+  for (auto p : poses_) {
+    Eigen::Isometry3f T_local_v1;
+    T_local_v1.setIdentity();
+    T_local_v1.rotate(p->quat);
+    T_local_v1.pretranslate(p->pos);
+
+    Eigen::Isometry3f T_v2_v1;
+    T_v2_v1.setIdentity();
+    T_v2_v1 = T_local_v2.inverse() * T_local_v1;
+
+    Pose pose;
+    pose.stamp = p->stamp;
+    pose.pos << T_v2_v1.translation().x(), T_v2_v1.translation().y(),
+        T_v2_v1.translation().z();
+    pose.quat = T_v2_v1.rotation();
+    pose_vehicle.emplace_back(pose);
+  }
+
+  check_window.assign(pose_vehicle.end() - conf_.state_detect_range,
+                      pose_vehicle.end());
+
+  if (CheckTurnBack(check_window)) {
+    cur_p->state = PoseState::UTURN;
+  } else {
+    cur_p->state = PoseState::NORMAL;
+  }
+
+  return;
 }
 
 void PathManager::GetPath(std::vector<KinePose::Ptr>* path,

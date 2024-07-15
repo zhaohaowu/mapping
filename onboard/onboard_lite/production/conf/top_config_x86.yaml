@@ -1,0 +1,42 @@
+%YAML:1.0
+
+processName: mapping
+
+appLog:
+  name: mapping
+  description: mapping
+  file: ./
+  mode: 3
+  level: 2
+
+schedule:
+  policy: RR
+  priority: 99
+  cpuAffinity: [1, 2 ,3]
+
+resourceLimit:
+  group: mapping
+  cpu: 150
+  memory: 200
+
+executors:
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/data_source_config.yaml
+    order: 1
+    quit_order: 12
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/phm_config/phm_common_onboard_config.yaml
+    order: 2
+    quit_order: 11
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/global_lite/global_lite_config.yaml
+    order: 3
+    quit_order: 10
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_ins_fusion_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_fc_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_pose_estimation_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/dr/dr_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/laneline_postprocess/lp_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/local_mapping/lm_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/map_fusion/mf_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/map_fusion/tlr_config.yaml
+  # - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/viz_cvt/viz_cvt_config.yaml
+  #   order: 4
+  #   quit_order: 9

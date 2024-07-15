@@ -22,6 +22,7 @@ def parse_args():
     p.add_argument('--verbose', action='store_true', help='enable verbose mode for cmake')
     p.add_argument('--release', action='store_true', help='set CMAKE_BUILD_TYPE=Release, default Debug')
     p.add_argument('--ut', action='store_true', help='use unit test or not, default false')
+    p.add_argument('--asan', action='store_true', help='use asan test or not, default false')
     p.add_argument('--clean', action='store_true', help='remove cmake cache first, then build again')
     p.add_argument('--gcc', action='store_true', help='build lib with gcc,default llvm')
     p.add_argument('--make', action='store_true', help='directly execute make, will not compile again')
@@ -176,6 +177,7 @@ def x86_build(workspace, platform, build_directory, release_directory, **kwargs)
     args['-DCMAKE_BUILD_TYPE'] = "Release" if kwargs['release'] else "Debug"
     args['-DPLATFORM'] = 'x86_2004'
     args['-DENABLE_UT'] = "ON" if kwargs['ut'] else "OFF"
+    args['-DENABLE_ASAN'] = "ON" if kwargs['asan'] else "OFF"
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
     args['-DMAPPING_LIB_PREFIX'] = kwargs['prefix']
     args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'

@@ -45,6 +45,19 @@ if(MAPPING_SINGLE_MODULE_COMPILE)
         # set(CMAKE_BUILD_TYPE RelWithDebInfo)
     endif()
 
+    if(${LOCAL_TARGET_PLATFORM} STREQUAL "x86" AND ENABLE_ASAN)
+        if(CMAKE_BUILD_TYPE MATCHES Debug)
+            set(CMAKE_CXX_FLAGS "-std=c++17 -O0 -g -Wall -pthread -fopenmp -fPIE -fPIC -Wno-deprecated -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer -pipe" CACHE STRING "" FORCE)
+            set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=address" CACHE STRING "" FORCE)
+        elseif(CMAKE_BUILD_TYPE MATCHES Release)
+            set(CMAKE_CXX_FLAGS "-std=c++17 -O0 -g -Wall -pthread -fopenmp -fPIE -fPIC -Wno-deprecated -fsanitize=address -fsanitize-recover=address -fno-omit-frame-pointer -pipe" CACHE STRING "" FORCE)
+            set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fno-omit-frame-pointer -fsanitize=address" CACHE STRING "" FORCE)
+        else()
+            set(DEFAULT_COMPILE -std=c++17 -O2 -Wall -pthread -fopenmp -fPIE -fPIC -Wno-deprecated -pipe)
+
+            # set(CMAKE_BUILD_TYPE RelWithDebInfo)
+        endif()
+    endif()
     add_definitions("-Werror=return-type -W -Wall -Wno-unused-variable -Wno-unused-parameter -Wattributes")
     set(3RD_ROOT "${CMAKE_CURRENT_LIST_DIR}/depend/third_party/${TARGET_PLATFORM}")
     set(THIRDPARTY_ROOT_PATH ${3RD_ROOT}/../..)
@@ -248,3 +261,13 @@ if(IND)
     file(WRITE "${CMAKE_INSTALL_PREFIX}/../CREATE_HDMAP_LINK_SHELL.sh" "${CREATE_HDMAP_LINK_SHELL}")
     install(CODE "execute_process(COMMAND bash CREATE_HDMAP_LINK_SHELL.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")
 endif()
+
+if(${LOCAL_TARGET_PLATFORM} STREQUAL "x86" AND ENABLE_ASAN)
+install(CODE "
+    # 修改 map_fusion.yaml
+    file(READ \"\${CMAKE_INSTALL_PREFIX}/runtime_service/mapping/conf/mapping/map_fusion/map_fusion.yaml\" MAP_FUSION_FILE_CONTENTS)
+    string(REPLACE \"map_dir: /hd_map\\n#map_dir: /data/map/changfeng_park\" \"# map_dir: /hd_map\\nmap_dir: /data/map/changfeng_park\" NEW_MAP_FUSION_FILE_CONTENTS \"\${MAP_FUSION_FILE_CONTENTS}\")
+    file(WRITE \"\${CMAKE_INSTALL_PREFIX}/runtime_service/mapping/conf/mapping/map_fusion/map_fusion.yaml\" \"\${NEW_MAP_FUSION_FILE_CONTENTS}\")
+")
+endif()
+

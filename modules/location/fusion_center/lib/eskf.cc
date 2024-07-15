@@ -182,7 +182,13 @@ void ESKF::Correct(const Node& cur_meas_data) {
       if (cur_meas_data.pe_cov_coef > 1.0) {
         pe_cov_coef = cur_meas_data.pe_cov_coef;
       }
+      if (cur_meas_data.pe_cov_coef > 100.0) {
+        pe_cov_coef = 100.0;
+      }
       R = pe_cov_coef * R_mm_;
+      // roll，pitch初始就设置比较大，因此不调整roll，pitch
+      R(3, 3) = R_mm_(3, 3);
+      R(4, 4) = R_mm_(4, 4);
       break;
   }
 

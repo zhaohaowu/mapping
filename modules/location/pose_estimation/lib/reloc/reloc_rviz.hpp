@@ -724,7 +724,7 @@ class RelocRviz {
                          "\nvelocity: " + ToString(velocity * 3.6) + "km/h" +
                          "\nfc_heading: " + ToString(fc_heading) +
                          " ins_heading: " + ToString(ins_heading) +
-                         "\nconv (*e-10): " + conv);
+                         "\nconv (*e-11): " + conv);
     text_marker.mutable_scale()->set_x(0.1);
     text_marker.mutable_scale()->set_y(0);
     text_marker.mutable_scale()->set_z(0.8);

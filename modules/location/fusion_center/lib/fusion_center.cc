@@ -453,7 +453,8 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
   params_.loc2_posx_conv = node["loc2_posx_conv"].as<double>();
   params_.loc2_posy_conv = node["loc2_posy_conv"].as<double>();
   params_.loc2_yaw_conv = node["loc2_yaw_conv"].as<double>();
-  params_.exit_multiple = node["exit_multiple"].as<double>();
+  params_.pos_exit_multiple = node["pos_exit_multiple"].as<double>();
+  params_.ang_exit_multiple = node["ang_exit_multiple"].as<double>();
   params_.ins_init_status.clear();
   const auto& init_status_node = node["ins_init_status"];
   for (const auto& init_status : init_status_node) {
@@ -975,19 +976,19 @@ void FusionCenter::Node2Localization(const Context& ctx,
   //     static_cast<float>(ins.sd_attitude().z());
   // Eigen::Matrix<float, 6, 6, Eigen::RowMajor> sd = diag.asDiagonal();
   // Eigen::Matrix<float, 6, 6, Eigen::RowMajor> cov = sd * sd;
-  diag << static_cast<float>(global_node.cov(0, 0) * 1e10),
-      static_cast<float>(global_node.cov(1, 1) * 1e10),
-      static_cast<float>(global_node.cov(2, 2) * 1e10),
-      static_cast<float>(global_node.cov(6, 6) * 1e10),
-      static_cast<float>(global_node.cov(7, 7) * 1e10),
-      static_cast<float>(global_node.cov(8, 8) * 1e10);
+  diag << static_cast<float>(global_node.cov(0, 0) * 1e11),
+      static_cast<float>(global_node.cov(1, 1) * 1e11),
+      static_cast<float>(global_node.cov(2, 2) * 1e11),
+      static_cast<float>(global_node.cov(6, 6) * 1e11),
+      static_cast<float>(global_node.cov(7, 7) * 1e11),
+      static_cast<float>(global_node.cov(8, 8) * 1e11);
   Eigen::Matrix<float, 6, 6, Eigen::RowMajor> cov = diag.asDiagonal();
   location->mutable_mounting_error()->set_x(
-      static_cast<float>(global_node.cov(0, 0) * 1e10));
+      static_cast<float>(global_node.cov(0, 0) * 1e11));
   location->mutable_mounting_error()->set_y(
-      static_cast<float>(global_node.cov(1, 1) * 1e10));
+      static_cast<float>(global_node.cov(1, 1) * 1e11));
   location->mutable_mounting_error()->set_z(
-      static_cast<float>(global_node.cov(8, 8) * 1e10));
+      static_cast<float>(global_node.cov(8, 8) * 1e11));
   ++count;
   if (count >= 100) {
     count = 0;
@@ -1785,9 +1786,9 @@ uint32_t FusionCenter::GetGlobalLocationState() {
   if (state != 2) {
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
       if ((*it)->type == NodeType::POSE_ESTIMATE &&
-          (*it)->cov(0, 0) <= params_.loc2_posx_conv * 1e-10 &&
-          (*it)->cov(1, 1) <= params_.loc2_posy_conv * 1e-10 &&
-          (*it)->cov(8, 8) <= params_.loc2_yaw_conv * 1e-10) {
+          (*it)->cov(0, 0) <= params_.loc2_posx_conv * 1e-11 &&
+          (*it)->cov(1, 1) <= params_.loc2_posy_conv * 1e-11 &&
+          (*it)->cov(8, 8) <= params_.loc2_yaw_conv * 1e-11) {
         state = 2;
       }
       if ((++search_cnt) > params_.search_state_cnt) {
@@ -1799,11 +1800,11 @@ uint32_t FusionCenter::GetGlobalLocationState() {
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
       if ((*it)->type == NodeType::POSE_ESTIMATE &&
           (*it)->cov(0, 0) <=
-              +params_.exit_multiple * params_.loc2_posx_conv * 1e-10 &&
+              +params_.pos_exit_multiple * params_.loc2_posx_conv * 1e-11 &&
           (*it)->cov(1, 1) <=
-              +params_.exit_multiple * params_.loc2_posy_conv * 1e-10 &&
+              +params_.pos_exit_multiple * params_.loc2_posy_conv * 1e-11 &&
           (*it)->cov(8, 8) <=
-              +params_.exit_multiple * params_.loc2_yaw_conv * 1e-10) {
+              +params_.ang_exit_multiple * params_.loc2_yaw_conv * 1e-11) {
         break;
       }
       if ((++search_cnt) > params_.search_state_cnt) {

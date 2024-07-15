@@ -18,9 +18,9 @@ lcov --remove mapping_ut.info "${filter_files[@]}" --output-file mapping_ut.info
 lcov --list mapping_ut.info > mal_ut_coverage.txt
 
 # 生成 HTML 报告
-genhtml mapping_ut.info --output-directory mal_ut_report
+genhtml mapping_ut.info --output-directory ut_coverage
 
 # 显示报告路径
-echo "打开浏览器并访问: $(pwd)/mal_ut_report/index.html"
+echo "打开浏览器并访问: $(pwd)/ut_coverage/index.html"
 
 rm -rf "mapping_ut.info"

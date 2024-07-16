@@ -1488,6 +1488,10 @@ bool GroupMap::IsZebraIn(const Eigen::Vector2f& curr_start_pl,
 
 bool GroupMap::IsVehicleInJunction(Group::Ptr curr_group,
                                    Group::Ptr next_group) {
+  if (curr_group->group_segments.empty() ||
+        next_group->group_segments.empty()) {
+      return false;
+  }                          
   bool veh_in_this_junction = false;
   // 判断车是否在curr和next group范围内，如果是就认为在路口内
   auto curr_grp_start_slice = curr_group->group_segments.front()->start_slice;
@@ -2586,6 +2590,11 @@ void GroupMap::DelLanePrevStrIdInGroup(Group::Ptr curr_group) {
 
 void GroupMap::FindNearestLaneToHisVehiclePosition(Group::Ptr curr_group,
                                                    Lane::Ptr* ego_curr_lane) {
+
+  if(curr_group->group_segments.empty()) {
+    return;
+  }                                                     
+
   auto curr_grp_start_slice = curr_group->group_segments.front()->start_slice;
   auto curr_grp_end_slice = curr_group->group_segments.back()->end_slice;
   Eigen::Vector2f curr_start_pl(curr_grp_start_slice.pl.x(),
@@ -7578,6 +7587,9 @@ bool AreAdjacentLaneGroupsDisconnected(Group::Ptr curr_group,
 
   double curgrp_lane_to_next_min_dis = DBL_MAX;
   for (auto& cur_group_lane : curr_group->lanes) {
+    if(cur_group_lane->center_line_pts.empty()) {
+      continue;
+    }
     double calcu_dis = (cur_group_lane->center_line_pts.back().pt -
                         next_group->group_segments.front()->start_slice.po)
                            .norm();
@@ -7656,6 +7668,12 @@ RoadScene GuidePathManager::GetCurrentRoadScene() {
         next_group->group_state == Group::GroupState::VIRTUAL) {
       return RoadScene::NON_JUNCTION;
     }
+
+    if (curr_group->group_segments.empty() ||
+        next_group->group_segments.empty()) {
+      return RoadScene::NON_JUNCTION;
+    }
+
     if (AreAdjacentLaneGroupsDisconnected(curr_group, next_group)) {
       if (IsAngleOkOfCurGrpAndNextGrp(curr_group, next_group)) {
         Eigen::Vector2f next_start_pl(

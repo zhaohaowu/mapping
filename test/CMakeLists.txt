@@ -8,6 +8,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fprofile-arcs -ftest-coverage")
 include_directories(
  ${CMAKE_SOURCE_DIR}
  ${CMAKE_CURRENT_SOURCE_DIR}
+ ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/cuda/include
+)
+
+link_directories(
+ ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/cuda/targets/x86_64-linux/lib
+ ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/cuda/targets/x86_64-linux/lib/stubs/
 )
 
 add_subdirectory(dr)

@@ -1716,37 +1716,42 @@ void MapPrediction::GetCurrentLane(
     common::math::Vec2d point(utm_pos.x(), utm_pos.y());
     std::vector<hdmap::LaneInfoConstPtr> lanes;
     GLOBAL_HD_MAP->GetLanes(utm_pos, 20.0, &lanes);
-    if (!lanes.empty()) {
-      std::sort(lanes.begin(), lanes.end(), [&](const auto& u, const auto& v) {
-        return u->DistanceTo(point) < v->DistanceTo(point);
-      });
-      int minIndex = INT_MAX;
-      int lastIndex = GetRoutingLaneIndex(last_routing_lane_id_, routing_lanes);
-      if (lastIndex == -1) {
-        for (const auto& lane : lanes) {
-          if (routing_lanes_set.count(lane->id().id()) != 0) {
-            int index = GetRoutingLaneIndex(lane->id().id(), routing_lanes);
-            if (index <= minIndex) {
-              minIndex = index;
-              *current_lane = lane->id().id();
-            }
+
+    if (lanes.empty()) {
+      HLOG_ERROR << "HD Map get lanes failed";
+      return;
+    }
+
+    std::sort(lanes.begin(), lanes.end(), [&](const auto& u, const auto& v) {
+      return u->DistanceTo(point) < v->DistanceTo(point);
+    });
+    int minIndex = INT_MAX;
+    int lastIndex = GetRoutingLaneIndex(last_routing_lane_id_, routing_lanes);
+    if (lastIndex == -1) {
+      for (const auto& lane : lanes) {
+        if (routing_lanes_set.count(lane->id().id()) != 0) {
+          int index = GetRoutingLaneIndex(lane->id().id(), routing_lanes);
+          if (index <= minIndex) {
+            minIndex = index;
+            *current_lane = lane->id().id();
           }
         }
-      } else {
-        for (const auto& lane : lanes) {
-          if (routing_lanes_set.count(lane->id().id()) != 0) {
-            // 找到距离上一帧lane间隔最小的
-            int index = GetRoutingLaneIndex(lane->id().id(), routing_lanes);
-            if (index >= lastIndex) {
-              if (index - lastIndex <= minIndex) {
-                minIndex = index - lastIndex;
-                *current_lane = lane->id().id();
-              }
+      }
+    } else {
+      for (const auto& lane : lanes) {
+        if (routing_lanes_set.count(lane->id().id()) != 0) {
+          // 找到距离上一帧lane间隔最小的
+          int index = GetRoutingLaneIndex(lane->id().id(), routing_lanes);
+          if (index >= lastIndex) {
+            if (index - lastIndex <= minIndex) {
+              minIndex = index - lastIndex;
+              *current_lane = lane->id().id();
             }
           }
         }
       }
     }
+
     // 获取车辆距离所在车道起始点距离
     if (!current_lane->empty()) {
       hozon::hdmap::Id lane_id;

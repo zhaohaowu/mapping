@@ -1489,9 +1489,9 @@ bool GroupMap::IsZebraIn(const Eigen::Vector2f& curr_start_pl,
 bool GroupMap::IsVehicleInJunction(Group::Ptr curr_group,
                                    Group::Ptr next_group) {
   if (curr_group->group_segments.empty() ||
-        next_group->group_segments.empty()) {
-      return false;
-  }                          
+      next_group->group_segments.empty()) {
+    return false;
+  }
   bool veh_in_this_junction = false;
   // 判断车是否在curr和next group范围内，如果是就认为在路口内
   auto curr_grp_start_slice = curr_group->group_segments.front()->start_slice;
@@ -2590,10 +2590,9 @@ void GroupMap::DelLanePrevStrIdInGroup(Group::Ptr curr_group) {
 
 void GroupMap::FindNearestLaneToHisVehiclePosition(Group::Ptr curr_group,
                                                    Lane::Ptr* ego_curr_lane) {
-
-  if(curr_group->group_segments.empty()) {
+  if (curr_group->group_segments.empty()) {
     return;
-  }                                                     
+  }
 
   auto curr_grp_start_slice = curr_group->group_segments.front()->start_slice;
   auto curr_grp_end_slice = curr_group->group_segments.back()->end_slice;
@@ -7587,7 +7586,7 @@ bool AreAdjacentLaneGroupsDisconnected(Group::Ptr curr_group,
 
   double curgrp_lane_to_next_min_dis = DBL_MAX;
   for (auto& cur_group_lane : curr_group->lanes) {
-    if(cur_group_lane->center_line_pts.empty()) {
+    if (cur_group_lane->center_line_pts.empty()) {
       continue;
     }
     double calcu_dis = (cur_group_lane->center_line_pts.back().pt -
@@ -7915,10 +7914,9 @@ std::vector<Point> GuidePathManager::GetRoadEdgeGuidePoints() {
     const auto& query_point =
         0.5 * (right_first_point_2f + left_first_point_2f);
 
-    HLOG_DEBUG << "roadedge center point:"
-               << ", center.x()" << query_point.x() << ", center.y()"
-               << query_point.y() << ", line_radians_mean_heading"
-               << line_radians_mean_heading;
+    HLOG_DEBUG << "roadedge center point:" << ", center.x()" << query_point.x()
+               << ", center.y()" << query_point.y()
+               << ", line_radians_mean_heading" << line_radians_mean_heading;
     // float junction_guide_angle_ratio = 0.2;
 
     // heading方向补个50米长度。

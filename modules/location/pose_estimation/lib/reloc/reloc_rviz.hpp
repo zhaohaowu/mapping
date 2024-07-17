@@ -41,19 +41,14 @@ class RelocRviz {
   static void GPSToBJTimeWithMillis(int gpsWeek, double gpsTOW, struct tm &bjTime, int &milliseconds) {
       // 计算GPS时间的总秒数
       time_t gpsSeconds = gpsWeek * 604800 + static_cast<time_t>(gpsTOW);
-      
       // 加上GPS时间偏移量
       gpsSeconds += GPSTimeOffset;
-      
       // 转换为struct tm结构体
       gmtime_r(&gpsSeconds, &bjTime); // 使用gmtime_r以获取UTC时间
-      
       // 北京时间比UTC时间晚8小时
       bjTime.tm_hour += 8;
-      
       // 获取北京时间的毫秒部分
       milliseconds = static_cast<int>((gpsTOW - static_cast<int>(gpsTOW)) * 1000);
-      
       // 调整到合法的时间范围
       mktime(&bjTime);
   }

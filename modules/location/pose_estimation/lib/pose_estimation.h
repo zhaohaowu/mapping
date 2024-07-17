@@ -116,6 +116,8 @@ class PoseEstimation {
   std::atomic<double> sd_position_{0.0};
   std::atomic<int> location_state_{2};
   std::atomic<double> velocity_{0.0};
+  std::atomic<double> gps_week_{0.0};
+  std::atomic<double> gps_second_{0.0};
   std::atomic<bool> use_rviz_{false};
   std::atomic<bool> reloc_test_ = false;
   std::atomic<double> ins_height_ = 0.0;

@@ -303,6 +303,8 @@ void PoseEstimation::ProcData() {
     location_state_ = static_cast<int>(fc_pose_ptr->location_state());
     ins_state_ = static_cast<int>(fc_pose_ptr->rtk_status());
     velocity_ = fc_pose_ptr->pose().linear_velocity_vrf().x();
+    gps_week_ = fc_pose_ptr->gps_week();
+    gps_second_ = fc_pose_ptr->gps_sec();
     ins_height_ = ins_pose_ptr->pose().gcj02().z();
     // 获取高精地图
     std::vector<LaneInfoPtr> hdmap_lanes;
@@ -921,7 +923,7 @@ void PoseEstimation::RvizFunc() {
     RelocRviz::PubInsLocationState(T_fc_100hz, ins_state_, sd_position_,
                                    location_state_, perception.timestamp,
                                    velocity_, fc_heading_, ins_heading_, conv,
-                                   sec, nsec, "/pe/ins_location_state");
+                                   sec, nsec, "/pe/ins_location_state", gps_week_, gps_second_);
     RelocRviz::PubInsOdom(T_ins_100hz, sec, nsec, "/pe/ins_odom");
     RelocRviz::PubInputOdom(T_input, sec, nsec, "/pe/input_odom");
     usleep(9 * 1e3);

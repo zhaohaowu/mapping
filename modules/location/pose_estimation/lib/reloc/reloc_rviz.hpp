@@ -18,6 +18,8 @@ namespace hozon {
 namespace mp {
 namespace loc {
 namespace pe {
+    // GPS时间从1980年1月6日开始计算的总秒数
+  const time_t GPSTimeOffset = 315964800; // 1980-01-06 00:00:00 UTC
 class RelocRviz {
  public:
   template <typename T0, typename T1>
@@ -33,6 +35,27 @@ class RelocRviz {
     t1->set_x(t0.x());
     t1->set_y(t0.y());
     t1->set_z(t0.z());
+  }
+
+  // GPS周数转北京时间（包括毫秒）
+  static void GPSToBJTimeWithMillis(int gpsWeek, double gpsTOW, struct tm &bjTime, int &milliseconds) {
+      // 计算GPS时间的总秒数
+      time_t gpsSeconds = gpsWeek * 604800 + static_cast<time_t>(gpsTOW);
+      
+      // 加上GPS时间偏移量
+      gpsSeconds += GPSTimeOffset;
+      
+      // 转换为struct tm结构体
+      gmtime_r(&gpsSeconds, &bjTime); // 使用gmtime_r以获取UTC时间
+      
+      // 北京时间比UTC时间晚8小时
+      bjTime.tm_hour += 8;
+      
+      // 获取北京时间的毫秒部分
+      milliseconds = static_cast<int>((gpsTOW - static_cast<int>(gpsTOW)) * 1000);
+      
+      // 调整到合法的时间范围
+      mktime(&bjTime);
   }
 
   static void PubFcOdom(const Eigen::Affine3d& T_W_V, uint64_t sec,
@@ -684,7 +707,7 @@ class RelocRviz {
                                   double timestamp, double velocity,
                                   double fc_heading, double ins_heading,
                                   std::string conv, uint64_t sec, uint64_t nsec,
-                                  const std::string& topic) {
+                                  const std::string& topic, double gps_week, double gps_sec) {
     static bool register_flag = true;
     if (register_flag) {
       RVIZ_AGENT.Register<adsfi_proto::viz::Marker>(topic);
@@ -717,6 +740,14 @@ class RelocRviz {
       ss << std::fixed << std::setprecision(2) << value;
       return ss.str();
     };
+    struct tm bjTime;
+    int milliseconds;
+    GPSToBJTimeWithMillis(static_cast<int>(gps_week), gps_sec, bjTime, milliseconds);
+    char chinaTime[27] = {0};
+    sprintf(chinaTime, "%04d-%02d-%02d %02d:%02d:%5f", bjTime.tm_year + 1900,
+          bjTime.tm_mon + 1 , bjTime.tm_mday , bjTime.tm_hour, bjTime.tm_min,
+          bjTime.tm_sec +milliseconds/1000.0);
+
     text_marker.set_text("location_state: " + std::to_string(location_state) +
                          "\nins_state: " + std::to_string(ins_state) +
                          "\nsd_position: " + ToString(sd_position) +
@@ -724,7 +755,8 @@ class RelocRviz {
                          "\nvelocity: " + ToString(velocity * 3.6) + "km/h" +
                          "\nfc_heading: " + ToString(fc_heading) +
                          " ins_heading: " + ToString(ins_heading) +
-                         "\nconv (*e-10): " + conv);
+                         "\nconv (*e-10): " + conv+
+                         "\nChinaTime: " + chinaTime);
     text_marker.mutable_scale()->set_x(0.1);
     text_marker.mutable_scale()->set_y(0);
     text_marker.mutable_scale()->set_z(0.8);

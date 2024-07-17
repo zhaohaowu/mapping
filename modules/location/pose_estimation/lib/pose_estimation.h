@@ -103,6 +103,7 @@ class PoseEstimation {
     double result = time * 1e-9;
     return result;
   }
+
  private:
   std::deque<Localization> ins_deque_;
   std::deque<Localization> fc_deque_;
@@ -154,7 +155,7 @@ class PoseEstimation {
 
   std::unique_ptr<MapMatching> map_matching_ = nullptr;
   std::unique_ptr<Reloc> reloc_ = nullptr;
-  
+
 };
 
 }  // namespace pe

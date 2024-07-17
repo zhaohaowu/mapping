@@ -20,7 +20,6 @@
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "modules/util/include/util/tic_toc.h"
 #include "modules/location/pose_estimation/lib/clipper/clipper.hpp"
-using namespace ClipperLib;
 namespace hozon {
 namespace mp {
 namespace loc {
@@ -616,12 +615,12 @@ bool PoseEstimation::GetHdMapLane(const LocalizationPtr& fc_pose_ptr,
   is_junction_ = false;
   std::vector<hozon::hdmap::JunctionInfoConstPtr> junctions;
   GLOBAL_HD_MAP->GetJunctions(utm_position, 20, &junctions);
-  DoublePoint point{utm_position.x(), utm_position.y()};
-  DoublePath path;
+  ClipperLib::DoublePoint point{utm_position.x(), utm_position.y()};
+  ClipperLib::DoublePath path;
   for (const auto& junction: junctions) {
     path.clear();
     for (const auto& p:junction->polygon().points()) {
-      path.emplace_back(DoublePoint{p.x(), p.y()});
+      path.emplace_back(ClipperLib::DoublePoint{p.x(), p.y()});
     }
     if (!path.empty()) {
       path.emplace_back(path.front());
@@ -648,13 +647,13 @@ bool PoseEstimation::GetHdMapLane(const LocalizationPtr& fc_pose_ptr,
 
 std::shared_ptr<HafNodeInfo> PoseEstimation::GetMmNodeInfo() {
   auto mm = map_matching_->getMmNodeInfo();
-  if(!mm) {
+  if (!mm) {
     mm = std::make_shared<HafNodeInfo>();
     mm->mutable_header()->set_publish_stamp(GetCurrentNsecTime());
     mm->set_is_valid(false);
     mm->set_valid_estimate(false);
   }
-  if(!is_junction_) {
+  if (!is_junction_) {
     mm->set_valid_estimate(false);
   }
   mm->set_gps_status(static_cast<int>(is_junction_));
@@ -732,7 +731,6 @@ void PoseEstimation::AddMapLine(const Eigen::Affine3d& T_V_W,
     HLOG_DEBUG << lane_boundary_id << " this lane_boundary_id had added";
     return;
   }
-  
 
   auto& every_lane_line = map_manager->lane_lines[lane_boundary_id];
   for (const auto& curve_segment : lane_boundary.curve().segment()) {

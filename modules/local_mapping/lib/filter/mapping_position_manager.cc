@@ -31,52 +31,27 @@ bool MappingPositionManager::IsUnknownLaneline(
   if (laneline_ptr->vehicle_points.back().x() -
               laneline_ptr->vehicle_points.front().x() <
           10 ||
-      laneline_ptr->vehicle_points.back().x() < -10 ||
+      laneline_ptr->vehicle_points.back().x() < 0 ||
       laneline_ptr->vehicle_points.front().x() > 50) {
     return true;
   }
   return false;
 }
 
-// void MappingPositionManager::Process(const LaneLinesPtr& laneline_ptrs) {
-//   HLOG_DEBUG << "***MappingPositionManager Process start***";
-
-//   // 给所有车道线打上一个是否位于路口前后的标记
-//   SetJunction(laneline_ptrs);
-//   SetC0(laneline_ptrs);
-//   SetReferC0(laneline_ptrs);
-//   IfCross(laneline_ptrs);
-
-//   std::vector<LaneLinePtr> forward_lanelines;  // 路口外侧
-//   std::vector<LaneLinePtr> behind_lanelines;   // 路口内侧
-//   std::vector<LaneLinePtr> unknown_lanelines;
-//   std::vector<LaneLinePtr> normal_lanelines;
-
-//   for (const auto& laneline : laneline_ptrs->lanelines) {
-//     if (IsUnknownLaneline(laneline)) {
-//       unknown_lanelines.emplace_back(laneline);
-//       laneline->position = LaneLinePosition::OTHER;
-//     } else {
-//       normal_lanelines.emplace_back(laneline);
-//     }
-//   }
-//   DivideLaneLines(normal_lanelines, &forward_lanelines, &behind_lanelines);
-//   SetLaneLinePosition(forward_lanelines);
-//   SetLaneLinePosition(behind_lanelines);
-// }
 void MappingPositionManager::Process(const LaneLinesPtr& laneline_ptrs) {
   HLOG_DEBUG << "***MappingPositionManager Process start***";
 
+  // 给所有车道线打上一个是否位于路口前后的标记
+  SetJunction(laneline_ptrs);
   SetC0(laneline_ptrs);
   SetReferC0(laneline_ptrs);
   IfCross(laneline_ptrs);
 
-  std::vector<LaneLinePtr> selected_lanelines;  // 被选中需要排序的线
+  std::vector<LaneLinePtr> forward_lanelines;  // 路口外侧
+  std::vector<LaneLinePtr> behind_lanelines;   // 路口内侧
   std::vector<LaneLinePtr> unknown_lanelines;
   std::vector<LaneLinePtr> normal_lanelines;
-  selected_lanelines.clear();
-  unknown_lanelines.clear();
-  normal_lanelines.clear();
+
   for (const auto& laneline : laneline_ptrs->lanelines) {
     if (IsUnknownLaneline(laneline)) {
       unknown_lanelines.emplace_back(laneline);
@@ -85,10 +60,35 @@ void MappingPositionManager::Process(const LaneLinesPtr& laneline_ptrs) {
       normal_lanelines.emplace_back(laneline);
     }
   }
-  // DivideLaneLines(normal_lanelines, &forward_lanelines, &behind_lanelines);
-  SelectLaneLines(normal_lanelines, &selected_lanelines);
-  SetLaneLinePosition(selected_lanelines);
+  DivideLaneLines(normal_lanelines, &forward_lanelines, &behind_lanelines);
+  SetLaneLinePosition(forward_lanelines);
+  SetLaneLinePosition(behind_lanelines);
 }
+// void MappingPositionManager::Process(const LaneLinesPtr& laneline_ptrs) {
+//   HLOG_DEBUG << "***MappingPositionManager Process start***";
+
+//   SetC0(laneline_ptrs);
+//   SetReferC0(laneline_ptrs);
+//   IfCross(laneline_ptrs);
+
+//   std::vector<LaneLinePtr> selected_lanelines;  // 被选中需要排序的线
+//   std::vector<LaneLinePtr> unknown_lanelines;
+//   std::vector<LaneLinePtr> normal_lanelines;
+//   selected_lanelines.clear();
+//   unknown_lanelines.clear();
+//   normal_lanelines.clear();
+//   for (const auto& laneline : laneline_ptrs->lanelines) {
+//     if (IsUnknownLaneline(laneline)) {
+//       unknown_lanelines.emplace_back(laneline);
+//       laneline->position = LaneLinePosition::OTHER;
+//     } else {
+//       normal_lanelines.emplace_back(laneline);
+//     }
+//   }
+//   // DivideLaneLines(normal_lanelines, &forward_lanelines,
+//   &behind_lanelines); SelectLaneLines(normal_lanelines, &selected_lanelines);
+//   SetLaneLinePosition(selected_lanelines);
+// }
 void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
   const auto& last_local_map = MAP_MANAGER->GetLocalMap();
   double min_intersection_x = FLT_MAX;
@@ -122,8 +122,8 @@ void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
       cross_num++;
     }
   }
-  // 穿过的条数要满足大于80%,防止检测车道线的跳变，还有两边路沿边车道线的影响。
-  if (cross_num > 0.8 * laneline_ptrs->lanelines.size()) {
+  // 穿过的条数要满足大于50%,防止检测车道线的跳变，还有两边路沿边车道线的影响。
+  if (cross_num > 0.5 * laneline_ptrs->lanelines.size()) {
     zebra_enable = false;
   }
   HLOG_DEBUG << "min_intersection_x:" << min_intersection_x

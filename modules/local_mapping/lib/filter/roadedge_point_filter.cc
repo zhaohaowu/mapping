@@ -328,7 +328,7 @@ void RoadEdgePointFilter::MergeMapTrackLanePoints() {
                              tracked_points.end());
   // 删除掉80m之后的点
   int erase_pos = 0;
-  for (int i = 0; i < static_cast<int>(target_vehicle_pts_.size()); ++i) {
+  for (int i = 0; i < static_cast<int>(target_vehicle_pts_.size() - 20); ++i) {
     if (std::abs(target_vehicle_pts_[i].y()) > 80.0 ||
         target_vehicle_pts_[i].x() < -80.0) {
       erase_pos = i > erase_pos ? i : erase_pos;

@@ -94,7 +94,15 @@ class PoseEstimation {
                   Eigen::Affine3d* const affine3d);
   bool ExtractInsMsg(const LocalizationPtr& cur_ins, Sophus::SE3d* T02_W_V_ins,
                      const Eigen::Vector3d& ref_point);
+  double GetCurrentNsecTime() {
+    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+        tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+            std::chrono::system_clock::now());
 
+    time_t time = tp.time_since_epoch().count();
+    double result = time * 1e-9;
+    return result;
+  }
  private:
   std::deque<Localization> ins_deque_;
   std::deque<Localization> fc_deque_;
@@ -124,6 +132,7 @@ class PoseEstimation {
   std::atomic<bool> rviz_init_ = false;
   std::atomic<double> fc_heading_ = 0.0;
   std::atomic<double> ins_heading_ = 0.0;
+  std::atomic<bool> is_junction_{false};
   std::string conv_;
 
   std::string rviz_addr_;
@@ -145,6 +154,7 @@ class PoseEstimation {
 
   std::unique_ptr<MapMatching> map_matching_ = nullptr;
   std::unique_ptr<Reloc> reloc_ = nullptr;
+  
 };
 
 }  // namespace pe

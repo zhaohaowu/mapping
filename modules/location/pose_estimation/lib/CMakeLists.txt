@@ -25,6 +25,7 @@ set(POSE_ESTIMATION_SRCS
   ${PERCEPTION_SRCS}
   ${RELOC_SRCS}
   ${FAULT_SRCS}
+  ${CMAKE_CURRENT_SOURCE_DIR}/clipper/clipper.cpp
 )
 
 add_mapping_library(location_pose_estimation_core SHARED ${POSE_ESTIMATION_SRCS})

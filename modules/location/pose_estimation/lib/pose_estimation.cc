@@ -19,7 +19,8 @@
 #include "modules/location/pose_estimation/lib/reloc/reloc_rviz.hpp"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "modules/util/include/util/tic_toc.h"
-
+#include "modules/location/pose_estimation/lib/clipper/clipper.hpp"
+using namespace ClipperLib;
 namespace hozon {
 namespace mp {
 namespace loc {
@@ -612,6 +613,28 @@ bool PoseEstimation::GetHdMapLane(const LocalizationPtr& fc_pose_ptr,
   } else if (heading < -M_PI) {
     heading += 2 * M_PI;
   }
+  is_junction_ = false;
+  std::vector<hozon::hdmap::JunctionInfoConstPtr> junctions;
+  GLOBAL_HD_MAP->GetJunctions(utm_position, 20, &junctions);
+  DoublePoint point{utm_position.x(), utm_position.y()};
+  DoublePath path;
+  for (const auto& junction: junctions) {
+    path.clear();
+    for (const auto& p:junction->polygon().points()) {
+      path.emplace_back(DoublePoint{p.x(), p.y()});
+    }
+    if (!path.empty()) {
+      path.emplace_back(path.front());
+    } else {
+      continue;
+    }
+    if (PointInPolygon(point, path) != 0) {
+      continue;
+    }
+    is_junction_ = true;
+    break;
+  }
+
   GLOBAL_HD_MAP->GetLanesWithHeading(utm_position, 150, heading, M_PI_4,
                                      hdmap_lanes);
   if (hdmap_lanes->empty()) {
@@ -624,7 +647,18 @@ bool PoseEstimation::GetHdMapLane(const LocalizationPtr& fc_pose_ptr,
 }
 
 std::shared_ptr<HafNodeInfo> PoseEstimation::GetMmNodeInfo() {
-  return map_matching_->getMmNodeInfo();
+  auto mm = map_matching_->getMmNodeInfo();
+  if(!mm) {
+    mm = std::make_shared<HafNodeInfo>();
+    mm->mutable_header()->set_publish_stamp(GetCurrentNsecTime());
+    mm->set_is_valid(false);
+    mm->set_valid_estimate(false);
+  }
+  if(!is_junction_) {
+    mm->set_valid_estimate(false);
+  }
+  mm->set_gps_status(static_cast<int>(is_junction_));
+  return mm;
 }
 
 template <typename T0, typename T1, typename T2>
@@ -698,6 +732,7 @@ void PoseEstimation::AddMapLine(const Eigen::Affine3d& T_V_W,
     HLOG_DEBUG << lane_boundary_id << " this lane_boundary_id had added";
     return;
   }
+  
 
   auto& every_lane_line = map_manager->lane_lines[lane_boundary_id];
   for (const auto& curve_segment : lane_boundary.curve().segment()) {

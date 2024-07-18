@@ -1,0 +1,9598 @@
+header {
+  seq: 0
+  frame_id: "from_file_routing"
+  data_stamp: 1710480371.3431792
+}
+road {
+  id: "bd8610485_8610485"
+  passage {
+    segment {
+      id: "112999095"
+      start_s: 13.900375186582934
+      end_s: 48.15
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997892"
+      start_s: 13.946565426039909
+      end_s: 48.31
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997884"
+      start_s: 13.99564255546294
+      end_s: 48.48
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944657_14944657"
+  passage {
+    segment {
+      id: "155812760"
+      start_s: 0
+      end_s: 25.66
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813346"
+      start_s: 0
+      end_s: 25.47
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813459"
+      start_s: 0
+      end_s: 25.3
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812445"
+      start_s: 0
+      end_s: 25.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944376_14944376"
+  passage {
+    segment {
+      id: "155812657"
+      start_s: 0
+      end_s: 6.63
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813702"
+      start_s: 0
+      end_s: 6.64
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813095"
+      start_s: 0
+      end_s: 6.65
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812775"
+      start_s: 0
+      end_s: 6.67
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610230_8610230"
+  passage {
+    segment {
+      id: "112999881"
+      start_s: 0
+      end_s: 25.42
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998058"
+      start_s: 0
+      end_s: 25.31
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "39979356"
+      start_s: 0
+      end_s: 25.19
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999767"
+      start_s: 0
+      end_s: 25.09
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944859_14944859"
+  passage {
+    segment {
+      id: "155813360"
+      start_s: 0
+      end_s: 10.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812898"
+      start_s: 0
+      end_s: 10.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812304"
+      start_s: 0
+      end_s: 11.01
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813787"
+      start_s: 0
+      end_s: 11.05
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944473_14944473"
+  passage {
+    segment {
+      id: "155812864"
+      start_s: 0
+      end_s: 21.83
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812538"
+      start_s: 0
+      end_s: 21.58
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812567"
+      start_s: 0
+      end_s: 21.22
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813570"
+      start_s: 0
+      end_s: 21
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611538_8611538"
+  passage {
+    segment {
+      id: "112996103"
+      start_s: 0
+      end_s: 9.14
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000429"
+      start_s: 0
+      end_s: 9.45
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997805"
+      start_s: 0
+      end_s: 9.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944805_14944805"
+  passage {
+    segment {
+      id: "155813373"
+      start_s: 0
+      end_s: 61.91
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813195"
+      start_s: 0
+      end_s: 61.88
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813331"
+      start_s: 0
+      end_s: 61.78
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340856_17340856"
+  passage {
+    segment {
+      id: "162235869"
+      start_s: 0
+      end_s: 29.63
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235658"
+      start_s: 0
+      end_s: 29.55
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235735"
+      start_s: 0
+      end_s: 29.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd10235023_10235023"
+  passage {
+    segment {
+      id: "113000202"
+      start_s: 0
+      end_s: 12.6
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997210"
+      start_s: 0
+      end_s: 12.66
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997464"
+      start_s: 0
+      end_s: 12.76
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "110056160"
+      start_s: 0
+      end_s: 12.74
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611529_8611529"
+  passage {
+    segment {
+      id: "112998306"
+      start_s: 0
+      end_s: 9.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999406"
+      start_s: 0
+      end_s: 9.81
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999248"
+      start_s: 0
+      end_s: 9.95
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998591"
+      start_s: 0
+      end_s: 9.91
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610738_8610738"
+  passage {
+    segment {
+      id: "113001086"
+      start_s: 0
+      end_s: 24.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112995942"
+      start_s: 0
+      end_s: 23.94
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997387"
+      start_s: 0
+      end_s: 23.37
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996431"
+      start_s: 0
+      end_s: 23.64
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610486_8610486"
+  passage {
+    segment {
+      id: "112999840"
+      start_s: 0
+      end_s: 28.53
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "112999844"
+      start_s: 0
+      end_s: 28.48
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "112998411"
+      start_s: 0
+      end_s: 28.36
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "112999743"
+      start_s: 0
+      end_s: 28.44
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611225_8611225"
+  passage {
+    segment {
+      id: "112998826"
+      start_s: 0
+      end_s: 67.96
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8612012_8612012"
+  passage {
+    segment {
+      id: "112996879"
+      start_s: 0
+      end_s: 73.89
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000139"
+      start_s: 0
+      end_s: 73.87
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000141"
+      start_s: 0
+      end_s: 73.87
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14945327_14945327"
+  passage {
+    segment {
+      id: "155813250"
+      start_s: 0
+      end_s: 18.34
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813733"
+      start_s: 0
+      end_s: 18.38
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812628"
+      start_s: 0
+      end_s: 19
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813597"
+      start_s: 0
+      end_s: 18.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944577_14944577"
+  passage {
+    segment {
+      id: "155812492"
+      start_s: 0
+      end_s: 7.93
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813880"
+      start_s: 0
+      end_s: 7.71
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812653"
+      start_s: 0
+      end_s: 7.32
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813491"
+      start_s: 0
+      end_s: 7.52
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944736_14944736"
+  passage {
+    segment {
+      id: "155812477"
+      start_s: 0
+      end_s: 73.51
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812957"
+      start_s: 0
+      end_s: 73.59
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813367"
+      start_s: 0
+      end_s: 73.41
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813741"
+      start_s: 0
+      end_s: 73.49
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd10234874_10234874"
+  passage {
+    segment {
+      id: "112996973"
+      start_s: 0
+      end_s: 20.51
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000573"
+      start_s: 0
+      end_s: 20.52
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998642"
+      start_s: 0
+      end_s: 20.68
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "110053713"
+      start_s: 0
+      end_s: 20.49
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944773_14944773"
+  passage {
+    segment {
+      id: "155812650"
+      start_s: 0
+      end_s: 68.41
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812557"
+      start_s: 0
+      end_s: 68.59
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813210"
+      start_s: 0
+      end_s: 68.77
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813163"
+      start_s: 0
+      end_s: 68.71
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340610_17340610"
+  passage {
+    segment {
+      id: "162235575"
+      start_s: 0
+      end_s: 8.29
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235881"
+      start_s: 0
+      end_s: 8.2
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235570"
+      start_s: 0
+      end_s: 8
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235581"
+      start_s: 0
+      end_s: 8.11
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340581_17340581"
+  passage {
+    segment {
+      id: "162235618"
+      start_s: 0
+      end_s: 30.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235595"
+      start_s: 0
+      end_s: 30.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235904"
+      start_s: 0
+      end_s: 30.47
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235859"
+      start_s: 0
+      end_s: 30.33
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340681_17340681"
+  passage {
+    segment {
+      id: "162235739"
+      start_s: 0
+      end_s: 31.38
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "162235990"
+      start_s: 0
+      end_s: 31.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235921"
+      start_s: 0
+      end_s: 30.89
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "162235556"
+      start_s: 0
+      end_s: 31.08
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15449333_15449333"
+  passage {
+    segment {
+      id: "158044760"
+      start_s: 0
+      end_s: 44.55
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158045020"
+      start_s: 0
+      end_s: 44.75
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610853_8610853"
+  passage {
+    segment {
+      id: "112997311"
+      start_s: 0
+      end_s: 46.33
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996682"
+      start_s: 0
+      end_s: 46.41
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14703279_14703279"
+  passage {
+    segment {
+      id: "112997612"
+      start_s: 0
+      end_s: 14.18
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996246"
+      start_s: 0
+      end_s: 13.89
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996234"
+      start_s: 0
+      end_s: 13.89
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610415_8610415"
+  passage {
+    segment {
+      id: "112998748"
+      start_s: 0
+      end_s: 8.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998664"
+      start_s: 0
+      end_s: 9.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999114"
+      start_s: 0
+      end_s: 9.25
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610283_8610283"
+  passage {
+    segment {
+      id: "112999150"
+      start_s: 0
+      end_s: 29.82
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998353"
+      start_s: 0
+      end_s: 29.63
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996820"
+      start_s: 0
+      end_s: 29.88
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610384_8610384"
+  passage {
+    segment {
+      id: "112997005"
+      start_s: 0
+      end_s: 3.22
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997668"
+      start_s: 0
+      end_s: 3.3
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997493"
+      start_s: 0
+      end_s: 3.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997498"
+      start_s: 0
+      end_s: 3.37
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd13194662_13194662"
+  passage {
+    segment {
+      id: "110060135"
+      start_s: 0
+      end_s: 21.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996531"
+      start_s: 0
+      end_s: 21.9
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113001410"
+      start_s: 0
+      end_s: 22.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997463"
+      start_s: 0
+      end_s: 21.99
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610280_8610280"
+  passage {
+    segment {
+      id: "112998505"
+      start_s: 0
+      end_s: 17.9
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112995999"
+      start_s: 0
+      end_s: 17.87
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998146"
+      start_s: 0
+      end_s: 17.79
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998144"
+      start_s: 0
+      end_s: 17.77
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611242_8611242"
+  passage {
+    segment {
+      id: "39976569"
+      start_s: 0
+      end_s: 16.73
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998783"
+      start_s: 0
+      end_s: 16.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999722"
+      start_s: 0
+      end_s: 16.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996331"
+      start_s: 0
+      end_s: 16.6
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611251_8611251"
+  passage {
+    segment {
+      id: "39975693"
+      start_s: 0
+      end_s: 17.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "39976492"
+      start_s: 0
+      end_s: 17.7
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "39977412"
+      start_s: 0
+      end_s: 17.96
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "39976491"
+      start_s: 0
+      end_s: 17.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8612089_8612089"
+  passage {
+    segment {
+      id: "112998487"
+      start_s: 0
+      end_s: 61.54
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998076"
+      start_s: 0
+      end_s: 61.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998799"
+      start_s: 0
+      end_s: 61.25
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998673"
+      start_s: 0
+      end_s: 61.52
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000326"
+      start_s: 0
+      end_s: 61.26
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611437_8611437"
+  passage {
+    segment {
+      id: "112997448"
+      start_s: 0
+      end_s: 13.82
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999044"
+      start_s: 0
+      end_s: 13.76
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998952"
+      start_s: 0
+      end_s: 13.81
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998475"
+      start_s: 0
+      end_s: 13.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "39978556"
+      start_s: 0
+      end_s: 13.81
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610277_8610277"
+  passage {
+    segment {
+      id: "113000233"
+      start_s: 0
+      end_s: 22.35
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "39978596"
+      start_s: 0
+      end_s: 22.15
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "112997913"
+      start_s: 0
+      end_s: 21.53
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998152"
+      start_s: 0
+      end_s: 21.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997436"
+      start_s: 0
+      end_s: 21.68
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15760626_15760626"
+  passage {
+    segment {
+      id: "158818262"
+      start_s: 0
+      end_s: 71.66
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158818261"
+      start_s: 0
+      end_s: 70.91
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158818267"
+      start_s: 0
+      end_s: 71.28
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340599_17340599"
+  passage {
+    segment {
+      id: "162236002"
+      start_s: 0
+      end_s: 74.71
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162236004"
+      start_s: 0
+      end_s: 74.55
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235738"
+      start_s: 0
+      end_s: 74.64
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340577_17340577"
+  passage {
+    segment {
+      id: "162235963"
+      start_s: 0
+      end_s: 15.99
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235653"
+      start_s: 0
+      end_s: 15.67
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235637"
+      start_s: 0
+      end_s: 15.83
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340634_17340634"
+  passage {
+    segment {
+      id: "162235625"
+      start_s: 0
+      end_s: 27.33
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235702"
+      start_s: 0
+      end_s: 27.6
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235577"
+      start_s: 0
+      end_s: 27.4
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235510"
+      start_s: 0
+      end_s: 27.36
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340834_17340834"
+  passage {
+    segment {
+      id: "162235526"
+      start_s: 0
+      end_s: 18.99
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235799"
+      start_s: 0
+      end_s: 19.14
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235659"
+      start_s: 0
+      end_s: 19.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235535"
+      start_s: 0
+      end_s: 19.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340677_17340677"
+  passage {
+    segment {
+      id: "162235652"
+      start_s: 0
+      end_s: 15.91
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235697"
+      start_s: 0
+      end_s: 15.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235779"
+      start_s: 0
+      end_s: 15.88
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235870"
+      start_s: 0
+      end_s: 15.88
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340771_17340771"
+  passage {
+    segment {
+      id: "162235839"
+      start_s: 0
+      end_s: 17.87
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235553"
+      start_s: 0
+      end_s: 17.91
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235576"
+      start_s: 0
+      end_s: 17.63
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235539"
+      start_s: 0
+      end_s: 17.77
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340617_17340617"
+  passage {
+    segment {
+      id: "162235527"
+      start_s: 0
+      end_s: 11.91
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235664"
+      start_s: 0
+      end_s: 11.87
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235742"
+      start_s: 0
+      end_s: 11.94
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340692_17340692"
+  passage {
+    segment {
+      id: "162235933"
+      start_s: 0
+      end_s: 48.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235774"
+      start_s: 0
+      end_s: 48.73
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235864"
+      start_s: 0
+      end_s: 48.83
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340564_17340564"
+  passage {
+    segment {
+      id: "162235927"
+      start_s: 0
+      end_s: 17.16
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235890"
+      start_s: 0
+      end_s: 16.79
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235815"
+      start_s: 0
+      end_s: 17.02
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235915"
+      start_s: 0
+      end_s: 16.88
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340701_17340701"
+  passage {
+    segment {
+      id: "162235629"
+      start_s: 0
+      end_s: 52.13
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235920"
+      start_s: 0
+      end_s: 52.11
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235604"
+      start_s: 0
+      end_s: 52.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235854"
+      start_s: 0
+      end_s: 52.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611596_8611596"
+  passage {
+    segment {
+      id: "112997592"
+      start_s: 0
+      end_s: 24.33
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "112997516"
+      start_s: 0
+      end_s: 24.14
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996521"
+      start_s: 0
+      end_s: 24.05
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "112999824"
+      start_s: 0
+      end_s: 24.23
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15449435_15449435"
+  passage {
+    segment {
+      id: "158044817"
+      start_s: 0
+      end_s: 43.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158044859"
+      start_s: 0
+      end_s: 43.86
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14945055_14945055"
+  passage {
+    segment {
+      id: "112997504"
+      start_s: 0
+      end_s: 9.82
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997494"
+      start_s: 0
+      end_s: 9.83
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611048_8611048"
+  passage {
+    segment {
+      id: "113000744"
+      start_s: 0
+      end_s: 75.51
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996182"
+      start_s: 0
+      end_s: 75.21
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610834_8610834"
+  passage {
+    segment {
+      id: "112998285"
+      start_s: 0
+      end_s: 6.1
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999968"
+      start_s: 0
+      end_s: 6.04
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999969"
+      start_s: 0
+      end_s: 6.11
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610344_8610344"
+  passage {
+    segment {
+      id: "112996031"
+      start_s: 0
+      end_s: 15.83
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996258"
+      start_s: 0
+      end_s: 15.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997177"
+      start_s: 0
+      end_s: 15.8
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610339_8610339"
+  passage {
+    segment {
+      id: "112999677"
+      start_s: 0
+      end_s: 30.25
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000420"
+      start_s: 0
+      end_s: 30.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998355"
+      start_s: 0
+      end_s: 30.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340762_17340762"
+  passage {
+    segment {
+      id: "162235568"
+      start_s: 0
+      end_s: 6.42
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235809"
+      start_s: 0
+      end_s: 6.43
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235980"
+      start_s: 0
+      end_s: 6.44
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340568_17340568"
+  passage {
+    segment {
+      id: "162235953"
+      start_s: 0
+      end_s: 4.46
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235504"
+      start_s: 0
+      end_s: 4.44
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235651"
+      start_s: 0
+      end_s: 4.49
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235705"
+      start_s: 0
+      end_s: 4.54
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340685_17340685"
+  passage {
+    segment {
+      id: "162235902"
+      start_s: 0
+      end_s: 11.54
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235582"
+      start_s: 0
+      end_s: 11.54
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235913"
+      start_s: 0
+      end_s: 11.5
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235546"
+      start_s: 0
+      end_s: 11.44
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340653_17340653"
+  passage {
+    segment {
+      id: "162235589"
+      start_s: 0
+      end_s: 14.42
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235840"
+      start_s: 0
+      end_s: 14.38
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235538"
+      start_s: 0
+      end_s: 14.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162236036"
+      start_s: 0
+      end_s: 14.31
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340633_17340633"
+  passage {
+    segment {
+      id: "112997713"
+      start_s: 0
+      end_s: 20.39
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996230"
+      start_s: 0
+      end_s: 20.05
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996231"
+      start_s: 0
+      end_s: 20.09
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996225"
+      start_s: 0
+      end_s: 20.14
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996414"
+      start_s: 0
+      end_s: 20.2
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340627_17340627"
+  passage {
+    segment {
+      id: "112996443"
+      start_s: 0
+      end_s: 16.81
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998865"
+      start_s: 0
+      end_s: 16.76
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996365"
+      start_s: 0
+      end_s: 16.67
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996703"
+      start_s: 0
+      end_s: 16.75
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996704"
+      start_s: 0
+      end_s: 16.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996441"
+      start_s: 0
+      end_s: 16.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15128509_15128509"
+  passage {
+    segment {
+      id: "156221038"
+      start_s: 0
+      end_s: 5.33
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156220981"
+      start_s: 0
+      end_s: 5.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156221006"
+      start_s: 0
+      end_s: 5.04
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156221012"
+      start_s: 0
+      end_s: 5.4
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156220980"
+      start_s: 0
+      end_s: 4.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156220970"
+      start_s: 0
+      end_s: 5.04
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15128522_15128522"
+  passage {
+    segment {
+      id: "156220972"
+      start_s: 0
+      end_s: 9.21
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156221032"
+      start_s: 0
+      end_s: 9.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156221035"
+      start_s: 0
+      end_s: 9.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156221010"
+      start_s: 0
+      end_s: 9.47
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156220975"
+      start_s: 0
+      end_s: 8.89
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156220958"
+      start_s: 0
+      end_s: 9.29
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15994340_15994340"
+  passage {
+    segment {
+      id: "159486857"
+      start_s: 0
+      end_s: 13.83
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486872"
+      start_s: 0
+      end_s: 13.8
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486847"
+      start_s: 0
+      end_s: 13.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486870"
+      start_s: 0
+      end_s: 13.63
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486877"
+      start_s: 0
+      end_s: 13.66
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486852"
+      start_s: 0
+      end_s: 13.78
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15994332_15994332"
+  passage {
+    segment {
+      id: "159486860"
+      start_s: 0
+      end_s: 78.96
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486849"
+      start_s: 0
+      end_s: 79.05
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486861"
+      start_s: 0
+      end_s: 79.26
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486871"
+      start_s: 0
+      end_s: 79.3
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486856"
+      start_s: 0
+      end_s: 79.22
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486879"
+      start_s: 0
+      end_s: 79.15
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15382112_15382112"
+  passage {
+    segment {
+      id: "143978250"
+      start_s: 0
+      end_s: 7.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "143978249"
+      start_s: 0
+      end_s: 7.68
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "143978340"
+      start_s: 0
+      end_s: 7.55
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "143978316"
+      start_s: 0
+      end_s: 7.59
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807997"
+      start_s: 0
+      end_s: 7.59
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "143978324"
+      start_s: 0
+      end_s: 7.62
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14288056_14288056"
+  passage {
+    segment {
+      id: "112958070"
+      start_s: 0
+      end_s: 11.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958071"
+      start_s: 0
+      end_s: 11.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958065"
+      start_s: 0
+      end_s: 11.49
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961077"
+      start_s: 0
+      end_s: 11.38
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960816"
+      start_s: 0
+      end_s: 11.31
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15382080_15382080"
+  passage {
+    segment {
+      id: "157876629"
+      start_s: 0
+      end_s: 22.22
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "157876687"
+      start_s: 0
+      end_s: 23.81
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "157876641"
+      start_s: 0
+      end_s: 20.79
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "157876505"
+      start_s: 0
+      end_s: 21.86
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "157876682"
+      start_s: 0
+      end_s: 22.81
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14942094_14942094"
+  passage {
+    segment {
+      id: "112960565"
+      start_s: 0
+      end_s: 28.47
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958204"
+      start_s: 0
+      end_s: 25.28
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15726058_15726058"
+  passage {
+    segment {
+      id: "158721755"
+      start_s: 0
+      end_s: 56.91
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158721817"
+      start_s: 0
+      end_s: 59.79
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600366_8600366"
+  passage {
+    segment {
+      id: "112960669"
+      start_s: 0
+      end_s: 72.28
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960779"
+      start_s: 0
+      end_s: 72.14
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600221_8600221"
+  passage {
+    segment {
+      id: "112958346"
+      start_s: 0
+      end_s: 21.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958349"
+      start_s: 0
+      end_s: 21.62
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14702685_14702685"
+  passage {
+    segment {
+      id: "155288723"
+      start_s: 0
+      end_s: 93.37
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155288705"
+      start_s: 0
+      end_s: 93.4
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14702676_14702676"
+  passage {
+    segment {
+      id: "155288682"
+      start_s: 0
+      end_s: 20.93
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155288745"
+      start_s: 0
+      end_s: 21.26
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155288659"
+      start_s: 0
+      end_s: 20.98
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14702707_14702707"
+  passage {
+    segment {
+      id: "155288696"
+      start_s: 0
+      end_s: 8.86
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961116"
+      start_s: 0
+      end_s: 8.82
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958232"
+      start_s: 0
+      end_s: 8.81
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14702705_14702705"
+  passage {
+    segment {
+      id: "155288756"
+      start_s: 0
+      end_s: 12.6
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155288674"
+      start_s: 0
+      end_s: 12.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155288697"
+      start_s: 0
+      end_s: 12.74
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14702691_14702691"
+  passage {
+    segment {
+      id: "155288671"
+      start_s: 0
+      end_s: 8.99
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155288670"
+      start_s: 0
+      end_s: 8.58
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155288662"
+      start_s: 0
+      end_s: 8.79
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14702719_14702719"
+  passage {
+    segment {
+      id: "155288652"
+      start_s: 0
+      end_s: 7.62
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959839"
+      start_s: 0
+      end_s: 7.66
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959843"
+      start_s: 0
+      end_s: 7.65
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14702718_14702718"
+  passage {
+    segment {
+      id: "155288700"
+      start_s: 0
+      end_s: 5.88
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "112957240"
+      start_s: 0
+      end_s: 5.98
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112957241"
+      start_s: 0
+      end_s: 5.89
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15447906_15447906"
+  passage {
+    segment {
+      id: "158042375"
+      start_s: 0
+      end_s: 43.09
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158042409"
+      start_s: 0
+      end_s: 43.49
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14702708_14702708"
+  passage {
+    segment {
+      id: "112958509"
+      start_s: 0
+      end_s: 5.62
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958514"
+      start_s: 0
+      end_s: 5.38
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958515"
+      start_s: 0
+      end_s: 5.84
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd10224597_10224597"
+  passage {
+    segment {
+      id: "112960357"
+      start_s: 0
+      end_s: 19.95
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961806"
+      start_s: 0
+      end_s: 19.85
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961890"
+      start_s: 0
+      end_s: 19.49
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599691_8599691"
+  passage {
+    segment {
+      id: "112960360"
+      start_s: 0
+      end_s: 17.47
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959761"
+      start_s: 0
+      end_s: 17.29
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112957705"
+      start_s: 0
+      end_s: 17.26
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600717_8600717"
+  passage {
+    segment {
+      id: "112959009"
+      start_s: 0
+      end_s: 14.73
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961327"
+      start_s: 0
+      end_s: 14.99
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960284"
+      start_s: 0
+      end_s: 14.81
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd10224674_10224674"
+  passage {
+    segment {
+      id: "112957611"
+      start_s: 0
+      end_s: 3.51
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959313"
+      start_s: 0
+      end_s: 3.4
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961649"
+      start_s: 0
+      end_s: 3.67
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599826_8599826"
+  passage {
+    segment {
+      id: "112958665"
+      start_s: 0
+      end_s: 45.67
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958074"
+      start_s: 0
+      end_s: 45.51
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599705_8599705"
+  passage {
+    segment {
+      id: "112958313"
+      start_s: 0
+      end_s: 9.6
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959785"
+      start_s: 0
+      end_s: 9.74
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600245_8600245"
+  passage {
+    segment {
+      id: "112957259"
+      start_s: 0
+      end_s: 37.37
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112957622"
+      start_s: 0
+      end_s: 37.61
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339925_17339925"
+  passage {
+    segment {
+      id: "162234167"
+      start_s: 0
+      end_s: 9.2
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234201"
+      start_s: 0
+      end_s: 8.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339924_17339924"
+  passage {
+    segment {
+      id: "162234184"
+      start_s: 0
+      end_s: 12.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234226"
+      start_s: 0
+      end_s: 13.08
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339939_17339939"
+  passage {
+    segment {
+      id: "162234220"
+      start_s: 0
+      end_s: 17.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234196"
+      start_s: 0
+      end_s: 17.53
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234197"
+      start_s: 0
+      end_s: 17.22
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339950_17339950"
+  passage {
+    segment {
+      id: "162234183"
+      start_s: 0
+      end_s: 31.93
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234207"
+      start_s: 0
+      end_s: 32.15
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234205"
+      start_s: 0
+      end_s: 32.48
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339948_17339948"
+  passage {
+    segment {
+      id: "162234169"
+      start_s: 0
+      end_s: 28.02
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234211"
+      start_s: 0
+      end_s: 27.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234182"
+      start_s: 0
+      end_s: 27.7
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339941_17339941"
+  passage {
+    segment {
+      id: "162234231"
+      start_s: 0
+      end_s: 7.09
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "162234200"
+      start_s: 0
+      end_s: 6.89
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234176"
+      start_s: 0
+      end_s: 4.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339936_17339936"
+  passage {
+    segment {
+      id: "162234202"
+      start_s: 0
+      end_s: 50.47
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234172"
+      start_s: 0
+      end_s: 52.6
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600474_8600474"
+  passage {
+    segment {
+      id: "112961305"
+      start_s: 0
+      end_s: 33.25
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959434"
+      start_s: 0
+      end_s: 33.13
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599221_8599221"
+  passage {
+    segment {
+      id: "112959930"
+      start_s: 0
+      end_s: 14.56
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961690"
+      start_s: 0
+      end_s: 13.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961039"
+      start_s: 0
+      end_s: 13.4
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599694_8599694"
+  passage {
+    segment {
+      id: "112960573"
+      start_s: 0
+      end_s: 4.03
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958609"
+      start_s: 0
+      end_s: 3.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960731"
+      start_s: 0
+      end_s: 4.08
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600086_8600086"
+  passage {
+    segment {
+      id: "112960881"
+      start_s: 0
+      end_s: 14.18
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961163"
+      start_s: 0
+      end_s: 14.15
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958441"
+      start_s: 0
+      end_s: 14.34
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600450_8600450"
+  passage {
+    segment {
+      id: "112958992"
+      start_s: 0
+      end_s: 98.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961119"
+      start_s: 0
+      end_s: 98.18
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600159_8600159"
+  passage {
+    segment {
+      id: "112959889"
+      start_s: 0
+      end_s: 46.83
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958502"
+      start_s: 0
+      end_s: 46.05
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958187"
+      start_s: 0
+      end_s: 46.99
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14288023_14288023"
+  passage {
+    segment {
+      id: "143978290"
+      start_s: 0
+      end_s: 23.15
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "143978256"
+      start_s: 0
+      end_s: 23.36
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "143978328"
+      start_s: 0
+      end_s: 23.16
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14288024_14288024"
+  passage {
+    segment {
+      id: "112960893"
+      start_s: 0
+      end_s: 5.68
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "112959980"
+      start_s: 0
+      end_s: 7.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959977"
+      start_s: 0
+      end_s: 7.16
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16050377_16050377"
+  passage {
+    segment {
+      id: "159660362"
+      start_s: 0
+      end_s: 52.66
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159660565"
+      start_s: 0
+      end_s: 52.57
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600666_8600666"
+  passage {
+    segment {
+      id: "112959987"
+      start_s: 0
+      end_s: 43.49
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959923"
+      start_s: 0
+      end_s: 43.07
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599244_8599244"
+  passage {
+    segment {
+      id: "112958492"
+      start_s: 0
+      end_s: 17.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961676"
+      start_s: 0
+      end_s: 17.55
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958493"
+      start_s: 0
+      end_s: 17.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd13193877_13193877"
+  passage {
+    segment {
+      id: "112959582"
+      start_s: 0
+      end_s: 10.66
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959454"
+      start_s: 0
+      end_s: 10.84
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961506"
+      start_s: 0
+      end_s: 10.62
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600673_8600673"
+  passage {
+    segment {
+      id: "112959244"
+      start_s: 0
+      end_s: 3.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959530"
+      start_s: 0
+      end_s: 3.32
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959983"
+      start_s: 0
+      end_s: 3.08
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600386_8600386"
+  passage {
+    segment {
+      id: "112960160"
+      start_s: 0
+      end_s: 9.73
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961397"
+      start_s: 0
+      end_s: 9.62
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959668"
+      start_s: 0
+      end_s: 9.76
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599925_8599925"
+  passage {
+    segment {
+      id: "112959998"
+      start_s: 0
+      end_s: 37.52
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960561"
+      start_s: 0
+      end_s: 37.61
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958114"
+      start_s: 0
+      end_s: 37.6
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599635_8599635"
+  passage {
+    segment {
+      id: "112958370"
+      start_s: 0
+      end_s: 9.53
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960931"
+      start_s: 0
+      end_s: 9.54
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958469"
+      start_s: 0
+      end_s: 9.53
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599527_8599527"
+  passage {
+    segment {
+      id: "112958966"
+      start_s: 0
+      end_s: 49.91
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959344"
+      start_s: 0
+      end_s: 49.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961251"
+      start_s: 0
+      end_s: 49.93
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599883_8599883"
+  passage {
+    segment {
+      id: "112959489"
+      start_s: 0
+      end_s: 30.67
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "112957575"
+      start_s: 0
+      end_s: 30.63
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961539"
+      start_s: 0
+      end_s: 28.84
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16050667_16050667"
+  passage {
+    segment {
+      id: "159659716"
+      start_s: 0
+      end_s: 44.96
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159659262"
+      start_s: 0
+      end_s: 46.79
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600373_8600373"
+  passage {
+    segment {
+      id: "112961518"
+      start_s: 0
+      end_s: 30.77
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960146"
+      start_s: 0
+      end_s: 31.09
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959945"
+      start_s: 0
+      end_s: 31.18
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961364"
+      start_s: 0
+      end_s: 31.33
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959238"
+      start_s: 0
+      end_s: 31.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15050074_15050074"
+  passage {
+    segment {
+      id: "156065208"
+      start_s: 0
+      end_s: 24.02
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156064772"
+      start_s: 0
+      end_s: 24.03
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156065336"
+      start_s: 0
+      end_s: 24.01
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156064883"
+      start_s: 0
+      end_s: 24.1
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156065145"
+      start_s: 0
+      end_s: 24.05
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd13193847_13193847"
+  passage {
+    segment {
+      id: "112961551"
+      start_s: 0
+      end_s: 8.19
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112957591"
+      start_s: 0
+      end_s: 8.13
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958507"
+      start_s: 0
+      end_s: 8.09
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958412"
+      start_s: 0
+      end_s: 8.16
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961986"
+      start_s: 0
+      end_s: 8.16
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600265_8600265"
+  passage {
+    segment {
+      id: "112958510"
+      start_s: 0
+      end_s: 13.55
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959911"
+      start_s: 0
+      end_s: 13.6
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961511"
+      start_s: 0
+      end_s: 13.58
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959864"
+      start_s: 0
+      end_s: 13.56
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958767"
+      start_s: 0
+      end_s: 13.56
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd13193815_13193815"
+  passage {
+    segment {
+      id: "112961715"
+      start_s: 0
+      end_s: 22.77
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960193"
+      start_s: 0
+      end_s: 22.73
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960004"
+      start_s: 0
+      end_s: 22.63
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112957704"
+      start_s: 0
+      end_s: 22.68
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960432"
+      start_s: 0
+      end_s: 22.64
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599991_8599991"
+  passage {
+    segment {
+      id: "112961618"
+      start_s: 0
+      end_s: 36.4
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "112957251"
+      start_s: 0
+      end_s: 37.08
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "112959180"
+      start_s: 0
+      end_s: 35.89
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "112958841"
+      start_s: 0
+      end_s: 34.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112957252"
+      start_s: 0
+      end_s: 35.46
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599163_8599163"
+  passage {
+    segment {
+      id: "112960238"
+      start_s: 0
+      end_s: 10.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961252"
+      start_s: 0
+      end_s: 10.01
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd13193790_13193790"
+  passage {
+    segment {
+      id: "112959914"
+      start_s: 0
+      end_s: 16.09
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "112959893"
+      start_s: 0
+      end_s: 16.89
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16050449_16050449"
+  passage {
+    segment {
+      id: "159660625"
+      start_s: 0
+      end_s: 45.64
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd1282596_1282596"
+  passage {
+    segment {
+      id: "112958691"
+      start_s: 0
+      end_s: 70.83
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958332"
+      start_s: 0
+      end_s: 70.79
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600667_8600667"
+  passage {
+    segment {
+      id: "112960252"
+      start_s: 0
+      end_s: 17.84
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959243"
+      start_s: 0
+      end_s: 17.86
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600668_8600668"
+  passage {
+    segment {
+      id: "112959439"
+      start_s: 0
+      end_s: 83.23
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960202"
+      start_s: 0
+      end_s: 83.2
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd1180034_1180034"
+  passage {
+    segment {
+      id: "112960873"
+      start_s: 0
+      end_s: 22.09
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960894"
+      start_s: 0
+      end_s: 22.09
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd1180070_1180070"
+  passage {
+    segment {
+      id: "112959629"
+      start_s: 0
+      end_s: 84.58
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959235"
+      start_s: 0
+      end_s: 84.63
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16050811_16050811"
+  passage {
+    segment {
+      id: "159659578"
+      start_s: 0
+      end_s: 19.2
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159660057"
+      start_s: 0
+      end_s: 19.21
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159659451"
+      start_s: 0
+      end_s: 19.09
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16050493_16050493"
+  passage {
+    segment {
+      id: "159660005"
+      start_s: 0
+      end_s: 23.48
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159659569"
+      start_s: 0
+      end_s: 23.65
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159659877"
+      start_s: 0
+      end_s: 23.57
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16050422_16050422"
+  passage {
+    segment {
+      id: "159660588"
+      start_s: 0
+      end_s: 19.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159659176"
+      start_s: 0
+      end_s: 19.69
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "159660582"
+      start_s: 0
+      end_s: 19.38
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16050807_16050807"
+  passage {
+    segment {
+      id: "159659798"
+      start_s: 0
+      end_s: 47.83
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159659787"
+      start_s: 0
+      end_s: 47.55
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16050184_16050184"
+  passage {
+    segment {
+      id: "159659923"
+      start_s: 0
+      end_s: 48.45
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159660515"
+      start_s: 0
+      end_s: 48.8
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599702_8599702"
+  passage {
+    segment {
+      id: "112961128"
+      start_s: 0
+      end_s: 17.52
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960194"
+      start_s: 0
+      end_s: 17.48
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599367_8599367"
+  passage {
+    segment {
+      id: "112959995"
+      start_s: 0
+      end_s: 8.63
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960961"
+      start_s: 0
+      end_s: 8.51
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960963"
+      start_s: 0
+      end_s: 8.6
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600433_8600433"
+  passage {
+    segment {
+      id: "112960798"
+      start_s: 0
+      end_s: 11.4
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960074"
+      start_s: 0
+      end_s: 11.29
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960608"
+      start_s: 0
+      end_s: 11.09
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599714_8599714"
+  passage {
+    segment {
+      id: "112958826"
+      start_s: 0
+      end_s: 35.19
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959887"
+      start_s: 0
+      end_s: 35.23
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959714"
+      start_s: 0
+      end_s: 35.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600329_8600329"
+  passage {
+    segment {
+      id: "112960694"
+      start_s: 0
+      end_s: 9.5
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961279"
+      start_s: 0
+      end_s: 9.22
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961278"
+      start_s: 0
+      end_s: 9.62
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599373_8599373"
+  passage {
+    segment {
+      id: "112959360"
+      start_s: 0
+      end_s: 11.48
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961400"
+      start_s: 0
+      end_s: 11.36
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961382"
+      start_s: 0
+      end_s: 10.88
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599298_8599298"
+  passage {
+    segment {
+      id: "112959579"
+      start_s: 0
+      end_s: 4.48
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961502"
+      start_s: 0
+      end_s: 4.49
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112962136"
+      start_s: 0
+      end_s: 4.83
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600171_8600171"
+  passage {
+    segment {
+      id: "112959594"
+      start_s: 0
+      end_s: 37.14
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "112959351"
+      start_s: 0
+      end_s: 36.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599999_8599999"
+  passage {
+    segment {
+      id: "112960020"
+      start_s: 0
+      end_s: 46.01
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959110"
+      start_s: 0
+      end_s: 46.07
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960098"
+      start_s: 0
+      end_s: 45.99
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600345_8600345"
+  passage {
+    segment {
+      id: "112960124"
+      start_s: 0
+      end_s: 12.28
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959999"
+      start_s: 0
+      end_s: 12.22
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959377"
+      start_s: 0
+      end_s: 12.17
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16050735_16050735"
+  passage {
+    segment {
+      id: "159660538"
+      start_s: 0
+      end_s: 24.55
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "159659976"
+      start_s: 0
+      end_s: 24.82
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "159659978"
+      start_s: 0
+      end_s: 25.1
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16051080_16051080"
+  passage {
+    segment {
+      id: "159659440"
+      start_s: 0
+      end_s: 47.86
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15103182_15103182"
+  passage {
+    segment {
+      id: "112961607"
+      start_s: 0
+      end_s: 6.71
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958446"
+      start_s: 0
+      end_s: 6.73
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15049896_15049896"
+  passage {
+    segment {
+      id: "156065234"
+      start_s: 0
+      end_s: 13.83
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156065218"
+      start_s: 0
+      end_s: 13.77
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15049954_15049954"
+  passage {
+    segment {
+      id: "156065043"
+      start_s: 0
+      end_s: 48.01
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156064836"
+      start_s: 0
+      end_s: 48.08
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16005718_16005718"
+  passage {
+    segment {
+      id: "159507404"
+      start_s: 0
+      end_s: 23.22
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159506994"
+      start_s: 0
+      end_s: 23.15
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16005722_16005722"
+  passage {
+    segment {
+      id: "159506815"
+      start_s: 0
+      end_s: 40.71
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159506868"
+      start_s: 0
+      end_s: 40.59
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16005780_16005780"
+  passage {
+    segment {
+      id: "159507265"
+      start_s: 0
+      end_s: 14.98
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159506864"
+      start_s: 0
+      end_s: 15.21
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16005918_16005918"
+  passage {
+    segment {
+      id: "159506809"
+      start_s: 0
+      end_s: 4.39
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159507226"
+      start_s: 0
+      end_s: 4.31
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16005935_16005935"
+  passage {
+    segment {
+      id: "159507365"
+      start_s: 0
+      end_s: 4.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159507040"
+      start_s: 0
+      end_s: 4.25
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414287_17414287"
+  passage {
+    segment {
+      id: "162579783"
+      start_s: 0
+      end_s: 10
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579549"
+      start_s: 0
+      end_s: 9.62
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414261_17414261"
+  passage {
+    segment {
+      id: "162579704"
+      start_s: 0
+      end_s: 5.6
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579717"
+      start_s: 0
+      end_s: 6
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16005739_16005739"
+  passage {
+    segment {
+      id: "159507066"
+      start_s: 0
+      end_s: 52.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159506876"
+      start_s: 0
+      end_s: 52.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16005759_16005759"
+  passage {
+    segment {
+      id: "159507137"
+      start_s: 0
+      end_s: 68.01
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159507058"
+      start_s: 0
+      end_s: 68.01
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159507245"
+      start_s: 0
+      end_s: 68.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16005880_16005880"
+  passage {
+    segment {
+      id: "159507072"
+      start_s: 0
+      end_s: 24.81
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "159507259"
+      start_s: 0
+      end_s: 25.37
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "159507389"
+      start_s: 0
+      end_s: 25.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16050540_16050540"
+  passage {
+    segment {
+      id: "159659529"
+      start_s: 0
+      end_s: 51.55
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16005725_16005725"
+  passage {
+    segment {
+      id: "159507069"
+      start_s: 0
+      end_s: 265.05
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16005899_16005899"
+  passage {
+    segment {
+      id: "159506792"
+      start_s: 0
+      end_s: 6.75
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16005958_16005958"
+  passage {
+    segment {
+      id: "159506798"
+      start_s: 0
+      end_s: 15.29
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414265_17414265"
+  passage {
+    segment {
+      id: "162579760"
+      start_s: 0
+      end_s: 73.31
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414130_17414130"
+  passage {
+    segment {
+      id: "162579709"
+      start_s: 0
+      end_s: 21.45
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579624"
+      start_s: 0
+      end_s: 20.85
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15382026_15382026"
+  passage {
+    segment {
+      id: "157876594"
+      start_s: 0
+      end_s: 98.1
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "157876649"
+      start_s: 0
+      end_s: 98.85
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15049773_15049773"
+  passage {
+    segment {
+      id: "156064795"
+      start_s: 0
+      end_s: 121.4
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156064908"
+      start_s: 0
+      end_s: 122.73
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15049771_15049771"
+  passage {
+    segment {
+      id: "156065255"
+      start_s: 0
+      end_s: 55.52
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156065188"
+      start_s: 0
+      end_s: 55.41
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156065098"
+      start_s: 0
+      end_s: 55.38
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15049751_15049751"
+  passage {
+    segment {
+      id: "156065219"
+      start_s: 0
+      end_s: 21.51
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156065164"
+      start_s: 0
+      end_s: 21.55
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156064780"
+      start_s: 0
+      end_s: 21.64
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414219_17414219"
+  passage {
+    segment {
+      id: "162579736"
+      start_s: 0
+      end_s: 8.83
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "162579534"
+      start_s: 0
+      end_s: 7.96
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579495"
+      start_s: 0
+      end_s: 7.05
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414188_17414188"
+  passage {
+    segment {
+      id: "162579785"
+      start_s: 0
+      end_s: 45.5
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579540"
+      start_s: 0
+      end_s: 46.48
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414294_17414294"
+  passage {
+    segment {
+      id: "162579547"
+      start_s: 0
+      end_s: 16.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579745"
+      start_s: 0
+      end_s: 16.25
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414246_17414246"
+  passage {
+    segment {
+      id: "162579440"
+      start_s: 0
+      end_s: 66.3
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579648"
+      start_s: 0
+      end_s: 66.52
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414139_17414139"
+  passage {
+    segment {
+      id: "112960035"
+      start_s: 0
+      end_s: 11.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112957702"
+      start_s: 0
+      end_s: 11.26
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414284_17414284"
+  passage {
+    segment {
+      id: "112958737"
+      start_s: 0
+      end_s: 19.67
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961840"
+      start_s: 0
+      end_s: 19.51
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414147_17414147"
+  passage {
+    segment {
+      id: "162579629"
+      start_s: 0
+      end_s: 26.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579792"
+      start_s: 0
+      end_s: 27.17
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579682"
+      start_s: 0
+      end_s: 27.01
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414192_17414192"
+  passage {
+    segment {
+      id: "112957669"
+      start_s: 0
+      end_s: 21.89
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112957668"
+      start_s: 0
+      end_s: 21.94
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958080"
+      start_s: 0
+      end_s: 21.82
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414327_17414327"
+  passage {
+    segment {
+      id: "162579798"
+      start_s: 0
+      end_s: 24.86
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579679"
+      start_s: 0
+      end_s: 25.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579571"
+      start_s: 0
+      end_s: 24.95
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414283_17414283"
+  passage {
+    segment {
+      id: "112961347"
+      start_s: 0
+      end_s: 68.42
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960611"
+      start_s: 0
+      end_s: 68.31
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414304_17414304"
+  passage {
+    segment {
+      id: "162579758"
+      start_s: 0
+      end_s: 23.87
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579646"
+      start_s: 0
+      end_s: 24.07
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579544"
+      start_s: 0
+      end_s: 23.59
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414319_17414319"
+  passage {
+    segment {
+      id: "162579591"
+      start_s: 0
+      end_s: 11.1
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579634"
+      start_s: 0
+      end_s: 11.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579509"
+      start_s: 0
+      end_s: 11.59
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414281_17414281"
+  passage {
+    segment {
+      id: "162579566"
+      start_s: 0
+      end_s: 39.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579576"
+      start_s: 0
+      end_s: 39.22
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579763"
+      start_s: 0
+      end_s: 39.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414244_17414244"
+  passage {
+    segment {
+      id: "162579809"
+      start_s: 0
+      end_s: 12.75
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579597"
+      start_s: 0
+      end_s: 12.89
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162579601"
+      start_s: 0
+      end_s: 12.93
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17414155_17414155"
+  passage {
+    segment {
+      id: "162579753"
+      start_s: 0
+      end_s: 14.08
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "162579550"
+      start_s: 0
+      end_s: 14.84
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "162579493"
+      start_s: 0
+      end_s: 13.54
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16051083_16051083"
+  passage {
+    segment {
+      id: "159660046"
+      start_s: 0
+      end_s: 33.11
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339946_17339946"
+  passage {
+    segment {
+      id: "162234186"
+      start_s: 0
+      end_s: 29.11
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234198"
+      start_s: 0
+      end_s: 29.16
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339930_17339930"
+  passage {
+    segment {
+      id: "162234212"
+      start_s: 0
+      end_s: 6.16
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234216"
+      start_s: 0
+      end_s: 6.14
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339921_17339921"
+  passage {
+    segment {
+      id: "162234208"
+      start_s: 0
+      end_s: 29.53
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234162"
+      start_s: 0
+      end_s: 29.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339922_17339922"
+  passage {
+    segment {
+      id: "162234229"
+      start_s: 0
+      end_s: 40.98
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234194"
+      start_s: 0
+      end_s: 41.36
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339943_17339943"
+  passage {
+    segment {
+      id: "162234173"
+      start_s: 0
+      end_s: 10.78
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234203"
+      start_s: 0
+      end_s: 10.67
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339928_17339928"
+  passage {
+    segment {
+      id: "162234217"
+      start_s: 0
+      end_s: 15.68
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234190"
+      start_s: 0
+      end_s: 15.15
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234179"
+      start_s: 0
+      end_s: 15.15
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599415_8599415"
+  passage {
+    segment {
+      id: "112960169"
+      start_s: 0
+      end_s: 18.09
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960948"
+      start_s: 0
+      end_s: 18.05
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961387"
+      start_s: 0
+      end_s: 17.99
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600002_8600002"
+  passage {
+    segment {
+      id: "112959783"
+      start_s: 0
+      end_s: 20.45
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960050"
+      start_s: 0
+      end_s: 20.23
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959644"
+      start_s: 0
+      end_s: 19.94
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600289_8600289"
+  passage {
+    segment {
+      id: "112961857"
+      start_s: 0
+      end_s: 11.1
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234193"
+      start_s: 0
+      end_s: 11.13
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961679"
+      start_s: 0
+      end_s: 11
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8600158_8600158"
+  passage {
+    segment {
+      id: "112958783"
+      start_s: 0
+      end_s: 46.11
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961525"
+      start_s: 0
+      end_s: 46.17
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14942077_14942077"
+  passage {
+    segment {
+      id: "155807697"
+      start_s: 0
+      end_s: 4.56
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807782"
+      start_s: 0
+      end_s: 4.21
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14941989_14941989"
+  passage {
+    segment {
+      id: "155807804"
+      start_s: 0
+      end_s: 21.52
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807732"
+      start_s: 0
+      end_s: 21.71
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599356_8599356"
+  passage {
+    segment {
+      id: "112958793"
+      start_s: 0
+      end_s: 4.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958877"
+      start_s: 0
+      end_s: 4.47
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17339929_17339929"
+  passage {
+    segment {
+      id: "162234195"
+      start_s: 0
+      end_s: 43.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162234230"
+      start_s: 0
+      end_s: 43.53
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14702712_14702712"
+  passage {
+    segment {
+      id: "155288695"
+      start_s: 0
+      end_s: 49.51
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155288690"
+      start_s: 0
+      end_s: 49.33
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14942025_14942025"
+  passage {
+    segment {
+      id: "155807893"
+      start_s: 0
+      end_s: 16.21
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807853"
+      start_s: 0
+      end_s: 16
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807805"
+      start_s: 0
+      end_s: 15.95
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14942032_14942032"
+  passage {
+    segment {
+      id: "155807857"
+      start_s: 0
+      end_s: 4.39
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807835"
+      start_s: 0
+      end_s: 4.13
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807826"
+      start_s: 0
+      end_s: 4.29
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14942123_14942123"
+  passage {
+    segment {
+      id: "155807710"
+      start_s: 0
+      end_s: 22.91
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807995"
+      start_s: 0
+      end_s: 23.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807941"
+      start_s: 0
+      end_s: 23.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14942105_14942105"
+  passage {
+    segment {
+      id: "155807852"
+      start_s: 0
+      end_s: 65.55
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807787"
+      start_s: 0
+      end_s: 65.48
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807849"
+      start_s: 0
+      end_s: 65.53
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599196_8599196"
+  passage {
+    segment {
+      id: "112958999"
+      start_s: 0
+      end_s: 12.93
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958089"
+      start_s: 0
+      end_s: 12.78
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958694"
+      start_s: 0
+      end_s: 12.86
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599957_8599957"
+  passage {
+    segment {
+      id: "112961344"
+      start_s: 0
+      end_s: 30.41
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960394"
+      start_s: 0
+      end_s: 30.95
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959809"
+      start_s: 0
+      end_s: 30.67
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599766_8599766"
+  passage {
+    segment {
+      id: "112959435"
+      start_s: 0
+      end_s: 8.37
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112961082"
+      start_s: 0
+      end_s: 8.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958522"
+      start_s: 0
+      end_s: 7.41
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112959400"
+      start_s: 0
+      end_s: 7.88
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16027885_16027885"
+  passage {
+    segment {
+      id: "112958400"
+      start_s: 0
+      end_s: 23.07
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960030"
+      start_s: 0
+      end_s: 23
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159622586"
+      start_s: 0
+      end_s: 22.03
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "112961200"
+      start_s: 0
+      end_s: 23.43
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112960103"
+      start_s: 0
+      end_s: 23.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14288088_14288088"
+  passage {
+    segment {
+      id: "112958700"
+      start_s: 0
+      end_s: 19.72
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "112958697"
+      start_s: 0
+      end_s: 19.58
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "112959585"
+      start_s: 0
+      end_s: 19.13
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958695"
+      start_s: 0
+      end_s: 19.46
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14288017_14288017"
+  passage {
+    segment {
+      id: "112958802"
+      start_s: 0
+      end_s: 23.65
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "112961611"
+      start_s: 0
+      end_s: 23.49
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15760421_15760421"
+  passage {
+    segment {
+      id: "158817935"
+      start_s: 0
+      end_s: 66.05
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158817956"
+      start_s: 0
+      end_s: 66.49
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8599349_8599349"
+  passage {
+    segment {
+      id: "112958683"
+      start_s: 0
+      end_s: 74.39
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958670"
+      start_s: 0
+      end_s: 74.3
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112958671"
+      start_s: 0
+      end_s: 74.2
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14942072_14942072"
+  passage {
+    segment {
+      id: "155807834"
+      start_s: 0
+      end_s: 12.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807927"
+      start_s: 0
+      end_s: 12.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155807951"
+      start_s: 0
+      end_s: 12.9
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944341_14944341"
+  passage {
+    segment {
+      id: "155813429"
+      start_s: 0
+      end_s: 7.49
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813377"
+      start_s: 0
+      end_s: 7.56
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813511"
+      start_s: 0
+      end_s: 7.88
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340662_17340662"
+  passage {
+    segment {
+      id: "162235856"
+      start_s: 0
+      end_s: 7.88
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235650"
+      start_s: 0
+      end_s: 8.67
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235665"
+      start_s: 0
+      end_s: 7.99
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340598_17340598"
+  passage {
+    segment {
+      id: "162235962"
+      start_s: 0
+      end_s: 12.1
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235783"
+      start_s: 0
+      end_s: 12.05
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235537"
+      start_s: 0
+      end_s: 12.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8612065_8612065"
+  passage {
+    segment {
+      id: "112996219"
+      start_s: 0
+      end_s: 17.67
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000272"
+      start_s: 0
+      end_s: 17.77
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997053"
+      start_s: 0
+      end_s: 17.75
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611623_8611623"
+  passage {
+    segment {
+      id: "112998243"
+      start_s: 0
+      end_s: 6.73
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998802"
+      start_s: 0
+      end_s: 6.76
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998494"
+      start_s: 0
+      end_s: 6.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610167_8610167"
+  passage {
+    segment {
+      id: "112996991"
+      start_s: 0
+      end_s: 6.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997159"
+      start_s: 0
+      end_s: 6.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997558"
+      start_s: 0
+      end_s: 6.67
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340713_17340713"
+  passage {
+    segment {
+      id: "162235516"
+      start_s: 0
+      end_s: 5.9
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235704"
+      start_s: 0
+      end_s: 6.07
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235721"
+      start_s: 0
+      end_s: 5.88
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235892"
+      start_s: 0
+      end_s: 6.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340628_17340628"
+  passage {
+    segment {
+      id: "162235549"
+      start_s: 0
+      end_s: 4.52
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235499"
+      start_s: 0
+      end_s: 4.42
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235528"
+      start_s: 0
+      end_s: 4.04
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235723"
+      start_s: 0
+      end_s: 4.05
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14534964_14534964"
+  passage {
+    segment {
+      id: "154057670"
+      start_s: 0
+      end_s: 22.3
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "154057738"
+      start_s: 0
+      end_s: 22.2
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "154057701"
+      start_s: 0
+      end_s: 22.09
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14534943_14534943"
+  passage {
+    segment {
+      id: "154057708"
+      start_s: 0
+      end_s: 73.85
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "154057686"
+      start_s: 0
+      end_s: 73.71
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "154057672"
+      start_s: 0
+      end_s: 73.65
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610801_8610801"
+  passage {
+    segment {
+      id: "112999326"
+      start_s: 0
+      end_s: 7
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999011"
+      start_s: 0
+      end_s: 7.11
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999265"
+      start_s: 0
+      end_s: 7.22
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610979_8610979"
+  passage {
+    segment {
+      id: "112997941"
+      start_s: 0
+      end_s: 30.47
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997167"
+      start_s: 0
+      end_s: 30.34
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996464"
+      start_s: 0
+      end_s: 30.26
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610452_8610452"
+  passage {
+    segment {
+      id: "112997107"
+      start_s: 0
+      end_s: 33.56
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998453"
+      start_s: 0
+      end_s: 33.62
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997617"
+      start_s: 0
+      end_s: 33.61
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610880_8610880"
+  passage {
+    segment {
+      id: "112996678"
+      start_s: 0
+      end_s: 24.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996763"
+      start_s: 0
+      end_s: 24.3
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997500"
+      start_s: 0
+      end_s: 24.2
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610533_8610533"
+  passage {
+    segment {
+      id: "112996342"
+      start_s: 0
+      end_s: 11.78
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "112998580"
+      start_s: 0
+      end_s: 13.51
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998051"
+      start_s: 0
+      end_s: 13.15
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15449316_15449316"
+  passage {
+    segment {
+      id: "158044756"
+      start_s: 0
+      end_s: 39.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158044589"
+      start_s: 0
+      end_s: 39.71
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158045095"
+      start_s: 0
+      end_s: 40.39
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158044819"
+      start_s: 0
+      end_s: 40.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15994341_15994341"
+  passage {
+    segment {
+      id: "159486858"
+      start_s: 0
+      end_s: 102.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486862"
+      start_s: 0
+      end_s: 102.87
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486880"
+      start_s: 0
+      end_s: 102.88
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486882"
+      start_s: 0
+      end_s: 102.95
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15994334_15994334"
+  passage {
+    segment {
+      id: "159486875"
+      start_s: 0
+      end_s: 16.72
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486865"
+      start_s: 0
+      end_s: 16.71
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486850"
+      start_s: 0
+      end_s: 16.75
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486855"
+      start_s: 0
+      end_s: 16.81
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610114_8610114"
+  passage {
+    segment {
+      id: "112998254"
+      start_s: 0
+      end_s: 18.4
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998819"
+      start_s: 0
+      end_s: 18.51
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997727"
+      start_s: 0
+      end_s: 18.59
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000282"
+      start_s: 0
+      end_s: 18.58
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15994337_15994337"
+  passage {
+    segment {
+      id: "159486867"
+      start_s: 0
+      end_s: 11.18
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486866"
+      start_s: 0
+      end_s: 11.11
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486874"
+      start_s: 0
+      end_s: 10.94
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486864"
+      start_s: 0
+      end_s: 10.91
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15994342_15994342"
+  passage {
+    segment {
+      id: "159486868"
+      start_s: 0
+      end_s: 22.74
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486863"
+      start_s: 0
+      end_s: 22.8
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486886"
+      start_s: 0
+      end_s: 23.15
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "159486842"
+      start_s: 0
+      end_s: 22.86
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340766_17340766"
+  passage {
+    segment {
+      id: "162235763"
+      start_s: 0
+      end_s: 23.03
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235729"
+      start_s: 0
+      end_s: 22.96
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235728"
+      start_s: 0
+      end_s: 22.65
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235823"
+      start_s: 0
+      end_s: 22.92
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944648_14944648"
+  passage {
+    segment {
+      id: "155812568"
+      start_s: 0
+      end_s: 55.84
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812528"
+      start_s: 0
+      end_s: 55.9
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813131"
+      start_s: 0
+      end_s: 56.17
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813573"
+      start_s: 0
+      end_s: 55.99
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944979_14944979"
+  passage {
+    segment {
+      id: "155812561"
+      start_s: 0
+      end_s: 52.41
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812779"
+      start_s: 0
+      end_s: 52.34
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813075"
+      start_s: 0
+      end_s: 52.04
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813468"
+      start_s: 0
+      end_s: 52.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8612184_8612184"
+  passage {
+    segment {
+      id: "112996784"
+      start_s: 0
+      end_s: 22.23
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997374"
+      start_s: 0
+      end_s: 22.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997282"
+      start_s: 0
+      end_s: 22.27
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "112997378"
+      start_s: 0
+      end_s: 22.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd16400223_16400223"
+  passage {
+    segment {
+      id: "160334005"
+      start_s: 0
+      end_s: 72.23
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "160333986"
+      start_s: 0
+      end_s: 72.79
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "160334027"
+      start_s: 0
+      end_s: 73.37
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610382_8610382"
+  passage {
+    segment {
+      id: "113000545"
+      start_s: 0
+      end_s: 90.3
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998426"
+      start_s: 0
+      end_s: 90.06
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997647"
+      start_s: 0
+      end_s: 90.57
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610296_8610296"
+  passage {
+    segment {
+      id: "112997086"
+      start_s: 0
+      end_s: 10.8
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998841"
+      start_s: 0
+      end_s: 10.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998996"
+      start_s: 0
+      end_s: 10.59
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610380_8610380"
+  passage {
+    segment {
+      id: "112999904"
+      start_s: 0
+      end_s: 5.87
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000033"
+      start_s: 0
+      end_s: 6.13
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997491"
+      start_s: 0
+      end_s: 6.4
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997910"
+      start_s: 0
+      end_s: 6.31
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd13194722_13194722"
+  passage {
+    segment {
+      id: "112997322"
+      start_s: 0
+      end_s: 7.68
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997770"
+      start_s: 0
+      end_s: 7.29
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000187"
+      start_s: 0
+      end_s: 7.02
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998289"
+      start_s: 0
+      end_s: 6.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610290_8610290"
+  passage {
+    segment {
+      id: "112996386"
+      start_s: 0
+      end_s: 9.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996394"
+      start_s: 0
+      end_s: 9.75
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997370"
+      start_s: 0
+      end_s: 10.33
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996385"
+      start_s: 0
+      end_s: 10.04
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610373_8610373"
+  passage {
+    segment {
+      id: "112996634"
+      start_s: 0
+      end_s: 22.39
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000086"
+      start_s: 0
+      end_s: 22.84
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997073"
+      start_s: 0
+      end_s: 22.44
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000237"
+      start_s: 0
+      end_s: 22.6
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610367_8610367"
+  passage {
+    segment {
+      id: "113000256"
+      start_s: 0
+      end_s: 14.61
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999624"
+      start_s: 0
+      end_s: 14.71
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997823"
+      start_s: 0
+      end_s: 14.71
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999078"
+      start_s: 0
+      end_s: 14.87
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610293_8610293"
+  passage {
+    segment {
+      id: "113001188"
+      start_s: 0
+      end_s: 18.39
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997902"
+      start_s: 0
+      end_s: 18.3
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998024"
+      start_s: 0
+      end_s: 18.22
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998895"
+      start_s: 0
+      end_s: 18.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611716_8611716"
+  passage {
+    segment {
+      id: "112996563"
+      start_s: 0
+      end_s: 19.63
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996180"
+      start_s: 0
+      end_s: 19.73
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996295"
+      start_s: 0
+      end_s: 19.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996402"
+      start_s: 0
+      end_s: 19.64
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610734_8610734"
+  passage {
+    segment {
+      id: "112997611"
+      start_s: 0
+      end_s: 11.78
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996598"
+      start_s: 0
+      end_s: 11.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996866"
+      start_s: 0
+      end_s: 11.8
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997013"
+      start_s: 0
+      end_s: 11.81
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611540_8611540"
+  passage {
+    segment {
+      id: "112996422"
+      start_s: 0
+      end_s: 22.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996105"
+      start_s: 0
+      end_s: 22.34
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997363"
+      start_s: 0
+      end_s: 22.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000298"
+      start_s: 0
+      end_s: 22.39
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8612063_8612063"
+  passage {
+    segment {
+      id: "112997340"
+      start_s: 0
+      end_s: 18.76
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996110"
+      start_s: 0
+      end_s: 18.76
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998034"
+      start_s: 0
+      end_s: 18.67
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999874"
+      start_s: 0
+      end_s: 18.68
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340703_17340703"
+  passage {
+    segment {
+      id: "162235630"
+      start_s: 0
+      end_s: 22.73
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "162235834"
+      start_s: 0
+      end_s: 22.91
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235776"
+      start_s: 0
+      end_s: 23.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235827"
+      start_s: 0
+      end_s: 23.07
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340726_17340726"
+  passage {
+    segment {
+      id: "162235661"
+      start_s: 0
+      end_s: 44
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235730"
+      start_s: 0
+      end_s: 43.74
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235891"
+      start_s: 0
+      end_s: 43.87
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340639_17340639"
+  passage {
+    segment {
+      id: "162235509"
+      start_s: 0
+      end_s: 61.43
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235720"
+      start_s: 0
+      end_s: 61.29
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235885"
+      start_s: 0
+      end_s: 61.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340575_17340575"
+  passage {
+    segment {
+      id: "162235950"
+      start_s: 0
+      end_s: 8.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235896"
+      start_s: 0
+      end_s: 8.39
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235558"
+      start_s: 0
+      end_s: 8.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd10234998_10234998"
+  passage {
+    segment {
+      id: "112999372"
+      start_s: 0
+      end_s: 35.03
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000192"
+      start_s: 0
+      end_s: 35.41
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000196"
+      start_s: 0
+      end_s: 35.07
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8612209_8612209"
+  passage {
+    segment {
+      id: "112997450"
+      start_s: 0
+      end_s: 29.81
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999759"
+      start_s: 0
+      end_s: 29.65
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997295"
+      start_s: 0
+      end_s: 29.89
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15382923_15382923"
+  passage {
+    segment {
+      id: "157878299"
+      start_s: 0
+      end_s: 8.34
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "157878105"
+      start_s: 0
+      end_s: 8.3
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "157878234"
+      start_s: 0
+      end_s: 8.28
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340732_17340732"
+  passage {
+    segment {
+      id: "162235548"
+      start_s: 0
+      end_s: 23.16
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235784"
+      start_s: 0
+      end_s: 23.18
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235883"
+      start_s: 0
+      end_s: 23.2
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15383025_15383025"
+  passage {
+    segment {
+      id: "157878230"
+      start_s: 0
+      end_s: 22.84
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "157878381"
+      start_s: 0
+      end_s: 22.8
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "157878356"
+      start_s: 0
+      end_s: 22.65
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14945047_14945047"
+  passage {
+    segment {
+      id: "155812703"
+      start_s: 0
+      end_s: 8
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813631"
+      start_s: 0
+      end_s: 8.15
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813974"
+      start_s: 0
+      end_s: 8.29
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944351_14944351"
+  passage {
+    segment {
+      id: "155812306"
+      start_s: 0
+      end_s: 6.57
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813712"
+      start_s: 0
+      end_s: 6.52
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813147"
+      start_s: 0
+      end_s: 6.3
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14945134_14945134"
+  passage {
+    segment {
+      id: "155813169"
+      start_s: 0
+      end_s: 34.1
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813279"
+      start_s: 0
+      end_s: 34.18
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812435"
+      start_s: 0
+      end_s: 34.61
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14945164_14945164"
+  passage {
+    segment {
+      id: "155813600"
+      start_s: 0
+      end_s: 11.12
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813099"
+      start_s: 0
+      end_s: 10.95
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813140"
+      start_s: 0
+      end_s: 10.65
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812566"
+      start_s: 0
+      end_s: 10.44
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8612097_8612097"
+  passage {
+    segment {
+      id: "112999427"
+      start_s: 0
+      end_s: 9.82
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999682"
+      start_s: 0
+      end_s: 9.84
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997221"
+      start_s: 0
+      end_s: 9.98
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999239"
+      start_s: 0
+      end_s: 9.9
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000121"
+      start_s: 0
+      end_s: 9.79
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944483_14944483"
+  passage {
+    segment {
+      id: "155813783"
+      start_s: 0
+      end_s: 52.14
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813280"
+      start_s: 0
+      end_s: 52.2
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812800"
+      start_s: 0
+      end_s: 52.44
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812676"
+      start_s: 0
+      end_s: 52.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813109"
+      start_s: 0
+      end_s: 52.62
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944543_14944543"
+  passage {
+    segment {
+      id: "155813799"
+      start_s: 0
+      end_s: 21.64
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "155813532"
+      start_s: 0
+      end_s: 21.67
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "155812831"
+      start_s: 0
+      end_s: 21.67
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "155813405"
+      start_s: 0
+      end_s: 21.63
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "155813223"
+      start_s: 0
+      end_s: 21.68
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15839622_15839622"
+  passage {
+    segment {
+      id: "159129622"
+      start_s: 0
+      end_s: 37.17
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611659_8611659"
+  passage {
+    segment {
+      id: "112996185"
+      start_s: 0
+      end_s: 17.51
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996200"
+      start_s: 0
+      end_s: 17.42
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997513"
+      start_s: 0
+      end_s: 17.38
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000153"
+      start_s: 0
+      end_s: 17.32
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8611825_8611825"
+  passage {
+    segment {
+      id: "112997826"
+      start_s: 0
+      end_s: 14.28
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996015"
+      start_s: 0
+      end_s: 14.34
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996197"
+      start_s: 0
+      end_s: 14.39
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112995995"
+      start_s: 0
+      end_s: 14.36
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610102_8610102"
+  passage {
+    segment {
+      id: "112996655"
+      start_s: 0
+      end_s: 35.96
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996868"
+      start_s: 0
+      end_s: 35.79
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997358"
+      start_s: 0
+      end_s: 36.14
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997260"
+      start_s: 0
+      end_s: 35.84
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8612058_8612058"
+  passage {
+    segment {
+      id: "113000040"
+      start_s: 0
+      end_s: 9.89
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000038"
+      start_s: 0
+      end_s: 9.9
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000574"
+      start_s: 0
+      end_s: 10.05
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997002"
+      start_s: 0
+      end_s: 10.04
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610672_8610672"
+  passage {
+    segment {
+      id: "112999911"
+      start_s: 0
+      end_s: 12.18
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000395"
+      start_s: 0
+      end_s: 12.23
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996689"
+      start_s: 0
+      end_s: 12.31
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000412"
+      start_s: 0
+      end_s: 12.35
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14288714_14288714"
+  passage {
+    segment {
+      id: "143979506"
+      start_s: 0
+      end_s: 21.23
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "143979333"
+      start_s: 0
+      end_s: 21.29
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "143979501"
+      start_s: 0
+      end_s: 21.32
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944634_14944634"
+  passage {
+    segment {
+      id: "155813708"
+      start_s: 0
+      end_s: 7.34
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812790"
+      start_s: 0
+      end_s: 7.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812785"
+      start_s: 0
+      end_s: 7.23
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944818_14944818"
+  passage {
+    segment {
+      id: "155812619"
+      start_s: 0
+      end_s: 8.26
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812459"
+      start_s: 0
+      end_s: 8.26
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813369"
+      start_s: 0
+      end_s: 8.26
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944945_14944945"
+  passage {
+    segment {
+      id: "155812303"
+      start_s: 0
+      end_s: 8.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812811"
+      start_s: 0
+      end_s: 8.26
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812839"
+      start_s: 0
+      end_s: 8.26
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944477_14944477"
+  passage {
+    segment {
+      id: "155813204"
+      start_s: 0
+      end_s: 17.13
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812502"
+      start_s: 0
+      end_s: 17.1
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812752"
+      start_s: 0
+      end_s: 17.07
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14945165_14945165"
+  passage {
+    segment {
+      id: "155812799"
+      start_s: 0
+      end_s: 8.77
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812720"
+      start_s: 0
+      end_s: 8.74
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812521"
+      start_s: 0
+      end_s: 8.7
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944997_14944997"
+  passage {
+    segment {
+      id: "112998286"
+      start_s: 0
+      end_s: 14.55
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999831"
+      start_s: 0
+      end_s: 14.53
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998287"
+      start_s: 0
+      end_s: 14.56
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997367"
+      start_s: 0
+      end_s: 14.9
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14945042_14945042"
+  passage {
+    segment {
+      id: "113000367"
+      start_s: 0
+      end_s: 8.98
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998317"
+      start_s: 0
+      end_s: 8.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998704"
+      start_s: 0
+      end_s: 8.79
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000422"
+      start_s: 0
+      end_s: 7.97
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944941_14944941"
+  passage {
+    segment {
+      id: "112998573"
+      start_s: 0
+      end_s: 10.03
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998347"
+      start_s: 0
+      end_s: 10.03
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998899"
+      start_s: 0
+      end_s: 10.01
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998226"
+      start_s: 0
+      end_s: 10.33
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8612177_8612177"
+  passage {
+    segment {
+      id: "112998954"
+      start_s: 0
+      end_s: 38.29
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998863"
+      start_s: 0
+      end_s: 38.31
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997164"
+      start_s: 0
+      end_s: 38.09
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997690"
+      start_s: 0
+      end_s: 38.3
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610704_8610704"
+  passage {
+    segment {
+      id: "112996851"
+      start_s: 0
+      end_s: 12.11
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996850"
+      start_s: 0
+      end_s: 12.17
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996559"
+      start_s: 0
+      end_s: 12.42
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999958"
+      start_s: 0
+      end_s: 12.25
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610564_8610564"
+  passage {
+    segment {
+      id: "112999593"
+      start_s: 0
+      end_s: 11.19
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999567"
+      start_s: 0
+      end_s: 11.26
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112999588"
+      start_s: 0
+      end_s: 11.33
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112997886"
+      start_s: 0
+      end_s: 11.41
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd8610718_8610718"
+  passage {
+    segment {
+      id: "112996674"
+      start_s: 0
+      end_s: 22.8
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112996766"
+      start_s: 0
+      end_s: 22.79
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "113000037"
+      start_s: 0
+      end_s: 22.76
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "112998979"
+      start_s: 0
+      end_s: 22.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944924_14944924"
+  passage {
+    segment {
+      id: "155812915"
+      start_s: 0
+      end_s: 7.83
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812906"
+      start_s: 0
+      end_s: 7.78
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813662"
+      start_s: 0
+      end_s: 7.69
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812829"
+      start_s: 0
+      end_s: 7.62
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd14944875_14944875"
+  passage {
+    segment {
+      id: "155812745"
+      start_s: 0
+      end_s: 25.54
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "155813632"
+      start_s: 0
+      end_s: 25.47
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155813125"
+      start_s: 0
+      end_s: 25.46
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "155812659"
+      start_s: 0
+      end_s: 25.44
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15449391_15449391"
+  passage {
+    segment {
+      id: "158044868"
+      start_s: 0
+      end_s: 60.46
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158044883"
+      start_s: 0
+      end_s: 60.49
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158044797"
+      start_s: 0
+      end_s: 60.43
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "158044921"
+      start_s: 0
+      end_s: 60.56
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15383018_15383018"
+  passage {
+    segment {
+      id: "157878075"
+      start_s: 0
+      end_s: 94.02
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "157878167"
+      start_s: 0
+      end_s: 94.07
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "157878100"
+      start_s: 0
+      end_s: 94.03
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "157878125"
+      start_s: 0
+      end_s: 94.07
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15382916_15382916"
+  passage {
+    segment {
+      id: "157878253"
+      start_s: 0
+      end_s: 12.39
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "157878288"
+      start_s: 0
+      end_s: 12.38
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "157878402"
+      start_s: 0
+      end_s: 12.4
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "157878287"
+      start_s: 0
+      end_s: 12.38
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340683_17340683"
+  passage {
+    segment {
+      id: "162235734"
+      start_s: 0
+      end_s: 121.28
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235666"
+      start_s: 0
+      end_s: 121.28
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235567"
+      start_s: 0
+      end_s: 121.25
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235960"
+      start_s: 0
+      end_s: 121.28
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340688_17340688"
+  passage {
+    segment {
+      id: "162235588"
+      start_s: 0
+      end_s: 8.24
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235884"
+      start_s: 0
+      end_s: 8.27
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235801"
+      start_s: 0
+      end_s: 8.31
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "162235971"
+      start_s: 0
+      end_s: 8.29
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd15052338_15052338"
+  passage {
+    segment {
+      id: "156069050"
+      start_s: 0
+      end_s: 66.41
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156069025"
+      start_s: 0
+      end_s: 66.39
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156069053"
+      start_s: 0
+      end_s: 66.34
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+  passage {
+    segment {
+      id: "156069048"
+      start_s: 0
+      end_s: 66.36
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+road {
+  id: "bd17340779_17340779"
+  passage {
+    segment {
+      id: "162235717"
+      start_s: 0
+      end_s: 35.559828753288684
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "162235886"
+      start_s: 0
+      end_s: 35.566799901838635
+    }
+    can_exit: false
+    change_lane_type: RIGHT
+  }
+  passage {
+    segment {
+      id: "162235847"
+      start_s: 0
+      end_s: 35.594684496038433
+    }
+    can_exit: false
+    change_lane_type: LEFT
+  }
+  passage {
+    segment {
+      id: "162235695"
+      start_s: 0
+      end_s: 35.566799901838635
+    }
+    can_exit: true
+    change_lane_type: FORWARD
+  }
+}
+measurement {
+  distance: 8302.4502344758
+}
+routing_request {
+  header {
+    seq: 36
+    frame_id: "from_file_need_first_routing_"
+    data_stamp: 1710480371.202769
+  }
+  waypoint {
+    id: "112997892"
+    s: 13.946565426039909
+    pose {
+      x: 347268.72111
+      y: 3456072.89181
+    }
+    heading: 1.5546
+  }
+  waypoint {
+    id: "113000141"
+    s: 49.858534650517569
+    pose {
+      x: 347169.071441
+      y: 3456407.95465
+    }
+  }
+  waypoint {
+    id: "157876682"
+    s: 0.060092629029126467
+    pose {
+      x: 345802.5
+      y: 3456488.85
+    }
+  }
+  waypoint {
+    id: "112960779"
+    s: 67.41556722727411
+    pose {
+      x: 345631.61
+      y: 3456527.06
+    }
+  }
+  waypoint {
+    id: "162234182"
+    s: 28.068786221294665
+    pose {
+      x: 345184.66
+      y: 3456700.77
+    }
+  }
+  waypoint {
+    id: "112960432"
+    s: 5.0641211985355064
+    pose {
+      x: 344584.92
+      y: 3457039.98
+    }
+  }
+  waypoint {
+    id: "112960098"
+    s: 5.0203969806559279
+    pose {
+      x: 344315.932468
+      y: 3456497.57211
+    }
+  }
+  waypoint {
+    id: "159507226"
+    s: 2.3123075921670684
+    pose {
+      x: 344437.39269
+      y: 3456303.40862
+    }
+  }
+  waypoint {
+    id: "157876649"
+    s: 63.934710584912324
+    pose {
+      x: 344979.26599
+      y: 3456073.88502
+    }
+  }
+  waypoint {
+    id: "112960611"
+    s: 51.025329011870824
+    pose {
+      x: 345133.41971
+      y: 3456572.09995
+    }
+  }
+  waypoint {
+    id: "112961525"
+    s: 6.8319265600717012
+    pose {
+      x: 345346.070724
+      y: 3456611.3257
+    }
+  }
+  waypoint {
+    id: "157878356"
+    s: 7.8517486184713947
+    pose {
+      x: 347061.41
+      y: 3456386.24
+    }
+  }
+  waypoint {
+    id: "162235695"
+    s: 35.566799901838635
+    pose {
+      x: 347243.886368
+      y: 3455661.58228
+    }
+  }
+}
+map_version: ""
+status {
+  error_code: OK
+  msg: "Success!"
+}
+origin_response: "112997892"
+origin_response: "155813459"
+origin_response: "155813095"
+origin_response: "39979356"
+origin_response: "155812304"
+origin_response: "155812567"
+origin_response: "113000429"
+origin_response: "155813195"
+origin_response: "155813331"
+origin_response: "162235735"
+origin_response: "110056160"
+origin_response: "112998591"
+origin_response: "112996431"
+origin_response: "112999743"
+origin_response: "112998826"
+origin_response: "113000141"
+origin_response: "155813597"
+origin_response: "155813491"
+origin_response: "155813741"
+origin_response: "110053713"
+origin_response: "155813163"
+origin_response: "162235581"
+origin_response: "162235859"
+origin_response: "162235556"
+origin_response: "158045020"
+origin_response: "112996682"
+origin_response: "112996234"
+origin_response: "112999114"
+origin_response: "112996820"
+origin_response: "112997498"
+origin_response: "112997463"
+origin_response: "112998144"
+origin_response: "112996331"
+origin_response: "39976491"
+origin_response: "113000326"
+origin_response: "39978556"
+origin_response: "112997436"
+origin_response: "158818267"
+origin_response: "162235738"
+origin_response: "162235637"
+origin_response: "162235510"
+origin_response: "162235535"
+origin_response: "162235870"
+origin_response: "162235539"
+origin_response: "162235742"
+origin_response: "162235864"
+origin_response: "162235915"
+origin_response: "162235854"
+origin_response: "112999824"
+origin_response: "158044859"
+origin_response: "112997494"
+origin_response: "112996182"
+origin_response: "112999969"
+origin_response: "112997177"
+origin_response: "112998355"
+origin_response: "162235980"
+origin_response: "162235705"
+origin_response: "162235546"
+origin_response: "162236036"
+origin_response: "112996414"
+origin_response: "112996441"
+origin_response: "156220970"
+origin_response: "156220958"
+origin_response: "159486852"
+origin_response: "159486879"
+origin_response: "143978324"
+origin_response: "112960816"
+origin_response: "157876682"
+origin_response: "112958204"
+origin_response: "158721817"
+origin_response: "112960779"
+origin_response: "112958349"
+origin_response: "155288705"
+origin_response: "155288659"
+origin_response: "112958232"
+origin_response: "155288697"
+origin_response: "155288662"
+origin_response: "112959843"
+origin_response: "112957241"
+origin_response: "158042409"
+origin_response: "112958515"
+origin_response: "112961890"
+origin_response: "112957705"
+origin_response: "112960284"
+origin_response: "112961649"
+origin_response: "112958074"
+origin_response: "112959785"
+origin_response: "112957622"
+origin_response: "162234201"
+origin_response: "162234226"
+origin_response: "162234197"
+origin_response: "162234205"
+origin_response: "162234182"
+origin_response: "162234176"
+origin_response: "162234172"
+origin_response: "112959434"
+origin_response: "112961039"
+origin_response: "112960731"
+origin_response: "112958441"
+origin_response: "112961119"
+origin_response: "112958187"
+origin_response: "143978328"
+origin_response: "112959977"
+origin_response: "159660565"
+origin_response: "112959923"
+origin_response: "112958493"
+origin_response: "112961506"
+origin_response: "112959983"
+origin_response: "112959668"
+origin_response: "112958114"
+origin_response: "112958469"
+origin_response: "112961251"
+origin_response: "112961539"
+origin_response: "159659262"
+origin_response: "112959238"
+origin_response: "156065145"
+origin_response: "112961986"
+origin_response: "112958767"
+origin_response: "112960432"
+origin_response: "112957252"
+origin_response: "112961252"
+origin_response: "112959893"
+origin_response: "159660625"
+origin_response: "112958691"
+origin_response: "112960252"
+origin_response: "112959439"
+origin_response: "112960873"
+origin_response: "112959629"
+origin_response: "159659578"
+origin_response: "159660005"
+origin_response: "159660588"
+origin_response: "159659798"
+origin_response: "159659923"
+origin_response: "159660515"
+origin_response: "112960194"
+origin_response: "112960963"
+origin_response: "112960608"
+origin_response: "112959714"
+origin_response: "112961278"
+origin_response: "112961382"
+origin_response: "112962136"
+origin_response: "112959351"
+origin_response: "112960098"
+origin_response: "112959377"
+origin_response: "159659978"
+origin_response: "159659440"
+origin_response: "112958446"
+origin_response: "156065218"
+origin_response: "156064836"
+origin_response: "159506994"
+origin_response: "159506868"
+origin_response: "159506864"
+origin_response: "159507226"
+origin_response: "159507040"
+origin_response: "162579549"
+origin_response: "162579717"
+origin_response: "159506876"
+origin_response: "159507245"
+origin_response: "159507389"
+origin_response: "159659529"
+origin_response: "159507069"
+origin_response: "159506792"
+origin_response: "159506798"
+origin_response: "162579760"
+origin_response: "162579624"
+origin_response: "157876649"
+origin_response: "156064908"
+origin_response: "156065098"
+origin_response: "156064780"
+origin_response: "162579495"
+origin_response: "162579540"
+origin_response: "162579745"
+origin_response: "162579648"
+origin_response: "112957702"
+origin_response: "112961840"
+origin_response: "162579682"
+origin_response: "112958080"
+origin_response: "162579571"
+origin_response: "112960611"
+origin_response: "162579544"
+origin_response: "162579509"
+origin_response: "162579763"
+origin_response: "162579601"
+origin_response: "162579493"
+origin_response: "159660046"
+origin_response: "162234198"
+origin_response: "162234216"
+origin_response: "162234162"
+origin_response: "162234194"
+origin_response: "162234203"
+origin_response: "162234179"
+origin_response: "112961387"
+origin_response: "112959644"
+origin_response: "112961679"
+origin_response: "112961525"
+origin_response: "155807782"
+origin_response: "155807732"
+origin_response: "112958877"
+origin_response: "162234230"
+origin_response: "155288690"
+origin_response: "155807805"
+origin_response: "155807826"
+origin_response: "155807941"
+origin_response: "155807849"
+origin_response: "112958694"
+origin_response: "112959809"
+origin_response: "112959400"
+origin_response: "112960103"
+origin_response: "112958695"
+origin_response: "112961611"
+origin_response: "158817956"
+origin_response: "112958671"
+origin_response: "155807951"
+origin_response: "155813511"
+origin_response: "162235665"
+origin_response: "162235537"
+origin_response: "112997053"
+origin_response: "112998494"
+origin_response: "112997558"
+origin_response: "162235892"
+origin_response: "162235723"
+origin_response: "154057701"
+origin_response: "154057672"
+origin_response: "112999265"
+origin_response: "112996464"
+origin_response: "112997617"
+origin_response: "112997500"
+origin_response: "112998051"
+origin_response: "158044819"
+origin_response: "159486882"
+origin_response: "159486855"
+origin_response: "113000282"
+origin_response: "159486864"
+origin_response: "159486842"
+origin_response: "162235823"
+origin_response: "155813573"
+origin_response: "155813468"
+origin_response: "112997378"
+origin_response: "160334027"
+origin_response: "112997647"
+origin_response: "112998996"
+origin_response: "112997910"
+origin_response: "112998289"
+origin_response: "112996385"
+origin_response: "113000237"
+origin_response: "112999078"
+origin_response: "112998895"
+origin_response: "112996402"
+origin_response: "112997013"
+origin_response: "113000298"
+origin_response: "112999874"
+origin_response: "162235827"
+origin_response: "162235891"
+origin_response: "162235885"
+origin_response: "162235558"
+origin_response: "113000196"
+origin_response: "112997295"
+origin_response: "157878234"
+origin_response: "162235883"
+origin_response: "157878356"
+origin_response: "155813974"
+origin_response: "155813147"
+origin_response: "155812435"
+origin_response: "155812566"
+origin_response: "113000121"
+origin_response: "155813109"
+origin_response: "155813223"
+origin_response: "159129622"
+origin_response: "113000153"
+origin_response: "112995995"
+origin_response: "112997260"
+origin_response: "112997002"
+origin_response: "113000412"
+origin_response: "143979501"
+origin_response: "155812785"
+origin_response: "155813369"
+origin_response: "155812839"
+origin_response: "155812752"
+origin_response: "155812521"
+origin_response: "112997367"
+origin_response: "113000422"
+origin_response: "112998226"
+origin_response: "112997690"
+origin_response: "112999958"
+origin_response: "112997886"
+origin_response: "112998979"
+origin_response: "155812829"
+origin_response: "155812659"
+origin_response: "158044921"
+origin_response: "157878125"
+origin_response: "157878287"
+origin_response: "162235960"
+origin_response: "162235971"
+origin_response: "156069048"
+origin_response: "162235695"
+

@@ -28,6 +28,22 @@ function copy() {
       echo "fail deploy mapping!!!"
   fi
 }
+
+function map() {
+  if [ -d "/app/data/map/changfeng_park" ]; then
+      echo "/app/data/map/changfeng_park exist"
+  else
+      echo "create /app/data/map/changfeng_park"
+      mkdir -p /app/data/map/changfeng_park
+      chown nvidia:nvidia -R /app/data/map
+      chmod 755 -R /app/data/map
+  fi
+  cp -rf ${TOP_DIR}/../runtime_service/mapping/conf/mapping/ncp/* /app/data/map/changfeng_park
+  chown nvidia:nvidia -R /app/data/map/changfeng_park
+  chmod 755 -R /app/data/map/changfeng_park
+  echo "copying runtime_service/mapping/conf/mapping/ncp is over."
+}
+
 function remove() {
   find /app/runtime_service/mapping -mindepth 1 -maxdepth 1 ! -name etc -exec rm -rf {} +
   rm -rf /app/conf/mapping/*
@@ -95,6 +111,8 @@ function run() {
     remove
   elif [[ $RUN_MODE = "bk" ]]; then
     backup
+  elif [[ $RUN_MODE = "map" ]]; then
+    map
   fi
   sync
 }
@@ -121,6 +139,7 @@ function main() {
         "cp") RUN_MODE="cp" ;;
         "rm") RUN_MODE="rm" ;;
         "bk") RUN_MODE="bk" ;;
+        "map") RUN_MODE="map" ;;
         *) usage && return 0 ;;
         esac
     fi

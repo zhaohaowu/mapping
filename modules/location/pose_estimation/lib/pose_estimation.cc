@@ -628,10 +628,9 @@ bool PoseEstimation::GetHdMapLane(const LocalizationPtr& fc_pose_ptr,
       continue;
     }
     if (PointInPolygon(point, path) != 0) {
-      continue;
+      is_junction_ = true;
+      break;
     }
-    is_junction_ = true;
-    break;
   }
 
   GLOBAL_HD_MAP->GetLanesWithHeading(utm_position, 150, heading, M_PI_4,
@@ -653,7 +652,7 @@ std::shared_ptr<HafNodeInfo> PoseEstimation::GetMmNodeInfo() {
     mm->set_is_valid(false);
     mm->set_valid_estimate(false);
   }
-  if (!is_junction_) {
+  if (is_junction_) {
     mm->set_valid_estimate(false);
   }
   mm->set_gps_status(static_cast<int>(is_junction_));

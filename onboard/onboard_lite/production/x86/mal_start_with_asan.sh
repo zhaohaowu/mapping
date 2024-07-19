@@ -10,7 +10,7 @@ export PERCEPTION_ROOT_PATH=${CURR_DIR}/../runtime_service/mapping/
 
 WORKSPACE="$(builtin cd ${OUTPUT_ROOT}/../.. && pwd -P)"
 echo ${WORKSPACE}
-
+source ${WORKSPACE}/depend/nos/x86_2004/scripts/env_setup.sh
 # third so
 export LD_LIBRARY_PATH=${OUTPUT_ROOT}/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../lib:$LD_LIBRARY_PATH
@@ -34,7 +34,7 @@ export ADFLITE_ROOT_PATH=${OUTPUT_ROOT}
 
 PROCESS_EXE=${OUTPUT_ROOT}/runtime_service/mapping/bin/mapping
 YAML_CONFIG_ROOT=${OUTPUT_ROOT}/runtime_service/mapping/conf/lite
-TOP_CONFIG_YAML_PATH=${YAML_CONFIG_ROOT}/top_config_x86.yaml
+TOP_CONFIG_YAML_PATH=${YAML_CONFIG_ROOT}/top_config.yaml
 
 # export HZ_SET_LOG_LEVEL=IGNORE.IGNORE:kOff
 

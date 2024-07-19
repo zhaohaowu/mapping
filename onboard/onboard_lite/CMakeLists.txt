@@ -52,6 +52,17 @@ install(
 
 install(DIRECTORY production/scripts DESTINATION ${CMAKE_INSTALL_PREFIX})
 
+if(${LOCAL_TARGET_PLATFORM} MATCHES orin)
+  install(FILES production/orin/mal_start.sh DESTINATION ${CMAKE_INSTALL_PREFIX}/scripts)
+  install(FILES production/orin/data_source_config.yaml DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/conf/lite)
+  install(FILES production/orin/top_config.yaml DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/conf/lite)
+else()
+  install(FILES production/x86/mal_start.sh DESTINATION ${CMAKE_INSTALL_PREFIX}/scripts)
+  install(FILES production/x86/mal_start_with_asan.sh DESTINATION ${CMAKE_INSTALL_PREFIX}/scripts)
+  install(FILES production/x86/data_source_config.yaml DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/conf/lite)
+  install(FILES production/x86/top_config.yaml DESTINATION ${CMAKE_INSTALL_PREFIX_RS}/conf/lite)
+endif()
+
 if(IND)
   set(NOSLIB ${DEPEND}/nos/nos_${NOS_PLATFORM}/lib)
   install(DIRECTORY ${NOSLIB}/ DESTINATION ${EXTERNAL_LIB_PATH}

@@ -1786,10 +1786,7 @@ uint32_t FusionCenter::GetGlobalLocationState() {
   // 进入loc=2条件
   if (state != 2) {
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
-      if ((*it)->type == NodeType::POSE_ESTIMATE &&
-          (*it)->cov(0, 0) <= params_.loc2_posx_conv * 1e-10 &&
-          (*it)->cov(1, 1) <= params_.loc2_posy_conv * 1e-10 &&
-          (*it)->cov(8, 8) <= params_.loc2_yaw_conv * 1e-10) {
+      if ((*it)->type == NodeType::POSE_ESTIMATE) {
         state = 2;
       }
       if ((++search_cnt) > params_.search_state_cnt) {
@@ -1799,13 +1796,7 @@ uint32_t FusionCenter::GetGlobalLocationState() {
   } else {
     // 退出loc=2条件
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
-      if ((*it)->type == NodeType::POSE_ESTIMATE &&
-          (*it)->cov(0, 0) <=
-              +params_.exit_multiple * params_.loc2_posx_conv * 1e-10 &&
-          (*it)->cov(1, 1) <=
-              +params_.exit_multiple * params_.loc2_posy_conv * 1e-10 &&
-          (*it)->cov(8, 8) <=
-              +params_.exit_multiple * params_.loc2_yaw_conv * 1e-10) {
+      if ((*it)->type == NodeType::POSE_ESTIMATE) {
         break;
       }
       if ((++search_cnt) > params_.search_state_cnt) {

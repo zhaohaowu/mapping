@@ -13,6 +13,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "map_fusion/fusion_common/common_data.h"
@@ -34,7 +35,8 @@ class TopoGeneration {
       const std::shared_ptr<hozon::localization::Localization>& msg);
   void OnElementMap(
       const std::shared_ptr<hozon::mp::mf::em::ElementMap>& ele_map);
-  std::shared_ptr<hozon::hdmap::Map> GetPercepMap();
+  std::shared_ptr<hozon::hdmap::Map> GetPercepMap(
+      const std::pair<double, double>& map_speed_limit);
   std::shared_ptr<hozon::mp::mf::em::ElementMapOut> GetEleMap();
 
  private:

@@ -576,6 +576,8 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   }
 
   pre_word_mode = work_mode_;
+  // 重置地图限速
+  mf_->ResetMapSpeedLimit();
 
   static mp::mf::select::MapSelectResult pre_map_type = {
       hozon::navigation_hdmap::MapMsg_MapType_INVALID, false, 2};

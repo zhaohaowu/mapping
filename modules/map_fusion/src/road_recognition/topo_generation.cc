@@ -202,7 +202,8 @@ std::shared_ptr<hozon::mp::mf::em::ElementMapOut> TopoGeneration::GetEleMap() {
   return ele_map_output_;
 }
 
-std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap() {
+std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap(
+    const std::pair<double, double>& map_speed_limit) {
   auto path = std::make_shared<std::vector<KinePose::Ptr>>();
   // if(ego_exist_){
   //   path_->GetPath(path.get(), static_cast<float>(path_predict_range_),
@@ -235,6 +236,7 @@ std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap() {
   // }
   std::vector<gm::Group::Ptr> groups;
   group_map.GetGroups(&groups);
+  group_map.SetSpeedLimit(map_speed_limit);
   IsInCrossing(groups, &is_cross_);
   VizGroup(groups, ele_map_->map_info.stamp);
   VizGuidePoint(groups, ele_map_->map_info.stamp);

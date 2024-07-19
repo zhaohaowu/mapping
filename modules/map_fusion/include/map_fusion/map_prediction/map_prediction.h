@@ -70,7 +70,8 @@ class MapPrediction {
                        std::unordered_map<std::string, RoadInfo>>& map_info,
       hozon::routing::RoutingResponse* routing);
   std::shared_ptr<hozon::hdmap::Map> GetHdMapNNP(
-      bool need_update_global_hd, hozon::routing::RoutingResponse* routing);
+      bool need_update_global_hd, hozon::routing::RoutingResponse* routing,
+      std::pair<double, double>* map_speed_limit);
   std::shared_ptr<hozon::hdmap::Map> GetHdMapNCP(
       bool need_update_global_hd, hozon::routing::RoutingResponse* routing);
   std::shared_ptr<hozon::hdmap::Map> GetPredictionMap();
@@ -188,7 +189,8 @@ class MapPrediction {
       const hozon::common::PointENU& utm_pos,
       const std::unordered_set<std::string>& routing_lanes_set,
       const std::vector<std::vector<std::string>>& routing_lanes,
-      std::string* current_lane, double* nearest_s);
+      std::string* current_lane, double* nearest_s,
+      std::pair<double, double>* map_speed_limit);
   int GetRoutingLaneIndex(
       const std::string& lane_id,
       const std::vector<std::vector<std::string>>& routing_lanes);
@@ -252,6 +254,8 @@ class MapPrediction {
   // default_routing_response
   std::vector<std::string> default_routing_lanes_;
   bool get_default_routing_ = false;
+
+  std::pair<double, double> map_speed_limit_{0., 0.};
 };
 
 }  // namespace mf

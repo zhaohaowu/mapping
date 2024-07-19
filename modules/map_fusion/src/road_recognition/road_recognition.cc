@@ -53,7 +53,8 @@ void RoadRecognition::OnLocalization(
 
 void RoadRecognition::OnLocalMap(
     const std::shared_ptr<hozon::mapping::LocalMap>& msg,
-    const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg) {
+    const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg,
+    const std::pair<double, double>& map_speed_limit) {
   if (geo_ == nullptr) {
     return;
   }
@@ -61,7 +62,7 @@ void RoadRecognition::OnLocalMap(
   geo_->OnLocalMap(msg, obj_msg);
   auto ele = geo_->GetElemMap();
   topo_->OnElementMap(ele);
-  percep_map_ = topo_->GetPercepMap();
+  percep_map_ = topo_->GetPercepMap(map_speed_limit);
   ele_map_ = topo_->GetEleMap();
   // // 需要topo_给到map.proto形式的数据
   AddRoadEdge(msg, percep_map_);  // 将road edge透传给下游

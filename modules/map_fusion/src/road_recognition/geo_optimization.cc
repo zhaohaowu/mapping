@@ -1594,28 +1594,28 @@ void GeoOptimization::HandleOppisiteLineByObj() {
         continue;
       }
       for (auto& obj_point : obj_points) {
+        bool stop_loop = false;
         if (obj_point.x() > line.line->points(line_size - 1).x() ||
             obj_point.x() < line.line->points(0).x()) {
           continue;
         }
-        int num_thresh = 0;
-        int num_calculate = 0;
         for (int line_index = 0; line_index < line_size - 1; line_index++) {
-          Eigen::Vector3d linel1(line.line->points(line_index).x(),
-                                 line.line->points(line_index).y(),
-                                 line.line->points(line_index).z());
-          Eigen::Vector3d linel2(line.line->points(line_index + 1).x(),
-                                 line.line->points(line_index + 1).y(),
-                                 line.line->points(line_index + 1).z());
-          num_calculate++;
-          if (IsRight(obj_point, linel1, linel2)) {
-            num_thresh++;
+          if (line.line->points(line_index).x() < obj_point.x() &&
+              line.line->points(line_index + 1).x() > obj_point.x()) {
+            Eigen::Vector3d linel1(line.line->points(line_index).x(),
+                                   line.line->points(line_index).y(),
+                                   line.line->points(line_index).z());
+            Eigen::Vector3d linel2(line.line->points(line_index + 1).x(),
+                                   line.line->points(line_index + 1).y(),
+                                   line.line->points(line_index + 1).z());
+            if (IsRight(obj_point, linel1, linel2)) {
+              line.is_ego_road = false;
+              stop_loop = true;
+              break;
+            }
           }
         }
-        if (num_thresh >= 1 && (num_calculate != 0 &&
-                                (static_cast<double>(num_thresh) /
-                                 static_cast<double>(num_calculate)) > 0.5)) {
-          line.is_ego_road = false;
+        if (stop_loop) {
           break;
         }
       }

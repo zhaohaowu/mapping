@@ -15,6 +15,7 @@
 #include <set>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "map_fusion/fusion_common/common_data.h"
@@ -293,6 +294,7 @@ class GroupMap {
   void GetGroups(std::vector<Group::Ptr>* groups);
   std::shared_ptr<hozon::hdmap::Map> Export(const em::ElementMap::Ptr& ele_map,
                                             HistoryId* history_id);
+  void SetSpeedLimit(const std::pair<double, double>& map_speed_limit);
   std::shared_ptr<hozon::mp::mf::em::ElementMapOut> AddElementMap(
       const em::ElementMap::Ptr& ele_map);
 
@@ -329,9 +331,9 @@ class GroupMap {
       std::vector<GroupSegment::Ptr>* group_segments,
       const em::ElementMap::Ptr& ele_map);
   void ProcessUTurn(const std::shared_ptr<std::vector<KinePose::Ptr>>& path);
-  void CreateGroupSegFromPath(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
-                              const KinePose& curr_pose,
-                              std::vector<GroupSegment::Ptr>* segments);
+  void CreateGroupSegFromPath(
+      const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
+      const KinePose& curr_pose, std::vector<GroupSegment::Ptr>* segments);
   void SplitPtsToGroupSeg(std::deque<Line::Ptr>* lines,
                           std::vector<GroupSegment::Ptr>* segments);
   void GenLaneSegInGroupSeg(std::vector<GroupSegment::Ptr>* segments);
@@ -465,6 +467,8 @@ class GroupMap {
   bool Distanceline(const LineSegment& left_line, float line_front_x,
                     float line_front_y);
   bool IsInGroupAndNoLane(Group::Ptr group);
+  bool IsGroupsNoEgoLane(std::vector<Group::Ptr>* groups, int curr_group_index);
+  bool IsGroupNoEgoLane(Group::Ptr group);
   void GenerateTransitionLaneToPo3(Lane::Ptr lane_in_curr,
                                    Lane::Ptr lane_in_next,
                                    Lane::Ptr transition_lane);
@@ -518,6 +522,10 @@ class GroupMap {
   std::map<int, std::shared_ptr<std::vector<cv::Point2f>>> line_points_;
   float incross_before_virtual_lane_length_ =
       6.0;  // 过路口多条选择时，车后方的虚拟车道往前延伸长度
+  std::pair<double, double> speed_limit_{0., 0.};
+  inline bool IsSpeedLimitValid(const std::pair<double, double>& speed_limit) {
+    return (speed_limit.first > 0. && speed_limit.second);
+  }
 };
 
 }  // namespace gm

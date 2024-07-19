@@ -504,9 +504,9 @@ void GroupMap::SplitPtsToGroupSeg(std::deque<Line::Ptr>* lines,
     Eigen::Vector2f end_po = end_slice.po.head<2>();
     Eigen::Vector2f end_pl = end_slice.pl.head<2>();
     for (auto& line : *lines) {
-      if (!line->isego) {
-        continue;
-      }
+      // if (!line->isego) {
+      //   continue;
+      // }
       auto line_seg = std::make_shared<LineSegment>();
       line_seg->id = line->id;
       line_seg->type = line->type;
@@ -908,11 +908,12 @@ bool GroupMap::AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
   float dis_thresh{0.0};
   if (dis_pt < 8 || (lane_in_curr->lanepos_id == lane_in_next->lanepos_id &&
                      lane_in_curr->lanepos_id != "99_99")) {
-    // HLOG_DEBUG << "lane_in_curr=" << lane_in_curr->str_id_with_group
-    //           << "   lane_in_next" << lane_in_next->str_id_with_group
-    //           << "  dis_pt = " << dis_pt
-    //           << " lane_in_curr->lanepos_id =" << lane_in_curr->lanepos_id
-    //           << "  lane_in_next->lanepos_id = " << lane_in_next->lanepos_id;
+    // HLOG_ERROR << "lane_in_curr=" << lane_in_curr->str_id_with_group
+    //            << "   lane_in_next" << lane_in_next->str_id_with_group
+    //            << "  dis_pt = " << dis_pt
+    //            << " lane_in_curr->lanepos_id =" << lane_in_curr->lanepos_id
+    //            << "  lane_in_next->lanepos_id = " <<
+    //            lane_in_next->lanepos_id;
     return true;
   } else if (!lane_in_curr->center_line_param.empty() &&
              !lane_in_next->center_line_pts.empty()) {
@@ -925,7 +926,7 @@ bool GroupMap::AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
       dis_thresh = 3;
     } else {
       angel_thresh = 25;
-      dis_thresh = 1.5;
+      dis_thresh = 1.8;
     }
     float dis = CalculatePoint2CenterLine(lane_in_next, lane_in_curr);
     float angle = Calculate2CenterlineAngle(lane_in_next, lane_in_curr, sizet);
@@ -1006,7 +1007,7 @@ bool GroupMap::AreLaneConnect(
       dis_thresh = 3;
     } else {
       angel_thresh = 25;
-      dis_thresh = 1.5;
+      dis_thresh = 1.8;
     }
     float dis = CalculatePoint2CenterLine(lane_in_next, lane_in_curr);
     float angle = Calculate2CenterlineAngle(lane_in_next, lane_in_curr, sizet);
@@ -1643,6 +1644,9 @@ void GroupMap::FindSatisefyNextLane(Group::Ptr next_group,
   }
   float thresh_len = std::abs(thresh_v.transpose() * n);
   for (auto& next_lane : next_group->lanes) {
+    if (!next_lane->right_boundary->isego || !next_lane->left_boundary->isego) {
+      continue;
+    }
     Eigen::Vector2f p0(0, 0);
     Eigen::Vector2f p1(next_lane->center_line_pts.front().pt.x(),
                        next_lane->center_line_pts.front().pt.y());
@@ -1664,6 +1668,10 @@ void GroupMap::FindSatisefyNextLane(Group::Ptr next_group,
   // lane，此时通过找最小的横向偏移来确定next lane
   if ((*satisfy_next_lane).empty() && dist_to_slice <= check_offset_thresh) {
     for (auto& next_lane : next_group->lanes) {
+      if (!next_lane->right_boundary->isego ||
+          !next_lane->left_boundary->isego) {
+        continue;
+      }
       float offset = std::abs(next_lane->center_line_pts.front().pt.y());
       if (offset <= kOffsetThreshold) {
         satisfy_next_lane->emplace_back(next_lane);
@@ -1678,6 +1686,9 @@ void GroupMap::FindSatisefyNextLane(Group::Ptr next_group,
       int32_t left = atoi(his_lane.substr(0, index).c_str());
       int32_t right = atoi(his_lane.substr(index + 1).c_str());
       for (auto& lane_ : next_group->lanes) {
+        if (!lane_->right_boundary->isego || !lane_->left_boundary->isego) {
+          continue;
+        }
         if (LineIdConsistant(lane_->left_boundary, left) &&
             LineIdConsistant(lane_->right_boundary, right)) {
           satisfy_next_lane->emplace_back(lane_);
@@ -1688,6 +1699,9 @@ void GroupMap::FindSatisefyNextLane(Group::Ptr next_group,
   }
   // 2.第一帧连接的best_lane 存储一下左右边线并返回
   for (auto& sat_lane : *satisfy_next_lane) {
+    if (!sat_lane->right_boundary->isego || !sat_lane->left_boundary->isego) {
+      continue;
+    }
     int exist = 0;
     for (auto& his_lane : is_cross_.next_satisefy_lane_seg) {
       size_t index = his_lane.find("_");
@@ -1710,6 +1724,9 @@ void GroupMap::FindSatisefyNextLane(Group::Ptr next_group,
     int32_t left = atoi(his_lane.substr(0, index).c_str());
     int32_t right = atoi(his_lane.substr(index + 1).c_str());
     for (auto& sat_lane : *satisfy_next_lane) {
+      if (!sat_lane->right_boundary->isego || !sat_lane->left_boundary->isego) {
+        continue;
+      }
       if (LineIdConsistant(sat_lane->left_boundary, left) &&
           LineIdConsistant(sat_lane->right_boundary, right)) {
         exist = 1;
@@ -1718,6 +1735,9 @@ void GroupMap::FindSatisefyNextLane(Group::Ptr next_group,
     }
     if (!exist) {
       for (auto& lane_ : next_group->lanes) {
+        if (!lane_->right_boundary->isego || !lane_->left_boundary->isego) {
+          continue;
+        }
         if (LineIdConsistant(lane_->left_boundary, left) &&
             LineIdConsistant(lane_->right_boundary, right)) {
           satisfy_next_lane->emplace_back(lane_);
@@ -2670,6 +2690,9 @@ void GroupMap::FindBestNextLane(Group::Ptr next_group,
 
   float max_len = 0;
   for (auto& next_lane : next_group->lanes) {
+    if (!next_lane->right_boundary->isego || !next_lane->left_boundary->isego) {
+      continue;
+    }
     Eigen::Vector2f p0(0, 0);
     Eigen::Vector2f p1(next_lane->center_line_pts.front().pt.x(),
                        next_lane->center_line_pts.front().pt.y());
@@ -2694,6 +2717,10 @@ void GroupMap::FindBestNextLane(Group::Ptr next_group,
   // lane，此时通过找最小的横向偏移来确定next lane
   if (*best_next_lane == nullptr && dist_to_slice <= check_offset_thresh) {
     for (auto& next_lane : next_group->lanes) {
+      if (!next_lane->right_boundary->isego ||
+          !next_lane->left_boundary->isego) {
+        continue;
+      }
       float offset = std::abs(next_lane->center_line_pts.front().pt.y());
       if (offset < min_offset && offset <= kOffsetThreshold) {
         min_offset = offset;
@@ -2708,6 +2735,9 @@ void GroupMap::FindBestNextLane(Group::Ptr next_group,
         is_cross_.next_lane_right != -1000) {
       // 如果上一帧存在best_lane
       for (auto& lane_ : next_group->lanes) {
+        if (!lane_->right_boundary->isego || !lane_->left_boundary->isego) {
+          continue;
+        }
         if (LineIdConsistant(lane_->left_boundary, is_cross_.next_lane_left) ||
             LineIdConsistant(lane_->right_boundary,
                              is_cross_.next_lane_right)) {
@@ -2741,6 +2771,9 @@ void GroupMap::FindBestNextLane(Group::Ptr next_group,
   int exist = -1;
   for (int i = 0; i < next_group->lanes.size(); ++i) {
     auto& lane_ = next_group->lanes[i];
+    if (!lane_->right_boundary->isego || !lane_->left_boundary->isego) {
+      continue;
+    }
     if (LineIdConsistant(lane_->left_boundary, is_cross_.next_lane_left) &&
         LineIdConsistant(lane_->right_boundary, is_cross_.next_lane_right)) {
       exist = i;
@@ -4239,7 +4272,6 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
   if (groups->size() < 2) {
     return true;
   }
-
   for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
     auto& curr_group = groups->at(i);
     auto& next_group = groups->at(i + 1);
@@ -4481,7 +4513,7 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
            next_group->group_segments.front()->start_slice.po)
               .norm();
       // HLOG_DEBUG << "max_length_lane = " << max_length_lane;
-      if (((IsInGroupAndNoLane(curr_group) && max_length_lane <= 50.0) ||
+      if (((IsGroupsNoEgoLane(groups, i - 1) && max_length_lane <= 50.0) ||
            max_length_lane <= 15.0) &&
           !is_all_next_lane_exit && group_distance < 10.0) {
         // HLOG_DEBUG << " is connect";
@@ -4494,15 +4526,7 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
 
   return true;
 }
-
-bool GroupMap::IsInGroupAndNoLane(Group::Ptr group) {
-  if (group->group_segments.size() < 2.0) {
-    return false;
-  }
-  if (group->group_segments.front()->start_slice.po.x() > 2.0 ||
-      group->group_segments.back()->end_slice.po.x() < -2.0) {
-    return false;
-  }
+bool GroupMap::IsGroupNoEgoLane(Group::Ptr group) {
   for (auto& lane : group->lanes) {
     if (lane->left_boundary->pts.empty() || lane->right_boundary->pts.empty()) {
       continue;
@@ -4521,6 +4545,51 @@ bool GroupMap::IsInGroupAndNoLane(Group::Ptr group) {
     }
   }
   return true;
+}
+
+bool GroupMap::IsGroupsNoEgoLane(std::vector<Group::Ptr>* groups,
+                                 int curr_group_index) {
+  if (curr_group_index >= groups->size()) {
+    return false;
+  }
+  if (groups->at(curr_group_index)->group_segments.empty()) {
+    return false;
+  }
+  if (groups->at(curr_group_index)->group_segments.back()->end_slice.po.x() <
+      2.0) {
+    // 不关心自车后方group
+    return false;
+  }
+  for (int i = curr_group_index; i >= 0; i--) {
+    auto curr_group = groups->at(curr_group_index);
+    if (curr_group->group_segments.empty()) {
+      continue;
+    }
+    if (curr_group->group_segments.back()->end_slice.po.x() < -2.0) {
+      break;
+    }
+    if (!IsGroupNoEgoLane(curr_group)) {
+      return false;
+    }
+    if (curr_group->group_segments.front()->start_slice.po.x() > 0.0) {
+      // 到自车group为止都没有egolane
+      return true;
+    }
+  }
+
+  return true;
+}
+
+bool GroupMap::IsInGroupAndNoLane(Group::Ptr group) {
+  if (group->group_segments.size() < 2.0) {
+    return false;
+  }
+  if (group->group_segments.front()->start_slice.po.x() > 2.0 ||
+      group->group_segments.back()->end_slice.po.x() < -2.0) {
+    return false;
+  }
+
+  return IsGroupNoEgoLane(group);
 }
 
 bool GroupMap::SetLaneStatus(std::vector<Group::Ptr>* groups) {
@@ -5597,6 +5666,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
       left_bound.lanepos = lane_in_curr->left_boundary->lanepos;
       left_bound.type = lane_in_curr->left_boundary->type;
       left_bound.color = lane_in_curr->left_boundary->color;
+      left_bound.isego = lane_in_curr->left_boundary->isego;
       left_bound.mean_end_heading =
           lane_in_curr->left_boundary->mean_end_heading;
       left_bound.pred_end_heading =
@@ -5612,6 +5682,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
       right_bound.lanepos = lane_in_curr->right_boundary->lanepos;
       right_bound.type = lane_in_curr->right_boundary->type;
       right_bound.color = lane_in_curr->right_boundary->color;
+      right_bound.isego = lane_in_curr->right_boundary->isego;
       right_bound.mean_end_heading =
           lane_in_curr->right_boundary->mean_end_heading;
       right_bound.pred_end_heading =
@@ -6082,6 +6153,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
       left_bound.lanepos = lane_in_next->left_boundary->lanepos;
       left_bound.type = lane_in_next->left_boundary->type;
       left_bound.color = lane_in_next->left_boundary->color;
+      left_bound.isego = lane_in_next->left_boundary->isego;
       left_bound.mean_end_heading =
           lane_in_next->left_boundary->mean_end_heading;
       left_bound.pred_end_heading =
@@ -6097,6 +6169,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
       right_bound.lanepos = lane_in_next->right_boundary->lanepos;
       right_bound.type = lane_in_next->right_boundary->type;
       right_bound.color = lane_in_next->right_boundary->color;
+      right_bound.isego = lane_in_next->right_boundary->isego;
       right_bound.mean_end_heading =
           lane_in_next->right_boundary->mean_end_heading;
       right_bound.pred_end_heading =
@@ -7245,7 +7318,9 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
       //! TBD: 设为中心线长度行不行？
       proto_lane->set_length(central_seg->length());
       //! TBD: speed_limit
-      proto_lane->set_speed_limit(conf_.lane_speed_limit_kmph / 3.6);
+      proto_lane->set_speed_limit(IsSpeedLimitValid(speed_limit_)
+                                      ? speed_limit_.first
+                                      : conf_.lane_speed_limit_kmph / 3.6);
 
       // left_neighbor_forward_lane_id
       for (const auto& left_id : lane->left_lane_str_id_with_group) {
@@ -7323,7 +7398,9 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
       continue;
     }
     auto* proto_road_section = proto_road->add_section();
-    proto_road_section->set_max_max_speed(conf_.road_max_max_speed_kmph / 3.6);
+    proto_road_section->set_max_max_speed(
+        IsSpeedLimitValid(speed_limit_) ? speed_limit_.second
+                                        : conf_.road_max_max_speed_kmph / 3.6);
     proto_road_section->set_min_max_speed(conf_.road_min_max_speed_kmph / 3.6);
     proto_road_section->mutable_id()->set_id(std::to_string(grp_idx));
     for (const auto& id : grp) {
@@ -7482,6 +7559,10 @@ void GroupMap::GetGroups(std::vector<Group::Ptr>* groups) {
   for (const auto& grp : groups_) {
     groups->emplace_back(grp);
   }
+}
+
+void GroupMap::SetSpeedLimit(const std::pair<double, double>& map_speed_limit) {
+  speed_limit_ = map_speed_limit;
 }
 
 // 导出为map proto
@@ -7772,8 +7853,8 @@ std::vector<Point> GuidePathManager::GetCwForwardLaneGuidePoints() {
 
   float ego_to_lane_center =
       std::atan2(center_first_point.y(), center_first_point.x());
-  HLOG_DEBUG << "forward center point:" << ", center.x()"
-             << center_first_point.x() << ", center.y()"
+  HLOG_DEBUG << "forward center point:"
+             << ", center.x()" << center_first_point.x() << ", center.y()"
              << center_first_point.y() << "atan2:" << ego_to_lane_center
              << ", line_radians_mean_heading" << line_radians_mean_heading;
 

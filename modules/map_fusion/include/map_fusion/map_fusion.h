@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <utility>
 
 #include "map_fusion/map_service/map_service_fault.h"
 
@@ -55,6 +56,10 @@ class MapFusion {
       const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
       const std::shared_ptr<hozon::perception::PerceptionObstacles>& curr_obj,
       hozon::hdmap::Map* fusion_map, hozon::routing::RoutingResponse* routing);
+  inline void ResetMapSpeedLimit() {
+    map_speed_limit_.first = 0.;
+    map_speed_limit_.second = 0.;
+  }
 
  private:
   std::shared_ptr<MapService> map_service_ = nullptr;
@@ -62,6 +67,8 @@ class MapFusion {
   std::shared_ptr<MapPrediction> pred_ = nullptr;
   std::shared_ptr<MapTable> map_table_ = nullptr;
   std::shared_ptr<RoadRecognition> recog_ = nullptr;
+  // 地图限速变量{lane限速，road限速}
+  std::pair<double, double> map_speed_limit_{0., 0.};
 };
 
 }  // namespace mf

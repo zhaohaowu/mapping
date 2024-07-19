@@ -172,7 +172,8 @@ int MapFusion::ProcFusion(
     pred_->OnInsNodeInfo(curr_node_info);
     pred_->OnLocalization(curr_loc);
     if (FLAGS_map_service_mode == 1) {
-      map = pred_->GetHdMapNNP(need_update_global_hd, routing);
+      map =
+          pred_->GetHdMapNNP(need_update_global_hd, routing, &map_speed_limit_);
     } else if (FLAGS_map_service_mode == 0) {
       map = pred_->GetHdMapNCP(need_update_global_hd, routing);
     }
@@ -216,7 +217,7 @@ int MapFusion::ProcPercep(
   }
   HLOG_DEBUG << "Proc Pilot start!";
   recog_->OnLocalization(curr_loc);
-  recog_->OnLocalMap(curr_local_map, curr_obj);
+  recog_->OnLocalMap(curr_local_map, curr_obj, map_speed_limit_);
   HLOG_DEBUG << "OnLocalMap!";
   auto map = recog_->GetPercepMap();
   if (map == nullptr) {

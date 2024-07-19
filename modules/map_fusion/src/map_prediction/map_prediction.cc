@@ -485,7 +485,8 @@ void MapPrediction::OnTopoMap(
 }
 
 std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
-    bool need_update_global_hd, hozon::routing::RoutingResponse* routing) {
+    bool need_update_global_hd, hozon::routing::RoutingResponse* routing,
+    std::pair<double, double>* map_speed_limit) {
   if (need_update_global_hd) {
     current_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
     current_routing_->CopyFrom(*routing);
@@ -494,6 +495,7 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
   if (!need_update_global_hd) {
     HDMapLaneToLocal();
     RoutingPointToLocal(need_update_global_hd, routing, end_routing_lane_id_);
+    *map_speed_limit = map_speed_limit_;
     return hq_map_;
   }
 
@@ -530,7 +532,8 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
   double nearest_s = 0.;
   std::string current_lane_id;
   GetCurrentLane(utm_pos, routing_lanes_set, routing_lanes, &current_lane_id,
-                 &nearest_s);
+                 &nearest_s, map_speed_limit);
+  map_speed_limit_ = *map_speed_limit;
   if (current_lane_id.empty()) {
     HLOG_ERROR << "get current lane failed";
     hq_map_ = nullptr;
@@ -1707,7 +1710,8 @@ void MapPrediction::GetCurrentLane(
     const hozon::common::PointENU& utm_pos,
     const std::unordered_set<std::string>& routing_lanes_set,
     const std::vector<std::vector<std::string>>& routing_lanes,
-    std::string* current_lane, double* nearest_s) {
+    std::string* current_lane, double* nearest_s,
+    std::pair<double, double>* map_speed_limit) {
   double s(0.0);
   double l(0.0);
   current_lane->clear();
@@ -1751,8 +1755,7 @@ void MapPrediction::GetCurrentLane(
         }
       }
     }
-
-    // 获取车辆距离所在车道起始点距离
+    // 获取车辆距离所在车道起始点距离以及限速
     if (!current_lane->empty()) {
       hozon::hdmap::Id lane_id;
       lane_id.set_id(*current_lane);
@@ -1760,6 +1763,15 @@ void MapPrediction::GetCurrentLane(
       if (lane_ptr != nullptr) {
         lane_ptr->GetProjection(point, &s, &l);
         *nearest_s = s;
+        map_speed_limit->first = lane_ptr->lane().speed_limit();
+        auto road_ptr = GLOBAL_HD_MAP->GetRoadById(lane_ptr->road_id());
+        if (road_ptr != nullptr) {
+          if (!road_ptr->road().section().empty()) {
+            // 这里取第一个road section的速度
+            map_speed_limit->second =
+                road_ptr->road().section().begin()->max_max_speed();
+          }
+        }
       }
     }
   }

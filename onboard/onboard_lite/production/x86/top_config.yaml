@@ -6,7 +6,7 @@ appLog:
   name: mapping
   description: mapping
   file: ./
-  mode: 3
+  mode: 2
   level: 2
 
 schedule:

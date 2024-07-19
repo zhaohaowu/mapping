@@ -495,9 +495,12 @@ void MapMatching::MergeMapLines(
       if (line_ids.empty()) {
         continue;
       }
-      auto first_line_id = line_ids.front();
-      auto last_line_id = line_ids.back();
-      std::string merge_lane_id = first_line_id + "_" + last_line_id;
+      int left = 0, right = line_ids.size() - 1;
+      auto first_line_id = line_ids[0];
+      auto last_line_id = line_ids[right];
+      size_t mid_index = left + (right - left) / 2;
+      auto mid_line_id = line_ids[mid_index];
+      std::string merge_lane_id = first_line_id + "_" + mid_line_id + "_" + last_line_id;
       if (merge_lane_ids.find(merge_lane_id) != merge_lane_ids.end()) {
         merge_lane_ids[merge_lane_id] += 1;
         continue;
@@ -632,9 +635,12 @@ void MapMatching::MergeMapEdges(
       if (line_ids.empty()) {
         continue;
       }
-      auto first_line_id = line_ids.front();
-      auto last_line_id = line_ids.back();
-      std::string merge_lane_id = first_line_id + "_" + last_line_id;
+      int left = 0, right = line_ids.size() - 1;
+      auto first_line_id = line_ids[0];
+      auto last_line_id = line_ids[right];
+      size_t mid_index = left + (right - left) / 2;
+      auto mid_line_id = line_ids[mid_index];
+      std::string merge_lane_id = first_line_id + "_" + mid_line_id + "_" + last_line_id;
       if (merge_lane_ids.find(merge_lane_id) != merge_lane_ids.end()) {
         merge_lane_ids[merge_lane_id] += 1;
         continue;

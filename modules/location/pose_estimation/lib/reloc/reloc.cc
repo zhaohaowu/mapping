@@ -306,9 +306,9 @@ bool Reloc::GenerateSearchPose() {
               return a.point.y() < b.point.y();
             });
 
-  int left = static_cast<int>(map_grid_points.size()) - 1;
-  int right = 0;
   for (const auto& y : search_ys_) {
+    int left = static_cast<int>(map_grid_points.size()) - 1;
+    int right = 0;
     if (y < map_grid_points.front().point.y()) {
       left = 0;
       right = -1;

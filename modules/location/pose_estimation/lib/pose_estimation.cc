@@ -655,6 +655,10 @@ std::shared_ptr<HafNodeInfo> PoseEstimation::GetMmNodeInfo() {
   if (is_junction_) {
     mm->set_valid_estimate(false);
   }
+  auto publish_time = GetCurrentNsecTime();
+  if (fabs(mm->header().publish_stamp() - publish_time) > 0.2) {
+    mm->mutable_header()->set_publish_stamp(GetCurrentNsecTime());
+  }
   mm->set_gps_status(static_cast<int>(is_junction_));
   return mm;
 }

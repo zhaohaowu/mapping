@@ -18,8 +18,8 @@ namespace hozon {
 namespace mp {
 namespace loc {
 namespace pe {
-    // GPS时间从1980年1月6日开始计算的总秒数
-  const time_t GPSTimeOffset = 315964800; // 1980-01-06 00:00:00 UTC
+// GPS时间从1980年1月6日开始计算的总秒数
+const time_t GPSTimeOffset = 315964800;  // 1980-01-06 00:00:00 UTC
 class RelocRviz {
  public:
   template <typename T0, typename T1>
@@ -38,19 +38,20 @@ class RelocRviz {
   }
 
   // GPS周数转北京时间（包括毫秒）
-  static void GPSToBJTimeWithMillis(int gpsWeek, double gpsTOW, struct tm &bjTime, int &milliseconds) {
-      // 计算GPS时间的总秒数
-      time_t gpsSeconds = gpsWeek * 604800 + static_cast<time_t>(gpsTOW);
-      // 加上GPS时间偏移量
-      gpsSeconds += GPSTimeOffset;
-      // 转换为struct tm结构体
-      gmtime_r(&gpsSeconds, &bjTime); // 使用gmtime_r以获取UTC时间
-      // 北京时间比UTC时间晚8小时
-      bjTime.tm_hour += 8;
-      // 获取北京时间的毫秒部分
-      milliseconds = static_cast<int>((gpsTOW - static_cast<int>(gpsTOW)) * 1000);
-      // 调整到合法的时间范围
-      mktime(&bjTime);
+  static void GPSToBJTimeWithMillis(int gpsWeek, double gpsTOW,
+                                    struct tm& bjTime, int& milliseconds) {
+    // 计算GPS时间的总秒数
+    time_t gpsSeconds = gpsWeek * 604800 + static_cast<time_t>(gpsTOW) - 18;
+    // 加上GPS时间偏移量
+    gpsSeconds += GPSTimeOffset;
+    // 转换为struct tm结构体
+    gmtime_r(&gpsSeconds, &bjTime);  // 使用gmtime_r以获取UTC时间
+    // 北京时间比UTC时间晚8小时
+    bjTime.tm_hour += 8;
+    // 获取北京时间的毫秒部分
+    milliseconds = static_cast<int>((gpsTOW - static_cast<int>(gpsTOW)) * 1000);
+    // 调整到合法的时间范围
+    mktime(&bjTime);
   }
 
   static void PubFcOdom(const Eigen::Affine3d& T_W_V, uint64_t sec,
@@ -739,9 +740,9 @@ class RelocRviz {
     int milliseconds;
     GPSToBJTimeWithMillis(static_cast<int>(gps_week), gps_sec, bjTime, milliseconds);
     char chinaTime[27] = {0};
-    sprintf(chinaTime, "%04d-%02d-%02d %02d:%02d:%5f", bjTime.tm_year + 1900,
+    sprintf(chinaTime, "%04d-%02d-%02d %02d:%02d:%.3f", bjTime.tm_year + 1900,
           bjTime.tm_mon + 1 , bjTime.tm_mday , bjTime.tm_hour, bjTime.tm_min,
-          bjTime.tm_sec +milliseconds/1000.0);
+          bjTime.tm_sec + milliseconds / 1000.0);
 
     text_marker.set_text("location_state: " + std::to_string(location_state) +
                          "\nins_state: " + std::to_string(ins_state) +

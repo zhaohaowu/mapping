@@ -906,6 +906,10 @@ bool GroupMap::AreLaneConnect(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
   float dis_pt = CalculateDistPt(lane_in_next, lane_in_curr, sizet);
   float angel_thresh{0.0};
   float dis_thresh{0.0};
+  if (lane_in_curr->left_boundary->id == lane_in_next->right_boundary->id ||
+      lane_in_curr->right_boundary->id == lane_in_next->left_boundary->id) {
+    return false;
+  }
   if (dis_pt < 8 || (lane_in_curr->lanepos_id == lane_in_next->lanepos_id &&
                      lane_in_curr->lanepos_id != "99_99")) {
     // HLOG_ERROR << "lane_in_curr=" << lane_in_curr->str_id_with_group
@@ -3824,8 +3828,8 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
   if (groups->size() > 1) {
     // 仅保留前向只有一个路口存在
     RemainOnlyOneForwardCrossWalk(groups);
-    RelateGroups(groups, stamp);
   }
+  RelateGroups(groups, stamp);
   AvoidSplitMergeLane(groups);
   // 拿车道组和模型路沿来做引导线
   HLOG_DEBUG << "current stamp is:" << std::to_string(stamp);
@@ -7995,9 +7999,10 @@ std::vector<Point> GuidePathManager::GetRoadEdgeGuidePoints() {
     const auto& query_point =
         0.5 * (right_first_point_2f + left_first_point_2f);
 
-    HLOG_DEBUG << "roadedge center point:" << ", center.x()" << query_point.x()
-               << ", center.y()" << query_point.y()
-               << ", line_radians_mean_heading" << line_radians_mean_heading;
+    HLOG_DEBUG << "roadedge center point:"
+               << ", center.x()" << query_point.x() << ", center.y()"
+               << query_point.y() << ", line_radians_mean_heading"
+               << line_radians_mean_heading;
     // float junction_guide_angle_ratio = 0.2;
 
     // heading方向补个50米长度。

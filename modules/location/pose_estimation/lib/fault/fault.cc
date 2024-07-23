@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <cmath>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -19,6 +20,7 @@ namespace loc {
 
 void MmFault::set_ins_ts(const double& ins_ts) {
   last_ins_timestamp_ = ins_timestamp_;
+  HLOG_DEBUG << " ins stamp : " << ins_ts;
   ins_timestamp_ = ins_ts;
 }
 
@@ -28,7 +30,7 @@ void MmFault::Fault(
     const std::unordered_map<std::string, std::vector<ControlPoint>>&
         merged_map_edges,
     const std::list<std::list<LaneLinePerceptionPtr>>& percep_lanelines,
-    const ValidPose& T_fc, bool is_big_curvature_frame) {
+    const ValidPose& T_fc, bool is_big_curvature_frame, bool is_ramp_road) {
   err_type_ = ERROR_TYPE::NO_ERROR;
   static double invalid_pecep_duration = 0;
   static double invalid_map_duration = 0;
@@ -61,7 +63,7 @@ void MmFault::Fault(
   is_big_curvature_ = is_big_curvature_frame;
   if (mm_params.use_map_lane_match_fault && T_fc.valid) {
     CheckIsGoodMatchFCbyLine(merged_fcmap_lines, merged_map_edges,
-                             percep_lanelines, FC_pose, FC_vel);
+                             percep_lanelines, FC_pose, FC_vel, is_ramp_road);
   }
 }
 
@@ -71,7 +73,7 @@ void MmFault::CheckIsGoodMatchFCbyLine(
     const std::unordered_map<std::string, std::vector<ControlPoint>>&
         merged_map_edges,
     const std::list<std::list<LaneLinePerceptionPtr>>& percep_lanelines,
-    const SE3& FC_pose, const Eigen::Vector3d& FC_vel) {
+    const SE3& FC_pose, const Eigen::Vector3d& FC_vel, bool is_ramp_road) {
   if (merged_fcmap_lines.empty() || merged_map_edges.empty() ||
       percep_lanelines.empty()) {
     return;
@@ -82,6 +84,10 @@ void MmFault::CheckIsGoodMatchFCbyLine(
   }
   uint32_t percep_left_cnt = 0;
   uint32_t percep_right_cnt = 0;
+  CalWidthParam left_param{0, 0, 0, 0};
+  CalWidthParam right_param{0, 0, 0, 0};
+  CalWidthParam left_check_param{0, 0, 0, 0};
+  CalWidthParam right_check_param{0, 0, 0, 0};
   std::string map_left_near_id = "0_0";
   std::string map_left_check_near_id = "0_0";
   std::string map_right_near_id = "0_0";
@@ -211,23 +217,39 @@ void MmFault::CheckIsGoodMatchFCbyLine(
     if (line->lane_position_type() == -1) {
       CalLinesMinDist(line, left_filtered_fcmap_lines, &left_dist_near_v,
                       &left_dist_far_v, far_dis, near_dis, &map_left_near_id,
-                      &percep_left_target_point);
+                      &percep_left_target_point, &left_param);
       CalLinesMinDist(line, left_filtered_fcmap_lines, &left_near_check_dist_v,
                       &left_far_check_dist_v, far_dis_last,
                       std::max(2.0, static_cast<double>(line->Min())),
-                      &map_left_check_near_id, &percep_left_check_target_point);
+                      &map_left_check_near_id, &percep_left_check_target_point,
+                      &left_check_param);
     }
     if (line->lane_position_type() == 1) {
       CalLinesMinDist(line, right_filtered_fcmap_lines, &right_dist_near_v,
                       &right_dist_far_v, far_dis, near_dis, &map_right_near_id,
-                      &percep_right_target_point);
-      CalLinesMinDist(
-          line, right_filtered_fcmap_lines, &right_near_check_dist_v,
-          &right_far_check_dist_v, far_dis_last,
-          std::max(2.0, static_cast<double>(line->Min())),
-          &map_right_check_near_id, &percep_right_check_target_point);
+                      &percep_right_target_point, &right_param);
+      CalLinesMinDist(line, right_filtered_fcmap_lines,
+                      &right_near_check_dist_v, &right_far_check_dist_v,
+                      far_dis_last,
+                      std::max(2.0, static_cast<double>(line->Min())),
+                      &map_right_check_near_id,
+                      &percep_right_check_target_point, &right_check_param);
     }
   }
+  const double map_near_width =
+      fabs(left_param.map_near_point_y) + fabs(right_param.map_near_point_y);
+  const double map_far_width =
+      fabs(left_param.map_far_point_y) + fabs(right_param.map_far_point_y);
+  const double percep_near_width = fabs(left_param.percep_near_point_y) +
+                                   fabs(right_param.percep_near_point_y);
+  const double percep_far_width = fabs(left_param.percep_far_point_y) +
+                                  fabs(right_param.percep_far_point_y);
+  const double map_width = (map_near_width + map_far_width) * 0.5;
+  const double percep_width = (percep_near_width + percep_far_width) * 0.5;
+  const double width_diff = map_width - percep_width;
+
+  HLOG_DEBUG << "map_width = " << map_width << "percep_width = " << percep_width
+             << "width_diff = " << width_diff;
   HLOG_DEBUG << "left_dist_near_v = " << left_dist_near_v
              << "left_dist_far_v = " << left_dist_far_v
              << "right_dist_near_v = " << right_dist_near_v
@@ -255,12 +277,14 @@ void MmFault::CheckIsGoodMatchFCbyLine(
                         right_error,
                         left_check_error,
                         right_check_error};
-  auto result = FaultDetected(faultParam, map_right_check_near_id, percep_right_target_point,
-                right_filtered_fcmap_lines, map_left_check_near_id,
-                percep_left_target_point,
-                left_filtered_fcmap_lines, FC_vel);
+  auto result = FaultDetected(
+      faultParam, map_right_check_near_id, percep_right_target_point,
+      right_filtered_fcmap_lines, map_left_check_near_id,
+      percep_left_target_point, left_filtered_fcmap_lines, FC_vel, width_diff,
+      is_ramp_road);
 
   static uint32_t match_double_err_cnt = 0;
+  static uint32_t match_width_single_err_cnt = 0;
   static uint32_t match_single_err_cnt = 0;
   static uint32_t check_exceed_edge_cnt = 0;
   static uint32_t check_good_match_cnt = 0;
@@ -280,9 +304,15 @@ void MmFault::CheckIsGoodMatchFCbyLine(
   } else {
     match_single_err_cnt = 0;
   }
+  if (!std::get<2>(result)) {
+    ++match_width_single_err_cnt;
+  } else {
+    match_width_single_err_cnt = 0;
+  }
   if (percep_left_cnt > 0 && percep_right_cnt > 0) {
     if (match_double_err_cnt > mm_params.map_lane_match_ser_buff ||
         match_single_err_cnt > mm_params.map_lane_match_buff ||
+        match_width_single_err_cnt > mm_params.map_lane_match_buff ||
         check_exceed_edge_cnt > mm_params.map_lane_match_ser_buff) {
       err_type_ = ERROR_TYPE::MAP_LANE_MATCH_FAIL;
       check_error_last_ = true;
@@ -293,8 +323,7 @@ void MmFault::CheckIsGoodMatchFCbyLine(
   bool good_match_check_flag = false;
   // 感知车道线没有与地图车道线匹配则差值置0
   bool good_match_check_nonzero_flag = false;
-  if (check_error_last_ &&
-      (FC_vel(0) > mm_params.min_vel || FC_vel(1) > mm_params.min_vel)) {
+  if (check_error_last_) {
     err_type_ = ERROR_TYPE::MAP_LANE_MATCH_FAIL;
     if (fabs(left_near_check_dist_v) <= mm_params.fault_restore_dis &&
         fabs(right_near_check_dist_v) <= mm_params.fault_restore_dis &&
@@ -328,55 +357,113 @@ void MmFault::CheckIsGoodMatchFCbyLine(
   }
 }
 
-std::tuple<bool, bool> MmFault::FaultDetected(const FaultParam& faultParam, const std::string& map_right_check_near_id,
-      const V3& percep_right_target_point,
-      const std::unordered_map<std::string, std::vector<V3>>&
-          right_filtered_fcmap_lines,
-      const std::string& map_left_check_near_id,
-      const V3& percep_left_target_point,
-      const std::unordered_map<std::string, std::vector<V3>>&
-          left_filtered_fcmap_lines,
-      const Eigen::Vector3d& FC_vel) {
-  // 针对内外八场景加的global--if判断
-  const double global_error = (faultParam.left_error + faultParam.right_error) * 0.5;
-  const double global_near_error = (faultParam.left_dist_near_v + faultParam.right_dist_near_v) * 0.5;
+std::tuple<bool, bool, bool> MmFault::FaultDetected(
+    const FaultParam& faultParam, const std::string& map_right_check_near_id,
+    const V3& percep_right_target_point,
+    const std::unordered_map<std::string, std::vector<V3>>&
+        right_filtered_fcmap_lines,
+    const std::string& map_left_check_near_id,
+    const V3& percep_left_target_point,
+    const std::unordered_map<std::string, std::vector<V3>>&
+        left_filtered_fcmap_lines,
+    const Eigen::Vector3d& FC_vel, const double& width_diff,
+    bool is_ramp_road) {
+  const double global_error =
+      (faultParam.left_error + faultParam.right_error) * 0.5;
+  const double global_near_error =
+      (faultParam.left_dist_near_v + faultParam.right_dist_near_v) * 0.5;
   bool fc_good_match_single_check = true;
   bool fc_good_match_double_check = true;
+  bool fc_width_good_match_single_check = true;
   if (!(fabs(global_error) >= mm_params.line_error_normal_thr ||
         fabs(global_near_error) >= mm_params.line_error_normal_thr)) {
-    return std::tuple<bool, bool>{fc_good_match_single_check,
-                                  fc_good_match_double_check};
+    return std::tuple<bool, bool, bool>{fc_good_match_single_check,
+                                        fc_good_match_double_check,
+                                        fc_width_good_match_single_check};
+  }
+  if ((faultParam.left_dist_near_v > 0) == (faultParam.right_dist_near_v > 0) &&
+      (faultParam.right_dist_near_v > 0) == (faultParam.right_dist_far_v > 0) &&
+      (faultParam.right_dist_far_v > 0) == (faultParam.left_dist_far_v > 0) &&
+      !is_big_curvature_ &&
+      (FC_vel(0) > mm_params.double_error_min_vel ||
+       FC_vel(1) > mm_params.double_error_min_vel) &&
+      !is_ramp_road) {
+    if (fabs(faultParam.left_dist_near_v) >=
+            mm_params.map_lane_match_double_diff &&
+        fabs(faultParam.right_dist_near_v) >=
+            mm_params.map_lane_match_double_diff) {
+      HLOG_ERROR << "130 : ser double near distance exceed thr";
+      fc_good_match_double_check = false;
+    }
+    if (fabs(faultParam.left_error) >= mm_params.map_lane_match_double_diff &&
+        fabs(faultParam.right_error) >= mm_params.map_lane_match_double_diff) {
+      HLOG_ERROR << "130 : ser double both sides distance exceed thr";
+      fc_good_match_double_check = false;
+    }
+  }
+  if (width_diff > mm_params.map_percep_width_diff) {
+    if (fabs(faultParam.left_dist_near_v) >= mm_params.map_lane_match_max &&
+        fabs(faultParam.right_dist_near_v) >= mm_params.map_lane_match_max) {
+      HLOG_ERROR << "130 : width check double near distance exceed thr";
+      fc_good_match_double_check = false;
+    }
+    if (fabs(faultParam.left_error) >= mm_params.map_lane_match_max &&
+        fabs(faultParam.right_error) >= mm_params.map_lane_match_max) {
+      HLOG_ERROR << "130 : width check double both sides distance exceed thr";
+      fc_good_match_double_check = false;
+    }
+    if (FC_vel(0) <= mm_params.single_error_min_vel &&
+        FC_vel(1) <= mm_params.single_error_min_vel) {
+      return std::tuple<bool, bool, bool>{fc_good_match_single_check,
+                                          fc_good_match_double_check,
+                                          fc_width_good_match_single_check};
+    }
+    if (fabs(faultParam.left_dist_near_v) >=
+            mm_params.map_lane_match_single_diff ||
+        fabs(faultParam.right_dist_near_v) >=
+            mm_params.map_lane_match_single_diff) {
+      HLOG_ERROR << "130 : width check single near distance exceed thr";
+      fc_width_good_match_single_check = false;
+    }
+    if (fabs(faultParam.left_error) >= mm_params.map_lane_match_single_diff ||
+        fabs(faultParam.right_error) >= mm_params.map_lane_match_single_diff) {
+      HLOG_ERROR << "130 : width check single both sides distance exceed thr";
+      fc_width_good_match_single_check = false;
+    }
+  } else {
+    if (fabs(faultParam.left_dist_near_v) >= mm_params.map_lane_match_ser_max &&
+        fabs(faultParam.right_dist_near_v) >=
+            mm_params.map_lane_match_ser_max) {
+      HLOG_ERROR << "130 : double near distance exceed thr";
+      fc_good_match_double_check = false;
+    }
+    if (fabs(faultParam.left_error) >= mm_params.map_lane_match_ser_max &&
+        fabs(faultParam.right_error) >= mm_params.map_lane_match_ser_max) {
+      HLOG_ERROR << "130 : double both sides distance exceed thr";
+      fc_good_match_double_check = false;
+    }
+    if (FC_vel(0) <= mm_params.single_error_min_vel &&
+        FC_vel(1) <= mm_params.single_error_min_vel) {
+      return std::tuple<bool, bool, bool>{fc_good_match_single_check,
+                                          fc_good_match_double_check,
+                                          fc_width_good_match_single_check};
+    }
+    if (fabs(faultParam.left_dist_near_v) >= mm_params.map_lane_match_diver ||
+        fabs(faultParam.right_dist_near_v) >= mm_params.map_lane_match_diver) {
+      HLOG_ERROR << "130 : single near distance exceed thr";
+      fc_good_match_single_check = false;
+    }
+    if (fabs(faultParam.left_error) >= mm_params.map_lane_match_diver ||
+        fabs(faultParam.right_error) >= mm_params.map_lane_match_diver) {
+      HLOG_ERROR << "130 : single both sides distance exceed thr";
+      fc_good_match_single_check = false;
+    }
   }
 
-  // serious
-  if (fabs(faultParam.left_dist_near_v) >= mm_params.map_lane_match_ser_max &&
-      fabs(faultParam.right_dist_near_v) >= mm_params.map_lane_match_ser_max) {
-    HLOG_ERROR << "130 : double near distance exceed thr";
-    fc_good_match_double_check = false;
-  }
-  if (fabs(faultParam.left_error) >= mm_params.map_lane_match_ser_max &&
-      fabs(faultParam.right_error) >= mm_params.map_lane_match_ser_max) {
-    HLOG_ERROR << "130 : double both sides distance exceed thr";
-    fc_good_match_double_check = false;
-  }
-  if (FC_vel(0) <= mm_params.single_error_min_vel &&
-      FC_vel(1) <= mm_params.single_error_min_vel) {
-    return std::tuple<bool, bool>{fc_good_match_single_check,
-                                  fc_good_match_double_check};
-  }
-  if (fabs(faultParam.left_dist_near_v) >= mm_params.map_lane_match_diver ||
-      fabs(faultParam.right_dist_near_v) >= mm_params.map_lane_match_diver) {
-    HLOG_ERROR << "130 : single near distance exceed thr";
-    fc_good_match_single_check = false;
-  }
-  if (fabs(faultParam.left_error) >= mm_params.map_lane_match_diver ||
-      fabs(faultParam.right_error) >= mm_params.map_lane_match_diver) {
-    HLOG_ERROR << "130 : single both sides distance exceed thr";
-    fc_good_match_single_check = false;
-  }
   if (fc_good_match_single_check) {
-    return std::tuple<bool, bool>{fc_good_match_single_check,
-                                  fc_good_match_double_check};
+    return std::tuple<bool, bool, bool>{fc_good_match_single_check,
+                                        fc_good_match_double_check,
+                                        fc_width_good_match_single_check};
   }
   double left_near_point_distance = DOUBLE_MAX;
   double right_near_point_distance = DOUBLE_MAX;
@@ -400,8 +487,9 @@ std::tuple<bool, bool> MmFault::FaultDetected(const FaultParam& faultParam, cons
        faultParam.left_error != 0)) {
     fc_good_match_single_check = true;
   }
-  return std::tuple<bool, bool>{fc_good_match_single_check,
-                                fc_good_match_double_check};
+  return std::tuple<bool, bool, bool>{fc_good_match_single_check,
+                                      fc_good_match_double_check,
+                                      fc_width_good_match_single_check};
 }
 
 double MmFault::GetDistanceBySecondFaultDetected(
@@ -465,12 +553,14 @@ void MmFault::CalLinesMinDist(
     const std::unordered_map<std::string, std::vector<V3>>&
         filtered_fcmap_lines,
     double* const near, double* const far, const double& far_dis,
-    const double& near_dis, std::string* cur_line_id, V3* pt) {
-  if (!percep || !near || !far || !cur_line_id || !pt) {
+    const double& near_dis, std::string* cur_line_id, V3* pt,
+    CalWidthParam* param) {
+  if (!percep || !near || !far || !cur_line_id || !pt || !param) {
     return;
   }
   double min_y_near = DOUBLE_MAX;
   double min_y_far = DOUBLE_MAX;
+  CalWidthParam widthParam{0, 0, 0, 0};
   std::string map_line_id = "0_0";
   V3 percep_target_point(0, 0, 0);
   V3 anchor_pt0(near_dis, 0, 0);
@@ -512,12 +602,16 @@ void MmFault::CalLinesMinDist(
         min_y_near = y_near;
         map_line_id = line_idx;
         percep_target_point = w_p_near;
+        widthParam.percep_near_point_y = w_p_near.y();
+        widthParam.map_near_point_y = v_p_near.y();
       }
     }
     if (flag_fit1 && flag_fit3) {
       y_far = w_p_far.y() - v_p_far.y();
       if (fabs(y_far) < fabs(min_y_far)) {
         min_y_far = y_far;
+        widthParam.percep_far_point_y = w_p_far.y();
+        widthParam.map_far_point_y = v_p_far.y();
       }
     }
   }
@@ -531,6 +625,7 @@ void MmFault::CalLinesMinDist(
   *far = min_y_far;
   *cur_line_id = map_line_id;
   *pt = percep_target_point;
+  *param = widthParam;
 }
 
 bool MmFault::FaultGetFitPoints(const VP& points, const double x, V3* pt) {

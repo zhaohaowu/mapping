@@ -61,6 +61,21 @@ bool MapBoundaryLine::AddMapLine(
   if (lane_boundary.virtual_()) {
     return false;
   }
+  if (lane_boundary.boundary_type().empty() ||
+      (!lane_boundary.boundary_type().empty() &&
+       lane_boundary.boundary_type()[0].types().empty())) {
+    HLOG_WARN << "lane boundary type is empty";
+    return false;
+  }
+  if (lane_boundary.boundary_type()[0].types()[0] ==
+          hozon::hdmap::LaneBoundaryType::Type::LaneBoundaryType_Type_CURB ||
+      lane_boundary.boundary_type()[0].types()[0] ==
+          hozon::hdmap::LaneBoundaryType::Type::LaneBoundaryType_Type_BARRIER ||
+      lane_boundary.boundary_type()[0].types()[0] ==
+          hozon::hdmap::LaneBoundaryType::Type::LaneBoundaryType_Type_UNKNOWN) {
+    HLOG_WARN << "it's not lane boundary!!";
+    return false;
+  }
   auto lane_boundary_id = lane_boundary.id(0).id();
   if (boundary_line_.find(lane_boundary_id) != boundary_line_.end()) {
     return false;
@@ -76,12 +91,6 @@ bool MapBoundaryLine::AddMapLine(
       Eigen::Vector3d p_gcj(p.y(), p.x(), 0);
       Eigen::Vector3d p_enu = util::Geo::Gcj02ToEnu(p_gcj, ref_point);
       ControlPoint cpoint(0, {0, 0, 0});
-      // if (bl.line_type == DoubleLineType::DoubleSolidLine ||
-      //     bl.line_type == DoubleLineType::DoubleDashedLine ||
-      //     bl.line_type == DoubleLineType::LeftSolidRightDashed ||
-      //     bl.line_type == DoubleLineType::RightSolidLeftDashed) {
-      //   cpoint.line_type = 1;
-      // }
       cpoint.point = p_enu;
       bl.control_point.emplace_back(cpoint);
     }

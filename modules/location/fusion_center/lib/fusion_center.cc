@@ -304,7 +304,7 @@ bool FusionCenter::GetCurrentContext(Context* const ctx) {
   {
     std::unique_lock<std::mutex> lock(ins_deque_mutex_);
     if (ins_deque_.empty()) {
-      HLOG_ERROR << "ins_deque is empty";
+      HLOG_WARN << "ins_deque is empty";
     } else {
       ctx->ins_node = *(ins_deque_.back());
     }
@@ -346,7 +346,7 @@ bool FusionCenter::GetCurrentContext(Context* const ctx) {
 
 bool FusionCenter::IsInsDrift(const std::shared_ptr<Node> ins_node) {
   if (!ref_init_) {
-    HLOG_ERROR << "ref_init fail";
+    HLOG_WARN << "ref_init fail";
     return false;
   }
   const Eigen::Vector3d refpoint = Refpoint();
@@ -625,7 +625,7 @@ void FusionCenter::RunFusion() {
   while (fusion_run_) {
     // refpoint
     if (!ref_init_) {
-      HLOG_ERROR << "ref_init fail";
+      HLOG_WARN << "ref_init fail";
       usleep(params_.run_fusion_interval_ms * 1000);
       continue;
     }
@@ -1390,20 +1390,35 @@ void FusionCenter::InsertESKFFusionNode(const Node& node) {
   fusion_deque_mutex_.unlock();
 }
 
+void FusionCenter::InsertESKFFusionTmpNode(const Node& node) {
+  auto new_node = std::make_shared<Node>();
+  if (new_node == nullptr) {
+    HLOG_ERROR << "new_node is nullptr";
+    return;
+  }
+  *new_node = node;
+  const Sophus::SO3d& rot = Sophus::SO3d::exp(new_node->orientation);
+  Eigen::Vector3d euler = Rot2Euler312(rot.matrix());
+  euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
+  new_node->heading = euler.z() / M_PI * 180;
+  fusion_deque_tmp_.emplace_back(new_node);
+}
+
 void FusionCenter::RunESKFFusion(const Eigen::Vector3d& refpoint) {
+  // eskf开始
+  fusion_deque_mutex_.lock();
   HLOG_DEBUG << "-------eskf前-------"
              << "pre_deque_.size():" << pre_deque_.size()
              << ", meas_deque_.size():" << meas_deque_.size()
-             << ", meas_type:" << meas_deque_.back()->type;
+             << ", meas_type:" << meas_deque_.back()->type
+             << ", fusion_deque.size():" << fusion_deque_.size();
+  fusion_deque_tmp_ = fusion_deque_;
+  fusion_deque_mutex_.unlock();
 
-  // eskf开始
-  fusion_deque_mutex_.lock();
-  auto init_node = std::make_shared<Node>(*fusion_deque_.back());
+  auto init_node = std::make_shared<Node>(*fusion_deque_tmp_.back());
   init_node->enu = hmu::Geo::BlhToEnu(init_node->blh, refpoint);
   eskf_->StateInit(init_node);
-  HLOG_DEBUG << "-------eskf前------- fusion_deque.size():"
-             << fusion_deque_.size();
-  fusion_deque_mutex_.unlock();
+
   while (!pre_deque_.empty() && !meas_deque_.empty()) {
     Node meas_node, predict_node;
     if (meas_deque_.front() == nullptr || pre_deque_.front() == nullptr) {
@@ -1438,14 +1453,19 @@ void FusionCenter::RunESKFFusion(const Eigen::Vector3d& refpoint) {
     }
 
     State state = eskf_->GetState();
-    InsertESKFFusionNode(State2Node(state, refpoint));
+    InsertESKFFusionTmpNode(State2Node(state, refpoint));
   }
   can_output_ = true;
 
+  fusion_deque_mutex_.lock();
   HLOG_DEBUG << "-------eskf后-------"
              << "pre_deque_.size():" << pre_deque_.size()
              << ", meas_deque_.size():" << meas_deque_.size()
-             << ", meas_type:" << meas_deque_.back()->type;
+             << ", meas_type:" << meas_deque_.back()->type
+             << ", fusion_deque.size():" << fusion_deque_.size();
+  fusion_deque_ = fusion_deque_tmp_;
+  fusion_deque_tmp_.clear();
+  fusion_deque_mutex_.unlock();
 }
 
 Node FusionCenter::State2Node(const State& state,
@@ -1602,7 +1622,7 @@ void FusionCenter::KalmanFiltering(Node* const node,
 
 bool FusionCenter::GetGlobalPose(Context* const ctx) {
   if (!ref_init_ || !ctx) {
-    HLOG_ERROR << "Ref_init fail or ctx is nullptr";
+    HLOG_WARN << "Ref_init fail or ctx is nullptr";
     return false;
   }
   if (params_.passthrough_ins) {
@@ -1930,7 +1950,7 @@ bool FusionCenter::FilterPoseEstimation(const Node& node) {
       }
       auto last_pe_fusion_node = Node2SE3(*fusion).inverse() * Node2SE3((*it));
       auto curr_pe_fusion_enu = last_pe_fusion_node.translation();
-      flag = std::fabs(curr_pe_fusion_enu(0)) <=
+      flag = std::fabs(curr_pe_fusion_enu(1)) <=
              params_.max_fc_pe_horizontal_dist_error;
       break;
     }
@@ -1938,7 +1958,7 @@ bool FusionCenter::FilterPoseEstimation(const Node& node) {
       pe = (*it);
       auto last_cur_rel_pose = Node2SE3(*pe).inverse() * Node2SE3(node);
       auto last_pe_enu = last_cur_rel_pose.translation();
-      pe_dist = last_pe_enu(0);
+      pe_dist = last_pe_enu(1);
       break;
     }
   }
@@ -1972,7 +1992,7 @@ bool FusionCenter::FilterPoseEstimation(const Node& node) {
   auto last_dr_node = Node2SE3(*last_dr).inverse() * Node2SE3(*curr_dr);
   auto last_dr_enu = last_dr_node.translation();
 
-  auto dr_dist = last_dr_enu(0);
+  auto dr_dist = last_dr_enu(1);
   auto diff_heading = std::fabs(std::fabs(last_pe_heading - curr_pe_heading) -
                                 std::fabs(last_dr_heading - curr_dr_heading));
   auto diff_dist = std::fabs(dr_dist - pe_dist);

@@ -104,7 +104,7 @@ void PoseEstimation::OnLocation(
     return;
   }
   if (msg->location_state() == 0) {
-    HLOG_ERROR << "Global localization is error";
+    HLOG_WARN << "Global localization is error";
     return;
   }
 
@@ -113,7 +113,7 @@ void PoseEstimation::OnLocation(
       msg->pose().quaternion().w(), msg->pose().quaternion().x(),
       msg->pose().quaternion().y(), msg->pose().quaternion().z());
   if (enu_quaternion.norm() < 1e-6) {
-    HLOG_ERROR << "enu quaternion from fc is abnormal";
+    HLOG_WARN << "enu quaternion from fc is abnormal";
     return;
   }
   enu_quaternion.normalize();
@@ -304,6 +304,8 @@ void PoseEstimation::ProcData() {
     ins_state_ = static_cast<int>(fc_pose_ptr->rtk_status());
     velocity_ = fc_pose_ptr->pose().linear_velocity_vrf().x();
     ins_height_ = ins_pose_ptr->pose().gcj02().z();
+    gps_week_ = fc_pose_ptr->gps_week();
+    gps_second_ = fc_pose_ptr->gps_sec();
     // 获取高精地图
     std::vector<LaneInfoPtr> hdmap_lanes;
     if (!GetHdMapLane(fc_pose_ptr, &hdmap_lanes)) {
@@ -913,7 +915,7 @@ void PoseEstimation::RvizFunc() {
     RelocRviz::PubInsLocationState(T_fc_100hz, ins_state_, sd_position_,
                                    location_state_, perception.timestamp,
                                    velocity_, fc_heading_, ins_heading_, conv,
-                                   sec, nsec, "/pe/ins_location_state");
+                                   sec, nsec, "/pe/ins_location_state", gps_week_, gps_second_);
     RelocRviz::PubInsOdom(T_ins_100hz, sec, nsec, "/pe/ins_odom");
     RelocRviz::PubInputOdom(T_input, sec, nsec, "/pe/input_odom");
     usleep(9 * 1e3);

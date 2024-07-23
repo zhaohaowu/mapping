@@ -44,6 +44,7 @@ bool MapMatching::Init(const std::string& config_file) {
       config["use_map_lane_match_fault"].as<bool>();
   mm_params.min_vel = config["min_vel"].as<double>();
   mm_params.single_error_min_vel = config["single_error_min_vel"].as<double>();
+  mm_params.double_error_min_vel = config["double_error_min_vel"].as<double>();
   mm_params.map_lane_match_diver = config["map_lane_match_diver"].as<double>();
   mm_params.ramp_judg_thre = config["ramp_judg_thre"].as<double>();
   mm_params.fault_restore_dis = config["fault_restore_dis"].as<double>();
@@ -53,6 +54,13 @@ bool MapMatching::Init(const std::string& config_file) {
   mm_params.map_lane_match_buff = config["map_lane_match_buff"].as<int>();
   mm_params.map_lane_match_ser_max =
       config["map_lane_match_ser_max"].as<double>();
+  mm_params.map_lane_match_max = config["map_lane_match_max"].as<double>();
+  mm_params.map_lane_match_single_diff =
+      config["map_lane_match_single_diff"].as<double>();
+  mm_params.map_lane_match_double_diff =
+      config["map_lane_match_double_diff"].as<double>();
+  mm_params.map_percep_width_diff =
+      config["map_percep_width_diff"].as<double>();
   mm_params.map_lane_match_ser_buff =
       config["map_lane_match_ser_buff"].as<int>();
   mm_params.fault_restore_ave_dis =
@@ -177,9 +185,25 @@ void MapMatching::ProcData(
   bool big_curvature_frame = map_match_->GetMatchBigCurvature();
 
   // 故障检测
+  hozon::common::PointENU utm_pos;
+  double nearest_s = 0.0;
+  double nearest_l = 0.0;
+  utm_pos.set_x(fc->pose().pos_utm_01().x());
+  utm_pos.set_y(fc->pose().pos_utm_01().y());
+  utm_pos.set_z(0);
+  hozon::hdmap::LaneInfoConstPtr ego_lane_ptr = nullptr;
+  if (!GLOBAL_HD_MAP->GetNearestLane(utm_pos, &ego_lane_ptr, &nearest_s,
+                                     &nearest_l) ||
+      ego_lane_ptr == nullptr) {
+    HLOG_DEBUG << "cannot get ego lane ptr";
+  }
+  bool is_ramp_road = false;
+  if (ego_lane_ptr->IsRampRoad()) {
+    is_ramp_road = true;
+  }
   mm_fault_->set_ins_ts(cur_stamp);
   mm_fault_->Fault(merged_fcmap_lines, merged_map_edges, percep_lanelines,
-                   fc_msg, big_curvature_frame);
+                   fc_msg, big_curvature_frame, is_ramp_road);
 
   // 故障检测策略
   ERROR_TYPE mm_err_type{static_cast<ERROR_TYPE>(mm_fault_->GetErrorType())};

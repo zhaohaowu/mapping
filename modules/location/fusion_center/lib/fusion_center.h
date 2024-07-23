@@ -66,6 +66,7 @@ class FusionCenter {
   bool GenerateNewESKFMeas();  // 用于收集融合的观测
   Node State2Node(const State& state, const Eigen::Vector3d& refpoint);
   void InsertESKFFusionNode(const Node& node);
+  void InsertESKFFusionTmpNode(const Node& node);
   void RunESKFFusion(const Eigen::Vector3d& refpoint);
   bool AllowInsMeas(uint32_t sys_status, uint32_t rtk_status);
   bool InsertESKFMeasDR();  // 用于插入DR相对测量值
@@ -135,6 +136,7 @@ class FusionCenter {
 
   std::mutex fusion_deque_mutex_;
   std::deque<std::shared_ptr<Node>> fusion_deque_;
+  std::deque<std::shared_ptr<Node>> fusion_deque_tmp_;
 
   std::mutex lastest_valid_pe_mutex_;
   Node lastest_valid_pe_;

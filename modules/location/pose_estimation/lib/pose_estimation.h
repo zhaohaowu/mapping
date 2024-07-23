@@ -122,6 +122,8 @@ class PoseEstimation {
   std::atomic<bool> rviz_init_ = false;
   std::atomic<double> fc_heading_ = 0.0;
   std::atomic<double> ins_heading_ = 0.0;
+  std::atomic<double> gps_week_{0.0};
+  std::atomic<double> gps_second_{0.0};
   std::string conv_;
 
   std::string rviz_addr_;

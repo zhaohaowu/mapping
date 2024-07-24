@@ -661,7 +661,7 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
     HLOG_ERROR << "GetLocalMap 50m range failed";
   }
   ret =
-      GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_local_wide.get());
+      GLOBAL_HD_MAP->GetLocalMap(utm_pos, {150, 150}, hq_map_local_wide.get());
   if (ret != 0) {
     HLOG_ERROR << "GetLocalMap 300m range failed";
     return nullptr;

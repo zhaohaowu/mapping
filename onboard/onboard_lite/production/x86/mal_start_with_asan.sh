@@ -60,7 +60,7 @@ function bag_play() {
     if [ -f "$file" ]; then
         echo "Processing file: $file"
         ls $file
-        bag play $file -k /localization/fusionmap /localization/location /localization/local_map /localization/pe /localization/deadreckoning -f
+        bag play $file -t /soc/chassis /soc/imuinsinfo /perception/fsd/onboard/detection /localization/location_node /soc/encoded_camera_0 /perception/fsd/obj_fusion_1 -f
     fi
   done
 }

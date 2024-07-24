@@ -17,6 +17,7 @@ road_recognition_rviz: true
 viz_odom_map_in_local: false
 output_hd_map: true
 service_update_interval: 900
+lanes_search_radius: 20
 virtual_line_id: 2000
 work_mode: FusionMap+PercepMap # options: "FusionMap", "PercepMap", "FusionMap+PercepMap"
 

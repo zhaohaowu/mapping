@@ -1779,24 +1779,72 @@ bool MapSelectLite::IsCarInLanes(
     auto lane_nearest_index = lane_lines.second.nearest_index;
     int second_lane_index = 0;
     auto line_points_size = lanes_lines_map_[lane_id].lane_line_points.size();
-    if ((line_points_size < 2) || (lane_nearest_index < 1)) {
-      continue;
+    if (line_points_size < 2) {
+      return true;
     }
-    if (lane_nearest_index <= line_points_size - 2) {
-      second_lane_index = lane_nearest_index + 1;
+    float line_dist_value = 0.0;
+    std::string get_id;
+    bool update_value = false;
+    if (lane_nearest_index == 0) {
+      if (GetRelationLaneId(map, lane_id, false, &get_id)) {
+        if ((lanes_lines_map_.count(get_id) > 0) &&
+            (!lanes_lines_map_[get_id].lane_line_points.empty())) {
+          line_dist_value = std::min(
+              PointToVectorDist(
+                  lanes_lines_map_[get_id].lane_line_points.back(),
+                  lanes_lines_map_[lane_id]
+                      .lane_line_points[lane_nearest_index],
+                  car_pos),
+              PointToVectorDist(lanes_lines_map_[lane_id]
+                                    .lane_line_points[lane_nearest_index],
+                                lanes_lines_map_[lane_id]
+                                    .lane_line_points[lane_nearest_index + 1],
+                                car_pos));
+          update_value = true;
+        }
+      }
+      if (!update_value) {
+        line_dist_value = PointToVectorDist(
+            lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index],
+            lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index + 1],
+            car_pos);
+      }
+    } else if (lane_nearest_index == (line_points_size - 1)) {
+      if (GetRelationLaneId(map, lane_id, true, &get_id)) {
+        if ((lanes_lines_map_.count(get_id) > 0) &&
+            (!lanes_lines_map_[get_id].lane_line_points.empty())) {
+          line_dist_value = std::min(
+              PointToVectorDist(lanes_lines_map_[lane_id]
+                                    .lane_line_points[lane_nearest_index - 1],
+                                lanes_lines_map_[lane_id]
+                                    .lane_line_points[lane_nearest_index],
+                                car_pos),
+              PointToVectorDist(
+                  lanes_lines_map_[lane_id]
+                      .lane_line_points[lane_nearest_index],
+                  lanes_lines_map_[get_id].lane_line_points.front(), car_pos));
+          update_value = true;
+        }
+      }
+      if (!update_value) {
+        line_dist_value = PointToVectorDist(
+            lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index - 1],
+            lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index],
+            car_pos);
+      }
     } else {
-      second_lane_index = lane_nearest_index - 1;
+      line_dist_value = std::min(
+          PointToVectorDist(
+              lanes_lines_map_[lane_id]
+                  .lane_line_points[lane_nearest_index - 1],
+              lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index],
+              car_pos),
+          PointToVectorDist(
+              lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index],
+              lanes_lines_map_[lane_id]
+                  .lane_line_points[lane_nearest_index + 1],
+              car_pos));
     }
-
-    auto nearest_point =
-        lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index];
-    auto second_point =
-        lanes_lines_map_[lane_id].lane_line_points[second_lane_index];
-    auto other_point =
-        lanes_lines_map_[lane_id].lane_line_points[lane_nearest_index - 1];
-    auto line_dist_value =
-        std::min(PointToVectorDist(nearest_point, second_point, car_pos),
-                 PointToVectorDist(other_point, nearest_point, car_pos));
     if (lane_lines.second.min_dist_value < dis_scope_) {
       DistanceInfo dis_info;
       dis_info.car_cental_line_dis = line_dist_value;
@@ -1844,6 +1892,28 @@ bool MapSelectLite::IsCarInLanes(
             }
           }
         }
+        return true;
+      }
+    }
+  }
+  return false;
+}
+bool MapSelectLite::GetRelationLaneId(
+    const std::shared_ptr<hozon::hdmap::Map>& map, std::string lane_id,
+    bool is_successor_id, std::string* get_id) {
+  for (const auto& lane : map->lane()) {
+    if (lane_id == lane.id().id()) {
+      if (is_successor_id) {
+        if (lane.successor_id().empty() || (lane.successor_id_size() > 1)) {
+          return false;
+        }
+        *get_id = lane.successor_id(0).id();
+        return true;
+      } else {
+        if (lane.predecessor_id().empty() || (lane.predecessor_id_size() > 1)) {
+          return false;
+        }
+        *get_id = lane.predecessor_id(0).id();
         return true;
       }
     }

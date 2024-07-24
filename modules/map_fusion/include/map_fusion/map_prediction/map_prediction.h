@@ -12,6 +12,7 @@
 #include <depend/map/hdmap/hdmap.h>
 #include <depend/proto/localization/node_info.pb.h>
 #include <depend/proto/map/map.pb.h>
+#include <yaml-cpp/yaml.h>
 
 #include <atomic>
 #include <cmath>
@@ -56,7 +57,7 @@ class MapPrediction {
   MapPrediction() = default;
   ~MapPrediction() = default;
 
-  int Init();
+  int Init(const YAML::Node& conf);
   void Stop();
   void OnHqMap(const std::shared_ptr<hozon::hdmap::Map>& hqmap);
   //! 临时使用，用原始ins作为全局系定位，以后统一用OnLocalization
@@ -256,6 +257,9 @@ class MapPrediction {
   bool get_default_routing_ = false;
 
   std::pair<double, double> map_speed_limit_{0., 0.};
+
+  // 地图搜索半径
+  double lanes_search_radius_ = 0.;
 };
 
 }  // namespace mf

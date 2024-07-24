@@ -6890,10 +6890,29 @@ void GroupMap::PredictLaneLine(std::vector<Lane::Ptr>* pred_lane,
   lane_pre.center_line_param = curr_lane->center_line_param;
   lane_pre.center_line_param_front = curr_lane->center_line_param;
   lane_pre.center_line_pts = ctr_pts;
+  // 添加预测lane的前后继
   lane_pre.prev_lane_str_id_with_group.emplace_back(
       curr_lane->str_id_with_group);
   curr_lane->next_lane_str_id_with_group.emplace_back(
       lane_pre.str_id_with_group);
+  // 添加预测lane的左右邻
+  std::vector<std::string> pre_str_id_with_group;
+  for (const auto& str_id : curr_lane->left_lane_str_id_with_group) {
+    size_t index = str_id.find(":");
+    auto str_id_with_group =
+        str_id.substr(0, index) + "P" + str_id.substr(index);
+    pre_str_id_with_group.emplace_back(str_id_with_group);
+  }
+  lane_pre.left_lane_str_id_with_group = pre_str_id_with_group;
+
+  pre_str_id_with_group.clear();
+  for (const auto& str_id : curr_lane->right_lane_str_id_with_group) {
+    size_t index = str_id.find(":");
+    auto str_id_with_group =
+        str_id.substr(0, index) + "P" + str_id.substr(index);
+    pre_str_id_with_group.emplace_back(str_id_with_group);
+  }
+  lane_pre.right_lane_str_id_with_group = pre_str_id_with_group;
   if (lane_pre.left_boundary->pts.size() > 1 &&
       lane_pre.right_boundary->pts.size() > 1 &&
       lane_pre.center_line_pts.size() > 1) {

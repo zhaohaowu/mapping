@@ -95,14 +95,18 @@ void SplitSecs(double secs, uint32_t* sec, uint32_t* nsec) {
   *nsec = ns;
 }
 
-int MapPrediction::Init() {
+int MapPrediction::Init(const YAML::Node& conf) {
   topo_map_ = std::make_shared<hozon::hdmap::Map>();
   hq_map_server_ = std::make_shared<hozon::hdmap::HDMap>();
   local_msg_ = std::make_shared<hozon::hdmap::Map>();
   local_msg_->Clear();
 
-  // is_pred_proc_stop_ = !FLAGS_pred_run;
-  // pred_proc_ = std::async(&MapPrediction::Prediction, this);
+  if (!conf["lanes_search_radius"].IsDefined()) {
+    HLOG_ERROR << "no config for lanes_search_radius";
+    return -1;
+  }
+
+  lanes_search_radius_ = conf["lanes_search_radius"].as<double>();
   return 0;
 }
 
@@ -533,14 +537,15 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
   std::string current_lane_id;
   GetCurrentLane(utm_pos, routing_lanes_set, routing_lanes, &current_lane_id,
                  &nearest_s, map_speed_limit);
+
   map_speed_limit_ = *map_speed_limit;
+  last_routing_lane_id_ = current_lane_id;
+
   if (current_lane_id.empty()) {
     HLOG_ERROR << "get current lane failed";
     hq_map_ = nullptr;
     return nullptr;
   }
-
-  last_routing_lane_id_ = current_lane_id;
 
   hq_map_ = std::make_shared<hozon::hdmap::Map>();
 
@@ -1719,7 +1724,7 @@ void MapPrediction::GetCurrentLane(
   if (!routing_lanes.empty()) {
     common::math::Vec2d point(utm_pos.x(), utm_pos.y());
     std::vector<hdmap::LaneInfoConstPtr> lanes;
-    GLOBAL_HD_MAP->GetLanes(utm_pos, 20.0, &lanes);
+    GLOBAL_HD_MAP->GetLanes(utm_pos, lanes_search_radius_, &lanes);
 
     if (lanes.empty()) {
       HLOG_ERROR << "HD Map get lanes failed";

@@ -209,6 +209,9 @@ class MapSelectLite {
   LaneInMapInfo IsLaneInMap(const std::shared_ptr<hozon::hdmap::Map>& map,
                             std::string lane_id);
   bool ForkLaneCheck(const std::shared_ptr<hozon::hdmap::Map>& map);
+  bool GetRelationLaneId(const std::shared_ptr<hozon::hdmap::Map>& map,
+                         std::string lane_id, bool is_successor_id,
+                         std::string* get_id);
 
   double left_map_c0_ = kDfaultLaneWidth;
   double right_map_c0_ = -kDfaultLaneWidth;
@@ -279,10 +282,10 @@ class MapSelectLite {
   float max_half_lane_dis_ = 3.5;
   float min_half_lane_dis_ = 1.35;
   float lane_range_value_ = 0.4;
-  float dis_scope_ = 40;
+  float dis_scope_ = 80;
   bool last_car_not_in_lanes_ = false;
-  int  in_lanes_after_not_count_ = 0;
-  int  in_lanes_count_ = 3;
+  int in_lanes_after_not_count_ = 0;
+  int in_lanes_count_ = 3;
   std::string switch_map_reason_;
 };
 }  // namespace select

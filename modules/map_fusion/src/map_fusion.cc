@@ -39,7 +39,7 @@ int MapFusion::Init(const YAML::Node& conf) {
   }
 
   pred_ = std::make_shared<MapPrediction>();
-  ret = pred_->Init();
+  ret = pred_->Init(conf);
   if (ret < 0) {
     HLOG_ERROR << "Init MapPrediction failed";
     return -1;

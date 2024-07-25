@@ -50,6 +50,7 @@ struct Params {
   double loc2_yaw_conv = 55.0;
   double pos_exit_multiple = 5.0;
   double ang_exit_multiple = 5.0;
+  double check_pe_dis = 0.5;
 
   std::vector<std::pair<uint32_t, uint32_t>> ins_init_status;
 };

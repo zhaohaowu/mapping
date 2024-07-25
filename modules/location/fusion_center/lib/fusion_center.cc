@@ -230,8 +230,8 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
       node.ticktime = (*it)->ticktime;
     } else {
       auto it_next = std::prev(it);
-      if (abs(node.ticktime - (*it)->ticktime) <=
-          abs(node.ticktime - (*it_next)->ticktime)) {
+      if (fabs(node.ticktime - (*it)->ticktime) <=
+          fabs(node.ticktime - (*it_next)->ticktime)) {
         node.ticktime = (*it)->ticktime;
       } else {
         node.ticktime = (*it_next)->ticktime;
@@ -470,6 +470,7 @@ bool FusionCenter::LoadParams(const std::string& configfile) {
       node["max_dr_pe_heading_error"].as<double>();
   params_.max_fc_pe_horizontal_dist_error =
       node["max_fc_pe_horizontal_dist_error"].as<double>();
+  params_.check_pe_dis = node["check_pe_dis"].as<double>();
   return true;
 }
 
@@ -754,7 +755,7 @@ void FusionCenter::Node2Localization(const Context& ctx,
   header->set_frame_id("location");
   header->set_data_stamp(ticktime);
 
-  if (abs(global_node.ticktime - local_node.ticktime) > 0.001) {
+  if (fabs(global_node.ticktime - local_node.ticktime) > 0.001) {
     HLOG_INFO << "location global node.ticktime:" << global_node.ticktime
               << ", local node.ticktime:" << local_node.ticktime;
   }
@@ -1328,7 +1329,7 @@ bool FusionCenter::PredictMMMeas() {
 
   ins_deque_mutex_.lock();
   for (const auto& ins_node : ins_deque_) {
-    if (abs(ins_node->ticktime - mm_ticktime) < 0.001) {
+    if (fabs(ins_node->ticktime - mm_ticktime) < 0.001) {
       ins_refer = ins_node;
     }
   }
@@ -1412,10 +1413,10 @@ void FusionCenter::RunESKFFusion(const Eigen::Vector3d& refpoint) {
              << ", meas_deque_.size():" << meas_deque_.size()
              << ", meas_type:" << meas_deque_.back()->type
              << ", fusion_deque.size():" << fusion_deque_.size();
-  fusion_deque_tmp_ = fusion_deque_;
+  auto init_node = std::make_shared<Node>(*fusion_deque_.back());
   fusion_deque_mutex_.unlock();
 
-  auto init_node = std::make_shared<Node>(*fusion_deque_tmp_.back());
+  fusion_deque_tmp_.clear();
   init_node->enu = hmu::Geo::BlhToEnu(init_node->blh, refpoint);
   eskf_->StateInit(init_node);
 
@@ -1437,7 +1438,7 @@ void FusionCenter::RunESKFFusion(const Eigen::Vector3d& refpoint) {
       pre_deque_.pop_front();
     } else {
       // 多源融合时，多个测量时间戳一样时，进行原地更新（无需预测）
-      if (abs(last_meas_time_ - meas_node.ticktime) <= 0.001) {
+      if (fabs(last_meas_time_ - meas_node.ticktime) <= 0.001) {
         eskf_->Correct(meas_node);
         meas_deque_.pop_front();
       } else {
@@ -1458,13 +1459,15 @@ void FusionCenter::RunESKFFusion(const Eigen::Vector3d& refpoint) {
   can_output_ = true;
 
   fusion_deque_mutex_.lock();
+  while (!fusion_deque_tmp_.empty()) {
+    fusion_deque_.push_back(fusion_deque_tmp_.front());
+    fusion_deque_tmp_.pop_front();
+  }
   HLOG_DEBUG << "-------eskf后-------"
              << "pre_deque_.size():" << pre_deque_.size()
              << ", meas_deque_.size():" << meas_deque_.size()
              << ", meas_type:" << meas_deque_.back()->type
              << ", fusion_deque.size():" << fusion_deque_.size();
-  fusion_deque_ = fusion_deque_tmp_;
-  fusion_deque_tmp_.clear();
   fusion_deque_mutex_.unlock();
 }
 
@@ -1526,7 +1529,7 @@ bool FusionCenter::InsertESKFMeasDR() {
 
   ins_deque_mutex_.lock();
   for (const auto& ins_node : ins_deque_) {
-    if (abs(ins_node->ticktime - fc_ticktime) < 0.001) {
+    if (fabs(ins_node->ticktime - fc_ticktime) < 0.001) {
       ins_refer = ins_node;
     }
   }
@@ -1656,18 +1659,9 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     }
   }
 
-  // 定位状态码赋值
-  uint32_t loc_state = 0;
-  loc_state = GetGlobalLocationState();
-  ctx->global_node.location_state = loc_state;
-  if (monitor_->MonitorFault()) {
-    loc_state = FaultCodeAssign(loc_state);
-  }
-
   const double diff_dr_fc = ctx->dr_node.ticktime - fusion_node.ticktime;
   if (diff_dr_fc < 1e-3) {
     ctx->global_node = fusion_node;
-    ctx->global_node.location_state = loc_state;
     ctx->global_node.velocity = ctx->ins_node.velocity;
   } else {
     // DR实时补帧至最新
@@ -1686,7 +1680,6 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     ctx->global_node = ctx->ins_node;
     // ctx->global_node = ctx->dr_node;
     // ctx->global_node.rtk_status = ctx->ins_node.rtk_status;
-    ctx->global_node.location_state = loc_state;
     ctx->global_node.cov = fusion_node.cov;
 #ifdef ISORIN
     CheckTriggerLocState(ctx);
@@ -1721,24 +1714,15 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     prev_global_valid_ = true;
   }
 
-  // debug print enu and euler diff(pe队列更新了此处才更新)
-  if (params_.use_debug_txt) {
-    Node pe_now_node;
-    static Node prev_pe_node;
-    pe_deque_mutex_.lock();
-    uint32_t pe_deque_size = pe_deque_.size();
-    if (pe_deque_size > 0) {
-      pe_now_node = *pe_deque_.back();
-    }
-    pe_deque_mutex_.unlock();
-
-    if (pe_deque_size > 0) {
-      if (prev_pe_node.ticktime < pe_now_node.ticktime) {
-        DebugDiffTxt(fc_ins_diff_file_, ctx->global_node, ctx->ins_node);
-        prev_pe_node = pe_now_node;
-      }
-    }
+  // 定位状态码赋值
+  uint32_t loc_state = 0;
+  loc_state = GetGlobalLocationState(ctx->global_node);
+  ctx->global_node.location_state = loc_state;
+  if (monitor_->MonitorFault()) {
+    loc_state = FaultCodeAssign(loc_state);
   }
+  ctx->global_node.location_state = loc_state;
+
   ctx->global_node.state = true;
   return true;
 }
@@ -1797,15 +1781,54 @@ void FusionCenter::CheckTriggerLocState(Context* const ctx) {
   enable_03 = (curr_time - last_time_03) > 600;
 }
 
-uint32_t FusionCenter::GetGlobalLocationState() {
+bool FusionCenter::CheckFcMmDisValid(const Node& newest_fc_node) {
+  // 1.MM不为空，MM和FC的时间戳差值在0.5s内
+  if (pe_deque_.empty()) {
+    return false;
+  }
+
+  Node newest_pe_node;
+  pe_deque_mutex_.lock();
+  newest_pe_node = *pe_deque_.back();
+  pe_deque_mutex_.unlock();
+
+  if (fabs(newest_pe_node.ticktime - newest_fc_node.ticktime) > 0.5) {
+    HLOG_WARN << "CheckFcMmDisValid time diff has passed 0.5s,diff: "
+              << fabs(newest_pe_node.ticktime - newest_fc_node.ticktime)
+              << " s";
+    return false;
+  }
+
+  // 2.MM与FC车体系下的横向距离小于设定阈值，连续5帧，则返回true
+  static int count = 0;
+  const auto pose_diff =
+      Node2SE3(newest_fc_node).inverse() * Node2SE3(newest_pe_node);
+  if (fabs(pose_diff.translation().y()) < params_.check_pe_dis) {
+    HLOG_WARN << "CheckFcMmDisValid right,diff_y:"
+              << pose_diff.translation().y();
+    ++count;
+  } else {
+    count = 0;
+  }
+
+  if (count >= 5) {
+    count = 0;
+    return true;
+  }
+
+  return false;
+}
+
+uint32_t FusionCenter::GetGlobalLocationState(const Node& newest_fc_node) {
   static uint32_t state = 5;
   uint32_t search_cnt = 0;
 
   std::unique_lock<std::mutex> lock(fusion_deque_mutex_);
   // 进入loc=2条件
   if (state != 2) {
+    bool valid_dis = CheckFcMmDisValid(newest_fc_node);
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
-      if ((*it)->type == NodeType::POSE_ESTIMATE &&
+      if ((*it)->type == NodeType::POSE_ESTIMATE && valid_dis &&
           (*it)->cov(0, 0) <= params_.loc2_posx_conv * 1e-11 &&
           (*it)->cov(1, 1) <= params_.loc2_posy_conv * 1e-11 &&
           (*it)->cov(8, 8) <= params_.loc2_yaw_conv * 1e-11) {

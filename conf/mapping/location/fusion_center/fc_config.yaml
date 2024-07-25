@@ -36,6 +36,7 @@ loc2_posy_conv: 65.0
 loc2_yaw_conv: 0.25
 pos_exit_multiple: 30
 ang_exit_multiple: 10
+check_pe_dis: 0.5
 
 require_local_pose: false
 lateral_error_compensation: false

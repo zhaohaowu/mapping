@@ -91,7 +91,7 @@ class FusionCenter {
 
   // Get blh pose to ctx.global_node
   bool GetGlobalPose(Context* const ctx);
-  uint32_t GetGlobalLocationState();
+  uint32_t GetGlobalLocationState(const Node& newest_fc_node);
 
   // Get local pose in local mapping coord to ctx.local_node
   bool GetLocalPose(Context* const ctx);
@@ -106,6 +106,7 @@ class FusionCenter {
   bool IsInsDrift(const std::shared_ptr<Node> ins_node);
   bool IsInsStateChange(const std::shared_ptr<Node> node);
   void CheckTriggerLocState(Context* const ctx);
+  bool CheckFcMmDisValid(const Node& newest_fc_node);
 
  private:
   Params params_;

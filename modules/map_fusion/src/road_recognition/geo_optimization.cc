@@ -1577,7 +1577,48 @@ void GeoOptimization::HandleOppisiteLineByObj() {
           (PI * 3 / -4 < object.theta() && object.theta() < PI * 3 / 4)) {
         continue;
       }
-      obj_points.emplace_back(p_veh);
+      // 筛选出在车道线中间的object
+      bool obj_on_line_left = false;
+      bool obj_on_line_right = false;
+      for (auto& line_vector : all_lines_) {
+        if (line_vector.second.empty()) {
+          continue;
+        }
+        for (auto& line : line_vector.second) {
+          int line_size = line.line->points_size();
+          if (line_size < 2 || (!line.line->points().empty() &&
+                                line.line->points().at(0).x() < 0)) {
+            continue;
+          }
+          int line_index = 0;
+          if (p_veh.x() < line.line->points(0).x()) {
+            line_index = 0;
+          } else if (p_veh.x() > line.line->points(line_size - 1).x()) {
+            line_index = line_size - 2;
+          } else {
+            for (; line_index < line_size - 1; line_index++) {
+              if (line.line->points(line_index).x() < p_veh.x() &&
+                  line.line->points(line_index + 1).x() > p_veh.x()) {
+                break;
+              }
+            }
+          }
+          Eigen::Vector3d linel1(line.line->points(line_index).x(),
+                                 line.line->points(line_index).y(),
+                                 line.line->points(line_index).z());
+          Eigen::Vector3d linel2(line.line->points(line_index + 1).x(),
+                                 line.line->points(line_index + 1).y(),
+                                 line.line->points(line_index + 1).z());
+          if (IsRight(p_veh, linel1, linel2)) {
+            obj_on_line_right = true;
+          } else {
+            obj_on_line_left = true;
+          }
+        }
+      }
+      if (obj_on_line_left && obj_on_line_right) {
+        obj_points.emplace_back(p_veh);
+      }
     }
   }
   if (obj_points.empty()) {
@@ -2837,9 +2878,10 @@ void GeoOptimization::CompareRoadAndLines(
     for (const auto& point : road_pts) {
       kdtree_points.emplace_back(static_cast<float>(point.x()),
                                  static_cast<float>(point.y()));
-      line.add_points()->set_x(point.x());
-      line.add_points()->set_y(point.y());
-      line.add_points()->set_z(point.z());
+      auto* new_pt = line.add_points();
+      new_pt->set_x(point.x());
+      new_pt->set_y(point.y());
+      new_pt->set_z(point.z());
     }
     cv::flann::KDTreeIndexParams index_param(1);
     std::shared_ptr<cv::flann::Index> kdtree_ptr =
@@ -2895,9 +2937,10 @@ void GeoOptimization::ConstructLaneLine(
       }
       kdtree_points.emplace_back(static_cast<float>(point.x()),
                                  static_cast<float>(point.y()));
-      kd_line.add_points()->set_x(point.x());
-      kd_line.add_points()->set_y(point.y());
-      kd_line.add_points()->set_z(point.z());
+      auto* new_pt = kd_line.add_points();
+      new_pt->set_x(point.x());
+      new_pt->set_y(point.y());
+      new_pt->set_z(point.z());
     }
     cv::flann::KDTreeIndexParams index_param(1);
     std::shared_ptr<cv::flann::Index> kdtree_ptr =
@@ -3753,9 +3796,10 @@ void GeoOptimization::HandleSingleSideLine() {
       }
       kdtree_points.emplace_back(static_cast<float>(point.x()),
                                  static_cast<float>(point.y()));
-      kd_line.add_points()->set_x(point.x());
-      kd_line.add_points()->set_y(point.y());
-      kd_line.add_points()->set_z(point.z());
+      auto* new_pt = kd_line.add_points();
+      new_pt->set_x(point.x());
+      new_pt->set_y(point.y());
+      new_pt->set_z(point.z());
     }
     cv::flann::KDTreeIndexParams index_param(1);
     std::shared_ptr<cv::flann::Index> kdtree_ptr =
@@ -4030,22 +4074,24 @@ void GeoOptimization::AppendElemtMap(
   }
 
   // obj
-  for (const auto& i : obj_msg->perception_obstacle()) {
-    em::Obj obj;
-    obj.id = i.track_id();
-    FillObjType(&obj, i.type());
-    em::Point point(i.position().x(), i.position().y(), i.position().z());
-    obj.position = point;
-    em::Point v(i.velocity().x(), i.velocity().y(), i.velocity().z());
-    obj.velocity = v;
-    for (const auto& pt : i.polygon_point()) {
-      em::Point objpts(pt.x(), pt.y(), pt.z());
-      obj.polygon.points.emplace_back(objpts);
+  if (obj_msg != nullptr) {
+    for (const auto& i : obj_msg->perception_obstacle()) {
+      em::Obj obj;
+      obj.id = i.track_id();
+      FillObjType(&obj, i.type());
+      em::Point point(i.position().x(), i.position().y(), i.position().z());
+      obj.position = point;
+      em::Point v(i.velocity().x(), i.velocity().y(), i.velocity().z());
+      obj.velocity = v;
+      for (const auto& pt : i.polygon_point()) {
+        em::Point objpts(pt.x(), pt.y(), pt.z());
+        obj.polygon.points.emplace_back(objpts);
+      }
+      obj.heading = i.theta();
+      obj.length = i.length();
+      obj.width = i.width();
+      elem_map_->objs[obj.id] = std::make_shared<em::Obj>(obj);
     }
-    obj.heading = i.theta();
-    obj.length = i.length();
-    obj.width = i.width();
-    elem_map_->objs[obj.id] = std::make_shared<em::Obj>(obj);
   }
 }
 

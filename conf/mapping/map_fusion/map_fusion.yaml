@@ -60,4 +60,3 @@ RoadRecognition:
     use_occ_roadedge: false
     use_bev_roadedge: false
     
-    delay_connect_hz: 3 # 延迟连接

@@ -497,10 +497,10 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
 
   std::shared_ptr<hozon::perception::PerceptionObstacles> latest_obj =
       GetLatestObj();
-  if (latest_obj == nullptr) {
-    HLOG_ERROR << "nullptr latest latest_obj";
-    return -1;
-  }
+  // if (latest_obj == nullptr) {
+  //   HLOG_ERROR << "nullptr latest latest_obj";
+  //   return -1;
+  // }
 
   std::shared_ptr<hozon::dead_reckoning::DeadReckoning> latest_dr =
       GetLatestDR();

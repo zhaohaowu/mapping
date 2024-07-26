@@ -225,7 +225,6 @@ struct GroupMapConf {
 
   float junction_guide_min_dis = 25.0;
   float junction_guide_max_degree = 5;
-  int delay_connect_hz = 3;
 };
 
 struct IsCross {
@@ -238,7 +237,6 @@ struct IsCross {
   int is_connect_ = 0;  // 防抖，防止这帧连下一帧不连导致画龙
   std::set<std::string>
       next_satisefy_lane_seg;  // 记录路口后满足连接条件的所有lane名称
-  int delay_hz = 0;
 };
 
 struct HistoryId {
@@ -497,6 +495,8 @@ class GroupMap {
   bool ContainEgoLane(std::vector<Group::Ptr>* groups, int next_grp_index);
   int FindEgoGroup(std::vector<Group::Ptr>*
                        groups);  // 找到自车所在的group 返回值是groups的index
+  float PointToLineDis(const LineSegment& line, float line_front_x,
+                       float line_front_y);
   void EraseEgoGroupWithNoEgoLane(
       std::vector<Group::Ptr>*
           groups);  // 把自车所在group但是没有自车道和自车邻车道的group删除

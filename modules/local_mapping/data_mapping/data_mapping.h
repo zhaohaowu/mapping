@@ -16,14 +16,17 @@
 #include "modules/local_mapping/base/location/location.h"
 #include "modules/local_mapping/base/object/object.h"
 #include "modules/local_mapping/base/scene/arrow.h"
+#include "modules/local_mapping/base/scene/freespace.h"
 #include "modules/local_mapping/base/scene/laneline.h"
 #include "modules/local_mapping/base/scene/localmap.h"
 #include "modules/local_mapping/base/scene/noparking.h"
+#include "modules/local_mapping/base/scene/occedge.h"
 #include "modules/local_mapping/base/scene/roadedge.h"
 #include "modules/local_mapping/base/scene/slowdown.h"
 #include "modules/local_mapping/base/scene/stopline.h"
 #include "modules/local_mapping/base/scene/waitzone.h"
 #include "modules/local_mapping/base/scene/zebracrossing.h"
+#include "modules/local_mapping/lib/datalogger/freespace_manager.h"
 #include "proto/dead_reckoning/dr.pb.h"
 #include "proto/local_mapping/local_map.pb.h"
 #include "proto/localization/localization.pb.h"
@@ -66,6 +69,12 @@ class DataMapping {
   ~DataMapping() = default;
 
   // 感知pb数据到内部数据结构体的转换
+  static bool CvtPbFreeSpaces2FreeSpaces(
+      const std::shared_ptr<hozon::perception::FreeSpaceOutArray> fs_pb,
+      std::shared_ptr<FreeSpaces> freespaces_ptr);
+  static bool CvtPbFreeSpace2FreeSpace(
+      const hozon::perception::FreeSpaceOut& freespaceinfo,
+      OccEdgePtr occedgeptr);
   static bool CvtPb2Measurement(
       const std::shared_ptr<hozon::perception::measurement::MeasurementPb>&
           measurepb,
@@ -106,6 +115,9 @@ class DataMapping {
       const std::shared_ptr<LocalMapFrame>& measure_frame_ptr,
       const std::shared_ptr<hozon::mapping::LocalMap>& localmap_pb);
 
+  static bool CvtFreeSpace2Pb(const FreeSpaceOutputPtr& freespaceoutptr,
+                              hozon::mapping::FreeSpaceOutput* pb_freespace);
+
   static bool CvtLaneLine2Pb(const LaneLinePtr& lane_msg,
                              hozon::mapping::LaneLine* pb_lane);
 
@@ -131,6 +143,9 @@ class DataMapping {
 
   static bool CvtRoadEdge2TePb(const RoadEdgePtr& roadedge_msg,
                                hozon::perception::RoadEdge* pb_roadedge);
+
+  static bool CvtOccEdge2Pb(const OccEdgePtr& occedge_msg,
+                            hozon::mapping::Occ* pb_occedge);
 };
 
 }  // namespace data_mapping

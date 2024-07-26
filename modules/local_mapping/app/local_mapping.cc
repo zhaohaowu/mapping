@@ -11,6 +11,7 @@
 
 // #include "Eigen/src/Core/Matrix.h"
 #include "modules/local_mapping/base/location/dr.h"
+#include "modules/local_mapping/lib/datalogger/freespace_manager.h"
 #include "modules/local_mapping/lib/datalogger/map_manager.h"
 #include "modules/local_mapping/lib/datalogger/pose_manager.h"
 #include "perception-base/base/utils/log.h"
@@ -58,6 +59,13 @@ void LocalMapApp::OnLocalization(
   // 用一个单例来存储一段时间内的dr原始定位数据。
   if (!POSE_MANAGER->PushDrData(localization_frame_ptr)) {
     HLOG_ERROR << "localization timestamp error";
+  }
+}
+
+void LocalMapApp::OnFreeSpace(const FreeSpacesConstPtr& freespace_frame_ptr) {
+  // 用一个单例来存储一段时间内的freespace原始数据。
+  if (!OCC_MANAGER->PushFreeSpaceData(freespace_frame_ptr)) {
+    HLOG_ERROR << "freespace timestamp error";
   }
 }
 
@@ -128,6 +136,17 @@ void LocalMapApp::RvizFunc() {
     }
     RvizUtil::PubPerRoadEdge(T_W_V, per_road_edges, sec, nsec,
                              "/localmap/per_road_edge");
+    // occ路沿
+    std::vector<OccEdge> per_occ_edges;
+    HLOG_ERROR << "perception.occ_edges_ptr->occ_edges: "
+               << perception.occ_edges_ptr->occ_edges.size();
+    for (const auto& occ_edge : perception.occ_edges_ptr->occ_edges) {
+      per_occ_edges.emplace_back(*occ_edge);
+    }
+    RvizUtil::PubPerOccEdge(T_W_V, per_occ_edges, sec, nsec,
+                            "/localmap/per_occ_edge");
+    RvizUtil::PubPerOccEdgeMarker(T_W_V, per_occ_edges, sec, nsec,
+                                  "/localmap/per_occ_edge_marker");
     // 感知停止线
     std::vector<StopLine> per_stop_lines;
     for (const auto& stop_line : perception.stop_lines_ptr->stoplines) {
@@ -177,6 +196,18 @@ void LocalMapApp::RvizFunc() {
     RvizUtil::PubImmatureMapRoadEdgeMarker(
         T_W_V, map_road_edges, sec, nsec,
         "/localmap/immature_map_road_edge_marker");
+    // 地图occ路沿
+    std::vector<OccEdge> map_occ_edges;
+    for (const auto& occ_edge : local_map->occ_edges_ptr->occ_edges) {
+      map_occ_edges.emplace_back(*occ_edge);
+    }
+    RvizUtil::PubMapOccEdge(T_W_V, map_occ_edges, sec, nsec,
+                            "/localmap/map_occ_edge");
+    RvizUtil::PubMapOccEdgeMarker(T_W_V, map_occ_edges, sec, nsec,
+                                  "/localmap/mature_map_occ_edge_marker");
+    RvizUtil::PubMapImmatureOccEdgeMarker(
+        T_W_V, map_occ_edges, sec, nsec,
+        "/localmap/immature_map_occ_edge_marker");
     // 地图停止线
     std::vector<StopLine> map_stop_lines;
     for (const auto& stop_line : local_map->stop_lines_ptr->stoplines) {
@@ -213,9 +244,22 @@ void LocalMapApp::RvizFunc() {
     RvizUtil::PubImmatureMapZebraCrossingMarker(
         T_W_V, map_zebra_crossings, sec, nsec,
         "/localmap/immature_map_zebra_crossing_marker");
+
+    // 地图occ区域
+    // std::vector<FreeSpaceOutput> map_freespace_outputs;
+    // for (const auto& freespace_output :
+    //      local_map->freespaces_out_ptr->freespace_outputs) {
+    //   map_freespace_outputs.emplace_back(freespace_output);
+    // }
+    // RvizUtil::PubMapFreespace(T_W_V, map_freespace_outputs, sec, nsec,
+    //                           "/localmap/map_freespace_output");
+    // RvizUtil::PubMapNonFreespace(T_W_V, map_freespace_outputs, sec, nsec,
+    //                              "/localmap/map_non_freespace_output");
     RvizUtil::PubOdom(T_W_V, sec, nsec, "/localmap/odom");
     RvizUtil::PubTf(T_W_V, sec, nsec, "/localmap/tf");
     RvizUtil::PubPath(T_W_V, sec, nsec, "/localmap/path");
+    RvizUtil::PubDataTimeStamp(T_W_V, perception.header.timestamp, sec, nsec,
+                               "/localmap/data_time_stamp");
     usleep(100 * 1e3);
   }
 }

@@ -562,22 +562,18 @@ bool GetMiddleLineCurve(const LaneLineCurve& curve1,
 }
 
 float GetLength(const LaneLineCurve& curve) { return curve.max - curve.min; }
-
 float GetLength(const std::vector<Eigen::Vector3d>& point_sets) {
   float total_length = 0;
   // 遍历point_sets中的点
   for (size_t i = 1; i < point_sets.size(); ++i) {
     // 计算车体系两点之间的欧式距离
-    double dx = point_sets[i].x() - point_sets[i - 1].x();
-    double dy = point_sets[i].y() - point_sets[i - 1].y();
-    double length = std::sqrt(dx * dx + dy * dy);
+    double length = (point_sets[i] - point_sets[i - 1]).norm();
 
     // 累加得到整个车道线的长度
-    total_length += length;
+    total_length += static_cast<float>(length);
   }
   return total_length;
 }
-
 std::pair<float, float> GetEndY(
     const std::vector<Eigen::Vector3d>& point_sets) {
   float pt_max_y = -FLT_MAX;
@@ -613,9 +609,10 @@ float GetDistPointLane(const Eigen::Vector3d& point_a,
 float GetDistBetweenTwoLane(const std::vector<Eigen::Vector3d>& point_set1,
                             const std::vector<Eigen::Vector3d>& point_set2) {
   // 前提两条线的车辆系下的点已经从近到远排好序
-  float curve_length1 = point_set1.back().x() - point_set1.front().x();
-  float curve_length2 = point_set2.back().x() - point_set2.front().x();
-  auto lane_short = point_set1, lane_long = point_set2;
+  float curve_length1 = GetLength(point_set1);
+  float curve_length2 = GetLength(point_set2);
+  auto lane_short = point_set1;
+  auto lane_long = point_set2;
   if (curve_length1 > curve_length2) {
     lane_short = point_set2;
     lane_long = point_set1;
@@ -625,35 +622,29 @@ float GetDistBetweenTwoLane(const std::vector<Eigen::Vector3d>& point_set1,
     return 0.0;
   }
 
-  if (lane_long.size() == 1) {
+  if (lane_long.size() < 2) {
     HLOG_WARN << "GetDistBetweenTwoLane function Point Numbers ERROR";
+    return 0.0;
   }
 
-  double dist_sum = 0.0;
-  Eigen::Vector3d A, B, C;
-  for (int i = 0, j = 0; i < lane_short.size() && j < lane_long.size(); ++i) {
-    A = lane_short[i];
-    if (lane_long.size() == 1) {
-      B = lane_long[0];
-      C = lane_long[0];
-    } else if (A.x() <= lane_long[0].x()) {
-      B = lane_long[0];
-      C = lane_long[1];
-    } else if (A.x() >= lane_long.back().x()) {
-      B = lane_long[lane_long.size() - 2];
-      C = lane_long[lane_long.size() - 1];
-    } else if (A.x() < lane_long[j].x()) {
-      B = lane_long[j - 1];
-      C = lane_long[j];
-    } else {
-      ++j;
-      --i;
-      continue;
+  float dist_sum = 0.0;
+  for (int i = 0; i < static_cast<int>(lane_short.size()); ++i) {
+    double min_dist = std::numeric_limits<double>::max();
+    Eigen::Vector3d A = lane_short[i];
+    Eigen::Vector3d B = lane_long[0];
+    Eigen::Vector3d C = lane_long[1];
+    for (int j = 0; j < static_cast<int>(lane_long.size()); ++j) {
+      double dist = (A - lane_long[j]).norm();
+      if (dist < min_dist) {
+        dist = min_dist;
+        B = C;
+        C = lane_long[j];
+      }
     }
     double dist = GetDistPointLane(A, B, C);
-    dist_sum += dist;
+    dist_sum += static_cast<float>(dist);
   }
-  return dist_sum / (lane_short.size());
+  return dist_sum / static_cast<float>(lane_short.size());
 }
 
 bool LaneLineIntersection(const std::vector<Eigen::Vector3d>& point_set1,
@@ -714,6 +705,9 @@ std::pair<double, double> GetOverLayLengthBetweenTwoLane(
   // 求重叠区域
   double min_x = MAX(point_set1.front().x(), point_set2.front().x());
   double max_x = MIN(point_set1.back().x(), point_set2.back().x());
+  if (min_x >= max_x) {
+    return std::pair(FLT_MAX, 0);
+  }
   std::vector<std::pair<int, double>> point_dist;
   double length_min_ovelay = 0;
   std::vector<double> x_list;
@@ -793,26 +787,6 @@ float GetLengthRatioBetweenTwoLane(const LaneLineConstPtr& curve1,
   }
 
   return length1 / (length2 + 0.001);
-}
-
-void TransMeasurementVehicle2Local(
-    std::vector<LaneLinePtr>* measurement_lanelines_ptr) {
-  const auto& trans_pose = POSE_MANAGER->GetCurrentPose();
-  for (auto& detect_line_ptr : *measurement_lanelines_ptr) {
-    const auto& points = detect_line_ptr->vehicle_points;
-    CommonUtil::TransVehiclePoint2Local(points, &detect_line_ptr->world_points,
-                                        trans_pose);
-  }
-}
-
-void TransMeasurementVehicle2Local(
-    std::vector<RoadEdgePtr>* measurement_roadedges_ptr) {
-  const auto& trans_pose = POSE_MANAGER->GetCurrentPose();
-  for (auto& detect_line_ptr : *measurement_roadedges_ptr) {
-    const auto& points = detect_line_ptr->vehicle_points;
-    CommonUtil::TransVehiclePoint2Local(points, &detect_line_ptr->world_points,
-                                        trans_pose);
-  }
 }
 
 void TransTrackerLocal2Vehicle(const LaneLinesPtr& tracked_lanes) {
@@ -909,6 +883,20 @@ void DeepCopy(const LocalMapFramePtr& src_data,
       std::shared_ptr<StopLine> copy_stopline = std::make_shared<StopLine>();
       *copy_stopline = *src_stopline;
       dst_data->stop_lines_ptr->stoplines.push_back(copy_stopline);
+    }
+  }
+
+  // occ路沿线数据拷贝
+  if (!dst_data->occ_edges_ptr) {
+    dst_data->occ_edges_ptr = std::make_shared<OccEdges>();
+  }
+  dst_data->occ_edges_ptr->occ_edges.clear();
+
+  if (src_data->occ_edges_ptr) {
+    for (const auto& src_occ_edge : src_data->occ_edges_ptr->occ_edges) {
+      std::shared_ptr<OccEdge> copy_occ_edge = std::make_shared<OccEdge>();
+      *copy_occ_edge = *src_occ_edge;
+      dst_data->occ_edges_ptr->occ_edges.push_back(copy_occ_edge);
     }
   }
 }

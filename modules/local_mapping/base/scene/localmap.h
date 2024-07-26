@@ -13,8 +13,10 @@
 #include "boost/circular_buffer/base.hpp"
 #include "modules/local_mapping/base/object/object.h"
 #include "modules/local_mapping/base/scene/arrow.h"
+#include "modules/local_mapping/base/scene/freespace.h"
 #include "modules/local_mapping/base/scene/laneline.h"
 #include "modules/local_mapping/base/scene/noparking.h"
+#include "modules/local_mapping/base/scene/occedge.h"
 #include "modules/local_mapping/base/scene/roadedge.h"
 #include "modules/local_mapping/base/scene/slowdown.h"
 #include "modules/local_mapping/base/scene/stopline.h"
@@ -37,6 +39,7 @@ struct Frame {
 struct MeasurementFrame : public Frame {
   LaneLinesPtr lane_lines_ptr{};
   RoadEdgesPtr road_edges_ptr{};
+  OccEdgesPtr occ_edges_ptr{};
   ZebraCrossingsPtr zebra_crossings_ptr{};
   StopLinesPtr stop_lines_ptr{};
   ArrowsPtr road_arrows_ptr{};
@@ -49,6 +52,7 @@ struct MeasurementFrame : public Frame {
 struct LocalMapFrame : public Frame {
   LaneLinesPtr lane_lines_ptr{};
   RoadEdgesPtr road_edges_ptr{};
+  OccEdgesPtr occ_edges_ptr{};
   ZebraCrossingsPtr zebra_crossings_ptr{};
   StopLinesPtr stop_lines_ptr{};
   ArrowsPtr road_arrows_ptr{};

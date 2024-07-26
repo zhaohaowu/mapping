@@ -16,6 +16,7 @@
 
 #include "modules/local_mapping/base/scene/arrow.h"
 #include "modules/local_mapping/base/scene/laneline.h"
+#include "modules/local_mapping/base/scene/occedge.h"
 #include "modules/local_mapping/base/scene/roadedge.h"
 #include "modules/local_mapping/base/scene/stopline.h"
 #include "modules/local_mapping/base/scene/zebracrossing.h"
@@ -89,11 +90,14 @@ class BaseTarget {
   }
   inline void SetHistoryLinePos(const LaneLinePtr& laneline_ptr) {
     history_line_pos_.push_back(laneline_ptr->position);
+    history_mf_line_pos_.push_back(laneline_ptr->mf_position);
   }
   inline boost::circular_buffer<LaneLinePosition> GetHistoryLinePos() const {
     return history_line_pos_;
   }
-
+  inline boost::circular_buffer<LaneLinePosition> GetHistorymfLinePos() const {
+    return history_mf_line_pos_;
+  }
   inline double GetMatureTrackedTimestamp() const {
     return mature_tracked_timestamp_;
   }
@@ -150,6 +154,7 @@ class BaseTarget {
   ElementPtr tracked_element_ = nullptr;
   std::vector<std::pair<int, double>> deleted_track_ids_;
   boost::circular_buffer<LaneLinePosition> history_line_pos_;
+  boost::circular_buffer<LaneLinePosition> history_mf_line_pos_;
   int id_ = 0;
   int lost_age_ = 0;
   int tracked_count_ = 0;
@@ -189,6 +194,7 @@ bool BaseTarget<Element>::InitBase(const ProcessOption& options,
   tracked_count_++;
   start_tracked_timestamp_ = options.timestamp;
   lastest_tracked_timestamp_ = options.timestamp;
+  SetLastestTrackedTimestamp(options.timestamp);
   // 第一次成熟时的时间戳
   mature_tracked_timestamp_ = options.timestamp;
   UpdateTrackStatus(false);
@@ -308,6 +314,20 @@ class RoadEdgeTarget : public BaseTarget<RoadEdge> {
 
 using RoadEdgeTargetPtr = std::shared_ptr<RoadEdgeTarget>;
 using RoadEdgeTargetConstPtr = std::shared_ptr<const RoadEdgeTarget>;
+
+// OccEdgeTarget 定义
+// 特殊函数可以在cc文件可以复写基类的函数
+class OccEdgeTarget : public BaseTarget<OccEdge> {
+ public:
+  int occ_detect_id;
+
+ public:
+  bool Init(const ProcessOption& options, const OccEdgePtr& detected_occ_edge);
+  inline bool SendPostLane() const { return send_postlane_; }
+};
+
+using OccEdgeTargetPtr = std::shared_ptr<OccEdgeTarget>;
+using OccEdgeTargetConstPtr = std::shared_ptr<const OccEdgeTarget>;
 
 // StopLineTarget 定义
 // 特殊函数可以在cc文件可以复写基类的函数

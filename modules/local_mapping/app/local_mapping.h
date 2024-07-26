@@ -51,6 +51,8 @@ class LocalMapApp {
 
   void OnLocalization(const LocationConstPtr& localization_frame_ptr);
 
+  void OnFreeSpace(const FreeSpacesConstPtr& freespace_frame_ptr);
+
   void OnIns(const InsDataConstPtr& ins_msg_ptr);
 
   static std::string Name() { return "LocalMapApp"; }

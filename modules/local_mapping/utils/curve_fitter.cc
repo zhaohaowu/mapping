@@ -8,7 +8,6 @@
 #include <random>
 #include <vector>
 
-
 namespace hozon {
 namespace mp {
 namespace lm {
@@ -30,6 +29,9 @@ CurveFitter::CurveFitter(int order, int pt_num) : order_(order) {
   y_.resize(pt_num);
   result_.resize(order_ + 1);
 }
+
+CurveFitter::CurveFitter(const LaneLineCurve& curve)
+    : params(curve.coeffs), x_min(curve.min), x_max(curve.max) {}
 
 }  // namespace lm
 }  // namespace mp

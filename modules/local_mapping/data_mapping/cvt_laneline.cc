@@ -317,7 +317,7 @@ bool DataMapping::CvtLaneLine2Pb(const LaneLinePtr& lane_msg,
   hozon::mapping::LaneType send_type = CvtLaneType2Pb(lane_msg->type);
   pb_lane->set_lanetype(send_type);
   hozon::mapping::LanePositionType send_pos_type =
-      CvtLanePosType2Pb(lane_msg->position);
+      CvtLanePosType2Pb(lane_msg->mf_position);
 
   // HLOG_INFO << "cam3 lane id:" << lane_msg->id
   //           << " lane pos:" << static_cast<int>(lane_msg->position)

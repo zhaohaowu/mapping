@@ -31,24 +31,19 @@ void RoadEdgePositionManager::Process(const RoadEdgesPtr& roadedges_ptr) {
       unknown_positionroad_edges.emplace_back(road_edge);
       continue;
     }
-    if (road_edge->vehicle_points.back().x() < 0) {
-      road_edge->vehicle_curve.coeffs[0] = road_edge->vehicle_points.back().y();
-    } else if (road_edge->vehicle_points.front().x() > 0) {
-      road_edge->vehicle_curve.coeffs[0] =
-          road_edge->vehicle_points.front().y();
-    } else {
-      std::vector<Eigen::Vector3d> points;
-      for (const auto& point : road_edge->vehicle_points) {
-        if (point.x() > -20 && point.x() < 20) {
-          points.emplace_back(point);
-        }
-      }
-      if (points.size() < 4) {
-        road_edge->position = LaneLinePosition::OTHER;
-        unknown_positionroad_edges.emplace_back(road_edge);
-        continue;
+
+    std::vector<Eigen::Vector3d> points;
+    for (const auto& point : road_edge->vehicle_points) {
+      if (point.x() > -20 && point.x() < 20) {
+        points.emplace_back(point);
       }
     }
+    if (points.size() < 4) {
+      road_edge->position = LaneLinePosition::OTHER;
+      unknown_positionroad_edges.emplace_back(road_edge);
+      continue;
+    }
+
     if (road_edge->vehicle_curve.coeffs[0] > 0) {
       left_road_edges[road_edge->vehicle_curve.coeffs[0]] = road_edge;
     } else if (road_edge->vehicle_curve.coeffs[0] < 0) {

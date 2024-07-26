@@ -22,9 +22,11 @@
 #include "depend/perception-lib/lib/fault_manager/fault_manager.h"
 #include "depend/proto/perception/perception_measurement.pb.h"
 #include "modules/local_mapping/data_mapping/data_mapping.h"
+#include "modules/local_mapping/lib/datalogger/freespace_manager.h"
 #include "modules/local_mapping/lib/datalogger/map_manager.h"
 // #include "modules/local_mapping/lib/interface/base_lane_process.h"
 // #include "modules/local_mapping/lib/interface/base_roadedge_process.h"
+#include "depend/proto/perception/perception_freespace.pb.h"
 #include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 #include "perception-base/base/state_machine/state_machine_info.h"
 #include "perception-lib/lib/environment/environment.h"
@@ -41,6 +43,8 @@ int32_t LocalMappingOnboard::AlgInit() {
                               hozon::perception::measurement::MeasurementPb);
   REGISTER_PROTO_MESSAGE_TYPE("localization",
                               hozon::localization::Localization);
+  REGISTER_PROTO_MESSAGE_TYPE("percep_freespace",
+                              hozon::perception::FreeSpaceOutArray);
   REGISTER_PROTO_MESSAGE_TYPE("camera_0", hozon::soc::Image);
   REGISTER_PROTO_MESSAGE_TYPE("running_mode",
                               hozon::perception::common_onboard::running_mode);
@@ -54,6 +58,9 @@ int32_t LocalMappingOnboard::AlgInit() {
                                  std::placeholders::_1));
   RegistAlgProcessFunc("recv_localization",
                        std::bind(&LocalMappingOnboard::Onlocalization, this,
+                                 std::placeholders::_1));
+  RegistAlgProcessFunc("recv_freespace",
+                       std::bind(&LocalMappingOnboard::OnFreeSpace, this,
                                  std::placeholders::_1));
   RegistAlgProcessFunc("recv_running_mode",
                        std::bind(&LocalMappingOnboard::OnRunningMode, this,
@@ -198,6 +205,11 @@ int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
   }
   HLOG_DEBUG << "finish translate measurement pb to internal data ...";
 
+  // freespace数据映射到measurement_frame统一处理
+  if (!FillFreespaceData(measurement_frame)) {
+    HLOG_ERROR << "Fill freespace data into measurement frame filled";
+  }
+
   // 建图模块功能实现
   HLOG_DEBUG << "start  do localmap work job...";
   if (app_ptr_->OnPerception(measurement_frame)) {
@@ -221,6 +233,37 @@ int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
     HLOG_ERROR << "localmapping can not output loaclmap";
     return -1;
   }
+}
+
+// freespace数据映射到measurement_frame统一处理
+bool LocalMappingOnboard::FillFreespaceData(
+    const std::shared_ptr<MeasurementFrame>& measure_frame) {
+  measure_frame->occ_edges_ptr = std::make_shared<OccEdges>();
+  auto& freespace_buffer = OCC_MANAGER->GetFreeSpaceBuffer();
+  if (freespace_buffer.buffer_size() == 0) {
+    HLOG_ERROR << "freespace_buffer is null";
+    return false;
+  }
+  DrDataConstPtr perception_pose =
+      POSE_MANAGER->GetDrPoseByTimeStamp(measure_frame->header.timestamp);
+  if (perception_pose == nullptr) {
+    HLOG_ERROR << "perception_pose is nullptr";
+    return false;
+  }
+  const auto& freespace_pose = freespace_buffer.back()->freespaces_pose;
+  const Eigen::Affine3d mapping_pose =
+      perception_pose->pose.inverse() * freespace_pose->pose;
+  for (const auto& edge : freespace_buffer.back()->edges.occ_edges) {
+    auto occ_edge_ptr = std::make_shared<OccEdge>();
+    for (const auto& pt : edge->vehicle_points) {
+      occ_edge_ptr->vehicle_points.emplace_back(mapping_pose * pt);
+    }
+    occ_edge_ptr->detect_id = edge->detect_id;
+    occ_edge_ptr->id = edge->detect_id;
+    occ_edge_ptr->type = edge->type;
+    measure_frame->occ_edges_ptr->occ_edges.emplace_back(occ_edge_ptr);
+  }
+  return true;
 }
 
 int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
@@ -320,6 +363,26 @@ int32_t LocalMappingOnboard::Onlocalization(adf_lite_Bundle* input) {
 
   app_ptr_->OnLocalization(latest_location);
   HLOG_DEBUG << "processed localization data";
+  return 0;
+}
+
+int32_t LocalMappingOnboard::OnFreeSpace(adf_lite_Bundle* input) {
+  auto percept_freespace = input->GetOne("percep_freespace");
+  if (!percept_freespace) {
+    HLOG_ERROR << "get null freespace";
+    return -1;
+  }
+  auto pb_freespace =
+      std::static_pointer_cast<hozon::perception::FreeSpaceOutArray>(
+          percept_freespace->proto_msg);
+  std::shared_ptr<FreeSpaces> latest_freespace = std::make_shared<FreeSpaces>();
+  if (!data_mapping::DataMapping::CvtPbFreeSpaces2FreeSpaces(
+          pb_freespace, latest_freespace)) {
+    HLOG_ERROR << "DataMapping::CvtPbFreeSpaces2FreeSpaces failed";
+    return -1;
+  }
+  app_ptr_->OnFreeSpace(latest_freespace);
+  HLOG_DEBUG << "processed freespace data";
   return 0;
 }
 

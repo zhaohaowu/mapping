@@ -6,6 +6,7 @@
 
 #include "base/utils/log.h"
 #include "modules/local_mapping/data_mapping/data_mapping.h"
+#include "modules/local_mapping/lib/datalogger/pose_manager.h"
 
 namespace hozon {
 namespace mp {
@@ -20,6 +21,57 @@ void PrintMeasurementStopLine(StopLinePtr stopline_ptr) {
             << std::endl;
   std::cout << "stopline-heading:" << stopline_ptr->heading << std::endl;
   std::cout << "stopline-length:" << stopline_ptr->length << std::endl;
+}
+
+bool DataMapping::CvtPbFreeSpaces2FreeSpaces(
+    const std::shared_ptr<hozon::perception::FreeSpaceOutArray> fs_pb,
+    std::shared_ptr<FreeSpaces> freespaces_ptr) {
+  // 包含occ的数据转换过程
+  freespaces_ptr->timestamp = fs_pb->header().data_stamp();
+  // 时间戳递推当前时刻occ自车在local系位姿
+  freespaces_ptr->freespaces_pose =
+      POSE_MANAGER->GetDrPoseByTimeStamp(freespaces_ptr->timestamp);
+  if (freespaces_ptr->freespaces_pose == nullptr) {
+    HLOG_ERROR << "occ time is:" << std::to_string(freespaces_ptr->timestamp);
+    HLOG_ERROR << "freespace_pose is nullptr";
+    return false;
+  }
+  HLOG_DEBUG << "TEST pb lane_lines nums:"
+             << fs_pb->freespace_out_vrf()[0].grid().type().size();
+  bool first_flag = false;
+  for (const auto& item : fs_pb->freespace_out_vrf()) {
+    // freespace_out_vrf[0]是网格数据，跳过
+    if (!first_flag) {
+      first_flag = true;
+      continue;
+    }
+    if (!(item.freespace_point().size() > 0)) {
+      HLOG_ERROR << "freespace_point().size()<0";
+      continue;
+    }
+    OccEdgePtr occedge_ptr = std::make_shared<OccEdge>();
+    // 上游会把一个包络切成两个，处理时合并成一个，local_map后续处理时切
+    if (CvtPbFreeSpace2FreeSpace(item, occedge_ptr)) {
+      bool find_flag = false;
+      for (const auto& occ : freespaces_ptr->edges.occ_edges) {
+        if (occ->detect_id == occedge_ptr->detect_id &&
+            occ->type == OccEdgeType::ROAD_EDGE) {
+          occ->vehicle_points.insert(occ->vehicle_points.end(),
+                                     occedge_ptr->vehicle_points.begin(),
+                                     occedge_ptr->vehicle_points.end());
+          find_flag = true;
+          break;
+        }
+      }
+      if (!find_flag) {
+        freespaces_ptr->edges.occ_edges.push_back(occedge_ptr);
+      }
+    } else {
+      HLOG_ERROR << "freespace measurement data has nan value...";
+    }
+  }
+
+  return true;
 }
 
 bool DataMapping::CvtPb2Measurement(

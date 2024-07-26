@@ -194,11 +194,16 @@ std::pair<double, double> GetOverLayLengthBetweenTwoLane(
     const std::vector<Eigen::Vector3d>& point_set2, float thresh_length);
 float GetLengthRatioBetweenTwoLane(const LaneLineConstPtr& curve1,
                                    const LaneLineConstPtr& curve2);
+template <typename T>
 void TransMeasurementVehicle2Local(
-    std::vector<LaneLinePtr>* measurement_lanelines_ptr);
-void TransMeasurementVehicle2Local(
-    std::vector<RoadEdgePtr>* measurement_roadedges_ptr);
-
+    std::vector<std::shared_ptr<T>>* measurement_lanelines_ptr) {
+  const auto& trans_pose = POSE_MANAGER->GetCurrentPose();
+  for (auto& detect_line_ptr : *measurement_lanelines_ptr) {
+    const auto& points = detect_line_ptr->vehicle_points;
+    CommonUtil::TransVehiclePoint2Local(points, &detect_line_ptr->world_points,
+                                        trans_pose);
+  }
+}
 void TransTrackerLocal2Vehicle(const LaneLinesPtr& tracked_lanes);
 void TransTrackerLocal2Vehicle(const RoadEdgesPtr& tracked_roadedges);
 
@@ -242,6 +247,21 @@ float GetOverLayYRatioBetweenTwoLane(const std::shared_ptr<lineType>& curve1,
       overlay_end - overlay_start > 0 ? overlay_end - overlay_start : 0;
 
   return overlay_length / std::min(length1, length2);
+}
+
+// 求y方向绝对值均值
+
+template <typename lineType>
+float GetAbsYValueLine(const std::shared_ptr<lineType>& curve) {
+  float sum_y = 0.0;
+  if (curve->vehicle_points.empty()) {
+    HLOG_ERROR << "curve vehicle_points is empty !!!";
+    return std::numeric_limits<float>::max();
+  }
+  for (const auto& pt : curve->vehicle_points) {
+    sum_y += std::abs(pt.y());
+  }
+  return sum_y / (curve->vehicle_points.size());
 }
 
 }  // namespace lm

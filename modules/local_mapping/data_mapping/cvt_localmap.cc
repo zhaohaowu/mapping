@@ -65,6 +65,13 @@ bool DataMapping::CvtLocalMap2Pb(
     }
   }
 
+  if (localmap_frame_ptr->occ_edges_ptr != nullptr) {
+    for (auto& item : localmap_frame_ptr->occ_edges_ptr->occ_edges) {
+      auto pb_occ_edge_ptr = localmap_pb->add_occs();
+      CvtOccEdge2Pb(item, pb_occ_edge_ptr);
+    }
+  }
+
   return true;
 }
 

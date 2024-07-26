@@ -22,6 +22,7 @@
 #include "depend/proto/soc/sensor_image.pb.h"
 #include "interface/adsfi_proto/viz/sensor_msgs.pb.h"
 #include "modules/local_mapping/base/scene/arrow.h"
+#include "modules/local_mapping/base/scene/freespace.h"
 #include "modules/local_mapping/base/scene/stopline.h"
 #include "modules/local_mapping/base/scene/zebracrossing.h"
 #include "modules/local_mapping/utils/common.h"
@@ -121,6 +122,42 @@ class RvizUtil {
     util::RvizAgent::Instance().Publish(topic, path_msg);
   }
 
+  static void PubDataTimeStamp(const Eigen::Affine3d& T_W_V,
+                               double data_time_stamp, const uint64_t& sec,
+                               const uint64_t& nsec, const std::string& topic) {
+    static bool register_flag = true;
+    Eigen::Vector3d p = T_W_V.translation();
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::Marker>(topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::Marker txt_marker;
+    txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    txt_marker.set_id(0);
+    txt_marker.mutable_lifetime()->set_sec(0);
+    txt_marker.mutable_lifetime()->set_nsec(200000000);
+    txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+    txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    txt_marker.mutable_header()->set_frameid("localmap");
+    txt_marker.mutable_pose()->mutable_position()->set_x(p.x() - 2.0);
+    txt_marker.mutable_pose()->mutable_position()->set_y(p.y() + 1.0);
+    txt_marker.mutable_pose()->mutable_position()->set_z(10.0);
+    txt_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    txt_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    txt_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    txt_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    txt_marker.mutable_color()->set_a(1);
+    txt_marker.mutable_color()->set_r(1.0);
+    txt_marker.mutable_color()->set_g(0.0);
+    txt_marker.mutable_color()->set_b(0.0);
+    txt_marker.set_text(std::to_string(data_time_stamp));
+    txt_marker.mutable_scale()->set_x(2);
+    txt_marker.mutable_scale()->set_y(2);
+    txt_marker.mutable_scale()->set_z(2);
+    util::RvizAgent::Instance().Publish(topic, txt_marker);
+  }
+
   static void PubPerLaneLine(const Eigen::Affine3d& T_W_V,
                              const std::vector<LaneLine>& per_lane_lines,
                              const uint64_t& sec, const uint64_t& nsec,
@@ -173,6 +210,110 @@ class RvizUtil {
       }
     }
     util::RvizAgent::Instance().Publish(topic, points_msg);
+  }
+
+  static void PubPerOccEdge(const Eigen::Affine3d& T_W_V,
+                            const std::vector<OccEdge>& per_occ_edges,
+                            const uint64_t& sec, const uint64_t& nsec,
+                            const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::PointCloud points_msg;
+    points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = points_msg.add_channels();
+    channels->set_name("rgb");
+    for (const auto& occ_edge : per_occ_edges) {
+      for (const auto& point : occ_edge.vehicle_points) {
+        auto point_world = T_W_V * point;
+        auto* point_msg = points_msg.add_points();
+        point_msg->set_x(static_cast<float>(point_world.x()));
+        point_msg->set_y(static_cast<float>(point_world.y()));
+        point_msg->set_z(static_cast<float>(point_world.z()));
+      }
+    }
+    util::RvizAgent::Instance().Publish(topic, points_msg);
+  }
+
+  static void PubPerOccEdgeMarker(const Eigen::Affine3d& T_W_V,
+                                  const std::vector<OccEdge>& map_occ_edges,
+                                  const uint64_t& sec, const uint64_t& nsec,
+                                  const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
+          topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::MarkerArray markers;
+    int id = 0;
+    for (const auto& occ_edge : map_occ_edges) {
+      if (occ_edge.vehicle_points.empty()) {
+        continue;
+      }
+      Eigen::Vector3d txt_point{occ_edge.vehicle_points.back().x(),
+                                occ_edge.vehicle_points.back().y(), 0};
+      txt_point = T_W_V * txt_point;
+      adsfi_proto::viz::Marker point_marker;
+      point_marker.mutable_header()->set_frameid("localmap");
+      point_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      point_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      point_marker.set_id(id++);
+      point_marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+      point_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      point_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+      point_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+      point_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+      point_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+      point_marker.mutable_scale()->set_x(0.2);
+      point_marker.mutable_scale()->set_y(0.2);
+      point_marker.mutable_scale()->set_z(0.2);
+      point_marker.mutable_lifetime()->set_sec(0);
+      point_marker.mutable_lifetime()->set_nsec(200000000);
+      point_marker.mutable_color()->set_a(1.0);
+      point_marker.mutable_color()->set_r(1.0);
+      point_marker.mutable_color()->set_g(0.75);
+      point_marker.mutable_color()->set_b(0.80);
+      for (const auto& point : occ_edge.vehicle_points) {
+        auto point_world = T_W_V * point;
+        auto* point_msg = point_marker.add_points();
+        point_msg->set_x(point_world.x());
+        point_msg->set_y(point_world.y());
+        point_msg->set_z(point_world.z());
+      }
+      markers.add_markers()->CopyFrom(point_marker);
+
+      adsfi_proto::viz::Marker txt_marker;
+      txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+      txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      txt_marker.set_id(id++);
+      txt_marker.mutable_lifetime()->set_sec(0);
+      txt_marker.mutable_lifetime()->set_nsec(200000000);
+      txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      txt_marker.mutable_header()->set_frameid("localmap");
+      txt_marker.mutable_pose()->mutable_position()->set_x(txt_point[0]);
+      txt_marker.mutable_pose()->mutable_position()->set_y(txt_point[1]);
+      txt_marker.mutable_pose()->mutable_position()->set_z(2);
+      txt_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+      txt_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+      txt_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+      txt_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+      txt_marker.mutable_color()->set_a(1);
+      txt_marker.mutable_color()->set_r(1.0);
+      txt_marker.mutable_color()->set_g(0.75);
+      txt_marker.mutable_color()->set_b(0.8);
+      txt_marker.set_text(std::to_string(static_cast<int>(occ_edge.detect_id)));
+      txt_marker.mutable_scale()->set_x(2);
+      txt_marker.mutable_scale()->set_y(2);
+      txt_marker.mutable_scale()->set_z(2);
+      markers.add_markers()->CopyFrom(txt_marker);
+    }
+    util::RvizAgent::Instance().Publish(topic, markers);
   }
 
   static void PubPerStopLine(const Eigen::Affine3d& T_W_V,
@@ -668,6 +809,209 @@ class RvizUtil {
       txt_marker.mutable_color()->set_b(0);
       txt_marker.mutable_color()->set_a(1);
       txt_marker.set_text(std::to_string(lane_line.tracked_count));
+      txt_marker.mutable_scale()->set_x(2);
+      txt_marker.mutable_scale()->set_y(2);
+      txt_marker.mutable_scale()->set_z(2);
+      markers.add_markers()->CopyFrom(txt_marker);
+    }
+    util::RvizAgent::Instance().Publish(topic, markers);
+  }
+
+  static void PubMapOccEdge(const Eigen::Affine3d& T_W_V,
+                            const std::vector<OccEdge>& map_occ_edges,
+                            const uint64_t& sec, const uint64_t& nsec,
+                            const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::PointCloud points_msg;
+    points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = points_msg.add_channels();
+    channels->set_name("rgb");
+    for (const auto& occ_edge : map_occ_edges) {
+      for (const auto& point : occ_edge.vehicle_points) {
+        auto point_world = T_W_V * point;
+        auto* point_msg = points_msg.add_points();
+        point_msg->set_x(static_cast<float>(point_world.x()));
+        point_msg->set_y(static_cast<float>(point_world.y()));
+        point_msg->set_z(static_cast<float>(point_world.z()));
+      }
+    }
+    util::RvizAgent::Instance().Publish(topic, points_msg);
+  }
+
+  static void PubMapOccEdgeMarker(const Eigen::Affine3d& T_W_V,
+                                  const std::vector<OccEdge>& map_occ_edges,
+                                  const uint64_t& sec, const uint64_t& nsec,
+                                  const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
+          topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::MarkerArray markers;
+    int id = 0;
+    for (const auto& occ_edge : map_occ_edges) {
+      if (occ_edge.vehicle_points.empty()) {
+        continue;
+      }
+      if (occ_edge.state == TrackState::NOTMATURED) {
+        continue;
+      }
+      Eigen::Vector3d txt_point{occ_edge.vehicle_points.back().x(),
+                                occ_edge.vehicle_points.back().y(), 0};
+      txt_point = T_W_V * txt_point;
+      adsfi_proto::viz::Marker point_marker;
+      point_marker.mutable_header()->set_frameid("localmap");
+      point_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      point_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      point_marker.set_id(id++);
+      point_marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+      point_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      point_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+      point_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+      point_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+      point_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+      point_marker.mutable_scale()->set_x(0.2);
+      point_marker.mutable_scale()->set_y(0.2);
+      point_marker.mutable_scale()->set_z(0.2);
+      point_marker.mutable_lifetime()->set_sec(0);
+      point_marker.mutable_lifetime()->set_nsec(200000000);
+      point_marker.mutable_color()->set_a(1.0);
+      point_marker.mutable_color()->set_r(0.0);
+      point_marker.mutable_color()->set_g(1.0);
+      point_marker.mutable_color()->set_b(0.0);
+      for (const auto& point : occ_edge.vehicle_points) {
+        auto point_world = T_W_V * point;
+        auto* point_msg = point_marker.add_points();
+        point_msg->set_x(point_world.x());
+        point_msg->set_y(point_world.y());
+        point_msg->set_z(point_world.z());
+      }
+      markers.add_markers()->CopyFrom(point_marker);
+
+      adsfi_proto::viz::Marker txt_marker;
+      txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+      txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      txt_marker.set_id(id++);
+      txt_marker.mutable_lifetime()->set_sec(0);
+      txt_marker.mutable_lifetime()->set_nsec(200000000);
+      txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      txt_marker.mutable_header()->set_frameid("localmap");
+      txt_marker.mutable_pose()->mutable_position()->set_x(txt_point[0]);
+      txt_marker.mutable_pose()->mutable_position()->set_y(txt_point[1]);
+      txt_marker.mutable_pose()->mutable_position()->set_z(2);
+      txt_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+      txt_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+      txt_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+      txt_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+      txt_marker.mutable_color()->set_a(1);
+      txt_marker.mutable_color()->set_r(0.0);
+      txt_marker.mutable_color()->set_g(1.0);
+      txt_marker.mutable_color()->set_b(0.0);
+      txt_marker.set_text(std::to_string(occ_edge.id) + ", " +
+                          std::to_string(static_cast<int>(occ_edge.detect_id)));
+      txt_marker.mutable_scale()->set_x(2);
+      txt_marker.mutable_scale()->set_y(2);
+      txt_marker.mutable_scale()->set_z(2);
+      markers.add_markers()->CopyFrom(txt_marker);
+    }
+    util::RvizAgent::Instance().Publish(topic, markers);
+  }
+
+  static void PubMapImmatureOccEdgeMarker(
+      const Eigen::Affine3d& T_W_V, const std::vector<OccEdge>& map_occ_edges,
+      const uint64_t& sec, const uint64_t& nsec, const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::MarkerArray>(
+          topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::MarkerArray markers;
+    int id = 0;
+    for (const auto& occ_edge : map_occ_edges) {
+      if (occ_edge.vehicle_points.empty()) {
+        continue;
+      }
+      if (occ_edge.state == TrackState::MATURED) {
+        continue;
+      }
+      Eigen::Vector3d txt_point{occ_edge.vehicle_points.back().x(),
+                                occ_edge.vehicle_points.back().y(), 0};
+      txt_point = T_W_V * txt_point;
+      adsfi_proto::viz::Marker point_marker;
+      point_marker.mutable_header()->set_frameid("localmap");
+      point_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      point_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      point_marker.set_id(id++);
+      point_marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+      point_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      point_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+      point_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+      point_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+      point_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+      point_marker.mutable_scale()->set_x(0.2);
+      point_marker.mutable_scale()->set_y(0.2);
+      point_marker.mutable_scale()->set_z(0.2);
+      point_marker.mutable_lifetime()->set_sec(0);
+      point_marker.mutable_lifetime()->set_nsec(200000000);
+      point_marker.mutable_color()->set_a(1.0);
+      point_marker.mutable_color()->set_r(0.68);
+      point_marker.mutable_color()->set_g(0.85);
+      point_marker.mutable_color()->set_b(0.90);
+      // for (const auto& point : occ_edge.vehicle_points) {
+      //   auto point_world = T_W_V * point;
+      //   auto* point_msg = point_marker.add_points();
+      //   point_msg->set_x(point_world.x());
+      //   point_msg->set_y(point_world.y());
+      //   point_msg->set_z(point_world.z());
+      // }
+      const auto& curve = occ_edge.vehicle_curve;
+      for (auto pt_x = curve.min; pt_x <= curve.max; pt_x += 1.0) {
+        double pt_y = 0.0;
+        double val = 1.0;
+        for (const auto& param : curve.coeffs) {
+          pt_y += param * val;
+          val *= pt_x;
+        }
+        Eigen::Vector3d point(pt_x, pt_y, 0.0);
+        auto point_world = T_W_V * point;
+        auto* point_msg = point_marker.add_points();
+        point_msg->set_x(point_world.x());
+        point_msg->set_y(point_world.y());
+        point_msg->set_z(point_world.z());
+      }
+      markers.add_markers()->CopyFrom(point_marker);
+
+      adsfi_proto::viz::Marker txt_marker;
+      txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+      txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+      txt_marker.set_id(id++);
+      txt_marker.mutable_lifetime()->set_sec(0);
+      txt_marker.mutable_lifetime()->set_nsec(200000000);
+      txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+      txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+      txt_marker.mutable_header()->set_frameid("localmap");
+      txt_marker.mutable_pose()->mutable_position()->set_x(txt_point[0]);
+      txt_marker.mutable_pose()->mutable_position()->set_y(txt_point[1]);
+      txt_marker.mutable_pose()->mutable_position()->set_z(2);
+      txt_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+      txt_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+      txt_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+      txt_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+      txt_marker.mutable_color()->set_a(1);
+      txt_marker.mutable_color()->set_r(0.68);
+      txt_marker.mutable_color()->set_g(0.85);
+      txt_marker.mutable_color()->set_b(0.90);
+      txt_marker.set_text(std::to_string(occ_edge.id) + ", " +
+                          std::to_string(static_cast<int>(occ_edge.detect_id)));
       txt_marker.mutable_scale()->set_x(2);
       txt_marker.mutable_scale()->set_y(2);
       txt_marker.mutable_scale()->set_z(2);
@@ -1601,6 +1945,70 @@ class RvizUtil {
       markers.add_markers()->CopyFrom(txt_marker);
     }
     util::RvizAgent::Instance().Publish(topic, markers);
+  }
+
+  static void PubMapFreespace(
+      const Eigen::Affine3d& T_W_V,
+      const std::vector<FreeSpaceOutput>& map_freespace_outputs,
+      const uint64_t& sec, const uint64_t& nsec, const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::PointCloud points_msg;
+    points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = points_msg.add_channels();
+    channels->set_name("rgb");
+    for (const auto& freespace_output : map_freespace_outputs) {
+      if (!freespace_output.free) {
+        continue;
+      }
+      for (const auto& points : freespace_output.vec_edges_points) {
+        for (const auto& point : points) {
+          auto point_world = T_W_V * point;
+          auto* point_msg = points_msg.add_points();
+          point_msg->set_x(static_cast<float>(point_world.x()));
+          point_msg->set_y(static_cast<float>(point_world.y()));
+          point_msg->set_z(static_cast<float>(point_world.z()));
+        }
+      }
+    }
+    util::RvizAgent::Instance().Publish(topic, points_msg);
+  }
+
+  static void PubMapNonFreespace(
+      const Eigen::Affine3d& T_W_V,
+      const std::vector<FreeSpaceOutput>& map_freespace_outputs,
+      const uint64_t& sec, const uint64_t& nsec, const std::string& topic) {
+    static bool register_flag = true;
+    if (register_flag) {
+      util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
+      register_flag = false;
+    }
+    adsfi_proto::viz::PointCloud points_msg;
+    points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+    points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    points_msg.mutable_header()->set_frameid("localmap");
+    auto* channels = points_msg.add_channels();
+    channels->set_name("rgb");
+    for (const auto& freespace_output : map_freespace_outputs) {
+      if (freespace_output.free) {
+        continue;
+      }
+      for (const auto& points : freespace_output.vec_edges_points) {
+        for (const auto& point : points) {
+          auto point_world = T_W_V * point;
+          auto* point_msg = points_msg.add_points();
+          point_msg->set_x(static_cast<float>(point_world.x()));
+          point_msg->set_y(static_cast<float>(point_world.y()));
+          point_msg->set_z(static_cast<float>(point_world.z()));
+        }
+      }
+    }
+    util::RvizAgent::Instance().Publish(topic, points_msg);
   }
 };
 

@@ -148,7 +148,8 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
   HLOG_DEBUG << "laneline MergeTracks: id " << left_line->Id() << ", id "
              << right_line->Id() << ", over_lay_ratio: " << over_lay_ratio
              << ", avg_dist: " << avg_dist << ", time_diff: " << time_diff
-             << " ,line_interval:" << line_interval;
+             << " ,line_interval:" << line_interval
+             << " ,avg_overlap_dist:" << avg_overlap_dist;
   // 根据线的质量来做删除,需要根据case专门抽一个评估函数
   if (over_lay_ratio > 0.7 && avg_dist < 1.0 ||
       over_lay_ratio > 0.2 && avg_dist < 0.5) {
@@ -169,21 +170,44 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
       }
     } else {
       // 时间差不超过2帧保存跟踪时间长的
-      if (left_line->Count() > right_line->Count()) {
+      // 如果一条远端点大于另一条的远端点30m，不再选一条，而是直接merge点在一起
+      if (left_line->GetConstTrackedObject()->vehicle_points.back().x() -
+              right_line->GetConstTrackedObject()->vehicle_points.back().x() >
+          30) {
         right_line->SetDeleteFlag(true);
         left_line->SetDeletedTrackIds(*right_line);
         SetLaneLineType(left_line, right_line);
+        MergeTrackPoints(left_line, right_line);
         SetTrackIdPair(left_line, right_line);
-      } else {
+      } else if (right_line->GetConstTrackedObject()
+                         ->vehicle_points.back()
+                         .x() -
+                     left_line->GetConstTrackedObject()
+                         ->vehicle_points.back()
+                         .x() >
+                 30) {
         left_line->SetDeleteFlag(true);
         right_line->SetDeletedTrackIds(*left_line);
         SetLaneLineType(right_line, left_line);
+        MergeTrackPoints(right_line, left_line);
         SetTrackIdPair(right_line, left_line);
+      } else {
+        if (left_line->Count() > right_line->Count()) {
+          right_line->SetDeleteFlag(true);
+          left_line->SetDeletedTrackIds(*right_line);
+          SetLaneLineType(left_line, right_line);
+          SetTrackIdPair(left_line, right_line);
+        } else {
+          left_line->SetDeleteFlag(true);
+          right_line->SetDeletedTrackIds(*left_line);
+          SetLaneLineType(right_line, left_line);
+          SetTrackIdPair(right_line, left_line);
+        }
       }
     }
     return true;
   } else if (over_lay_ratio <= 0.2 &&
-             (line_interval > -4 &&
+             (line_interval > -4 && avg_dist < 4 &&
               ((over_lay_ratio > 0 && avg_overlap_dist < 1) ||
                (over_lay_ratio == 0 && avg_dist < 1)))) {
     if (left_line->GetConstTrackedObject()->vehicle_points.back().x() >
@@ -412,7 +436,14 @@ void LaneLineMergeTrack::MergeTracks(std::vector<LaneTrackerPtr>* trackers) {
       if (!right_line->IsTracked() || right_line->GetDeleteFlag()) {
         continue;
       }
-
+      // 路口前后的不merge
+      // if (left_line->GetConstTrackedObject()->after_intersection !=
+      //     right_line->GetConstTrackedObject()->after_intersection) {
+      //   HLOG_DEBUG << "left id:" << left_line->GetConstTrackedObject()->id
+      //              << " ,right id:" <<
+      //              right_line->GetConstTrackedObject()->id;
+      //   continue;
+      // }
       if (IsForkConvergelike(left_line, right_line)) {
         continue;
       }

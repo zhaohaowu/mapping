@@ -47,6 +47,12 @@ bool MapWorker::Init() {
   CHECK(zebracrossing_mapping_pl_ptr_->Init());
   HLOG_DEBUG << "init  tracker name: " << zebracrossing_mapping_pl_ptr_->Name();
 
+  // occ边沿线pipeline模块初始化
+  occedge_mapping_pl_ptr_ = std::make_unique<OccEdgeMappingPipeline>();
+  CHECK(occedge_mapping_pl_ptr_ != nullptr);
+  CHECK(occedge_mapping_pl_ptr_->Init());
+  HLOG_DEBUG << "init  tracker name: " << occedge_mapping_pl_ptr_->Name();
+
   return true;
 }
 
@@ -100,9 +106,14 @@ bool MapWorker::Process(const MeasurementFrameConstPtr& measurement_frame_ptr) {
   HLOG_DEBUG << "start do arrow mapping process...";
   arrow_mapping_pl_ptr_->Process(option, measurement_frame_ptr, local_map_ptr_);
   HLOG_DEBUG << "finish do arrow mapping process...";
+  // 6. occ边沿的建图过程
+  HLOG_DEBUG << "start do occedge mapping process...";
+  occedge_mapping_pl_ptr_->Process(option, measurement_frame_ptr,
+                                   local_map_ptr_);
+  HLOG_DEBUG << "finish do occedge mapping process...";
   CutLocalMap(local_map_ptr_, 80, 80);
 
-  // 7. 将历史数据存放到单例数据管理器中（方便去拿历史数据）。
+  // 8. 将历史数据存放到单例数据管理器中（方便去拿历史数据）。
   MAP_MANAGER->SwapLocalMap();
   return true;
 }
@@ -126,6 +137,10 @@ void MapWorker::ClearLocalMap(const LocalMapFramePtr& local_map_ptr_) {
 
   if (!local_map_ptr_->zebra_crossings_ptr) {
     local_map_ptr_->zebra_crossings_ptr->zebra_crossings.clear();
+  }
+
+  if (!local_map_ptr_->occ_edges_ptr) {
+    local_map_ptr_->occ_edges_ptr->occ_edges.clear();
   }
 }
 
@@ -174,6 +189,31 @@ void MapWorker::CutLocalMap(std::shared_ptr<LocalMapFrame> local_map_ptr,
                        return road_edge->vehicle_points.empty();
                      }),
       local_map_ptr->road_edges_ptr->road_edges.end());
+
+  // occ路沿目标范围裁剪
+  // occ 看得远单独设置裁剪范围
+  const double occ_length_x = 200.0;
+  const double occ_length_y = 30.0;
+  for (auto& occ_roadedge_ptr : local_map_ptr->occ_edges_ptr->occ_edges) {
+    auto& vehicle_points = occ_roadedge_ptr->vehicle_points;
+    vehicle_points.erase(
+        std::remove_if(vehicle_points.begin(), vehicle_points.end(),
+                       [&](Eigen::Vector3d& point) {
+                         return (point.x() < 0.0 || point.x() > occ_length_x ||
+                                 point.y() < -occ_length_y ||
+                                 point.y() > occ_length_y);
+                       }),
+        vehicle_points.end());
+  }
+
+  // 删除目标范围内点数为0的occ路沿
+  local_map_ptr->occ_edges_ptr->occ_edges.erase(
+      std::remove_if(local_map_ptr->occ_edges_ptr->occ_edges.begin(),
+                     local_map_ptr->occ_edges_ptr->occ_edges.end(),
+                     [&](const OccEdgePtr& road_edge) {
+                       return road_edge->vehicle_points.empty();
+                     }),
+      local_map_ptr->occ_edges_ptr->occ_edges.end());
 
   // 删除目标区域外停止线
   auto& stoplines_ptr = local_map_ptr->stop_lines_ptr->stoplines;

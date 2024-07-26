@@ -28,6 +28,10 @@ dataSourcesIn:
     type: proto_proxy
     cmTopic: /perception/fsd/onboard/detection
     cmDomainId: 0
+  - topic: percep_freespace
+    type: proto_proxy
+    cmTopic: /perception/fsd/freespace_1
+    cmDomainId: 0
   - topic: tlr_percep
     type: proto_proxy
     cmTopic: /perception/fsd/environment/tlr_msg

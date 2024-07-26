@@ -26,6 +26,7 @@
 #include "modules/local_mapping/lib/interface/base_mapping_pipeline.h"
 #include "modules/local_mapping/lib/pipeline/arrow_mapping_pipeline.h"
 #include "modules/local_mapping/lib/pipeline/laneline_mapping_pipeline.h"
+#include "modules/local_mapping/lib/pipeline/occedge_mapping_pipeline.h"
 #include "modules/local_mapping/lib/pipeline/roadedge_mapping_pipeline.h"
 #include "modules/local_mapping/lib/pipeline/stopline_mapping_pipeline.h"
 #include "modules/local_mapping/lib/pipeline/zebracrossing_mapping_pipeline.h"
@@ -64,6 +65,8 @@ class MapWorker {
   std::unique_ptr<BaseMappingPipeline> zebracrossing_mapping_pl_ptr_;
   // 停止线的localmap管理器
   std::unique_ptr<BaseMappingPipeline> stopline_mapping_pl_ptr_;
+  // occ路沿线的localmap管理器
+  std::unique_ptr<BaseMappingPipeline> occedge_mapping_pl_ptr_;
   bool static_copy_map_once_ = false;
 };
 

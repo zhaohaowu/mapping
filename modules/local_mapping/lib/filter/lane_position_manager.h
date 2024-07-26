@@ -22,20 +22,14 @@ class LanePositionManager {
  public:
   void Init();
 
-  bool Process(const LaneLinesPtr& lanelineptr);
-  std::vector<bool> CheckLanesDistance(
-      const std::vector<LaneLinePtr>* tracked_lanelines);
-  bool IsMainRoadAboutDisappear(
-      const std::vector<LaneLinePtr>* tracked_lanelines,
-      const std::vector<bool>& far_line_index);
-  void revise_lanes_flag(const std::vector<LaneLinePtr>* tracked_lanelines,
-                        std::vector<bool>* far_lanes_flag);
-  bool CheckStableFlag(const std::vector<LaneLinePtr>* tracked_lanelines,
-                       bool disappear_flag);
-  bool CheckEgoPose(LaneLinePosition pose);
-  bool CheckStablePosFlag(const std::vector<LaneLinePtr>* tracked_lanelines);
-  void RevisePose(const std::vector<LaneLinePtr>* tracked_lanelines,
-                  bool stable_flag, bool stable_pos_flag);
+  void Process(const LaneLinesPtr& laneline_ptrs);
+  void SetLaneLinePosition(const std::vector<LaneLinePtr>& lane_lines);
+  void SetC0(const LaneLinesPtr& laneline_ptrs);
+  void SetReferC0(const LaneLinesPtr& laneline_ptrs);
+  void IfCross(const LaneLinesPtr& laneline_ptrs);
+  void SelectLaneLines(const std::vector<LaneLinePtr>& normal_lanelines,
+                       std::vector<LaneLinePtr>* selected_lanelines);
+  bool IsUnknownLaneline(const LaneLinePtr& laneline_ptr);
 
  private:
   bool inited_ = false;

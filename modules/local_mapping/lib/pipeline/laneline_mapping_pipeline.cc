@@ -63,6 +63,7 @@ void LaneLineMappingPipeline::AssginPosition(
       if (lane_target->Id() == track_id) {
         auto tmp_his_pos = lane_target->GetHistoryLinePos();
         track_line->history_line_pos = lane_target->GetHistoryLinePos();
+        track_line->history_mf_line_pos = lane_target->GetHistorymfLinePos();
         break;
       }
     }
@@ -200,6 +201,34 @@ std::string LaneLineMappingPipeline::Name() const {
   return "LaneLineMappingPipeline";
 }
 
+bool CheckReverseFlag(const LaneTargetPtr& target) {
+  // 取首尾5个点求向量
+  const auto& line_pts = target->GetTrackedObject()->vehicle_points;
+  int pt_size = static_cast<int>(line_pts.size());
+  if (pt_size < 10) {
+    return false;
+  }
+  const Eigen::Vector3d unit_vec(1.0, 0.0, 0.0);
+  const int count_num = 5;
+  double avg_cos_theta = 0.0;
+  for (int i = 0; i < count_num; ++i) {
+    const auto& first_pt = line_pts[i];
+    const auto& second_pt = line_pts[pt_size - i - 1];
+    auto direct_vec = second_pt - first_pt;
+    avg_cos_theta +=
+        direct_vec.dot(unit_vec) / (direct_vec.norm() + 0.001) / count_num;
+  }
+  bool reverse_flag = avg_cos_theta < -0.5;
+  HLOG_DEBUG << "CheckReverseFlag: " << target->GetConstTrackedObject()->id
+             << ", first_pt x: " << line_pts.front().x()
+             << ", y: " << line_pts.front().y()
+             << ", back_pt x: " << line_pts.back().x()
+             << ", y: " << line_pts.back().y()
+             << ", avg_cos_theta: " << avg_cos_theta
+             << ", reverse_flag: " << reverse_flag;
+  return reverse_flag;
+}
+
 void LaneLineMappingPipeline::UpdateTracks() {
   std::vector<LaneTargetPtr> targets = GetAllTarget();
 
@@ -210,7 +239,7 @@ void LaneLineMappingPipeline::UpdateTracks() {
     for (auto& point : vehicle_points) {
       point = T_cur_last_ * point;
     }
-    if (vehicle_points.front().x() > vehicle_points.back().x()) {
+    if (CheckReverseFlag(target)) {
       std::reverse(vehicle_points.begin(), vehicle_points.end());
     }
   }

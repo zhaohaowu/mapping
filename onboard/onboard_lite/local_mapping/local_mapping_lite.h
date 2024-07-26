@@ -33,6 +33,9 @@ class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
   // 获取dr局部定位信息
   int32_t Onlocalization(adf_lite_Bundle* input);
 
+  // 获取freespace信息
+  int32_t OnFreeSpace(adf_lite_Bundle* input);
+
   // 获取Ins全局定位信息，仅用于可视化
   int32_t OnIns(adf_lite_Bundle* input);
 
@@ -41,6 +44,9 @@ class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
 
   // 获取上游感知模型数据（包含障碍物、静态元素等）
   int32_t OnPerception(adf_lite_Bundle* input);
+  // freespace数据映射到measurement_frame统一处理
+  bool FillFreespaceData(
+      const std::shared_ptr<MeasurementFrame>& measure_frame);
 
   // 发送车道线后处理结果给到第三方(如果需要)
   int32_t PublishLaneLine();

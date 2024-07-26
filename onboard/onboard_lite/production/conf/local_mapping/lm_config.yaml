@@ -15,6 +15,8 @@ input:
       capacity: 5
     - topic: running_mode 
       capacity: 5
+    - topic: percep_freespace
+      capacity: 5
 
 # output:
 #     - topic: /perception/fsd/transportelement_1
@@ -25,6 +27,11 @@ trigger:
     timeWindow: 1000
     mainSources:
       - name: percep_detection
+        timeout: 1000
+  - name: recv_freespace
+    type: EVENT
+    mainSources:
+      - name: percep_freespace
         timeout: 1000
   - name: recv_dr
     type: EVENT

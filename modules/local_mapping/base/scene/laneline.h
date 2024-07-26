@@ -105,6 +105,8 @@ struct LaneLine : public BaseData {
   LaneLinePosition position;
   // @brief 车道线后处理的lane position
   LaneLinePosition te_position;
+  // @brief 发送给mapfusion的lane position
+  LaneLinePosition mf_position;
   // @brief lane line quality
   // @brief lane line scene type
   LaneLineSceneType scene_type = LaneLineSceneType::UNKNOWN;
@@ -144,7 +146,9 @@ struct LaneLine : public BaseData {
   double theory_c0 = FLT_MAX;
   bool cross = false;
   boost::circular_buffer<LaneLinePosition> history_line_pos;
-  explicit LaneLine(size_t capacity = 2) : history_line_pos(capacity) {}
+  boost::circular_buffer<LaneLinePosition> history_mf_line_pos;
+  explicit LaneLine(size_t capacity = 2)
+      : history_line_pos(capacity), history_mf_line_pos(capacity) {}
 };
 
 using LaneLinePtr = std::shared_ptr<LaneLine>;

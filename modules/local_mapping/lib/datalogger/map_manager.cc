@@ -31,6 +31,7 @@ bool MapManager::Init() {
     map_->road_arrows_ptr = std::make_shared<Arrows>();
     map_->stop_lines_ptr = std::make_shared<StopLines>();
     map_->zebra_crossings_ptr = std::make_shared<ZebraCrossings>();
+    map_->occ_edges_ptr = std::make_shared<OccEdges>();
     buffer_map_[i] = map_;
   }
 

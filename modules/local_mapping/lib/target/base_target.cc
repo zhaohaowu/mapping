@@ -41,6 +41,7 @@ bool LaneTarget::Init(const ProcessOption& options,
   // 缓存N帧跟踪状态
   lastest_n_tracked_state_.set_capacity(10);
   history_line_pos_.set_capacity(2);
+  history_mf_line_pos_.set_capacity(2);
   return true;
 }
 
@@ -66,6 +67,33 @@ bool RoadEdgeTarget::Init(const ProcessOption& options,
   tracked_element_->world_points = detected_road_edge->world_points;
   tracked_element_->id = id_;
   tracked_element_->tracked_count++;
+  return true;
+}
+
+bool OccEdgeTarget::Init(const ProcessOption& options,
+                         const OccEdgePtr& detected_occ_edge) {
+  auto* config_manager = perception_lib::ConfigManager::Instance();
+  const perception_lib::ModelConfig* model_config = nullptr;
+  if (!config_manager->GetModelConfig("OccEdgeTargetParam", &model_config)) {
+    HLOG_ERROR << "Parse config failed! Name: OccEdgeTargetParam";
+    return false;
+  }
+  if (!model_config->get_value("tracked_init_life", &tracked_init_life_)) {
+    HLOG_ERROR << "Get occedge target tracked_init_life failed!";
+    return false;
+  }
+  if (!model_config->get_value("reserve_age", &reserve_age_)) {
+    HLOG_ERROR << "Get occedge target reserve_age failed!";
+    return false;
+  }
+  InitBase(options, detected_occ_edge);
+  tracked_element_ = std::make_shared<OccEdge>();
+  tracked_element_->vehicle_points = detected_occ_edge->vehicle_points;
+  tracked_element_->world_points = detected_occ_edge->world_points;
+  tracked_element_->id = id_;
+  tracked_element_->tracked_count++;
+  tracked_element_->vehicle_curve = detected_occ_edge->vehicle_curve;
+  occ_detect_id = detected_occ_edge->detect_id;
   return true;
 }
 

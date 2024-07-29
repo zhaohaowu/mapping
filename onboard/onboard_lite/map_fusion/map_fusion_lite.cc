@@ -777,6 +777,9 @@ int MapFusionLite::SendFusionResult(
       location->header().publish_stamp());
   std::string switch_reason = map_select_->GetSwitchMapReason();
   map_fusion->mutable_routing()->add_origin_response(switch_reason);
+  if (FLAGS_map_service_mode == 0) {
+    map_fusion->mutable_routing()->mutable_header()->set_seq(location->header().seq());
+  }
   map_fusion->set_map_type(select.map_type);
   map_fusion->set_is_valid(select.valid);
   map_fusion->set_fault_level(select.fault_level);

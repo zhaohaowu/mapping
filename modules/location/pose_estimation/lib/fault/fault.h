@@ -99,7 +99,7 @@ class MmFault {
       const std::unordered_map<std::string, std::vector<V3>>&
           left_filtered_fcmap_lines,
       const Eigen::Vector3d& FC_vel, const double& width_diff,
-      bool is_ramp_road);
+      bool is_ramp_road, const double& map_width);
   double GetDistanceBySecondFaultDetected(
       const std::unordered_map<std::string, std::vector<V3>>&
           filtered_fcmap_lines,

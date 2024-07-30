@@ -275,7 +275,7 @@ void PoseEstimation::ProcData() {
     perception_mutex_.unlock();
     static double last_per_timestamp = perception.header().data_stamp();
     if (perception.header().data_stamp() - last_per_timestamp < 1e-3) {
-      HLOG_ERROR << "perception data repeat";
+      HLOG_WARN << "perception data repeat";
       continue;
     }
     last_per_timestamp = perception.header().data_stamp();
@@ -294,7 +294,7 @@ void PoseEstimation::ProcData() {
     LocalizationPtr ins_pose_ptr = GetInsPoseForTimestamp(
         ref_point, perception.header().data_stamp());  // ins
     if (!ins_pose_ptr) {
-      HLOG_ERROR << "GetInsPoseForTimestamp Failed";
+      HLOG_WARN << "GetInsPoseForTimestamp Failed";
       continue;
     }
     // ins标准差赋值、定位状态、ins状态、线速度赋值
@@ -309,19 +309,19 @@ void PoseEstimation::ProcData() {
     // 获取高精地图
     std::vector<LaneInfoPtr> hdmap_lanes;
     if (!GetHdMapLane(fc_pose_ptr, &hdmap_lanes)) {
-      HLOG_ERROR << "GetHdMapLane Failed";
+      HLOG_WARN << "GetHdMapLane Failed";
       continue;
     }
     // 感知转换
     TrackingManager tracking_manager;
     if (!PercepConvert(perception, &tracking_manager)) {
-      HLOG_ERROR << "percep transform failed";
+      HLOG_WARN << "percep transform failed";
       continue;
     }
     // 地图转换,enu系下的点
     MappingManager map_manager;
     if (!MapConvert(*fc_pose_ptr, ref_point, hdmap_lanes, &map_manager)) {
-      HLOG_ERROR << "map transform failed";
+      HLOG_WARN << "map transform failed";
       continue;
     }
     Eigen::Affine3d T_fc = Localization2Eigen(fc_pose_ptr);
@@ -607,8 +607,8 @@ bool PoseEstimation::GetHdMapLane(const LocalizationPtr& fc_pose_ptr,
   GLOBAL_HD_MAP->GetLanesWithHeading(utm_position, 150, heading, M_PI_4,
                                      hdmap_lanes);
   if (hdmap_lanes->empty()) {
-    HLOG_ERROR << "Get HdMap Failed";
-    HLOG_ERROR << "x " << fc_pose_ptr->pose().gcj02().x() << " y "
+    HLOG_WARN << "Get HdMap Failed";
+    HLOG_WARN << "x " << fc_pose_ptr->pose().gcj02().x() << " y "
                << fc_pose_ptr->pose().gcj02().y() << " heading " << heading;
     return false;
   }

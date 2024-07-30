@@ -180,7 +180,7 @@ int MapFusion::ProcFusion(
   }
 
   if (!map) {
-    HLOG_ERROR << "get nullptr prediction map";
+    HLOG_WARN << "get nullptr prediction map";
     return -1;
   }
   HLOG_DEBUG << "pred cost " << local_tic.Toc();

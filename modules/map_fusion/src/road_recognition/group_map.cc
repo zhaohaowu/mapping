@@ -472,7 +472,7 @@ void GroupMap::CreateGroupSegFromPath(
   }
 
   if (slice_lines.size() < 2) {
-    HLOG_ERROR << "no enough slice lines: " << slice_lines.size();
+    HLOG_WARN << "no enough slice lines: " << slice_lines.size();
     return;
   }
 

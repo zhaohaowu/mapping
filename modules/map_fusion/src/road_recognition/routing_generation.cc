@@ -107,7 +107,7 @@ void RoutingGeneration::SetRouting() {
 void RoutingGeneration::Generate(
     const std::shared_ptr<hozon::hdmap::Map>& percep_map) {
   if (percep_map == nullptr) {
-    HLOG_ERROR << "get nullptr percep_map!";
+    HLOG_WARN << "get nullptr percep_map!";
     return;
   }
   routing_ = std::make_shared<hozon::routing::RoutingResponse>();

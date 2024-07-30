@@ -2302,7 +2302,7 @@ void GeoOptimization::OnLocalMap(
     const std::shared_ptr<hozon::mapping::LocalMap>& msg,
     const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg) {
   if (msg->lane_lines().empty()) {
-    HLOG_ERROR << "lane lines empty!";
+    HLOG_WARN << "lane lines empty!";
     return;
   }
   if (cur_timestamp_ > 0 &&

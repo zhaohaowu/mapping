@@ -175,7 +175,7 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
   }
   auto p_loc = input->GetOne("localization");
   if (!p_loc) {
-    HLOG_ERROR << "nullptr location message";
+    HLOG_WARN << "nullptr location message";
     return -1;
   }
   const auto loc_res =
@@ -183,7 +183,7 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
           p_loc->proto_msg);
 
   if (!loc_res) {
-    HLOG_ERROR << "nullptr location";
+    HLOG_WARN << "nullptr location";
     return -1;
   }
   static std::shared_ptr<hozon::localization::Localization> prev_loc_res =
@@ -329,7 +329,7 @@ int32_t MapFusionLite::OnLocPlugin(Bundle* input) {
   }
   auto p_loc_plugin = input->GetOne("/location/ins_fusion");
   if (!p_loc_plugin) {
-    HLOG_INFO << "nullptr location plugin message";
+    HLOG_WARN << "nullptr location plugin message";
     return -1;
   }
   const auto loc_plugin_res =
@@ -337,7 +337,7 @@ int32_t MapFusionLite::OnLocPlugin(Bundle* input) {
           p_loc_plugin->proto_msg);
 
   if (!loc_plugin_res) {
-    HLOG_ERROR << "nullptr location plugin ";
+    HLOG_WARN << "nullptr location plugin ";
     return -1;
   }
   {
@@ -355,7 +355,7 @@ int32_t MapFusionLite::OnFCTIn(Bundle* input) {
   }
   auto f_ct = input->GetOne("function_manager_in");
   if (!f_ct) {
-    HLOG_ERROR << "nullptr function_manager_in message";
+    HLOG_WARN << "nullptr function_manager_in message";
     return -1;
   }
   const auto fct_res =
@@ -363,7 +363,7 @@ int32_t MapFusionLite::OnFCTIn(Bundle* input) {
           f_ct->proto_msg);
 
   if (!fct_res) {
-    HLOG_ERROR << "nullptr function_manager_in";
+    HLOG_WARN << "nullptr function_manager_in";
     return -1;
   }
   {
@@ -381,7 +381,7 @@ int32_t MapFusionLite::OnPercepTransport(Bundle* input) {
   }
   auto p_per = input->GetOne("percep_transport");
   if (!p_per) {
-    HLOG_ERROR << "nullptr percep_transport message";
+    HLOG_WARN << "nullptr percep_transport message";
     return -1;
   }
   const auto percep_res =
@@ -389,7 +389,7 @@ int32_t MapFusionLite::OnPercepTransport(Bundle* input) {
           p_per->proto_msg);
 
   if (!percep_res) {
-    HLOG_ERROR << "nullptr percep_transport";
+    HLOG_WARN << "nullptr percep_transport";
     return -1;
   }
   {
@@ -407,7 +407,7 @@ int32_t MapFusionLite::OnDR(Bundle* input) {
   }
   auto p_dr = input->GetOne("dr");
   if (!p_dr) {
-    HLOG_ERROR << "nullptr dr message";
+    HLOG_WARN << "nullptr dr message";
     return -1;
   }
   const auto dr_res =
@@ -415,7 +415,7 @@ int32_t MapFusionLite::OnDR(Bundle* input) {
           p_dr->proto_msg);
 
   if (!dr_res) {
-    HLOG_ERROR << "nullptr dr";
+    HLOG_WARN << "nullptr dr";
     return -1;
   }
   {
@@ -432,7 +432,7 @@ int32_t MapFusionLite::OnObj(Bundle* input) {
   }
   auto p_per = input->GetOne("percep_obj");
   if (!p_per) {
-    HLOG_ERROR << "nullptr percep_obj message";
+    HLOG_WARN << "nullptr percep_obj message";
     return -1;
   }
   const auto percep_res =
@@ -440,7 +440,7 @@ int32_t MapFusionLite::OnObj(Bundle* input) {
           p_per->proto_msg);
 
   if (!percep_res) {
-    HLOG_ERROR << "nullptr percep_obj";
+    HLOG_WARN << "nullptr percep_obj";
     return -1;
   }
   {
@@ -453,13 +453,13 @@ int32_t MapFusionLite::OnObj(Bundle* input) {
 
 int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   if (!mf_) {
-    HLOG_ERROR << "nullptr map fusion";
+    HLOG_WARN << "nullptr map fusion";
     return -1;
   }
   std::shared_ptr<hozon::localization::HafNodeInfo> latest_plugin =
       GetLatestLocPlugin();
   if (latest_plugin == nullptr) {
-    HLOG_ERROR << "nullptr latest plugin node info";
+    HLOG_WARN << "nullptr latest plugin node info";
     return -1;
   }
   std::shared_ptr<hozon::planning::ADCTrajectory> latest_planning = nullptr;
@@ -478,7 +478,7 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   std::shared_ptr<hozon::localization::Localization> latest_loc =
       GetLatestLoc();
   if (latest_loc == nullptr) {
-    HLOG_ERROR << "nullptr latest loc";
+    HLOG_WARN << "nullptr latest loc";
     return -1;
   }
   std::shared_ptr<hozon::mapping::LocalMap> latest_local_map =
@@ -517,7 +517,7 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   // }
 
   if (!map_select_) {
-    HLOG_ERROR << "nullptr map select";
+    HLOG_WARN << "nullptr map select";
     return -1;
   }
   std::set<std::string> legal_mode = {
@@ -526,7 +526,7 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
       kWorkModeFusionAndPercepMap,
   };
   if (legal_mode.find(FLAGS_work_mode) == legal_mode.end()) {
-    HLOG_ERROR << "Invalid work mode: " << FLAGS_work_mode;
+    HLOG_WARN << "Invalid work mode: " << FLAGS_work_mode;
     return -1;
   }
 
@@ -548,7 +548,7 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
         mf_->ProcFusion(latest_plugin, latest_loc, latest_local_map,
                         global_hd_updated, fusion_map, curr_routing_.get());
     if (ret < 0 || fusion_map == nullptr) {
-      HLOG_ERROR << "map fusion ProcFusion failed";
+      HLOG_WARN << "map fusion ProcFusion failed";
     } else {
       latest_fusion_map = fusion_map;
     }
@@ -567,7 +567,7 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     int ret = mf_->ProcPercep(latest_loc, latest_local_map, latest_obj,
                               percep_map.get(), percep_routing.get());
     if (ret < 0) {
-      HLOG_ERROR << "map fusion ProcPercep failed";
+      HLOG_WARN << "map fusion ProcPercep failed";
       percep_map->Clear();
     } else {
       latest_percep_map = percep_map;

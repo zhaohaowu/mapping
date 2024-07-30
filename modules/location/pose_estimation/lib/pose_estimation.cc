@@ -208,10 +208,10 @@ void PoseEstimation::OnIns(const std::shared_ptr<const HafNodeInfo>& msg) {
     ins_init = true;
     ref_point_ = gcj_position;
   }
-  // enu系下的车辆运动超过20000米，重置refpoint
+  // enu系下的车辆运动超过10000米，重置refpoint
   Eigen::Vector3d enu_position =
       hozon::mp::util::Geo::Gcj02ToEnu(gcj_position, ref_point_);
-  if (enu_position.head<2>().norm() > 20000) {
+  if (enu_position.head<2>().norm() > 10000) {
     ref_point_ = gcj_position;
   }
   ref_point_mutex_.unlock();

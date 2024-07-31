@@ -53,6 +53,7 @@ struct Line {
   em::LanePos lanepos;
   em::IsEgo isego;
   std::deque<Point> pts;
+  bool is_near_road_edge;
   // 末端方向向量与x轴夹角
   double mean_end_heading = 0;  // in rad, [-pi, +pi]
   // 1.heading 2.kappa 3.dkappa

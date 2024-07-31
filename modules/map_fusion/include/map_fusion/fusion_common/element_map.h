@@ -207,6 +207,7 @@ struct Boundary : public BaseElement {
   LanePos lanepos = LanePositionType_OTHER;
   LineType linetype = LaneType_UNKNOWN;
   IsEgo is_ego = Ego_Road;
+  bool is_near_road_edge = false;
   DEFINE_PTR(Boundary)
 };
 
@@ -223,6 +224,7 @@ struct BoundaryDetailed : public BaseElement {
   LanePos lanepos = LanePositionType_OTHER;
   LineType linetype = LaneType_UNKNOWN;
   IsEgo is_ego = Ego_Road;
+  bool is_near_road_edge;
   DEFINE_PTR(BoundaryDetailed)
 };
 

@@ -2793,20 +2793,18 @@ void GeoOptimization::MakeRoadEdgeToLaneLine() {
   }
   // 存储路沿(自车左右)
   for (const auto& road : local_map_->road_edges()) {
-    if (road.lanepos() == -1 || road.lanepos() == 1) {
-      std::vector<Eigen::Vector3d> road_pts;
-      for (const auto& pt : road.points()) {
-        if (std::isnan(pt.x()) || std::isnan(pt.y())) {
-          continue;
-        }
-        Eigen::Vector3d point(pt.x(), pt.y(), pt.z());
-        road_pts.emplace_back(point);
-      }
-      if (road_pts.empty()) {
+    std::vector<Eigen::Vector3d> road_pts;
+    for (const auto& pt : road.points()) {
+      if (std::isnan(pt.x()) || std::isnan(pt.y())) {
         continue;
       }
-      CompareRoadAndLines(road_pts, road.track_id());
+      Eigen::Vector3d point(pt.x(), pt.y(), pt.z());
+      road_pts.emplace_back(point);
     }
+    if (road_pts.empty()) {
+      continue;
+    }
+    CompareRoadAndLines(road_pts, road.track_id());
   }
 }
 
@@ -2834,7 +2832,86 @@ void GeoOptimization::CompareRoadAndLines(
       target_line = line;
     }
   }
-
+  if (min_dis < 1.0) {
+    // 路沿离车道线的距离小于1米,对离路沿最近的车道线进行增补
+    auto tar_line_pt_size = target_line.points_size();
+    if (road_pts.back().x() > target_line.points(tar_line_pt_size - 1).x()) {
+      // 对车道线往前补,直至和路沿远端对齐
+      for (auto& line : *local_map_use_->mutable_lane_lines()) {
+        if (line.track_id() != target_line.track_id()) {
+          continue;
+        }
+        Eigen::Vector3d fit_vec;
+        for (const auto& road_pt : road_pts) {
+          if (road_pt.x() > target_line.points(tar_line_pt_size - 1).x()) {
+            Eigen::Vector3d target_first_pt(target_line.points(tar_line_pt_size - 1).x(),
+                                            target_line.points(tar_line_pt_size - 1).y(),
+                                            target_line.points(tar_line_pt_size - 1).z());
+            fit_vec = target_first_pt - road_pt;
+            break;
+          }
+        }
+        for (const auto& road_pt : road_pts) {
+          if (road_pt.x() < target_line.points(tar_line_pt_size - 1).x()) {
+            continue;
+          }
+          double fit_dis = fit_vec.norm();
+          auto fit_vec_normlized = fit_vec.normalized();
+          auto fit_road_pt = road_pt + fit_vec_normlized * fit_dis;
+          // 简单策略:先根据横向距离对点进行调整,防止车道线跟路沿连接时不平滑
+          // 后续可以严格计算点线距离
+          auto* new_pt = line.add_points();
+          new_pt->set_x(fit_road_pt.x());
+          new_pt->set_y(fit_road_pt.y());
+          new_pt->set_z(fit_road_pt.z());
+        }
+        break;
+      }
+    }
+    if (road_pts.front().x() < target_line.points(0).x()) {
+      // 对车道线后端进行补齐,补至跟路沿近端对其
+      for (auto& line : *local_map_use_->mutable_lane_lines()) {
+        if (line.track_id() != target_line.track_id()) {
+          continue;
+        }
+        std::vector<hozon::common::Point3D> history_pts;
+        for (const auto& pt : line.points()) {
+          history_pts.emplace_back(pt);
+        }
+        line.mutable_points()->Clear();
+        Eigen::Vector3d fit_vec;
+        for (const auto& road_pt : road_pts) {
+          if (road_pt.x() < target_line.points(0).x()) {
+            continue;
+          }
+          Eigen::Vector3d target_first_pt(target_line.points(0).x(),
+                                          target_line.points(0).y(),
+                                          target_line.points(0).z());
+          fit_vec = target_first_pt - road_pt;
+          break;
+        }
+        for (const auto& road_pt : road_pts) {
+          if (road_pt.x() > target_line.points(0).x()) {
+            continue;
+          }
+          double fit_dis = fit_vec.norm();
+          auto fit_vec_normlized = fit_vec.normalized();
+          auto fit_road_pt = road_pt + fit_vec_normlized * fit_dis;
+          auto* new_pt = line.add_points();
+          new_pt->set_x(fit_road_pt.x());
+          new_pt->set_y(fit_road_pt.y());
+          new_pt->set_z(fit_road_pt.z());
+        }
+        for (const auto& tar_line_pt : history_pts) {
+          auto* new_pt = line.add_points();
+          new_pt->set_x(tar_line_pt.x());
+          new_pt->set_y(tar_line_pt.y());
+          new_pt->set_z(tar_line_pt.z());
+        }
+        break;
+      }
+    }
+  }
   // 判断是否满足条件
   // if (min_dis < 2.0 || min_dis > 5.5) {
   //   HLOG_DEBUG << "road and line min distance < 2m or > 5.5m";
@@ -2844,11 +2921,16 @@ void GeoOptimization::CompareRoadAndLines(
   // if (target_line.lanetype() != em::LineType::LaneType_DASHED) {
   //   HLOG_DEBUG << "the line type is not dashed";
   //   return;
-  // }
-  if ((target_line.lanetype() == em::LineType::LaneType_DASHED &&
-       min_dis > 2.0 && min_dis < 5.5) ||
-      (target_line.lanetype() == em::LineType::LaneType_SOLID &&
-       min_dis > 3.0 && min_dis < 5.5)) {
+  // } && min_dis < 5.5
+  if (((target_line.lanetype() == em::LineType::LaneType_DASHED ||
+        target_line.lanetype() == em::LineType::LaneType_FISHBONE_DASHED ||
+        target_line.lanetype() == em::LineType::LaneType_DOUBLE_DASHED ||
+        target_line.lanetype() == em::LineType::LaneType_SHORT_DASHED) &&
+       min_dis > 2.0) ||
+      ((target_line.lanetype() == em::LineType::LaneType_SOLID ||
+        target_line.lanetype() == em::LineType::LaneType_DOUBLE_SOLID ||
+        target_line.lanetype() == em::LineType::LaneType_FISHBONE_SOLID) &&
+       min_dis > 3.0)) {
     auto* new_line = local_map_use_->add_lane_lines();
     for (const auto& pt : road_pts) {
       auto* new_pt = new_line->add_points();
@@ -3373,14 +3455,13 @@ void GeoOptimization::FitMissedLaneLine(const std::pair<int, int>& ex) {
   }
   auto ex_pts = local_line_table_.at(ex.first).local_line_pts;
   auto right_ex_pts = local_line_table_.at(ex.second).local_line_pts;
-
   // 判断主车道的左右id是否突变
   if (base_line_.base_line_left_id != ex.first ||
       base_line_.base_line_right_id != ex.second) {
     base_line_.base_line_flag = 0;
     base_line_.base_width = -1;
-    base_line_.base_line_left_id = -1;
-    base_line_.base_line_right_id = -1;
+    // base_line_.base_line_left_id = -1;
+    // base_line_.base_line_right_id = -1;
     base_line_.base_line_left_id = ex.first;
     base_line_.base_line_right_id = ex.second;
   }
@@ -3472,7 +3553,10 @@ void GeoOptimization::ObtainBaseLine(
     const std::vector<Eigen::Vector3d>& base_pts,
     const std::vector<Eigen::Vector3d>& line_pts) {
   // 获取base_line信息
-  for (const auto& P : base_pts) {
+  int index = 0;
+  for (size_t j = 0; j < base_pts.size() - 1; ++j) {
+    Eigen::Vector3d P = base_pts[j];
+    bool flag = false;
     for (size_t i = 1; i < line_pts.size(); i++) {
       const auto& A = line_pts[i - 1];
       const auto& B = line_pts[i];
@@ -3483,7 +3567,7 @@ void GeoOptimization::ObtainBaseLine(
         continue;
       }
       double t = AB.dot(AP) / ABLengthSquared;
-      if (t < 0 || t > 1) {
+      if (t < -0.1 || t > 1.1) {
         continue;
       }
       t = std::max(0.0, std::min(t, 1.0));
@@ -3493,20 +3577,25 @@ void GeoOptimization::ObtainBaseLine(
       // } else {
       //   base_width->emplace_back((P - C).norm());
       // }
-
       if (base_line_.base_line_flag == 0) {
         if (P.x() > 0.0) {
-          base_line->emplace_back(P);
+          index = static_cast<int>(j);
+          flag = true;
           base_width->emplace_back((P - C).norm());
         }
       } else {
         if ((P - C).norm() >= base_line_.base_width) {
-          base_line->emplace_back(P);
+          index = static_cast<int>(j);
+          flag = true;
         }
       }
       break;
     }
+    if (flag) {
+      break;
+    }
   }
+  base_line->assign(base_pts.begin() + index, base_pts.end());
 }
 
 double GeoOptimization::ComputeLineHeading(
@@ -3830,7 +3919,7 @@ double GeoOptimization::ComputeVecToLaneDis(
       continue;
     }
     double t = AB.dot(AP) / ABLengthSquared;
-    if (t < 0 || t > 1) {
+    if (t < -0.1 || t > 1.1) {
       continue;
     }
     t = std::max(0.0, std::min(t, 1.0));
@@ -3974,6 +4063,18 @@ void GeoOptimization::AppendElemtMap(
 
   elem_map_ = std::make_shared<hozon::mp::mf::em::ElementMap>();
   elem_map_->map_info.stamp = msg->header().data_stamp();
+  std::vector<std::vector<Eigen::Vector3d>> roads;
+  for (const auto& road : local_map_->road_edges()) {
+    std::vector<Eigen::Vector3d> road_pts;
+    for (const auto& pt : road.points()) {
+      Eigen::Vector3d ptt(pt.x(), pt.y(), pt.z());
+      road_pts.emplace_back(ptt);
+    }
+    if (road_pts.empty()) {
+      continue;
+    }
+    roads.emplace_back(road_pts);
+  }
   for (const auto& lane_line_it : msg->lane_lines()) {
     // 过滤空的点
     if (lane_line_it.points_size() <= 0) {
@@ -4017,6 +4118,7 @@ void GeoOptimization::AppendElemtMap(
     FillLanePos(&lane_line, lane_line_it.lanepos());
     FillLaneType(&lane_line, lane_line_it.lanetype());
     FillLaneColor(&lane_line, lane_line_it.color());
+    FillIsNearRoadLine(&lane_line, roads, lane_line_it);
     for (const auto& line :
          all_lines_[static_cast<int>(lane_line_it.lanepos())]) {
       if (line.line->track_id() == lane_line_it.track_id()) {
@@ -4091,6 +4193,36 @@ void GeoOptimization::AppendElemtMap(
       obj.length = i.length();
       obj.width = i.width();
       elem_map_->objs[obj.id] = std::make_shared<em::Obj>(obj);
+    }
+  }
+}
+
+void GeoOptimization::FillIsNearRoadLine(
+    hozon::mp::mf::em::Boundary* lane_line,
+    const std::vector<std::vector<Eigen::Vector3d>>& roads,
+    const hozon::mapping::LaneLine& local_line) {
+  // 判断是否是靠近路沿的线
+  if (roads.empty()) {
+    return;
+  }
+  std::vector<Eigen::Vector3d> line_it;
+  for (const auto& pt : local_line.points()) {
+    Eigen::Vector3d ptt(pt.x(), pt.y(), pt.z());
+    line_it.emplace_back(ptt);
+  }
+  for (const auto& road_it : roads) {
+    std::vector<double> line_road_dis;
+    ComputerLineDis(line_it, road_it, &line_road_dis);
+    if (line_road_dis.empty()) {
+      continue;
+    }
+    // 计算平均距离
+    double avg_dis =
+        std::accumulate(line_road_dis.begin(), line_road_dis.end(), 0.0) /
+        static_cast<double>(line_road_dis.size());
+    if (avg_dis < 1.0) {
+      lane_line->is_near_road_edge = true;
+      break;
     }
   }
 }

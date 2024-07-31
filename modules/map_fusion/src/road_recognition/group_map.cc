@@ -187,6 +187,7 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
     line->color = bound->color;
     line->isego = bound->is_ego;
     line->lanepos = bound->lanepos;
+    line->is_near_road_edge = bound->is_near_road_edge;
     for (const auto& delete_id : bound->delete_ids) {
       line->deteled_ids.emplace_back(delete_id);
     }
@@ -512,6 +513,8 @@ void GroupMap::SplitPtsToGroupSeg(std::deque<Line::Ptr>* lines,
       line_seg->color = line->color;
       line_seg->lanepos = line->lanepos;
       line_seg->isego = line->isego;
+      line_seg->is_near_road_edge = line->is_near_road_edge;
+
       line_seg->mean_end_heading = line->mean_end_heading;
       line_seg->pred_end_heading = line->pred_end_heading;
       line_seg->mean_end_heading_std_dev = line->mean_end_heading_std_dev;
@@ -1556,6 +1559,7 @@ void GroupMap::GenerateLane(Lane::Ptr lane_next, Lane::Ptr transition_lane) {
   left_bound.type = em::LaneType_DASHED;
   left_bound.color = em::WHITE;
   left_bound.isego = lane_next->left_boundary->isego;
+  left_bound.is_near_road_edge = lane_next->left_boundary->is_near_road_edge;
   left_bound.mean_end_heading = lane_next->left_boundary->mean_end_heading;
   left_bound.mean_end_heading_std_dev =
       lane_next->left_boundary->mean_end_heading_std_dev;
@@ -1574,6 +1578,7 @@ void GroupMap::GenerateLane(Lane::Ptr lane_next, Lane::Ptr transition_lane) {
       em::LaneType_DASHED;        // lane_in_curr->right_boundary->type;
   right_bound.color = em::WHITE;  // lane_in_curr->right_boundary->color;
   right_bound.isego = lane_next->right_boundary->isego;
+  right_bound.is_near_road_edge = lane_next->right_boundary->is_near_road_edge;
   right_bound.mean_end_heading = lane_next->right_boundary->mean_end_heading;
   right_bound.pred_end_heading = lane_next->right_boundary->pred_end_heading;
   right_bound.mean_end_heading_std_dev =
@@ -2042,6 +2047,7 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
   left_bound.type = em::LaneType_DASHED;  // lane_in_curr->left_boundary->type;
   left_bound.color = em::WHITE;           // lane_in_curr->left_boundary->color;
   left_bound.isego = lane_in_curr->left_boundary->isego;
+  left_bound.is_near_road_edge = lane_in_curr->left_boundary->is_near_road_edge;
   left_bound.mean_end_heading = lane_in_curr->left_boundary->mean_end_heading;
   left_bound.pred_end_heading = lane_in_curr->left_boundary->pred_end_heading;
   left_bound.mean_end_heading_std_dev =
@@ -2065,6 +2071,7 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
       em::LaneType_DASHED;        // lane_in_curr->right_boundary->type;
   right_bound.color = em::WHITE;  // lane_in_curr->right_boundary->color;
   right_bound.isego = lane_in_curr->right_boundary->isego;
+  right_bound.is_near_road_edge = lane_in_curr->right_boundary->is_near_road_edge;
   right_bound.mean_end_heading = lane_in_curr->right_boundary->mean_end_heading;
   right_bound.pred_end_heading = lane_in_curr->right_boundary->pred_end_heading;
   right_bound.mean_end_heading_std_dev =
@@ -2258,6 +2265,7 @@ void GroupMap::GenerateTransitionLaneToBefore(Lane::Ptr lane_in_curr,
   left_bound.type = em::LaneType_DASHED;  // lane_in_curr->left_boundary->type;
   left_bound.color = em::WHITE;           // lane_in_curr->left_boundary->color;
   left_bound.isego = lane_in_curr->left_boundary->isego;
+  left_bound.is_near_road_edge = lane_in_curr->left_boundary->is_near_road_edge;
   left_bound.mean_end_heading = lane_in_curr->left_boundary->mean_end_heading;
   left_bound.mean_end_heading_std_dev =
       lane_in_curr->left_boundary->mean_end_heading_std_dev;
@@ -2277,6 +2285,7 @@ void GroupMap::GenerateTransitionLaneToBefore(Lane::Ptr lane_in_curr,
       em::LaneType_DASHED;        // lane_in_curr->right_boundary->type;
   right_bound.color = em::WHITE;  // lane_in_curr->right_boundary->color;
   right_bound.isego = lane_in_curr->right_boundary->isego;
+  right_bound.is_near_road_edge = lane_in_curr->right_boundary->is_near_road_edge;
   right_bound.mean_end_heading = lane_in_curr->right_boundary->mean_end_heading;
   right_bound.mean_end_heading_std_dev =
       lane_in_curr->right_boundary->mean_end_heading_std_dev;
@@ -2348,6 +2357,7 @@ void GroupMap::GenerateTransitionLaneToAfter(Lane::Ptr lane_in_curr,
   left_bound.type = em::LaneType_DASHED;  // lane_in_curr->left_boundary->type;
   left_bound.color = em::WHITE;           // lane_in_curr->left_boundary->color;
   left_bound.isego = lane_in_curr->left_boundary->isego;
+  left_bound.is_near_road_edge = lane_in_curr->left_boundary->is_near_road_edge;
   left_bound.mean_end_heading = lane_in_curr->left_boundary->mean_end_heading;
   left_bound.mean_end_heading_std_dev =
       lane_in_curr->left_boundary->mean_end_heading_std_dev;
@@ -2367,6 +2377,7 @@ void GroupMap::GenerateTransitionLaneToAfter(Lane::Ptr lane_in_curr,
       em::LaneType_DASHED;        // lane_in_curr->right_boundary->type;
   right_bound.color = em::WHITE;  // lane_in_curr->right_boundary->color;
   right_bound.isego = lane_in_curr->right_boundary->isego;
+  right_bound.is_near_road_edge = lane_in_curr->right_boundary->is_near_road_edge;
   right_bound.mean_end_heading = lane_in_curr->right_boundary->mean_end_heading;
   right_bound.mean_end_heading_std_dev =
       lane_in_curr->right_boundary->mean_end_heading_std_dev;
@@ -3163,6 +3174,7 @@ void GroupMap::GenetateGuideLaneGeo(std::vector<Vec2d>* fit_points,
   (*guide_lane)->left_boundary->type = em::LaneType_DASHED;
   (*guide_lane)->left_boundary->color = em::WHITE;
   (*guide_lane)->left_boundary->isego = em::Ego_Road;
+  (*guide_lane)->left_boundary->is_near_road_edge = left_line->is_near_road_edge;
   (*guide_lane)->left_boundary->pts = left_line->pts;
   (*guide_lane)->left_boundary->mean_end_heading = left_line->mean_end_heading;
   (*guide_lane)->left_boundary->pred_end_heading = left_line->pred_end_heading;
@@ -3175,6 +3187,7 @@ void GroupMap::GenetateGuideLaneGeo(std::vector<Vec2d>* fit_points,
   (*guide_lane)->right_boundary->type = em::LaneType_DASHED;
   (*guide_lane)->right_boundary->color = em::WHITE;
   (*guide_lane)->right_boundary->isego = em::Ego_Road;
+  (*guide_lane)->right_boundary->is_near_road_edge = right_line->is_near_road_edge;
   (*guide_lane)->right_boundary->pts = right_line->pts;
   (*guide_lane)->right_boundary->mean_end_heading =
       right_line->mean_end_heading;
@@ -3934,6 +3947,7 @@ void GroupMap::CollectGroupPossibleLanes(
         lane->left_boundary->type = lane_seg->left_boundary->type;
         lane->left_boundary->color = lane_seg->left_boundary->color;
         lane->left_boundary->isego = lane_seg->left_boundary->isego;
+        lane->left_boundary->is_near_road_edge = lane_seg->left_boundary->is_near_road_edge;
         for (const auto& delete_id : lane_seg->left_boundary->deteled_ids) {
           lane->left_boundary->deteled_ids.emplace_back(delete_id);
         }
@@ -3954,6 +3968,7 @@ void GroupMap::CollectGroupPossibleLanes(
         lane->right_boundary->type = lane_seg->right_boundary->type;
         lane->right_boundary->color = lane_seg->right_boundary->color;
         lane->right_boundary->isego = lane_seg->right_boundary->isego;
+        lane->right_boundary->is_near_road_edge = lane_seg->right_boundary->is_near_road_edge;
         lane->right_boundary->mean_end_heading =
             lane_seg->right_boundary->mean_end_heading;
         lane->right_boundary->pred_end_heading =
@@ -6549,6 +6564,7 @@ void GroupMap::BuildVirtualMergeLane(Group::Ptr curr_group,
   left_bound.type = lane_in_curr->left_boundary->type;
   left_bound.color = lane_in_curr->left_boundary->color;
   left_bound.isego = lane_in_curr->left_boundary->isego;
+  left_bound.is_near_road_edge = lane_in_curr->left_boundary->is_near_road_edge;
   left_bound.mean_end_heading = lane_in_curr->left_boundary->mean_end_heading;
   left_bound.pred_end_heading = lane_in_curr->left_boundary->pred_end_heading;
   left_bound.mean_end_heading_std_dev =
@@ -6603,6 +6619,7 @@ void GroupMap::BuildVirtualMergeLane(Group::Ptr curr_group,
   right_bound.type = lane_in_curr->right_boundary->type;
   right_bound.color = lane_in_curr->right_boundary->color;
   right_bound.isego = lane_in_curr->right_boundary->isego;
+  right_bound.is_near_road_edge = lane_in_curr->right_boundary->is_near_road_edge;
   right_bound.mean_end_heading = lane_in_curr->right_boundary->mean_end_heading;
   right_bound.pred_end_heading = lane_in_curr->right_boundary->pred_end_heading;
   right_bound.mean_end_heading_std_dev =
@@ -6758,6 +6775,7 @@ void GroupMap::PredictLaneLine(std::vector<Lane::Ptr>* pred_lane,
   left_bound.type = em::LaneType_DASHED;
   left_bound.color = em::WHITE;
   left_bound.isego = curr_lane->left_boundary->isego;
+  left_bound.is_near_road_edge = curr_lane->left_boundary->is_near_road_edge;
 
   left_bound.mean_end_heading = curr_lane->left_boundary->mean_end_heading;
   left_bound.mean_end_heading_std_dev =
@@ -6811,6 +6829,7 @@ void GroupMap::PredictLaneLine(std::vector<Lane::Ptr>* pred_lane,
   right_bound.type = em::LaneType_DASHED;
   right_bound.color = em::WHITE;
   right_bound.isego = curr_lane->right_boundary->isego;
+  right_bound.is_near_road_edge = curr_lane->right_boundary->is_near_road_edge;
   right_bound.mean_end_heading = curr_lane->right_boundary->mean_end_heading;
   right_bound.mean_end_heading_std_dev =
       curr_lane->right_boundary->mean_end_heading_std_dev;
@@ -7081,6 +7100,7 @@ std::shared_ptr<hozon::mp::mf::em::ElementMapOut> GroupMap::ConvertToElementMap(
         }
         left_bound.color = lane->left_boundary->color;
         left_bound.is_ego = lane->left_boundary->isego;
+        left_bound.is_near_road_edge = lane->left_boundary->is_near_road_edge;
         left_bound.linetype = lane->left_boundary->type;
         left_bound.lanepos = lane->left_boundary->lanepos;
         for (const auto& delete_id : lane->left_boundary->deteled_ids) {
@@ -7109,6 +7129,7 @@ std::shared_ptr<hozon::mp::mf::em::ElementMapOut> GroupMap::ConvertToElementMap(
         }
         right_bound.color = lane->right_boundary->color;
         right_bound.is_ego = lane->right_boundary->isego;
+        right_bound.is_near_road_edge = lane->right_boundary->is_near_road_edge;
         right_bound.linetype = lane->right_boundary->type;
         right_bound.lanepos = lane->right_boundary->lanepos;
         for (const auto& delete_id : lane->right_boundary->deteled_ids) {

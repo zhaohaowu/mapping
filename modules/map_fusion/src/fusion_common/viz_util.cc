@@ -564,7 +564,8 @@ void ElementOccEgoToMarker(const em::Boundary& boundary,
   //   pt->set_z(it.z());
   // }
   auto* text = marker->mutable_text();
-  *text = "Geo: " + std::to_string(boundary.is_ego);
+  *text = "Geo: " + std::to_string(boundary.is_ego) + "\n" +
+          "is_near_road_edge: " + std::to_string(boundary.is_near_road_edge);
 }
 
 void ElementOccRoadToMarker(const em::OccRoad& occ_road,

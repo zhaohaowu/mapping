@@ -348,6 +348,10 @@ class GeoOptimization {
                    hozon::perception::PerceptionObstacle_Type objtype);
   void FillLaneColor(hozon::mp::mf::em::Boundary* lane_line,
                      hozon::mapping::Color lanecolor);
+  void FillIsNearRoadLine(
+      hozon::mp::mf::em::Boundary* lane_line,
+      const std::vector<std::vector<Eigen::Vector3d>>& roads,
+      const hozon::mapping::LaneLine& local_line);
   void FilterLocalMapLine(
       const std::shared_ptr<hozon::mapping::LocalMap>& local_map);
   // 将Line_kd填充到local_map_use_中，并定义规则是否是同一根线被拆分

@@ -85,6 +85,11 @@ dataSourcesOut:
     type: proto_skeleton
     cmTopic: /localization/pe
     cmDomainId: 0
+  - topic: /location/ins_fusion
+    capacity: 5
+    type: proto_skeleton
+    cmTopic: /localization/ins_fusion
+    cmDomainId: 0
   - topic: tlr_fusion
     capacity: 5
     type: proto_skeleton

@@ -1645,8 +1645,8 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     loc_state = FaultCodeAssign(loc_state);
   }
 
-  const double diff_dr_fc = ctx->dr_node.ticktime - fusion_node.ticktime;
-  if (diff_dr_fc < 1e-3) {
+  const double diff_ins_fc = ctx->ins_node.ticktime - fusion_node.ticktime;
+  if (diff_ins_fc < 1e-3) {
     ctx->global_node = fusion_node;
     ctx->global_node.location_state = loc_state;
     ctx->global_node.velocity = ctx->ins_node.velocity;
@@ -1655,8 +1655,8 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     Node refer_node = fusion_node;
     Node ni;
     {
-      std::lock_guard<std::mutex> lock(dr_deque_mutex_);
-      if (!Interpolate(refer_node.ticktime, dr_deque_, &ni)) {
+      std::lock_guard<std::mutex> lock(ins_deque_mutex_);
+      if (!Interpolate(refer_node.ticktime, ins_deque_, &ni)) {
         HLOG_ERROR << "interpolate dr output failed,fusion node time:"
                    << refer_node.ticktime
                    << ",ins_time:" << ctx->ins_node.ticktime;
@@ -1672,14 +1672,15 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
 #ifdef ISORIN
     CheckTriggerLocState(ctx);
 #endif
-    const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(ctx->dr_node);
+    const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(ctx->ins_node);
     const auto& pose = Node2SE3(refer_node) * T_delta;
     ctx->global_node.enu = pose.translation();
     ctx->global_node.blh = hmu::Geo::EnuToBlh(ctx->global_node.enu, refpoint);
     ctx->global_node.orientation = pose.so3().log();
     ctx->global_node.quaternion = pose.so3().unit_quaternion();
-    ctx->global_node.velocity =
-        ctx->global_node.quaternion * ctx->dr_node.velocity;
+    ctx->global_node.velocity = ctx->ins_node.velocity;
+    // ctx->global_node.velocity =
+    //     ctx->global_node.quaternion * ctx->dr_node.velocity;
   }
 
   // kf 使用dr 替换ins
@@ -1702,24 +1703,6 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     prev_global_valid_ = true;
   }
 
-  // debug print enu and euler diff(pe队列更新了此处才更新)
-  if (params_.use_debug_txt) {
-    Node pe_now_node;
-    static Node prev_pe_node;
-    pe_deque_mutex_.lock();
-    uint32_t pe_deque_size = pe_deque_.size();
-    if (pe_deque_size > 0) {
-      pe_now_node = *pe_deque_.back();
-    }
-    pe_deque_mutex_.unlock();
-
-    if (pe_deque_size > 0) {
-      if (prev_pe_node.ticktime < pe_now_node.ticktime) {
-        DebugDiffTxt(fc_ins_diff_file_, ctx->global_node, ctx->ins_node);
-        prev_pe_node = pe_now_node;
-      }
-    }
-  }
   ctx->global_node.state = true;
   return true;
 }

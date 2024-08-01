@@ -10,7 +10,7 @@ namespace mp {
 namespace mf {
 TEST_F(map_fusion_test, map_fusion_check) {
   std::cout << " map_fusion_test start " << std::endl;
-  int res = map_prediction_->Init();
+  int res = map_prediction_->Init(config_);
   EXPECT_EQ(res, 0);
 }
 

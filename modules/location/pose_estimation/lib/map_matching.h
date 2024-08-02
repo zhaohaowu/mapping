@@ -93,6 +93,7 @@ class MapMatching {
                 const std::vector<hozon::hdmap::LaneInfoConstPtr>& lanes,
                 const Eigen::Vector3d& ref_point, double ins_height,
                 int sys_status);
+  bool CheckIsRampRoad(const hozon::common::PointENU& utm_pos);
   void MergeMapLanes(
       const HdMap& hd_map, const SE3& T_W_V, const ValidPose& T_fc,
       std::unordered_map<std::string, std::vector<ControlPoint>>* const

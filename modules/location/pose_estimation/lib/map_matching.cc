@@ -186,21 +186,10 @@ void MapMatching::ProcData(
 
   // 故障检测
   hozon::common::PointENU utm_pos;
-  double nearest_s = 0.0;
-  double nearest_l = 0.0;
   utm_pos.set_x(fc->pose().pos_utm_01().x());
   utm_pos.set_y(fc->pose().pos_utm_01().y());
   utm_pos.set_z(0);
-  hozon::hdmap::LaneInfoConstPtr ego_lane_ptr = nullptr;
-  if (!GLOBAL_HD_MAP->GetNearestLane(utm_pos, &ego_lane_ptr, &nearest_s,
-                                     &nearest_l) ||
-      ego_lane_ptr == nullptr) {
-    HLOG_DEBUG << "cannot get ego lane ptr";
-  }
-  bool is_ramp_road = false;
-  if (ego_lane_ptr->IsRampRoad()) {
-    is_ramp_road = true;
-  }
+  bool is_ramp_road = CheckIsRampRoad(utm_pos);
   mm_fault_->set_ins_ts(cur_stamp);
   mm_fault_->Fault(merged_fcmap_lines, merged_map_edges, percep_lanelines,
                    fc_msg, big_curvature_frame, is_ramp_road);
@@ -295,6 +284,21 @@ void MapMatching::ProcData(
     VP rviz_merged_map_lines = SetRvizMergeMapLines(merged_map_lines, T_input);
     RvizFunc(sec, nsec, connect, T_output, rviz_merged_map_lines);
   }
+}
+
+bool MapMatching::CheckIsRampRoad(const hozon::common::PointENU& utm_pos) {
+  double nearest_s = 0.0;
+  double nearest_l = 0.0;
+  hozon::hdmap::LaneInfoConstPtr ego_lane_ptr = nullptr;
+  if (!GLOBAL_HD_MAP->GetNearestLane(utm_pos, &ego_lane_ptr, &nearest_s,
+                                     &nearest_l) ||
+      ego_lane_ptr == nullptr) {
+    return false;
+  }
+  if (ego_lane_ptr->IsRampRoad()) {
+    return true;
+  }
+  return false;
 }
 
 VP MapMatching::SetRvizMergeMapLines(

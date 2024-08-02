@@ -1375,6 +1375,20 @@ bool FusionCenter::PredictMMMeas() {
   return false;
 }
 
+void FusionCenter::InsertESKFFusionTmpNode(const Node& node) {
+  auto new_node = std::make_shared<Node>();
+  if (new_node == nullptr) {
+    HLOG_ERROR << "new_node is nullptr";
+    return;
+  }
+  *new_node = node;
+  const Sophus::SO3d& rot = Sophus::SO3d::exp(new_node->orientation);
+  Eigen::Vector3d euler = Rot2Euler312(rot.matrix());
+  euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
+  new_node->heading = euler.z() / M_PI * 180;
+  fusion_deque_tmp_.emplace_back(new_node);
+}
+
 void FusionCenter::InsertESKFFusionNode(const Node& node) {
   auto new_node = std::make_shared<Node>();
   if (new_node == nullptr) {
@@ -1392,19 +1406,20 @@ void FusionCenter::InsertESKFFusionNode(const Node& node) {
 }
 
 void FusionCenter::RunESKFFusion(const Eigen::Vector3d& refpoint) {
+  // eskf开始
+  fusion_deque_mutex_.lock();
   HLOG_DEBUG << "-------eskf前-------"
              << "pre_deque_.size():" << pre_deque_.size()
              << ", meas_deque_.size():" << meas_deque_.size()
-             << ", meas_type:" << meas_deque_.back()->type;
-
-  // eskf开始
-  fusion_deque_mutex_.lock();
+             << ", meas_type:" << meas_deque_.back()->type
+             << ", fusion_deque.size():" << fusion_deque_.size();
   auto init_node = std::make_shared<Node>(*fusion_deque_.back());
+  fusion_deque_mutex_.unlock();
+
+  fusion_deque_tmp_.clear();
   init_node->enu = hmu::Geo::BlhToEnu(init_node->blh, refpoint);
   eskf_->StateInit(init_node);
-  HLOG_DEBUG << "-------eskf前------- fusion_deque.size():"
-             << fusion_deque_.size();
-  fusion_deque_mutex_.unlock();
+
   while (!pre_deque_.empty() && !meas_deque_.empty()) {
     Node meas_node, predict_node;
     if (meas_deque_.front() == nullptr || pre_deque_.front() == nullptr) {
@@ -1439,14 +1454,21 @@ void FusionCenter::RunESKFFusion(const Eigen::Vector3d& refpoint) {
     }
 
     State state = eskf_->GetState();
-    InsertESKFFusionNode(State2Node(state, refpoint));
+    InsertESKFFusionTmpNode(State2Node(state, refpoint));
   }
   can_output_ = true;
 
+  fusion_deque_mutex_.lock();
+  while (!fusion_deque_tmp_.empty()) {
+    fusion_deque_.push_back(fusion_deque_tmp_.front());
+    fusion_deque_tmp_.pop_front();
+  }
   HLOG_DEBUG << "-------eskf后-------"
              << "pre_deque_.size():" << pre_deque_.size()
              << ", meas_deque_.size():" << meas_deque_.size()
-             << ", meas_type:" << meas_deque_.back()->type;
+             << ", meas_type:" << meas_deque_.back()->type
+             << ", fusion_deque.size():" << fusion_deque_.size();
+  fusion_deque_mutex_.unlock();
 }
 
 Node FusionCenter::State2Node(const State& state,

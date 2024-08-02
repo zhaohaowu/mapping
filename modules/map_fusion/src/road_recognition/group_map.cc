@@ -1191,14 +1191,17 @@ void GroupMap::FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group) {
             const float dis_thresh = 4.5;
             if (i == 0 && curr_len > kMergeLengthThreshold && shrink &&
                 IsAccessLane(lane_in_curr, next_group->lanes[0]) &&
-                LaneDist(lane_in_curr, next_group->lanes[0]) < dis_thresh) {
+                LaneDist(lane_in_curr, next_group->lanes[0]) < dis_thresh &&
+                CalcLaneLength(next_group->lanes[0]) > kMergeLengthThreshold) {
               curr_group_next_lane[i].emplace_back(0);
               next_group_prev_lane[0].emplace_back(i);
             } else if (i == static_cast<int>(curr_group->lanes.size()) - 1 &&
                        curr_len > kMergeLengthThreshold && shrink &&
                        IsAccessLane(lane_in_curr, next_group->lanes.back()) &&
                        LaneDist(lane_in_curr, next_group->lanes.back()) <
-                           dis_thresh) {
+                           dis_thresh &&
+                       CalcLaneLength(next_group->lanes.back()) >
+                           kMergeLengthThreshold) {
               curr_group_next_lane[i].emplace_back(
                   static_cast<int>(next_group->lanes.size()) - 1);
 
@@ -1760,7 +1763,8 @@ void GroupMap::GenerateAllSatisfyTransitionLane(
     float dist_to_next_group_slice) {
   // HLOG_ERROR << "dist_to_next_group_slice = " << dist_to_next_group_slice;
   if (is_cross_.is_crossing_ && is_cross_.along_path_dis_.norm() > 2.0 &&
-      dist_to_next_group_slice > incross_before_virtual_lane_length_) {
+      dist_to_next_group_slice > incross_before_virtual_lane_length_ +
+                                     incross_before_virtual_lane_length_) {
     // &&dist_to_next_group_slice > conf_.incross_before_virtual_lane_length
     // 自车在路口里的连接策略
     Lane::Ptr transition_lane = std::make_shared<Lane>();
@@ -2071,7 +2075,8 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
       em::LaneType_DASHED;        // lane_in_curr->right_boundary->type;
   right_bound.color = em::WHITE;  // lane_in_curr->right_boundary->color;
   right_bound.isego = lane_in_curr->right_boundary->isego;
-  right_bound.is_near_road_edge = lane_in_curr->right_boundary->is_near_road_edge;
+  right_bound.is_near_road_edge =
+      lane_in_curr->right_boundary->is_near_road_edge;
   right_bound.mean_end_heading = lane_in_curr->right_boundary->mean_end_heading;
   right_bound.pred_end_heading = lane_in_curr->right_boundary->pred_end_heading;
   right_bound.mean_end_heading_std_dev =
@@ -2285,7 +2290,8 @@ void GroupMap::GenerateTransitionLaneToBefore(Lane::Ptr lane_in_curr,
       em::LaneType_DASHED;        // lane_in_curr->right_boundary->type;
   right_bound.color = em::WHITE;  // lane_in_curr->right_boundary->color;
   right_bound.isego = lane_in_curr->right_boundary->isego;
-  right_bound.is_near_road_edge = lane_in_curr->right_boundary->is_near_road_edge;
+  right_bound.is_near_road_edge =
+      lane_in_curr->right_boundary->is_near_road_edge;
   right_bound.mean_end_heading = lane_in_curr->right_boundary->mean_end_heading;
   right_bound.mean_end_heading_std_dev =
       lane_in_curr->right_boundary->mean_end_heading_std_dev;
@@ -2377,7 +2383,8 @@ void GroupMap::GenerateTransitionLaneToAfter(Lane::Ptr lane_in_curr,
       em::LaneType_DASHED;        // lane_in_curr->right_boundary->type;
   right_bound.color = em::WHITE;  // lane_in_curr->right_boundary->color;
   right_bound.isego = lane_in_curr->right_boundary->isego;
-  right_bound.is_near_road_edge = lane_in_curr->right_boundary->is_near_road_edge;
+  right_bound.is_near_road_edge =
+      lane_in_curr->right_boundary->is_near_road_edge;
   right_bound.mean_end_heading = lane_in_curr->right_boundary->mean_end_heading;
   right_bound.mean_end_heading_std_dev =
       lane_in_curr->right_boundary->mean_end_heading_std_dev;
@@ -2644,7 +2651,7 @@ void GroupMap::FindNearestLaneToHisVehiclePosition(Group::Ptr curr_group,
   }
 
   // 找到与历史车辆位置最接近的curr_lane作为当前所在lane
-  min_dist = 3.0;  // min_dist = FLT_MAX;
+  min_dist = conf_.min_lane_width;  // min_dist = FLT_MAX;
   if (nearest.stamp >= 0) {
     Eigen::Vector3f temp_pt(1, 0, 0);
     // 转到当前车体系下
@@ -3174,7 +3181,8 @@ void GroupMap::GenetateGuideLaneGeo(std::vector<Vec2d>* fit_points,
   (*guide_lane)->left_boundary->type = em::LaneType_DASHED;
   (*guide_lane)->left_boundary->color = em::WHITE;
   (*guide_lane)->left_boundary->isego = em::Ego_Road;
-  (*guide_lane)->left_boundary->is_near_road_edge = left_line->is_near_road_edge;
+  (*guide_lane)->left_boundary->is_near_road_edge =
+      left_line->is_near_road_edge;
   (*guide_lane)->left_boundary->pts = left_line->pts;
   (*guide_lane)->left_boundary->mean_end_heading = left_line->mean_end_heading;
   (*guide_lane)->left_boundary->pred_end_heading = left_line->pred_end_heading;
@@ -3187,7 +3195,8 @@ void GroupMap::GenetateGuideLaneGeo(std::vector<Vec2d>* fit_points,
   (*guide_lane)->right_boundary->type = em::LaneType_DASHED;
   (*guide_lane)->right_boundary->color = em::WHITE;
   (*guide_lane)->right_boundary->isego = em::Ego_Road;
-  (*guide_lane)->right_boundary->is_near_road_edge = right_line->is_near_road_edge;
+  (*guide_lane)->right_boundary->is_near_road_edge =
+      right_line->is_near_road_edge;
   (*guide_lane)->right_boundary->pts = right_line->pts;
   (*guide_lane)->right_boundary->mean_end_heading =
       right_line->mean_end_heading;
@@ -3628,18 +3637,19 @@ void GroupMap::AvoidSplitMergeLane(std::vector<Group::Ptr>* groups) {
                     int curr_erase_index =
                         successor_id_and_curr_index[lane_next_id];
                     successor_id_and_curr_index[lane_next_id] = curr_index;
-                    ErasePrevRelation(curr_group, curr_erase_index, next_group,
-                                      next_index);
-                    EraseSucessorRelation(curr_group, curr_erase_index,
-                                          next_group, next_index);
+                    // ErasePrevRelation(curr_group, curr_erase_index,
+                    // next_group,
+                    //                   next_index);
+                    // EraseSucessorRelation(curr_group, curr_erase_index,
+                    //                       next_group, next_index);
                     ErasePrevRelation(before_group, index_before_group_lane,
                                       curr_group, curr_erase_index);
                   } else {
                     erase_relate_curr_index.insert(curr_index);
-                    ErasePrevRelation(curr_group, curr_index, next_group,
-                                      next_index);
-                    EraseSucessorRelation(curr_group, curr_index, next_group,
-                                          next_index);
+                    // ErasePrevRelation(curr_group, curr_index, next_group,
+                    //                   next_index);
+                    // EraseSucessorRelation(curr_group, curr_index, next_group,
+                    //                       next_index);
                     ErasePrevRelation(before_group, index_before_group_lane,
                                       curr_group, curr_index);
                   }
@@ -3947,7 +3957,8 @@ void GroupMap::CollectGroupPossibleLanes(
         lane->left_boundary->type = lane_seg->left_boundary->type;
         lane->left_boundary->color = lane_seg->left_boundary->color;
         lane->left_boundary->isego = lane_seg->left_boundary->isego;
-        lane->left_boundary->is_near_road_edge = lane_seg->left_boundary->is_near_road_edge;
+        lane->left_boundary->is_near_road_edge =
+            lane_seg->left_boundary->is_near_road_edge;
         for (const auto& delete_id : lane_seg->left_boundary->deteled_ids) {
           lane->left_boundary->deteled_ids.emplace_back(delete_id);
         }
@@ -3968,7 +3979,8 @@ void GroupMap::CollectGroupPossibleLanes(
         lane->right_boundary->type = lane_seg->right_boundary->type;
         lane->right_boundary->color = lane_seg->right_boundary->color;
         lane->right_boundary->isego = lane_seg->right_boundary->isego;
-        lane->right_boundary->is_near_road_edge = lane_seg->right_boundary->is_near_road_edge;
+        lane->right_boundary->is_near_road_edge =
+            lane_seg->right_boundary->is_near_road_edge;
         lane->right_boundary->mean_end_heading =
             lane_seg->right_boundary->mean_end_heading;
         lane->right_boundary->pred_end_heading =
@@ -4440,7 +4452,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
                 curr_group->lanes[0]->str_id_with_group &&
             curr_len > kMergeLengthThreshold && shrink &&
             IsAccessLane(lane_in_curr, next_group->lanes[0]) &&
-            LaneDist(lane_in_curr, next_group->lanes[0]) < dis_thresh) {
+            LaneDist(lane_in_curr, next_group->lanes[0]) < dis_thresh &&
+            CalcLaneLength(next_group->lanes[0]) > kMergeLengthThreshold) {
           lane_in_curr->next_lane_str_id_with_group.emplace_back(
               next_group->lanes[0]->str_id_with_group);
           next_lane_exit = true;
@@ -4451,7 +4464,9 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
                    curr_len > kMergeLengthThreshold && shrink &&
                    IsAccessLane(lane_in_curr, next_group->lanes.back()) &&
                    LaneDist(lane_in_curr, next_group->lanes.back()) <
-                       dis_thresh) {
+                       dis_thresh &&
+                   CalcLaneLength(next_group->lanes.back()) >
+                       kMergeLengthThreshold) {
           lane_in_curr->next_lane_str_id_with_group.emplace_back(
               next_group->lanes.back()->str_id_with_group);
           next_lane_exit = true;
@@ -5891,6 +5906,8 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           ((!DistanceInferenceLane(left_bound, right_bound)) &&
            (lane_in_curr->left_boundary->id != ego_line_id_.left_id ||
             lane_in_curr->right_boundary->id != ego_line_id_.right_id))) {
+        HLOG_WARN
+            << "left bound exist and right bound exist but distance not valid!";
         return;
       } else if (left_bound_exist == 1 && right_bound_exist == 0) {
         size_t index_right = lane_in_curr->right_boundary->pts.size();
@@ -5935,6 +5952,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           continue;
         }
         if (right_bound.pts.empty()) {
+          HLOG_WARN << "right bound empty!";
           return;
         }
       } else if (left_bound_exist == 0 && right_bound_exist == 1) {
@@ -5981,10 +5999,12 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           continue;
         }
         if (left_bound.pts.empty()) {
+          HLOG_WARN << "left bound empty!";
           return;
         }
       } else if (left_bound_exist == 0 && right_bound_exist == 0) {
         if (lane_in_curr->center_line_param.empty()) {
+          HLOG_WARN << "center_line_param isn't exist";
           return;
         }
         size_t index_left = lane_in_curr->left_boundary->pts.size();
@@ -6005,6 +6025,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           left_bound.pts.emplace_back(left_pt_pred);
         }
         if (left_bound.pts.empty()) {
+          HLOG_WARN << "left bound empty!";
           return;
         }
         size_t index_right = lane_in_curr->right_boundary->pts.size();
@@ -6026,6 +6047,7 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           right_bound.pts.emplace_back(right_pt_pred);
         }
         if (right_bound.pts.empty()) {
+          HLOG_WARN << "right bound empty!";
           return;
         }
       }
@@ -6077,7 +6099,10 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
       //            << lane_pre.left_boundary->pts.size()
       //            << "  lane_pre.right_boundary = "
       //            << lane_pre.right_boundary->pts.size();
-
+      if (left_bound.pts.size() < 2 || right_bound.pts.size() < 2) {
+        lane_ptr->center_line_pts.emplace_back(
+            lane_in_curr->center_line_pts.back());
+      }
       if (lane_ptr->center_line_pts.empty()) {
         return;
       }
@@ -6619,7 +6644,8 @@ void GroupMap::BuildVirtualMergeLane(Group::Ptr curr_group,
   right_bound.type = lane_in_curr->right_boundary->type;
   right_bound.color = lane_in_curr->right_boundary->color;
   right_bound.isego = lane_in_curr->right_boundary->isego;
-  right_bound.is_near_road_edge = lane_in_curr->right_boundary->is_near_road_edge;
+  right_bound.is_near_road_edge =
+      lane_in_curr->right_boundary->is_near_road_edge;
   right_bound.mean_end_heading = lane_in_curr->right_boundary->mean_end_heading;
   right_bound.pred_end_heading = lane_in_curr->right_boundary->pred_end_heading;
   right_bound.mean_end_heading_std_dev =
@@ -7453,7 +7479,6 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
 
       //! TBD: LaneTurn暂时都设为NOTURN行不行?
       proto_lane->set_turn(hozon::hdmap::Lane_LaneTurn_NO_TURN);
-
       //! TBD: MapLaneType暂时都设为normal行不行?
       proto_lane->mutable_map_lane_type()->set_normal(true);
     }
@@ -7933,8 +7958,8 @@ std::vector<Point> GuidePathManager::GetCwForwardLaneGuidePoints() {
 
   float ego_to_lane_center =
       std::atan2(center_first_point.y(), center_first_point.x());
-  HLOG_DEBUG << "forward center point:" << ", center.x()"
-             << center_first_point.x() << ", center.y()"
+  HLOG_DEBUG << "forward center point:"
+             << ", center.x()" << center_first_point.x() << ", center.y()"
              << center_first_point.y() << "atan2:" << ego_to_lane_center
              << ", line_radians_mean_heading" << line_radians_mean_heading;
 
@@ -8075,9 +8100,10 @@ std::vector<Point> GuidePathManager::GetRoadEdgeGuidePoints() {
     const auto& query_point =
         0.5 * (right_first_point_2f + left_first_point_2f);
 
-    HLOG_DEBUG << "roadedge center point:" << ", center.x()" << query_point.x()
-               << ", center.y()" << query_point.y()
-               << ", line_radians_mean_heading" << line_radians_mean_heading;
+    HLOG_DEBUG << "roadedge center point:"
+               << ", center.x()" << query_point.x() << ", center.y()"
+               << query_point.y() << ", line_radians_mean_heading"
+               << line_radians_mean_heading;
     // float junction_guide_angle_ratio = 0.2;
 
     // heading方向补个50米长度。

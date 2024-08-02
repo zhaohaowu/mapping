@@ -634,9 +634,18 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
 }
 
 std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
-    bool need_update_global_hd, hozon::routing::RoutingResponse* routing) {
+    hozon::routing::RoutingResponse* routing) {
   if (!GLOBAL_HD_MAP) {
     HLOG_ERROR << "nullptr hq_map_server_";
+    return nullptr;
+  }
+
+  if (!get_default_routing_) {
+    GetRoutingLanesFromFile();  // 只要读取一次里面存储所有的routing lane id
+  }
+
+  if (default_routing_lanes_.empty()) {
+    HLOG_ERROR << "get routing message failed";
     return nullptr;
   }
 
@@ -645,62 +654,118 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
   utm_pos.set_y(location_utm_.y());
   utm_pos.set_z(0);
 
-  hq_map_ = std::make_shared<hozon::hdmap::Map>();
-  std::shared_ptr<hozon::hdmap::Map> hq_map_local_small =
-      std::make_shared<hozon::hdmap::Map>();
-  std::shared_ptr<hozon::hdmap::Map> hq_map_local_wide =
-      std::make_shared<hozon::hdmap::Map>();
-
-  if (!get_default_routing_) {
-    GetRoutingLanesFromFile();  // 只要读取一次里面存储所有的routing lane id
+  double nearest_s = 0.;
+  std::string current_lane_id;
+  GetCurrentLane(utm_pos, default_routing_set_, default_routing_lanes_,
+                 &current_lane_id, &nearest_s);
+  if (current_lane_id.empty()) {
+    HLOG_ERROR << "get current lane failed";
+    return nullptr;
   }
 
+  int row = GetRoutingLaneIndex(current_lane_id, default_routing_lanes_);
+  if (row == -1) {
+    HLOG_ERROR << "find vehicle lane failed";
+    return nullptr;
+  }
+
+  double lane_length_forward = -nearest_s;
+  double lane_length_backward = nearest_s;
+
+  int row_max = -1;
+  int row_max_routing = -1;
+  int row_min = 0;
+
+  for (int i = row; i < default_routing_lanes_.size(); ++i) {
+    if (!default_routing_lanes_[i].empty()) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(default_routing_lanes_[i].back());
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        lane_length_forward = lane_length_forward + lane_ptr->lane().length();
+      }
+      row_max = i;
+      if (lane_length_forward >= 300) {
+        break;
+      }
+    }
+  }
+
+  lane_length_forward = -nearest_s;
+  for (int i = row; i < default_routing_lanes_.size(); ++i) {
+    if (!default_routing_lanes_[i].empty()) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(default_routing_lanes_[i].back());
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        lane_length_forward = lane_length_forward + lane_ptr->lane().length();
+      }
+      row_max_routing = i;
+      if (lane_length_forward >= 1000) {
+        break;
+      }
+    }
+  }
+
+  for (int i = row - 1; i >= 0; --i) {
+    if (!default_routing_lanes_[i].empty()) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(default_routing_lanes_[i].back());
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        lane_length_backward = lane_length_backward + lane_ptr->lane().length();
+      }
+      row_min = i;
+      if (lane_length_backward >= 100) {
+        break;
+      }
+    }
+  }
+
+  std::unordered_set<std::string> road_id_set;
+  std::unordered_set<std::string> lane_id_set;
+  hq_map_ = std::make_shared<hozon::hdmap::Map>();
+  for (int i = row_min; i <= row_max; ++i) {
+    for (int j = 0; j < default_routing_lanes_[i].size(); ++j) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(default_routing_lanes_[i][j]);
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        hq_map_->add_lane()->CopyFrom(lane_ptr->lane());
+        road_id_set.emplace(lane_ptr->road_id().id());
+        lane_id_set.emplace(lane_ptr->id().id());
+      }
+    }
+  }
+
+  for (int i = row_max + 1; i <= row_max_routing; ++i) {
+    for (int j = 0; j < default_routing_lanes_[i].size(); ++j) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(default_routing_lanes_[i][j]);
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        AppendRoutingLane(lane_ptr);
+        road_id_set.emplace(lane_ptr->road_id().id());
+      }
+    }
+  }
+
+  // 和50m范围做一个并集
+  std::shared_ptr<hozon::hdmap::Map> hq_map_local_small =
+      std::make_shared<hozon::hdmap::Map>();
   auto ret =
       GLOBAL_HD_MAP->GetLocalMap(utm_pos, {50, 50}, hq_map_local_small.get());
   if (ret != 0) {
     HLOG_ERROR << "GetLocalMap 50m range failed";
   }
-  ret =
-      GLOBAL_HD_MAP->GetLocalMap(utm_pos, {150, 150}, hq_map_local_wide.get());
-  if (ret != 0) {
-    HLOG_ERROR << "GetLocalMap 300m range failed";
-    return nullptr;
-  }
+
   std::vector<std::string> local_lanes_small;
   for (const auto& lane_it : hq_map_local_small->lane()) {
     local_lanes_small.emplace_back(lane_it.id().id());
   }
 
-  if (default_routing_lanes_.empty()) {
-    HLOG_ERROR << "default routing response is empty";
-    return nullptr;
-  }
-
-  std::vector<std::string> local_lanes_wide;
-  for (const auto& lane_it : hq_map_local_wide->lane()) {
-    local_lanes_wide.emplace_back(lane_it.id().id());
-  }
-
-  std::unordered_set<std::string> road_id_set;
-  std::vector<std::string> local_lanes;
-  // routing lane和local map 300m 范围取交集
-  for (const auto& lane_id_it : default_routing_lanes_) {
-    if (std::find(local_lanes_wide.begin(), local_lanes_wide.end(),
-                  lane_id_it) != local_lanes_wide.end()) {
-      local_lanes.emplace_back(lane_id_it);
-      hozon::hdmap::Id lane_id;
-      lane_id.set_id(lane_id_it);
-      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
-      if (lane_ptr != nullptr) {
-        hq_map_->add_lane()->CopyFrom(lane_ptr->lane());
-        road_id_set.emplace(lane_ptr->road_id().id());
-      }
-    }
-  }
-  // 再和local map 50m 范围取并集
   for (const auto& lane_id_it : local_lanes_small) {
-    if (std::find(local_lanes.begin(), local_lanes.end(), lane_id_it) ==
-        local_lanes.end()) {
+    if (lane_id_set.count(lane_id_it) == 0) {
       hozon::hdmap::Id lane_id;
       lane_id.set_id(lane_id_it);
       auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
@@ -722,7 +787,15 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
     }
   }
 
-  // 以下元素都是300m范围内的
+  std::shared_ptr<hozon::hdmap::Map> hq_map_local_wide =
+      std::make_shared<hozon::hdmap::Map>();
+  ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {1000, 1000},
+                                   hq_map_local_wide.get());
+  if (ret != 0) {
+    HLOG_ERROR << "GetLocalMap 1000m range failed";
+  }
+
+  // 以下元素都是1000m范围内的
   hq_map_->mutable_junction()->CopyFrom(hq_map_local_wide->junction());
   hq_map_->mutable_crosswalk()->CopyFrom(hq_map_local_wide->crosswalk());
   hq_map_->mutable_signal()->CopyFrom(hq_map_local_wide->signal());
@@ -1793,11 +1866,14 @@ void MapPrediction::GetRoutingLanesFromFile() {
   current_routing_->CopyFrom(routing);
 
   for (const auto& road_it : routing.road()) {
+    std::vector<std::string> routing_lane;
     for (const auto& passage_it : road_it.passage()) {
       for (const auto& lane_it : passage_it.segment()) {
-        default_routing_lanes_.emplace_back(lane_it.id());
+        routing_lane.emplace_back(lane_it.id());
+        default_routing_set_.insert(lane_it.id());
       }
     }
+    default_routing_lanes_.emplace_back(routing_lane);
   }
   if (default_routing_lanes_.empty()) {
     HLOG_ERROR << "the default routing response file is empty";

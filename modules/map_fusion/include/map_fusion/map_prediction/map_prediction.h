@@ -72,7 +72,7 @@ class MapPrediction {
   std::shared_ptr<hozon::hdmap::Map> GetHdMapNNP(
       bool need_update_global_hd, hozon::routing::RoutingResponse* routing);
   std::shared_ptr<hozon::hdmap::Map> GetHdMapNCP(
-      bool need_update_global_hd, hozon::routing::RoutingResponse* routing);
+      hozon::routing::RoutingResponse* routing);
   std::shared_ptr<hozon::hdmap::Map> GetPredictionMap();
 
   void Prediction();
@@ -250,7 +250,8 @@ class MapPrediction {
   std::shared_ptr<hozon::routing::RoutingResponse> current_routing_ = nullptr;
 
   // default_routing_response
-  std::vector<std::string> default_routing_lanes_;
+  std::vector<std::vector<std::string>> default_routing_lanes_;
+  std::unordered_set<std::string> default_routing_set_;
   bool get_default_routing_ = false;
 };
 

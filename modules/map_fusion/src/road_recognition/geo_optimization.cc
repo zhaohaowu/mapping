@@ -950,6 +950,9 @@ void GeoOptimization::FilterLocalMapLine(
       kdtree_points.emplace_back(static_cast<float>(point_local.x()),
                                  static_cast<float>(point_local.y()));
     }
+    if (kdtree_points.size() < 2) {
+      continue;
+    }
     cv::flann::KDTreeIndexParams index_param(1);
     std::shared_ptr<cv::flann::Index> kdtree_ptr =
         std::make_shared<cv::flann::Index>(cv::Mat(kdtree_points).reshape(1),
@@ -2844,9 +2847,10 @@ void GeoOptimization::CompareRoadAndLines(
         Eigen::Vector3d fit_vec;
         for (const auto& road_pt : road_pts) {
           if (road_pt.x() > target_line.points(tar_line_pt_size - 1).x()) {
-            Eigen::Vector3d target_first_pt(target_line.points(tar_line_pt_size - 1).x(),
-                                            target_line.points(tar_line_pt_size - 1).y(),
-                                            target_line.points(tar_line_pt_size - 1).z());
+            Eigen::Vector3d target_first_pt(
+                target_line.points(tar_line_pt_size - 1).x(),
+                target_line.points(tar_line_pt_size - 1).y(),
+                target_line.points(tar_line_pt_size - 1).z());
             fit_vec = target_first_pt - road_pt;
             break;
           }

@@ -5813,7 +5813,6 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
       //            << lane_in_curr->right_boundary->id_next;
       // 判断现有的line是否已经存在
       int left_bound_exist = 0, right_bound_exist = 0;
-
       for (auto& lane_in_next : next_group->lanes) {
         if (lane_in_next->left_boundary->id ==
                 lane_in_curr->left_boundary->id_next &&
@@ -5911,12 +5910,18 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
         return;
       } else if (left_bound_exist == 1 && right_bound_exist == 0) {
         size_t index_right = lane_in_curr->right_boundary->pts.size();
+        if (index_right < 1) {
+          return;
+        }
         Point right_pt_pred(
             PREDICTED,
             lane_in_curr->right_boundary->pts[index_right - 1].pt.x(),
             lane_in_curr->right_boundary->pts[index_right - 1].pt.y(),
             lane_in_curr->right_boundary->pts[index_right - 1].pt.z());
         right_bound.pts.emplace_back(right_pt_pred);
+        if (left_bound.pts.size() < 2) {
+          return;
+        }
         if ((right_bound.pts[0].pt - left_bound.pts[0].pt).norm() > 4.0) {
           right_pt_pred.pt.x() = right_pt_pred.pt.x() +
                                  left_bound.pts[0].pt.x() -
@@ -5957,6 +5962,9 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
         }
       } else if (left_bound_exist == 0 && right_bound_exist == 1) {
         size_t index_left = lane_in_curr->left_boundary->pts.size();
+        if (index_left < 1) {
+          return;
+        }
         Point left_pt_pred(
             PREDICTED, lane_in_curr->left_boundary->pts[index_left - 1].pt.x(),
             lane_in_curr->left_boundary->pts[index_left - 1].pt.y(),
@@ -5964,6 +5972,9 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
         size_t right_index = 1;
         size_t right_bound_size = right_bound.pts.size();
         left_bound.pts.emplace_back(left_pt_pred);
+        if (right_bound_size < 2) {
+          return;
+        }
         if ((right_bound.pts[0].pt - left_bound.pts[0].pt).norm() > 4.0) {
           left_pt_pred.pt.x() = left_pt_pred.pt.x() +
                                 right_bound.pts[0].pt.x() -
@@ -6008,6 +6019,9 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           return;
         }
         size_t index_left = lane_in_curr->left_boundary->pts.size();
+        if (index_left < 1) {
+          return;
+        }
         Point left_pt_pred(
             PREDICTED, lane_in_curr->left_boundary->pts[index_left - 1].pt.x(),
             lane_in_curr->left_boundary->pts[index_left - 1].pt.y(),
@@ -6029,6 +6043,9 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           return;
         }
         size_t index_right = lane_in_curr->right_boundary->pts.size();
+        if (index_right < 1) {
+          return;
+        }
         Point right_pt_pred(
             PREDICTED,
             lane_in_curr->right_boundary->pts[index_right - 1].pt.x(),
@@ -6051,25 +6068,6 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           return;
         }
       }
-
-      // std::vector<Point> ctr_pts;
-      // size_t index_center = lane_in_curr->center_line_pts.size();
-      // Point center_pt_pred(
-      //     PREDICTED, lane_in_curr->center_line_pts[index_center -
-      //     1].pt.x(), lane_in_curr->center_line_pts[index_center -
-      //     1].pt.y(), lane_in_curr->center_line_pts[index_center -
-      //     1].pt.z());
-      // while (center_pt_pred.pt.x() <
-      //        next_group->group_segments.back()->end_slice.po.x() - 2.0) {
-      //   ctr_pts.emplace_back(center_pt_pred);
-      //   float pre_x = center_pt_pred.pt.x() + 1.0;
-      //   float pre_y = lane_in_curr->center_line_param[0] +
-      //                 lane_in_curr->center_line_param[1] * pre_x;
-      //   center_pt_pred = Point(PREDICTED, pre_x, pre_y, float(0.0));
-      // }
-      // if (ctr_pts.empty()) {
-      //   return;
-      // }
 
       lane_pre.str_id = lane_in_curr->str_id;
       lane_pre.lanepos_id = lane_in_curr->lanepos_id;
@@ -6134,83 +6132,6 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
       next_group->lanes.emplace_back(lane_ptr);
     }
   }
-  // for (auto& lane_in_curr : curr_group->lanes) {
-  //   if (lane_in_curr->next_lane_str_id_with_group.empty()) {
-  //     if (!lane_in_curr->center_line_param.empty()) {
-  //       size_t index_left = lane_in_curr->left_boundary->pts.size();
-  //       Point left_pt_pred(
-  //           VIRTUAL, lane_in_curr->left_boundary->pts[index_left -
-  //           1].pt.x(), lane_in_curr->left_boundary->pts[index_left -
-  //           1].pt.y(), lane_in_curr->left_boundary->pts[index_left -
-  //           1].pt.z());
-  //       double b_left = left_pt_pred.pt.y() -
-  //                       lane_in_curr->center_line_param[1] *
-  //                       left_pt_pred.pt.x();
-  //       while (left_pt_pred.pt.x() <
-  //              next_group->group_segments.back()->end_slice.po.x() - 2.0) {
-  //         lane_in_curr->left_boundary->pts.emplace_back(left_pt_pred);
-  //         float pre_x = left_pt_pred.pt.x() + 1.0;
-  //         float pre_y = b_left + lane_in_curr->center_line_param[1] *
-  //         pre_x; left_pt_pred = Point(VIRTUAL, pre_x, pre_y,
-  //         static_cast<float>(0.0));
-  //       }
-  //       size_t index_right = lane_in_curr->right_boundary->pts.size();
-  //       Point right_pt_pred(
-  //           VIRTUAL, lane_in_curr->right_boundary->pts[index_right -
-  //           1].pt.x(), lane_in_curr->right_boundary->pts[index_right -
-  //           1].pt.y(), lane_in_curr->right_boundary->pts[index_right -
-  //           1].pt.z());
-  //       double b_right =
-  //           right_pt_pred.pt.y() -
-  //           lane_in_curr->center_line_param[1] * right_pt_pred.pt.x();
-  //       while (right_pt_pred.pt.x() <
-  //              next_group->group_segments.back()->end_slice.po.x() - 2.0) {
-  //         lane_in_curr->right_boundary->pts.emplace_back(right_pt_pred);
-  //         float pre_x = right_pt_pred.pt.x() + 1.0;
-  //         float pre_y = b_right + lane_in_curr->center_line_param[1] *
-  //         pre_x; right_pt_pred = Point(VIRTUAL, pre_x, pre_y,
-  //         static_cast<float>(0.0));
-  //       }
-  //       size_t index_center = lane_in_curr->center_line_pts.size();
-  //       Point center_pt_pred(
-  //           VIRTUAL, lane_in_curr->center_line_pts[index_center -
-  //           1].pt.x(), lane_in_curr->center_line_pts[index_center -
-  //           1].pt.y(), lane_in_curr->center_line_pts[index_center -
-  //           1].pt.z());
-  //       while (center_pt_pred.pt.x() <
-  //              next_group->group_segments.back()->end_slice.po.x() - 2.0) {
-  //         lane_in_curr->center_line_pts.emplace_back(center_pt_pred);
-  //         float pre_x = center_pt_pred.pt.x() + 1.0;
-  //         float pre_y = lane_in_curr->center_line_param[0] +
-  //                       lane_in_curr->center_line_param[1] * pre_x;
-  //         center_pt_pred = Point(VIRTUAL, pre_x, pre_y,
-  //         static_cast<float>(0.0));
-  //       }
-  //     }
-  //   } else {
-  //     for (auto& lane_in_next : next_group->lanes) {
-  //       if (lane_in_curr->next_lane_str_id_with_group[0] ==
-  //           lane_in_next->str_id_with_group) {
-  //         lane_in_curr->left_boundary->pts.insert(
-  //             lane_in_curr->left_boundary->pts.end(),
-  //             lane_in_next->left_boundary->pts.begin(),
-  //             lane_in_next->left_boundary->pts.end());
-  //         lane_in_curr->right_boundary->pts.insert(
-  //             lane_in_curr->right_boundary->pts.end(),
-  //             lane_in_next->right_boundary->pts.begin(),
-  //             lane_in_next->right_boundary->pts.end());
-  //         lane_in_curr->center_line_pts.insert(
-  //             lane_in_curr->center_line_pts.end(),
-  //             lane_in_next->center_line_pts.begin(),
-  //             lane_in_next->center_line_pts.end());
-  //         lane_in_curr->center_line_param =
-  //             FitLaneline(lane_in_curr->center_line_pts);
-  //         break;
-  //       }
-  //     }
-  //     lane_in_curr->next_lane_str_id_with_group.clear();
-  //   }
-  // }
 }
 
 void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
@@ -6295,6 +6216,10 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
         }
       }
       if (left_bound_exist == 1 && right_bound_exist == 0) {
+        if (left_bound.pts.size() < 2 ||
+            lane_in_next->right_boundary->pts.empty()) {
+          return;
+        }
         Point right_pt_pred(PREDICTED,
                             lane_in_next->right_boundary->pts[0].pt.x(),
                             lane_in_next->right_boundary->pts[0].pt.y(),
@@ -6324,6 +6249,10 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
           return;
         }
       } else if (left_bound_exist == 0 && right_bound_exist == 1) {
+        if (right_bound.pts.size() < 2 ||
+            lane_in_next->left_boundary->pts.empty()) {
+          return;
+        }
         Point left_pt_pred(PREDICTED,
                            lane_in_next->left_boundary->pts[0].pt.x(),
                            lane_in_next->left_boundary->pts[0].pt.y(),
@@ -6353,7 +6282,9 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
           return;
         }
       } else if (left_bound_exist == 0 && right_bound_exist == 0) {
-        if (lane_in_next->center_line_param_front.empty()) {
+        if (lane_in_next->center_line_param_front.empty() ||
+            lane_in_next->left_boundary->pts.empty() ||
+            lane_in_next->right_boundary->pts.empty()) {
           return;
         }
         Point left_pt_pred(PREDICTED,
@@ -6395,24 +6326,6 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
           return;
         }
       }
-
-      // std::vector<Point> ctr_pts;
-      // size_t index_center = lane_in_next->center_line_pts.size();
-      // Point center_pt_pred(PREDICTED,
-      // lane_in_next->center_line_pts[0].pt.x(),
-      //                     lane_in_next->center_line_pts[0].pt.y(),
-      //                     lane_in_next->center_line_pts[0].pt.z());
-      // while (center_pt_pred.pt.x() >
-      //        curr_group->group_segments[0]->end_slice.po.x() + 2.0) {
-      //   ctr_pts.insert(ctr_pts.begin(), center_pt_pred);
-      //   float pre_x = center_pt_pred.pt.x() - 1.0;
-      //   float pre_y = lane_in_next->center_line_param_front[0] +
-      //                 lane_in_next->center_line_param_front[1] * pre_x;
-      //   center_pt_pred = Point(PREDICTED, pre_x, pre_y, float(0.0));
-      // }
-      // if (ctr_pts.empty()) {
-      //   return;
-      // }
       lane_pre.str_id = lane_in_next->str_id;
       lane_pre.lanepos_id = lane_in_next->lanepos_id;
       lane_pre.str_id_with_group = curr_group->str_id + ":" + lane_pre.str_id;
@@ -6464,85 +6377,6 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
       curr_group->lanes.emplace_back(lane_ptr);
     }
   }
-  // for (auto& lane_in_next : next_group->lanes) {
-  //   if (lane_in_next->prev_lane_str_id_with_group.empty()) {
-  //     if (!lane_in_next->center_line_param_front.empty()) {
-  //       Point left_pt_pred(VIRTUAL,
-  //       lane_in_next->left_boundary->pts[0].pt.x(),
-  //                         lane_in_next->left_boundary->pts[0].pt.y(),
-  //                         lane_in_next->left_boundary->pts[0].pt.z());
-  //       double b_left =
-  //           left_pt_pred.pt.y() -
-  //           lane_in_next->center_line_param_front[1] * left_pt_pred.pt.x();
-  //       while (left_pt_pred.pt.x() >
-  //              curr_group->group_segments[0]->start_slice.po.x() + 2.0) {
-  //         lane_in_next->left_boundary->pts.insert(
-  //             lane_in_next->left_boundary->pts.begin(), left_pt_pred);
-  //         float pre_x = left_pt_pred.pt.x() - 1.0;
-  //         float pre_y =
-  //             b_left + lane_in_next->center_line_param_front[1] * pre_x;
-  //         left_pt_pred = Point(VIRTUAL, pre_x, pre_y,
-  //         static_cast<float>(0.0));
-  //       }
-
-  //       Point right_pt_pred(PointType::VIRTUAL,
-  //                          lane_in_next->right_boundary->pts[0].pt.x(),
-  //                          lane_in_next->right_boundary->pts[0].pt.y(),
-  //                          lane_in_next->right_boundary->pts[0].pt.z());
-  //       double b_right =
-  //           right_pt_pred.pt.y() -
-  //           lane_in_next->center_line_param_front[1] *
-  //           right_pt_pred.pt.x();
-  //       while (right_pt_pred.pt.x() >
-  //              curr_group->group_segments[0]->start_slice.po.x() + 2.0) {
-  //         lane_in_next->right_boundary->pts.insert(
-  //             lane_in_next->right_boundary->pts.begin(), right_pt_pred);
-  //         float pre_x = right_pt_pred.pt.x() - 1.0;
-  //         float pre_y =
-  //             b_right + lane_in_next->center_line_param_front[1] * pre_x;
-  //         right_pt_pred = Point(VIRTUAL, pre_x, pre_y,
-  //         static_cast<float>(0.0));
-  //       }
-  //       size_t index_center = lane_in_next->center_line_pts.size();
-  //       Point center_pt_pred(VIRTUAL,
-  //       lane_in_next->center_line_pts[0].pt.x(),
-  //                           lane_in_next->center_line_pts[0].pt.y(),
-  //                           lane_in_next->center_line_pts[0].pt.z());
-  //       while (center_pt_pred.pt.x() >
-  //              curr_group->group_segments[0]->start_slice.po.x() + 2.0) {
-  //         lane_in_next->center_line_pts.insert(
-  //             lane_in_next->center_line_pts.begin(), center_pt_pred);
-  //         float pre_x = center_pt_pred.pt.x() - 1.0;
-  //         float pre_y = lane_in_next->center_line_param_front[0] +
-  //                       lane_in_next->center_line_param_front[1] * pre_x;
-  //         center_pt_pred = Point(VIRTUAL, pre_x, pre_y,
-  //         static_cast<float>(0.0));
-  //       }
-  //     }
-  //   } else {
-  //     for (auto& lane_in_curr : curr_group->lanes) {
-  //       if (lane_in_next->prev_lane_str_id_with_group[0] ==
-  //           lane_in_curr->str_id_with_group) {
-  //         lane_in_next->left_boundary->pts.insert(
-  //             lane_in_next->left_boundary->pts.begin(),
-  //             lane_in_curr->left_boundary->pts.begin(),
-  //             lane_in_curr->left_boundary->pts.end());
-  //         lane_in_next->right_boundary->pts.insert(
-  //             lane_in_next->right_boundary->pts.begin(),
-  //             lane_in_curr->right_boundary->pts.begin(),
-  //             lane_in_curr->right_boundary->pts.end());
-  //         lane_in_next->center_line_pts.insert(
-  //             lane_in_next->center_line_pts.begin(),
-  //             lane_in_curr->center_line_pts.begin(),
-  //             lane_in_curr->center_line_pts.end());
-  //         lane_in_next->center_line_param_front =
-  //             FitLanelinefront(lane_in_next->center_line_pts);
-  //         break;
-  //       }
-  //     }
-  //     lane_in_next->prev_lane_str_id_with_group.clear();
-  //   }
-  // }
 }
 
 void GroupMap::BuildVirtualMergeLane(Group::Ptr curr_group,

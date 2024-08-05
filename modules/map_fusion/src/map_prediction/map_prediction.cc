@@ -685,7 +685,7 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
         lane_length_forward = lane_length_forward + lane_ptr->lane().length();
       }
       row_max = i;
-      if (lane_length_forward >= 300) {
+      if (lane_length_forward >= 200) {
         break;
       }
     }
@@ -789,13 +789,13 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
 
   std::shared_ptr<hozon::hdmap::Map> hq_map_local_wide =
       std::make_shared<hozon::hdmap::Map>();
-  ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {1000, 1000},
-                                   hq_map_local_wide.get());
+  ret =
+      GLOBAL_HD_MAP->GetLocalMap(utm_pos, {200, 200}, hq_map_local_wide.get());
   if (ret != 0) {
-    HLOG_ERROR << "GetLocalMap 1000m range failed";
+    HLOG_ERROR << "GetLocalMap 200m range failed";
   }
 
-  // 以下元素都是1000m范围内的
+  // 以下元素都是200m范围内的
   hq_map_->mutable_junction()->CopyFrom(hq_map_local_wide->junction());
   hq_map_->mutable_crosswalk()->CopyFrom(hq_map_local_wide->crosswalk());
   hq_map_->mutable_signal()->CopyFrom(hq_map_local_wide->signal());
@@ -1954,6 +1954,7 @@ void MapPrediction::HDMapLaneToLocal() {
         point->set_y(pt_local.y());
         point->set_z(0);
       }
+      (*seg.mutable_line_segment()->mutable_original_point()).Clear();
     }
 
     for (auto& seg :
@@ -1967,6 +1968,7 @@ void MapPrediction::HDMapLaneToLocal() {
         point->set_y(pt_local.y());
         point->set_z(0);
       }
+      (*seg.mutable_line_segment()->mutable_original_point()).Clear();
     }
 
     for (auto& seg : *hq_lane.mutable_right_boundary()
@@ -1981,6 +1983,7 @@ void MapPrediction::HDMapLaneToLocal() {
         point->set_y(pt_local.y());
         point->set_z(0);
       }
+      (*seg.mutable_line_segment()->mutable_original_point()).Clear();
     }
   }
 }
@@ -1998,6 +2001,7 @@ void MapPrediction::HDMapRoadToLocal() {
             pt.set_y(pt_local.y());
             pt.set_z(0);
           }
+          (*seg.mutable_line_segment()->mutable_original_point()).Clear();
         }
       }
     }

@@ -4953,13 +4953,8 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
       // 现增加pred_end_heading字段用于预测，使用PCL欧式聚类对heading进行聚类
       if (!lines_need_pred.empty()) {
         // PCL欧式聚类 阈值为10度
-        size_t index = last_grp->str_id.find("-");
-        index++;
-        std::string last_grp_lines_id =
-            last_grp->str_id.substr(index, last_grp->str_id.size() - index);
         const double heading_threshold = 10. / 180. * M_PI;
-        HeadingCluster(lanes_need_pred, &lines_need_pred, last_grp_lines_id,
-                       heading_threshold, need_pred_kappa);
+        HeadingCluster(lanes_need_pred, &lines_need_pred, heading_threshold, need_pred_kappa);
 
         // 重新构建group 线的类型为虚线
         std::vector<Lane::Ptr> center_line_pred;
@@ -5128,7 +5123,6 @@ float GroupMap::PointToLaneDis(const Lane::Ptr& lane_ptr,
 
 void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
                               std::vector<LineSegment::Ptr>* lines_need_pred,
-                              const std::string& last_grp_lines_id,
                               double threshold, bool need_pred_kappa) {
   static double last_predict_angle = 0.0;
   static double last_predict_kappa = 0.0;
@@ -5140,9 +5134,6 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
   pcl::PointCloud<pcl::PointXYZ>::Ptr heading_data(
       new pcl::PointCloud<pcl::PointXYZ>);
   for (const auto& line : *lines_need_pred) {
-    if (last_grp_lines_id.find(std::to_string(line->id)) == std::string::npos) {
-      continue;
-    }
     pcl::PointXYZ point;
     point.x = static_cast<float>(
         std::get<0>(line->pred_end_heading));  // 将一维heading添加到x轴上

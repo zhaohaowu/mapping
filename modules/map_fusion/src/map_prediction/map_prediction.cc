@@ -529,8 +529,15 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
 
   if (routing_lanes.empty()) {
     HLOG_ERROR << "get rouitng message failed";
-    hq_map_ = nullptr;
-    return nullptr;
+    hq_map_ = std::make_shared<hozon::hdmap::Map>();
+    auto ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_.get());
+    if (ret != 0) {
+      HLOG_ERROR << "GetLocalMap 300m range failed";
+      hq_map_ = nullptr;
+      return nullptr;
+    }
+    HDMapLaneToLocal();
+    return hq_map_;
   }
 
   double nearest_s = 0.;
@@ -543,8 +550,19 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNNP(
 
   if (current_lane_id.empty()) {
     HLOG_ERROR << "get current lane failed";
-    hq_map_ = nullptr;
-    return nullptr;
+    hq_map_ = std::make_shared<hozon::hdmap::Map>();
+    auto ret = GLOBAL_HD_MAP->GetLocalMap(utm_pos, {300, 300}, hq_map_.get());
+    if (ret != 0) {
+      HLOG_ERROR << "GetLocalMap 300m range failed";
+      hq_map_ = nullptr;
+      return nullptr;
+    }
+    HDMapLaneToLocal();
+    auto lane_size = hq_map_->lane_size();
+    std::string end_routing_lane_id =
+        hq_map_->lane().empty() ? "" : hq_map_->lane(lane_size - 1).id().id();
+    RoutingPointToLocal(need_update_global_hd, routing, end_routing_lane_id);
+    return hq_map_;
   }
 
   hq_map_ = std::make_shared<hozon::hdmap::Map>();

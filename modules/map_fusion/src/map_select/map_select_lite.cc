@@ -1587,6 +1587,11 @@ bool MapSelectLite::CheckMapMsg(
         last_car_not_in_lanes_ = false;
       }
     }
+    if (IsSelfLaneBend(map, current_car_lane_)) {
+      HLOG_ERROR << "central line is bend";
+      switch_map_reason_ = "central line is bend";
+      return false;
+    }
   }
 
   return true;
@@ -1714,6 +1719,7 @@ bool MapSelectLite::IsCarInLanes(
     const std::shared_ptr<hozon::hdmap::Map>& map,
     const std::shared_ptr<hozon::localization::Localization>& localization) {
   lanes_lines_map_.clear();
+  current_car_lane_.clear();
   min_dist_value_ = FLT_MAX;
   for (const auto& lane : map->lane()) {
     if (!CheckLane(lane)) {
@@ -1772,6 +1778,7 @@ bool MapSelectLite::IsCarInLanes(
   bool upate_lane_id = false;
   dis_infos_.clear();
   if (min_dist_value_ <= curr_dist_value) {
+    current_car_lane_ = min_dist_id_;
     return true;
   }
   for (const auto& lane_lines : lanes_lines_map_) {
@@ -1862,6 +1869,7 @@ bool MapSelectLite::IsCarInLanes(
       auto lane_id = dis_info.first;
       if (dis_info.second.car_cental_line_dis <=
           (dis_info.second.half_lane_width + lane_range_value_)) {
+        current_car_lane_ = lane_id;
         if ((!ForkLaneCheck(map)) && is_perce_map) {
           std::vector<Eigen::Vector2d> left_start_end_points;
           std::vector<Eigen::Vector2d> right_start_end_points;
@@ -1897,6 +1905,63 @@ bool MapSelectLite::IsCarInLanes(
     }
   }
   return false;
+}
+bool MapSelectLite::IsSelfLaneBend(
+    const std::shared_ptr<hozon::hdmap::Map>& map, std::string lane_id) {
+  if (ForkLaneCheck(map) || (current_car_lane_.empty())) {
+    return false;
+  }
+  std::vector<Eigen::Vector2d> central_points;
+  auto current_id = lane_id;
+  while (IsLaneInMap(map, current_id).is_lane_in_map) {
+    auto curr_lane_info = IsLaneInMap(map, current_id);
+    auto curr_lane = curr_lane_info.lane;
+    if (!CheckLane(curr_lane)) {
+      break;
+    }
+    for (const auto& segment : curr_lane.central_curve().segment()) {
+      for (const auto& point : segment.line_segment().point()) {
+        central_points.emplace_back(point.x(), point.y());
+      }
+    }
+    if (curr_lane_info.successor_id.empty()) {
+      break;
+    }
+    current_id = curr_lane_info.successor_id;
+  }
+  if (central_points.size() < 3) {
+    return false;
+  }
+  for (int index = 0; index < central_points.size() - 2;) {
+    if ((central_points[index].x() == central_points[index + 1].x()) &&
+        (central_points[index].y() == central_points[index + 1].y())) {
+      central_points.erase(central_points.begin() + index);
+    } else {
+      ++index;
+    }
+  }
+  for (int i = 0; i < central_points.size() - 3; i++) {
+    double delta_angle = 0.0;
+    if (GetAngleByPoints(central_points[i], central_points[i + 1],
+                         central_points[i + 2], &delta_angle)) {
+      if (delta_angle > angle_limit_) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool MapSelectLite::GetAngleByPoints(const Eigen::Vector2d& A,
+                                     const Eigen::Vector2d& B,
+                                     const Eigen::Vector2d& C, double* angle) {
+  auto AB = B - A;
+  auto BC = C - B;
+  double t = (AB.x() * BC.x() + AB.y() * BC.y()) /
+             (sqrt(pow(AB.x(), 2) + pow(AB.y(), 2)) *
+              sqrt(pow(BC.x(), 2) + pow(BC.y(), 2)));
+  *angle = acos(t) * (180 / M_PI);
+  return true;
 }
 bool MapSelectLite::GetRelationLaneId(
     const std::shared_ptr<hozon::hdmap::Map>& map, std::string lane_id,

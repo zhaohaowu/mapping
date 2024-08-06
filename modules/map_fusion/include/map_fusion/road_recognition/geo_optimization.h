@@ -308,6 +308,12 @@ class GeoOptimization {
 
   double ComputeCurvature(const std::vector<Eigen::Vector3d>& line_pts);
 
+  Eigen::Vector3d ComputeLaneLineHeading(
+      const hozon::mapping::LaneLine& lane_line);
+
+  double ComputeAngleBetweenVectors(const Eigen::Vector3d& v1,
+                                    const Eigen::Vector3d& v2);
+
   void ObtainBaseLine(std::vector<Eigen::Vector3d>* base_line,
                       std::vector<double>* base_width,
                       const std::vector<Eigen::Vector3d>& base_pts,

@@ -212,6 +212,10 @@ class MapSelectLite {
   bool GetRelationLaneId(const std::shared_ptr<hozon::hdmap::Map>& map,
                          std::string lane_id, bool is_successor_id,
                          std::string* get_id);
+  bool IsSelfLaneBend(const std::shared_ptr<hozon::hdmap::Map>& map,
+                      std::string lane_id);
+  bool GetAngleByPoints(const Eigen::Vector2d& p1, const Eigen::Vector2d& p2,
+                        const Eigen::Vector2d& p3, double* angle);
 
   double left_map_c0_ = kDfaultLaneWidth;
   double right_map_c0_ = -kDfaultLaneWidth;
@@ -287,6 +291,8 @@ class MapSelectLite {
   int in_lanes_after_not_count_ = 0;
   int in_lanes_count_ = 3;
   std::string switch_map_reason_;
+  std::string current_car_lane_;
+  double angle_limit_ = 90;
 };
 }  // namespace select
 }  // namespace mf

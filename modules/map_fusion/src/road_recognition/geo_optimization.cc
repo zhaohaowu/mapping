@@ -2936,12 +2936,26 @@ void GeoOptimization::CompareRoadAndLines(
         target_line.lanetype() == em::LineType::LaneType_FISHBONE_SOLID) &&
        min_dis > 3.0)) {
     auto* new_line = local_map_use_->add_lane_lines();
-    for (const auto& pt : road_pts) {
+    // 计算target_line的平均heading, 通过heading对road_pts进行裁剪
+    auto target_line_heading = ComputeLaneLineHeading(target_line);
+    for (int i = 0; i < static_cast<int>(road_pts.size()) - 1; i++) {
+      auto road_heading = road_pts[i + 1] - road_pts[i];
+      auto angle =
+          ComputeAngleBetweenVectors(target_line_heading, road_heading);
+      if (angle > 15) {
+        continue;
+      }
       auto* new_pt = new_line->add_points();
-      new_pt->set_x(pt.x());
-      new_pt->set_y(pt.y());
-      new_pt->set_z(pt.z());
+      new_pt->set_x(road_pts[i].x());
+      new_pt->set_y(road_pts[i].y());
+      new_pt->set_z(road_pts[i].z());
     }
+    // for (const auto& pt : road_pts) {
+    //   auto* new_pt = new_line->add_points();
+    //   new_pt->set_x(pt.x());
+    //   new_pt->set_y(pt.y());
+    //   new_pt->set_z(pt.z());
+    // }
     auto new_track_id = road_id + 1000;
     new_line->set_lanepos(
         static_cast<hozon::mapping::LanePositionType>(new_track_id));
@@ -2977,6 +2991,23 @@ void GeoOptimization::CompareRoadAndLines(
     line_kd.line = std::make_shared<hozon::mapping::LaneLine>(line);
     all_lines_[static_cast<int>(new_track_id)].emplace_back(line_kd);
   }
+}
+
+double GeoOptimization::ComputeAngleBetweenVectors(const Eigen::Vector3d& v1,
+                                                   const Eigen::Vector3d& v2) {
+  double dot_product = v1.dot(v2);
+  double v1_norm = v1.norm();
+  double v2_norm = v2.norm();
+
+  if (v1_norm == 0.0 || v2_norm == 0.0) {
+    HLOG_WARN << "Error: Zero vector encountered.";
+    return 0.0;
+  }
+  double cos_theta = dot_product / (v1_norm * v2_norm);
+  cos_theta = std::max(-1.0, std::min(1.0, cos_theta));
+  double angle_rad = std::acos(cos_theta);
+  double angle_deg = angle_rad * 180.0 / M_PI;
+  return angle_deg;
 }
 
 void GeoOptimization::ConstructLaneLine(
@@ -3407,11 +3438,15 @@ void GeoOptimization::VerifyEgoLane(const int& left_id, const int& right_id,
     if (other_min_pt.z() < -10.0) {
       continue;
     }
-    if (other_min_pt.y() > 0 && other_min_pt.y() < greater_than_zero_dis) {
+    if (other_min_pt.y() > 0 && other_min_pt.y() < greater_than_zero_dis &&
+        fabs(other_min_pt.y() - greater_than_zero_dis) >
+            3.0) {
       ego_left_id = other_id;
       greater_than_zero_dis = other_min_pt.y();
     }
-    if (other_min_pt.y() < 0 && other_min_pt.y() > less_than_zero_dis) {
+    if (other_min_pt.y() < 0 && other_min_pt.y() > less_than_zero_dis &&
+        fabs(other_min_pt.y() - less_than_zero_dis) >
+            3.0) {
       ego_right_id = other_id;
       less_than_zero_dis = other_min_pt.y();
     }
@@ -3658,6 +3693,26 @@ double GeoOptimization::ComputeCurvature(
   double avg_curve = std::accumulate(kappas.begin(), kappas.end(), 0.0) /
                      static_cast<double>(kappas.size());
   return avg_curve;
+}
+
+Eigen::Vector3d GeoOptimization::ComputeLaneLineHeading(
+    const hozon::mapping::LaneLine& lane_line) {
+  if (lane_line.points().empty() || lane_line.points_size() < 2) {
+    return {};
+  }
+  Eigen::Vector3d avg_heading;
+  Eigen::Vector3d sum_heading(0.0, 0.0, 0.0);
+  for (int i = 0; i < static_cast<int>(lane_line.points_size()) - 1; i++) {
+    Eigen::Vector3d point1(lane_line.points(i).x(), lane_line.points(i).y(),
+                           lane_line.points(i).z());
+    Eigen::Vector3d point2(lane_line.points(i + 1).x(),
+                           lane_line.points(i + 1).y(),
+                           lane_line.points(i + 1).z());
+    Eigen::Vector3d dir_heading = point2 - point1;
+    sum_heading += dir_heading;
+  }
+  avg_heading = sum_heading / (lane_line.points_size() - 1);
+  return avg_heading;
 }
 
 void GeoOptimization::HandleSingleSideLine() {
@@ -3911,7 +3966,7 @@ double GeoOptimization::ComputeVecToLaneDis(
     return 0;
   }
   Eigen::Vector3d P(0., 0., 0.);
-  double dis = 0.;
+  double dis = fabs(base_line.front().y());
   std::vector<double> distance;
   for (size_t i = 1; i < base_line.size(); i++) {
     const auto& A = base_line[i - 1];

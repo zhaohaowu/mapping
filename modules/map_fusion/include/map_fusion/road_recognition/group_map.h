@@ -378,8 +378,7 @@ class GroupMap {
                   std::vector<Eigen::Vector3f>* fit_points, int num);
   float PointToLaneDis(const Lane::Ptr& lane_ptr, Eigen::Vector3f point);
   void HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
-                      std::vector<LineSegment::Ptr>* lines_need_pred,
-                      const std::string& last_grp_lines_id, double threshold,
+                      std::vector<LineSegment::Ptr>* lines_need_pred, double threshold,
                       bool need_pred_kappa);
   void RelateGroups(std::vector<Group::Ptr>* groups, double stamp);
   std::vector<Point> PredictGuidewirePath(

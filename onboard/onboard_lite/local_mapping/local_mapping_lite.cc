@@ -105,6 +105,21 @@ int32_t LocalMappingOnboard::OnRunningMode(adf_lite_Bundle* input) {
       last_runmode = runmode;
       HLOG_INFO << "!!!!!!!!!!get run mode PARKING";
     }
+    std::shared_ptr<hozon::perception::TransportElement> transport_element_pb =
+        std::make_shared<hozon::perception::TransportElement>();
+    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+        tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+            std::chrono::system_clock::now());
+    transport_element_pb->mutable_header()->set_publish_stamp(
+        static_cast<double>(tp.time_since_epoch().count()) * 1.0e-9);
+    transport_element_pb->mutable_header()->set_data_stamp(
+        static_cast<double>(tp.time_since_epoch().count()) * 1.0e-9);
+
+    auto workflow1 = std::make_shared<hozon::netaos::adf_lite::BaseData>();
+    workflow1->proto_msg = transport_element_pb;
+    adf_lite_Bundle bundle;
+    bundle.Add("percep_transport_lm", workflow1);
+    SendOutput(&bundle);
     HLOG_DEBUG << "!!!!!!!!!!get run mode PARKING";
   } else if (runmode == static_cast<int>(
                             hozon::perception::base::RunningMode::DRIVING) ||

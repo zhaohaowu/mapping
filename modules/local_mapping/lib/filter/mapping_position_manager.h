@@ -7,6 +7,7 @@
 #include <float.h>
 
 #include <functional>
+#include <limits>
 #include <map>
 #include <memory>
 #include <tuple>
@@ -35,12 +36,14 @@ class MappingPositionManager {
   void SelectLaneLines(const std::vector<LaneLinePtr>& normal_lanelines,
                        std::vector<LaneLinePtr>* selected_lanelines);
   void GetMinDisPoint(const LaneLinesPtr& laneline_ptrs);
-  bool IsUnknownLaneline(const LaneLinePtr& laneline_ptrs);
+  bool IsUnknownLaneline(const LaneLinePtr& laneline_ptrs,
+                         bool has_main_line_flag);
   void SetLaneLinePosition(const std::vector<LaneLinePtr>& lane_lines);
 
  private:
   bool inited_ = false;
   std::unordered_map<int, std::tuple<float, float>>* lane_d_map;
+  std::vector<LaneLinePtr> lane_lines_ego_;
 };
 
 }  // namespace lm

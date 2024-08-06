@@ -183,7 +183,8 @@ template <typename Element>
 bool BaseTarget<Element>::InitBase(const ProcessOption& options,
                                    const ElementPtr& detected_element_ptr) {
   using baseType = BaseTarget<Element>;
-  id_ = baseType::s_global_track_id_++;
+  baseType::s_global_track_id_++;
+  id_ = baseType::s_global_track_id_;
   // id大于1000从0开始
   if (baseType::s_global_track_id_ >= 1000) {
     baseType::s_global_track_id_ = 0;

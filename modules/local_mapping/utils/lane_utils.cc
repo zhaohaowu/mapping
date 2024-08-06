@@ -636,7 +636,7 @@ float GetDistBetweenTwoLane(const std::vector<Eigen::Vector3d>& point_set1,
     for (int j = 0; j < static_cast<int>(lane_long.size()); ++j) {
       double dist = (A - lane_long[j]).norm();
       if (dist < min_dist) {
-        dist = min_dist;
+        min_dist = dist;
         B = C;
         C = lane_long[j];
       }

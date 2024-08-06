@@ -979,7 +979,13 @@ int MapFusionLite::MapFusionOutputEvaluation(
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   static double pre_publish_stamp = 0;
   static bool map_fusion_outputs_abnormal_flags = false;
-  auto cur_publish_stamp = location->header().publish_stamp();
+  // auto cur_publish_stamp = location->header().publish_stamp();
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now());
+
+  auto cur_publish_stamp =
+      static_cast<double>(tp.time_since_epoch().count()) * 1.0e-9;
   static double time_stamp_delta = 0;
   static double time_stamp_start = 0;
   if (pre_publish_stamp != 0 &&
@@ -995,7 +1001,6 @@ int MapFusionLite::MapFusionOutputEvaluation(
   }
   // 时间戳可容忍程度
   auto epsilon = 0.05;
-
   if (pre_publish_stamp != 0 &&
       cur_publish_stamp - pre_publish_stamp > (0.1 + epsilon)) {
     phm_fault->Report(MAKE_FM_TUPLE(
@@ -1025,7 +1030,6 @@ int MapFusionLite::MapFusionOutputEvaluation(
     }
   }
   pre_publish_stamp = cur_publish_stamp;
-
   return 0;
 }
 

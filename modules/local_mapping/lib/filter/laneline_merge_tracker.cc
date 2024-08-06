@@ -135,6 +135,21 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
   double avg_overlap_dist = overlay_length_out.first;
   double avg_overlap_under_thresh_length = overlay_length_out.second;
   float line_interval = 0;
+  double left_last_x =
+      left_line->GetConstTrackedObject()->vehicle_points.back().x();
+  double right_last_x =
+      right_line->GetConstTrackedObject()->vehicle_points.back().x();
+
+  double delta_y =
+      left_last_x >= right_last_x
+          ? std::abs(
+                left_line->GetConstTrackedObject()->vehicle_points.front().y() -
+                right_line->GetConstTrackedObject()->vehicle_points.back().y())
+          : std::abs(
+                right_line->GetConstTrackedObject()
+                    ->vehicle_points.front()
+                    .y() -
+                left_line->GetConstTrackedObject()->vehicle_points.back().y());
   if (left_line->GetConstTrackedObject()->vehicle_points.back().x() >
       right_line->GetConstTrackedObject()->vehicle_points.back().x()) {
     line_interval =
@@ -149,7 +164,8 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
              << right_line->Id() << ", over_lay_ratio: " << over_lay_ratio
              << ", avg_dist: " << avg_dist << ", time_diff: " << time_diff
              << " ,line_interval:" << line_interval
-             << " ,avg_overlap_dist:" << avg_overlap_dist;
+             << " ,avg_overlap_dist:" << avg_overlap_dist
+             << " ,delta_y:" << delta_y;
   // 根据线的质量来做删除,需要根据case专门抽一个评估函数
   if (over_lay_ratio > 0.7 && avg_dist < 1.0 ||
       over_lay_ratio > 0.2 && avg_dist < 0.5) {
@@ -209,7 +225,7 @@ bool LaneLineMergeTrack::MergeOverlayStrategy(const LaneTargetPtr& left_line,
   } else if (over_lay_ratio <= 0.2 &&
              (line_interval > -4 && avg_dist < 4 &&
               ((over_lay_ratio > 0 && avg_overlap_dist < 1) ||
-               (over_lay_ratio == 0 && avg_dist < 1)))) {
+               (over_lay_ratio == 0 && avg_dist < 1 && delta_y < 1)))) {
     if (left_line->GetConstTrackedObject()->vehicle_points.back().x() >
         right_line->GetConstTrackedObject()->vehicle_points.back().x()) {
       right_line->SetDeleteFlag(true);

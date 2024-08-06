@@ -1994,13 +1994,15 @@ void MapPrediction::HDMapRoadToLocal() {
       for (auto& edge :
            *sec.mutable_boundary()->mutable_outer_polygon()->mutable_edge()) {
         for (auto& seg : *edge.mutable_curve()->mutable_segment()) {
-          for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
-            Eigen::Vector3d pt_local = UtmPtToLocalEnu(pt);
-            pt_local = T_local_enu_to_local_ * pt_local;
-            pt.set_x(pt_local.x());
-            pt.set_y(pt_local.y());
-            pt.set_z(0);
-          }
+          // for (auto& pt : *seg.mutable_line_segment()->mutable_point()) {
+          //   Eigen::Vector3d pt_local = UtmPtToLocalEnu(pt);
+          //   pt_local = T_local_enu_to_local_ * pt_local;
+          //   pt.set_x(pt_local.x());
+          //   pt.set_y(pt_local.y());
+          //   pt.set_z(0);
+          // }
+          // ncp 不需要road几何行点信息
+          (*seg.mutable_line_segment()->mutable_point()).Clear();
           (*seg.mutable_line_segment()->mutable_original_point()).Clear();
         }
       }

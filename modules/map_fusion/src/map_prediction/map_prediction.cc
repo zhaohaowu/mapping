@@ -816,6 +816,8 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
   if (current_routing_ != nullptr) {
     routing->Clear();
     routing->CopyFrom(*current_routing_);
+    end_routing_lane_id_ = default_routing_lanes_[row_max].back();
+    RoutingPointToLocal(true, routing, end_routing_lane_id_);
   }
 
   return hq_map_;
@@ -1788,7 +1790,7 @@ void MapPrediction::GetCurrentLane(
   if (!routing_lanes.empty()) {
     common::math::Vec2d point(utm_pos.x(), utm_pos.y());
     std::vector<hdmap::LaneInfoConstPtr> lanes;
-    GLOBAL_HD_MAP->GetLanes(utm_pos, 20.0, &lanes);
+    GLOBAL_HD_MAP->GetLanes(utm_pos, 5.0, &lanes);
     if (!lanes.empty()) {
       std::sort(lanes.begin(), lanes.end(), [&](const auto& u, const auto& v) {
         return u->DistanceTo(point) < v->DistanceTo(point);

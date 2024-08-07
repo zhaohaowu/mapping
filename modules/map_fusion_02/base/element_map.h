@@ -439,6 +439,7 @@ struct MapInfo {
   int utm_zone = 0;
 };
 
+// 数据传入后首先转成ElementMap供下游使用
 struct ElementMap {
   MapInfo map_info;
 

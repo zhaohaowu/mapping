@@ -32,22 +32,6 @@ enum Color {
   BLACK,
 };
 
-enum PointType {
-  RAW = 0,
-  INTERPOLATED = 1,
-  PREDICTED = 2,  // 预测车道的点
-  VIRTUAL = 3,    // 虚拟车道的点
-};
-struct Point {
-  PointType type = RAW;
-  Eigen::Vector3f pt{0.0, 0.0, 0.0};
-
-  Point() = default;
-  Point(PointType pt_type, float x, float y, float z)
-      : type(pt_type), pt(x, y, z) {}
-  DEFINE_PTR(Point)
-};
-
 struct Polygon {
   std::vector<Eigen::Vector3f> points;
 };
@@ -91,6 +75,7 @@ struct Arrow {
   std::vector<int> group_index;
   std::vector<int> lane_index;
   std::vector<std::string> lane_id;  // 关联的车道
+  double heading;
   DEFINE_PTR(Arrow);
 };
 
@@ -110,7 +95,7 @@ enum DashSegType {
 
 struct BoundaryNode {
   DashSegType dash_seg = UNKNOWN_DASH_SEG;
-  Point point;
+  Eigen::Vector3f point;
 
   DEFINE_PTR(BoundaryNode)
 };
@@ -174,27 +159,6 @@ enum IsEgo {
   Ego_Road = 1,    // 在自车路段
 };
 
-struct Line {
-  Id id;
-  Id id_next = -1000;           // 下一根line的id号
-  std::vector<Id> deteled_ids;  // 这根id的被删的其他ids
-  LineType type;
-  Color color;
-  LanePos lanepos;
-  IsEgo isego;
-  std::deque<Point> pts;
-  bool is_near_road_edge;
-  // 末端方向向量与x轴夹角
-  double mean_end_heading = 0;  // in rad, [-pi, +pi]
-  // 1.heading 2.kappa 3.dkappa
-  std::tuple<double, double, double> pred_end_heading{};
-  // 末端heading角的标准差
-  double mean_end_heading_std_dev = 0;
-  // 末端平均点间距
-  double mean_end_interval = 0;
-  DEFINE_PTR(Line)
-};
-
 struct Boundary {
   Id id;
   Color color = UNKNOWN_COLOR;
@@ -240,10 +204,10 @@ struct CatmullRom {
   CatmullRom() = default;
   explicit CatmullRom(float para) : u(para) {}
 
-  Point p0;
-  Point p1;
-  Point p2;
-  Point p3;
+  Eigen::Vector3f p0;
+  Eigen::Vector3f p1;
+  Eigen::Vector3f p2;
+  Eigen::Vector3f p3;
 
   // parameter for parameterization
   float u = 0.5;
@@ -265,7 +229,7 @@ struct CenterLine {
   Id id;
   Id lane_id;
   GeometryAttribute attr;
-  std::vector<Point> points;
+  std::vector<Eigen::Vector3f> points;
 
   DEFINE_PTR(CenterLine)
 };
@@ -376,24 +340,24 @@ struct Road {
 
 struct StopLine {
   Id id;
-  std::vector<Point> points;
+  std::vector<Eigen::Vector3f> points;
   // ids of lanes this stop line relates to
   std::vector<Id> lane_ids;
 
   DEFINE_PTR(StopLine)
 };
 
-struct Obj {
-  Id obj_id;
+struct Object {
+  Id id;
   ObjType type = UNKNOWN;
-  Point position;
+  Eigen::Vector3f position;
   Polygon polygon;  // obstacle corner points.
-  Point velocity;
+  Eigen::Vector3f velocity;
   double heading;
   double length;
   double width;
   // Size of obstacle bounding box.
-  DEFINE_PTR(Obj)
+  DEFINE_PTR(Object)
 };
 
 enum TrafficLightType {
@@ -406,7 +370,7 @@ enum TrafficLightType {
 struct TrafficLight {
   Id id;
   TrafficLightType traffic_light_type = UNKNOWN_TRAFFIC_LIGHT_TYPE;
-  Point point;
+  Eigen::Vector3f point;
   // ids of lanes this traffic light controls
   std::vector<Id> lane_ids;
 
@@ -445,6 +409,43 @@ struct Symbol {
   Id lane_id;
 
   DEFINE_PTR(Symbol)
+};
+
+enum PointType {
+  RAW = 0,
+  INTERPOLATED = 1,
+  PREDICTED = 2,  // 预测车道的点
+  VIRTUAL = 3,    // 虚拟车道的点
+};
+struct Point {
+  PointType type = RAW;
+  Eigen::Vector3f pt{0.0, 0.0, 0.0};
+
+  Point() = default;
+  Point(PointType pt_type, float x, float y, float z)
+      : type(pt_type), pt(x, y, z) {}
+  DEFINE_PTR(Point)
+};
+
+struct Line {
+  Id id;
+  Id id_next = -1000;           // 下一根line的id号
+  std::vector<Id> deteled_ids;  // 这根id的被删的其他ids
+  LineType type;
+  Color color;
+  LanePos lanepos;
+  IsEgo isego;
+  std::deque<Point> pts;
+  bool is_near_road_edge;
+  // 末端方向向量与x轴夹角
+  double mean_end_heading = 0;  // in rad, [-pi, +pi]
+  // 1.heading 2.kappa 3.dkappa
+  std::tuple<double, double, double> pred_end_heading{};
+  // 末端heading角的标准差
+  double mean_end_heading_std_dev = 0;
+  // 末端平均点间距
+  double mean_end_interval = 0;
+  DEFINE_PTR(Line)
 };
 
 }  // namespace mf

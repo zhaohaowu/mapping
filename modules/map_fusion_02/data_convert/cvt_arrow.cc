@@ -5,8 +5,9 @@
  *   date       ： 2023.09
  ******************************************************************************/
 
-#include "depend/proto/map/map.pb.h"
+#include "depend/proto/local_mapping/local_map.pb.h"
 #include "modules/map_fusion_02/base/element_base.h"
+#include "modules/map_fusion_02/base/element_map.h"
 
 namespace hozon {
 namespace mp {
@@ -75,6 +76,23 @@ void FillArrowType(hozon::mp::mf::Arrow* arrow,
     default:
       break;
   }
+}
+
+bool cvt_pb2arrow(const hozon::mapping::Arrow& arrow,
+                  Arrow::Ptr elem_arrow_ptr) {
+  if (arrow.points().point_size() != 4) {
+    return false;
+  }
+  elem_arrow_ptr->id = arrow.track_id();
+  FillArrowType(elem_arrow_ptr.get(), arrow.arrow_type());
+  for (const auto& pt : arrow.points().point()) {
+    Eigen::Vector3f point(static_cast<float>(pt.x()),
+                          static_cast<float>(pt.y()),
+                          static_cast<float>(pt.z()));
+    elem_arrow_ptr->polygon.points.emplace_back(point);
+  }
+  elem_arrow_ptr->heading = arrow.heading();
+  return true;
 }
 
 }  // namespace mf

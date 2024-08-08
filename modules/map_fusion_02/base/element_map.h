@@ -56,7 +56,6 @@ struct ElementMap {
   std::map<Id, Symbol::Ptr> symbols;
   std::map<Id, TrafficLight::Ptr> traffic_lights;
   std::map<Id, OccRoad::Ptr> occ_roads;
-  std::map<Id, Obj::Ptr> objs;
 
   DEFINE_PTR(ElementMap)
   DEFINE_CONST_PTR(ElementMap)

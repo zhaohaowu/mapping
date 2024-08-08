@@ -7,11 +7,12 @@
 
 #include "depend/proto/perception/perception_obstacle.pb.h"
 #include "modules/map_fusion_02/base/element_base.h"
+#include "modules/map_fusion_02/base/element_map.h"
 
 namespace hozon {
 namespace mp {
 namespace mf {
-void FillObjType(hozon::mp::mf::Obj* obj,
+void FillObjType(hozon::mp::mf::Object* obj,
                  hozon::perception::PerceptionObstacle_Type objtype) {
   switch (objtype) {
     case hozon::perception::PerceptionObstacle_Type::
@@ -59,6 +60,30 @@ void FillObjType(hozon::mp::mf::Obj* obj,
       break;
   }
 }
+bool cvt_pb2obj(const ::hozon::perception::PerceptionObstacle& obj,
+                Object::Ptr elem_obj) {
+  elem_obj->id = obj.track_id();
+  FillObjType(elem_obj.get(), obj.type());
+  Eigen::Vector3f point(static_cast<float>(obj.position().x()),
+                        static_cast<float>(obj.position().y()),
+                        static_cast<float>(obj.position().z()));
+  elem_obj->position = point;
+  Eigen::Vector3f v(static_cast<float>(obj.velocity().x()),
+                    static_cast<float>(obj.velocity().y()),
+                    static_cast<float>(obj.velocity().z()));
+  elem_obj->velocity = v;
+  for (const auto& pt : obj.polygon_point()) {
+    Eigen::Vector3f obj_pts(static_cast<float>(pt.x()),
+                            static_cast<float>(pt.y()),
+                            static_cast<float>(pt.z()));
+    elem_obj->polygon.points.emplace_back(obj_pts);
+  }
+  elem_obj->heading = obj.theta();
+  elem_obj->length = obj.length();
+  elem_obj->width = obj.width();
+  return true;
+}
+
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon

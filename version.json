@@ -8,7 +8,7 @@
                 "extractPath": "./depend/ap-release"
             },
             "middleWare": {
-                "name": "EP41_ORIN_NOS_02.27.22_20240319_0701c_20240726",
+                "name": "EP41_ORIN_NOS_02.27.27_20240319_0701c_20240803",
                 "extractPath": "./depend/nos"
             },
             "third_party": {

@@ -6,3 +6,16 @@
  ******************************************************************************/
 
 #include "modules/map_fusion_02/pipelines/tlr_fusion_pipeline.h"
+
+namespace hozon {
+namespace mp {
+namespace mf {
+TLRFusionPipline::TLRFusionPipline() {}
+
+TLRFusionPipline::~TLRFusionPipline() {}
+
+void TLRFusionPipline::Process() {}
+
+}  // namespace mf
+}  // namespace mp
+}  // namespace hozon

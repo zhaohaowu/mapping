@@ -19,6 +19,7 @@ namespace mp {
 namespace mf {
 
 #define DEFINE_PTR(Type) typedef std::shared_ptr<Type> Ptr;
+#define DEFINE_CONST_PTR(Type) typedef std::shared_ptr<const Type> ConstPtr;
 
 using Id = int32_t;  // std::string;
 

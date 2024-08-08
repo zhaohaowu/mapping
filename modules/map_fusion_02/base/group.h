@@ -189,6 +189,7 @@ struct Group {
   std::vector<Point> guide_points_toviz;
 
   DEFINE_PTR(Group)
+  DEFINE_CONST_PTR(Group)
 };
 
 struct GroupMapConf {

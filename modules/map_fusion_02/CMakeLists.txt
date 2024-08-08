@@ -35,6 +35,9 @@ target_link_libraries(mf
   opencv_core
   pcl_segmentation
   neta_https
+
+  perception-base-mal
+  perception-lib-mal
   )
 
 install(

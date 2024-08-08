@@ -1,72 +1,27 @@
-project(map_fusion)
+project(map_fusion2)
 
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-set(FUSION_COMMON_SRCS
-  src/fusion_common/calc_util.cc
-  src/fusion_common/viz_util.cc
-  )
-
-set(TOPO_SRCS
-  src/topo_assignment/topo_assignment.cc
-  )
-
-set(PREDICTION_SRCS
-  src/map_prediction/map_prediction.cc
-  src/map_prediction/viz_map.cc
-  )
-
-set(RECOGNITION_SRC
-  src/road_recognition/road_recognition.cc
-  src/road_recognition/geo_optimization.cc
-  src/road_recognition/topo_generation.cc
-  src/road_recognition/routing_generation.cc
-  src/road_recognition/group_map.cc
-  src/road_recognition/path_manager.cc
-  )
-
-set(MAPSERVICE_SRCS
-  src/map_service/ehp/amap_core.cc
-  src/map_service/ehp/amap_data.cc
-  src/map_service/ehp/amap_diagnose.cc
-  src/map_service/ehp/amap_ota.cc
-  src/map_service/ehp/amap_system.cc
-  src/map_service/map_proto_marker.cc
-  src/map_service/map_service.cc
-  src/map_service/global_hd_map.cc
-  src/map_service/map_table.cc
-  )
-set(AMAP_LIBS
-  base_utils
-  GAdasData
-  GAdasSDK
-  GNet
-  OTAHDiff
-  GAdasEngine
-  GAdasUtils
-  GPlatformInterface
-  third_party_libs
-  )
-set(MAPSELECT_SRCS
-  src/map_select/map_select_lite.cc
-  src/map_select/lane_change_observer.cc
-  src/map_select/double_rise_decider.cc
-  src/map_select/data_decider_lite.cc
-  )
-
+file(GLOB_RECURSE MAP_APP_SRC ${CMAKE_CURRENT_SOURCE_DIR}/app/*.cc)
+file(GLOB_RECURSE MAP_BASE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/base/*.cc)
+file(GLOB_RECURSE MAP_COMMON_SRC ${CMAKE_CURRENT_SOURCE_DIR}/common/*.cc)
+file(GLOB_RECURSE MAP_DATA_CONVERT_SRC ${CMAKE_CURRENT_SOURCE_DIR}/data_convert/*.cc)
+file(GLOB_RECURSE MAP_DATA_MANAGER_SRC ${CMAKE_CURRENT_SOURCE_DIR}/data_manager/*.cc)
+file(GLOB_RECURSE MAP_MAP_SERVICE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/map_service/*.cc)
+file(GLOB_RECURSE MAP_MOUDLES_SRC ${CMAKE_CURRENT_SOURCE_DIR}/modules/*.cc)
+file(GLOB_RECURSE MAP_PIPELINES_SRC ${CMAKE_CURRENT_SOURCE_DIR}/pipelines/*.cc)
 
 set(MAP_FUSION_SRCS
-  src/map_fusion.cc
-  src/tlr_fusion.cc
-  ${FUSION_COMMON_SRCS}
-  ${TOPO_SRCS}
-  ${PREDICTION_SRCS}
-  ${MAPSERVICE_SRCS}
-  ${RECOGNITION_SRC}
-  ${MAPSELECT_SRCS}
+  ${MAP_APP_SRC}
+  ${MAP_BASE_SRC}
+  ${MAP_COMMON_SRC}
+  ${MAP_DATA_CONVERT_SRC}
+  ${MAP_DATA_MANAGER_SRC}
+  ${MAP_MAP_SERVICE_SRC}
+  ${MAP_MOUDLES_SRC}
+  ${MAP_PIPELINES_SRC}
   )
 
 add_mapping_library(mf ${MAP_FUSION_SRCS})
@@ -79,7 +34,6 @@ target_link_libraries(mf
   opencv_flann
   opencv_core
   pcl_segmentation
-  ${AMAP_LIBS}
   neta_https
   )
 

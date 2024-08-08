@@ -12,8 +12,9 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
-void FillArrowType(hozon::mp::mf::Arrow* arrow, hozon::hdmap::ArrowData_Type) {
-  switch (hozon::mp::mf::ArrowType) {
+void FillArrowType(hozon::mp::mf::Arrow* arrow,
+                   hozon::hdmap::ArrowData_Type arrowtype) {
+  switch (arrowtype) {
     case hozon::hdmap::ArrowData_Type::ArrowData_Type_UNKNOWN_TURN:
       arrow->type = hozon::mp::mf::ArrowType::UNKNOWN_TURN_ARROW;
       break;

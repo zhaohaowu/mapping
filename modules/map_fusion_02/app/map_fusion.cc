@@ -122,6 +122,8 @@ bool MapFusion::OutDataMapping(
 }
 
 void MapFusion::Clear() {
+  cur_elem_map_->Clear();
+  cur_group_->Clear();
   geo_optimization_ptr_->Clear();
   lane_fusion_ptr_->Clear();
 }

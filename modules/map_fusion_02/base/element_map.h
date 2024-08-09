@@ -56,7 +56,18 @@ struct ElementMap {
   std::map<Id, Symbol::Ptr> symbols;
   std::map<Id, TrafficLight::Ptr> traffic_lights;
   std::map<Id, OccRoad::Ptr> occ_roads;
-
+  void Clear() {
+    arrows.clear();
+    boundary_nodes.clear();
+    lane_boundaries.clear();
+    center_lines.clear();
+    cross_walks.clear();
+    road_edges.clear();
+    stop_lines.clear();
+    symbols.clear();
+    traffic_lights.clear();
+    occ_roads.clear();
+  }
   DEFINE_PTR(ElementMap)
   DEFINE_CONST_PTR(ElementMap)
 };

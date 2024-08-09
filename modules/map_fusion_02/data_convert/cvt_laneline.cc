@@ -1,6 +1,6 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
- *   file       ： broken_point_search.h
+ *   file       ： cvt_laneline.cc
  *   author     ： hozon
  *   date       ： 2023.09
  ******************************************************************************/
@@ -11,6 +11,7 @@
 #include "modules/map_fusion_02/base/element_base.h"
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/common/calc_util.h"
+#include "modules/map_fusion_02/data_convert/data_convert.h"
 #include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
@@ -182,10 +183,11 @@ void FillIsNearRoadLine(hozon::mp::mf::Boundary* lane_line,
   }
 }
 
-bool ElemMapAppendLaneBoundary(const hozon::mapping::LocalMap& local_map,
-                               ElementMap::Ptr element_map_ptr) {
+void ElemMapAppendLaneBoundary(
+    const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
+    ElementMap::Ptr element_map_ptr) {
   int node_name = 1;
-  for (const auto& lane_line_it : local_map.lane_lines()) {
+  for (const auto& lane_line_it : local_map->lane_lines()) {
     // 过滤空的点
     if (lane_line_it.points_size() <= 0) {
       continue;

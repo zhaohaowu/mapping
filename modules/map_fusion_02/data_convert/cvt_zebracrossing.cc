@@ -1,19 +1,21 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
- *   file       ： broken_point_search.h
+ *   file       ： cvt_zebracrossing.cc
  *   author     ： hozon
  *   date       ： 2023.09
  ******************************************************************************/
 
 #include "depend/proto/local_mapping/local_map.pb.h"
 #include "modules/map_fusion_02/base/element_map.h"
+#include "modules/map_fusion_02/data_convert/data_convert.h"
 
 namespace hozon {
 namespace mp {
 namespace mf {
-void ElemMapAppendZebra(const hozon::mapping::LocalMap& local_map,
-                        ElementMap::Ptr element_map_ptr) {
-  for (const auto& cross_walk : local_map.cross_walks()) {
+void ElemMapAppendZebra(
+    const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
+    ElementMap::Ptr element_map_ptr) {
+  for (const auto& cross_walk : local_map->cross_walks()) {
     if (cross_walk.points().point_size() != 4) {
       continue;
     }

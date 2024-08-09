@@ -1,3 +1,10 @@
+/******************************************************************************
+ *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： data_convert.cc
+ *   author     ： hozon
+ *   date       ： 2023.09
+ ******************************************************************************/
+
 #include "modules/map_fusion_02/data_convert/data_convert.h"
 
 namespace hozon {
@@ -6,13 +13,16 @@ namespace mf {
 
 bool DataConvert::LocalMap2ElmentMap(
     const std::shared_ptr<hozon::mapping::LocalMap>& map_msg,
-    const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg,
     ElementMap::Ptr elem_map) {
   if (elem_map == nullptr) {
     HLOG_ERROR << "Element map is nullptr";
     return false;
   }
-
+  ElemMapAppendLaneBoundary(map_msg, elem_map);
+  ElemMapAppendRoadEdge(map_msg, elem_map);
+  ElemMapAppendArrows(map_msg, elem_map);
+  ElemMapAppendStopLine(map_msg, elem_map);
+  ElemMapAppendZebra(map_msg, elem_map);
   return true;
 }
 

@@ -24,12 +24,13 @@ namespace mf {
 int MapFusion::Init(const YAML::Node& conf) {
   cur_loc_info_ = std::make_shared<LocInfo>();
   cur_elem_map_ = std::make_shared<ElementMap>();
+  cur_group_ = std::make_shared<Group>();
   HLOG_INFO << "Create loc info & element map";
 
   // geometry map processing
-
+  geo_optimization_ptr_ = std::make_unique<GeoOptimizationPipeline>();
   // road construction
-  lane_fusion_ = std::make_unique<LaneFusionPipeline>();
+  lane_fusion_ptr_ = std::make_unique<LaneFusionPipeline>();
 
   // TODO(a): map service
 
@@ -51,30 +52,31 @@ int MapFusion::ProcPercep(
     const std::shared_ptr<hozon::localization::Localization>& curr_loc,
     const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
     const std::shared_ptr<hozon::perception::PerceptionObstacles>& curr_obj,
-    hozon::hdmap::Map* percep_map,
-    hozon::routing::RoutingResponse* percep_routing) {
+    hozon::hdmap::Map* fusion_map, hozon::routing::RoutingResponse* routing) {
   if (curr_loc == nullptr || curr_local_map == nullptr ||
-      percep_map == nullptr || percep_routing == nullptr) {
+      fusion_map == nullptr || routing == nullptr) {
     HLOG_ERROR << "nullptr input input";
     return -1;
   }
-
+  ProcessOption option;
+  option.timestamp = curr_local_map->header().data_stamp();
+  // 数据输入处理转换
   if (!InDataMapping(curr_loc, curr_local_map, curr_obj)) {
     HLOG_ERROR << "Input data mapping failed";
     return -1;
   }
-
+  // 各个pipeline处理
   HLOG_DEBUG << "Proc Pilot start!";
-  GeoMapProcess();
-  ElementFusionProcess();
-  FillMapProcess();
+  geo_optimization_ptr_->Process(option, cur_elem_map_);
+  lane_fusion_ptr_->Process(option, cur_elem_map_, cur_group_);
   HLOG_DEBUG << "Proc Pilot end!";
-
-  if (!OutDataMapping(percep_map, percep_routing)) {
+  // 输出数据处理转换
+  if (!OutDataMapping(fusion_map, routing)) {
     HLOG_ERROR << "Output data mapping failed";
     return -1;
   }
-
+  // 单帧处理结束各个pipeline清理内部元素
+  Clear();
   return 0;
 }
 
@@ -90,18 +92,12 @@ bool MapFusion::InDataMapping(
     HLOG_ERROR << "localization timestamp error";
   }
 
-  if (!DataConvert::LocalMap2ElmentMap(map_msg, obj_msg, cur_elem_map_)) {
+  if (!DataConvert::LocalMap2ElmentMap(map_msg, cur_elem_map_)) {
     return false;
   }
 
   return true;
 }
-
-void MapFusion::GeoMapProcess() {}
-
-void MapFusion::ElementFusionProcess() {}
-
-void MapFusion::FillMapProcess() {}
 
 bool MapFusion::OutDataMapping(
     hozon::hdmap::Map* percep_map,
@@ -123,6 +119,11 @@ bool MapFusion::OutDataMapping(
   // percep_routing->CopyFrom(*routing);
 
   return true;
+}
+
+void MapFusion::Clear() {
+  geo_optimization_ptr_->Clear();
+  lane_fusion_ptr_->Clear();
 }
 
 }  // namespace mf

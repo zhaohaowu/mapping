@@ -94,6 +94,7 @@ enum DashSegType {
 };
 
 struct BoundaryNode {
+  Id id;
   DashSegType dash_seg = UNKNOWN_DASH_SEG;
   Eigen::Vector3f point;
 
@@ -320,22 +321,10 @@ enum SceneType {
   TUNNEL,
 };
 
-struct Road {
+struct RoadEdge {
   Id id;
-  RoadType road_type = UNKNOWN_ROAD_TYPE;
-  SceneType scene_type = UNKNOWN_SCENE_TYPE;
-  // ids of lanes this road contains
-  std::vector<Id> lane_ids;
-  // ids of previous roads
-  std::vector<Id> prev_road_ids;
-  // ids of next roads
-  std::vector<Id> next_road_ids;
-  // id of left boundary
-  Id left_boundary_id;
-  // id of right_boundary
-  Id right_boundary_id;
-
-  DEFINE_PTR(Road)
+  std::vector<Eigen::Vector3f> points;
+  DEFINE_PTR(RoadEdge)
 };
 
 struct StopLine {

@@ -1,6 +1,6 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
- *   file       ： cvt_zebracrossing.cc
+ *   file       ： cvt_roadedge.cc
  *   author     ： hozon
  *   date       ： 2023.09
  ******************************************************************************/
@@ -12,24 +12,26 @@
 namespace hozon {
 namespace mp {
 namespace mf {
-void ElemMapAppendZebra(
+void ElemMapAppendRoadEdge(
     const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
     ElementMap::Ptr element_map_ptr) {
-  for (const auto& cross_walk : local_map->cross_walks()) {
-    if (cross_walk.points().point_size() != 4) {
+  for (const auto& road : local_map->road_edges()) {
+    RoadEdge road_edge;
+    road_edge.id = road.track_id();
+    std::vector<Eigen::Vector3d> road_pts;
+    for (const auto& pt : road.points()) {
+      Eigen::Vector3d ptt(pt.x(), pt.y(), pt.z());
+      road_pts.emplace_back(ptt);
+    }
+    if (road_pts.empty()) {
       continue;
     }
-    CrossWalk crw;
-    crw.id = cross_walk.track_id();
-    for (const auto& pt : cross_walk.points().point()) {
-      Eigen::Vector3f point(static_cast<float>(pt.x()),
-                            static_cast<float>(pt.y()),
-                            static_cast<float>(pt.z()));
-      crw.polygon.points.emplace_back(point);
-    }
-    element_map_ptr->cross_walks[crw.id] = std::make_shared<CrossWalk>(crw);
+    road_edge.points.emplace_back(road_pts);
+    element_map_ptr->road_edges[road_edge.id] =
+        std::make_shared<RoadEdge>(road_edge);
   }
 }
+
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon

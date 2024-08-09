@@ -74,7 +74,8 @@ struct ElementMap {
 
   std::map<Id, Arrow::Ptr> arrows;
   std::map<Id, BoundaryNode::Ptr> boundary_nodes;
-  std::map<Id, Boundary::Ptr> boundaries;
+  // boundaries 改成lane_boundaries
+  std::map<Id, Boundary::Ptr> lane_boundaries;
   std::map<Id, CenterLine::Ptr> center_lines;
   std::map<Id, CrossWalk::Ptr> cross_walks;
   std::map<Id, LaneIDSet::Ptr> lanes;

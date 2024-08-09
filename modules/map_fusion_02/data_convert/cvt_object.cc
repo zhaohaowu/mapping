@@ -1,13 +1,13 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
- *   file       ： broken_point_search.h
+ *   file       ： cvt_object.cc
  *   author     ： hozon
  *   date       ： 2023.09
  ******************************************************************************/
 
 #include "depend/proto/perception/perception_obstacle.pb.h"
 #include "modules/map_fusion_02/base/element_base.h"
-#include "modules/map_fusion_02/base/element_map.h"
+#include "modules/map_fusion_02/data_convert/data_convert.h"
 
 namespace hozon {
 namespace mp {
@@ -60,8 +60,8 @@ void FillObjType(hozon::mp::mf::Object* obj,
       break;
   }
 }
-bool cvt_pb2obj(const ::hozon::perception::PerceptionObstacle& obj,
-                Object::Ptr elem_obj) {
+void cvtPb2obj(const ::hozon::perception::PerceptionObstacle& obj,
+               Object::Ptr elem_obj) {
   elem_obj->id = obj.track_id();
   FillObjType(elem_obj.get(), obj.type());
   Eigen::Vector3f point(static_cast<float>(obj.position().x()),
@@ -81,7 +81,6 @@ bool cvt_pb2obj(const ::hozon::perception::PerceptionObstacle& obj,
   elem_obj->heading = obj.theta();
   elem_obj->length = obj.length();
   elem_obj->width = obj.width();
-  return true;
 }
 
 }  // namespace mf

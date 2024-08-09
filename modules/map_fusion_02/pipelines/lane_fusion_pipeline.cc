@@ -18,6 +18,8 @@ bool LaneFusionPipeline::Init() {
   return true;
 }
 
+void LaneFusionPipeline::Clear() { broken_point_search_->Clear(); }
+
 bool LaneFusionPipeline::Process(const ProcessOption& option,
                                  ElementMap::Ptr element_map_ptr,
                                  Group::Ptr group_ptr) {

@@ -14,8 +14,13 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <mutex>
 
-#include "map_fusion/fusion_common/common_data.h"
+#include "modules/map_fusion_02/base/element_base.h"
+#include "modules/map_fusion_02/common/common_data.h"
+#include "modules/map_fusion_02/base/element_map.h"
+#include "modules/map_fusion_02/base/group.h"
+
 
 namespace hozon {
 namespace mp {
@@ -39,11 +44,11 @@ bool OutRange(T x, T min_x, T max_x) {
   return (x < min_x || x > max_x);
 }
 
-bool InCubicRange(float x, const em::LineCubic& cubic);
+bool InCubicRange(float x, const LineCubic& cubic);
 
 /// 采样三次多项式曲线
-void SamplingCubic(const em::LineCubic& cubic, float step,
-                   std::vector<em::Point>* pts);
+void SamplingCubic(const LineCubic& cubic, float step,
+                   std::vector<Eigen::Vector3f>* pts);
 
 double NowInSec();
 
@@ -476,10 +481,10 @@ class Rate {
   double actual_cycle_time_;
 };
 
-void TransformMap(const em::ElementMap& map_source,
+void TransformMap(const ElementMap& map_source,
                   const Pose& T_source_to_target,
                   const std::string& target_frame_id,
-                  em::ElementMap* map_target);
+                  ElementMap* map_target);
 
 namespace math {
 

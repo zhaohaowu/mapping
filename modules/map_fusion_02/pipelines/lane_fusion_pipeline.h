@@ -21,7 +21,8 @@ namespace mf {
 
 class LaneFusionPipeline : public BaseFusionPipeline {
  public:
-    typedef std::unique_ptr<LaneFusionPipeline> Ptr; 
+  typedef std::unique_ptr<LaneFusionPipeline> Ptr;
+
  public:
   bool Init();
 

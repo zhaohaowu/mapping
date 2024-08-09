@@ -21,17 +21,44 @@ namespace mf {
 
 // TODO(a): 各模块需要的定位信息往这里添加
 struct LocInfo {
-  double timestamp;
-  Eigen::Vector3d position;
-  Eigen::Quaterniond quaternion;
-  Eigen::Affine3d pose = Eigen::Affine3d::Identity();
-  Eigen::Vector3d euler_angle;
-  Eigen::Vector3d linear_vrf;
-  Eigen::Vector3d angular_vrf;
-  float heading;
-
   DEFINE_PTR(LocInfo)
   DEFINE_CONST_PTR(LocInfo)
+
+  LocInfo Interpolate(const double scale, const LocInfo& end,
+                      double timestamp) const {
+    LocInfo res;
+    res.timestamp = timestamp;
+    res.translation =
+        this->translation + (end.translation - this->translation) * scale;
+    res.quaternion = this->quaternion.slerp(scale, end.quaternion);
+    res.pose =
+        Eigen::Translation3d(res.translation) * Eigen::Affine3d(res.quaternion);
+
+    if (scale >= 0.5) {
+      res.linear_velocity = end.linear_velocity;
+      res.angular_velocity = end.angular_velocity;
+      res.acceleration = end.acceleration;
+      res.gear = end.gear;
+    } else {
+      res.linear_velocity = this->linear_velocity;
+      res.angular_velocity = this->angular_velocity;
+      res.acceleration = this->acceleration;
+      res.gear = this->gear;
+    }
+    return res;
+  }
+
+ public:
+  double timestamp = 0.0;
+  Eigen::Vector3d translation;                         // 平移
+  Eigen::Quaterniond quaternion;                       // 旋转
+  Eigen::Affine3d pose = Eigen::Affine3d::Identity();  // 平移+旋转
+  Eigen::Vector3d euler_angle;
+  Eigen::Vector3d linear_velocity;   // 线速度
+  Eigen::Vector3d angular_velocity;  // 角速度
+  Eigen::Vector3d acceleration;      // 加速度
+  float heading = 0.0;
+  int gear = 100;
 };
 
 struct MapInfo {
@@ -50,7 +77,7 @@ struct ElementMap {
   std::map<Id, Boundary::Ptr> boundaries;
   std::map<Id, CenterLine::Ptr> center_lines;
   std::map<Id, CrossWalk::Ptr> cross_walks;
-  std::map<Id, Lane::Ptr> lanes;
+  std::map<Id, LaneIDSet::Ptr> lanes;
   std::map<Id, Road::Ptr> roads;
   std::map<Id, StopLine::Ptr> stop_lines;
   std::map<Id, Symbol::Ptr> symbols;

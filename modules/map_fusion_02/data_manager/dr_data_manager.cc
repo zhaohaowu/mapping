@@ -14,7 +14,7 @@ namespace mf {
 namespace perception_lib = hozon::perception::lib;
 DrDataManager::DrDataManager() { CHECK_EQ(this->Init(), true); }
 
-MessageBuffer<DrData::ConstPtr>& DrDataManager::GetDrBuffer() {
+MessageBuffer<LocInfo::ConstPtr>& DrDataManager::GetDrBuffer() {
   return local_dr_buffer_;
 }
 
@@ -74,9 +74,9 @@ bool DrDataManager::Init() {
   return true;
 }
 
-DrData::ConstPtr DrDataManager::GetDrPoseByTimeStamp(double timestamp) {
-  DrData::ConstPtr before = nullptr;
-  DrData::ConstPtr after = nullptr;
+LocInfo::ConstPtr DrDataManager::GetDrPoseByTimeStamp(double timestamp) {
+  LocInfo::ConstPtr before = nullptr;
+  LocInfo::ConstPtr after = nullptr;
   origin_dr_buffer_.get_messages_around(timestamp, before, after);
 
   if (before == nullptr && after == nullptr) {
@@ -85,7 +85,7 @@ DrData::ConstPtr DrDataManager::GetDrPoseByTimeStamp(double timestamp) {
   }
 
   if (before == nullptr) {
-    DrData::Ptr dr_ptr = std::make_shared<DrData>();
+    LocInfo::Ptr dr_ptr = std::make_shared<LocInfo>();
 
     double delta_t = timestamp - after->timestamp;
     dr_ptr->timestamp = timestamp;
@@ -123,11 +123,11 @@ DrData::ConstPtr DrDataManager::GetDrPoseByTimeStamp(double timestamp) {
   double ratio =
       (timestamp - before->timestamp) / (after->timestamp - before->timestamp);
   auto dr_pose_state =
-      std::make_shared<DrData>(before->Interpolate(ratio, *after, timestamp));
+      std::make_shared<LocInfo>(before->Interpolate(ratio, *after, timestamp));
   return dr_pose_state;
 }
 
-void DrDataManager::SetTimeStampDrPose(DrData::ConstPtr dr_pose_ptr) {
+void DrDataManager::SetTimeStampDrPose(const LocInfo::ConstPtr& dr_pose_ptr) {
   if (dr_pose_ptr) {
     cur_T_w_v_ = dr_pose_ptr->pose;
     T_cur_last_ = cur_T_w_v_.inverse() * last_T_w_v_;
@@ -140,14 +140,7 @@ bool DrDataManager::PushDrData(const LocInfo::ConstPtr& latest_localization) {
              << latest_localization->timestamp;
   if (origin_dr_buffer_.is_empty() ||
       origin_dr_buffer_.back()->timestamp < latest_localization->timestamp) {
-    DrData::Ptr dr_data_ptr = std::make_shared<DrData>();
-    dr_data_ptr->timestamp = latest_localization->timestamp;
-    dr_data_ptr->translation = latest_localization->position;
-    dr_data_ptr->quaternion = latest_localization->quaternion;
-    dr_data_ptr->angular_velocity = latest_localization->angular_vrf;
-    dr_data_ptr->linear_velocity = latest_localization->linear_vrf;
-    dr_data_ptr->pose = Eigen::Translation3d(dr_data_ptr->translation) *
-                        Eigen::Affine3d(dr_data_ptr->quaternion);
+    LocInfo::Ptr dr_data_ptr = std::make_shared<LocInfo>(*latest_localization);
     origin_dr_buffer_.push_new_message(latest_localization->timestamp,
                                        dr_data_ptr);
     return true;
@@ -156,7 +149,7 @@ bool DrDataManager::PushDrData(const LocInfo::ConstPtr& latest_localization) {
 }
 
 void DrDataManager::PushLocalDrData(double timestamp,
-                                    const DrData::ConstPtr& local_pose) {
+                                    const LocInfo::ConstPtr& local_pose) {
   local_dr_buffer_.push_new_message(timestamp, local_pose);
 }
 

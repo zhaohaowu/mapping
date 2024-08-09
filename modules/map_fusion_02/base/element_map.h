@@ -47,11 +47,11 @@ struct ElementMap {
 
   std::map<Id, Arrow::Ptr> arrows;
   std::map<Id, BoundaryNode::Ptr> boundary_nodes;
-  std::map<Id, Boundary::Ptr> boundaries;
+  // boundaries 改成lane_boundaries
+  std::map<Id, Boundary::Ptr> lane_boundaries;
   std::map<Id, CenterLine::Ptr> center_lines;
   std::map<Id, CrossWalk::Ptr> cross_walks;
-  std::map<Id, Lane::Ptr> lanes;
-  std::map<Id, Road::Ptr> roads;
+  std::map<Id, RoadEdge::Ptr> road_edges;
   std::map<Id, StopLine::Ptr> stop_lines;
   std::map<Id, Symbol::Ptr> symbols;
   std::map<Id, TrafficLight::Ptr> traffic_lights;

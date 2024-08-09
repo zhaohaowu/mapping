@@ -1,6 +1,6 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
- *   file       ： broken_point_search.h
+ *   file       ： elements_filter.h
  *   author     ： hozon
  *   date       ： 2023.09
  ******************************************************************************/
@@ -13,15 +13,14 @@
 namespace hozon {
 namespace mp {
 namespace mf {
-class BrokenPointSearch : public ProcessorBase {
+class ElementsFilter : public ProcessorBase {
  public:
-  BrokenPointSearch() : point_num_(-1) {}
-  ~BrokenPointSearch() = default;
-  BrokenPointSearch(const BrokenPointSearch&) = delete;
-  BrokenPointSearch& operator=(const BrokenPointSearch&) = delete;
+  ElementsFilter() : point_num_(-1) {}
+  ~ElementsFilter() = default;
+  ElementsFilter(const ElementsFilter&) = delete;
+  ElementsFilter& operator=(const ElementsFilter&) = delete;
   bool Init() override;
   bool Process(ElementMap::Ptr element_map_ptr);
-  void Search();
   void Clear() override;
 
  private:

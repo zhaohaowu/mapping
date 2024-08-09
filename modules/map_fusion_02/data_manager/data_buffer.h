@@ -401,6 +401,6 @@ void MessageBuffer<MessageType>::get_messages_around(
   _buffer_mutex.unlock();
 }
 
-}  // namespace lm
+}  // namespace mf
 }  // namespace mp
 }  // namespace hozon

@@ -21,9 +21,11 @@ namespace mf {
 
 class LaneFusionPipeline : public BaseFusionPipeline {
  public:
-    typedef std::unique_ptr<LaneFusionPipeline> Ptr; 
+  typedef std::unique_ptr<LaneFusionPipeline> Ptr;
+
  public:
-  bool Init();
+  bool Init() override;
+  void Clear() override;
 
   bool Process(const ProcessOption& option, ElementMap::Ptr element_map_ptr,
                Group::Ptr group_ptr);

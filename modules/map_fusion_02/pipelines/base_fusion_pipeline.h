@@ -17,6 +17,7 @@ class BaseFusionPipeline {
  public:
   virtual ~BaseFusionPipeline() = default;
   virtual bool Init() = 0;
+  virtual void Clear() = 0;
 
   virtual std::string Name() const = 0;
 };

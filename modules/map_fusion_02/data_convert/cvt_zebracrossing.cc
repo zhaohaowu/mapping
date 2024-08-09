@@ -11,19 +11,22 @@
 namespace hozon {
 namespace mp {
 namespace mf {
-bool cvt_pb2zebra(const hozon::mapping::CrossWalk& cross_walk,
-                  CrossWalk::Ptr cross_walk_ptr) {
-  if (cross_walk.points().point_size() != 4) {
-    return false;
+void ElemMapAppendZebra(const hozon::mapping::LocalMap& local_map,
+                        ElementMap::Ptr element_map_ptr) {
+  for (const auto& cross_walk : local_map.cross_walks()) {
+    if (cross_walk.points().point_size() != 4) {
+      continue;
+    }
+    CrossWalk crw;
+    crw.id = cross_walk.track_id();
+    for (const auto& pt : cross_walk.points().point()) {
+      Eigen::Vector3f point(static_cast<float>(pt.x()),
+                            static_cast<float>(pt.y()),
+                            static_cast<float>(pt.z()));
+      crw.polygon.points.emplace_back(point);
+    }
+    element_map_ptr->cross_walks[crw.id] = std::make_shared<CrossWalk>(crw);
   }
-  cross_walk_ptr->id = cross_walk.track_id();
-  for (const auto& pt : cross_walk.points().point()) {
-    Eigen::Vector3f point(static_cast<float>(pt.x()),
-                          static_cast<float>(pt.y()),
-                          static_cast<float>(pt.z()));
-    cross_walk_ptr->polygon.points.emplace_back(point);
-  }
-  return true;
 }
 }  // namespace mf
 }  // namespace mp

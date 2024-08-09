@@ -10,12 +10,14 @@
 #include <depend/common/math/double_type.h>
 #include <depend/common/math/vec2d.h>
 
+#include <Eigen/Dense>
 #include <deque>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 
-#include "map_fusion/fusion_common/common_data.h"
+#include "modules/map_fusion_02/base/element_base.h"
 
 namespace hozon {
 namespace mp {
@@ -39,11 +41,11 @@ bool OutRange(T x, T min_x, T max_x) {
   return (x < min_x || x > max_x);
 }
 
-bool InCubicRange(float x, const em::LineCubic& cubic);
+bool InCubicRange(float x, const LineCubic& cubic);
 
 /// 采样三次多项式曲线
-void SamplingCubic(const em::LineCubic& cubic, float step,
-                   std::vector<em::Point>* pts);
+void SamplingCubic(const LineCubic& cubic, float step,
+                   std::vector<Eigen::Vector3f>* pts);
 
 double NowInSec();
 
@@ -330,12 +332,12 @@ class CatmullRomSpline {
 };
 #endif
 
-/// 已知a系下0、1时刻的位姿(T_a_0, T_a_1), b系下0时刻的位姿(T_b_0),
-/// 求b系下1时刻位姿(T_b_1):
-/// T_0_1 = T_a_0.inverse() * T_a_1;
-/// T_b_1 = T_b_0 * T_0_1
-void InterpPose(const Pose& T_a_0, const Pose& T_a_1, const Pose& T_b_0,
-                Pose* T_b_1);
+// /// 已知a系下0、1时刻的位姿(T_a_0, T_a_1), b系下0时刻的位姿(T_b_0),
+// /// 求b系下1时刻位姿(T_b_1):
+// /// T_0_1 = T_a_0.inverse() * T_a_1;
+// /// T_b_1 = T_b_0 * T_0_1
+// void InterpPose(const Pose& T_a_0, const Pose& T_a_1, const Pose& T_b_0,
+//                 Pose* T_b_1);
 
 class TicToc {
  public:
@@ -476,10 +478,10 @@ class Rate {
   double actual_cycle_time_;
 };
 
-void TransformMap(const em::ElementMap& map_source,
-                  const Pose& T_source_to_target,
-                  const std::string& target_frame_id,
-                  em::ElementMap* map_target);
+// void TransformMap(const em::ElementMap& map_source,
+//                   const Pose& T_source_to_target,
+//                   const std::string& target_frame_id,
+//                   em::ElementMap* map_target);
 
 namespace math {
 
@@ -522,6 +524,10 @@ float AngleDiff(float angle_0, float angle_1);
 
 double CalculateHeading(const Eigen::Quaternionf& q1,
                         const Eigen::Quaternionf& q2);
+
+void ComputerLineDis(const std::vector<Eigen::Vector3d>& line_pts,
+                     const std::vector<Eigen::Vector3d>& right_line_pts,
+                     std::vector<double>* line_dis);
 
 }  // namespace math
 

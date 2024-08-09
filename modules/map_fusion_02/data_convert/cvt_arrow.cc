@@ -78,21 +78,24 @@ void FillArrowType(hozon::mp::mf::Arrow* arrow,
   }
 }
 
-bool cvt_pb2arrow(const hozon::mapping::Arrow& arrow,
-                  Arrow::Ptr elem_arrow_ptr) {
-  if (arrow.points().point_size() != 4) {
-    return false;
+void ElemMapAppendArrows(const hozon::mapping::LocalMap& local_map,
+                         ElementMap::Ptr element_map_ptr) {
+  for (const auto& arrow : local_map.arrows()) {
+    if (arrow.points().point_size() != 4) {
+      continue;
+    }
+    Arrow arw;
+    arw.id = arrow.track_id();
+    FillArrowType(&arw, arrow.arrow_type());
+    for (const auto& pt : arrow.points().point()) {
+      Eigen::Vector3f point(static_cast<float>(pt.x()),
+                            static_cast<float>(pt.y()),
+                            static_cast<float>(pt.z()));
+      arw.polygon.points.emplace_back(point);
+    }
+    arw.heading = arrow.heading();
+    element_map_ptr->arrows[arw.id] = std::make_shared<Arrow>(arw);
   }
-  elem_arrow_ptr->id = arrow.track_id();
-  FillArrowType(elem_arrow_ptr.get(), arrow.arrow_type());
-  for (const auto& pt : arrow.points().point()) {
-    Eigen::Vector3f point(static_cast<float>(pt.x()),
-                          static_cast<float>(pt.y()),
-                          static_cast<float>(pt.z()));
-    elem_arrow_ptr->polygon.points.emplace_back(point);
-  }
-  elem_arrow_ptr->heading = arrow.heading();
-  return true;
 }
 
 }  // namespace mf

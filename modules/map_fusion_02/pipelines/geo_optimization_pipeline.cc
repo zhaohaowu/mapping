@@ -12,6 +12,9 @@
 namespace hozon {
 namespace mp {
 namespace mf {
+std::string GeoOptimizationPipeline::Name() const {
+  return "GeoOptimizationPipeline";
+}
 bool GeoOptimizationPipeline::Init() {
   elements_filter_ = std::make_unique<ElementsFilter>();
   CHECK_EQ(elements_filter_->Init(), true);

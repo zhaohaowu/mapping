@@ -28,8 +28,6 @@ bool GeoOptimizationPipeline::Process(const ProcessOption& option,
   elements_filter_->Process(element_map_ptr);
   // occ处理操作
   occ_processor_->Process(element_map_ptr);
-  // 处理结束,单帧容器数据清理
-  Clear();
   return true;
 }
 

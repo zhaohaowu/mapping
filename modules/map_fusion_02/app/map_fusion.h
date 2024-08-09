@@ -47,20 +47,20 @@ class MapFusion {
       hozon::hdmap::Map* fusion_map, hozon::routing::RoutingResponse* routing);
 
  private:
-  LocInfo::Ptr cur_loc_info_;
-  ElementMap::Ptr cur_elem_map_;
+  LocInfo::Ptr cur_loc_info_ = nullptr;
+  ElementMap::Ptr cur_elem_map_ = nullptr;
+  Group::Ptr cur_group_ = nullptr;
 
-  LaneFusionPipeline::Ptr lane_fusion_;
+  std::unique_ptr<LaneFusionPipeline> lane_fusion_ptr_ = nullptr;
+  std::unique_ptr<GeoOptimizationPipeline> geo_optimization_ptr_ = nullptr;
 
   bool InDataMapping(
       const std::shared_ptr<hozon::localization::Localization>& loc_msg,
       const std::shared_ptr<hozon::mapping::LocalMap>& map_msg,
       const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg);
-  void GeoMapProcess();
-  void ElementFusionProcess();
-  void FillMapProcess();
   bool OutDataMapping(hozon::hdmap::Map* percep_map,
                       hozon::routing::RoutingResponse* percep_routing);
+  void Clear();
 };
 
 }  // namespace mf

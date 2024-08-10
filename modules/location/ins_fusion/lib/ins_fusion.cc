@@ -51,6 +51,28 @@ InsInitStatus InsFusion::Init(const std::string& configfile) {
   return InsInitStatus::OK;
 }
 
+Eigen::Matrix<double, 3, 1> Rot2Euler312(
+    const Eigen::Matrix<double, 3, 3>& mat) {
+  Eigen::Matrix<double, 3, 1> v;
+  v(0) = asinf(mat(2, 1));
+  v(1) = atan2f(-mat(2, 0), mat(2, 2));
+  v(2) = atan2f(-mat(0, 1), mat(1, 1));
+  return v;
+}
+
+double InsFusion::QuaternionToHeading(const Eigen::Quaterniond& q) {
+  Eigen::Vector3d orientation = Sophus::SO3d(q).log();
+  const Sophus::SO3d& rot = Sophus::SO3d::exp(orientation);
+  Eigen::Vector3d euler = Rot2Euler312(rot.matrix());
+  euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
+  double heading = 90.0 - euler.z() / M_PI * 180;
+  if (heading < 0.0) {
+    heading += 360.0;
+  }
+  return heading;
+}
+
+
 void InsFusion::LoadConfigParams(const std::string& configfile) {
   YAML::Node config_parser = YAML::LoadFile(configfile);
   config_.smooth = config_parser["smooth"].as<bool>();
@@ -213,6 +235,14 @@ bool InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva,
     inspva_count = 0;
     HLOG_ERROR << "rev plugin ins heartbeat";
   }
+
+  // 取出INS四元数并转heading
+  Eigen::Quaterniond q(latest_inspva_data_.quaternion().w(),
+                       latest_inspva_data_.quaternion().x(),
+                       latest_inspva_data_.quaternion().y(),
+                       latest_inspva_data_.quaternion().z());
+  double heading = QuaternionToHeading(q);
+  node_info->set_heading(static_cast<float>(heading));
   return true;
 }
 

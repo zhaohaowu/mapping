@@ -52,6 +52,7 @@ class InsFusion {
   bool SmoothProc(InsNode* const node);
   bool PublishTopic();
   void CheckTriggerInsTime(const hozon::soc::ImuIns& cur_ins);
+  double QuaternionToHeading(const Eigen::Quaterniond& q);
 
  private:
   Config config_;

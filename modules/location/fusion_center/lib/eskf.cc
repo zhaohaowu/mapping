@@ -194,9 +194,9 @@ void ESKF::Correct(const Node& cur_meas_data) {
 
   // 2.计算H
   H_.template block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();  // p部分
-  Mat3T yacobi_rot = JrSO3(cur_meas_data.orientation);
-  H_.template block<3, 3>(3, 6) = yacobi_rot.inverse();  // q部分
-
+  // Mat3T yacobi_rot = JrSO3(cur_meas_data.orientation);
+  // H_.template block<3, 3>(3, 6) = yacobi_rot.inverse();  // q部分
+  H_.template block<3, 3>(3, 6) = Eigen::Matrix3d::Identity();  // q部分
   // 3.计算y_diff(观测-nominal)(INS需要更新速度、位姿，MM更新位姿即可)(c此处需要进行if判断)
   Vec6d y_diff;
   y_diff.setZero();

@@ -290,9 +290,8 @@ bool MapMatching::CheckIsRampRoad(const hozon::common::PointENU& utm_pos) {
   double nearest_s = 0.0;
   double nearest_l = 0.0;
   hozon::hdmap::LaneInfoConstPtr ego_lane_ptr = nullptr;
-  if (!GLOBAL_HD_MAP->GetNearestLane(utm_pos, &ego_lane_ptr, &nearest_s,
-                                     &nearest_l) ||
-      ego_lane_ptr == nullptr) {
+  GLOBAL_HD_MAP->GetNearestLane(utm_pos, &ego_lane_ptr, &nearest_s, &nearest_l);
+  if (ego_lane_ptr == nullptr) {
     return false;
   }
   if (ego_lane_ptr->IsRampRoad()) {

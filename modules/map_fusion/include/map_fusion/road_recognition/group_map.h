@@ -307,6 +307,7 @@ class GroupMap {
                           Group::Ptr grp);
   bool MatchLRLane(Group::Ptr grp);
   bool MatchStopLineWithGroup(Group::Ptr grp);
+  bool MatchZebraWithGroup(Group::Ptr grp);
   bool SetGroupLaneOrient(Group::Ptr grp);
   bool GenLaneCenterLine(std::vector<Group::Ptr>* groups);
   bool OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups);
@@ -388,7 +389,12 @@ class GroupMap {
   void RemainOnlyOneForwardCrossWalk(std::vector<Group::Ptr>* groups);
   bool MatchLanePtAndStopLine(const em::Point& left_pt,
                               const em::Point& right_pt, const Stpl& stop_line);
+  bool MatchLanePtAndZebraLine(const em::Point& left_pt,
+                               const em::Point& right_pt,
+                               const Zebra& zebra_line);
   bool MatchLaneAndStopLine(const Lane::Ptr& lane, const Stpl::Ptr& stop_line);
+  bool MatchLaneAndZebraLine(const Lane::Ptr& lane,
+                             const Zebra::Ptr& zebra_line);
   Stpl::Ptr MatchedStopLine(const std::string& lane_id);
   void FindGroupNextLane(Group::Ptr curr_group, Group::Ptr next_group);
   void GenerateTransitionLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next,
@@ -500,6 +506,11 @@ class GroupMap {
   void EraseEgoGroupWithNoEgoLane(
       std::vector<Group::Ptr>*
           groups);  // 把自车所在group但是没有自车道和自车邻车道的group删除
+  double GetLaneLength(const std::vector<Group::Ptr>& groups,
+                       std::string str_id_with_group);
+
+  bool CloseToLaneEnd(const std::vector<Group::Ptr>& groups, std::string str_id,
+                      const Eigen::Vector3f& target_point);
   void ExtendFrontCenterLine(std::vector<Group::Ptr>* groups);
   void AddVirtualLine(std::vector<Group::Ptr>* groups);
   int BesideGroup(

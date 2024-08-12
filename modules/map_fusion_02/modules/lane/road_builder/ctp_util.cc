@@ -7,16 +7,13 @@
 
 #include "modules/map_fusion_02/modules/lane/road_builder/ctp_util.h"
 
-#include "base/utils/log.h"
-
 namespace hozon {
 namespace mp {
 namespace mf {
-namespace ctp {
 
 bool IsOverLapTwoLine(const std::vector<Point3D>& segment1,
                       const std::vector<Point3D>& segment2) {
-  float overlap_value;
+  double overlap_value = 0.0;
   if (segment1.size() < 2 || segment2.size() < 2) {
     overlap_value = 0.0;
   } else {
@@ -36,12 +33,12 @@ bool IsOverLapTwoLine(const std::vector<Point3D>& segment1,
     }
     HLOG_DEBUG << "back_x: " << back_pt.x << " front_x: " << front_pt.x;
     Point3D new_direction = back_pt - front_pt;
-    float overlap = direction_v.Dot(new_direction);
+    double overlap = direction_v.Dot(new_direction);
     HLOG_DEBUG << "overlap: " << overlap;
     if (overlap <= 0) {
       overlap_value = 0.0;
     } else {
-      float hd_length = direction_v.Norm2D();
+      double hd_length = direction_v.Norm2D();
       HLOG_DEBUG << "back_x: " << back_pt.x << " front_x: " << front_pt.x
                  << " hd_length: " << hd_length;
       overlap_value = overlap / direction_v.SquaredNorm();
@@ -59,7 +56,7 @@ SMStatus DistBetweenTwoLine(const std::vector<Point3D>& points_a,
   static TicToc timer;
   timer.Tic();
 
-  if (!(points_a.size() >= 2 && points_b.size() >= 2)) {
+  if (points_a.size() >= 2 || points_b.size() >= 2) {
     HLOG_ERROR
         << "Check failed: (points_a.size() >= 2 && points_b.size() >= 2)";
     return SMStatus::ERROR;
@@ -105,7 +102,8 @@ SMStatus DistBetweenTwoLine(const std::vector<Point3D>& points_a,
   // 3. there is overlap between AB
   // SM_LTRACE() << "compute dist for AB begin ...";
 
-  double mean1 = 0, min1 = 0;
+  double mean1 = 0.0;
+  double min1 = 0.0;
   auto status = ComputeLinePointsDist(points_a, points_b, &mean1, &min1);
   if (!(status == SMStatus::SUCCESS)) {
     HLOG_ERROR << "Check failed: (status != SMStatus::SUCCESS)";
@@ -113,7 +111,8 @@ SMStatus DistBetweenTwoLine(const std::vector<Point3D>& points_a,
   }
   // SM_LTRACE() << "mean1: " << mean1 << ", min1: " << min1;
 
-  double mean2 = 0, min2 = 0;
+  double mean2 = 0.0;
+  double min2 = 0.0;
   status = ComputeLinePointsDist(points_b, points_a, &mean2, &min2);
   if (!(status == SMStatus::SUCCESS)) {
     HLOG_ERROR << "Check failed: (status == SMStatus::SUCCESS)";
@@ -492,7 +491,6 @@ SMStatus GetFootPointInLine(const Point3D& ref_point,
   return SMStatus::SUCCESS;
 }
 
-}  // namespace ctp
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon

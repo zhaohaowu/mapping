@@ -15,11 +15,11 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <deque>
 
 #include <Sophus/se3.hpp>
 #include <Sophus/so3.hpp>
 
-#include "base/utils/log.h"
 #include "common/math/vec2d.h"
 #include "modules/map_fusion_02/base/element_base.h"
 #include "modules/map_fusion_02/base/element_map.h"
@@ -27,6 +27,7 @@
 #include "modules/map_fusion_02/common/common_data.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/ctp_util.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/detect_cut_pt.h"
+#include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {
@@ -34,9 +35,7 @@ namespace mf {
 
 class BrokenPointSearch {
  public:
-  explicit BrokenPointSearch() {
-    detect_cut_pt_ = std::make_shared<DetectCutPt>();
-  }
+  BrokenPointSearch() { detect_cut_pt_ = std::make_shared<DetectCutPt>(); }
   ~BrokenPointSearch() = default;
 
   bool SearchCtp(const std::shared_ptr<std::vector<KinePosePtr>>& path,

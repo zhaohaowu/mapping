@@ -18,38 +18,13 @@
 #include <Sophus/se3.hpp>
 #include <Sophus/so3.hpp>
 
+#include "modules/map_fusion_02/common/calc_util.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/cut_point.h"
 #include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {
 namespace mf {
-
-class TicToc {
- public:
-  TicToc() { Tic(); }
-
-  void Tic() { start_ = std::chrono::system_clock::now(); }
-
-  double Toc() {
-    end_ = std::chrono::system_clock::now();
-    std::chrono::duration<double> elapsed_seconds = end_ - start_;
-    time_cost_ = elapsed_seconds.count() * 1000;
-    time_total_ += time_cost_;
-    time_count_++;
-    return time_cost_;  // ms
-  }
-
-  double AveCost() { return time_total_ / time_count_; }
-
-  double Cost() { return time_cost_; }
-
- private:
-  std::chrono::time_point<std::chrono::system_clock> start_, end_;
-  double time_cost_ = 0;
-  double time_total_ = 0;
-  int time_count_ = 0;
-};
 
 Point3D ToPoint(const Eigen::Vector3d& p);
 

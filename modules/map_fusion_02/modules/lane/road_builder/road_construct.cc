@@ -4,18 +4,17 @@
  *   author     ： cuijiayu
  *   date       ： 2024.08
  ******************************************************************************/
-#include "modules/map_fusion_02/modules/lane/road_builder/lane_construct.h"
+#include "modules/map_fusion_02/modules/lane/road_builder/road_construct.h"
 
 namespace hozon {
 namespace mp {
 namespace mf {
 
-bool LaneConstruct::ConstructLane(
-    const std::vector<mp::mf::ctp::CutPoint>& cutpoints,
-    std::deque<bps::Line::Ptr> lines,
-    const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
-    const KinePose::Ptr& curr_pose, const KinePose::Ptr& last_pose,
-    const em::ElementMap::Ptr& ele_map) {
+bool RoadConstruct::ConstructLane(
+    const std::vector<CutPoint>& cutpoints, std::deque<Line::Ptr> lines,
+    const std::shared_ptr<std::vector<KinePosePtr>>& path,
+    const KinePosePtr& curr_pose, const KinePosePtr& last_pose,
+    const ElementMap::Ptr& ele_map) {
   BuildKDtrees(&lines);
   UpdatePathInCurrPose(*path, *curr_pose);
   BuildGroupSegments(cutpoints, &lines, &group_segments_, ele_map);
@@ -25,7 +24,7 @@ bool LaneConstruct::ConstructLane(
 }
 
 // 获取内部Group
-void LaneConstruct::GetGroups(std::vector<bps::Group::Ptr>* groups) {
+void RoadConstruct::GetGroups(std::vector<Group::Ptr>* groups) {
   if (groups == nullptr) {
     return;
   }
@@ -35,7 +34,7 @@ void LaneConstruct::GetGroups(std::vector<bps::Group::Ptr>* groups) {
   }
 }
 
-void LaneConstruct::GetDistPoints(std::vector<Eigen::Vector3f>* distpoints) {
+void RoadConstruct::GetDistPoints(std::vector<Eigen::Vector3f>* distpoints) {
   if (distpoints == nullptr) {
     return;
   }
@@ -45,7 +44,7 @@ void LaneConstruct::GetDistPoints(std::vector<Eigen::Vector3f>* distpoints) {
   }
 }
 
-void LaneConstruct::BuildKDtrees(std::deque<bps::Line::Ptr>* lines) {
+void RoadConstruct::BuildKDtrees(std::deque<Line::Ptr>* lines) {
   HLOG_DEBUG << "BuildKDtrees";
   // Check if there are any lines
   if (lines == nullptr) {
@@ -81,7 +80,7 @@ void LaneConstruct::BuildKDtrees(std::deque<bps::Line::Ptr>* lines) {
   return;
 }
 
-void LaneConstruct::UpdatePathInCurrPose(const std::vector<KinePose::Ptr>& path,
+void RoadConstruct::UpdatePathInCurrPose(const std::vector<KinePosePtr>& path,
                                          const KinePose& curr_pose) {
   path_in_curr_pose_.clear();
   for (const auto& p : path) {
@@ -119,11 +118,10 @@ void LaneConstruct::UpdatePathInCurrPose(const std::vector<KinePose::Ptr>& path,
   path_in_curr_pose_.emplace_back(pose);
 }
 
-void LaneConstruct::BuildGroupSegments(
-    std::vector<mp::mf::ctp::CutPoint> cutpoints,
-    std::deque<bps::Line::Ptr>* lines,
-    std::vector<bps::GroupSegment::Ptr>* group_segments,
-    const em::ElementMap::Ptr& ele_map) {
+void RoadConstruct::BuildGroupSegments(
+    const std::vector<CutPoint>& cutpoints, std::deque<Line::Ptr>* lines,
+    std::vector<GroupSegment::Ptr>* group_segments,
+    const ElementMap::Ptr& ele_map) {
   HLOG_DEBUG << "BuildGroupSegments ctp";
 
   CreateGroupSegFromCutPoints(cutpoints, group_segments);
@@ -132,29 +130,29 @@ void LaneConstruct::BuildGroupSegments(
   EgoLineTrajectory(group_segments, ele_map);
 }
 
-void LaneConstruct::CreateGroupSegFromCutPoints(
-    std::vector<mp::mf::ctp::CutPoint> cutpoints,
-    std::vector<bps::GroupSegment::Ptr>* segments) {
+void RoadConstruct::CreateGroupSegFromCutPoints(
+    const std::vector<CutPoint>& cutpoints,
+    std::vector<GroupSegment::Ptr>* segments) {
   if (segments == nullptr) {
     HLOG_ERROR << "input nullptr";
     return;
   }
   // 用每一个cut point构建切分线
-  std::vector<bps::SliceLine> slice_lines;
+  std::vector<SliceLine> slice_lines;
 
   for (const auto& ctp : cutpoints) {
-    if (ctp.GetType() == ctp::CutPointType::Unknown) {
+    if (ctp.GetType() == CutPointType::Unknown) {
       HLOG_ERROR << "found Unknown ctp";
       continue;
     }
-    ctp::Point3D p = ctp.GetPoint();
+    Point3D p = ctp.GetPoint();
     HLOG_DEBUG << "ctp: " << p.x << p.y << p.z;
-    std::vector<ctp::Point3D> extre_point = ctp.GetExtrePoint();
+    std::vector<Point3D> extre_point = ctp.GetExtrePoint();
     Eigen::Vector3f po_veh(p.x, p.y, p.z);
     Eigen::Vector3f pr_veh(extre_point[0].x, extre_point[0].y, 0);
     Eigen::Vector3f pl_veh(extre_point[1].x, extre_point[1].y, 0);
 
-    bps::SliceLine slice;
+    SliceLine slice;
     slice.po = po_veh;
     slice.pl = pl_veh;
     slice.pr = pr_veh;
@@ -171,7 +169,7 @@ void LaneConstruct::CreateGroupSegFromCutPoints(
   segments->clear();
   segments->reserve(slice_num);
   for (size_t i = 0; i < slice_num - 1; ++i) {
-    auto seg = std::make_shared<bps::GroupSegment>();
+    auto seg = std::make_shared<GroupSegment>();
     seg->start_slice = slice_lines.at(i);
     seg->end_slice = slice_lines.at(i + 1);
     seg->str_id.clear();
@@ -182,9 +180,8 @@ void LaneConstruct::CreateGroupSegFromCutPoints(
 
 // 将所有车道线点切分到所属GroupSegment：对每根线的点从front到back，判断是否在GroupSegment
 // 范围内
-void LaneConstruct::SplitPtsToGroupSeg(
-    std::deque<bps::Line::Ptr>* lines,
-    std::vector<bps::GroupSegment::Ptr>* segments) {
+void RoadConstruct::SplitPtsToGroupSeg(
+    std::deque<Line::Ptr>* lines, std::vector<GroupSegment::Ptr>* segments) {
   // 将线分割并填充到GroupSegment
   for (auto& seg : *segments) {
     // 生成LineSegments
@@ -198,7 +195,7 @@ void LaneConstruct::SplitPtsToGroupSeg(
       // if (!line->isego) {
       //   continue;
       // }
-      auto line_seg = std::make_shared<bps::LineSegment>();
+      auto line_seg = std::make_shared<LineSegment>();
       line_seg->id = line->id;
       line_seg->type = line->type;
       line_seg->color = line->color;
@@ -253,19 +250,18 @@ void LaneConstruct::SplitPtsToGroupSeg(
 }
 
 // 从GroupSegment包含的所有线中，聚合出一个个小的LaneSegment
-void LaneConstruct::GenLaneSegInGroupSeg(
-    std::vector<bps::GroupSegment::Ptr>* segments) {
-  std::string last_seg_id = "";
+void RoadConstruct::GenLaneSegInGroupSeg(
+    std::vector<GroupSegment::Ptr>* segments) {
+  std::string last_seg_id;
   for (auto& seg : *segments) {
     // 生成LaneSegments
     const auto line_seg_num = seg->line_segments.size();
     if (line_seg_num > 1) {
       // 按与path的距离从大到小排序，得到的结果就是所有线都是从左到右排序号
-      std::sort(
-          seg->line_segments.begin(), seg->line_segments.end(),
-          [](const bps::LineSegment::Ptr& a, const bps::LineSegment::Ptr& b) {
-            return a->dist_to_path > b->dist_to_path;
-          });
+      std::sort(seg->line_segments.begin(), seg->line_segments.end(),
+                [](const LineSegment::Ptr& a, const LineSegment::Ptr& b) {
+                  return a->dist_to_path > b->dist_to_path;
+                });
       // 按边线距离生成LaneSegment
       for (size_t i = 0; i < line_seg_num - 1; ++i) {
         auto& left_line = seg->line_segments.at(i);
@@ -289,7 +285,7 @@ void LaneConstruct::GenLaneSegInGroupSeg(
         if (dist > conf_.max_lane_width) {
           continue;
         }
-        auto lane_seg = std::make_shared<bps::LaneSegment>();
+        auto lane_seg = std::make_shared<LaneSegment>();
         lane_seg->left_boundary = left_line;
         lane_seg->right_boundary = right_line;
         // 将左右边线id连起来，作为LaneSegment的str_id，
@@ -315,8 +311,8 @@ void LaneConstruct::GenLaneSegInGroupSeg(
   }
 }
 
-float LaneConstruct::DistByKDtree(const Eigen::Vector3f& ref_point,
-                                  const bps::LineSegment& LineSegment) {
+float RoadConstruct::DistByKDtree(const Eigen::Vector3f& ref_point,
+                                  const LineSegment& LineSegment) {
   distpoits_.push_back(ref_point);
   int id = LineSegment.id;
   if (KDTrees_[id] == nullptr) {
@@ -362,11 +358,12 @@ float LaneConstruct::DistByKDtree(const Eigen::Vector3f& ref_point,
   }
 }
 
-float LaneConstruct::GetDistPointLane(const Eigen::Vector3f& point_a,
+float RoadConstruct::GetDistPointLane(const Eigen::Vector3f& point_a,
                                       const Eigen::Vector3f& point_b,
                                       const Eigen::Vector3f& point_c) {
-  Eigen::Vector2f A(point_a.x(), point_a.y()), B(point_b.x(), point_b.y()),
-      C(point_c.x(), point_c.y());
+  Eigen::Vector2f A(point_a.x(), point_a.y());
+  Eigen::Vector2f B(point_b.x(), point_b.y());
+  Eigen::Vector2f C(point_c.x(), point_c.y());
   // 以B为起点计算向量BA 在向量BC上的投影
   Eigen::Vector2f BC = C - B;
   Eigen::Vector2f BA = A - B;
@@ -381,9 +378,9 @@ float LaneConstruct::GetDistPointLane(const Eigen::Vector3f& point_a,
   return point_dist;
 }
 
-void LaneConstruct::EgoLineTrajectory(
-    std::vector<bps::GroupSegment::Ptr>* grp_segment,
-    const em::ElementMap::Ptr& ele_map) {
+void RoadConstruct::EgoLineTrajectory(
+    std::vector<GroupSegment::Ptr>* grp_segment,
+    const ElementMap::Ptr& ele_map) {
   int line1_id = -200, line2_id = -200, near_line = -200;
   for (auto& seg : *grp_segment) {
     int flag = 0;
@@ -424,11 +421,11 @@ void LaneConstruct::EgoLineTrajectory(
              << ego_line_id_.right_id;
 }
 
-void LaneConstruct::FitLaneline(const em::ElementMap::Ptr& ele_map, int id_1,
+void RoadConstruct::FitLaneline(const ElementMap::Ptr& ele_map, int id_1,
                                 int id_2, int near_line) {
   predict_line_params_.clear();
   int size1_s = -1, size2_s = -1, size1_num = 0, size2_num = 0;
-  for (const auto& node : ele_map->boundaries[id_1]->nodes) {
+  for (const auto& node : ele_map->lane_boundaries[id_1]->nodes) {
     if (node->point.x() > -15 && node->point.x() < 15) {
       if (size1_s == -1) {
         size1_s = node->id;
@@ -438,7 +435,7 @@ void LaneConstruct::FitLaneline(const em::ElementMap::Ptr& ele_map, int id_1,
       break;
     }
   }
-  for (const auto& node : ele_map->boundaries[id_2]->nodes) {
+  for (const auto& node : ele_map->lane_boundaries[id_2]->nodes) {
     if (node->point.x() > -15 && node->point.x() < 15) {
       if (size2_s == -1) {
         size2_s = node->id;
@@ -489,10 +486,9 @@ void LaneConstruct::FitLaneline(const em::ElementMap::Ptr& ele_map, int id_1,
 }
 
 // 将所有GroupSegments聚合成一个个Group
-void LaneConstruct::BuildGroups(
-    const em::ElementMap::Ptr& ele_map,
-    std::vector<bps::GroupSegment::Ptr> group_segments,
-    std::vector<bps::Group::Ptr>* groups) {
+void RoadConstruct::BuildGroups(const ElementMap::Ptr& ele_map,
+                                const std::vector<GroupSegment::Ptr>& group_segments,
+                                std::vector<Group::Ptr>* groups) {
   HLOG_DEBUG << "BuildGroups";
   if (group_segments.empty() || groups == nullptr) {
     return;
@@ -509,9 +505,9 @@ void LaneConstruct::BuildGroups(
 // 当前采用的策略是：相邻两个GroupSegment内包含的LaneSegment一样，那就可以聚合到一起；
 // 即每个Group里所有GroupSegment包含的LaneSegment数目都相同，并且LaneSegment的
 // str_id（由边线id组成）也相同.
-void LaneConstruct::UniteGroupSegmentsToGroups(
-    double stamp, std::vector<bps::GroupSegment::Ptr> group_segments,
-    std::vector<bps::Group::Ptr>* groups) {
+void RoadConstruct::UniteGroupSegmentsToGroups(
+    double stamp, const std::vector<GroupSegment::Ptr>& group_segments,
+    std::vector<Group::Ptr>* groups) {
   // HLOG_ERROR << "group_segments.size() = " << group_segments.size();
 
   int grp_idx = -1;
@@ -525,7 +521,7 @@ void LaneConstruct::UniteGroupSegmentsToGroups(
     }
 
     grp_idx += 1;
-    auto grp = std::make_shared<bps::Group>();
+    auto grp = std::make_shared<Group>();
     grp->group_segments.emplace_back(seg);
     grp->seg_str_id = seg->str_id;
     grp->str_id = std::string("G") + std::to_string(grp_idx) +
@@ -537,15 +533,15 @@ void LaneConstruct::UniteGroupSegmentsToGroups(
 
 // 把Group里一个个GroupSegment中包含的小的LaneSegment，纵向上聚合成一个个大的Lane，
 // 并且生成出：左右关联、前后关联、远端预测线、中心线
-void LaneConstruct::GenLanesInGroups(
-    std::vector<bps::Group::Ptr>* groups,
-    std::map<em::Id, em::OccRoad::Ptr> occ_roads, double stamp) {
+void RoadConstruct::GenLanesInGroups(std::vector<Group::Ptr>* groups,
+                                     std::map<Id, OccRoad::Ptr> occ_roads,
+                                     double stamp) {
   if (groups->size() < 1) {
     return;
   }
   HLOG_DEBUG << "GenLanesInGroups";
   for (auto& grp : *groups) {
-    std::vector<bps::Lane::Ptr> possible_lanes;
+    std::vector<Lane::Ptr> possible_lanes;
     possible_lanes.clear();
     // 收集可能的lane
     CollectGroupPossibleLanes(grp, &possible_lanes);
@@ -587,16 +583,16 @@ void LaneConstruct::GenLanesInGroups(
   SmoothCenterline(groups);
 }
 
-void LaneConstruct::CollectGroupPossibleLanes(
-    bps::Group::Ptr grp, std::vector<bps::Lane::Ptr>* possible_lanes) {
+void RoadConstruct::CollectGroupPossibleLanes(
+    const Group::Ptr& grp, std::vector<Lane::Ptr>* possible_lanes) {
   for (const auto& grp_seg : grp->group_segments) {
     if (possible_lanes->empty()) {
       for (const auto& lane_seg : grp_seg->lane_segments) {
-        auto lane = std::make_shared<bps::Lane>();
+        auto lane = std::make_shared<Lane>();
         lane->str_id = lane_seg->str_id;
         lane->lanepos_id = lane_seg->lanepos_id;
         lane->str_id_with_group = grp->str_id + ":" + lane->str_id;
-        lane->left_boundary = std::make_shared<bps::LineSegment>();
+        lane->left_boundary = std::make_shared<LineSegment>();
         lane->left_boundary->id = lane_seg->left_boundary->id;
         lane->left_boundary->lanepos = lane_seg->left_boundary->lanepos;
         lane->left_boundary->type = lane_seg->left_boundary->type;
@@ -618,7 +614,7 @@ void LaneConstruct::CollectGroupPossibleLanes(
         for (const auto& pt : lane_seg->left_boundary->pts) {
           lane->left_boundary->pts.emplace_back(pt);
         }
-        lane->right_boundary = std::make_shared<bps::LineSegment>();
+        lane->right_boundary = std::make_shared<LineSegment>();
         lane->right_boundary->id = lane_seg->right_boundary->id;
         lane->right_boundary->lanepos = lane_seg->right_boundary->lanepos;
         lane->right_boundary->type = lane_seg->right_boundary->type;
@@ -665,10 +661,10 @@ void LaneConstruct::CollectGroupPossibleLanes(
   }
 }
 
-bool LaneConstruct::FilterGroupBadLane(
-    const std::vector<bps::Lane::Ptr>& possible_lanes, bps::Group::Ptr grp) {
+bool RoadConstruct::FilterGroupBadLane(
+    const std::vector<Lane::Ptr>& possible_lanes, const Group::Ptr& grp) {
   // 过滤掉边线只有一个点的lane
-  std::vector<bps::Lane::Ptr> valid_lanes;
+  std::vector<Lane::Ptr> valid_lanes;
   for (const auto& lane : possible_lanes) {
     if (lane != nullptr && lane->left_boundary != nullptr &&
         lane->left_boundary->pts.size() > 1 &&
@@ -680,7 +676,7 @@ bool LaneConstruct::FilterGroupBadLane(
   return true;
 }
 
-bool LaneConstruct::MatchLRLane(bps::Group::Ptr grp) {
+bool RoadConstruct::MatchLRLane(const Group::Ptr& grp) {
   if (grp->lanes.size() > 1) {
     for (int i = 0; i < static_cast<int>(grp->lanes.size()) - 1; ++i) {
       auto& curr = grp->lanes.at(i);
@@ -701,13 +697,13 @@ bool LaneConstruct::MatchLRLane(bps::Group::Ptr grp) {
   return true;
 }
 
-bool LaneConstruct::OptiPreNextLaneBoundaryPoint(
-    std::vector<bps::Group::Ptr>* groups) {
+bool RoadConstruct::OptiPreNextLaneBoundaryPoint(
+    std::vector<Group::Ptr>* groups) {
   for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
     auto& curr_grp = groups->at(i);
     auto& next_grp = groups->at(i + 1);
-    std::map<em::Id, bps::LineSegment::Ptr> curr_lines;
-    std::map<em::Id, bps::LineSegment::Ptr> next_lines;
+    std::map<Id, LineSegment::Ptr> curr_lines;
+    std::map<Id, LineSegment::Ptr> next_lines;
     for (auto& lanes : curr_grp->lanes) {
       if (lanes->left_boundary != nullptr) {
         curr_lines.insert_or_assign(lanes->left_boundary->id,
@@ -729,7 +725,7 @@ bool LaneConstruct::OptiPreNextLaneBoundaryPoint(
       }
     }
     for (auto& curr_line : curr_lines) {
-      em::Id line_id = curr_line.first;
+      Id line_id = curr_line.first;
       if (curr_line.second->pts.empty()) {
         continue;
       }
@@ -749,7 +745,7 @@ bool LaneConstruct::OptiPreNextLaneBoundaryPoint(
   return true;
 }
 
-bool LaneConstruct::GenLaneCenterLine(std::vector<bps::Group::Ptr>* groups) {
+bool RoadConstruct::GenLaneCenterLine(std::vector<Group::Ptr>* groups) {
   for (auto& grp : *groups) {
     for (auto& lane : grp->lanes) {
       FitCenterLine(lane);
@@ -758,7 +754,7 @@ bool LaneConstruct::GenLaneCenterLine(std::vector<bps::Group::Ptr>* groups) {
 
   return true;
 }
-void LaneConstruct::FitCenterLine(bps::Lane::Ptr lane) {
+void RoadConstruct::FitCenterLine(const Lane::Ptr& lane) {
   std::vector<Vec2d> left_pts;
   std::vector<Vec2d> right_pts;
   left_pts.reserve(lane->left_boundary->pts.size());
@@ -772,8 +768,8 @@ void LaneConstruct::FitCenterLine(bps::Lane::Ptr lane) {
   std::vector<Vec2d> cent_pts;
   math::GenerateCenterPoint(left_pts, right_pts, &cent_pts);
   for (const auto& pt : cent_pts) {
-    bps::Point center_p(bps::RAW, static_cast<float>(pt.x()),
-                        static_cast<float>(pt.y()), 0);
+    Point center_p(RAW, static_cast<float>(pt.x()), static_cast<float>(pt.y()),
+                   0);
     lane->center_line_pts.emplace_back(center_p);
   }
   if (lane->center_line_pts.size() > 3) {
@@ -782,8 +778,8 @@ void LaneConstruct::FitCenterLine(bps::Lane::Ptr lane) {
   }
 }
 
-std::vector<double> LaneConstruct::FitLaneline(
-    const std::vector<bps::Point>& centerline) {
+std::vector<double> RoadConstruct::FitLaneline(
+    const std::vector<Point>& centerline) {
   int size_c = centerline.size();
 
   double k = 0.0, kk = 0.0;
@@ -804,8 +800,8 @@ std::vector<double> LaneConstruct::FitLaneline(
   return {k, kk};
 }
 
-std::vector<double> LaneConstruct::FitLanelinefront(
-    const std::vector<bps::Point>& centerline) {
+std::vector<double> RoadConstruct::FitLanelinefront(
+    const std::vector<Point>& centerline) {
   int size_c = centerline.size();
 
   double k = 0.0, kk = 0.0;
@@ -826,7 +822,7 @@ std::vector<double> LaneConstruct::FitLanelinefront(
   return {k, kk};
 }
 
-void LaneConstruct::RemoveNullGroup(std::vector<bps::Group::Ptr>* groups) {
+void RoadConstruct::RemoveNullGroup(std::vector<Group::Ptr>* groups) {
   for (size_t grp_idx = 0; grp_idx < groups->size(); ++grp_idx) {
     auto& curr_group = groups->at(grp_idx);
     HLOG_DEBUG << "REMOVE1 curr_group->group_segments.size()"
@@ -843,7 +839,7 @@ void LaneConstruct::RemoveNullGroup(std::vector<bps::Group::Ptr>* groups) {
   }
 }
 
-void LaneConstruct::SmoothCenterline(std::vector<bps::Group::Ptr>* groups) {
+void RoadConstruct::SmoothCenterline(std::vector<Group::Ptr>* groups) {
   if (groups->empty()) {
     return;
   }
@@ -902,7 +898,7 @@ void LaneConstruct::SmoothCenterline(std::vector<bps::Group::Ptr>* groups) {
         //! TD:后续用距离不用点
         //! TBD:每个点计算曲率，抑制最大曲率
         int lane_index = lane_grp_index[lane->next_lane_str_id_with_group[0]];
-        std::vector<bps::Point> centerpt;
+        std::vector<Point> centerpt;
         auto& cur_centerline = lane->center_line_pts;
         int crr_size = cur_centerline.size();
         if (crr_size >= 10) {
@@ -927,7 +923,7 @@ void LaneConstruct::SmoothCenterline(std::vector<bps::Group::Ptr>* groups) {
             }
           }
         }
-        std::vector<bps::Point> res = SigmoidFunc(centerpt, 5.0);
+        std::vector<Point> res = SigmoidFunc(centerpt, 5.0);
         int res_size = res.size();
         if (crr_size >= res_size) {
           std::copy(res.begin(), res.end(),
@@ -960,7 +956,7 @@ void LaneConstruct::SmoothCenterline(std::vector<bps::Group::Ptr>* groups) {
       } else {
         // 从前往后滑动
         // 一根车道最多两根后继
-        std::vector<bps::Point> next_centerpt;
+        std::vector<Point> next_centerpt;
         int lane_index_next_f =
             lane_grp_index[lane->next_lane_str_id_with_group[0]];
         auto& next_first_lane = next_grp->lanes[lane_index_next_f];
@@ -994,7 +990,7 @@ void LaneConstruct::SmoothCenterline(std::vector<bps::Group::Ptr>* groups) {
             }
           }
         }
-        std::vector<bps::Point> first_ctl = SigmoidFunc(next_centerpt, 5.0);
+        std::vector<Point> first_ctl = SigmoidFunc(next_centerpt, 5.0);
         int first_ctl_size = first_ctl.size();
         if (next_f_ctl_size >= first_ctl_size) {
           std::copy(first_ctl.begin(), first_ctl.end(),
@@ -1058,7 +1054,7 @@ void LaneConstruct::SmoothCenterline(std::vector<bps::Group::Ptr>* groups) {
             }
           }
         }
-        std::vector<bps::Point> second_ctl = SigmoidFunc(next_centerpt, 5.0);
+        std::vector<Point> second_ctl = SigmoidFunc(next_centerpt, 5.0);
         int second_ctl_size = second_ctl.size();
         if (next_s_ctl_size >= second_ctl_size) {
           std::copy(second_ctl.begin(), second_ctl.end(),
@@ -1093,8 +1089,8 @@ void LaneConstruct::SmoothCenterline(std::vector<bps::Group::Ptr>* groups) {
   }
 }
 
-std::vector<bps::Point> LaneConstruct::SigmoidFunc(
-    std::vector<bps::Point> centerline, float sigma) {
+std::vector<Point> RoadConstruct::SigmoidFunc(const std::vector<Point>& centerline,
+                                              float sigma) {
   int size_ct = centerline.size();
   // 中心点数目少于两个点不拟合
   if (centerline.size() < 2) {
@@ -1107,11 +1103,11 @@ std::vector<bps::Point> LaneConstruct::SigmoidFunc(
   if (dis_x < 0.1) {
     return centerline;
   }
-  std::vector<bps::Point> center;
+  std::vector<Point> center;
   center.emplace_back(centerline[0]);
 
   for (int i = 1; i < static_cast<int>(centerline.size()) - 1; ++i) {
-    bps::Point center_p(bps::VIRTUAL, 0.0, 0.0, 0.0);
+    Point center_p(VIRTUAL, 0.0, 0.0, 0.0);
     if (center.back().pt.x() < centerline[i + 1].pt.x()) {
       center_p.pt.x() = centerline[i + 1].pt.x();
       float deta_x = centerline[i + 1].pt.x() - center[0].pt.x();

@@ -19,6 +19,7 @@
 #include <vector>
 
 // #include "map_fusion/fusion_common/common_data.h"
+#include "Eigen/src/Core/Matrix.h"
 #include "modules/map_fusion_02/base/element_base.h"
 // #include "opencv2/core/core.hpp"
 // #include "opencv2/features2d.hpp"
@@ -111,7 +112,7 @@ struct Overlaps {
 };
 
 struct LineSegment : public Line {
-  Point center;
+  Eigen::Vector3f center;
   double dist_to_path;
   DEFINE_PTR(LineSegment)
 };
@@ -152,9 +153,9 @@ struct Lane {
 // 切分GroupSegment的切分线，这条线可以用当时指向车体左侧的向量po->pl表示，
 // 也可以用当时指向车体右侧的向量po->pr表示.
 struct SliceLine {
-  Point po;  // 中心原点
-  Point pl;  // 左边点
-  Point pr;  // 右边点
+  Eigen::Vector3f po;  // 中心原点
+  Eigen::Vector3f pl;  // 左边点
+  Eigen::Vector3f pr;  // 右边点
 };
 
 struct GroupSegment {

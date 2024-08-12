@@ -71,7 +71,7 @@ void BrokenPointSearch::RetrieveBoundaries(const ElementMap::Ptr& ele_map,
 
   bool need_interp = (interp_dist > 0);
 
-  for (const auto& bound_pair : ele_map->boundaries) {
+  for (const auto& bound_pair : ele_map->lane_boundaries) {
     const auto& bound = bound_pair.second;
     if (bound == nullptr) {
       HLOG_ERROR << "found nullptr boundary";

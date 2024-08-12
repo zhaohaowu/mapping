@@ -32,9 +32,9 @@ output：
 
 */
 SMStatus DetectCutPt::DetectCutPoint(
-    const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
+    const std::shared_ptr<std::vector<KinePosePtr>>& path,
     const Sophus::SE3d& Twv, const std::vector<LaneLine::Ptr>& input_lines,
-    const KinePose::Ptr& curr_pose, std::vector<CutPoint>* cutpoints) {
+    const KinePosePtr& curr_pose, std::vector<CutPoint>* cutpoints) {
   HLOG_INFO << "DetectCutPoint!!!!!!";
 
   if (input_lines.empty()) {
@@ -44,7 +44,7 @@ SMStatus DetectCutPt::DetectCutPoint(
 
   lines_local_ = input_lines;
 
-  ProcessPath(path, curr_pose);
+  ProcessPath(path);
 
   whole_pose_path_ = std::vector<Sophus::SE3d>({Twv});
 
@@ -170,7 +170,7 @@ SMStatus DetectCutPt::ComputeCategories(
 }
 
 // 寻找path_中与line_p点最近的一个pose，并返回pose的timestamp
-double DetectCutPt::LinePointDistPath(const Point3D line_p) {
+double DetectCutPt::LinePointDistPath(const Point3D& line_p) {
   HLOG_DEBUG << "line_p: " << line_p.x << ", " << line_p.y;
   double nearest_time = 0.0;
   double min_dist = DBL_MAX;
@@ -188,7 +188,7 @@ double DetectCutPt::LinePointDistPath(const Point3D line_p) {
 }
 
 void DetectCutPt::FindBrokenStart(
-    std::vector<std::vector<LaneLine::Ptr>> categories) {
+    const std::vector<std::vector<LaneLine::Ptr>>& categories) {
   if (path_.empty()) {
     return;
   }
@@ -511,8 +511,7 @@ void DetectCutPt::ReCalculateCutDir(std::vector<CutPoint>* cutpoints) {
 }
 
 void DetectCutPt::ProcessPath(
-    const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
-    const KinePose::Ptr curr_pose) {
+    const std::shared_ptr<std::vector<KinePosePtr>>& path) {
   // local系
   for (auto& p : *path) {
     path_.push_back(*p);
@@ -776,11 +775,11 @@ bool DetectCutPt::UnifiedUpdate(
   return true;
 }
 
-void DetectCutPt::GenerateCutPoint(const id_t id, const id_t main_line_id,
-                                   const id_t target_line_id,
-                                   const Point3D point, const CutPointType type,
+void DetectCutPt::GenerateCutPoint(id_t id, id_t main_line_id,
+                                   id_t target_line_id, const Point3D& point,
+                                   const CutPointType& type,
                                    const Eigen::Vector3d& cutline_dir,
-                                   const std::vector<id_t> line_ids,
+                                   const std::vector<id_t>& line_ids,
                                    const std::vector<Sophus::SE3d>& pose_path,
                                    CutPoint* cut_point_out) {
   Eigen::Vector3d extend_dir = cutline_dir.normalized();
@@ -1332,8 +1331,7 @@ bool DetectCutPt::DetectSplitMergePt(
 }
 
 bool DetectCutPt::CreateFurtherCategory(
-    const std::vector<LinePointsPair>& lines_vehicle_pts,
-    const bool detect_mode,
+    const std::vector<LinePointsPair>& lines_vehicle_pts, bool detect_mode,
     std::vector<std::vector<LaneLine::Ptr>>* all_classified) {
   if (lines_vehicle_pts.size() <= 1) {
     // whole lines size at least 2
@@ -1547,7 +1545,7 @@ bool DetectCutPt::SortSubCategories(
 
 bool DetectCutPt::IsGoodLaneTwoLine(const std::vector<Point3D>& segment1,
                                     const std::vector<Point3D>& segment2,
-                                    const bool start_detect_mode) {
+                                    bool start_detect_mode) {
   float overlap_value;
   if (segment1.size() < 2 || segment2.size() < 2) {
     HLOG_ERROR << "exist input segment pts size too less ";
@@ -1618,7 +1616,7 @@ bool DetectCutPt::IsGoodLaneTwoLine(const std::vector<Point3D>& segment1,
 
 bool DetectCutPt::JudgeSource(const std::vector<Point3D>& points1,
                               const std::vector<Point3D>& points2,
-                              const Point3D& junc_pt, const bool is_split) {
+                              const Point3D& junc_pt, bool is_split) {
   bool pts1_is_source = true;
   Point3D first_pt1, first_pt2;
   if (is_split) {
@@ -1864,7 +1862,7 @@ bool DetectCutPt::GetCategorySubPosePath(
       }
 
       // Todo: dapat pos 只有一个或两个的情况
-      if (IsConsistentOfTwoLines(line->GetPoints(), path_points) == true) {
+      if (IsConsistentOfTwoLines(line->GetPoints(), path_points)) {
         // find new good path
         good_path_indexs.push_back(index);
         break;
@@ -1985,7 +1983,7 @@ bool DetectCutPt::IsConsistentOfTwoLines(const std::vector<Point3D>& points1,
   if (angle > 45.0) {
     return false;
   }
-  if (IsOverLapTwoLine(points1, points2) != true) {  // 计算两条线的重合长度
+  if (!IsOverLapTwoLine(points1, points2)) {  // 计算两条线的重合长度
     HLOG_DEBUG << "IsOverLapTwoLine FALSE ";
     return false;
   }

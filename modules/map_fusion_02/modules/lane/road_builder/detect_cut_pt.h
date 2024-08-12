@@ -17,9 +17,9 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
-#include <unordered_map>
 
 #include <Sophus/se3.hpp>
 #include <Sophus/so3.hpp>
@@ -27,7 +27,7 @@
 #include "modules/map_fusion_02/common/common_data.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/ctp_util.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/cut_point.h"
-#include "util/mapping_log.h"
+#include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
 namespace mp {
@@ -76,10 +76,10 @@ struct JunctionPoint {
 class LaneLine {
  public:
   DEFINE_PTR(LaneLine)
-  LaneLine() {}
+  LaneLine() = default;
   ~LaneLine() = default;
 
-  explicit LaneLine(const LaneLine& line);
+  LaneLine(const LaneLine& line);
   const std::vector<Point3D>& GetPoints() const { return points_; }
   void SetPoints(const std::vector<Point3D>& points) { points_ = points; }
   id_t GetId() const { return id_; }
@@ -94,7 +94,7 @@ class LaneLine {
   std::vector<JunctionPoint> junction_points_;
 };
 
-typedef std::pair<LaneLine::Ptr, std::vector<Point3D>> LinePointsPair;
+using LinePointsPair = std::pair<LaneLine::Ptr, std::vector<Point3D>>;
 
 // for junc pt detect
 struct DetectPointInfo {
@@ -138,10 +138,11 @@ class DetectCutPt {
   DetectCutPt() = default;
   ~DetectCutPt() = default;
 
-  SMStatus DetectCutPoint(
-      const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
-      const Sophus::SE3d& Twv, const std::vector<LaneLine::Ptr>& input_lines,
-      const KinePose::Ptr& curr_pose, std::vector<CutPoint>* cutpoints);
+  SMStatus DetectCutPoint(const std::shared_ptr<std::vector<KinePosePtr>>& path,
+                          const Sophus::SE3d& Twv,
+                          const std::vector<LaneLine::Ptr>& input_lines,
+                          const KinePosePtr& curr_pose,
+                          std::vector<CutPoint>* cutpoints);
 
  private:
   bool DetectSplitMergePt(const std::vector<LinePointsPair>& input_lines,
@@ -150,7 +151,7 @@ class DetectCutPt {
 
   bool JudgeSource(const std::vector<Point3D>& points1,
                    const std::vector<Point3D>& points2, const Point3D& junc_pt,
-                   const bool is_split);
+                   bool is_split);
 
   bool DetectSplitPt(const std::vector<Point3D>& pts1,
                      const std::vector<Point3D>& pts2, Point3D* split_pt);
@@ -192,11 +193,10 @@ class DetectCutPt {
 
   bool IsGoodLaneTwoLine(const std::vector<Point3D>& segment1,
                          const std::vector<Point3D>& segment2,
-                         const bool start_detect_mode);
+                         bool start_detect_mode);
 
   bool CreateFurtherCategory(
-      const std::vector<LinePointsPair>& lines_vehicle_pts,
-      const bool detect_mode,
+      const std::vector<LinePointsPair>& lines_vehicle_pts, bool detect_mode,
       std::vector<std::vector<LaneLine::Ptr>>* all_classified);
 
   bool CutWholePath(const std::vector<Sophus::SE3d>& path,
@@ -214,11 +214,10 @@ class DetectCutPt {
       const std::vector<std::vector<LaneLine::Ptr>>& end_cates,
       std::vector<DetectPointInfo>* infos);
 
-  void GenerateCutPoint(const id_t id, const id_t main_line_id,
-                        const id_t target_line_id, const Point3D point,
-                        const CutPointType type,
+  void GenerateCutPoint(id_t id, id_t main_line_id, id_t target_line_id,
+                        const Point3D& point, const CutPointType& type,
                         const Eigen::Vector3d& cutline_dir,
-                        const std::vector<id_t> line_ids,
+                        const std::vector<id_t>& line_ids,
                         const std::vector<Sophus::SE3d>& pose_path,
                         CutPoint* cut_point_out);
 
@@ -240,9 +239,10 @@ class DetectCutPt {
   SMStatus ComputeCategories(const std::vector<LaneLine::Ptr>& input_lines,
                              std::vector<CategoryInfo>* cate_infos);
 
-  void FindBrokenStart(std::vector<std::vector<LaneLine::Ptr>> categories);
+  void FindBrokenStart(
+      const std::vector<std::vector<LaneLine::Ptr>>& categories);
 
-  double LinePointDistPath(const Point3D line_p);
+  double LinePointDistPath(const Point3D& line_p);
 
   void TransBrokenStart(const Sophus::SE3d& Twv,
                         std::vector<CutPoint>* cutpoints);
@@ -258,8 +258,7 @@ class DetectCutPt {
 
   void ReCalculateCutDir(std::vector<CutPoint>* cutpoints);
 
-  void ProcessPath(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
-                   const KinePose::Ptr curr_pose);
+  void ProcessPath(const std::shared_ptr<std::vector<KinePosePtr>>& path);
 
   template <typename T>
   inline std::string GetElementsIdVec(const std::vector<T>& vec);

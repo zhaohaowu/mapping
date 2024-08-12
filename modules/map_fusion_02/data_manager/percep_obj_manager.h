@@ -12,6 +12,7 @@
 #include <boost/circular_buffer.hpp>
 
 #include "depend/proto/perception/perception_obstacle.pb.h"
+#include "modules/map_fusion_02/base/element_base.h"
 #include "perception-base/base/utils/macros.h"
 
 namespace hozon {

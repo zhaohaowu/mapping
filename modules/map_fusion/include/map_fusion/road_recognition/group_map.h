@@ -378,8 +378,8 @@ class GroupMap {
                   std::vector<Eigen::Vector3f>* fit_points, int num);
   float PointToLaneDis(const Lane::Ptr& lane_ptr, Eigen::Vector3f point);
   void HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
-                      std::vector<LineSegment::Ptr>* lines_need_pred, double threshold,
-                      bool need_pred_kappa);
+                      std::vector<LineSegment::Ptr>* lines_need_pred,
+                      double threshold, bool need_pred_kappa);
   void RelateGroups(std::vector<Group::Ptr>* groups, double stamp);
   std::vector<Point> PredictGuidewirePath(
       std::vector<Group::Ptr>* groups,
@@ -500,6 +500,15 @@ class GroupMap {
   void EraseEgoGroupWithNoEgoLane(
       std::vector<Group::Ptr>*
           groups);  // 把自车所在group但是没有自车道和自车邻车道的group删除
+  void ExtendFrontCenterLine(std::vector<Group::Ptr>* groups);
+  void AddVirtualLine(std::vector<Group::Ptr>* groups);
+  int BesideGroup(
+      Group::Ptr
+          group);  // 是否在group所有lane的左边或右边，是左边1，是右边2，在中间0
+  void BuildVirtualLaneLeft(Group::Ptr group);
+  void BuildVirtualLaneRight(Group::Ptr group);
+  void AddCrossLaneNeighbor(Group::Ptr cross_group,
+                            Group::Ptr next_group);  // 路口生成车道左右邻添加
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;
   std::map<em::Id, Arrow::Ptr> arrow_;
@@ -509,6 +518,7 @@ class GroupMap {
   IsCross is_cross_;
   const double kMergeLengthThreshold = 10.;
   const double kSplitLengthThreshold = 10.;
+  const float kLaneWidth = 3.5;
   std::vector<Pose> path_in_curr_pose_;
   std::vector<Group::Ptr> groups_;
   KinePose::Ptr curr_pose_ = nullptr;

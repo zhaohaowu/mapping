@@ -207,9 +207,9 @@ bool DeadReckoning::IsDrDrift(double cur_time, double vel_x, double p_x,
     d_p_vt = (curr_po[0] - last_po[0]) * last_po[1];
     d_p = std::sqrt(((curr_po[2] - last_po[2]) * (curr_po[2] - last_po[2])) +
                     ((curr_po[3] - last_po[3]) * (curr_po[3] - last_po[3])));
-    if (std::abs(d_p_vt - d_p) > 0.02) {
+    if (std::abs(d_p_vt - d_p) > 0.2) {
       HLOG_WARN << "d_p_vt: " << d_p_vt << " d_p: " << d_p
-                << " diff is larger than 0.02m!!!";
+                << " diff is larger than 0.2m!!!";
       last_po = curr_po;
       return true;
     }

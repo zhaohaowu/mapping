@@ -1681,9 +1681,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     // ctx->global_node = ctx->dr_node;
     // ctx->global_node.rtk_status = ctx->ins_node.rtk_status;
     ctx->global_node.cov = fusion_node.cov;
-#ifdef ISORIN
-    CheckTriggerLocState(ctx);
-#endif
+
     const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(ctx->dr_node);
     const auto& pose = Node2SE3(refer_node) * T_delta;
     ctx->global_node.enu = pose.translation();
@@ -1724,6 +1722,11 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
   ctx->global_node.location_state = loc_state;
 
   ctx->global_node.state = true;
+
+#ifdef ISORIN
+    CheckTriggerLocState(ctx);
+#endif
+
   return true;
 }
 

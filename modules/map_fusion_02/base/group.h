@@ -166,7 +166,6 @@ struct GroupSegment {
   std::vector<LineSegment::Ptr> line_segments;
   std::vector<LaneSegment::Ptr> lane_segments;
   std::string str_id;
-
   DEFINE_PTR(GroupSegment)
 };
 
@@ -187,7 +186,11 @@ struct Group {
 
   // 临时增加， 用于可视化
   std::vector<Point> guide_points_toviz;
-
+  void Clear() {
+    guide_points_toviz.clear();
+    group_segments.clear();
+    lanes.clear();
+  }
   DEFINE_PTR(Group)
   DEFINE_CONST_PTR(Group)
 };

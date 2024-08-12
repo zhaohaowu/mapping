@@ -339,7 +339,7 @@ struct StopLine {
 struct Object {
   Id id;
   ObjType type = UNKNOWN;
-  Eigen::Vector3f position;
+  Eigen::Vector3d position;
   Polygon polygon;  // obstacle corner points.
   Eigen::Vector3f velocity;
   double heading;

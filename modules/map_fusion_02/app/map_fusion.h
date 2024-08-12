@@ -21,10 +21,8 @@
 #include <utility>
 
 #include "base/utils/log.h"
-#include "modules/map_fusion_02/base/element_base.h"
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/data_convert/data_convert.h"
-#include "modules/map_fusion_02/data_manager/dr_data_manager.h"
 #include "modules/map_fusion_02/pipelines/geo_optimization_pipeline.h"
 #include "modules/map_fusion_02/pipelines/lane_fusion_pipeline.h"
 #include "modules/map_fusion_02/pipelines/tlr_fusion_pipeline.h"

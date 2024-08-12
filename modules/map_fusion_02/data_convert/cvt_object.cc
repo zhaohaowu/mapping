@@ -64,9 +64,8 @@ void cvtPb2obj(const ::hozon::perception::PerceptionObstacle& obj,
                Object::Ptr elem_obj) {
   elem_obj->id = obj.track_id();
   FillObjType(elem_obj.get(), obj.type());
-  Eigen::Vector3f point(static_cast<float>(obj.position().x()),
-                        static_cast<float>(obj.position().y()),
-                        static_cast<float>(obj.position().z()));
+  Eigen::Vector3d point(obj.position().x(), obj.position().y(),
+                        obj.position().z());
   elem_obj->position = point;
   Eigen::Vector3f v(static_cast<float>(obj.velocity().x()),
                     static_cast<float>(obj.velocity().y()),

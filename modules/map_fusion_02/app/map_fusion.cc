@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+#include "modules/map_fusion_02/data_manager/dr_data_manager.h"
+#include "modules/map_fusion_02/data_manager/percep_obj_manager.h"
 #include "util/mapping_log.h"
 #include "util/rate.h"
 #include "util/tic_toc.h"
@@ -94,6 +96,10 @@ bool MapFusion::InDataMapping(
 
   if (!DataConvert::LocalMap2ElmentMap(map_msg, cur_elem_map_)) {
     return false;
+  }
+
+  if (!OBJECT_MANAGER->PushObjects(obj_msg)) {
+    HLOG_ERROR << "push perception object failed";
   }
 
   return true;

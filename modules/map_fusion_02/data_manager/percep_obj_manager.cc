@@ -9,6 +9,7 @@
 
 #include <Eigen/Core>
 
+#include "modules/map_fusion_02/data_convert/data_convert.h"
 #include "modules/map_fusion_02/data_manager/dr_data_manager.h"
 
 namespace hozon {

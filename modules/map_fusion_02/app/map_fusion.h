@@ -36,6 +36,8 @@ class MapFusion {
   MapFusion() = default;
   ~MapFusion() = default;
   int Init(const YAML::Node& conf);
+  void OnLocalization(
+      const std::shared_ptr<hozon::localization::Localization>& msg);
   void Stop();
 
   int ProcPercep(
@@ -53,7 +55,6 @@ class MapFusion {
   std::unique_ptr<GeoOptimizationPipeline> geo_optimization_ptr_ = nullptr;
 
   bool InDataMapping(
-      const std::shared_ptr<hozon::localization::Localization>& loc_msg,
       const std::shared_ptr<hozon::mapping::LocalMap>& map_msg,
       const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg);
   bool OutDataMapping(hozon::hdmap::Map* percep_map,

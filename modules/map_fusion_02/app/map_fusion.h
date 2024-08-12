@@ -21,10 +21,8 @@
 #include <utility>
 
 #include "base/utils/log.h"
-#include "modules/map_fusion_02/base/element_base.h"
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/data_convert/data_convert.h"
-#include "modules/map_fusion_02/data_manager/dr_data_manager.h"
 #include "modules/map_fusion_02/pipelines/geo_optimization_pipeline.h"
 #include "modules/map_fusion_02/pipelines/lane_fusion_pipeline.h"
 #include "modules/map_fusion_02/pipelines/tlr_fusion_pipeline.h"
@@ -38,6 +36,8 @@ class MapFusion {
   MapFusion() = default;
   ~MapFusion() = default;
   int Init(const YAML::Node& conf);
+  void OnLocalization(
+      const std::shared_ptr<hozon::localization::Localization>& msg);
   void Stop();
 
   int ProcPercep(
@@ -55,7 +55,6 @@ class MapFusion {
   std::unique_ptr<GeoOptimizationPipeline> geo_optimization_ptr_ = nullptr;
 
   bool InDataMapping(
-      const std::shared_ptr<hozon::localization::Localization>& loc_msg,
       const std::shared_ptr<hozon::mapping::LocalMap>& map_msg,
       const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg);
   bool OutDataMapping(hozon::hdmap::Map* percep_map,

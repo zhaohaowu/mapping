@@ -5,6 +5,8 @@
  *   date       ： 2023.09
  ******************************************************************************/
 
+#pragma once
+
 #include <memory>
 
 #include "depend/proto/local_mapping/local_map.pb.h"

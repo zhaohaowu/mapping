@@ -40,8 +40,9 @@ class DrDataManager {
   ~DrDataManager() = default;
 
  private:
-  /** @brief sensor data buffer. */
+  // 存储原始的location数据信息
   MessageBuffer<LocInfo::ConstPtr> origin_dr_buffer_;
+  // 存储接收到local_map时刻的location数据信息
   MessageBuffer<LocInfo::ConstPtr> local_dr_buffer_;
 
   // 静止策略状态统计量

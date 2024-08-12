@@ -9,6 +9,8 @@
 
 #include <tuple>
 
+#include "modules/map_fusion_02/data_manager/dr_data_manager.h"
+#include "modules/map_fusion_02/data_manager/percep_obj_manager.h"
 #include "util/mapping_log.h"
 #include "util/rate.h"
 #include "util/tic_toc.h"
@@ -61,7 +63,7 @@ int MapFusion::ProcPercep(
   ProcessOption option;
   option.timestamp = curr_local_map->header().data_stamp();
   // 数据输入处理转换
-  if (!InDataMapping(curr_loc, curr_local_map, curr_obj)) {
+  if (!InDataMapping(curr_local_map, curr_obj)) {
     HLOG_ERROR << "Input data mapping failed";
     return -1;
   }
@@ -81,20 +83,26 @@ int MapFusion::ProcPercep(
 }
 
 bool MapFusion::InDataMapping(
-    const std::shared_ptr<hozon::localization::Localization>& loc_msg,
     const std::shared_ptr<hozon::mapping::LocalMap>& map_msg,
     const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg) {
-  if (!DataConvert::Localization2LocInfo(loc_msg, cur_loc_info_)) {
-    return false;
-  }
-
-  if (!DR_MANAGER->PushDrData(cur_loc_info_)) {
-    HLOG_ERROR << "localization timestamp error";
-  }
-
   if (!DataConvert::LocalMap2ElmentMap(map_msg, cur_elem_map_)) {
     return false;
   }
+
+  if (!OBJECT_MANAGER->PushObjects(obj_msg)) {
+    HLOG_ERROR << "push perception object failed";
+  }
+
+  LocInfo::ConstPtr perception_pose =
+      DR_MANAGER->GetDrPoseByTimeStamp(map_msg->header().data_stamp());
+  if (perception_pose == nullptr) {
+    HLOG_ERROR << "map_msg time is:"
+               << std::to_string(map_msg->header().data_stamp());
+    HLOG_ERROR << "map_msg is nullptr";
+    return false;
+  }
+  DR_MANAGER->SetTimeStampDrPose(perception_pose);
+  DR_MANAGER->PushLocalDrData(map_msg->header().data_stamp(), perception_pose);
 
   return true;
 }
@@ -119,6 +127,17 @@ bool MapFusion::OutDataMapping(
   // percep_routing->CopyFrom(*routing);
 
   return true;
+}
+
+void MapFusion::OnLocalization(
+    const std::shared_ptr<hozon::localization::Localization>& loc_msg) {
+  if (!DataConvert::Localization2LocInfo(loc_msg, cur_loc_info_)) {
+    HLOG_ERROR << "Localization2LocInfo error";
+  }
+
+  if (!DR_MANAGER->PushDrData(cur_loc_info_)) {
+    HLOG_ERROR << "localization timestamp error";
+  }
 }
 
 void MapFusion::Clear() {

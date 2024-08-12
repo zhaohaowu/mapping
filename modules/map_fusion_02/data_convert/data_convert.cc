@@ -35,21 +35,21 @@ bool DataConvert::Localization2LocInfo(
   }
 
   loc_info->timestamp = loc_msg->header().data_stamp();
-  loc_info->position.x() = loc_msg->pose_local().position().x();
-  loc_info->position.y() = loc_msg->pose_local().position().y();
-  loc_info->position.z() = loc_msg->pose_local().position().z();
+  loc_info->translation.x() = loc_msg->pose_local().position().x();
+  loc_info->translation.y() = loc_msg->pose_local().position().y();
+  loc_info->translation.z() = loc_msg->pose_local().position().z();
   loc_info->quaternion.w() = loc_msg->pose_local().quaternion().w();
   loc_info->quaternion.x() = loc_msg->pose_local().quaternion().x();
   loc_info->quaternion.y() = loc_msg->pose_local().quaternion().y();
   loc_info->quaternion.z() = loc_msg->pose_local().quaternion().z();
 
-  loc_info->linear_vrf.x() = loc_msg->pose_local().linear_velocity().x();
-  loc_info->linear_vrf.y() = loc_msg->pose_local().linear_velocity().y();
-  loc_info->linear_vrf.z() = loc_msg->pose_local().linear_velocity().z();
-  loc_info->angular_vrf.x() = loc_msg->pose_local().angular_velocity().x();
-  loc_info->angular_vrf.y() = loc_msg->pose_local().angular_velocity().y();
-  loc_info->angular_vrf.z() = loc_msg->pose_local().angular_velocity().z();
-  loc_info->pose = Eigen::Translation3d(loc_info->position) *
+  loc_info->linear_velocity.x() = loc_msg->pose_local().linear_velocity().x();
+  loc_info->linear_velocity.y() = loc_msg->pose_local().linear_velocity().y();
+  loc_info->linear_velocity.z() = loc_msg->pose_local().linear_velocity().z();
+  loc_info->angular_velocity.x() = loc_msg->pose_local().angular_velocity().x();
+  loc_info->angular_velocity.y() = loc_msg->pose_local().angular_velocity().y();
+  loc_info->angular_velocity.z() = loc_msg->pose_local().angular_velocity().z();
+  loc_info->pose = Eigen::Translation3d(loc_info->translation) *
                    Eigen::Affine3d(loc_info->quaternion);
 
   return true;

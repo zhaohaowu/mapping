@@ -79,7 +79,7 @@ struct ElementMap {
   std::map<Id, CenterLine::Ptr> center_lines;
   std::map<Id, CrossWalk::Ptr> cross_walks;
   std::map<Id, LaneIDSet::Ptr> lanes;
-  std::map<Id, Road::Ptr> roads;
+  std::map<Id, RoadEdge::Ptr> roads;
   std::map<Id, StopLine::Ptr> stop_lines;
   std::map<Id, Symbol::Ptr> symbols;
   std::map<Id, TrafficLight::Ptr> traffic_lights;

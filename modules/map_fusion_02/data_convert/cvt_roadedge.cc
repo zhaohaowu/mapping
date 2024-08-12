@@ -18,16 +18,17 @@ void ElemMapAppendRoadEdge(
   for (const auto& road : local_map->road_edges()) {
     RoadEdge road_edge;
     road_edge.id = road.track_id();
-    std::vector<Eigen::Vector3d> road_pts;
+    std::vector<Eigen::Vector3f> road_pts;
     for (const auto& pt : road.points()) {
-      Eigen::Vector3d ptt(pt.x(), pt.y(), pt.z());
-      road_pts.emplace_back(ptt);
+      Eigen::Vector3f ptt(static_cast<float>(pt.x()),
+                          static_cast<float>(pt.y()),
+                          static_cast<float>(pt.z()));
+      road_edge.points.emplace_back(ptt);
     }
     if (road_pts.empty()) {
       continue;
     }
-    road_edge.points.emplace_back(road_pts);
-    element_map_ptr->road_edges[road_edge.id] =
+    element_map_ptr->roads[road_edge.id] =
         std::make_shared<RoadEdge>(road_edge);
   }
 }

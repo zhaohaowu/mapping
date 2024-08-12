@@ -218,7 +218,7 @@ void TransformMap(const ElementMap& map_source,
     map_target->boundary_nodes.insert({it.first, node_target});
   }
 
-  for (const auto& it : map_source.boundaries) {
+  for (const auto& it : map_source.lane_boundaries) {
     if (it.second == nullptr) {
       continue;
     }
@@ -246,7 +246,7 @@ void TransformMap(const ElementMap& map_source,
       bound_target->nodes.emplace_back(map_target->boundary_nodes[node->id]);
     }
 
-    map_target->boundaries.insert({it.first, bound_target});
+    map_target->lane_boundaries.insert({it.first, bound_target});
   }
 
   for (const auto& it : map_source.center_lines) {
@@ -329,29 +329,30 @@ void TransformMap(const ElementMap& map_source,
     map_target->lanes.insert({it.first, lane_target});
   }
 
-  for (const auto& it : map_source.roads) {
-    if (it.second == nullptr) {
-      continue;
-    }
-    const auto& road_source = it.second;
-    auto road_target = std::make_shared<Road>();
-    road_target->id = road_source->id;
-    road_target->road_type = road_source->road_type;
-    road_target->scene_type = road_source->scene_type;
-    road_target->lane_ids.insert(road_target->lane_ids.end(),
-                                 road_source->lane_ids.begin(),
-                                 road_source->lane_ids.end());
-    road_target->prev_road_ids.insert(road_target->prev_road_ids.end(),
-                                      road_source->prev_road_ids.begin(),
-                                      road_source->prev_road_ids.end());
-    road_target->next_road_ids.insert(road_target->next_road_ids.end(),
-                                      road_source->next_road_ids.begin(),
-                                      road_source->next_road_ids.end());
-    road_target->left_boundary_id = road_source->left_boundary_id;
-    road_target->right_boundary_id = road_source->right_boundary_id;
+  // TODO(a): 暂时未定义
+  // for (const auto& it : map_source.roads) {
+  //   if (it.second == nullptr) {
+  //     continue;
+  //   }
+  //   const auto& road_source = it.second;
+  //   auto road_target = std::make_shared<Road>();
+  //   road_target->id = road_source->id;
+  //   road_target->road_type = road_source->road_type;
+  //   road_target->scene_type = road_source->scene_type;
+  //   road_target->lane_ids.insert(road_target->lane_ids.end(),
+  //                                road_source->lane_ids.begin(),
+  //                                road_source->lane_ids.end());
+  //   road_target->prev_road_ids.insert(road_target->prev_road_ids.end(),
+  //                                     road_source->prev_road_ids.begin(),
+  //                                     road_source->prev_road_ids.end());
+  //   road_target->next_road_ids.insert(road_target->next_road_ids.end(),
+  //                                     road_source->next_road_ids.begin(),
+  //                                     road_source->next_road_ids.end());
+  //   road_target->left_boundary_id = road_source->left_boundary_id;
+  //   road_target->right_boundary_id = road_source->right_boundary_id;
 
-    map_target->roads.insert({it.first, road_target});
-  }
+  //   map_target->roads.insert({it.first, road_target});
+  // }
 
   for (const auto& it : map_source.stop_lines) {
     if (it.second == nullptr) {

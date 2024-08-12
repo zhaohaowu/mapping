@@ -13,17 +13,19 @@ namespace mf {
 
 std::string LaneFusionPipeline::Name() const { return "LaneFusionPipeline"; }
 bool LaneFusionPipeline::Init() {
-  broken_point_search_ = std::make_unique<BrokenPointSearch>();
-  broken_point_search_->Init();
+  // broken_point_search_ = std::make_unique<BrokenPointSearch>();
+  // broken_point_search_->Init();
   return true;
 }
 
-void LaneFusionPipeline::Clear() { broken_point_search_->Clear(); }
+void LaneFusionPipeline::Clear() { 
+  // broken_point_search_->Clear(); 
+  }
 
 bool LaneFusionPipeline::Process(const ProcessOption& option,
                                  ElementMap::Ptr element_map_ptr,
                                  Group::Ptr group_ptr) {
-  broken_point_search_->Process(element_map_ptr);
+  // broken_point_search_->Process(element_map_ptr);
   return true;
 }
 

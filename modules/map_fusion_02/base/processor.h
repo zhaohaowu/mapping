@@ -15,7 +15,7 @@ class ProcessorBase {
   ProcessorBase() = default;
   virtual ~ProcessorBase() = default;
   ProcessorBase(const ProcessorBase&) = delete;
-  ProcessorBase operator=(const ProcessorBase&) = delete;
+  ProcessorBase& operator=(const ProcessorBase&) = delete;
   virtual bool Init() = 0;
   virtual void Clear() = 0;
 };

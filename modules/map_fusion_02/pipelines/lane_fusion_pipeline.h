@@ -12,7 +12,6 @@
 
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/base/interface_option.h"
-#include "modules/map_fusion_02/modules/lane/broken_point_search.h"
 #include "modules/map_fusion_02/pipelines/base_fusion_pipeline.h"
 
 namespace hozon {
@@ -36,8 +35,6 @@ class LaneFusionPipeline : public BaseFusionPipeline {
   // 私有函数
  private:
   // 私有成员变量
-  std::unique_ptr<BrokenPointSearch> broken_point_search_ =
-      nullptr;  // 车道线匹配器
 };
 }  // namespace mf
 }  // namespace mp

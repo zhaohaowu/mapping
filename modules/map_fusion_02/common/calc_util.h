@@ -22,6 +22,7 @@
 #include "modules/map_fusion_02/common/common_data.h"
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/base/group.h"
+#include "modules/util/include/util/mapping_log.h"
 
 
 namespace hozon {

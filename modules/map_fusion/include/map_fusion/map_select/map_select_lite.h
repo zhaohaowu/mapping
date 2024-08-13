@@ -293,6 +293,9 @@ class MapSelectLite {
   std::string switch_map_reason_;
   std::string current_car_lane_;
   double angle_limit_ = 90;
+  int percep_map_limint_count_ = 5;
+  int percep_map_count_ = 0;
+  bool check_last_fusion_map_failed_ = false;
 };
 }  // namespace select
 }  // namespace mf

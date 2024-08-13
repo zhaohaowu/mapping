@@ -137,17 +137,22 @@ MapSelectResult MapSelectLite::Process(
   }
   bool fusion_available =
       FusionMapAvailable(fusion_map, localization, localization);
-  if (fusion_available) {
+  if ((fusion_available) && ((percep_map_count_ > percep_map_limint_count_) ||
+                             (!check_last_fusion_map_failed_))) {
     HLOG_DEBUG << "fct valid, nnp on, fusion available";
+    percep_map_count_ = 0;
+    check_last_fusion_map_failed_ = false;
     //! TBD：当前默认都是FUSION_NNP，不考虑FUSION_NCP
     return {MapMsg::FUSION_NNP_MAP, true, 0};
   }
 
   bool percep_available = PercepMapAvailable(perc_map, localization);
   if (percep_available) {
+    percep_map_count_++;
     HLOG_DEBUG << "fct valid, nnp on, fusion unavailable, percep available";
     return {MapMsg::PERCEP_MAP, true, 1};
   }
+  check_last_fusion_map_failed_ = false;
   HLOG_DEBUG << "fct valid, nnp on, fusion unavailable, percep unavailable";
   return {MapMsg::INVALID, false, 2};
 }
@@ -1668,6 +1673,7 @@ bool MapSelectLite::FusionMapAvailable(
       CheckMapMsg(map, local_loc, valid_local_loc && valid_global_loc, true);
   bool available = valid_local_loc && valid_global_loc && valid_fusion_map;
   if (!available) {
+    check_last_fusion_map_failed_ = true;
     HLOG_INFO << "local_loc " << (valid_local_loc ? "valid" : "invalid")
               << ", global_loc " << (valid_global_loc ? "valid" : "invalid")
               << ", fusion_map " << (valid_fusion_map ? "valid" : "invalid")

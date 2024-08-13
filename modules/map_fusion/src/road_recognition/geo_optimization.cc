@@ -1446,7 +1446,7 @@ void GeoOptimization::FilterReverseLine() {
     HandleOppisiteLine(double_solid_yellow_pts);
   } else {
     // HandleOppisiteLineByStopline();停止线过滤目前不稳定
-    // HandleOppisiteLineByObjAndYelloLine();  // 融合障碍物和黄线过滤对向车道
+    HandleOppisiteLineByObjAndYelloLine();  // 融合障碍物和黄线过滤对向车道
   }
 }
 

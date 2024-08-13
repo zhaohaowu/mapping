@@ -87,6 +87,9 @@ class OccGuideLineManager {
   std::shared_ptr<hozon::mapping::LaneLine> TransformBoundary2PbLine(
       const em::Boundary::Ptr& line);
 
+  float GetTwoBoundayDis(const em::Boundary::Ptr& left_boundary,
+                         const em::Boundary::Ptr& right_boundary);
+
  private:
   bool ComputerPointIsInLine(const Eigen::Vector3f& P, const Eigen::Vector3f& A,
                              const Eigen::Vector3f& B);

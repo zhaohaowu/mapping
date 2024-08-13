@@ -60,8 +60,8 @@ void FillObjType(hozon::mp::mf::Object* obj,
       break;
   }
 }
-void cvtPb2obj(const ::hozon::perception::PerceptionObstacle& obj,
-               Object::Ptr elem_obj) {
+void DataConvert::cvtPb2obj(const ::hozon::perception::PerceptionObstacle& obj,
+                            Object::Ptr elem_obj) {
   elem_obj->id = obj.track_id();
   FillObjType(elem_obj.get(), obj.type());
   Eigen::Vector3d point(obj.position().x(), obj.position().y(),

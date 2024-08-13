@@ -79,7 +79,7 @@ struct ElementMap {
   std::map<Id, CenterLine::Ptr> center_lines;
   std::map<Id, CrossWalk::Ptr> cross_walks;
   std::map<Id, LaneIDSet::Ptr> lanes;
-  std::map<Id, RoadEdge::Ptr> roads;
+  std::map<Id, RoadEdge::Ptr> road_edges;
   std::map<Id, StopLine::Ptr> stop_lines;
   std::map<Id, Symbol::Ptr> symbols;
   std::map<Id, TrafficLight::Ptr> traffic_lights;
@@ -90,7 +90,7 @@ struct ElementMap {
     lane_boundaries.clear();
     center_lines.clear();
     cross_walks.clear();
-    roads.clear();
+    road_edges.clear();
     stop_lines.clear();
     symbols.clear();
     traffic_lights.clear();

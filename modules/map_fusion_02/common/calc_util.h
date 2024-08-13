@@ -16,14 +16,12 @@
 #include <mutex>
 #include <string>
 #include <vector>
-#include <mutex>
 
 #include "modules/map_fusion_02/base/element_base.h"
-#include "modules/map_fusion_02/common/common_data.h"
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/base/group.h"
+#include "modules/map_fusion_02/common/common_data.h"
 #include "modules/util/include/util/mapping_log.h"
-
 
 namespace hozon {
 namespace mp {
@@ -32,9 +30,25 @@ namespace mf {
 inline double DegToRad(double deg) { return deg * M_PI / 180; }
 inline double RadToDeg(double rad) { return 180 * rad / M_PI; }
 
-template <typename T>
-T CubicResolve(T c3, T c2, T c1, T c0, T x) {
-  return c3 * x * x * x + c2 * x * x + c1 * x + c0;
+template <typename T, typename M>
+T CubicResolve(const std::vector<T>& coefs, M t) {
+  int order = coefs.size();
+  switch (order) {
+    case 4: {
+      return ((coefs[3] * t + coefs[2]) * t + coefs[1]) * t + coefs[0];
+    }
+    case 3: {
+      return (coefs[2] * t + coefs[1]) * t + coefs[0];
+    }
+    case 2: {
+      return coefs[1] * t + coefs[0];
+    }
+    case 1: {
+      return coefs[0];
+    }
+    default:
+      return 0.0;
+  }
 }
 
 template <typename T>
@@ -47,11 +61,30 @@ bool OutRange(T x, T min_x, T max_x) {
   return (x < min_x || x > max_x);
 }
 
-bool InCubicRange(float x, const LineCubic& cubic);
+template <typename T>
+bool InCubicRange(T x, const LineCubic& cubic) {
+  return x >= cubic.start && x <= cubic.end;
+}
 
-/// 采样三次多项式曲线
+// 采样三次多项式曲线
+template <typename T>
 void SamplingCubic(const LineCubic& cubic, float step,
-                   std::vector<Eigen::Vector3f>* pts);
+                   std::vector<Eigen::Matrix<T, 3, 1>>* pts) {
+  if (pts == nullptr) return;
+
+  pts->clear();
+  float x = cubic.start;
+  while (x < cubic.end) {
+    float y = CubicResolve(cubic.coefs, x);
+    Eigen::Matrix<T, 3, 1> pt(x, y, 0);
+    pts->emplace_back(pt);
+
+    x += step;
+  }
+  x = cubic.end;
+  float end_y = CubicResolve(cubic.coefs, x);
+  pts->emplace_back(x, end_y, 0);
+}
 
 double NowInSec();
 
@@ -484,10 +517,8 @@ class Rate {
   double actual_cycle_time_;
 };
 
-void TransformMap(const ElementMap& map_source,
-                  const Pose& T_source_to_target,
-                  const std::string& target_frame_id,
-                  ElementMap* map_target);
+void TransformMap(const ElementMap& map_source, const Pose& T_source_to_target,
+                  const std::string& target_frame_id, ElementMap* map_target);
 
 namespace math {
 

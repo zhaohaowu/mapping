@@ -9,34 +9,13 @@
 #include <depend/common/math/double_type.h>
 
 #include <thread>
+
 #include "Eigen/src/Core/Matrix.h"
 #include "base/element_base.h"
 
 namespace hozon {
 namespace mp {
 namespace mf {
-
-bool InCubicRange(float x, const LineCubic& cubic) {
-  return x >= cubic.start && x <= cubic.end;
-}
-
-void SamplingCubic(const LineCubic& cubic, float step,
-                   std::vector<Eigen::Vector3f>* pts) {
-  if (pts == nullptr) return;
-
-  pts->clear();
-  float x = cubic.start;
-  while (x < cubic.end) {
-    float y = CubicResolve(cubic.c3, cubic.c2, cubic.c1, cubic.c0, x);
-    Eigen::Vector3f pt(x, y, 0);
-    pts->emplace_back(pt);
-
-    x += step;
-  }
-  x = cubic.end;
-  float end_y = CubicResolve(cubic.c3, cubic.c2, cubic.c1, cubic.c0, x);
-  pts->emplace_back(Eigen::Vector3f(x, end_y, 0));
-}
 
 double NowInSec() {
   timespec ts{};
@@ -177,10 +156,8 @@ double Rate::CycleTime() const { return actual_cycle_time_; }
 
 double Rate::ExpectedCycleTime() const { return expected_cycle_time_; }
 
-void TransformMap(const ElementMap& map_source,
-                  const Pose& T_source_to_target,
-                  const std::string& target_frame_id,
-                  ElementMap* map_target) {
+void TransformMap(const ElementMap& map_source, const Pose& T_source_to_target,
+                  const std::string& target_frame_id, ElementMap* map_target) {
   if (map_target == nullptr) {
     return;
   }

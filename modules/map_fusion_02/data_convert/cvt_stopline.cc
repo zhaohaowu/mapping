@@ -12,7 +12,7 @@
 namespace hozon {
 namespace mp {
 namespace mf {
-void ElemMapAppendStopLine(
+void DataConvert::ElemMapAppendStopLine(
     const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
     ElementMap::Ptr element_map_ptr) {
   for (const auto& stop_line : local_map->stop_lines()) {

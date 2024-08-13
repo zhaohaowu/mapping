@@ -23,6 +23,24 @@ struct ProcessOption : public BaseProcessOption {
   Eigen::Affine3d T_cur_last = Eigen::Affine3d::Identity();
 };
 
+struct LaneFusionProcessOption : public BaseProcessOption {
+  float path_predict_range = 80.0;
+  float path_back_range = 80.0;
+  float path_interval = 1.0;
+  int state_detect_range = 10;
+  // 对上游车道线进行插值的点间距，-1时不插值
+  float lane_line_interp_dist = 0.0;
+  // 用于分割GroupSegment的分割线的1/2长度
+  float half_slice_length = 0.0;
+  // 从线聚合到lane的宽度阈值
+  float min_lane_width = 0.0;
+  float max_lane_width = 0.0;
+  /// 以下用于填充proto里的lane和road限速:
+  float lane_speed_limit_kmph = 0.0;
+  float road_min_max_speed_kmph = 0.0;
+  float road_max_max_speed_kmph = 0.0;
+};
+
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon

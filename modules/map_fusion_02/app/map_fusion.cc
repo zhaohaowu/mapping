@@ -33,6 +33,7 @@ int MapFusion::Init(const YAML::Node& conf) {
   geo_optimization_ptr_ = std::make_unique<GeoOptimizationPipeline>();
   // road construction
   lane_fusion_ptr_ = std::make_unique<LaneFusionPipeline>();
+  lane_fusion_ptr_->Init();
 
   // TODO(a): map service
 
@@ -48,6 +49,23 @@ void MapFusion::Stop() {
 
   HLOG_ERROR << "done stopping map prediction";
   HLOG_ERROR << "done stopping map fusion";
+}
+
+int MapFusion::OnLocalization(
+    const std::shared_ptr<hozon::localization::Localization>& loc_msg) {
+  if (!DataConvert::Localization2LocInfo(loc_msg, cur_loc_info_)) {
+    HLOG_ERROR << "Localization2LocInfo error";
+    return -1;
+  }
+
+  if (!DR_MANAGER->PushDrData(cur_loc_info_)) {
+    HLOG_ERROR << "localization timestamp error";
+    return -1;
+  }
+
+  lane_fusion_ptr_->InsertPose(cur_loc_info_);
+
+  return 0;
 }
 
 int MapFusion::ProcPercep(
@@ -70,7 +88,7 @@ int MapFusion::ProcPercep(
   // 各个pipeline处理
   HLOG_DEBUG << "Proc Pilot start!";
   geo_optimization_ptr_->Process(option, cur_elem_map_);
-  lane_fusion_ptr_->Process(option, cur_elem_map_, cur_group_);
+  lane_fusion_ptr_->Process(cur_elem_map_);
   HLOG_DEBUG << "Proc Pilot end!";
   // 输出数据处理转换
   if (!OutDataMapping(fusion_map, routing)) {
@@ -127,17 +145,6 @@ bool MapFusion::OutDataMapping(
   // percep_routing->CopyFrom(*routing);
 
   return true;
-}
-
-void MapFusion::OnLocalization(
-    const std::shared_ptr<hozon::localization::Localization>& loc_msg) {
-  if (!DataConvert::Localization2LocInfo(loc_msg, cur_loc_info_)) {
-    HLOG_ERROR << "Localization2LocInfo error";
-  }
-
-  if (!DR_MANAGER->PushDrData(cur_loc_info_)) {
-    HLOG_ERROR << "localization timestamp error";
-  }
 }
 
 void MapFusion::Clear() {

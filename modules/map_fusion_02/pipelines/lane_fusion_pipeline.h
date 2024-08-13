@@ -12,10 +12,13 @@
 #include <memory>
 #include <string>
 
+#include "map_fusion_02/modules/lane/path_manager.h"
+#include "map_fusion_02/modules/lane/road_builder/broken_point_search.h"
 #include "map_fusion_02/modules/lane/road_builder/road_construct.h"
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/base/interface_option.h"
 #include "modules/map_fusion_02/pipelines/base_fusion_pipeline.h"
+#include "perception-lib/lib/config_manager/config_manager.h"
 
 namespace hozon {
 namespace mp {
@@ -26,8 +29,8 @@ class LaneFusionPipeline : public BaseFusionPipeline {
   bool Init() override;
   void Clear() override;
 
-  bool Process(const ProcessOption& option, ElementMap::Ptr element_map_ptr,
-               Group::Ptr group_ptr);
+  void InsertPose(const LocInfo::Ptr& pose);
+  bool Process(const ElementMap::Ptr& element_map_ptr) const;
 
   std::string Name() const override;
 
@@ -35,6 +38,10 @@ class LaneFusionPipeline : public BaseFusionPipeline {
   // 私有函数
  private:
   // 私有成员变量
+  bool initialized_ = false;
+  LaneFusionProcessOption options_;
+  PathManagerPtr path_manager_ = nullptr;
+  BrokenPointSearchPtr broken_pt_search_ = nullptr;
   RoadConstructPtr road_constructor_ = nullptr;
 };
 

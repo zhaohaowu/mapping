@@ -41,7 +41,7 @@ class BrokenPointSearch {
   bool SearchCtp(const std::shared_ptr<std::vector<KinePosePtr>>& path,
                  const KinePosePtr& curr_pose, const ElementMap::Ptr& ele_map);
   void GetCutPoints(std::vector<CutPoint>* cut_points);
-  void GetLinse(std::deque<Line::Ptr>* lines);
+  void GetLines(std::deque<Line::Ptr>* lines);
 
  private:
   void RetrieveBoundaries(const ElementMap::Ptr& ele_map, float interp_dist,
@@ -55,6 +55,8 @@ class BrokenPointSearch {
   std::vector<CutPoint> cutpoints_;
   std::shared_ptr<DetectCutPt> detect_cut_pt_;
 };
+
+using BrokenPointSearchPtr = std::unique_ptr<BrokenPointSearch>;
 
 }  // namespace mf
 }  // namespace mp

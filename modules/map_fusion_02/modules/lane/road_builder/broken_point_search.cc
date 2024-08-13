@@ -48,7 +48,7 @@ void BrokenPointSearch::GetCutPoints(std::vector<CutPoint>* cut_points) {
   }
 }
 
-void BrokenPointSearch::GetLinse(std::deque<Line::Ptr>* lines) {
+void BrokenPointSearch::GetLines(std::deque<Line::Ptr>* lines) {
   if (lines == nullptr) {
     return;
   }

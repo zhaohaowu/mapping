@@ -10,11 +10,15 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
+void RoadConstruct::Init(const LaneFusionProcessOption& conf) {
+  conf_ = conf;
+  HLOG_INFO << "Road construct init";
+}
+
 bool RoadConstruct::ConstructLane(
     const std::vector<CutPoint>& cutpoints, std::deque<Line::Ptr> lines,
     const std::shared_ptr<std::vector<KinePosePtr>>& path,
-    const KinePosePtr& curr_pose, const KinePosePtr& last_pose,
-    const ElementMap::Ptr& ele_map) {
+    const KinePosePtr& curr_pose, const ElementMap::Ptr& ele_map) {
   BuildKDtrees(&lines);
   UpdatePathInCurrPose(*path, *curr_pose);
   BuildGroupSegments(cutpoints, &lines, &group_segments_, ele_map);
@@ -486,9 +490,10 @@ void RoadConstruct::FitLaneline(const ElementMap::Ptr& ele_map, int id_1,
 }
 
 // 将所有GroupSegments聚合成一个个Group
-void RoadConstruct::BuildGroups(const ElementMap::Ptr& ele_map,
-                                const std::vector<GroupSegment::Ptr>& group_segments,
-                                std::vector<Group::Ptr>* groups) {
+void RoadConstruct::BuildGroups(
+    const ElementMap::Ptr& ele_map,
+    const std::vector<GroupSegment::Ptr>& group_segments,
+    std::vector<Group::Ptr>* groups) {
   HLOG_DEBUG << "BuildGroups";
   if (group_segments.empty() || groups == nullptr) {
     return;
@@ -1089,8 +1094,8 @@ void RoadConstruct::SmoothCenterline(std::vector<Group::Ptr>* groups) {
   }
 }
 
-std::vector<Point> RoadConstruct::SigmoidFunc(const std::vector<Point>& centerline,
-                                              float sigma) {
+std::vector<Point> RoadConstruct::SigmoidFunc(
+    const std::vector<Point>& centerline, float sigma) {
   int size_ct = centerline.size();
   // 中心点数目少于两个点不拟合
   if (centerline.size() < 2) {

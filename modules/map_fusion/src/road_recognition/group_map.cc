@@ -6222,6 +6222,9 @@ void GroupMap::BuildVirtualLaneLeft(Group::Ptr group) {
   }
   // HLOG_DEBUG << "lane_in_curr name is " << lane_in_curr->str_id_with_group;
   auto lane_in_curr = group->lanes[0];
+  if (lane_in_curr->center_line_param_front.empty()) {
+    return;
+  }
   Lane lane_pre;
   LineSegment left_bound;
   left_bound.id = lane_in_curr->left_boundary->id + 4000;
@@ -6292,6 +6295,9 @@ void GroupMap::BuildVirtualLaneRight(Group::Ptr group) {
   }
   // HLOG_DEBUG << "lane_in_curr name is " << lane_in_curr->str_id_with_group;
   auto lane_in_curr = group->lanes.back();
+  if (lane_in_curr->center_line_param_front.empty()) {
+    return;
+  }
   Lane lane_pre;
   LineSegment right_bound;
   right_bound.id = lane_in_curr->right_boundary->id + 4000;

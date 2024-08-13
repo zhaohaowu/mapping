@@ -18,8 +18,8 @@ bool LaneFusionPipeline::Init() {
   return true;
 }
 
-void LaneFusionPipeline::Clear() { 
-  // broken_point_search_->Clear(); 
+void LaneFusionPipeline::Clear() {
+  // broken_point_search_->Clear();
   }
 
 bool LaneFusionPipeline::Process(const ProcessOption& option,

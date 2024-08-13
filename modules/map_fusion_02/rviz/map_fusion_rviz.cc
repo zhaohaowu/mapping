@@ -25,6 +25,11 @@ bool MapFusionRviz::Init() {
     return false;
   }
 
+  if (!model_config->get_value("rviz_addr_mfr", &rviz_addr_mfr_)) {
+    HLOG_ERROR << "Get rviz_addr_mfr failed!";
+    return false;
+  }
+
   if (!model_config->get_value("viz_topic_input_ele_map",
                                &viz_topic_input_ele_map_)) {
     HLOG_ERROR << "Get viz_topic_input_ele_map_ failed!";

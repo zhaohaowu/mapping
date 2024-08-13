@@ -11,13 +11,16 @@
 
 #include <memory>
 #include <string>
+#include <filesystem>
+#include <vector>
 
-#include "map_fusion_02/modules/lane/path_manager.h"
-#include "map_fusion_02/modules/lane/road_builder/broken_point_search.h"
-#include "map_fusion_02/modules/lane/road_builder/road_construct.h"
+#include "modules/map_fusion_02/modules/lane/path_manager.h"
+#include "modules/map_fusion_02/modules/lane/road_builder/broken_point_search.h"
+#include "modules/map_fusion_02/modules/lane/road_builder/road_construct.h"
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/base/interface_option.h"
 #include "modules/map_fusion_02/pipelines/base_fusion_pipeline.h"
+#include "modules/map_fusion_02/rviz/map_fusion_rviz.h"
 #include "perception-lib/lib/config_manager/config_manager.h"
 
 namespace hozon {
@@ -43,6 +46,7 @@ class LaneFusionPipeline : public BaseFusionPipeline {
   PathManagerPtr path_manager_ = nullptr;
   BrokenPointSearchPtr broken_pt_search_ = nullptr;
   RoadConstructPtr road_constructor_ = nullptr;
+  MapFusionRvizPtr mf_rviz_ = nullptr;
 };
 
 using LaneFusionPipelinePtr = std::unique_ptr<LaneFusionPipeline>;

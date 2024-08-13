@@ -7,16 +7,6 @@
 
 #include "modules/map_fusion_02/pipelines/lane_fusion_pipeline.h"
 
-#include <filesystem>
-#include <memory>
-#include <vector>
-
-#include "base/element_base.h"
-#include "base/utils/log.h"
-#include "modules/lane/path_manager.h"
-#include "modules/lane/road_builder/broken_point_search.h"
-#include "modules/lane/road_builder/cut_point.h"
-
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -90,6 +80,14 @@ bool LaneFusionPipeline::Init() {
     return false;
   }
 
+  mf_rviz_ = std::unique_ptr<MapFusionRviz>();
+  auto ret = mf_rviz_->Init();
+  if (!ret) {
+    HLOG_FATAL << "RvizAgent init failed";
+  } else {
+    HLOG_INFO << "RvizAgent init success";
+  }
+
   path_manager_ = std::make_shared<PathManager>();
   path_manager_->Init(options_);
 
@@ -139,10 +137,13 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
     return false;
   }
 
+  mf_rviz_->VizEleMap(element_map_ptr);
+
   // 获取历史和预测轨迹
   auto path = std::make_shared<std::vector<KinePosePtr>>();
   path_manager_->GetPath(path.get());
   auto curr_pose = path_manager_->LatestPose();
+  mf_rviz_->VizPath(*path, *curr_pose);
 
   // 计算切分点和切分线
   BrokenPointSearch bps;
@@ -154,6 +155,7 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
 
   std::vector<CutPoint> cut_points;
   bps.GetCutPoints(&cut_points);
+  mf_rviz_->VizCutpoint(cut_points, element_map_ptr->map_info.stamp);
 
   std::deque<Line::Ptr> lines;
   bps.GetLines(&lines);
@@ -168,9 +170,11 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
 
   std::vector<Eigen::Vector3f> distpoints;
   road_constructor_->GetDistPoints(&distpoints);
+  mf_rviz_->VizDistpoint(distpoints, element_map_ptr->map_info.stamp);
 
   std::vector<Group::Ptr> groups;
   road_constructor_->GetGroups(&groups);
+  mf_rviz_->VizGroup(groups, element_map_ptr->map_info.stamp);
 
   return true;
 }

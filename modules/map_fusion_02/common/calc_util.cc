@@ -65,64 +65,6 @@ void InterpPose(const Pose& T_a_0, const Pose& T_a_1, const Pose& T_b_0,
   T_b_1->pos = T_fb_1.translation();
 }
 
-int PoseQueue::CheckStamp(double stamp) {
-  std::lock_guard<std::mutex> lock(mtx_);
-  if (queue_.empty()) {
-    return 2;
-  }
-  if (stamp < queue_.front().stamp) {
-    return -1;
-  }
-  if (stamp > queue_.back().stamp) {
-    return 1;
-  }
-  return 0;
-}
-
-int PoseQueue::Interp(double stamp, Pose* pose) {
-  std::lock_guard<std::mutex> lock(mtx_);
-  if (pose == nullptr) {
-    return -1;
-  }
-
-  auto cmp = [](const Pose& x, const Pose& y) -> bool {
-    return x.stamp < y.stamp;
-  };
-  Pose tmp;
-  tmp.stamp = stamp;
-  auto it = std::lower_bound(queue_.begin(), queue_.end(), tmp, cmp);
-  if (it == queue_.end()) {
-    return -1;
-  }
-
-  if (it == queue_.begin() && it->stamp > stamp) {
-    return -1;
-  }
-
-  if (it->stamp == stamp) {
-    *pose = *it;
-    return 0;
-  }
-
-  auto it_prev = std::prev(it);
-
-  auto ratio = (stamp - it_prev->stamp) / (it->stamp - it_prev->stamp);
-
-  pose->stamp = stamp;
-  if (ratio < 1e-3) {
-    pose->pos = it_prev->pos;
-    pose->quat = it_prev->quat;
-  } else if ((1 - ratio) < 1e-3) {
-    pose->pos = it->pos;
-    pose->quat = it->quat;
-  } else {
-    pose->pos = (1 - ratio) * it_prev->pos + ratio * it->pos;
-    pose->quat = it_prev->quat.slerp(ratio, it->quat);
-  }
-
-  return 0;
-}
-
 Rate::Rate(double hz) : expected_cycle_time_(1. / hz), actual_cycle_time_(0.) {
   start_ = NowInSec();
 }
@@ -639,6 +581,16 @@ double CalculateHeading(const Eigen::Quaternionf& q1,
   auto angle_rad = static_cast<double>(AngleDiff(pre_yaw, cur_yaw));
 
   return angle_rad;
+}
+
+bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
+             const Eigen::Vector3d& B) {
+  Eigen::Vector3d AB = B - A;
+  Eigen::Vector3d AP = P - A;
+  double ABLength = AB.norm();
+  double t = AB.dot(AP) / ABLength;
+  Eigen::Vector3d C = A + t * AB;
+  return C.y() > P.y();  // 由于y轴是指向左边，所以c<p的意思是p是否在c的右边
 }
 
 }  // namespace math

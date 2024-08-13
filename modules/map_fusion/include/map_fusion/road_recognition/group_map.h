@@ -12,13 +12,16 @@
 #include <deque>
 #include <map>
 #include <memory>
+#include <queue>
 #include <set>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
+#include "boost/circular_buffer.hpp"
 #include "map_fusion/fusion_common/common_data.h"
+#include "map_fusion/road_recognition/base_data.h"
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d.hpp"
 
@@ -239,7 +242,6 @@ struct IsCross {
   std::set<std::string>
       next_satisefy_lane_seg;  // 记录路口后满足连接条件的所有lane名称
 };
-
 struct HistoryId {
   int lane_id = 0;
   int road_id = 0;
@@ -250,40 +252,9 @@ struct EgoLane {
   int right_id = -200;
 };
 
-enum RoadScene {
-  NON_JUNCTION = 0,
-  BIG_JUNCTUIN = 1,
-  SMALL_JUNCTION = 2,
-};
-
-class GuidePathManager {
- public:
-  explicit GuidePathManager(const GroupMapConf& conf) : conf_(conf) {
-    lane_groups_ = nullptr;
-    occ_roads_ = nullptr;
-  }
-  void LoadData(std::vector<Group::Ptr>* groups,
-                std::map<em::Id, em::OccRoad::Ptr>* occ_roads);
-  std::vector<Point> GetGuidePath();
-
- protected:
-  RoadScene GetCurrentRoadScene();
-  std::vector<Point> GetCwForwardLaneGuidePoints();  // 获取路口前向车道引导点
-  std::vector<Point> GetRoadEdgeGuidePoints();  // 获取模型路沿引导点
-  // void GetSDPlanningNodesGuidePoint(){};  // 获取定位/sd数据引导点
-  // void GetModelGuideLineGuidePoint(){};   // 获取模型引导线引导点
-
- private:
-  std::vector<Group::Ptr>* lane_groups_;
-  std::map<em::Id, em::OccRoad::Ptr>* occ_roads_;
-
-  GroupMapConf conf_;
-};
-
 class GroupMap {
  public:
   explicit GroupMap(const GroupMapConf& conf) : conf_(conf) {
-    guide_path_manager_ = std::make_shared<GuidePathManager>(conf);
   }
   ~GroupMap() = default;
 
@@ -291,6 +262,14 @@ class GroupMap {
              const KinePose::Ptr& curr_pose, const KinePose::Ptr& last_pose,
              const em::ElementMap::Ptr& ele_map, IsCross* is_cross);
   void GetGroups(std::vector<Group::Ptr>* groups);
+
+  void Clear();
+
+  void SetCurrentRoadScene(const std::vector<Group::Ptr>* groups);
+
+  RoadScene GetCurrentRoadScene() { return road_scene_; }
+
+  std::vector<Point> GetJunctionGuidePoint();
   std::shared_ptr<hozon::hdmap::Map> Export(const em::ElementMap::Ptr& ele_map,
                                             HistoryId* history_id);
   void SetSpeedLimit(const std::pair<double, double>& map_speed_limit);
@@ -384,7 +363,7 @@ class GroupMap {
   void RelateGroups(std::vector<Group::Ptr>* groups, double stamp);
   std::vector<Point> PredictGuidewirePath(
       std::vector<Group::Ptr>* groups,
-      std::map<em::Id, em::OccRoad::Ptr> occ_roads);
+      std::map<em::Id, em::OccRoad::Ptr> occ_roads, const double stamp);
   void RemoveNullGroup(std::vector<Group::Ptr>* groups);
   void RemainOnlyOneForwardCrossWalk(std::vector<Group::Ptr>* groups);
   bool MatchLanePtAndStopLine(const em::Point& left_pt,
@@ -506,6 +485,11 @@ class GroupMap {
   void EraseEgoGroupWithNoEgoLane(
       std::vector<Group::Ptr>*
           groups);  // 把自车所在group但是没有自车道和自车邻车道的group删除
+
+  bool IsAngleOkOfCurGrpAndNextGrp(Group::Ptr curr_group,
+                                   Group::Ptr next_group);
+  bool AreAdjacentLaneGroupsDisconnected(Group::Ptr curr_group,
+                                         Group::Ptr next_group);
   double GetLaneLength(const std::vector<Group::Ptr>& groups,
                        std::string str_id_with_group);
 
@@ -536,7 +520,6 @@ class GroupMap {
   double delta_pose_heading_ = 0.;
   std::vector<GroupSegment::Ptr> group_segments_;
   EgoLane ego_line_id_;
-  std::shared_ptr<GuidePathManager> guide_path_manager_;
   Lane::Ptr history_best_lane_ = nullptr;
   Lane::Ptr ego_curr_lane_ = nullptr;
   std::map<int, std::shared_ptr<cv::flann::Index>> KDTrees_;
@@ -547,6 +530,9 @@ class GroupMap {
   inline bool IsSpeedLimitValid(const std::pair<double, double>& speed_limit) {
     return (speed_limit.first > 0. && speed_limit.second);
   }
+
+  RoadScene road_scene_ = RoadScene::NON_JUNCTION;
+  float big_junction_dis_thresh_ = 30.0;
 };
 
 }  // namespace gm

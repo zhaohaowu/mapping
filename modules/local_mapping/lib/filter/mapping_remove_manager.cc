@@ -30,8 +30,7 @@ bool MappingRemoveManager::IsForkConvergelike(
   if (point_set1.empty() || point_set2.empty()) {
     return false;
   }
-  HLOG_DEBUG << "left_line id" << left_line->Id()
-             << " ,right_line id:" << right_line->Id();
+
   // 分合流线场景
   float line1_length = GetLength(point_set1);
   float line2_length = GetLength(point_set2);

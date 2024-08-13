@@ -13,9 +13,11 @@
 #include <cmath>
 #include <cstddef>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "Eigen/src/Core/Matrix.h"
@@ -36,6 +38,19 @@ struct LaneWithNextLanes {
   Lane::Ptr lane = nullptr;
   std::vector<Lane::Ptr> next_lanes;
 };
+
+void GroupMap::Clear() {
+  zebra_.clear();
+  arrow_.clear();
+  stopline_.clear();
+  overlaps_.clear();
+  groups_.clear();
+  group_segments_.clear();
+  ego_line_id_.left_id = -200;
+  ego_line_id_.right_id = -200;
+  history_best_lane_ = nullptr;
+  ego_curr_lane_ = nullptr;
+}
 
 bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
                      const KinePose::Ptr& curr_pose,
@@ -153,6 +168,224 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
   is_cross->is_crossing_ = is_cross_.is_crossing_;
   is_cross->next_satisefy_lane_seg = is_cross_.next_satisefy_lane_seg;
   return true;
+}
+
+void GroupMap::SetCurrentRoadScene(const std::vector<Group::Ptr>* groups) {
+  if (groups->size() == 0) {
+    road_scene_ = RoadScene::BIG_JUNCTUIN;
+    return;
+  }
+  if (groups->size() == 1) {
+    auto& last_group = groups->back();
+    if (last_group->group_state == Group::GroupState::VIRTUAL ||
+        last_group->group_segments.empty()) {
+      road_scene_ = RoadScene::NON_JUNCTION;
+      return;
+    }
+    Eigen::Vector2f next_start_pl(
+        last_group->group_segments.front()->start_slice.pl.x(),
+        last_group->group_segments.front()->start_slice.pl.y());
+    Eigen::Vector2f next_start_pr(
+        last_group->group_segments.front()->start_slice.pr.x(),
+        last_group->group_segments.front()->start_slice.pr.y());
+
+    Eigen::Vector2f next_start_po(
+        last_group->group_segments.front()->start_slice.po.x(),
+        last_group->group_segments.front()->start_slice.po.y());
+
+    Eigen::Vector2f next_end_pl(
+        last_group->group_segments.back()->start_slice.pl.x(),
+        last_group->group_segments.back()->start_slice.pl.y());
+    Eigen::Vector2f next_end_pr(
+        last_group->group_segments.back()->start_slice.pr.x(),
+        last_group->group_segments.back()->start_slice.pr.y());
+    Eigen::Vector2f next_end_po(
+        last_group->group_segments.back()->start_slice.po.x(),
+        last_group->group_segments.back()->start_slice.po.y());
+
+    Eigen::Vector2f ego_pos(0.0, 0.0);
+    if (next_start_po.x() > 0.0) {
+      road_scene_ = RoadScene::SMALL_JUNCTION;
+      return;
+    } else if (next_end_po.x() > big_junction_dis_thresh_) {
+      road_scene_ = RoadScene::NON_JUNCTION;
+      return;
+    } else {
+      road_scene_ = RoadScene::BIG_JUNCTUIN;
+      return;
+    }
+  } else {
+    // 存在两个及以上的group时， 判断最远的group是否在车后。
+    auto& first_group = groups->front();
+    auto& last_group = groups->back();
+    if (last_group->group_state != Group::GroupState::VIRTUAL &&
+        !last_group->group_segments.empty()) {
+      Eigen::Vector2f next_end_pl(
+          last_group->group_segments.back()->end_slice.pl.x(),
+          last_group->group_segments.back()->end_slice.pl.y());
+      Eigen::Vector2f next_end_pr(
+          last_group->group_segments.back()->end_slice.pr.x(),
+          last_group->group_segments.back()->end_slice.pr.y());
+      Eigen::Vector2f next_end_po(
+          last_group->group_segments.back()->end_slice.po.x(),
+          last_group->group_segments.back()->end_slice.po.y());
+      Eigen::Vector2f ego_pos(0.0, 0.0);
+
+      // 如果路口出现在车子的后面，
+      // if (PointInVectorSide(next_end_pr, next_end_pl, ego_pos) > 0) {
+      //   return RoadScene::BIG_JUNCTUIN;
+      // }
+
+      if (next_end_po.x() < 0.0) {
+        // HLOG_ERROR << "2222222222222222 BIG" << "pl x:" << next_end_pl.x()
+        // << "pr x:" << next_end_pr.x()
+        //  << ", dist value" << PointToVectorDist(next_end_pr, next_end_pl,
+        //  ego_pos)
+        //  << ", dist" <<int(PointToVectorDist(next_end_pr, next_end_pl,
+        //  ego_pos) >
+        //       big_junction_dis_thresh_) << ", side:" <<
+        //       int(PointInVectorSide(next_end_pr, next_end_pl, ego_pos) <= 0);
+        road_scene_ = RoadScene::BIG_JUNCTUIN;
+        return;
+      }
+    }
+    // 存在两个及以上的group时， 判断最近的group是否在车前。
+    if (first_group->group_state != Group::GroupState::VIRTUAL &&
+        !first_group->group_segments.empty()) {
+      Eigen::Vector2f next_start_pl(
+          first_group->group_segments.front()->start_slice.pl.x(),
+          first_group->group_segments.front()->start_slice.pl.y());
+      Eigen::Vector2f next_start_pr(
+          first_group->group_segments.front()->start_slice.pr.x(),
+          first_group->group_segments.front()->start_slice.pr.y());
+      Eigen::Vector2f next_start_po(
+          first_group->group_segments.front()->start_slice.po.x(),
+          first_group->group_segments.front()->start_slice.po.y());
+      Eigen::Vector2f ego_pos(0.0, 0.0);
+
+      // 如果路口出现在车子的前面，
+      // if (PointInVectorSide(next_start_pr, next_start_pl, ego_pos) < 0) {
+      //   return RoadScene::SMALL_JUNCTION;
+      // }
+      if (next_start_po.x() > 0.0) {
+        // HLOG_ERROR << "2222222222222222 SMALL" << "pl x:" <<
+        // next_start_po.x();
+        road_scene_ = RoadScene::SMALL_JUNCTION;
+        return;
+      }
+    }
+
+    // bool has_cw_forward_group = false;
+    for (int grp_idx = 0; grp_idx < static_cast<int>(groups->size()) - 1;
+         ++grp_idx) {
+      auto& curr_group = groups->at(grp_idx);
+      auto& next_group = groups->at(grp_idx + 1);
+      // 路口新建出来的group，先跳过。
+      if (curr_group->group_segments.empty() ||
+          next_group->group_segments.empty() ||
+          curr_group->group_state == Group::GroupState::VIRTUAL ||
+          next_group->group_state == Group::GroupState::VIRTUAL) {
+        continue;
+      }
+
+      Eigen::Vector2f next_start_pl(
+          next_group->group_segments.front()->start_slice.pl.x(),
+          next_group->group_segments.front()->start_slice.pl.y());
+      Eigen::Vector2f next_start_pr(
+          next_group->group_segments.front()->start_slice.pr.x(),
+          next_group->group_segments.front()->start_slice.pr.y());
+      Eigen::Vector2f next_start_po(
+          next_group->group_segments.front()->start_slice.po.x(),
+          next_group->group_segments.front()->start_slice.po.y());
+      Eigen::Vector2f ego_pos(0.0, 0.0);
+      Eigen::Vector2f next_end_pl(
+          next_group->group_segments.back()->end_slice.pl.x(),
+          next_group->group_segments.back()->end_slice.pl.y());
+      Eigen::Vector2f next_end_pr(
+          next_group->group_segments.back()->end_slice.pr.x(),
+          next_group->group_segments.back()->end_slice.pr.y());
+      Eigen::Vector2f next_end_po(
+          next_group->group_segments.back()->end_slice.po.x(),
+          next_group->group_segments.back()->end_slice.po.y());
+
+      // 在车后面的， 直接跳过（前面已经判断过group全部位于车后的情况）
+      // if (PointInVectorSide(next_end_pr, next_end_pl, ego_pos) > 0) {
+      //   continue;
+      // }
+      if (next_end_po.x() < 0.0) {
+        continue;
+      }
+
+      if (AreAdjacentLaneGroupsDisconnected(curr_group, next_group)) {
+        if (!IsAngleOkOfCurGrpAndNextGrp(curr_group, next_group)) {
+          // 路口转弯等场景则跳过。
+          continue;
+        }
+
+        // 如果路口出现在车子的后面，
+        // if (PointInVectorSide(next_start_pr, next_start_pl, ego_pos) < 0) {
+        //   return RoadScene::SMALL_JUNCTION;
+        // }
+
+        if (next_start_po.x() > 0.0) {
+          // HLOG_ERROR << "3333333333 SMALL" << "pl x:" << next_start_po.x();
+          road_scene_ = RoadScene::SMALL_JUNCTION;
+          return;
+        }
+      }
+    }
+
+    // 20米判断的逻辑
+    if (last_group->group_state != Group::GroupState::VIRTUAL &&
+        !last_group->group_segments.empty()) {
+      Eigen::Vector2f next_end_pl(
+          last_group->group_segments.back()->end_slice.pl.x(),
+          last_group->group_segments.back()->end_slice.pl.y());
+      Eigen::Vector2f next_end_pr(
+          last_group->group_segments.back()->end_slice.pr.x(),
+          last_group->group_segments.back()->end_slice.pr.y());
+      Eigen::Vector2f next_end_po(
+          last_group->group_segments.back()->end_slice.po.x(),
+          last_group->group_segments.back()->end_slice.po.y());
+      Eigen::Vector2f ego_pos(0.0, 0.0);
+
+      // 设置阈值时，需要特别小心， 当pose出现预测偏差时，距离很可能会计算错误。
+      // if (PointToVectorDist(next_end_pr, next_end_pl, ego_pos) >
+      //         big_junction_dis_thresh_ &&
+      //     PointInVectorSide(next_end_pr, next_end_pl, ego_pos) <= 0) {
+      //   return RoadScene::NON_JUNCTION;
+      // } else {
+      //   HLOG_ERROR << "333333333333333333 BIG" << "pl x:" << next_end_pl.x()
+      //   << "pr x:" << next_end_pr.x()
+      //    << ", dist value" << PointToVectorDist(next_end_pr, next_end_pl,
+      //    ego_pos)
+      //    << ", dist" <<int(PointToVectorDist(next_end_pr, next_end_pl,
+      //    ego_pos) >
+      //         big_junction_dis_thresh_) << ", side:" <<
+      //         int(PointInVectorSide(next_end_pr, next_end_pl, ego_pos) <= 0);
+      //   return RoadScene::BIG_JUNCTUIN;
+      // }
+
+      if (next_end_po.x() > big_junction_dis_thresh_) {
+        road_scene_ = RoadScene::NON_JUNCTION;
+        return;
+      } else {
+        // HLOG_ERROR << "333333333333333333 BIG" << "pl x:" << next_end_pl.x()
+        // << "pr x:" << next_end_pr.x()
+        //  << ", dist value" << PointToVectorDist(next_end_pr, next_end_pl,
+        //  ego_pos)
+        //  << ", dist" <<int(PointToVectorDist(next_end_pr, next_end_pl,
+        //  ego_pos) >
+        //       big_junction_dis_thresh_) << ", side:" <<
+        //       int(PointInVectorSide(next_end_pr, next_end_pl, ego_pos) <= 0);
+        road_scene_ = RoadScene::BIG_JUNCTUIN;
+        return;
+      }
+    }
+
+    road_scene_ = RoadScene::NON_JUNCTION;
+    return;
+  }
 }
 
 // 从原始ElementMap里提取出车道线：
@@ -2130,24 +2363,6 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
       }
     }
   }
-}
-
-std::vector<Point> GroupMap::PredictGuidewirePath(
-    std::vector<Group::Ptr>* groups,
-    std::map<em::Id, em::OccRoad::Ptr> occ_roads) {
-  // 目前只支持额外处理模型路沿数据（sd行驶点，模型引导线、occ路沿暂不支持）
-  guide_path_manager_->LoadData(groups, &occ_roads);
-  std::vector<Point> guide_points = guide_path_manager_->GetGuidePath();
-  if (guide_points.size() == 3) {
-    Eigen::Vector2f dst_point{guide_points[1].pt.x(), guide_points[1].pt.y()};
-    float dst_point_angle = std::atan2(dst_point.y(), dst_point.x());
-    HLOG_DEBUG << "dst_point_angle:" << dst_point_angle;
-    if (guide_points[1].pt.x() < 0.0 ||
-        std::abs(dst_point_angle) > M_PI / 2.0) {
-      guide_points.clear();
-    }
-  }
-  return guide_points;
 }
 
 void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
@@ -4140,48 +4355,17 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
     // 仅保留前向只有一个路口存在
     RemainOnlyOneForwardCrossWalk(groups);
   }
+
+  SetCurrentRoadScene(groups);
   RelateGroups(groups, stamp);
   // 1351477
   ExtendFrontCenterLine(groups);
   AvoidSplitMergeLane(groups);
-  // 拿车道组和模型路沿来做引导线
-  HLOG_DEBUG << "current stamp is:" << std::to_string(stamp);
-  std::vector<Point> guide_points;
-  guide_points = PredictGuidewirePath(groups, occ_roads);
-  guide_points.clear();
-  if (guide_points.empty()) {
-    HLOG_DEBUG << "point empty!!!";
-  }
-  for (int i = 0; i < guide_points.size(); ++i) {
-    auto& point = guide_points[i];
-    HLOG_DEBUG << "guide point idx: " << i << ", x:" << point.pt.x()
-               << ", y:" << point.pt.y() << ", z:" << point.pt.z();
-  }
-  // //
-  // 根据guide_points和path生成参考线以及三次曲线方程和曲线变化率,并更新groups中的对应字段
-  ComputeLineCurvatureV2(&guide_points, groups, stamp);
-
   SmoothCenterline(groups);
-
 #if 0
   OptiNextLane(groups);
 #endif
   LaneForwardPredict(groups, stamp);
-  // // 打印点
-  // for (auto& grp : *groups) {
-  //   for (auto& lane_grp : grp->lanes) {
-  //     HLOG_ERROR << "lane_grp->str_id_with_group ="
-  //                << lane_grp->str_id_with_group;
-  //     for (auto& ct_p : lane_grp->center_line_pts) {
-  //       HLOG_ERROR << "ct_p.pt.x() = " << ct_p.pt.x()
-  //                  << "  ct_p.pt.y() = " << ct_p.pt.y();
-  //     }
-  //   }
-  // }
-  // 可视化引导点使用
-  if (!groups->empty()) {
-    groups->front()->guide_points_toviz = guide_points;
-  }
 }
 
 void GroupMap::CollectGroupPossibleLanes(
@@ -7566,6 +7750,7 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
             em::LaneType_SHORT_DASHED,
             em::LaneType_DOUBLE_DASHED,
             em::LaneType_FISHBONE_DASHED,
+            em::LaneType_INTERSECTION_VIRTUAL_MARKING,
         };
         std::set<em::LineType> solid = {
             em::LaneType_SOLID,
@@ -8112,7 +8297,8 @@ void GroupMap::RemoveNullGroup(std::vector<Group::Ptr>* groups) {
   }
 }
 
-bool IsAngleOkOfCurGrpAndNextGrp(Group::Ptr curr_group, Group::Ptr next_group) {
+bool GroupMap::IsAngleOkOfCurGrpAndNextGrp(Group::Ptr curr_group,
+                                           Group::Ptr next_group) {
   int curr_grp_gs_size = curr_group->group_segments.size();
   auto cur_group_v =
       (curr_group->group_segments[curr_grp_gs_size - 1]->end_slice.po -
@@ -8124,8 +8310,8 @@ bool IsAngleOkOfCurGrpAndNextGrp(Group::Ptr curr_group, Group::Ptr next_group) {
   return cur_group_v.dot(next_group_v) > 0.707 ? true : false;
 }
 
-bool AreAdjacentLaneGroupsDisconnected(Group::Ptr curr_group,
-                                       Group::Ptr next_group) {
+bool GroupMap::AreAdjacentLaneGroupsDisconnected(Group::Ptr curr_group,
+                                                 Group::Ptr next_group) {
   // 判断curr_group的最后一个groupsegment的中心点和next_group的第一个groupsegment的中心点的距离
   HLOG_DEBUG << "curr_group->group_segments size:"
              << curr_group->group_segments.size()
@@ -8195,326 +8381,6 @@ void GroupMap::RemainOnlyOneForwardCrossWalk(std::vector<Group::Ptr>* groups) {
   if (junction_group_idxs.size() >= 2) {
     int second_grp_idx = junction_group_idxs[1];
     groups->erase(groups->begin() + second_grp_idx + 1, groups->end());
-  }
-}
-
-void GuidePathManager::LoadData(std::vector<Group::Ptr>* groups,
-                                std::map<em::Id, em::OccRoad::Ptr>* occ_roads) {
-  // 将外部数据存放到成员变量中，方便使用。
-  lane_groups_ = groups;
-  occ_roads_ = occ_roads;
-}
-
-RoadScene GuidePathManager::GetCurrentRoadScene() {
-  // 2. 车道组只保证只有最多一个前向路口的情况(不保留2个及以上的路口存在)。
-  // 返回值表示是否存在路口进入车道组。
-  bool has_cw_forward_group = false;
-  if (lane_groups_->size() >= 2) {
-    auto& curr_group =
-        lane_groups_->at(static_cast<int>(lane_groups_->size()) - 2);
-    auto& next_group =
-        lane_groups_->at(static_cast<int>(lane_groups_->size()) - 1);
-    if (curr_group->group_state == Group::GroupState::VIRTUAL ||
-        next_group->group_state == Group::GroupState::VIRTUAL) {
-      return RoadScene::NON_JUNCTION;
-    }
-
-    if (curr_group->group_segments.empty() ||
-        next_group->group_segments.empty()) {
-      return RoadScene::NON_JUNCTION;
-    }
-
-    if (AreAdjacentLaneGroupsDisconnected(curr_group, next_group)) {
-      if (IsAngleOkOfCurGrpAndNextGrp(curr_group, next_group)) {
-        Eigen::Vector2f next_start_pl(
-            next_group->group_segments.front()->start_slice.pl.x(),
-            next_group->group_segments.front()->start_slice.pl.y());
-        Eigen::Vector2f next_start_pr(
-            next_group->group_segments.front()->start_slice.pr.x(),
-            next_group->group_segments.front()->start_slice.pr.y());
-        Eigen::Vector2f ego_pos(0.0, 0.0);
-        if (PointInVectorSide(next_start_pr, next_start_pl, ego_pos) <= 0) {
-          has_cw_forward_group = true;
-        }
-      }
-    }
-  } else {
-    has_cw_forward_group = false;
-  }
-
-  // 3. 判断当前车辆所在道路的场景（识别是大路口、小路口、非路口等场景）
-  if (has_cw_forward_group) {
-    // 能看到路口前向进入车道，即为小路口
-    return RoadScene::SMALL_JUNCTION;
-  } else if (lane_groups_->size() == 0) {
-    // 超大路口情况
-    return RoadScene::BIG_JUNCTUIN;
-  } else {
-    Eigen::Vector2f next_end_pl(
-        lane_groups_->back()->group_segments.back()->end_slice.pl.x(),
-        lane_groups_->back()->group_segments.back()->end_slice.pl.y());
-    Eigen::Vector2f next_end_pr(
-        lane_groups_->back()->group_segments.back()->end_slice.pr.x(),
-        lane_groups_->back()->group_segments.back()->end_slice.pr.y());
-    Eigen::Vector2f ego_pos(0.0, 0.0);
-    if (PointToVectorDist(next_end_pr, next_end_pl, ego_pos) > 50 &&
-        PointInVectorSide(next_end_pr, next_end_pl, ego_pos) <= 0) {
-      return RoadScene::NON_JUNCTION;
-    } else {
-      return RoadScene::BIG_JUNCTUIN;
-    }
-  }
-}
-
-std::vector<Point> GuidePathManager::GetCwForwardLaneGuidePoints() {
-  std::vector<Point> guide_points;
-  guide_points.clear();
-
-  const auto& cw_front_group = lane_groups_->back();
-  std::vector<float> all_lane_to_ego_heading;
-  for (const auto& lane : cw_front_group->lanes) {
-    const auto& center_first_point = lane->center_line_pts.front().pt;
-    if (center_first_point.x() < 0.0) {
-      continue;
-    }
-    if (lane->center_line_pts.size() < 2 ||
-        lane->left_boundary->pts.size() < 2 ||
-        lane->right_boundary->pts.size() < 2) {
-      continue;
-    }
-    all_lane_to_ego_heading.emplace_back(
-        std::abs(std::atan2(center_first_point.y(), center_first_point.x())));
-  }
-
-  if (all_lane_to_ego_heading.empty()) {
-    return {};
-  }
-
-  // 使用std::min_element找到最小元素的迭代器
-  auto minIt = std::min_element(all_lane_to_ego_heading.begin(),
-                                all_lane_to_ego_heading.end());
-  auto min_index = std::distance(all_lane_to_ego_heading.begin(), minIt);
-  const auto& nearest_lane = cw_front_group->lanes[min_index];
-
-  int percent_20_num =
-      std::max(static_cast<int>(nearest_lane->center_line_pts.size() * 0.2), 2);
-  // 找到中心线的平均heading值
-  float line_radians_mean_heading = 0.0;
-  for (int i = 0; i < percent_20_num - 1; ++i) {
-    const auto& first_point = nearest_lane->center_line_pts[i].pt;
-    const auto& second_point = nearest_lane->center_line_pts[i + 1].pt;
-    Eigen::Vector2f first_point_2f(first_point.x(), first_point.y());
-    Eigen::Vector2f second_point_2f(second_point.x(), second_point.y());
-    Eigen::Vector2f delta = second_point_2f - first_point_2f;
-    // 使用 atan2 函数计算角度，返回值范围是 (-π, π]
-    line_radians_mean_heading += std::atan2(delta.y(), delta.x());
-  }
-
-  // 从左边界近端点、右边界近端点的延长线上， 找一个合适角度的点作为目标点。
-  line_radians_mean_heading /= percent_20_num;
-  const auto& left_bd_first_point = nearest_lane->left_boundary->pts.front().pt;
-  Eigen::Vector2f left_bd_first_point_2f(left_bd_first_point.x(),
-                                         left_bd_first_point.y());
-  const auto& right_bd_first_point =
-      nearest_lane->right_boundary->pts.front().pt;
-  Eigen::Vector2f right_bd_first_point_2f(right_bd_first_point.x(),
-                                          right_bd_first_point.y());
-  const auto& center_first_point = nearest_lane->center_line_pts.front().pt;
-
-  float ego_to_lane_center =
-      std::atan2(center_first_point.y(), center_first_point.x());
-  HLOG_DEBUG << "forward center point:"
-             << ", center.x()" << center_first_point.x() << ", center.y()"
-             << center_first_point.y() << "atan2:" << ego_to_lane_center
-             << ", line_radians_mean_heading" << line_radians_mean_heading;
-
-  // 最优车道目标角度的衰减速率。
-  float guide_heading_value =
-      std::min(std::abs(ego_to_lane_center * conf_.junction_guide_angle_ratio),
-               static_cast<float>(conf_.junction_guide_max_degree * 0.017));
-  guide_heading_value =
-      ego_to_lane_center > 0 ? guide_heading_value : -1 * guide_heading_value;
-
-  // 进入车道距离自车长度短，则约束角度为0.1度.
-  if (center_first_point.x() < conf_.junction_guide_min_dis) {
-    guide_heading_value = guide_heading_value > 0 ? 0.0017 : -0.0017;
-  }
-
-  HLOG_DEBUG << "guide_heading_value:" << guide_heading_value;
-  Eigen::Vector2f query_point = math::FindPointOnExtendedLine(
-      left_bd_first_point_2f, right_bd_first_point_2f, guide_heading_value);
-
-  // heading方向补个设定长度。
-  Eigen::Vector2f extend_point =
-      math::AddPointAlongHeading(query_point, line_radians_mean_heading,
-                                 conf_.junction_heading_along_length);
-
-  // 加入车辆远点坐标
-  guide_points.emplace_back(Point(PointType::PREDICTED, 0.0, 0.0, 0.0));
-  guide_points.emplace_back(
-      Point(PointType::PREDICTED, query_point.x(), query_point.y(), 0.0));
-  guide_points.emplace_back(
-      Point(PointType::PREDICTED, extend_point.x(), extend_point.y(), 0.0));
-
-  return guide_points;
-}
-
-std::vector<Point> GuidePathManager::GetRoadEdgeGuidePoints() {
-  HLOG_DEBUG << "use_bev_roadedge" << conf_.use_bev_roadedge;
-  if (!conf_.use_bev_roadedge) {
-    return {};
-  }
-  std::vector<Point> guide_points;
-  guide_points.clear();
-
-  if (occ_roads_->size() == 0) {
-    // 没有模型路沿输出时，则返回空的引导点
-    return {};
-  } else if (occ_roads_->size() == 1) {
-    // 仅一条路沿的情况下，暂定为不进行任何处理。
-    return {};
-  } else {
-    // 两条及以上路沿的情况下，找到能构成正常宽度的路沿组，优先选择位置靠右的路沿组。
-    // 拿最近的一条路沿计算heading。
-
-    // 1. 找到全部为前向的路沿数据。
-    // std::map<em::Id, em::OccRoad::Ptr> forward_roadedges;
-    std::vector<em::OccRoad::Ptr> forward_roadedges;
-    for (const auto& occ : *occ_roads_) {
-      // 暂时使用头部两个端点计算heading，（后续需要优化heading计算方法）
-      auto& track_id = occ.first;
-      auto& occ_road = occ.second;
-      if (occ_road->is_forward && occ_road->road_points.size() > 10) {
-        forward_roadedges.push_back(occ_road);
-      }
-    }
-
-    if (forward_roadedges.size() < 2) {
-      return {};
-    }
-    // 2. 从右到左排序。选择位置最靠右的路沿道
-    std::vector<std::pair<int, float>> sort_ydis_indexs;
-    for (int i = 0; i < forward_roadedges.size(); ++i) {
-      const auto& track_id = forward_roadedges[i]->track_id;
-      const auto& y_dis = forward_roadedges[i]->road_points.front().y();
-      sort_ydis_indexs.push_back(std::pair<int, float>(track_id, y_dis));
-    }
-
-    std::sort(sort_ydis_indexs.begin(), sort_ydis_indexs.end(),
-              [](std::pair<int, float>& a, std::pair<int, float>& b) {
-                return a.second < b.second;
-              });
-
-    // 找最靠右的路沿组
-    std::vector<em::OccRoad::Ptr> query_roadedges;
-    for (int i = 0; i < sort_ydis_indexs.size(); ++i) {
-      em::Id index = sort_ydis_indexs[i].first;
-      auto& roadedge_data = occ_roads_->at(index);
-      if (static_cast<int>(roadedge_data->left_occ_id) != -1) {
-        query_roadedges.push_back(
-            occ_roads_->at(roadedge_data->left_occ_id));  // 左侧路沿
-        query_roadedges.push_back(roadedge_data);         // 右侧路沿
-        break;
-      }
-    }
-
-    // 找不到构成路沿正常宽度的两条路沿，则不做任何处理。
-    if (query_roadedges.size() < 2) {
-      return {};
-    }
-
-    // 找左侧路沿前20%点平均heading值
-    int percent_20_num = std::max(
-        static_cast<int>(query_roadedges[0]->road_points.size() * 0.2), 2);
-    float left_roadedge_radians_mean_heading = 0.0;
-    for (int i = 0; i < percent_20_num - 1; ++i) {
-      const auto& first_point = query_roadedges[0]->road_points[i];
-      const auto& second_point = query_roadedges[0]->road_points[i + 1];
-      Eigen::Vector2f first_point_2f(first_point.x(), first_point.y());
-      Eigen::Vector2f second_point_2f(second_point.x(), second_point.y());
-      Eigen::Vector2f delta = second_point_2f - first_point_2f;
-      // 使用 atan2 函数计算角度，返回值范围是 (-π, π]
-      left_roadedge_radians_mean_heading += std::atan2(delta.y(), delta.x());
-    }
-    left_roadedge_radians_mean_heading /= (percent_20_num - 1);
-    // 找右侧路沿前20%点平均heading值
-    percent_20_num = std::max(
-        static_cast<int>(query_roadedges[1]->road_points.size() * 0.2), 2);
-    float right_roadedge_radians_mean_heading = 0.0;
-    for (int i = 0; i < percent_20_num - 1; ++i) {
-      const auto& first_point = query_roadedges[1]->road_points[i];
-      const auto& second_point = query_roadedges[1]->road_points[i + 1];
-      Eigen::Vector2f first_point_2f(first_point.x(), first_point.y());
-      Eigen::Vector2f second_point_2f(second_point.x(), second_point.y());
-      Eigen::Vector2f delta = second_point_2f - first_point_2f;
-      // 使用 atan2 函数计算角度，返回值范围是 (-π, π]
-      right_roadedge_radians_mean_heading += std::atan2(delta.y(), delta.x());
-    }
-    right_roadedge_radians_mean_heading /= (percent_20_num - 1);
-    float line_radians_mean_heading =
-        0.5 * (left_roadedge_radians_mean_heading +
-               right_roadedge_radians_mean_heading);
-
-    // 以左右路沿的中心点为目标点
-    const auto& left_first_point = query_roadedges[0]->road_points[0];
-    const auto& right_first_point = query_roadedges[1]->road_points[0];
-    Eigen::Vector2f left_first_point_2f(left_first_point.x(),
-                                        left_first_point.y());
-    Eigen::Vector2f right_first_point_2f(right_first_point.x(),
-                                         right_first_point.y());
-    const auto& query_point =
-        0.5 * (right_first_point_2f + left_first_point_2f);
-
-    HLOG_DEBUG << "roadedge center point:"
-               << ", center.x()" << query_point.x() << ", center.y()"
-               << query_point.y() << ", line_radians_mean_heading"
-               << line_radians_mean_heading;
-    // float junction_guide_angle_ratio = 0.2;
-
-    // heading方向补个50米长度。
-    Eigen::Vector2f extend_point =
-        math::AddPointAlongHeading(query_point, line_radians_mean_heading,
-                                   conf_.junction_heading_along_length);
-
-    // 加入车辆远点坐标
-    guide_points.emplace_back(Point(PointType::PREDICTED, 0.0, 0.0, 0.0));
-    guide_points.emplace_back(
-        Point(PointType::PREDICTED, query_point.x(), query_point.y(), 0.0));
-    guide_points.emplace_back(
-        Point(PointType::PREDICTED, extend_point.x(), extend_point.y(), 0.0));
-
-    return guide_points;
-  }
-
-  return guide_points;
-}
-
-std::vector<Point> GuidePathManager::GetGuidePath() {
-  std::vector<Point> guide_points;
-  guide_points.clear();
-  RoadScene road_scene = GetCurrentRoadScene();
-  HLOG_DEBUG << "current road scene is:" << int(road_scene);
-  if (road_scene == RoadScene::NON_JUNCTION) {
-    // 非路口时的处理逻辑
-    // !按照原来的方式做数据处理
-    return guide_points;
-  } else if (road_scene == RoadScene::SMALL_JUNCTION) {
-    // 小路口时的处理逻辑
-    std::vector<Point> roadedge_guide_points = GetRoadEdgeGuidePoints();
-    std::vector<Point> cw_front_guide_points = GetCwForwardLaneGuidePoints();
-
-    // 暂时考虑只使用车道来创建引导线。
-    if (roadedge_guide_points.empty()) {
-      HLOG_DEBUG << "roadedge_guide_points empty ...";
-      return cw_front_guide_points;
-    } else {
-      return cw_front_guide_points;
-    }
-
-  } else {
-    // 大路口时的处理逻辑(目前只有模型路沿做引导)
-    guide_points = GetRoadEdgeGuidePoints();
-    return guide_points;
   }
 }
 

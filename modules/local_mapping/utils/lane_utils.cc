@@ -327,7 +327,6 @@ bool TransformLaneLineCurveInNovatelPolyfit(
     *transform_line_curve = curve;
     return true;
   }
-
   if ((curve.max - curve.min < 1e-9) || (curve.coeffs.size() != 4)) {
     return false;
   }
@@ -412,8 +411,7 @@ bool TransformLaneLineCurveInNovatel(const LaneLineCurve& curve,
     // Eigen::Vector3d point_old(curve_p, point, 0);
     Eigen::Vector3d point_old(point, curve_p, 0);
     Eigen::Vector3d point_new = transform_matrix * point_old;
-    HLOG_DEBUG << "point x:" << point << ","
-               << "curve y:" << curve_p << ","
+    HLOG_DEBUG << "point x:" << point << "," << "curve y:" << curve_p << ","
                << "x new:" << point_new.x() << ", y new:" << point_new.y();
     float x = point_new.x();
     float x2 = x * x;

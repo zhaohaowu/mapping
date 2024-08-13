@@ -6,6 +6,7 @@
  ******************************************************************************/
 
 #include "map_fusion/fusion_common/calc_util.h"
+
 #include <depend/common/math/double_type.h>
 
 #include <thread>

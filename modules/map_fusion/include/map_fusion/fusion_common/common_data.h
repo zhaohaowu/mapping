@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "Eigen/src/Core/Matrix.h"
 #include "map_fusion/fusion_common/element_map.h"
 
 namespace hozon {
@@ -57,6 +58,11 @@ struct Pose {
 
   Eigen::Vector3f TransformPoint(const Eigen::Vector3f& pt) const {
     Eigen::Vector3f new_pt = quat * pt + pos;
+    return new_pt;
+  }
+
+  Eigen::Vector3f TransLocalToVehicle(const Eigen::Vector3f& pt) const {
+    Eigen::Vector3f new_pt = quat.inverse() * (pt - pos);
     return new_pt;
   }
 

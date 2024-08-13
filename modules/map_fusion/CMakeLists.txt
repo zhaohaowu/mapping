@@ -8,6 +8,8 @@ include_directories(
 set(FUSION_COMMON_SRCS
   src/fusion_common/calc_util.cc
   src/fusion_common/viz_util.cc
+  src/fusion_common/elemap2proto.cc
+  src/fusion_common/proto2elemap.cc
   )
 
 set(TOPO_SRCS
@@ -26,6 +28,7 @@ set(RECOGNITION_SRC
   src/road_recognition/routing_generation.cc
   src/road_recognition/group_map.cc
   src/road_recognition/path_manager.cc
+  src/road_recognition/occ_guideline_manager.cc
   )
 
 set(MAPSERVICE_SRCS

@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "map_fusion/fusion_common/id_generator.h"
-
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -207,6 +206,8 @@ struct Boundary : public BaseElement {
   LanePos lanepos = LanePositionType_OTHER;
   LineType linetype = LaneType_UNKNOWN;
   IsEgo is_ego = Ego_Road;
+  std::vector<float> curve_params;
+
   bool is_near_road_edge = false;
   DEFINE_PTR(Boundary)
 };
@@ -426,11 +427,16 @@ struct TrafficLight : public BaseElement {
 struct OccRoad {
   Id track_id;
   Id detect_id;
-  std::vector<Eigen::Vector3d> road_points;  // 默认front为豁口点
+  Id group_id;  // 车后方最近一个group或车所在的group为0,车前方最近一个group为1,以此向前向后推
+  std::vector<Eigen::Vector3d> road_points;      // 默认front为豁口点
+  std::vector<Eigen::Vector3d> ori_road_points;  // 原始occ点，调试使用
+  std::vector<Eigen::Vector3d> ori_detect_points;  // 原始detect occ点，调试使用
   // int road_flag;  // 路沿类型0-->隔断路沿，1-->实线路沿
   Id left_occ_id = -1;   // 左侧能构成道的id
   Id right_occ_id = -1;  // 右侧能构成道的id
   bool is_forward;       // 车前方true,车侧或车后false(且满足条件)
+  int guide_index = -1;  // occ下引導點的index
+  std::vector<float> curve_params;
 
   DEFINE_PTR(OccRoad)
 };
@@ -449,6 +455,7 @@ struct ElementMap {
   std::map<Id, Boundary::Ptr> boundaries;
   std::map<Id, CenterLine::Ptr> center_lines;
   std::map<Id, CrossWalk::Ptr> cross_walks;
+  std::map<Id, Boundary::Ptr> road_edges;
   std::map<Id, Lane::Ptr> lanes;
   std::map<Id, Road::Ptr> roads;
   std::map<Id, StopLine::Ptr> stop_lines;
@@ -469,6 +476,7 @@ struct ElementMapOut {
   std::map<Id, BoundaryDetailed::Ptr> boundaries;
   std::map<Id, CenterLineDetailed::Ptr> center_lines;
   std::map<Id, CrossWalk::Ptr> cross_walks;
+  std::map<Id, Boundary::Ptr> road_edges;
   std::map<Id, Lane::Ptr> lanes;
   std::map<Id, Road::Ptr> roads;
   std::map<Id, StopLine::Ptr> stop_lines;

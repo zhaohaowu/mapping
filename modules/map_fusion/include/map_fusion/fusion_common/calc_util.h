@@ -10,6 +10,7 @@
 #include <depend/common/math/double_type.h>
 #include <depend/common/math/vec2d.h>
 
+#include <algorithm>
 #include <deque>
 #include <memory>
 #include <string>
@@ -140,6 +141,36 @@ T PointToVectorDist(const Eigen::Matrix<T, ROWS, 1>& p0,
   Eigen::Matrix<T, ROWS, 1> pt_p0 = p0 - pt;
   Eigen::Matrix<T, ROWS, 1> d = pt_p0 - (pt_p0.transpose() * p0_p1) * p0_p1;
   return d.norm();
+}
+
+template <typename pointType>
+double GetLength(const std::vector<pointType>& point_sets) {
+  double total_length = 0;
+  // 遍历point_sets中的点
+  for (size_t i = 1; i < point_sets.size(); ++i) {
+    // 计算车体系两点之间的欧式距离
+    double dx = point_sets[i].x() - point_sets[i - 1].x();
+    double dy = point_sets[i].y() - point_sets[i - 1].y();
+    double length = std::sqrt(dx * dx + dy * dy);
+
+    // 累加得到整个车道线的长度
+    total_length += length;
+  }
+  return total_length;
+}
+
+template <typename pointType>
+float GetOverLayRatioBetweenTwoLane(const std::vector<pointType>& curve1,
+                                    const std::vector<pointType>& curve2) {
+  auto length1 = GetLength(curve1);
+  auto length2 = GetLength(curve2);
+
+  auto overlay_start = std::max(curve1.front().x(), curve2.front().x());
+  auto overlay_end = std::min(curve1.back().x(), curve2.back().x());
+  auto overlay_length =
+      overlay_end - overlay_start > 0 ? overlay_end - overlay_start : 0;
+
+  return overlay_length / std::min(length1, length2);
 }
 
 /// 判断pt在向量p0p1的左侧还是右侧.

@@ -17,6 +17,7 @@
 #include <vector>
 
 #include "map_fusion/fusion_common/element_map.h"
+#include "map_fusion/road_recognition/occ_guideline_manager.h"
 #include "map_fusion/topo_assignment/topo_assignment.h"
 
 // #include <depend/map/hdmap/hdmap.h>
@@ -42,6 +43,7 @@
 #include "Eigen/src/Core/Matrix.h"
 #include "map_fusion/map_service/map_proto_maker.h"
 #include "map_fusion/map_service/map_table.h"
+#include "map_fusion/road_recognition/base_data.h"
 #include "opencv2/core/hal/interface.h"
 #include "util/geo.h"
 #include "util/rviz_agent/rviz_agent.h"
@@ -134,18 +136,18 @@ struct base_line_info {
   double base_width = -1;
 };
 
-class Line_kd {
- public:
-  std::shared_ptr<hozon::mapping::LaneLine> line;
-  // std::vector<Eigen::Vector3d> line_points;
-  std::shared_ptr<cv::flann::Index> line_kdtree;
-  bool store = true;  // 是否存储该线
-  bool is_continue = false;  // 是否跟别的线融合了，如果被融合则不添加该线
-  bool is_merge = false;  // 是否是汇入的线，如果是汇入的线则保留
-  bool is_ego_road =
-      true;  // 是否是主路段的线。即road_edge lanepos为-1到1之间的line
-  std::vector<double> param = std::vector<double>(3, 0.0);  // 存储c0 c1 c2
-};
+// class Line_kd {
+//  public:
+//   std::shared_ptr<hozon::mapping::LaneLine> line;
+//   // std::vector<Eigen::Vector3d> line_points;
+//   std::shared_ptr<cv::flann::Index> line_kdtree;
+//   bool store = true;  // 是否存储该线
+//   bool is_continue = false;  // 是否跟别的线融合了，如果被融合则不添加该线
+//   bool is_merge = false;  // 是否是汇入的线，如果是汇入的线则保留
+//   bool is_ego_road =
+//       true;  // 是否是主路段的线。即road_edge lanepos为-1到1之间的line
+//   std::vector<double> param = std::vector<double>(3, 0.0);  // 存储c0 c1 c2
+// };
 
 struct local_line_info {
   int line_track_id;
@@ -175,14 +177,28 @@ class GeoOptimization {
   std::shared_ptr<hozon::mp::mf::em::ElementMap> GetElemMap();
   // std::shared_ptr<hozon::hdmap::Map> GetPilotMap();
 
+  inline void SetRoadScene(RoadScene road_scene) { road_scene_ = road_scene; }
+
+  inline RoadScene GetRoadScene() { return road_scene_; }
+
+  inline void SetPose(const KinePose& curr_pose) { curr_pose_ = curr_pose; }
+
+  inline KinePose GetPose() { return curr_pose_; }
+
  private:
+  RoadScene road_scene_;
+  KinePose curr_pose_;
+  std::shared_ptr<OccGuideLineManager> occ_guideline_manager_ = nullptr;
   std::shared_ptr<hozon::mp::mf::em::ElementMap> elem_map_ = nullptr;
   std::shared_ptr<hozon::mapping::LocalMap> local_map_ = nullptr;
   std::shared_ptr<hozon::perception::PerceptionObstacles> per_objs_ = nullptr;
   boost::circular_buffer<
       std::shared_ptr<hozon::perception::PerceptionObstacles>>
       history_objs_;
+  boost::circular_buffer<hozon::perception::PerceptionObstacle>
+      inverse_history_objs_;
   int history_objs_size_ = 10;
+  int inverse_history_objs_size_ = 20;
   std::shared_ptr<hozon::mapping::LocalMap> local_map_use_ =
       nullptr;  // 滤除一些不对的laneline,最终是可用的一些线
   // std::shared_ptr<std::vector<LanePilot>> map_lanes_ = nullptr;
@@ -208,6 +224,7 @@ class GeoOptimization {
   const std::string KTopicRoadRecognitionTopoMapLane = "/roadr/topo_map_lane";
   const std::string KTopicRoadRecognitionElementMap = "/roadr/element_line";
   const std::string KTopicRoadRecognitionLineLable = "/roadr/line_lable";
+  const std::string KTopicRoadRecognitionOccRoad = "/roadr/occ_road";
 
   const std::unordered_map<char, std::vector<float>> color_palette = {
       {'r', {1.0, 0.0, 0.0}}, {'g', {0.0, 1.0, 0.0}},   {'b', {0.0, 0.0, 1.0}},
@@ -239,6 +256,8 @@ class GeoOptimization {
   void VizLocalMap();
 
   void VizElementMap();
+
+  void VizOccRoad();
 
   void VizRRMapRoad(const std::shared_ptr<hozon::hdmap::Map>& msg,
                     adsfi_proto::viz::MarkerArray* markers_road) const;
@@ -272,9 +291,22 @@ class GeoOptimization {
 
   // void PridictCenterMapLanes();
 
+  void CompareGroupLines(
+      std::vector<std::vector<std::pair<int, em::OccRoad>>>* groupedLines,
+      std::vector<std::pair<int, int>>* line_pairs);
+
+  bool LineCublicSampling(const hozon::mapping::Occ& occ,
+                          std::vector<float>* curve_params,
+                          std::vector<Eigen::Vector3d>* new_line_pts);
+
+  double OccLineFitError(const hozon::mapping::Occ& occ,
+                         const std::vector<float>& curve_param);
+
   void CompleteLocalMap();
 
   void ExtractOccRoadGap();
+
+  void ConstructOccGuideLine();
 
   void UpdateLocalMapLine();
 
@@ -321,6 +353,7 @@ class GeoOptimization {
 
   void HandleSingleSideLine();
 
+  bool CheckOppisiteLineByObj(const std::vector<Eigen::Vector3d>& points);
   static double ComputeVecToLaneDis(
       const std::vector<Eigen::Vector3d>& base_line);
 
@@ -346,14 +379,8 @@ class GeoOptimization {
 
   double ComputerPoint2Line(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
                             const Eigen::Vector3d& B);
-  void FillLanePos(hozon::mp::mf::em::Boundary* lane_line,
-                   hozon::mapping::LanePositionType lanepostype);
-  void FillLaneType(hozon::mp::mf::em::Boundary* lane_line,
-                    hozon::mapping::LaneType lanetype);
   void FillObjType(hozon::mp::mf::em::Obj* obj,
                    hozon::perception::PerceptionObstacle_Type objtype);
-  void FillLaneColor(hozon::mp::mf::em::Boundary* lane_line,
-                     hozon::mapping::Color lanecolor);
   void FillIsNearRoadLine(
       hozon::mp::mf::em::Boundary* lane_line,
       const std::vector<std::vector<Eigen::Vector3d>>& roads,
@@ -414,6 +441,20 @@ class GeoOptimization {
   RelativePosition IsTargetOnLineRight(
       const std::vector<Eigen::Vector3d>& target_line,
       const Line_kd& lane_line);
+  bool FindOCCGuidePoint();
+  void UpdateOCCRoadPoints();
+  bool GetFirstOCCPoints(const em::OccRoad::Ptr& occ_road_ptr,
+                         int* first_point_index);
+  bool GetFirstNearIndex(const std::vector<em::OccRoad::Ptr>& vec_occs,
+                         const em::OccRoad::Ptr& occ_road_ptr,
+                         int* first_point_index);
+  void CalDistNearOcc(const std::vector<em::OccRoad::Ptr>& vec_occs, bool left,
+                      const em::OccRoad::Ptr& occ_road_ptr, int* index,
+                      double* distance);
+  bool CaluclateSlope(const Eigen::Vector3d& point1,
+                      const Eigen::Vector3d& point2, double* slope_value);
+  template <typename T1, typename T2>
+  float evalueHeadingDiff(const T1& x, const std::vector<T2>& params);
 };
 }  // namespace mf
 }  // namespace mp

@@ -18,8 +18,8 @@
 
 #include "map_fusion/fusion_common/common_data.h"
 #include "map_fusion/fusion_common/element_map.h"
+#include "map_fusion/road_recognition/base_data.h"
 #include "map_fusion/road_recognition/group_map.h"
-
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -38,6 +38,13 @@ class TopoGeneration {
   std::shared_ptr<hozon::hdmap::Map> GetPercepMap(
       const std::pair<double, double>& map_speed_limit);
   std::shared_ptr<hozon::mp::mf::em::ElementMapOut> GetEleMap();
+  inline void SetRoadScene(RoadScene road_scene) { road_scene_ = road_scene; }
+
+  inline RoadScene GetRoadScene() { return road_scene_; }
+
+  inline void SetPose(const KinePose& curr_pose) { curr_pose_ = curr_pose; }
+
+  inline KinePose GetPose() { return curr_pose_; }
 
  private:
   void VizEleMap(const std::shared_ptr<hozon::mp::mf::em::ElementMap>& ele_map);
@@ -59,10 +66,14 @@ class TopoGeneration {
   KinePose::Ptr last_pose_ = nullptr;
 
   std::shared_ptr<PathManager> path_ = nullptr;
+
+  std::shared_ptr<gm::GroupMap> group_map_ = nullptr;
   std::shared_ptr<hozon::mp::mf::em::ElementMap> ele_map_ = nullptr;
   std::shared_ptr<hozon::mp::mf::em::ElementMapOut> ele_map_output_ = nullptr;
   bool ego_exist_ = false;
   std::vector<double> line_params_;
+  RoadScene road_scene_;
+  KinePose curr_pose_;
   bool IsValid(const std::vector<gm::Group::Ptr>& groups);
   void IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
                     gm::IsCross* iscross);

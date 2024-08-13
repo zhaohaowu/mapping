@@ -68,6 +68,9 @@ void RoadRecognition::OnLocalMap(
   AddRoadEdge(msg, percep_map_);  // 将road edge透传给下游
   rout_->Generate(percep_map_);
   routingresponse_ = rout_->GetRouting();
+
+  geo_->SetRoadScene(topo_->GetRoadScene());
+  geo_->SetPose(topo_->GetPose());
 }
 
 void RoadRecognition::AddRoadEdge(

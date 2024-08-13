@@ -54,8 +54,7 @@ bool DataMapping::CvtPbFreeSpaces2FreeSpaces(
     if (CvtPbFreeSpace2FreeSpace(item, occedge_ptr)) {
       bool find_flag = false;
       for (const auto& occ : freespaces_ptr->edges.occ_edges) {
-        if (occ->detect_id == occedge_ptr->detect_id &&
-            occ->type == OccEdgeType::ROAD_EDGE) {
+        if (occ->detect_id == occedge_ptr->detect_id) {
           occ->vehicle_points.insert(occ->vehicle_points.end(),
                                      occedge_ptr->vehicle_points.begin(),
                                      occedge_ptr->vehicle_points.end());

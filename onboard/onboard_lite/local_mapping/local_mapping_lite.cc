@@ -262,6 +262,8 @@ bool LocalMappingOnboard::FillFreespaceData(
   DrDataConstPtr perception_pose =
       POSE_MANAGER->GetDrPoseByTimeStamp(measure_frame->header.timestamp);
   if (perception_pose == nullptr) {
+    HLOG_ERROR << "perception time is:"
+               << std::to_string(measure_frame->header.timestamp);
     HLOG_ERROR << "perception_pose is nullptr";
     return false;
   }

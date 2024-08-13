@@ -22,7 +22,7 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
-bool TopoGeneration::Init(const YAML::Node& conf) {
+bool TopoGeneration::Init(const YAML::Node &conf) {
   std::vector<std::string> required = {
       "viz",
       "viz_topic_input_ele_map",
@@ -54,7 +54,7 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
       "junction_guide_min_dis",
       "junction_guide_max_degree",
   };
-  for (const auto& it : required) {
+  for (const auto &it : required) {
     if (!conf[it].IsDefined()) {
       HLOG_ERROR << "cannot find conf key " << it;
       return false;
@@ -157,11 +157,13 @@ bool TopoGeneration::Init(const YAML::Node& conf) {
   history_id_.cicle = 2000;
   path_ = std::make_shared<PathManager>(pm_conf);
 
+  group_map_ = std::make_shared<gm::GroupMap>(gm_conf_);
+
   return true;
 }
 
 void TopoGeneration::OnLocalization(
-    const std::shared_ptr<hozon::localization::Localization>& msg) {
+    const std::shared_ptr<hozon::localization::Localization> &msg) {
   KinePose curr;
   curr.stamp = msg->header().data_stamp();
   curr.pos << static_cast<float>(msg->pose_local().position().x()),
@@ -185,7 +187,7 @@ void TopoGeneration::OnLocalization(
 }
 
 void TopoGeneration::OnElementMap(
-    const std::shared_ptr<hozon::mp::mf::em::ElementMap>& ele_map) {
+    const std::shared_ptr<hozon::mp::mf::em::ElementMap> &ele_map) {
   if (ele_map == nullptr) {
     HLOG_ERROR << "nullptr input ele_map";
     return;
@@ -216,8 +218,12 @@ std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap(
 
   std::shared_ptr<hozon::hdmap::Map> proto_map = nullptr;
 
-  gm::GroupMap group_map(gm_conf_);
-  auto ret = group_map.Build(path, curr_pose, last_pose_, ele_map_, &is_cross_);
+  // gm::GroupMap group_map(gm_conf_);
+  group_map_->Clear();
+  auto ret = group_map_->Build(path, curr_pose, last_pose_, ele_map_, &is_cross_);
+  RoadScene road_scene = group_map_->GetCurrentRoadScene();
+  SetRoadScene(road_scene);
+  SetPose(*curr_pose);
   VizPath(*path, *curr_pose);
   last_pose_ = curr_pose;
   if (!ret) {
@@ -233,19 +239,19 @@ std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap(
   //   line_params_.clear();
   // }
   std::vector<gm::Group::Ptr> groups;
-  group_map.GetGroups(&groups);
-  group_map.SetSpeedLimit(map_speed_limit);
+  group_map_->GetGroups(&groups);
+  group_map_->SetSpeedLimit(map_speed_limit);
   IsInCrossing(groups, &is_cross_);
   VizGroup(groups, ele_map_->map_info.stamp);
   VizGuidePoint(groups, ele_map_->map_info.stamp);
 
-  proto_map = group_map.Export(ele_map_, &history_id_);
-  ele_map_output_ = group_map.AddElementMap(ele_map_);
+  proto_map = group_map_->Export(ele_map_, &history_id_);
+  ele_map_output_ = group_map_->AddElementMap(ele_map_);
   return proto_map;
 }
 
 void TopoGeneration::VizEleMap(
-    const std::shared_ptr<hozon::mp::mf::em::ElementMap>& ele_map) {
+    const std::shared_ptr<hozon::mp::mf::em::ElementMap> &ele_map) {
   if (!viz_ || !RVIZ_AGENT.Ok()) {
     return;
   }
@@ -257,15 +263,15 @@ void TopoGeneration::VizEleMap(
   }
 }
 
-void TopoGeneration::VizPath(const std::vector<KinePose::Ptr>& path,
-                             const KinePose& curr_pose) {
+void TopoGeneration::VizPath(const std::vector<KinePose::Ptr> &path,
+                             const KinePose &curr_pose) {
   if (!viz_ || !RVIZ_AGENT.Ok()) {
     return;
   }
 
   auto curr_local_to_veh = curr_pose.Inverse();
   std::vector<Pose> poses;
-  for (const auto& p : path) {
+  for (const auto &p : path) {
     if (p == nullptr) {
       HLOG_ERROR << "found nullptr pose";
       continue;
@@ -294,7 +300,7 @@ void TopoGeneration::VizPath(const std::vector<KinePose::Ptr>& path,
   }
 }
 
-void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
+void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr> &groups,
                               double stamp) {
   if (!viz_ || !RVIZ_AGENT.Ok()) {
     return;
@@ -315,7 +321,7 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
   std::vector<viz::Color> line_colors = {viz::ORANGE, viz::YELLOW, viz::GREEN,
                                          viz::CYAN};
   int grp_idx = -1;
-  for (const auto& grp : groups) {
+  for (const auto &grp : groups) {
     grp_idx += 1;
     std::string grp_ns =
         "grp" + std::to_string(grp_idx) + "(" + grp->str_id + ")";
@@ -327,12 +333,12 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
     viz::Rgb line_rgb =
         viz::ColorRgb(line_colors.at(grp_idx % line_colors.size()));
     int seg_idx = -1;
-    for (const auto& seg : grp->group_segments) {
+    for (const auto &seg : grp->group_segments) {
       seg_idx += 1;
       std::string seg_ns =
           "seg" + std::to_string(seg_idx) + "(" + seg->str_id + ")";
       // start_slice
-      auto* marker_start_slice = marker_array->add_markers();
+      auto *marker_start_slice = marker_array->add_markers();
       marker_start_slice->mutable_header()->CopyFrom(viz_header);
       marker_start_slice->set_ns(grp_ns + "/" + seg_ns + "/slice");
       marker_start_slice->set_id(0);
@@ -357,15 +363,15 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
       em::Point right = (seg->start_slice.pr - seg->start_slice.po) * scale +
                         seg->start_slice.po;
       std::vector<em::Point> pts = {left, center, right};
-      for (const auto& p : pts) {
-        auto* pt = marker_start_slice->add_points();
+      for (const auto &p : pts) {
+        auto *pt = marker_start_slice->add_points();
         pt->set_x(p.x());
         pt->set_y(p.y());
         pt->set_z(p.z());
       }
 
       // end_slice
-      auto* marker_end_slice = marker_array->add_markers();
+      auto *marker_end_slice = marker_array->add_markers();
       marker_end_slice->CopyFrom(*marker_start_slice);
       marker_end_slice->set_id(1);
       marker_end_slice->clear_points();
@@ -375,8 +381,8 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
       right =
           (seg->end_slice.pr - seg->end_slice.po) * scale + seg->end_slice.po;
       pts = std::vector<em::Point>{left, center, right};
-      for (const auto& p : pts) {
-        auto* pt = marker_end_slice->add_points();
+      for (const auto &p : pts) {
+        auto *pt = marker_end_slice->add_points();
         pt->set_x(p.x());
         pt->set_y(p.y());
         pt->set_z(p.z());
@@ -384,12 +390,12 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
     }
 
     int lane_idx = -1;
-    for (const auto& lane : grp->lanes) {
+    for (const auto &lane : grp->lanes) {
       lane_idx += 1;
       std::string lane_ns =
           "lane" + std::to_string(lane_idx) + "(" + lane->str_id + ")";
       // left_boundary
-      auto* marker_left_bound = marker_array->add_markers();
+      auto *marker_left_bound = marker_array->add_markers();
       marker_left_bound->mutable_header()->CopyFrom(viz_header);
       marker_left_bound->set_ns(grp_ns + "/" + lane_ns);
       marker_left_bound->set_id(0);
@@ -411,12 +417,12 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
       marker_left_bound->mutable_pose()->mutable_orientation()->set_z(0);
 
       // right_boundary
-      auto* marker_right_bound = marker_array->add_markers();
+      auto *marker_right_bound = marker_array->add_markers();
       marker_right_bound->CopyFrom(*marker_left_bound);
       marker_right_bound->set_id(1);
 
       // center_line_pts
-      auto* marker_center_line = marker_array->add_markers();
+      auto *marker_center_line = marker_array->add_markers();
       marker_center_line->CopyFrom(*marker_left_bound);
       marker_center_line->set_id(2);
       marker_center_line->mutable_scale()->set_x(width / 2);
@@ -457,7 +463,7 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
       temp_marker_right_virt_back.set_id(8);
       temp_marker_right_virt_back.mutable_color()->set_a(0.5);
       int flag = 0;
-      for (const auto& p : lane->left_boundary->pts) {
+      for (const auto &p : lane->left_boundary->pts) {
         if (p.type == gm::PREDICTED) {
           left_pred_pts.emplace_back(p.pt);
         } else if (p.type == gm::VIRTUAL) {
@@ -467,7 +473,7 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
             left_virtual_pts_back.emplace_back(p.pt);
           }
         } else {
-          auto* pt = marker_left_bound->add_points();
+          auto *pt = marker_left_bound->add_points();
           pt->set_x(p.pt.x());
           pt->set_y(p.pt.y());
           pt->set_z(p.pt.z());
@@ -475,7 +481,7 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
         }
       }
       flag = 0;
-      for (const auto& p : lane->right_boundary->pts) {
+      for (const auto &p : lane->right_boundary->pts) {
         if (p.type == gm::PREDICTED) {
           right_pred_pts.emplace_back(p.pt);
         } else if (p.type == gm::VIRTUAL) {
@@ -485,90 +491,90 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
             right_virtual_pts_back.emplace_back(p.pt);
           }
         } else {
-          auto* pt = marker_right_bound->add_points();
+          auto *pt = marker_right_bound->add_points();
           pt->set_x(p.pt.x());
           pt->set_y(p.pt.y());
           pt->set_z(p.pt.z());
           flag = 1;
         }
       }
-      for (const auto& p : lane->center_line_pts) {
-        auto* pt = marker_center_line->add_points();
+      for (const auto &p : lane->center_line_pts) {
+        auto *pt = marker_center_line->add_points();
         pt->set_x(p.pt.x());
         pt->set_y(p.pt.y());
         pt->set_z(p.pt.z());
       }
 
       if (left_pred_pts.size() > 1) {
-        auto* marker_left_pred = marker_array->add_markers();
+        auto *marker_left_pred = marker_array->add_markers();
         marker_left_pred->CopyFrom(temp_marker_left_pred);
         if (!marker_left_bound->points().empty()) {
-          auto* pt = marker_left_pred->add_points();
+          auto *pt = marker_left_pred->add_points();
           pt->CopyFrom(*marker_left_bound->points().rbegin());
         }
-        for (const auto& p : left_pred_pts) {
-          auto* pt = marker_left_pred->add_points();
+        for (const auto &p : left_pred_pts) {
+          auto *pt = marker_left_pred->add_points();
           pt->set_x(p.x());
           pt->set_y(p.y());
           pt->set_z(p.z());
         }
       }
       if (right_pred_pts.size() > 1) {
-        auto* marker_right_pred = marker_array->add_markers();
+        auto *marker_right_pred = marker_array->add_markers();
         marker_right_pred->CopyFrom(temp_marker_right_pred);
         if (!marker_right_bound->points().empty()) {
-          auto* pt = marker_right_pred->add_points();
+          auto *pt = marker_right_pred->add_points();
           pt->CopyFrom(*marker_right_bound->points().rbegin());
         }
-        for (const auto& p : right_pred_pts) {
-          auto* pt = marker_right_pred->add_points();
+        for (const auto &p : right_pred_pts) {
+          auto *pt = marker_right_pred->add_points();
           pt->set_x(p.x());
           pt->set_y(p.y());
           pt->set_z(p.z());
         }
       }
       if (left_virtual_pts.size() > 1) {
-        auto* marker_left_virt = marker_array->add_markers();
+        auto *marker_left_virt = marker_array->add_markers();
         marker_left_virt->CopyFrom(temp_marker_left_virt);
-        for (const auto& p : left_virtual_pts) {
-          auto* pt = marker_left_virt->add_points();
+        for (const auto &p : left_virtual_pts) {
+          auto *pt = marker_left_virt->add_points();
           pt->set_x(p.x());
           pt->set_y(p.y());
           pt->set_z(p.z());
         }
       }
       if (right_virtual_pts.size() > 1) {
-        auto* marker_right_virt = marker_array->add_markers();
+        auto *marker_right_virt = marker_array->add_markers();
         marker_right_virt->CopyFrom(temp_marker_right_virt);
-        for (const auto& p : right_virtual_pts) {
-          auto* pt = marker_right_virt->add_points();
+        for (const auto &p : right_virtual_pts) {
+          auto *pt = marker_right_virt->add_points();
           pt->set_x(p.x());
           pt->set_y(p.y());
           pt->set_z(p.z());
         }
       }
       if (left_virtual_pts_back.size() > 1) {
-        auto* marker_left_virt = marker_array->add_markers();
+        auto *marker_left_virt = marker_array->add_markers();
         marker_left_virt->CopyFrom(temp_marker_left_virt_back);
-        for (const auto& p : left_virtual_pts_back) {
-          auto* pt = marker_left_virt->add_points();
+        for (const auto &p : left_virtual_pts_back) {
+          auto *pt = marker_left_virt->add_points();
           pt->set_x(p.x());
           pt->set_y(p.y());
           pt->set_z(p.z());
         }
       }
       if (right_virtual_pts_back.size() > 1) {
-        auto* marker_right_virt = marker_array->add_markers();
+        auto *marker_right_virt = marker_array->add_markers();
         marker_right_virt->CopyFrom(temp_marker_right_virt_back);
-        for (const auto& p : right_virtual_pts_back) {
-          auto* pt = marker_right_virt->add_points();
+        for (const auto &p : right_virtual_pts_back) {
+          auto *pt = marker_right_virt->add_points();
           pt->set_x(p.x());
           pt->set_y(p.y());
           pt->set_z(p.z());
         }
       }
 
-      auto* marker_str_id_with_group = marker_array->add_markers();
+      auto *marker_str_id_with_group = marker_array->add_markers();
       marker_str_id_with_group->mutable_header()->CopyFrom(viz_header);
       marker_str_id_with_group->set_ns(grp_ns + "/" + lane_ns);
       marker_str_id_with_group->set_id(9);
@@ -594,7 +600,7 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
           lane->center_line_pts.front().pt.y());
       marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
           lane->center_line_pts.front().pt.z());
-      auto* text = marker_str_id_with_group->mutable_text();
+      auto *text = marker_str_id_with_group->mutable_text();
       *text = lane->str_id_with_group;
       if (!lane->next_lane_str_id_with_group.empty() &&
           lane->center_line_pts.size() > 2) {
@@ -639,7 +645,7 @@ void TopoGeneration::VizGroup(const std::vector<gm::Group::Ptr>& groups,
     RVIZ_AGENT.Publish(viz_topic_group_, marker_array);
   }
 }
-void TopoGeneration::VizGuidePoint(const std::vector<gm::Group::Ptr>& groups,
+void TopoGeneration::VizGuidePoint(const std::vector<gm::Group::Ptr> &groups,
                                    double stamp) {
   if (!viz_ || !RVIZ_AGENT.Ok()) {
     return;
@@ -655,7 +661,7 @@ void TopoGeneration::VizGuidePoint(const std::vector<gm::Group::Ptr>& groups,
   points_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
   points_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
   points_msg.mutable_header()->set_frameid("vehicle");
-  auto* channels = points_msg.add_channels();
+  auto *channels = points_msg.add_channels();
   channels->set_name("rgb");
 
   // // 增加引导点的可视化
@@ -663,8 +669,8 @@ void TopoGeneration::VizGuidePoint(const std::vector<gm::Group::Ptr>& groups,
     return;
   }
   auto guide_points = groups.front()->guide_points_toviz;
-  for (const auto& p : guide_points) {
-    auto* point_msg = points_msg.add_points();
+  for (const auto &p : guide_points) {
+    auto *point_msg = points_msg.add_points();
     point_msg->set_x(p.pt.x());
     point_msg->set_y(p.pt.y());
     point_msg->set_z(p.pt.z());
@@ -672,7 +678,7 @@ void TopoGeneration::VizGuidePoint(const std::vector<gm::Group::Ptr>& groups,
 
   RVIZ_AGENT.Publish(viz_topic_guidepoints_, points_msg);
 }
-bool TopoGeneration::IsValid(const std::vector<gm::Group::Ptr>& groups) {
+bool TopoGeneration::IsValid(const std::vector<gm::Group::Ptr> &groups) {
   int is_in_group = 0;  // 是否在所构建的group里
   for (int i = 0; i < static_cast<int>(groups.size()); ++i) {
     auto group = groups[i];
@@ -706,8 +712,8 @@ bool TopoGeneration::IsValid(const std::vector<gm::Group::Ptr>& groups) {
   return true;
 }
 
-void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
-                                  gm::IsCross* iscross) {
+void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr> &groups,
+                                  gm::IsCross *iscross) {
   if (groups.size() < 1) {
     return;
   }
@@ -726,7 +732,7 @@ void TopoGeneration::IsInCrossing(const std::vector<gm::Group::Ptr>& groups,
           // 因为虚拟group没有group_segments
           int curr_group_v = 0;
           if (groups[i]->str_id.back() == 'V' && i > 0 && i < index) {
-            for (const auto& lane : groups[i]->lanes) {
+            for (const auto &lane : groups[i]->lanes) {
               if (lane->center_line_pts.size() > 0 &&
                       lane->center_line_pts[0].pt.x() < 0.0 ||
                   groups[i - 1]->str_id.back() == 'V') {

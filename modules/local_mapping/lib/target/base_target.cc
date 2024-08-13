@@ -89,6 +89,7 @@ bool OccEdgeTarget::Init(const ProcessOption& options,
   InitBase(options, detected_occ_edge);
   tracked_element_ = std::make_shared<OccEdge>();
   tracked_element_->vehicle_points = detected_occ_edge->vehicle_points;
+  tracked_element_->fit_points = detected_occ_edge->fit_points;
   tracked_element_->world_points = detected_occ_edge->world_points;
   tracked_element_->id = id_;
   tracked_element_->tracked_count++;

@@ -314,6 +314,9 @@ class GeoOptimization {
 
   void MakeRoadEdgeToLaneLine();
 
+  bool IsBetweenLinesMid(const std::vector<Eigen::Vector3d>& new_road_pts,
+                         const hozon::mapping::LaneLine& target_line, const int& direction);
+
   void CompareRoadAndLines(const std::vector<Eigen::Vector3d>& road_pts,
                            const int& road_id);
 

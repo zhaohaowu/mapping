@@ -1446,7 +1446,7 @@ void GeoOptimization::FilterReverseLine() {
     HandleOppisiteLine(double_solid_yellow_pts);
   } else {
     // HandleOppisiteLineByStopline();停止线过滤目前不稳定
-    HandleOppisiteLineByObjAndYelloLine();  // 融合障碍物和黄线过滤对向车道
+    // HandleOppisiteLineByObjAndYelloLine();  // 融合障碍物和黄线过滤对向车道
   }
 }
 
@@ -1608,19 +1608,19 @@ void GeoOptimization::HandleOppisiteLineByObj() {
                                 line.line->points().at(0).x() < 0)) {
             continue;
           }
+
+          if (p_veh.x() < line.line->points(0).x() ||
+              p_veh.x() > line.line->points(line_size - 1).x()) {
+            continue;
+          }
           int line_index = 0;
-          if (p_veh.x() < line.line->points(0).x()) {
-            line_index = 0;
-          } else if (p_veh.x() > line.line->points(line_size - 1).x()) {
-            line_index = line_size - 2;
-          } else {
-            for (; line_index < line_size - 1; line_index++) {
-              if (line.line->points(line_index).x() < p_veh.x() &&
-                  line.line->points(line_index + 1).x() > p_veh.x()) {
-                break;
-              }
+          for (; line_index < line_size - 1; line_index++) {
+            if (line.line->points(line_index).x() <= p_veh.x() &&
+                line.line->points(line_index + 1).x() >= p_veh.x()) {
+              break;
             }
           }
+
           Eigen::Vector3d linel1(line.line->points(line_index).x(),
                                  line.line->points(line_index).y(),
                                  line.line->points(line_index).z());
@@ -1659,8 +1659,8 @@ void GeoOptimization::HandleOppisiteLineByObj() {
           continue;
         }
         for (int line_index = 0; line_index < line_size - 1; line_index++) {
-          if (line.line->points(line_index).x() < obj_point.x() &&
-              line.line->points(line_index + 1).x() > obj_point.x()) {
+          if (line.line->points(line_index).x() <= obj_point.x() &&
+              line.line->points(line_index + 1).x() >= obj_point.x()) {
             Eigen::Vector3d linel1(line.line->points(line_index).x(),
                                    line.line->points(line_index).y(),
                                    line.line->points(line_index).z());
@@ -3223,6 +3223,7 @@ void GeoOptimization::CompareRoadAndLines(
       target_line = line;
     }
   }
+  auto target_line_heading = ComputeLaneLineHeading(target_line);
   if (min_dis < 1.0) {
     // 路沿离车道线的距离小于1米,对离路沿最近的车道线进行增补
     auto tar_line_pt_size = target_line.points_size();
@@ -3243,6 +3244,7 @@ void GeoOptimization::CompareRoadAndLines(
             break;
           }
         }
+        std::vector<Eigen::Vector3d> new_road_pts;
         for (const auto& road_pt : road_pts) {
           if (road_pt.x() < target_line.points(tar_line_pt_size - 1).x()) {
             continue;
@@ -3250,12 +3252,32 @@ void GeoOptimization::CompareRoadAndLines(
           double fit_dis = fit_vec.norm();
           auto fit_vec_normlized = fit_vec.normalized();
           auto fit_road_pt = road_pt + fit_vec_normlized * fit_dis;
+          new_road_pts.emplace_back(fit_road_pt);
           // 简单策略:先根据横向距离对点进行调整,防止车道线跟路沿连接时不平滑
           // 后续可以严格计算点线距离
+          // auto* new_pt = line.add_points();
+          // new_pt->set_x(fit_road_pt.x());
+          // new_pt->set_y(fit_road_pt.y());
+          // new_pt->set_z(fit_road_pt.z());
+        }
+        if (new_road_pts.empty()) {
+          return;
+        }
+        // 判断虚拟的点是否处于两根线中间
+        if (IsBetweenLinesMid(new_road_pts, target_line, 0)) {
+          return;
+        }
+        for (int i = 0; i < static_cast<int>(new_road_pts.size()) - 1; i++) {
+          auto road_heading = new_road_pts[i + 1] - new_road_pts[i];
+          auto angle =
+              ComputeAngleBetweenVectors(target_line_heading, road_heading);
+          if (angle > 15) {
+            continue;
+          }
           auto* new_pt = line.add_points();
-          new_pt->set_x(fit_road_pt.x());
-          new_pt->set_y(fit_road_pt.y());
-          new_pt->set_z(fit_road_pt.z());
+          new_pt->set_x(new_road_pts[i].x());
+          new_pt->set_y(new_road_pts[i].y());
+          new_pt->set_z(new_road_pts[i].z());
         }
         break;
       }
@@ -3270,7 +3292,6 @@ void GeoOptimization::CompareRoadAndLines(
         for (const auto& pt : line.points()) {
           history_pts.emplace_back(pt);
         }
-        line.mutable_points()->Clear();
         Eigen::Vector3d fit_vec;
         for (const auto& road_pt : road_pts) {
           if (road_pt.x() < target_line.points(0).x()) {
@@ -3282,6 +3303,7 @@ void GeoOptimization::CompareRoadAndLines(
           fit_vec = target_first_pt - road_pt;
           break;
         }
+        std::vector<Eigen::Vector3d> new_road_pts;
         for (const auto& road_pt : road_pts) {
           if (road_pt.x() > target_line.points(0).x()) {
             continue;
@@ -3289,10 +3311,28 @@ void GeoOptimization::CompareRoadAndLines(
           double fit_dis = fit_vec.norm();
           auto fit_vec_normlized = fit_vec.normalized();
           auto fit_road_pt = road_pt + fit_vec_normlized * fit_dis;
+          new_road_pts.emplace_back(fit_road_pt);
+          // auto* new_pt = line.add_points();
+          // new_pt->set_x(fit_road_pt.x());
+          // new_pt->set_y(fit_road_pt.y());
+          // new_pt->set_z(fit_road_pt.z());
+        }
+        // 判断虚拟的点是否处于两根线中间
+        if (IsBetweenLinesMid(new_road_pts, target_line, 1)) {
+          return;
+        }
+        line.mutable_points()->Clear();
+        for (int i = 0; i < static_cast<int>(new_road_pts.size()) - 1; i++) {
+          auto road_heading = new_road_pts[i + 1] - new_road_pts[i];
+          auto angle =
+              ComputeAngleBetweenVectors(target_line_heading, road_heading);
+          if (angle > 15) {
+            continue;
+          }
           auto* new_pt = line.add_points();
-          new_pt->set_x(fit_road_pt.x());
-          new_pt->set_y(fit_road_pt.y());
-          new_pt->set_z(fit_road_pt.z());
+          new_pt->set_x(new_road_pts[i].x());
+          new_pt->set_y(new_road_pts[i].y());
+          new_pt->set_z(new_road_pts[i].z());
         }
         for (const auto& tar_line_pt : history_pts) {
           auto* new_pt = line.add_points();
@@ -3325,7 +3365,6 @@ void GeoOptimization::CompareRoadAndLines(
        min_dis > 3.0)) {
     auto* new_line = local_map_use_->add_lane_lines();
     // 计算target_line的平均heading, 通过heading对road_pts进行裁剪
-    auto target_line_heading = ComputeLaneLineHeading(target_line);
     for (int i = 0; i < static_cast<int>(road_pts.size()) - 1; i++) {
       auto road_heading = road_pts[i + 1] - road_pts[i];
       auto angle =
@@ -3363,6 +3402,7 @@ void GeoOptimization::CompareRoadAndLines(
     std::vector<cv::Point2f> kdtree_points;
     Line_kd line_kd;
     hozon::mapping::LaneLine line;
+    line.set_track_id(static_cast<int>(new_track_id));
     for (const auto& point : road_pts) {
       kdtree_points.emplace_back(static_cast<float>(point.x()),
                                  static_cast<float>(point.y()));
@@ -3379,6 +3419,66 @@ void GeoOptimization::CompareRoadAndLines(
     line_kd.line = std::make_shared<hozon::mapping::LaneLine>(line);
     all_lines_[static_cast<int>(new_track_id)].emplace_back(line_kd);
   }
+}
+
+bool GeoOptimization::IsBetweenLinesMid(
+    const std::vector<Eigen::Vector3d>& new_road_pts,
+    const hozon::mapping::LaneLine& target_line, const int& direction) {
+  int left_count = 0;
+  int right_count = 0;
+  for (const auto& line : local_map_use_->lane_lines()) {
+    if (line.points().empty() || line.track_id() == target_line.track_id()) {
+      continue;
+    }
+    if (direction == 0) {
+      // 只判断前向
+      for (const auto& line_pt : line.points()) {
+        if (line_pt.x() < new_road_pts.front().x()) {
+          continue;
+        }
+        // 只判断第一个点
+        if (line_pt.y() >= new_road_pts.front().y()) {
+          left_count += 1;
+        } else {
+          right_count += 1;
+        }
+        break;
+      }
+      // 判断最后一个点
+      if (line.points(line.points_size() - 1).y() >= new_road_pts.back().y()) {
+        left_count += 1;
+      } else {
+        right_count += 1;
+      }
+    }
+    if (direction == 1) {
+      // 只判断后向
+      for (const auto& line_pt : line.points()) {
+        if (line_pt.x() > new_road_pts.back().x()) {
+          continue;
+        }
+        // 只判断最后点
+        if (line_pt.y() >= new_road_pts.back().y()) {
+          left_count += 1;
+        } else {
+          right_count += 1;
+        }
+        break;
+      }
+      // 判断第一个点
+      if (line.points(0).y() >= new_road_pts.front().y()) {
+        left_count += 1;
+      } else {
+        right_count += 1;
+      }
+    }
+  }
+  HLOG_DEBUG << "left_count and right_count: " << left_count << ", "
+             << right_count;
+  if (left_count != 0 && right_count != 0) {
+    return true;
+  }
+  return false;
 }
 
 double GeoOptimization::ComputeAngleBetweenVectors(const Eigen::Vector3d& v1,
@@ -3436,6 +3536,7 @@ void GeoOptimization::ConstructLaneLine(
     std::vector<cv::Point2f> kdtree_points;
     Line_kd line_kd;
     hozon::mapping::LaneLine kd_line;
+    kd_line.set_track_id(static_cast<int>(static_cast<int>(extra_val_)));
     for (const auto& point : line) {
       if (std::isnan(point.x()) || std::isnan(point.y())) {
         continue;
@@ -3746,7 +3847,8 @@ void GeoOptimization::HandleExtraWideLane() {
     if (local_line.lanepos() == 1) {
       right_track_ids.emplace_back(local_line.track_id());
     }
-    if (local_line.lanepos() == 99) {
+    if (local_line.lanepos() == 99 && !local_line.points().empty() &&
+        local_line.points(0).x() < 0.0) {
       other_ids.emplace_back(local_line.track_id());
     }
   }
@@ -3827,12 +3929,12 @@ void GeoOptimization::VerifyEgoLane(const int& left_id, const int& right_id,
       continue;
     }
     if (other_min_pt.y() > 0 && other_min_pt.y() < greater_than_zero_dis &&
-        fabs(other_min_pt.y() - greater_than_zero_dis) > 3.0) {
+        fabs(other_min_pt.y() - greater_than_zero_dis) > 2.0) {
       ego_left_id = other_id;
       greater_than_zero_dis = other_min_pt.y();
     }
     if (other_min_pt.y() < 0 && other_min_pt.y() > less_than_zero_dis &&
-        fabs(other_min_pt.y() - less_than_zero_dis) > 3.0) {
+        fabs(other_min_pt.y() - less_than_zero_dis) > 2.0) {
       ego_right_id = other_id;
       less_than_zero_dis = other_min_pt.y();
     }
@@ -4063,7 +4165,7 @@ double GeoOptimization::ComputeCurvature(
     Vec2d temp_point;
     temp_point.set_x(dist_point.x() - point.x());
     temp_point.set_y(dist_point.y() - point.y());
-    if (temp_point.Length() >= 0.9) {
+    if (temp_point.Length() >= 0.5) {
       fit_points.emplace_back(point.x(), point.y());
     }
     dist_point.set_x(point.x());
@@ -4074,6 +4176,7 @@ double GeoOptimization::ComputeCurvature(
   math::FitLaneLinePoint(fit_points, &fit_result);
   math::ComputeDiscretePoints(fit_points, fit_result, &kappas, &dkappas);
   if (kappas.empty()) {
+    HLOG_WARN << "kappas size is empty!";
     return -1;
   }
   double avg_curve = std::accumulate(kappas.begin(), kappas.end(), 0.0) /
@@ -4324,6 +4427,7 @@ void GeoOptimization::HandleSingleSideLine() {
     std::vector<cv::Point2f> kdtree_points;
     Line_kd line_kd;
     hozon::mapping::LaneLine kd_line;
+    kd_line.set_track_id(static_cast<int>(static_cast<int>(extra_val_)));
     for (const auto& point : new_lines[i]) {
       if (std::isnan(point.x()) || std::isnan(point.y())) {
         continue;

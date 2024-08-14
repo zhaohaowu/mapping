@@ -8340,7 +8340,7 @@ bool GroupMap::AreAdjacentLaneGroupsDisconnected(Group::Ptr curr_group,
     }
   }
 
-  if (group_distance > 10 && curgrp_lane_to_next_min_dis > 10) {
+  if (group_distance > 8.0 && curgrp_lane_to_next_min_dis > 8.0) {
     return true;
   }
 

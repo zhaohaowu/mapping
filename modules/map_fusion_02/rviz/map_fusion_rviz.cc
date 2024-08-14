@@ -134,6 +134,8 @@ void MapFusionRviz::VizPath(const std::vector<KinePosePtr>& path,
   if (!use_rviz_ || !RVIZ_AGENT.Ok()) {
     return;
   }
+  HLOG_ERROR << "use_rviz_: " << use_rviz_;
+  HLOG_ERROR << "RVIZ_AGENT.Ok(): " << RVIZ_AGENT.Ok();
 
   auto curr_local_to_veh = curr_pose.Inverse();
   std::vector<Pose> poses;
@@ -160,8 +162,10 @@ void MapFusionRviz::VizPath(const std::vector<KinePosePtr>& path,
     cp.quat = T_veh_to_curr_veh.rotation();
     poses.emplace_back(cp);
   }
+  HLOG_ERROR << "poses.size() " << poses.size();
   auto pose_array = PosesToPoseArray(poses, "vehicle", curr_pose.stamp);
   if (pose_array != nullptr) {
+    HLOG_INFO << "pose_array " << pose_array->poses_size();
     RVIZ_AGENT.Publish(viz_topic_path_, pose_array);
   }
 }

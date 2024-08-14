@@ -6,6 +6,7 @@
  ******************************************************************************/
 
 #include "modules/map_fusion_02/pipelines/lane_fusion_pipeline.h"
+#include <memory>
 
 namespace hozon {
 namespace mp {
@@ -80,7 +81,7 @@ bool LaneFusionPipeline::Init() {
     return false;
   }
 
-  mf_rviz_ = std::unique_ptr<MapFusionRviz>();
+  mf_rviz_ = std::make_unique<MapFusionRviz>();
   auto ret = mf_rviz_->Init();
   if (!ret) {
     HLOG_FATAL << "RvizAgent init failed";
@@ -104,7 +105,7 @@ bool LaneFusionPipeline::Init() {
 void LaneFusionPipeline::Clear() {}
 
 void LaneFusionPipeline::InsertPose(const LocInfo::Ptr& pose) {
-  if (path_manager_) {
+  if (!path_manager_) {
     HLOG_ERROR << "Path manager is nullptr";
     return;
   }

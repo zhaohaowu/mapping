@@ -90,6 +90,7 @@ class Odometry2D : public OdometryBase {
   // void local_car_speed_correct(Eigen::Vector3d vel);
   void local_state_update();
   bool EstimatedRollPitch();
+  void ButterWorthFilter(Eigen::Vector3d& wheel);
 
  private:
   int mode_;

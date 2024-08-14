@@ -12,7 +12,7 @@
 namespace hozon {
 namespace mp {
 namespace mf {
-void ElemMapAppendRoadEdge(
+void DataConvert::ElemMapAppendRoadEdge(
     const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
     ElementMap::Ptr element_map_ptr) {
   for (const auto& road : local_map->road_edges()) {
@@ -28,7 +28,7 @@ void ElemMapAppendRoadEdge(
     if (road_pts.empty()) {
       continue;
     }
-    element_map_ptr->roads[road_edge.id] =
+    element_map_ptr->road_edges[road_edge.id] =
         std::make_shared<RoadEdge>(road_edge);
   }
 }

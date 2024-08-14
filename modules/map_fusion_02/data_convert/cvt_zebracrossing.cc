@@ -12,7 +12,7 @@
 namespace hozon {
 namespace mp {
 namespace mf {
-void ElemMapAppendZebra(
+void DataConvert::ElemMapAppendZebra(
     const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
     ElementMap::Ptr element_map_ptr) {
   for (const auto& cross_walk : local_map->cross_walks()) {

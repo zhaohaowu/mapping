@@ -183,7 +183,7 @@ void FillIsNearRoadLine(hozon::mp::mf::Boundary* lane_line,
   }
 }
 
-void ElemMapAppendLaneBoundary(
+void DataConvert::ElemMapAppendLaneBoundary(
     const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
     ElementMap::Ptr element_map_ptr) {
   int node_name = 1;

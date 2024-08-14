@@ -23,6 +23,7 @@ bool DataConvert::LocalMap2ElmentMap(
   ElemMapAppendArrows(map_msg, elem_map);
   ElemMapAppendStopLine(map_msg, elem_map);
   ElemMapAppendZebra(map_msg, elem_map);
+  ElemMapAppendOcc(map_msg, elem_map);
   return true;
 }
 

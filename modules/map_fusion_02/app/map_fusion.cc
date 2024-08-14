@@ -103,6 +103,7 @@ int MapFusion::ProcPercep(
 bool MapFusion::InDataMapping(
     const std::shared_ptr<hozon::mapping::LocalMap>& map_msg,
     const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg) {
+  cur_elem_map_->map_info.stamp = map_msg->header().data_stamp();
   if (!DataConvert::LocalMap2ElmentMap(map_msg, cur_elem_map_)) {
     return false;
   }

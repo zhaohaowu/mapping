@@ -188,11 +188,8 @@ struct Stpl {
 };
 
 struct LineCubic {
-  // y = c3 * x^3 + c2 * x^2 + c1 * x + c0
-  float c0 = 0.;
-  float c1 = 0.;
-  float c2 = 0.;
-  float c3 = 0.;
+  // y = coefs[3] * x^3 + coefs[2] * x^2 + coefs[1] * x + coefs[0]
+  std::vector<float> coefs;
   // start of x
   float start = 0.;
   // end of x
@@ -371,11 +368,16 @@ struct TrafficLight {
 struct OccRoad {
   Id track_id;
   Id detect_id;
-  std::vector<Eigen::Vector3d> road_points;  // 默认front为豁口点
+  Id group_id;  // 车后方最近一个group或车所在的group为0,车前方最近一个group为1,以此向前向后推
+  std::vector<Eigen::Vector3d> road_points;      // 默认front为豁口点
+  std::vector<Eigen::Vector3d> ori_road_points;  // 原始occ点，调试使用
+  std::vector<Eigen::Vector3d> ori_detect_points;  // 原始detect occ点，调试使用
   // int road_flag;  // 路沿类型0-->隔断路沿，1-->实线路沿
   Id left_occ_id = -1;   // 左侧能构成道的id
   Id right_occ_id = -1;  // 右侧能构成道的id
   bool is_forward;       // 车前方true,车侧或车后false(且满足条件)
+  int guide_index = -1;  // occ下引導點的index
+  LineCubic curve_params;
 
   DEFINE_PTR(OccRoad)
 };

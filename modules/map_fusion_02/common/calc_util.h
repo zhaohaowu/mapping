@@ -30,9 +30,25 @@ namespace mf {
 inline double DegToRad(double deg) { return deg * M_PI / 180; }
 inline double RadToDeg(double rad) { return 180 * rad / M_PI; }
 
-template <typename T>
-T CubicResolve(T c3, T c2, T c1, T c0, T x) {
-  return c3 * x * x * x + c2 * x * x + c1 * x + c0;
+template <typename T, typename M>
+T CubicResolve(const std::vector<T>& coefs, M t) {
+  int order = coefs.size();
+  switch (order) {
+    case 4: {
+      return ((coefs[3] * t + coefs[2]) * t + coefs[1]) * t + coefs[0];
+    }
+    case 3: {
+      return (coefs[2] * t + coefs[1]) * t + coefs[0];
+    }
+    case 2: {
+      return coefs[1] * t + coefs[0];
+    }
+    case 1: {
+      return coefs[0];
+    }
+    default:
+      return 0.0;
+  }
 }
 
 template <typename T>
@@ -45,11 +61,30 @@ bool OutRange(T x, T min_x, T max_x) {
   return (x < min_x || x > max_x);
 }
 
-bool InCubicRange(float x, const LineCubic& cubic);
+template <typename T>
+bool InCubicRange(T x, const LineCubic& cubic) {
+  return x >= cubic.start && x <= cubic.end;
+}
 
-/// 采样三次多项式曲线
+// 采样三次多项式曲线
+template <typename T>
 void SamplingCubic(const LineCubic& cubic, float step,
-                   std::vector<Eigen::Vector3f>* pts);
+                   std::vector<Eigen::Matrix<T, 3, 1>>* pts) {
+  if (pts == nullptr) return;
+
+  pts->clear();
+  float x = cubic.start;
+  while (x < cubic.end) {
+    float y = CubicResolve(cubic.coefs, x);
+    Eigen::Matrix<T, 3, 1> pt(x, y, 0);
+    pts->emplace_back(pt);
+
+    x += step;
+  }
+  x = cubic.end;
+  float end_y = CubicResolve(cubic.coefs, x);
+  pts->emplace_back(x, end_y, 0);
+}
 
 double NowInSec();
 
@@ -377,106 +412,6 @@ class TicToc {
   int time_count_{0};
 };
 
-template <typename T>
-class DataQueue {
- public:
-  explicit DataQueue(uint32_t max_len) : max_len_(max_len) {}
-
-  void Push(const T& data) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    queue_.emplace_back(data);
-    while (queue_.size() > max_len_) {
-      queue_.pop_front();
-    }
-  }
-
-  /// 输入/输出:
-  ///   data非空时: pop数据, 并将pop出的数据赋值给data
-  ///   data为空时: 仅pop数据
-  /// 返回:
-  ///  -1: 队列为空, pop失败
-  ///   0: pop成功
-  int Pop(T* data = nullptr) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    if (queue_.empty()) {
-      return -1;
-    }
-    if (data) {
-      *data = queue_.front();
-    }
-    queue_.pop_front();
-    return 0;
-  }
-
-  void Clear() {
-    std::lock_guard<std::mutex> lock(mtx_);
-    queue_.clear();
-  }
-
-  bool Empty() {
-    std::lock_guard<std::mutex> lock(mtx_);
-    return queue_.empty();
-  }
-
-  /// 输入/输出:
-  ///   data非空时: 将front数据赋值给data
-  ///   data为空时: 不赋值
-  /// 返回:
-  ///  -1: 队列为空, 获取失败
-  ///   0: 获取成功
-  int Front(T* data) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    if (queue_.empty()) {
-      return -1;
-    }
-    if (data) {
-      *data = queue_.front();
-    }
-    return 0;
-  }
-
-  /// 输入/输出:
-  ///   data非空时: 将back数据赋值给data
-  ///   data为空时: 不赋值
-  /// 返回:
-  ///  -1: 队列为空, 获取失败
-  ///   0: 获取成功
-  int Back(T* data) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    if (queue_.empty()) {
-      return -1;
-    }
-    if (data) {
-      *data = queue_.back();
-    }
-    return 0;
-  }
-
-  typedef std::shared_ptr<DataQueue<T>> Ptr;
-
- protected:
-  uint32_t max_len_ = 0;
-  std::deque<T> queue_;
-  std::mutex mtx_;
-};
-
-class PoseQueue : public DataQueue<Pose> {
- public:
-  explicit PoseQueue(uint32_t max_len) : DataQueue<Pose>(max_len) {}
-
-  /// 返回:
-  ///  -1: stamp小于所有pose时间戳
-  ///   0: stamp在所存pose之间
-  ///   1: stamp大于所有pose时间戳
-  ///   2: 队列为空
-  int CheckStamp(double stamp);
-
-  /// 返回:
-  ///   0: 插值成功
-  ///  -1: 插值失败
-  int Interp(double stamp, Pose* pose);
-};
-
 class Rate {
  public:
   explicit Rate(double hz);
@@ -543,6 +478,9 @@ double CalculateHeading(const Eigen::Quaternionf& q1,
 void ComputerLineDis(const std::vector<Eigen::Vector3d>& line_pts,
                      const std::vector<Eigen::Vector3d>& right_line_pts,
                      std::vector<double>* line_dis);
+
+bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
+             const Eigen::Vector3d& B);
 
 }  // namespace math
 

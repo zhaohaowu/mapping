@@ -79,7 +79,7 @@ void FillArrowType(hozon::mp::mf::Arrow* arrow,
   }
 }
 
-void ElemMapAppendArrows(
+void DataConvert::ElemMapAppendArrows(
     const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
     ElementMap::Ptr element_map_ptr) {
   for (const auto& arrow : local_map->arrows()) {

@@ -47,6 +47,9 @@ class DataConvert {
       ElementMap::Ptr element_map_ptr);
   static void cvtPb2obj(const ::hozon::perception::PerceptionObstacle& obj,
                         Object::Ptr elem_obj);
+  static void ElemMapAppendOcc(
+      const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
+      ElementMap::Ptr element_map_ptr);
 };
 
 }  // namespace mf

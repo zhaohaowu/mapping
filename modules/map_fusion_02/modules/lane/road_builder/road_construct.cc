@@ -317,6 +317,7 @@ void RoadConstruct::GenLaneSegInGroupSeg(
 
 float RoadConstruct::DistByKDtree(const Eigen::Vector3f& ref_point,
                                   const LineSegment& LineSegment) {
+  distpoits_.clear();
   distpoits_.push_back(ref_point);
   int id = LineSegment.id;
   if (KDTrees_[id] == nullptr) {

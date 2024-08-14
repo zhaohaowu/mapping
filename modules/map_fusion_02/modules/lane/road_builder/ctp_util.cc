@@ -56,9 +56,9 @@ SMStatus DistBetweenTwoLine(const std::vector<Point3D>& points_a,
   static TicToc timer;
   timer.Tic();
 
-  if (points_a.size() >= 2 || points_b.size() >= 2) {
+  if (points_a.size() < 2 || points_b.size() < 2) {
     HLOG_ERROR
-        << "Check failed: (points_a.size() >= 2 && points_b.size() >= 2)";
+        << "Check failed: (points_a.size() < 2 || points_b.size() < 2)";
     return SMStatus::ERROR;
   }
   *_overlap_status = 0;

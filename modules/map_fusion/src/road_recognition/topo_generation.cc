@@ -220,6 +220,7 @@ std::shared_ptr<hozon::hdmap::Map> TopoGeneration::GetPercepMap(
 
   // gm::GroupMap group_map(gm_conf_);
   group_map_->Clear();
+  HLOG_INFO << "[debug mem boost] start group_map_ Build";
   auto ret = group_map_->Build(path, curr_pose, last_pose_, ele_map_, &is_cross_);
   RoadScene road_scene = group_map_->GetCurrentRoadScene();
   SetRoadScene(road_scene);

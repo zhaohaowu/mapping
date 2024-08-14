@@ -60,11 +60,14 @@ void RoadRecognition::OnLocalMap(
   }
 
   geo_->OnLocalMap(msg, obj_msg);
+  HLOG_INFO << "[debug mem boost] start GetElemMap";
   auto ele = geo_->GetElemMap();
   topo_->OnElementMap(ele);
+  HLOG_INFO << "[debug mem boost] start GetPercepMap";
   percep_map_ = topo_->GetPercepMap(map_speed_limit);
   ele_map_ = topo_->GetEleMap();
   // // 需要topo_给到map.proto形式的数据
+  HLOG_INFO << "[debug mem boost] start GetPercepMap";
   AddRoadEdge(msg, percep_map_);  // 将road edge透传给下游
   rout_->Generate(percep_map_);
   routingresponse_ = rout_->GetRouting();

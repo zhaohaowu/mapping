@@ -2409,6 +2409,7 @@ void GeoOptimization::OnLocalMap(
   ExtractOccRoadGap();
 
   // 生成路口前方的虚拟车道线到all_lines_中.
+  HLOG_INFO << "[debug mem boost] start ConstructOccGuideLine...";
   ConstructOccGuideLine();
 
   // 测试

@@ -546,7 +546,7 @@ float OccGuideLineManager::CorrectLaneWidth(
     }
     float lane_space =
         GetTwoBoundayDis(bev_lanelines.at(i), bev_lanelines.at(i + 1));
-    if (lane_space > 4.5) {
+    if (lane_space > 4.5 || lane_space < 2.0) {
       continue;
     }
 
@@ -1538,7 +1538,7 @@ std::vector<em::Boundary> OccGuideLineManager::OccRegionSplit(
   }
 
   // 更新豁口宽度
-  const auto occ_width = occ_dir_vec_.norm();
+  const auto occ_width = std::min(occ_dir_vec_.norm(), 40.0F);
   int assume_lane_nums = static_cast<int>(std::max(
       static_cast<double>(std::floor(
           (occ_width - safe_distance_ * 2) / assume_lane_width_ + 0.3)),

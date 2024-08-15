@@ -5,6 +5,7 @@
  *   date       ： 2024.04
  ******************************************************************************/
 #include "modules/location/pose_estimation/lib/pose_estimation.h"
+#include <math.h>
 
 #include <algorithm>
 #include <memory>
@@ -13,6 +14,7 @@
 #include <vector>
 
 #include "Eigen/src/Core/Matrix.h"
+#include "Eigen/src/Geometry/Quaternion.h"
 #include "Eigen/src/Geometry/Transform.h"
 #include "Sophus/se3.hpp"
 #include "base/utils/log.h"
@@ -346,8 +348,18 @@ void PoseEstimation::ProcData() {
       T_input = T_ins;
       sys_status = 1;
     } else if (location_good || (!reloc_test_)) {
-      Eigen::Affine3d T_diff(Eigen::Matrix4d::Identity());
-      T_diff.translation().y() = (T_ins.inverse() * T_fc).translation().y();
+      Eigen::Matrix4d T_i_f = (T_ins.inverse() * T_fc).matrix();
+      Eigen::Vector3d euler_angle_i_f =
+          RotionMatrix2EulerAngle321(T_i_f.block<3, 3>(0, 0));
+      Eigen::Matrix3d new_R =
+          (Eigen::AngleAxisd(euler_angle_i_f[2], Eigen::Vector3d::UnitZ()) *
+           Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY()) *
+           Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX()))
+              .matrix();
+      double new_y = T_i_f(1, 3);
+      Eigen::Matrix4d T_diff = Eigen::Matrix4d::Identity();
+      T_diff(1, 3) = new_y;              // 使用fc的y
+      T_diff.block<3, 3>(0, 0) = new_R;  // 使用fc的heading
       T_input = T_ins * T_diff;
       sys_status = 2;
     } else {
@@ -374,6 +386,33 @@ void PoseEstimation::ProcData() {
                             hdmap_lanes, ref_point, ins_height_, sys_status);
     HLOG_DEBUG << "pose_estimation cost " << tic.Toc() << " ms";
   }
+}
+
+Eigen::Vector3d PoseEstimation::RotionMatrix2EulerAngle321(
+    const Eigen::Matrix3d& rotation_matrix) {
+  double roll = NAN;
+  double pitch = NAN;
+  double yaw = NAN;
+  if (rotation_matrix(0, 2) < 1) {
+    if (rotation_matrix(0, 2) > -1) {
+      // Calculate roll, pitch, and yaw angles
+      roll = atan2(rotation_matrix(2, 1), rotation_matrix(2, 2));
+      pitch = asin(-rotation_matrix(2, 0));
+      yaw = atan2(rotation_matrix(1, 0), rotation_matrix(0, 0));
+    } else {  // rotationMatrix(0, 2) == -1
+      // Gimbal lock case: pitch = -pi/2, roll - yaw can be solved as roll +
+      // yaw
+      roll = -atan2(-rotation_matrix(1, 2), rotation_matrix(1, 1));
+      pitch = -M_PI / 2;
+      yaw = 0;
+    }
+  } else {  // rotationMatrix(0, 2) == 1
+    // Gimbal lock case: pitch = pi/2, roll + yaw can be solved as roll - yaw
+    roll = atan2(-rotation_matrix(1, 2), rotation_matrix(1, 1));
+    pitch = M_PI / 2;
+    yaw = 0;
+  }
+  return {roll, pitch, yaw};
 }
 
 Eigen::Affine3d PoseEstimation::Localization2Eigen(
@@ -609,7 +648,7 @@ bool PoseEstimation::GetHdMapLane(const LocalizationPtr& fc_pose_ptr,
   if (hdmap_lanes->empty()) {
     HLOG_WARN << "Get HdMap Failed";
     HLOG_WARN << "x " << fc_pose_ptr->pose().gcj02().x() << " y "
-               << fc_pose_ptr->pose().gcj02().y() << " heading " << heading;
+              << fc_pose_ptr->pose().gcj02().y() << " heading " << heading;
     return false;
   }
   return true;
@@ -908,14 +947,14 @@ void PoseEstimation::RvizFunc() {
                                     "/pe/perception_by_input");
     RelocRviz::PubPerceptionMarkerByFc(T_fc_10hz, perception, sec, nsec,
                                        "/pe/perception_marker_by_fc");
-    RelocRviz::PubKFParamsByFc(FC_KF_kydiff_100hz, FC_KF_cov_100hz, sec,
-                                     nsec, "/pe/KFParams_marker_by_fc");
+    RelocRviz::PubKFParamsByFc(FC_KF_kydiff_100hz, FC_KF_cov_100hz, sec, nsec,
+                               "/pe/KFParams_marker_by_fc");
     RelocRviz::PubHdmap(T_fc_10hz, hdmap, sec, nsec, "/pe/hdmap");
     RelocRviz::PubHdmapMarker(T_fc_10hz, hdmap, sec, nsec, "/pe/hdmap_marker");
-    RelocRviz::PubInsLocationState(T_fc_100hz, ins_state_, sd_position_,
-                                   location_state_, perception.timestamp,
-                                   velocity_, fc_heading_, ins_heading_, conv,
-                                   sec, nsec, "/pe/ins_location_state", gps_week_, gps_second_);
+    RelocRviz::PubInsLocationState(
+        T_fc_100hz, ins_state_, sd_position_, location_state_,
+        perception.timestamp, velocity_, fc_heading_, ins_heading_, conv, sec,
+        nsec, "/pe/ins_location_state", gps_week_, gps_second_);
     RelocRviz::PubInsOdom(T_ins_100hz, sec, nsec, "/pe/ins_odom");
     RelocRviz::PubInputOdom(T_input, sec, nsec, "/pe/input_odom");
     usleep(9 * 1e3);

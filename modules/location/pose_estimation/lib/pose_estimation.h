@@ -94,6 +94,8 @@ class PoseEstimation {
                   Eigen::Affine3d* const affine3d);
   bool ExtractInsMsg(const LocalizationPtr& cur_ins, Sophus::SE3d* T02_W_V_ins,
                      const Eigen::Vector3d& ref_point);
+  Eigen::Vector3d RotionMatrix2EulerAngle321(
+      const Eigen::Matrix3d& rotation_matrix);
 
  private:
   std::deque<Localization> ins_deque_;

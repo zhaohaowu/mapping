@@ -8,6 +8,7 @@
 #pragma once
 
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <set>
 #include <vector>
@@ -36,13 +37,17 @@ class ElementsFilter : public ProcessorBase {
   void FilterElementMapLines(
       const std::map<Id, Boundary::Ptr>& lane_boundaries);
   void FilterIntersectLine();
+  void CompleteElementMapLine();
+  void CreateLineTable();
+  void MakeRoadEdgeToLaneLine();
+  void HandleExtraWideLane();
 
  private:
-  std::map<int, std::vector<Line_kd>> all_lines_;  // 用于存储当前所有line信息
+  std::unordered_map<int, local_line_info> local_line_table_;  // key: track id; value: line info
   GeoOptimizationViz geo_viz_;
-  // copy from origin_element_map
   std::set<int> last_track_id_;  // 记录上一帧trackid
   int point_num_;
+  std::map<Id, Boundary::Ptr> used_lines_;
 };
 
 }  // namespace mf

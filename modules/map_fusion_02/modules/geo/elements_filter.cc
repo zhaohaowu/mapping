@@ -34,6 +34,9 @@ bool ElementsFilter::Process(ElementMap::Ptr origin_element_map_ptr) {
   FilterElementMapLines(origin_element_map_ptr->lane_boundaries);
   // filter intersect line
   FilterIntersectLine();
+  // ContinueLocalMapUseLine();
+  // 补缺失的线
+  CompleteElementMapLine();
   // rviz
   geo_viz_.VizElementMap(origin_element_map_ptr, T_ptr->pose);
   return true;
@@ -44,8 +47,8 @@ void ElementsFilter::FilterElementMapLines(
   if (lane_boundaries.empty()) {
     return;
   }
-  if (!all_lines_.empty()) {
-    all_lines_.clear();
+  if (!local_line_table_.empty()) {
+    local_line_table_.clear();
   }
   std::set<int> duplicate_last_track_id;
   if (!last_track_id_.empty()) {
@@ -68,7 +71,7 @@ void ElementsFilter::FilterElementMapLines(
       continue;
     }
     std::vector<cv::Point2d> kdtree_points;
-    Line_kd line_kd;
+    std::vector<Eigen::Vector3f> local_points;
     for (const auto& node_ptr : lane_boundary_nodes) {
       const auto& point = node_ptr->point;
       if (std::isnan(point.x()) || std::isnan(point.y()) ||
@@ -76,8 +79,8 @@ void ElementsFilter::FilterElementMapLines(
         HLOG_ERROR << "found nan point in local map lane line";
         continue;
       }
-      Eigen::Vector3d point_local(point.x(), point.y(), point.z());
-      kdtree_points.emplace_back(point_local.x(), point_local.y());
+      kdtree_points.emplace_back(point.x(), point.y());
+      local_points.emplace_back(point.x(), point.y(), point.z());
     }
     if (kdtree_points.size() < 2) {
       continue;
@@ -86,182 +89,124 @@ void ElementsFilter::FilterElementMapLines(
     std::shared_ptr<cv::flann::Index> kdtree_ptr =
         std::make_shared<cv::flann::Index>(cv::Mat(kdtree_points).reshape(1),
                                            index_param);
-    line_kd.line_kdtree = kdtree_ptr;
-    line_kd.lane_boundary_line =
-        std::make_shared<std::pair<const Id, Boundary::Ptr>>(lane_boundary);
-    all_lines_[static_cast<int>(lane_boundary_ptr->lanepos)].emplace_back(
-        std::move(line_kd));
+    local_line_info line_info;
+    line_info.line_kdtree = kdtree_ptr;
+    line_info.line_track_id = track_id;
+    line_info.local_line_pts = local_points;
+    local_line_table_[track_id] = line_info;
   }
   return;
 }
 
 void ElementsFilter::FilterIntersectLine() {
-  // auto all_lines_size = all_lines_.size();
-  // if (all_lines_size < 3) {
-  //   return;
-  // }
-  // std::vector<int> all_lane_poses;
-  // all_lane_poses.resize(all_lines_size);
-  // if (all_lane_poses.size() != all_lines_size) {
-  //   return;
-  // }
-  // int index = 0;
-  // for (const auto& line : all_lines_) {
-  //   all_lane_poses[index++] = line.first;
-  // }
-  // // 长线不判断
-  // for (int i = 0, j = 1; i < all_lines_size - 1, j < all_lines_size;
-  //      ++i, j = i + 1) {
-  //   for (auto& selected_line : all_lines_[all_lane_poses[i]]) { // Line_kd vector
-  //     // 点数 > 25的长线不判断
-  //     if (selected_line.lane_boundary_line->second->nodes.size() > 25) {
-  //       continue;
-  //     }
-  //     for (auto& candidated_line : all_lines_[all_lane_poses[j]]) {
-  //       if (candidated_line.lane_boundary_line->second->nodes.size() > 25 ||
-  //           j >= all_lines_size) {
-  //         continue;
-  //       }
-  //       Eigen::Vector2d intersect_point;
-  //       Eigen::Vector2d a =
-  //           (selected_line.lane_boundary_line->second->nodes.front()
-  //                ->get()
-  //                ->point.x(),
-  //            selected_line.lane_boundary_line->second->nodes.front()
-  //                ->get()
-  //                ->point.y());
-  //       Eigen::Vector2d b =
-  //           (selected_line.lane_boundary_line->second->nodes.back()
-  //                ->get()
-  //                ->point.x(),
-  //            selected_line.lane_boundary_line->second->nodes.back()
-  //                ->get()
-  //                ->point.y());
-  //       Eigen::Vector2d c =
-  //           (selected_line.lane_boundary_line->second->nodes.front()
-  //                ->get()
-  //                ->point.x(),
-  //            selected_line.lane_boundary_line->second->nodes.front()
-  //                ->get()
-  //                ->point.y());
-  //       Eigen::Vector2d d =
-  //           (selected_line.lane_boundary_line->second->nodes.back()
-  //                ->get()
-  //                ->point.x(),
-  //            selected_line.lane_boundary_line->second->nodes.back()
-  //                ->get()
-  //                ->point.y());
-  //       if (SegmentIntersection(a, b, c, d)) {
-  //         selected_line.store = false;
-  //         candidated_line.store = false;
-  //       }
-  //       ++j;
-  //     }
-  //   }
-  // }
-  // // 短线与长线交叉 删除短线
-  // for (int i = 0, j = 1; i < all_lines_size - 1, j < all_lines_size;
-  //      ++i, j = i + 1) {
-  //   for (auto& selected_line : all_lines_[all_lane_poses[i]]) {
-  //     if (!selected_line.store) {
-  //       continue;
-  //     }
-  //     for (auto& candidated_line : all_lines_[all_lane_poses[j]]) {
-  //       if (!candidated_line.store) {
-  //         continue;
-  //       }
-  //       if (selected_line.lane_boundary_line->second->nodes.size() < 2 ||
-  //           candidated_line.lane_boundary_line->second->nodes.size() < 2) {
-  //         continue;
-  //       }
-  //       if ((selected_line.lane_boundary_line->second->nodes.back()
-  //                .get()
-  //                ->point.y() <
-  //            candidated_line.lane_boundary_line->second->nodes.front()
-  //                .get()
-  //                ->point.y()) ||
-  //           (candidated_line.lane_boundary_line->second->nodes.back()
-  //                .get()
-  //                ->point.y() <
-  //            selected_line.lane_boundary_line->second->nodes.front()
-  //                .get()
-  //                ->point.y())) {
-  //         continue;
-  //       }
-  //       if (selected_line.lane_boundary_line->second->nodes.size() > 25 ||
-  //           candidated_line.lane_boundary_line->second->nodes.size() <= 25) {
-  //         Eigen::Vector2d a =
-  //             (selected_line.lane_boundary_line->second->nodes.front()
-  //                  ->get()
-  //                  ->point.x(),
-  //              selected_line.lane_boundary_line->second->nodes.front()
-  //                  ->get()
-  //                  ->point.y());
-  //         Eigen::Vector2d b =
-  //             (selected_line.lane_boundary_line->second->nodes.back()
-  //                  ->get()
-  //                  ->point.x(),
-  //              selected_line.lane_boundary_line->second->nodes.back()
-  //                  ->get()
-  //                  ->point.y());
-  //         Eigen::Vector2d c =
-  //             (selected_line.lane_boundary_line->second->nodes.front()
-  //                  ->get()
-  //                  ->point.x(),
-  //              selected_line.lane_boundary_line->second->nodes.front()
-  //                  ->get()
-  //                  ->point.y());
-  //         Eigen::Vector2d d =
-  //             (selected_line.lane_boundary_line->second->nodes.back()
-  //                  ->get()
-  //                  ->point.x(),
-  //              selected_line.lane_boundary_line->second->nodes.back()
-  //                  ->get()
-  //                  ->point.y());
-  //         if (SegmentIntersection(a, b, c, d)) {
-  //           candidated_line.store = false;
-  //         }
-  //       } else if (selected_line.lane_boundary_line->second->nodes.size() <=
-  //                      25 ||
-  //                  candidated_line.lane_boundary_line->second->nodes.size() >
-  //                      25) {
-  //         Eigen::Vector2d a =
-  //             (selected_line.lane_boundary_line->second->nodes.front()
-  //                  ->get()
-  //                  ->point.x(),
-  //              selected_line.lane_boundary_line->second->nodes.front()
-  //                  ->get()
-  //                  ->point.y());
-  //         Eigen::Vector2d b =
-  //             (selected_line.lane_boundary_line->second->nodes.back()
-  //                  ->get()
-  //                  ->point.x(),
-  //              selected_line.lane_boundary_line->second->nodes.back()
-  //                  ->get()
-  //                  ->point.y());
-  //         Eigen::Vector2d c =
-  //             (selected_line.lane_boundary_line->second->nodes.front()
-  //                  ->get()
-  //                  ->point.x(),
-  //              selected_line.lane_boundary_line->second->nodes.front()
-  //                  ->get()
-  //                  ->point.y());
-  //         Eigen::Vector2d d =
-  //             (selected_line.lane_boundary_line->second->nodes.back()
-  //                  ->get()
-  //                  ->point.x(),
-  //              selected_line.lane_boundary_line->second->nodes.back()
-  //                  ->get()
-  //                  ->point.y());
-  //         if (SegmentIntersection(a, b, c, d)) {
-  //           selected_line.store = false;
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
+  auto local_lines_size = local_line_table_.size();
+  if (local_lines_size < 3) {
+    return;
+  }
+  for (int i = 0, j = 1; i < local_lines_size - 1, j < local_lines_size;
+       ++i, j = i + 1) {
+    auto& selected_line = local_line_table_[i];
+    if (selected_line.local_line_pts.size() > 25) {
+      continue;
+    }
+    for (int j = i + 1; j < local_lines_size; ++j) {
+      auto& candidated_line = local_line_table_[j];
+      if (candidated_line.local_line_pts.size() > 25) {
+        continue;
+      }
+      Eigen::Vector2f intersect_point{0.f, 0.f};
+      Eigen::Vector2f a(
+          static_cast<float>(selected_line.local_line_pts.front().x()),
+          static_cast<float>(selected_line.local_line_pts.front().y()));
+      Eigen::Vector2f b(
+          static_cast<float>(selected_line.local_line_pts.back().x()),
+          static_cast<float>(selected_line.local_line_pts.back().y()));
+      Eigen::Vector2f c(
+          static_cast<float>(candidated_line.local_line_pts.front().x()),
+          static_cast<float>(candidated_line.local_line_pts.front().y()));
+      Eigen::Vector2f d(
+          static_cast<float>(candidated_line.local_line_pts.back().x()),
+          static_cast<float>(candidated_line.local_line_pts.back().y()));
+      if (SegmentIntersection(a, b, c, d, &intersect_point)) {
+        selected_line.store = false;
+        candidated_line.store = false;
+      }
+    }
+  }
+  // 短线跟长线交叉 删除短线
+  for (int i = 0, j = 1; i < local_lines_size - 1, j < local_lines_size;
+       ++i, j = i + 1) {
+    auto& selected_line = local_line_table_[i];
+    if (!selected_line.store || selected_line.local_line_pts.size() < 2) {
+      continue;
+    }
+    for (int j = i + 1; j < local_lines_size; ++j) {
+      auto& candidated_line = local_line_table_[j];
+      if (!candidated_line.store || candidated_line.local_line_pts.size() < 2) {
+        continue;
+      }
+      if (selected_line.local_line_pts.back().y() <
+              candidated_line.local_line_pts.front().y() ||
+          candidated_line.local_line_pts.back().y() <
+              selected_line.local_line_pts.front().y()) {
+        continue;
+      }
+      if (selected_line.local_line_pts.size() > 25 &&
+          candidated_line.local_line_pts.size() <= 25) {
+        Eigen::Vector2f intersect_point{0.f, 0.f};
+        Eigen::Vector2f a(
+            static_cast<float>(selected_line.local_line_pts.front().x()),
+            static_cast<float>(selected_line.local_line_pts.front().y()));
+        Eigen::Vector2f b(
+            static_cast<float>(selected_line.local_line_pts.back().x()),
+            static_cast<float>(selected_line.local_line_pts.back().y()));
+        Eigen::Vector2f c(
+            static_cast<float>(candidated_line.local_line_pts.front().x()),
+            static_cast<float>(candidated_line.local_line_pts.front().y()));
+        Eigen::Vector2f d(
+            static_cast<float>(candidated_line.local_line_pts.back().x()),
+            static_cast<float>(candidated_line.local_line_pts.back().y()));
+        if (SegmentIntersection(a, b, c, d, &intersect_point)) {
+          candidated_line.store = false;
+        }
+      } else if (selected_line.local_line_pts.size() <= 25 &&
+                 candidated_line.local_line_pts.size() > 25) {
+        Eigen::Vector2f intersect_point{0.f, 0.f};
+        Eigen::Vector2f a(
+            static_cast<float>(selected_line.local_line_pts.front().x()),
+            static_cast<float>(selected_line.local_line_pts.front().y()));
+        Eigen::Vector2f b(
+            static_cast<float>(selected_line.local_line_pts.back().x()),
+            static_cast<float>(selected_line.local_line_pts.back().y()));
+        Eigen::Vector2f c(
+            static_cast<float>(candidated_line.local_line_pts.front().x()),
+            static_cast<float>(candidated_line.local_line_pts.front().y()));
+        Eigen::Vector2f d(
+            static_cast<float>(candidated_line.local_line_pts.back().x()),
+            static_cast<float>(candidated_line.local_line_pts.back().y()));
+        if (SegmentIntersection(a, b, c, d, &intersect_point)) {
+          selected_line.store = false;
+        }
+      }
+    }
+  }
 }
-void ElementsFilter::Clear() { all_lines_.clear(); }
+
+void ElementsFilter::CompleteElementMapLine() {
+  if (used_lines_.empty()) {
+    return;
+  }
+  CreateLineTable();
+  MakeRoadEdgeToLaneLine();
+  HandleExtraWideLane();
+}
+
+void ElementsFilter::CreateLineTable() {}
+
+void ElementsFilter::MakeRoadEdgeToLaneLine() {}
+
+void ElementsFilter::HandleExtraWideLane() {}
+void ElementsFilter::Clear() { local_line_table_.clear(); }
 
 }  // namespace mf
 }  // namespace mp

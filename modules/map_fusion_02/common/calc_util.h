@@ -413,7 +413,9 @@ class TicToc {
  public:
   TicToc() { Tic(); }
 
-  void Tic() { clock_gettime(CLOCK_REALTIME, &start_); }
+  void Tic() {
+    clock_gettime(CLOCK_REALTIME, &start_);
+  }
 
   // in ms
   double Toc() {
@@ -422,12 +424,23 @@ class TicToc {
                       static_cast<double>(start_.tv_nsec) * 1e-6;
     double end_ms = static_cast<double>(end_.tv_sec) * 1e3 +
                     static_cast<double>(end_.tv_nsec) * 1e-6;
-    return end_ms - start_ms;
+    time_cost_ = end_ms - start_ms;
+    time_total_ += time_cost_;
+    time_count_++;
+    return time_cost_;
   }
+
+  double AveCost() const { return time_total_ / time_count_; }
+
+  double Cost() const { return time_cost_; }
 
  private:
   timespec start_{};
   timespec end_{};
+
+  double time_cost_{0.0};
+  double time_total_{0.0};
+  int time_count_{0};
 };
 
 class Rate {

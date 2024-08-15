@@ -36,7 +36,7 @@ class MapFusion {
   MapFusion() = default;
   ~MapFusion() = default;
   int Init(const YAML::Node& conf);
-  void OnLocalization(
+  int OnLocalization(
       const std::shared_ptr<hozon::localization::Localization>& msg);
   void Stop();
 

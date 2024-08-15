@@ -1,5 +1,5 @@
 %YAML:1.0
-orin_viz: false
+orin_viz: true
 # orin_viz_addr: tcp://10.6.74.153:9100
 orin_viz_addr: ipc:///tmp/rviz_agent_mf
 
@@ -23,7 +23,7 @@ work_mode: FusionMap+PercepMap # options: "FusionMap", "PercepMap", "FusionMap+P
 
 RoadRecognition:
   TopoGeneration:
-    viz: false
+    viz: true
     viz_topic_input_ele_map: /topo_gen/input_ele_map
     viz_topic_output_ele_map: /topo_gen/output_ele_map
     viz_topic_path: /topo_gen/path

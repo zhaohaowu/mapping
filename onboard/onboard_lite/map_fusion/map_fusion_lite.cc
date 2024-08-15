@@ -24,6 +24,33 @@ namespace hozon {
 namespace perception {
 namespace common_onboard {
 
+// NOLINTBEGIN
+DEFINE_bool(topo_rviz, false, "topo assignment use rviz or not");
+DEFINE_double(topo_lane_line_dist, 1.0,
+              "the distance threshold for laneline belonging to a lane");
+DEFINE_double(topo_lane_line_dist_point, 1.5,
+              "the distance threshold for laneline belonging to a lane point");
+DEFINE_double(topo_lane_line_point_dist, 10.0,
+              "the distance threshold for laneline point belonging to a lane");
+DEFINE_bool(road_recognition_rviz, false, "road recognition use rviz or not");
+DEFINE_int32(virtual_line_id, 2000, "the virtual line id");
+DEFINE_double(radius, 500, "radius of the vehicle position");
+DEFINE_double(transform_distance, 200, "distance to update the map");
+DEFINE_string(viz_addr_mp, "ipc:///tmp/rviz_agent_mp",
+              "RvizAgent working address, may like "
+              "ipc:///tmp/sample_rviz_agent or "
+              "inproc://sample_rviz_agent or "
+              "tcp://127.0.0.1:9100");
+DEFINE_bool(viz_odom_map_in_local, true,
+            "whether publish viz msgs of odometry and map in local frame");
+DEFINE_string(viz_topic_odom_in_local, "/mf/pred/odom_local",
+              "viz topic of odometry in local frame");
+DEFINE_string(viz_topic_map_in_local, "/mf/pred/map_local",
+              "viz topic of map in local frame");
+DEFINE_bool(output_hd_map, false,
+            "Whether to output a map with a range of 300m");
+// NOLINTEND
+
 int32_t MapFusionLite::AlgInit() {
   // #ifdef ISORIN
   //  hozon::netaos::log::InitLogging(
@@ -73,11 +100,11 @@ int32_t MapFusionLite::AlgInit() {
     HLOG_INFO << "Init map fusion failed";
     return -1;
   }
-  map_select_ = std::make_unique<MapSelectLite>();
-  if (!map_select_->Init()) {
-    HLOG_INFO << "Init map select failed";
-    return -1;
-  }
+  // map_select_ = std::make_unique<MapSelectLite>();
+  // if (!map_select_->Init()) {
+  //   HLOG_INFO << "Init map select failed";
+  //   return -1;
+  // }
   RegistMessageType();
   RegistProcessFunc();
 
@@ -240,6 +267,11 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
             hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
         location_error_flags = false;
       }
+    }
+
+    int ret = mf_->OnLocalization(curr_loc_);
+    if (ret < 0) {
+      HLOG_WARN << "map fusion Onlocation failed";
     }
   }
 
@@ -450,7 +482,7 @@ int32_t MapFusionLite::OnObj(Bundle* input) {
   }
   return 0;
 }
-
+/*
 int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   if (!mf_) {
     HLOG_WARN << "nullptr map fusion";
@@ -642,6 +674,100 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
 
     MapFusionOutputEvaluation(latest_loc);
   }
+
+  return 0;
+} */
+
+int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
+  if (!mf_) {
+    HLOG_WARN << "nullptr map fusion";
+    return -1;
+  }
+  std::shared_ptr<hozon::localization::HafNodeInfo> latest_plugin =
+      GetLatestLocPlugin();
+  if (latest_plugin == nullptr) {
+    HLOG_WARN << "nullptr latest plugin node info";
+    return -1;
+  }
+  std::shared_ptr<hozon::planning::ADCTrajectory> latest_planning = nullptr;
+  static double last = -1;
+  auto now = hozon::common::Clock::NowInSeconds() * 1000;
+  bool global_hd_updated = false;
+  // if (last < 0 || now - last > FLAGS_service_update_interval) {
+  //   auto phm_health = hozon::perception::lib::HealthManager::Instance();
+  //   phm_health->HealthReport(MAKE_HM_TUPLE(
+  //       hozon::perception::base::HmModuleId::MAPPING,
+  //       hozon::perception::base::HealthId::CPID_MAP_SEND_HD_AND_HQ_FPS));
+  //   mf_->ProcService(latest_plugin, latest_planning, curr_routing_.get());
+  //   global_hd_updated = true;
+  //   last = now;
+  // }
+  std::shared_ptr<hozon::localization::Localization> latest_loc =
+      GetLatestLoc();
+  if (latest_loc == nullptr) {
+    HLOG_WARN << "nullptr latest loc";
+    return -1;
+  }
+  std::shared_ptr<hozon::mapping::LocalMap> latest_local_map =
+      GetLatestLocalMap();
+  // if (latest_local_map == nullptr) {
+  //   HLOG_ERROR << "nullptr latest local map";
+  //   return -1;
+  // }
+
+  std::shared_ptr<hozon::perception::TransportElement> latest_percep =
+      GetLatestPercep();
+  // if (latest_percep == nullptr) {
+  //   HLOG_ERROR << "nullptr latest latest_percep";
+  //   return -1;
+  // }
+
+  std::shared_ptr<hozon::perception::PerceptionObstacles> latest_obj =
+      GetLatestObj();
+  // if (latest_obj == nullptr) {
+  //   HLOG_ERROR << "nullptr latest latest_obj";
+  //   return -1;
+  // }
+
+  std::shared_ptr<hozon::dead_reckoning::DeadReckoning> latest_dr =
+      GetLatestDR();
+  // if (latest_percep == nullptr) {
+  //   HLOG_ERROR << "nullptr latest latest_dr";
+  //   return -1;
+  // }
+
+  std::shared_ptr<hozon::functionmanager::FunctionManagerIn> latest_fct_in =
+      GetLatestFCTIn();
+  // if (curr_fct_in_ == nullptr) {
+  //   HLOG_ERROR << "nullptr latest curr_fct_in_";
+  //   return -1;
+  // }
+
+  std::shared_ptr<hozon::hdmap::Map> latest_fusion_map = nullptr;
+  std::shared_ptr<hozon::hdmap::Map> latest_percep_map = nullptr;
+  std::shared_ptr<hozon::routing::RoutingResponse> latest_percep_routing =
+      nullptr;
+  static WorkMode pre_word_mode = WorkMode::PerceptMap;
+
+  // HLOG_INFO << "ProcPercep";
+  work_mode_ = WorkMode::PerceptMap;
+  if (work_mode_ != pre_word_mode) {
+    HLOG_INFO << "turn to PerceptMap Mode...";
+  }
+  auto percep_map = std::make_shared<hozon::hdmap::Map>();
+  percep_map->Clear();
+  auto percep_routing = std::make_shared<hozon::routing::RoutingResponse>();
+  int ret = mf_->ProcPercep(latest_loc, latest_local_map, latest_obj,
+                            percep_map.get(), percep_routing.get());
+  if (ret < 0) {
+    HLOG_WARN << "map fusion ProcPercep failed";
+    percep_map->Clear();
+  } else {
+    latest_percep_map = percep_map;
+    latest_percep_routing = percep_routing;
+  }
+
+  pre_word_mode = work_mode_;
 
   return 0;
 }
@@ -1032,7 +1158,7 @@ int MapFusionLite::MapFusionOutputEvaluation(
   pre_publish_stamp = cur_publish_stamp;
   return 0;
 }
-
+/*
 int MapFusionLite::MapServiceFaultOutput(
     const hozon::mp::mf::MapServiceFault& fault) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
@@ -1196,7 +1322,7 @@ int MapFusionLite::MapServiceFaultOutput(
     HLOG_ERROR << "HD_MAP_SDK_INIT_FAIL ";
   }
   return 0;
-}
+} */
 
 Eigen::Vector3d MapFusionLite::Qat2EulerAngle(const Eigen::Quaterniond& q) {
   Eigen::Vector3d eulerangle = {0, 0, 0};

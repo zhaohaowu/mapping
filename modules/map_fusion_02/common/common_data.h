@@ -14,6 +14,17 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
+#define ID_PREFIX_ARROW "arrow/"
+#define ID_PREFIX_NODE "node/"
+#define ID_PREFIX_BOUNDARY "boundary/"
+#define ID_PREFIX_CENTER_LINE "center_line/"
+#define ID_PREFIX_CROSS_WALK "cross_walk/"
+#define ID_PREFIX_LANE "lane/"
+#define ID_PREFIX_ROAD "road/"
+#define ID_PREFIX_STOP_LINE "stop_line/"
+#define ID_PREFIX_SYMBOL "symbol/"
+#define ID_PREFIX_TRAFFIC_LIGHT "traffic_light/"
+
 enum class PoseState {
   NORMAL = 0,
   UTURN = 1,

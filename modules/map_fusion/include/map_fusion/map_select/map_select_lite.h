@@ -286,7 +286,7 @@ class MapSelectLite {
   float max_half_lane_dis_ = 3.5;
   float min_half_lane_dis_ = 1.35;
   float lane_range_value_ = 0.4;
-  float dis_scope_ = 80;
+  float dis_scope_ = 120;
   bool last_car_not_in_lanes_ = false;
   int in_lanes_after_not_count_ = 0;
   int in_lanes_count_ = 3;

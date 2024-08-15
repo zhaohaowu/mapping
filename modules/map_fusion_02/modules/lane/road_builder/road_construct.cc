@@ -495,6 +495,7 @@ void RoadConstruct::BuildGroups(
     const ElementMap::Ptr& ele_map,
     const std::vector<GroupSegment::Ptr>& group_segments,
     std::vector<Group::Ptr>* groups) {
+  groups->clear();
   HLOG_DEBUG << "BuildGroups";
   if (group_segments.empty() || groups == nullptr) {
     return;

@@ -2547,6 +2547,8 @@ void GeoOptimization::ExtractOccRoadGap() {
     }
 
     if (OccLineFitError(occ, curve_params) > 2.0) {
+      HLOG_DEBUG << "OccLineFitError id: " << occ.track_id()
+                 << ", detect_id: " << occ.detect_id();
       continue;
     }
     // 根据障碍物过滤对向occ路沿
@@ -2697,8 +2699,6 @@ void GeoOptimization::CompareGroupLines(
         auto ave_width =
             std::accumulate(l_widths.begin(), l_widths.end(), 0.0) /
             static_cast<double>(l_widths.size());
-        HLOG_DEBUG << "ComputerLineDis occ1: " << occ1.first
-                   << ", occ2: " << occ2.first << ", " << ave_width;
         if (ave_width < 5) {
           continue;
         }
@@ -2706,7 +2706,7 @@ void GeoOptimization::CompareGroupLines(
         HLOG_DEBUG << "GetOverLayRatioBetweenTwoLane occ1: " << occ1.first
                    << ", y: " << occ_l1.back().y() << ", occ2: " << occ2.first
                    << ", y: " << occ_l2.back().y() << ", " << overlay_ratio;
-        if (overlay_ratio < 0.2) {
+        if (overlay_ratio < 0.1) {
           continue;
         }
 
@@ -2835,20 +2835,43 @@ float GeoOptimization::evalueHeadingDiff(const T1& x,
   return sum;
 }
 
+double GeoOptimization::OccWidth(const em::OccRoad::Ptr& occ_road_ptr) {
+  double width = std::numeric_limits<double>::max();
+  if (occ_road_ptr->road_points.size() < 6) {
+    return width;
+  }
+  width = 0.0;
+  Eigen::Vector3d start_pt = occ_road_ptr->road_points.front();
+  Eigen::Vector3d end_pt = occ_road_ptr->road_points.back();
+  for (const auto& pt : occ_road_ptr->road_points) {
+    double dist = GetDistPointLine(pt, start_pt, end_pt);
+    if (dist > width) {
+      width = dist;
+    }
+  }
+  return width;
+}
+
 bool GeoOptimization::GetFirstOCCPoints(const em::OccRoad::Ptr& occ_road_ptr,
                                         int* first_point_index) {
   if (occ_road_ptr->road_points.size() < 6) {
     return false;
   }
   std::vector<float> heading_vec;
-  HLOG_DEBUG << "GetFirstOCCPoints track_id: " << occ_road_ptr->track_id;
+  double width = OccWidth(occ_road_ptr);
+  HLOG_DEBUG << "GetFirstOCCPoints track_id: " << occ_road_ptr->track_id
+             << ", width: " << width;
+  if (width < 0.5) {
+    *first_point_index = 0;
+    return true;
+  }
   for (const auto& pt : occ_road_ptr->road_points) {
     auto heading = evalueHeadingDiff(pt.x(), occ_road_ptr->curve_params);
     HLOG_DEBUG << "x: " << pt.x() << ", " << heading;
     heading_vec.push_back(heading);
   }
   int count_low_slobe = 0;
-  for (int i = 0; i < static_cast<int>(heading_vec.size()) - 5; ++i) {
+  for (int i = 0; i < static_cast<int>(heading_vec.size()) - 2; ++i) {
     if (std::abs(heading_vec[i]) < 0.02) {
       count_low_slobe++;
       if (count_low_slobe >= 3) {

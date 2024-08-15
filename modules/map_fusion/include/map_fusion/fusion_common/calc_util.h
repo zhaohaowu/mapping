@@ -173,6 +173,24 @@ float GetOverLayRatioBetweenTwoLane(const std::vector<pointType>& curve1,
   return overlay_length / std::min(length1, length2);
 }
 
+template <typename pointType>
+float GetDistPointLine(const pointType& A, const pointType& B,
+                       const pointType& C) {
+  // 以B为起点计算向量BA 在向量BC上的投影
+  pointType BC = C - B;
+  pointType BA = A - B;
+
+  if (abs(BC.norm()) < 0.0001) {
+    return abs(BA.y());
+  }
+
+  float dist_proj = BA.dot(BC) / BC.norm();
+  // A到BC的垂心为P
+  pointType BP = dist_proj * BC.normalized();
+  pointType AP = (B - A) + BP;
+  return AP.norm();
+}
+
 /// 判断pt在向量p0p1的左侧还是右侧.
 /// 返回值：
 ///  < 0：pt在p0p1左侧；

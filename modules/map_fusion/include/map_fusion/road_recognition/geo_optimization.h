@@ -315,7 +315,8 @@ class GeoOptimization {
   void MakeRoadEdgeToLaneLine();
 
   bool IsBetweenLinesMid(const std::vector<Eigen::Vector3d>& new_road_pts,
-                         const hozon::mapping::LaneLine& target_line, const int& direction);
+                         const hozon::mapping::LaneLine& target_line,
+                         const int& direction);
 
   void CompareRoadAndLines(const std::vector<Eigen::Vector3d>& road_pts,
                            const int& road_id);
@@ -446,6 +447,7 @@ class GeoOptimization {
       const Line_kd& lane_line);
   bool FindOCCGuidePoint();
   void UpdateOCCRoadPoints();
+  double OccWidth(const em::OccRoad::Ptr& occ_road_ptr);
   bool GetFirstOCCPoints(const em::OccRoad::Ptr& occ_road_ptr,
                          int* first_point_index);
   bool GetFirstNearIndex(const std::vector<em::OccRoad::Ptr>& vec_occs,

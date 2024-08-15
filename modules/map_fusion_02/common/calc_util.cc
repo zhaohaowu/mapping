@@ -594,6 +594,36 @@ bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
   return C.y() > P.y();  // 由于y轴是指向左边，所以c<p的意思是p是否在c的右边
 }
 
+double CalMeanLineHeading(const std::vector<Eigen::Vector3d>& points) {
+  if (points.size() < 2) {
+    return 0;
+  }
+  double mean_theta = 0.;
+  double count = 0;
+  for (size_t i = 0; i < points.size() - 1; i++) {
+    size_t j = i + 1;
+    for (; j < points.size(); j++) {
+      const Eigen::Vector2f pa(points[i].x(), points[i].y());
+      const Eigen::Vector2f pb(points[j].x(), points[j].y());
+      Eigen::Vector2f v = pb - pa;
+      if (v.norm() > 1.0) {
+        double theta = 0;
+        if (std::abs(v.x()) > 1e-2) {
+          theta = atan2(v.y(), v.x());  // atan2计算出的角度范围是[-pi, pi]
+          mean_theta += theta;
+          count++;
+          i = j;
+          break;
+        }
+      }
+    }
+  }
+  if (count > 0) {
+    mean_theta /= count;
+  }
+  return mean_theta;
+}
+
 }  // namespace math
 
 }  // namespace mf

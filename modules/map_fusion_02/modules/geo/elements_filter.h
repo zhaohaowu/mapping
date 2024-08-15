@@ -9,14 +9,18 @@
 
 #include <map>
 #include <memory>
+#include <numeric>
 #include <set>
 #include <unordered_map>
 #include <vector>
+
 #include <boost/circular_buffer.hpp>
 
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/base/processor.h"
 #include "modules/map_fusion_02/modules/geo/elements_filter_base.h"
+
+#include "modules/map_fusion_02/modules/geo/geo_utils.h"
 #include "modules/map_fusion_02/rviz/geo_optimization_rviz.h"
 
 namespace hozon {
@@ -43,12 +47,29 @@ class ElementsFilter : public ProcessorBase {
   void CompareRoadAndLines(const std::vector<Eigen::Vector3d>& road_pts,
                            const int& road_id);
 
+  void FilterReverseLine();
+  void HandleOppisiteLineByObj();
+  std::vector<Eigen::Vector3d> GetdRoadEdgePts();
+  std::vector<Eigen::Vector3d> GetDoubleSolidYellowLine();
+  std::vector<Eigen::Vector3d> FindTargetPoints(
+      const std::vector<std::vector<Eigen::Vector3d>>& forward_road_edges);
+  RelativePosition IsTargetOnLineRight(
+      const std::vector<Eigen::Vector3d>& target_line, const LineInfo& line);
+  RelativePosition IsRoadEdgeOnVehicleRight(
+      const std::vector<Eigen::Vector3d>& points, const double& heading);
+  void HandleOppisiteLine(const std::vector<Eigen::Vector3d>& target_line);
+  void HandleOppisiteLineByObjAndYelloLine();
+
  private:
+  Eigen::Isometry3d T_U_V_;
   std::unordered_map<int, LineInfo>
-      line_table_;  // key: track id; value: line info
+      local_line_table_;  // key: track id; value: line info
+  std::map<int, RoadEdge::Ptr> road_edge_table_;
   GeoOptimizationViz geo_viz_;
   std::set<int> last_track_id_;  // 记录上一帧trackid
-  int point_num_;
+  boost::circular_buffer<
+      std::shared_ptr<hozon::perception::PerceptionObstacles>>
+      history_objs_;
 };
 
 }  // namespace mf

@@ -451,6 +451,7 @@ bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
 
 template <typename T1, typename T2>
 float evaluateHeadingDiff(const T1& x, const std::vector<T2>& params);
+double CalMeanLineHeading(const std::vector<Eigen::Vector3d>& points);
 
 }  // namespace math
 

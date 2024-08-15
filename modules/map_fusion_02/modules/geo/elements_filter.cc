@@ -23,6 +23,8 @@ namespace mp {
 namespace mf {
 
 bool ElementsFilter::Init() {
+  history_objs_.set_capacity(10);
+  history_objs_.clear();
   HLOG_WARN << "inital success!";
   return true;
 }
@@ -40,7 +42,16 @@ bool ElementsFilter::Process(ElementMap::Ptr origin_element_map_ptr) {
   FilterIntersectLine();
   // ContinueLocalMapUseLine();
   // 补缺失的线
+<<<<<<< HEAD
   CompensateElementMapLine(road_edges);
+=======
+  CompleteElementMapLine();
+
+  // 处理路口场景逆向车道车道线
+  road_edge_table_ = origin_element_map_ptr->road_edges;
+  FilterReverseLine();
+
+>>>>>>> mf-geo:移植过滤逆向车道模块
   // rviz
   geo_viz_.VizElementMap(origin_element_map_ptr, T_ptr->pose);
   return true;
@@ -97,7 +108,11 @@ void ElementsFilter::FilterElementMapLines(
     line_info.line_kdtree = kdtree_ptr;
     line_info.line_track_id = track_id;
     line_info.line_pts = local_points;
+<<<<<<< HEAD
     line_table_[track_id] = line_info;
+=======
+    local_line_table_[track_id] = line_info;
+>>>>>>> mf-geo:移植过滤逆向车道模块
   }
   return;
 }
@@ -114,6 +129,7 @@ void ElementsFilter::FilterIntersectLine() {
   }
   for (int i = 0, j = 1; i < local_lines_size - 1, j < local_lines_size;
        ++i, j = i + 1) {
+<<<<<<< HEAD
     auto& selected_line = line_table_[track_ids[i]];
     if (selected_line.line_pts.size() > 25 ||
         selected_line.line_pts.size() < 0) {
@@ -123,6 +139,15 @@ void ElementsFilter::FilterIntersectLine() {
       auto& candidated_line = line_table_[track_ids[j]];
       if (candidated_line.line_pts.size() > 25 ||
           selected_line.line_pts.size() < 0) {
+=======
+    auto& selected_line = local_line_table_[i];
+    if (selected_line.line_pts.size() > 25) {
+      continue;
+    }
+    for (int j = i + 1; j < local_lines_size; ++j) {
+      auto& candidated_line = local_line_table_[j];
+      if (candidated_line.line_pts.size() > 25) {
+>>>>>>> mf-geo:移植过滤逆向车道模块
         continue;
       }
       Eigen::Vector2f intersect_point{0.f, 0.f};
@@ -145,12 +170,20 @@ void ElementsFilter::FilterIntersectLine() {
   // 短线跟长线交叉 删除短线
   for (int i = 0, j = 1; i < local_lines_size - 1, j < local_lines_size;
        ++i, j = i + 1) {
+<<<<<<< HEAD
     auto& selected_line = line_table_[track_ids[i]];
+=======
+    auto& selected_line = local_line_table_[i];
+>>>>>>> mf-geo:移植过滤逆向车道模块
     if (!selected_line.store || selected_line.line_pts.size() < 2) {
       continue;
     }
     for (int j = i + 1; j < local_lines_size; ++j) {
+<<<<<<< HEAD
       auto& candidated_line = line_table_[track_ids[j]];
+=======
+      auto& candidated_line = local_line_table_[j];
+>>>>>>> mf-geo:移植过滤逆向车道模块
       if (!candidated_line.store || candidated_line.line_pts.size() < 2) {
         continue;
       }
@@ -374,7 +407,378 @@ void ElementsFilter::CompareRoadAndLines(
 }
 
 void ElementsFilter::HandleExtraWideLane() {}
+<<<<<<< HEAD
 void ElementsFilter::Clear() { line_table_.clear(); }
+=======
+
+void ElementsFilter::FilterReverseLine() {
+  // 处理路口逆向车道的车道线
+  /*
+    路口场景
+              |    |    |
+              |    |    |
+              |  ↓ |  ↑ |
+              |    |    |
+              /         \
+             /           \
+
+
+
+             \           /
+              \         /
+               | | | | |
+               | | |↑| |
+               | | | | |
+  */
+  if (local_line_table_.empty()) {
+    HLOG_WARN << "local_line_table_ is empty";
+    return;
+  }
+  // 根据障碍物过滤对向车道线
+  HandleOppisiteLineByObj();
+  std::vector<Eigen::Vector3d> road_edge_pts = GetdRoadEdgePts();
+  std::vector<Eigen::Vector3d> double_solid_yellow_pts =
+      GetDoubleSolidYellowLine();
+
+  // 根据路沿,双黄线,停止线过滤逆向车道,优先用路沿，其次用双黄线，再次用停止线
+  /*
+    1.两侧有车道的路沿作为正逆向的分隔线
+    2.若有双黄线，将双黄线左侧的车道线做标记
+    3.和停止线关联的线
+  */
+  if (!road_edge_pts.empty()) {
+    HandleOppisiteLine(road_edge_pts);
+  } else {
+    if (!double_solid_yellow_pts.empty()) {
+      HandleOppisiteLine(double_solid_yellow_pts);
+    } else {
+      // HandleOppisiteLineByStopline();
+      HandleOppisiteLineByObjAndYelloLine();  // 融合障碍物和黄线过滤对向车道
+    }
+  }
+}
+
+void ElementsFilter::HandleOppisiteLineByObj() {
+  std::vector<Eigen::Vector3d> obj_points;
+  for (const auto& history_obj : history_objs_) {
+    for (const auto& object : history_obj->perception_obstacle()) {
+      Eigen::Vector3d p_local(object.position().x(), object.position().y(),
+                              object.position().z());
+      Eigen::Vector3d p_veh = T_U_V_.inverse() * p_local;
+
+      if (object.type() != hozon::perception::PerceptionObstacle::VEHICLE ||
+          p_veh.x() <= 0 || object.velocity().x() > 0 ||
+          (-M_PI * 0.75 < object.theta() && object.theta() < M_PI * 0.75)) {
+        continue;
+      }
+      // 筛选出在车道线中间的object
+      bool obj_on_line_left = false;
+      bool obj_on_line_right = false;
+      for (const auto& line_elem : local_line_table_) {
+        auto line = line_elem.second;
+        int line_size = line.line_pts.size();
+        if (line_size < 2 ||
+            (line_size >= 2 && line.line_pts.at(0).x() < 0)) {
+          continue;
+        }
+        int line_index = 0;
+        if (p_veh.x() < line.line_pts[0].x()) {
+          line_index = 0;
+        } else if (p_veh.x() > line.line_pts[line_size - 1].x()) {
+          line_index = line_size - 2;
+        } else {
+          for (; line_index < line_size - 1; line_index++) {
+            if (line.line_pts[line_index].x() < p_veh.x() &&
+                line.line_pts[line_index + 1].x() > p_veh.x()) {
+              break;
+            }
+          }
+        }
+        Eigen::Vector3d linel1(line.line_pts[line_index].x(),
+                               line.line_pts[line_index].y(),
+                               line.line_pts[line_index].z());
+        Eigen::Vector3d linel2(line.line_pts[line_index + 1].x(),
+                               line.line_pts[line_index + 1].y(),
+                               line.line_pts[line_index + 1].z());
+        if (math::IsRight(p_veh, linel1, linel2)) {
+          obj_on_line_right = true;
+        } else {
+          obj_on_line_left = true;
+        }
+      }
+      if (obj_on_line_left && obj_on_line_right) {
+        obj_points.emplace_back(p_veh);
+      }
+    }
+  }
+  if (obj_points.empty()) {
+    return;
+  }
+  for (auto& line_elem : local_line_table_) {
+    auto& line = line_elem.second;
+    int line_size = line.line_pts.size();
+    if (line_size < 2 || (line_size>=2 && line.line_pts[0].x() < 0)) {
+      continue;
+    }
+    for (auto& obj_point : obj_points) {
+      bool stop_loop = false;
+      if (obj_point.x() > line.line_pts[line_size - 1].x() ||
+          obj_point.x() < line.line_pts[0].x()) {
+        continue;
+      }
+      for (int line_index = 0; line_index < line_size - 1; line_index++) {
+        if (line.line_pts[line_index].x() < obj_point.x() &&
+            line.line_pts[line_index + 1].x() > obj_point.x()) {
+          Eigen::Vector3d linel1(line.line_pts[line_index].x(),
+                                 line.line_pts[line_index].y(),
+                                 line.line_pts[line_index].z());
+          Eigen::Vector3d linel2(line.line_pts[line_index + 1].x(),
+                                 line.line_pts[line_index + 1].y(),
+                                 line.line_pts[line_index + 1].z());
+          if (math::IsRight(obj_point, linel1, linel2)) {
+            line.is_ego_road = false;
+            stop_loop = true;
+            break;
+          }
+        }
+      }
+      if (stop_loop) {
+        break;
+      }
+    }
+  }
+}
+
+std::vector<Eigen::Vector3d> ElementsFilter::GetdRoadEdgePts() {
+  std::vector<std::vector<Eigen::Vector3d>> forward_road_edges;
+  for (const auto& road_edge : road_edge_table_) {
+    auto local_road = road_edge.second;
+    if (local_road->points.size() < 2 ||
+        (!local_road->points.empty() && local_road->points[0].x() < 0)) {
+      continue;
+    }
+    std::vector<Eigen::Vector3d> pts;
+    for (const auto& it : local_road->points) {
+      Eigen::Vector3d pt(it.x(), it.y(), it.z());
+      pts.emplace_back(pt);
+    }
+    forward_road_edges.emplace_back(pts);
+  }
+  std::vector<Eigen::Vector3d> road_edge_pts;
+  road_edge_pts = FindTargetPoints(forward_road_edges);
+  return road_edge_pts;
+}
+
+
+std::vector<Eigen::Vector3d> ElementsFilter::FindTargetPoints(
+    const std::vector<std::vector<Eigen::Vector3d>>& forward_road_edges) {
+  std::vector<Eigen::Vector3d> res;
+  for (const auto& road_edge : forward_road_edges) {
+    bool have_left_line = false;
+    bool have_right_line = false;
+    for (const auto& line_elem : local_line_table_) {
+      auto line = line_elem.second;
+      if (line.line_pts.size() < 2 ||
+          (!line.line_pts.empty() && line.line_pts[0].x() < 0)) {
+        continue;
+      }
+      std::vector<double> widths;
+      std::vector<Eigen::Vector3d> line_pts;
+      for (const auto& it : line.line_pts) {
+        Eigen::Vector3d pt(it.x(), it.y(), it.z());
+        line_pts.emplace_back(pt);
+      }
+      math::ComputerLineDis(road_edge, line_pts, &widths);
+      double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
+                         static_cast<double>(widths.size());
+
+      if (IsTargetOnLineRight(road_edge, line) == RelativePosition::RIGHT &&
+          avg_width > 3.0) {
+        have_left_line = true;
+      } else if (IsTargetOnLineRight(road_edge, line) ==
+                     RelativePosition::LEFT &&
+                 avg_width > 3.0) {
+        have_right_line = true;
+      }
+      if (have_left_line && have_right_line) {
+        double road_edge_heading = math::CalMeanLineHeading(road_edge);
+        if (IsRoadEdgeOnVehicleRight(road_edge, road_edge_heading) ==
+            RelativePosition::LEFT) {
+          res = road_edge;
+          return res;
+        }
+      }
+    }
+  }
+  return res;
+}
+
+
+RelativePosition ElementsFilter::IsTargetOnLineRight(
+    const std::vector<Eigen::Vector3d>& target_line, const LineInfo& line) {
+  int line_size = line.line_pts.size();
+  if (line_size < 2 || target_line.size() < 1) {
+    return RelativePosition::UNCERTAIN;
+  }
+  if (target_line.front().x() >= line.line_pts[line_size - 1].x() &&
+      line.line_pts[0].x() >= target_line.back().x()) {
+    return RelativePosition::UNCERTAIN;
+  }
+  int num_thresh = 0, num_calculate = 0;
+  for (int target_index = 0, line_index = 0; target_index < target_line.size();
+       target_index++) {
+    if (std::isnan(target_line.at(target_index).x()) ||
+        std::isnan(target_line.at(target_index).y()) ||
+        std::isnan(target_line.at(target_index).z())) {
+      HLOG_WARN
+          << "found nan point in double_solid_yellow_line or road_edge_line";
+      continue;
+    }
+    Eigen::Vector3d target_point(target_line.at(target_index).x(),
+                                 target_line.at(target_index).y(),
+                                 target_line.at(target_index).z());
+    if (target_point.x() < line.line_pts[0].x()) {
+      continue;
+    }
+    while (line_index < line_size - 1 &&
+           line.line_pts[line_index + 1].x() < target_point.x()) {
+      line_index++;
+    }
+    if (line_index == line_size - 1) {
+      break;
+    }
+    Eigen::Vector3d linel1(line.line_pts[line_index].x(),
+                           line.line_pts[line_index].y(),
+                           line.line_pts[line_index].z());
+    Eigen::Vector3d linel2(line.line_pts[line_index + 1].x(),
+                           line.line_pts[line_index + 1].y(),
+                           line.line_pts[line_index + 1].z());
+    num_calculate++;
+    if (math::IsRight(target_point, linel1, linel2)) {
+      num_thresh++;
+    }
+  }
+  if (num_thresh < 1 ||
+      (num_calculate != 0 && (static_cast<double>(num_thresh) /
+                              static_cast<double>(num_calculate)) < 0.5)) {
+    return RelativePosition::LEFT;
+  }
+  return RelativePosition::RIGHT;
+}
+
+
+RelativePosition ElementsFilter::IsRoadEdgeOnVehicleRight(
+    const std::vector<Eigen::Vector3d>& points, const double& heading) {
+  if (points.empty() || std::abs(heading) > M_PI) {
+    return RelativePosition::UNCERTAIN;
+  }
+  Eigen::Vector3d p1(0, 0, 0);
+  Eigen::Vector3d p2(cos(heading), sin(heading), 0);
+  int num_thresh = 0;
+  int num_calculate = 0;
+  for (const auto& point : points) {
+    if (std::isnan(point.x()) || std::isnan(point.y()) ||
+        std::isnan(point.z())) {
+      HLOG_WARN << "found nan point in road_edge_line";
+      continue;
+    }
+    num_calculate++;
+    if (math::IsRight(point, p1, p2)) {
+      num_thresh++;
+    }
+  }
+  if (num_thresh < 1 ||
+      (num_calculate != 0 && (static_cast<double>(num_thresh) /
+                              static_cast<double>(num_calculate)) < 0.5)) {
+    return RelativePosition::LEFT;
+  }
+  return RelativePosition::RIGHT;
+}
+
+
+std::vector<Eigen::Vector3d> ElementsFilter::GetDoubleSolidYellowLine() {
+  std::vector<std::vector<Eigen::Vector3d>> double_solid_yellow_line;
+  for (const auto& line_elem : local_line_table_) {
+    auto line = line_elem.second;
+    if (line.line_type == hozon::mapping::LaneType::LaneType_DOUBLE_SOLID &&
+        line.color == hozon::mapping::Color::YELLOW &&
+        line.line_pts.size() > 1 && line.line_pts.at(0).x() > 0) {
+      std::vector<Eigen::Vector3d> pts;
+      for (const auto& it : line.line_pts) {
+        Eigen::Vector3d pt(it.x(), it.y(), it.z());
+        pts.emplace_back(pt);
+      }
+      double_solid_yellow_line.emplace_back(pts);
+    }
+  }
+  // 确定双黄线的左右侧是否有车道线
+  std::vector<Eigen::Vector3d> double_solid_yellow_pts;
+  double_solid_yellow_pts = FindTargetPoints(double_solid_yellow_line);
+  return double_solid_yellow_pts;
+}
+
+void ElementsFilter::HandleOppisiteLine(
+    const std::vector<Eigen::Vector3d>& target_line) {
+  if (target_line.empty()) {
+    return;
+  }
+  for (auto& line_elem : local_line_table_) {
+    auto line = line_elem.second;
+    if (line.line_pts.size() < 2 ||
+        (!line.line_pts.empty() && line.line_pts.at(0).x() < 0)) {
+      continue;
+    }
+    std::vector<double> widths;
+    std::vector<Eigen::Vector3d> line_pts;
+    for (const auto& it : line.line_pts) {
+      Eigen::Vector3d pt(it.x(), it.y(), it.z());
+      line_pts.emplace_back(pt);
+    }
+    math::ComputerLineDis(target_line, line_pts, &widths);
+    double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
+                       (static_cast<double>(widths.size()) + 1e-3);
+    if (IsTargetOnLineRight(target_line, line) == RelativePosition::RIGHT &&
+        avg_width > 2.0) {
+      line.is_ego_road = false;
+    }
+  }
+}
+
+void ElementsFilter::HandleOppisiteLineByObjAndYelloLine() {
+  double max_y = -DBL_MAX;
+  for (const auto& line_elem : local_line_table_) {
+    auto line = line_elem.second;
+
+    if (!line.is_ego_road) {
+      continue;
+    }
+    if ((line.line_type == hozon::mapping::LaneType::LaneType_DOUBLE_SOLID ||
+         line.line_type == hozon::mapping::LaneType::LaneType_SOLID) &&
+        line.color == hozon::mapping::Color::YELLOW &&
+        line.line_pts.size() > 1 && line.line_pts.at(0).x() > 0) {
+      if (line.line_pts.at(0).y() > max_y) {
+        max_y = line.line_pts.at(0).y();
+      }
+    }
+  }
+
+  if (max_y == -DBL_MAX) {
+    return;
+  }
+  for (auto& line_elem : local_line_table_) {
+    auto line = line_elem.second;
+    if (!line.is_ego_road) {
+      continue;
+    }
+    if (line.line_pts.size() > 1 && line.line_pts.at(0).x() > 0 &&
+        line.line_pts.at(0).y() > max_y) {
+      line.is_ego_road = false;
+    }
+  }
+}
+
+void ElementsFilter::Clear() { local_line_table_.clear(); }
+>>>>>>> mf-geo:移植过滤逆向车道模块
 
 }  // namespace mf
 }  // namespace mp

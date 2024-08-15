@@ -10,6 +10,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d.hpp>
 
@@ -36,6 +37,8 @@ struct LineInfo {
   std::vector<double> left_road_width{0.f};   // 距离左侧路沿距离
   std::vector<double> param = std::vector<double>(3, 0.0);  // 存储c0 c1 c2
 };
+
+enum class RelativePosition { LEFT = 0, RIGHT = 1, UNCERTAIN = 2 };
 
 }  // namespace mf
 }  // namespace mp

@@ -58,8 +58,8 @@ void LanePositionManager::SetLaneLinePosition(
   std::vector<std::pair<int, float>> left_lane_index;
   std::vector<std::pair<int, float>> right_lane_index;
   int size = lane_lines.size();
-  static int maintain_num = 0;
-  static float ref_thresh = 0;
+  static int maintain_num_mf = 0;
+  static float ref_thresh_mf = 0;
   for (int i = 0; i < size; ++i) {
     float d = 0.f;
     // 理论c0相距过近则用参考c0,如果参考和理论符号相反，相信理论cO
@@ -72,35 +72,36 @@ void LanePositionManager::SetLaneLinePosition(
       d = lane_lines[i]->refer_c0;
     }
 
-    if ((lane_lines[i]->history_mf_line_pos.size() == 2) && maintain_num == 0) {
+    if ((lane_lines[i]->history_mf_line_pos.size() == 2) &&
+        maintain_num_mf == 0) {
       int first_pos = static_cast<int>(lane_lines[i]->history_mf_line_pos[0]);
       int sec_pos = static_cast<int>(lane_lines[i]->history_mf_line_pos[1]);
       HLOG_DEBUG << "id:" << lane_lines[i]->id << " ,d:" << d
                  << " ,first_pos:" << first_pos << " ,sec_pos" << sec_pos;
       if ((first_pos + sec_pos == 0) && first_pos > 0) {
-        ref_thresh = -0.2;
-        maintain_num++;
+        ref_thresh_mf = -0.5;
+        maintain_num_mf++;
 
       } else if ((first_pos + sec_pos == 0) && first_pos < 0) {
-        ref_thresh = 0.2;
-        maintain_num++;
+        ref_thresh_mf = 0.5;
+        maintain_num_mf++;
       }
     }
     // 阈值保持5帧（两次调用）
-    if (maintain_num > 10) {
-      ref_thresh = 0;
-      maintain_num = 0;
+    if (maintain_num_mf > 10) {
+      ref_thresh_mf = 0;
+      maintain_num_mf = 0;
     }
-    HLOG_DEBUG << "ref_thresh:" << ref_thresh
-               << " ,maintain_num:" << maintain_num;
-    if (d > ref_thresh) {
+    HLOG_DEBUG << "ref_thresh_mf:" << ref_thresh_mf
+               << " ,maintain_num_mf:" << maintain_num_mf;
+    if (d > ref_thresh_mf) {
       left_lane_index.push_back(std::pair<int, float>(i, d));
     } else {
       right_lane_index.push_back(std::pair<int, float>(i, d));
     }
   }
-  if (maintain_num > 0) {
-    maintain_num++;
+  if (maintain_num_mf > 0) {
+    maintain_num_mf++;
   }
 
   // left_lane: sort by decrease

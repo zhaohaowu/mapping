@@ -413,9 +413,7 @@ class TicToc {
  public:
   TicToc() { Tic(); }
 
-  void Tic() {
-    clock_gettime(CLOCK_REALTIME, &start_);
-  }
+  void Tic() { clock_gettime(CLOCK_REALTIME, &start_); }
 
   // in ms
   double Toc() {
@@ -506,24 +504,16 @@ float AngleDiff(float angle_0, float angle_1);
 double CalculateHeading(const Eigen::Quaternionf& q1,
                         const Eigen::Quaternionf& q2);
 
-void ComputerLineDis(const std::vector<Eigen::Vector3d>& line_pts,
-                     const std::vector<Eigen::Vector3d>& right_line_pts,
+template <typename PointType>
+void ComputerLineDis(const std::vector<PointType>& line_pts,
+                     const std::vector<PointType>& right_line_pts,
                      std::vector<double>* line_dis);
 
 bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
              const Eigen::Vector3d& B);
 
 template <typename T1, typename T2>
-float evaluateHeadingDiff(const T1& x, const std::vector<T2>& params) {
-  CHECK_EQ(params.size(), 4);
-  float sum = 0.0;
-  float val = 1.0;
-  // 二阶导
-  if (params.size() == 4) {
-    sum = 6.0 * params[3] * x + 2 * params[2];
-  }
-  return sum;
-}
+float evaluateHeadingDiff(const T1& x, const std::vector<T2>& params);
 
 }  // namespace math
 

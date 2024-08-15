@@ -64,7 +64,6 @@ int MapFusion::OnLocalization(
     return -1;
   }
 
-  HLOG_INFO << "cur loc: " << cur_loc_info_->timestamp;
   lane_fusion_ptr_->InsertPose(cur_loc_info_);
 
   return 0;

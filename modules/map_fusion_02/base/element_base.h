@@ -373,10 +373,10 @@ struct OccRoad {
   std::vector<Eigen::Vector3d> ori_road_points;  // 原始occ点，调试使用
   std::vector<Eigen::Vector3d> ori_detect_points;  // 原始detect occ点，调试使用
   // int road_flag;  // 路沿类型0-->隔断路沿，1-->实线路沿
-  Id left_occ_id = -1;   // 左侧能构成道的id
-  Id right_occ_id = -1;  // 右侧能构成道的id
-  bool is_forward;       // 车前方true,车侧或车后false(且满足条件)
-  int guide_index = -1;  // occ下引導點的index
+  Id left_occ_id = -1;      // 左侧能构成道的id
+  Id right_occ_id = -1;     // 右侧能构成道的id
+  bool is_forward = false;  // 车前方true,车侧或车后false(且满足条件)
+  int guide_index = -1;     // occ下引導點的index
   LineCubic curve_params;
 
   DEFINE_PTR(OccRoad)

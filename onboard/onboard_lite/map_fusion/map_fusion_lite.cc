@@ -273,7 +273,6 @@ int32_t MapFusionLite::OnLocation(Bundle* input) {
     if (ret < 0) {
       HLOG_WARN << "map fusion Onlocation failed";
     }
-    HLOG_INFO << "cur loc: " << curr_loc_->pose_local().position().x();
   }
 
   return 0;

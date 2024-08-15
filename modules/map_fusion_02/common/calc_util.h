@@ -11,6 +11,7 @@
 #include <depend/common/math/vec2d.h>
 
 #include <Eigen/Dense>
+#include <algorithm>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -84,6 +85,36 @@ void SamplingCubic(const LineCubic& cubic, float step,
   x = cubic.end;
   float end_y = CubicResolve(cubic.coefs, x);
   pts->emplace_back(x, end_y, 0);
+}
+
+template <typename pointType>
+double GetLength(const std::vector<pointType>& point_sets) {
+  double total_length = 0;
+  // 遍历point_sets中的点
+  for (size_t i = 1; i < point_sets.size(); ++i) {
+    // 计算车体系两点之间的欧式距离
+    double dx = point_sets[i].x() - point_sets[i - 1].x();
+    double dy = point_sets[i].y() - point_sets[i - 1].y();
+    double length = std::sqrt(dx * dx + dy * dy);
+
+    // 累加得到整个车道线的长度
+    total_length += length;
+  }
+  return total_length;
+}
+
+template <typename pointType>
+float GetOverLayRatioBetweenTwoLane(const std::vector<pointType>& curve1,
+                                    const std::vector<pointType>& curve2) {
+  auto length1 = GetLength(curve1);
+  auto length2 = GetLength(curve2);
+
+  auto overlay_start = std::max(curve1.front().x(), curve2.front().x());
+  auto overlay_end = std::min(curve1.back().x(), curve2.back().x());
+  auto overlay_length =
+      overlay_end - overlay_start > 0 ? overlay_end - overlay_start : 0;
+
+  return overlay_length / std::min(length1, length2);
 }
 
 double NowInSec();
@@ -481,6 +512,18 @@ void ComputerLineDis(const std::vector<Eigen::Vector3d>& line_pts,
 
 bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
              const Eigen::Vector3d& B);
+
+template <typename T1, typename T2>
+float evaluateHeadingDiff(const T1& x, const std::vector<T2>& params) {
+  CHECK_EQ(params.size(), 4);
+  float sum = 0.0;
+  float val = 1.0;
+  // 二阶导
+  if (params.size() == 4) {
+    sum = 6.0 * params[3] * x + 2 * params[2];
+  }
+  return sum;
+}
 
 }  // namespace math
 

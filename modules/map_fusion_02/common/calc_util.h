@@ -459,3 +459,5 @@ void SamplingCubic(const LineCubic& cubic, float step,
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon
+
+#include "modules/map_fusion_02/common/calc_util.hpp"

@@ -6,7 +6,9 @@
  ******************************************************************************/
 
 #include "modules/map_fusion_02/base/element_base.h"
-#include "modules/map_fusion_02/common/calc_util.h"
+// #include "modules/map_fusion_02/common/calc_util.h"
+#include "modules/map_fusion_02/common/calc_util.hpp"
+
 #include "modules/map_fusion_02/data_convert/data_convert.h"
 
 namespace hozon {
@@ -35,7 +37,7 @@ void DataConvert::ElemMapAppendOcc(
       continue;
     }
     std::vector<Eigen::Vector3d> new_line_pts;
-    SamplingCubic(curve_params, 1.0, &new_line_pts);
+    math::SamplingCubic(curve_params, 1.0, &new_line_pts);
     if (new_line_pts.size() < 2) {
       continue;
     }

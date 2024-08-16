@@ -186,7 +186,7 @@ void OccProcessor::CompareGroupLines() {
         if (ave_width < 5) {
           continue;
         }
-        auto overlay_ratio = GetOverLayRatioBetweenTwoLane(occ_l1, occ_l2);
+        auto overlay_ratio = math::GetOverLayRatioBetweenTwoLane(occ_l1, occ_l2);
         HLOG_DEBUG << "GetOverLayRatioBetweenTwoLane occ1: " << occ1.first
                    << ", y: " << occ_l1.back().y() << ", occ2: " << occ2.first
                    << ", y: " << occ_l2.back().y() << ", " << overlay_ratio;

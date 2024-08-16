@@ -31,29 +31,6 @@ namespace mf {
 inline double DegToRad(double deg) { return deg * M_PI / 180; }
 inline double RadToDeg(double rad) { return 180 * rad / M_PI; }
 
-template <typename T, typename M>
-T CubicResolve(const std::vector<T>& coefs, M t);
-
-template <typename T>
-bool InRange(T x, T min_x, T max_x);
-
-template <typename T>
-bool OutRange(T x, T min_x, T max_x);
-
-template <typename T>
-bool InCubicRange(T x, const LineCubic& cubic);
-// 采样三次多项式曲线
-template <typename T>
-void SamplingCubic(const LineCubic& cubic, float step,
-                   std::vector<Eigen::Matrix<T, 3, 1>>* pts);
-
-template <typename pointType>
-double GetLength(const std::vector<pointType>& point_sets);
-
-template <typename pointType>
-float GetOverLayRatioBetweenTwoLane(const std::vector<pointType>& curve1,
-                                    const std::vector<pointType>& curve2);
-
 double NowInSec();
 
 void SplitSeconds(double secs, uint32_t* sec, uint32_t* nsec);
@@ -452,6 +429,30 @@ bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
 template <typename T1, typename T2>
 float evaluateHeadingDiff(const T1& x, const std::vector<T2>& params);
 double CalMeanLineHeading(const std::vector<Eigen::Vector3d>& points);
+
+template <typename T, typename M>
+T CubicResolve(const std::vector<T>& coefs, M t);
+
+template <typename T>
+bool InRange(T x, T min_x, T max_x);
+
+template <typename T>
+bool OutRange(T x, T min_x, T max_x);
+
+template <typename T>
+bool InCubicRange(T x, const LineCubic& cubic);
+// 采样三次多项式曲线
+
+template <typename pointType>
+double GetLength(const std::vector<pointType>& point_sets);
+
+template <typename pointType>
+float GetOverLayRatioBetweenTwoLane(const std::vector<pointType>& curve1,
+                                    const std::vector<pointType>& curve2);
+
+template <typename T>
+void SamplingCubic(const LineCubic& cubic, float step,
+                   std::vector<Eigen::Matrix<T, 3, 1>>* pts);
 
 }  // namespace math
 

@@ -31,21 +31,20 @@ bool ElementsFilter::Init() {
 bool ElementsFilter::Process(ElementMap::Ptr origin_element_map_ptr) {
   HLOG_INFO << "ElementsFilter Process";
   // get road edge
-  std::map<Id, RoadEdge::Ptr> road_edges = origin_element_map_ptr->road_edges;
+  road_edge_table_ = origin_element_map_ptr->road_edges;
   // get pose
   LocInfo::ConstPtr T_ptr =
       DR_MANAGER->GetDrPoseByTimeStamp(origin_element_map_ptr->map_info.stamp);
+  T_L_V_ = T_ptr->pose.matrix().cast<double>();
   // filter element map lines
   FilterElementMapLines(origin_element_map_ptr->lane_boundaries);
   // filter intersect line
   FilterIntersectLine();
   // ContinueLocalMapUseLine();
   // 补缺失的线
-
-  CompensateElementMapLine(road_edges);
+  CompensateElementMapLine();
 
   // 处理路口场景逆向车道车道线
-  road_edge_table_ = origin_element_map_ptr->road_edges;
   FilterReverseLine();
   for (auto line_elem : line_table_) {
     int line_id = line_elem.first;
@@ -214,22 +213,20 @@ void ElementsFilter::FilterIntersectLine() {
   }
 }
 
-void ElementsFilter::CompensateElementMapLine(
-    const std::map<Id, RoadEdge::Ptr>& road_edges) {
-  if (line_table_.empty() || road_edges.empty()) {
+void ElementsFilter::CompensateElementMapLine() {
+  if (line_table_.empty() || road_edge_table_.empty()) {
     return;
   }
   // CreateLineTable();
-  MakeRoadEdgeToLaneLine(road_edges);
+  MakeRoadEdgeToLaneLine();
   HandleExtraWideLane();
 }
 
-void ElementsFilter::MakeRoadEdgeToLaneLine(
-    const std::map<Id, RoadEdge::Ptr>& road_edges) {
-  if (road_edges.empty()) {
+void ElementsFilter::MakeRoadEdgeToLaneLine() {
+  if (road_edge_table_.empty()) {
     return;
   }
-  for (const auto& road_edge : road_edges) {
+  for (const auto& road_edge : road_edge_table_) {
     std::vector<Eigen::Vector3d> road_pts;
     for (const auto& road_pt : road_edge.second->points) {
       if (std::isnan(road_pt.x()) || std::isnan(road_pt.y())) {
@@ -444,7 +441,7 @@ void ElementsFilter::HandleOppisiteLineByObj() {
   for (const auto& object : history_objs) {
     Eigen::Vector3d p_local(object->position.x(), object->position.y(),
                             object->position.z());
-    Eigen::Vector3d p_veh = T_U_V_.inverse() * p_local;
+    Eigen::Vector3d p_veh = T_L_V_.inverse() * p_local;
 
     if (object->type != ObjType::VEHICLE || p_veh.x() <= 0 ||
         object->velocity.x() > 0 ||

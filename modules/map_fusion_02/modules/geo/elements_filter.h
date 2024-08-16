@@ -36,16 +36,19 @@ class ElementsFilter : public ProcessorBase {
   void Clear() override;
 
  private:
+  /*过滤不合理的车道线*/
   void FilterElementMapLines(
       const std::map<Id, Boundary::Ptr>& lane_boundaries);
   void FilterIntersectLine();
-  void CompensateElementMapLine(const std::map<Id, RoadEdge::Ptr>& road_edges);
+
+  /*参考路沿补偿或者延长车道线*/
+  void CompensateElementMapLine();
   // void CreateLineTable();
-  void MakeRoadEdgeToLaneLine(const std::map<Id, RoadEdge::Ptr>& road_edges);
+  void MakeRoadEdgeToLaneLine();
   void HandleExtraWideLane();
   void CompareRoadAndLines(const std::vector<Eigen::Vector3d>& road_pts,
                            const int& road_id);
-
+  /*识别逆向车道线*/
   void FilterReverseLine();
   void HandleOppisiteLineByObj();
   std::vector<Eigen::Vector3d> GetdRoadEdgePts();
@@ -60,7 +63,7 @@ class ElementsFilter : public ProcessorBase {
   void HandleOppisiteLineByObjAndYelloLine();
 
  private:
-  Eigen::Isometry3d T_U_V_;
+  Eigen::Isometry3d T_L_V_;  // 车体系在local系的位姿
   std::set<int> last_track_id_;
   std::unordered_map<int, LineInfo> line_table_;
   std::map<int, RoadEdge::Ptr> road_edge_table_;

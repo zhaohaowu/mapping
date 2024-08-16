@@ -19,7 +19,6 @@
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/base/processor.h"
 #include "modules/map_fusion_02/modules/geo/elements_filter_base.h"
-
 #include "modules/map_fusion_02/modules/geo/geo_utils.h"
 #include "modules/map_fusion_02/rviz/geo_optimization_rviz.h"
 
@@ -28,7 +27,7 @@ namespace mp {
 namespace mf {
 class ElementsFilter : public ProcessorBase {
  public:
-  ElementsFilter() : point_num_(-1) {}
+  ElementsFilter() {}
   ~ElementsFilter() = default;
   ElementsFilter(const ElementsFilter&) = delete;
   ElementsFilter& operator=(const ElementsFilter&) = delete;
@@ -62,14 +61,11 @@ class ElementsFilter : public ProcessorBase {
 
  private:
   Eigen::Isometry3d T_U_V_;
-  std::unordered_map<int, LineInfo>
-      local_line_table_;  // key: track id; value: line info
+  std::set<int> last_track_id_;
+  std::unordered_map<int, LineInfo> line_table_;
   std::map<int, RoadEdge::Ptr> road_edge_table_;
+
   GeoOptimizationViz geo_viz_;
-  std::set<int> last_track_id_;  // 记录上一帧trackid
-  boost::circular_buffer<
-      std::shared_ptr<hozon::perception::PerceptionObstacles>>
-      history_objs_;
 };
 
 }  // namespace mf

@@ -155,7 +155,7 @@ enum LineType {
   LaneType_OTHER = 99,                         // 其他
 };
 
-enum IsEgo {
+enum class IsEgo {
   Other_Road = 0,  // 非自车路段
   Ego_Road = 1,    // 在自车路段
 };
@@ -173,7 +173,7 @@ struct Boundary {
   std::vector<Id> delete_ids;
   LanePos lanepos = LanePositionType_OTHER;
   LineType linetype = LaneType_UNKNOWN;
-  IsEgo is_ego = Ego_Road;
+  IsEgo is_ego = IsEgo::Ego_Road;
   bool is_near_road_edge = false;
   DEFINE_PTR(Boundary)
 };

@@ -7,6 +7,7 @@
 
 #include "modules/map_fusion_02/rviz/viz_common.h"
 
+#include <string>
 #include <vector>
 
 #include <opencv2/opencv.hpp>
@@ -565,7 +566,7 @@ void ElementOccEgoToMarker(const Boundary& boundary,
   //   pt->set_z(it.z());
   // }
   auto* text = marker->mutable_text();
-  *text = "Geo: " + std::to_string(boundary.is_ego) + "\n" +
+  *text = "Geo: " + std::to_string(static_cast<int>(boundary.is_ego)) + "\n" +
           "is_near_road_edge: " + std::to_string(boundary.is_near_road_edge);
 }
 

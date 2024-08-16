@@ -20,15 +20,17 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
-struct local_line_info {
+struct LineInfo {
   int line_track_id;
   int flag = 2;  // 0-->最左车道线，1-->最右车道线，2-->普通车道线
+  LineType line_type;
+  Color color;
   bool store = true;  // 是否存储该线
   bool is_continue = false;  // 是否跟别的线融合了，如果被融合则不添加该线
   bool is_merge = false;  // 是否是汇入的线，如果是汇入的线则保留
   bool is_ego_road = true;  // 是否主路的线
   std::shared_ptr<cv::flann::Index> line_kdtree = nullptr;
-  std::vector<Eigen::Vector3f> local_line_pts;
+  std::vector<Eigen::Vector3f> line_pts;
   std::vector<double> right_width{0.f};       // 距离右边线的距离
   std::vector<double> right_road_width{0.f};  // 距离右侧路沿距离
   std::vector<double> left_road_width{0.f};   // 距离左侧路沿距离

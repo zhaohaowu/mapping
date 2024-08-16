@@ -37,17 +37,17 @@ class ElementsFilter : public ProcessorBase {
   void FilterElementMapLines(
       const std::map<Id, Boundary::Ptr>& lane_boundaries);
   void FilterIntersectLine();
-  void CompleteElementMapLine();
-  void CreateLineTable();
-  void MakeRoadEdgeToLaneLine();
+  void CompensateElementMapLine(const std::map<Id, RoadEdge::Ptr>& road_edges);
+  // void CreateLineTable();
+  void MakeRoadEdgeToLaneLine(const std::map<Id, RoadEdge::Ptr>& road_edges);
   void HandleExtraWideLane();
+  void CompareRoadAndLines(const std::vector<Eigen::Vector3d>& road_pts, const int& road_id);
 
  private:
-  std::unordered_map<int, local_line_info> local_line_table_;  // key: track id; value: line info
+  std::unordered_map<int, LineInfo> line_table_;  // key: track id; value: line info
   GeoOptimizationViz geo_viz_;
   std::set<int> last_track_id_;  // 记录上一帧trackid
   int point_num_;
-  std::map<Id, Boundary::Ptr> used_lines_;
 };
 
 }  // namespace mf

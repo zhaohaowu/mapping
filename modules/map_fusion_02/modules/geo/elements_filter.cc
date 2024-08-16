@@ -7,10 +7,10 @@
 
 #include "modules/map_fusion_02/modules/geo/elements_filter.h"
 
-#include <memory>
-#include <utility>
-#include <numeric>
 #include <limits>
+#include <memory>
+#include <numeric>
+#include <utility>
 
 #include "modules/map_fusion_02/common/calc_util.h"
 #include "modules/map_fusion_02/data_convert/data_convert.h"
@@ -74,7 +74,7 @@ void ElementsFilter::FilterElementMapLines(
       last_track_id_.insert(track_id);
       continue;
     }
-    std::vector<cv::Point2d> kdtree_points;
+    std::vector<cv::Point2f> kdtree_points;
     std::vector<Eigen::Vector3f> local_points;
     for (const auto& node_ptr : lane_boundary_nodes) {
       const auto& point = node_ptr->point;
@@ -107,24 +107,29 @@ void ElementsFilter::FilterIntersectLine() {
   if (local_lines_size < 3) {
     return;
   }
+  std::vector<int> track_ids;
+  track_ids.reserve(local_lines_size);
+  for (const auto& line : line_table_) {
+    track_ids.emplace_back(line.first);
+  }
   for (int i = 0, j = 1; i < local_lines_size - 1, j < local_lines_size;
        ++i, j = i + 1) {
-    auto& selected_line = line_table_[i];
-    if (selected_line.line_pts.size() > 25) {
+    auto& selected_line = line_table_[track_ids[i]];
+    if (selected_line.line_pts.size() > 25 ||
+        selected_line.line_pts.size() < 0) {
       continue;
     }
     for (int j = i + 1; j < local_lines_size; ++j) {
-      auto& candidated_line = line_table_[j];
-      if (candidated_line.line_pts.size() > 25) {
+      auto& candidated_line = line_table_[track_ids[j]];
+      if (candidated_line.line_pts.size() > 25 ||
+          selected_line.line_pts.size() < 0) {
         continue;
       }
       Eigen::Vector2f intersect_point{0.f, 0.f};
-      Eigen::Vector2f a(
-          static_cast<float>(selected_line.line_pts.front().x()),
-          static_cast<float>(selected_line.line_pts.front().y()));
-      Eigen::Vector2f b(
-          static_cast<float>(selected_line.line_pts.back().x()),
-          static_cast<float>(selected_line.line_pts.back().y()));
+      Eigen::Vector2f a(static_cast<float>(selected_line.line_pts.front().x()),
+                        static_cast<float>(selected_line.line_pts.front().y()));
+      Eigen::Vector2f b(static_cast<float>(selected_line.line_pts.back().x()),
+                        static_cast<float>(selected_line.line_pts.back().y()));
       Eigen::Vector2f c(
           static_cast<float>(candidated_line.line_pts.front().x()),
           static_cast<float>(candidated_line.line_pts.front().y()));
@@ -140,12 +145,12 @@ void ElementsFilter::FilterIntersectLine() {
   // 短线跟长线交叉 删除短线
   for (int i = 0, j = 1; i < local_lines_size - 1, j < local_lines_size;
        ++i, j = i + 1) {
-    auto& selected_line = line_table_[i];
+    auto& selected_line = line_table_[track_ids[i]];
     if (!selected_line.store || selected_line.line_pts.size() < 2) {
       continue;
     }
     for (int j = i + 1; j < local_lines_size; ++j) {
-      auto& candidated_line = line_table_[j];
+      auto& candidated_line = line_table_[track_ids[j]];
       if (!candidated_line.store || candidated_line.line_pts.size() < 2) {
         continue;
       }
@@ -222,11 +227,15 @@ void ElementsFilter::MakeRoadEdgeToLaneLine(
     if (road_pts.empty()) {
       continue;
     }
+    CompareRoadAndLines(road_pts, road_edge.first);
   }
 }
 
 void ElementsFilter::CompareRoadAndLines(
     const std::vector<Eigen::Vector3d>& road_pts, const int& road_id) {
+  if (road_pts.empty()) {
+    return;
+  }
   // 比较路沿和车道线
   LineInfo target_lane_boundary_line;
   double min_dis = std::numeric_limits<double>::max();
@@ -244,7 +253,8 @@ void ElementsFilter::CompareRoadAndLines(
       continue;
     }
     auto avg_road_line_distance =
-        std::accumulate(road_line_distance.begin(), road_line_distance.end(), 0.0) /
+        std::accumulate(road_line_distance.begin(), road_line_distance.end(),
+                        0.0) /
         static_cast<double>(road_line_distance.size());
     if (avg_road_line_distance < min_dis) {
       min_dis = avg_road_line_distance;
@@ -254,8 +264,7 @@ void ElementsFilter::CompareRoadAndLines(
   if (min_dis < 1.0) {
     // 路沿离车道线的距离小于1米,对离路沿最近的车道线进行增补
     auto target_line_pt_size = target_lane_boundary_line.line_pts.size();
-    if (road_pts.back().x() >
-        target_lane_boundary_line.line_pts.back().x()) {
+    if (road_pts.back().x() > target_lane_boundary_line.line_pts.back().x()) {
       // 对车道线往前补,直至和路沿远端对齐
       for (auto& line : line_table_) {
         if (line.second.line_track_id !=
@@ -264,8 +273,7 @@ void ElementsFilter::CompareRoadAndLines(
         }
         Eigen::Vector3d fit_point;
         for (const auto& road_pt : road_pts) {
-          if (road_pt.x() >
-              target_lane_boundary_line.line_pts.back().x()) {
+          if (road_pt.x() > target_lane_boundary_line.line_pts.back().x()) {
             Eigen::Vector3d target_pt(
                 target_lane_boundary_line.line_pts.back().x(),
                 target_lane_boundary_line.line_pts.back().y(),
@@ -275,8 +283,7 @@ void ElementsFilter::CompareRoadAndLines(
           }
         }
         for (const auto& road_pt : road_pts) {
-          if (road_pt.x() <
-              target_lane_boundary_line.line_pts.back().x()) {
+          if (road_pt.x() < target_lane_boundary_line.line_pts.back().x()) {
             continue;
           }
           double fit_dis = fit_point.norm();
@@ -284,14 +291,13 @@ void ElementsFilter::CompareRoadAndLines(
           auto fit_road_pt = road_pt + fit_point_normlized * fit_dis;
           // 简单策略:先根据横向距离对点进行调整,防止车道线跟路沿连接时不平滑
           // 后续可以严格计算点线距离
-          line.second.line_pts.emplace_back(
-              fit_road_pt.x(), fit_road_pt.y(), fit_road_pt.z());
+          line.second.line_pts.emplace_back(fit_road_pt.x(), fit_road_pt.y(),
+                                            fit_road_pt.z());
         }
         break;
       }
     }
-    if (road_pts.front().x() <
-        target_lane_boundary_line.line_pts.front().x()) {
+    if (road_pts.front().x() < target_lane_boundary_line.line_pts.front().x()) {
       for (auto& line : line_table_) {
         if (line.second.line_track_id !=
             target_lane_boundary_line.line_track_id) {
@@ -304,8 +310,7 @@ void ElementsFilter::CompareRoadAndLines(
         line.second.line_pts.clear();
         Eigen::Vector3d fit_point;
         for (const auto& road_pt : road_pts) {
-          if (road_pt.x() <
-              target_lane_boundary_line.line_pts.front().x()) {
+          if (road_pt.x() < target_lane_boundary_line.line_pts.front().x()) {
             continue;
           }
           Eigen::Vector3d target_pt(
@@ -316,19 +321,18 @@ void ElementsFilter::CompareRoadAndLines(
           break;
         }
         for (const auto& road_pt : road_pts) {
-          if (road_pt.x() >
-              target_lane_boundary_line.line_pts.front().x()) {
+          if (road_pt.x() > target_lane_boundary_line.line_pts.front().x()) {
             continue;
           }
           double fit_dis = fit_point.norm();
           auto fit_point_normlized = fit_point.normalized();
           auto fit_road_pt = road_pt + fit_point_normlized * fit_dis;
-          line.second.line_pts.emplace_back(
-              fit_road_pt.x(), fit_road_pt.y(), fit_road_pt.z());
+          line.second.line_pts.emplace_back(fit_road_pt.x(), fit_road_pt.y(),
+                                            fit_road_pt.z());
         }
         for (const auto& retained_pt : retained_pts) {
-          line.second.line_pts.emplace_back(
-              retained_pt.x(), retained_pt.y(), retained_pt.z());
+          line.second.line_pts.emplace_back(retained_pt.x(), retained_pt.y(),
+                                            retained_pt.z());
         }
         break;
       }

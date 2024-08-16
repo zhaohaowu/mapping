@@ -8,17 +8,16 @@
 #pragma once
 
 #include <map>
-#include <unordered_map>
 #include <memory>
 #include <set>
+#include <unordered_map>
 #include <vector>
 #include <boost/circular_buffer.hpp>
 
-#include "depend/proto/perception/perception_obstacle.pb.h"
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/base/processor.h"
-#include "modules/map_fusion_02/rviz/geo_optimization_rviz.h"
 #include "modules/map_fusion_02/modules/geo/elements_filter_base.h"
+#include "modules/map_fusion_02/rviz/geo_optimization_rviz.h"
 
 namespace hozon {
 namespace mp {
@@ -41,10 +40,12 @@ class ElementsFilter : public ProcessorBase {
   // void CreateLineTable();
   void MakeRoadEdgeToLaneLine(const std::map<Id, RoadEdge::Ptr>& road_edges);
   void HandleExtraWideLane();
-  void CompareRoadAndLines(const std::vector<Eigen::Vector3d>& road_pts, const int& road_id);
+  void CompareRoadAndLines(const std::vector<Eigen::Vector3d>& road_pts,
+                           const int& road_id);
 
  private:
-  std::unordered_map<int, LineInfo> line_table_;  // key: track id; value: line info
+  std::unordered_map<int, LineInfo>
+      line_table_;  // key: track id; value: line info
   GeoOptimizationViz geo_viz_;
   std::set<int> last_track_id_;  // 记录上一帧trackid
   int point_num_;

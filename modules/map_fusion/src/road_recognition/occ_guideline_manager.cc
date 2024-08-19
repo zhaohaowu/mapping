@@ -80,7 +80,7 @@ void OccGuideLineManager::Process(
   std::vector<em::Boundary::Ptr> bev_lanelines = GetBevLaneLineInOcc();
   if (!bev_lanelines.empty()) {
     HLOG_DEBUG << "[occ module] Occ region has some bev laneline..."
-              << bev_lanelines.size();
+               << bev_lanelines.size();
     virtual_guide_lines =
         FineTuneGuideLine(bev_lanelines);  // (感知出现的线保留, 其他的线虚拟)
   } else {
@@ -91,7 +91,7 @@ void OccGuideLineManager::Process(
 
 #if 1
   HLOG_DEBUG << "[occ module] Occ virtual_guide_lines size..."
-            << virtual_guide_lines.size();
+             << virtual_guide_lines.size();
   for (int line_idx = 0; line_idx < virtual_guide_lines.size(); ++line_idx) {
     auto& virtual_line = virtual_guide_lines.at(line_idx);
     std::shared_ptr<hozon::mapping::LaneLine> laneline =
@@ -151,10 +151,10 @@ void OccGuideLineManager::SetStableOcc() {
       static_cast<float>(fit_result[2]), static_cast<float>(fit_result[3])};
   stable_occ_datas_.emplace_back(right_vehicle_occ);
   HLOG_DEBUG << "occ id:" << right_vehicle_occ->id << ", "
-            << "right_occ_curve_param: " << right_vehicle_occ->curve_params[0]
-            << "," << right_vehicle_occ->curve_params[1] << ","
-            << right_vehicle_occ->curve_params[2] << ","
-            << right_vehicle_occ->curve_params[3];
+             << "right_occ_curve_param: " << right_vehicle_occ->curve_params[0]
+             << "," << right_vehicle_occ->curve_params[1] << ","
+             << right_vehicle_occ->curve_params[2] << ","
+             << right_vehicle_occ->curve_params[3];
 
   em::Boundary::Ptr left_vehicle_occ = std::make_shared<em::Boundary>();
   std::vector<hozon::common::math::Vec2d> src_left_pts;
@@ -177,10 +177,10 @@ void OccGuideLineManager::SetStableOcc() {
   stable_occ_datas_.emplace_back(left_vehicle_occ);
 
   HLOG_DEBUG << "occ id:" << left_vehicle_occ->id << ", "
-            << "left_occ_curve_param: " << left_vehicle_occ->curve_params[0]
-            << "," << left_vehicle_occ->curve_params[1] << ","
-            << left_vehicle_occ->curve_params[2] << ","
-            << left_vehicle_occ->curve_params[3];
+             << "left_occ_curve_param: " << left_vehicle_occ->curve_params[0]
+             << "," << left_vehicle_occ->curve_params[1] << ","
+             << left_vehicle_occ->curve_params[2] << ","
+             << left_vehicle_occ->curve_params[3];
 }
 
 std::vector<em::Boundary::Ptr> OccGuideLineManager::GetStableOcc() {
@@ -255,6 +255,65 @@ bool OccGuideLineManager::ComputerPointIsInLine(const Eigen::Vector3f& P,
   return t >= -0.01 && t <= 1.01;
 }
 
+bool OccGuideLineManager::IsPointOnOccRightSide(
+    const em::BoundaryNode::Ptr& node, const em::Boundary::Ptr& occ_data) {
+  bool flag = false;
+
+  if (occ_data->nodes.size() == 1) {
+    flag = node->point.y() < occ_data->nodes.at(0)->point.y();
+    return flag;
+  }
+
+  if (node->point.x() > occ_data->nodes.back()->point.x()) {
+    flag = node->point.y() < occ_data->nodes.back()->point.y();
+    return flag;
+  }
+
+  if (node->point.x() < occ_data->nodes.front()->point.x()) {
+    flag = node->point.y() < occ_data->nodes.front()->point.y();
+    return flag;
+  }
+
+  Eigen::Vector2f query_node{node->point.x(), node->point.y()};
+  Eigen::Vector3f second_point_it;
+  Eigen::Vector3f first_point_it;
+  auto best_point_it = std::min_element(
+      occ_data->nodes.begin(), occ_data->nodes.end(),
+      [&point = node->point](const em::BoundaryNode::Ptr& a,
+                             const em::BoundaryNode::Ptr& b) {
+        return (point - a->point).norm() < (point - b->point).norm();
+      });
+
+  if (best_point_it == std::prev(occ_data->nodes.end())) {
+    first_point_it = (*std::prev(best_point_it))->point;
+    second_point_it = (*best_point_it)->point;
+  } else {
+    first_point_it = (*best_point_it)->point;
+    second_point_it = (*std::next(best_point_it))->point;
+  }
+
+  HLOG_DEBUG << "[occ module] occ first node point:" << first_point_it.x()
+             << "," << first_point_it.y();
+  HLOG_DEBUG << "[occ module] occ second node point:" << second_point_it.x()
+             << "," << second_point_it.y();
+
+  flag = PointInVectorSide(
+             Eigen::Vector2f{first_point_it.x(), first_point_it.y()},
+             Eigen::Vector2f{second_point_it.x(), second_point_it.y()},
+             query_node) >= 0;
+
+  bool add_flag = PointInVectorSide(
+                      Eigen::Vector2f{first_point_it.x(), first_point_it.y()},
+                      Eigen::Vector2f{second_point_it.x(), second_point_it.y()},
+                      query_node) <= 0 &&
+                  PointInVectorSide(
+                      Eigen::Vector2f{first_point_it.x(), first_point_it.y()},
+                      Eigen::Vector2f{second_point_it.x(), second_point_it.y()},
+                      query_node) < 1.0;
+
+  return flag || add_flag;
+}
+
 bool OccGuideLineManager::IsPointOnOccLeftSide(
     const em::BoundaryNode::Ptr& node, const em::Boundary::Ptr& occ_data) {
   bool flag = false;
@@ -292,16 +351,26 @@ bool OccGuideLineManager::IsPointOnOccLeftSide(
     second_point_it = (*std::next(best_point_it))->point;
   }
 
-  HLOG_DEBUG << "[occ module] occ first node point:" << first_point_it.x() << ","
-            << first_point_it.y();
+  HLOG_DEBUG << "[occ module] occ first node point:" << first_point_it.x()
+             << "," << first_point_it.y();
   HLOG_DEBUG << "[occ module] occ second node point:" << second_point_it.x()
-            << "," << second_point_it.y();
+             << "," << second_point_it.y();
 
   flag = PointInVectorSide(
              Eigen::Vector2f{first_point_it.x(), first_point_it.y()},
              Eigen::Vector2f{second_point_it.x(), second_point_it.y()},
              query_node) <= 0;
-  return flag;
+
+  bool add_flag = PointInVectorSide(
+                      Eigen::Vector2f{first_point_it.x(), first_point_it.y()},
+                      Eigen::Vector2f{second_point_it.x(), second_point_it.y()},
+                      query_node) >= 0 &&
+                  PointInVectorSide(
+                      Eigen::Vector2f{first_point_it.x(), first_point_it.y()},
+                      Eigen::Vector2f{second_point_it.x(), second_point_it.y()},
+                      query_node) < 1;
+
+  return flag || add_flag;
 }
 
 bool OccGuideLineManager::IsLineBetweenOcc(const em::Boundary::Ptr& line) {
@@ -323,23 +392,28 @@ bool OccGuideLineManager::IsLineBetweenOcc(const em::Boundary::Ptr& line) {
   // Eigen::Vector2f left_occ_end_point =
   // left_occ->nodes.back()->point.head<2>();
 
+  if (right_occ->nodes.empty() || left_occ->nodes.empty()) {
+    return false;
+  }
+
   for (auto& node : right_occ->nodes) {
     HLOG_DEBUG << "right occ point:" << node->point.x() << ","
-              << node->point.y();
+               << node->point.y();
   }
 
   for (auto& node : left_occ->nodes) {
-    HLOG_DEBUG << "left occ point:" << node->point.x() << "," << node->point.y();
+    HLOG_DEBUG << "left occ point:" << node->point.x() << ","
+               << node->point.y();
   }
 
   int point_in_occ_num = 0;
   for (const auto& node : line->nodes) {
     HLOG_DEBUG << "[occ module] node point:" << node->point.x() << ","
-              << node->point.y();
+               << node->point.y();
     bool in_occ_left = IsPointOnOccLeftSide(node, right_occ);
-    bool in_occ_right = IsPointOnOccLeftSide(node, left_occ);
+    bool in_occ_right = IsPointOnOccRightSide(node, left_occ);
 
-    if (in_occ_left && !in_occ_right) {
+    if (in_occ_left && in_occ_right) {
       ++point_in_occ_num;
       HLOG_DEBUG << "[occ module] node point in occ region:";
     } else {
@@ -348,7 +422,7 @@ bool OccGuideLineManager::IsLineBetweenOcc(const em::Boundary::Ptr& line) {
   }
 
   HLOG_DEBUG << "[occ module] points in occ ratio:"
-            << 1.0 * point_in_occ_num / static_cast<int>(line->nodes.size());
+             << 1.0 * point_in_occ_num / static_cast<int>(line->nodes.size());
   bool line_in_occ =
       1.0 * point_in_occ_num / static_cast<int>(line->nodes.size()) > 0.8;
 
@@ -369,9 +443,9 @@ std::vector<em::Boundary::Ptr> OccGuideLineManager::GetBevLaneLineInOcc() {
   Eigen::Vector2f left_occ_end_point = left_occ->nodes.back()->point.head<2>();
 
   HLOG_DEBUG << "000 right occ end node x loc:"
-            << right_occ->nodes.back()->point.x();
+             << right_occ->nodes.back()->point.x();
   HLOG_DEBUG << "000 left occ end node x loc:"
-            << left_occ->nodes.back()->point.x();
+             << left_occ->nodes.back()->point.x();
   // 将all_lines中的车道线转换为em::Boundary格式，方便后续数据处理。
   bev_laneline_boundarys_.clear();
   // std::vector<std::pair<int, em::Boundary::Ptr>> bev_laneline_boundarys;
@@ -392,7 +466,7 @@ std::vector<em::Boundary::Ptr> OccGuideLineManager::GetBevLaneLineInOcc() {
     // 判断bev车道线是否位于occ之间。
     if (IsLineBetweenOcc(laneline.second)) {
       HLOG_DEBUG << "[occ module] laneline id:" << laneline.first
-                << " in occ pairs region";
+                 << " in occ pairs region";
       Eigen::Vector2f laneline_start_point =
           laneline.second->nodes.front()->point.head<2>();
       Eigen::Vector2f laneline_end_point =
@@ -405,16 +479,16 @@ std::vector<em::Boundary::Ptr> OccGuideLineManager::GetBevLaneLineInOcc() {
       float x_end = std::min(occ_max_x, laneline_end_point.x());
       if (x_end - x_start < 5.0) {
         HLOG_DEBUG << "but intersect length is to short..."
-                  << " line length:" << x_end - x_start << "line start point,"
-                  << laneline_start_point.x() << "line end point,"
-                  << laneline_end_point.x();
+                   << " line length:" << x_end - x_start << "line start point,"
+                   << laneline_start_point.x() << "line end point,"
+                   << laneline_end_point.x();
         continue;
       }
 
       bev_lanelines_in_occ.emplace_back(laneline.second);
     } else {
       HLOG_DEBUG << "[occ module] laneline id:" << laneline.first
-                << " not in occ pairs region";
+                 << " not in occ pairs region";
     }
   }
 
@@ -442,7 +516,8 @@ void OccGuideLineManager::ReplaceOccLocByBevRoadEdge() {
   em::Boundary::Ptr right_bev_roadedge = nullptr;
   em::Boundary::Ptr left_bev_roadedge = nullptr;
 
-  // HLOG_DEBUG << "right occ curve params:" << right_occ->curve_params[3] << ","
+  // HLOG_DEBUG << "right occ curve params:" << right_occ->curve_params[3] <<
+  // ","
   //           << right_occ->curve_params[2] << "," <<
   //           right_occ->curve_params[1]
   //           << "," << right_occ->curve_params[0];
@@ -471,7 +546,7 @@ void OccGuideLineManager::ReplaceOccLocByBevRoadEdge() {
     }
 
     HLOG_DEBUG << "[occ module] right Occ with Bev roadedge intersect length:"
-              << x_end - x_start;
+               << x_end - x_start;
 
     double delta_error = 0.0;
     double point_num = 0;
@@ -493,7 +568,7 @@ void OccGuideLineManager::ReplaceOccLocByBevRoadEdge() {
 
     double ave_error = delta_error / point_num;
     HLOG_DEBUG << "[occ module] right Occ and Pair bev roadedge:"
-              << "ave_y_error is:" << ave_error;
+               << "ave_y_error is:" << ave_error;
     if (ave_error <= distance_error_thresh_) {
       right_bev_roadedge = roadedge.second;
       break;
@@ -511,7 +586,7 @@ void OccGuideLineManager::ReplaceOccLocByBevRoadEdge() {
     }
 
     HLOG_DEBUG << "[occ module] left Occ with Bev roadedge intersect length:"
-              << x_end - x_start;
+               << x_end - x_start;
 
     double delta_error = 0.0;
     double point_num = 0;
@@ -530,7 +605,7 @@ void OccGuideLineManager::ReplaceOccLocByBevRoadEdge() {
 
     double ave_error = delta_error / point_num;
     HLOG_DEBUG << "[occ module] left Occ and Pair bev roadedge:"
-              << "ave_y_error is:" << ave_error;
+               << "ave_y_error is:" << ave_error;
     if (ave_error <= distance_error_thresh_) {
       left_bev_roadedge = roadedge.second;
       break;
@@ -563,7 +638,7 @@ void OccGuideLineManager::ReplaceOccLocByBevRoadEdge() {
         << "[occ module] Find Pair bev left roadedge and right roadedge...";
   } else {
     HLOG_DEBUG << "[occ module] Can't Find Pair bev left roadedge and right "
-                 "roadedge...";
+                  "roadedge...";
   }
 }
 
@@ -714,7 +789,7 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
       vitual_lane_num =
           static_cast<int>(std::floor(lane_width / fine_lane_width + 0.3));
       HLOG_DEBUG << "[occ module] line_blank_space:" << lane_width
-                << ", and virtual lane num:" << vitual_lane_num;
+                 << ", and virtual lane num:" << vitual_lane_num;
       if (vitual_lane_num > 1) {
         for (int i = 1; i <= vitual_lane_num - 1; ++i) {
           em::Boundary virtual_line;
@@ -756,13 +831,13 @@ OccGuideLineManager::GetFrontOccRoadPair() {
     const auto& track_id = roadedge.first;
     const auto& occ_road = roadedge.second;
     HLOG_DEBUG << "[occ module] track_id" << occ_road->track_id
-              << ", grop_id:" << 1 << ","
-              << "start_x:" << occ_road->road_points.front().x() << ","
-              << "start_y:" << occ_road->road_points.front().y() << ","
-              << "end_x:" << occ_road->road_points.back().x() << ","
-              << "end_y:" << occ_road->road_points.back().y() << ","
-              << "left_occ_id:" << occ_road->left_occ_id
-              << "right_occ_id:" << occ_road->right_occ_id;
+               << ", grop_id:" << 1 << ","
+               << "start_x:" << occ_road->road_points.front().x() << ","
+               << "start_y:" << occ_road->road_points.front().y() << ","
+               << "end_x:" << occ_road->road_points.back().x() << ","
+               << "end_y:" << occ_road->road_points.back().y() << ","
+               << "left_occ_id:" << occ_road->left_occ_id
+               << "right_occ_id:" << occ_road->right_occ_id;
     front_occ_set.emplace_back(track_id, occ_road);
   }
 
@@ -785,7 +860,8 @@ OccGuideLineManager::GetFrontOccRoadPair() {
           keep_occs.end()) {
         keep_occs.emplace_back(track_id);
         front_occ_pair.emplace_back(track_id, occ_road);
-        HLOG_DEBUG << "[occ module] emplace back track_id" << occ_road->track_id;
+        HLOG_DEBUG << "[occ module] emplace back track_id"
+                   << occ_road->track_id;
       }
     }
     if (iter == std::prev(front_occ_set.end()) &&
@@ -795,7 +871,7 @@ OccGuideLineManager::GetFrontOccRoadPair() {
         keep_occs.emplace_back(track_id);
         front_occ_pair.emplace_back(track_id, occ_road);
         HLOG_DEBUG << "[occ module] emplace left est track_id"
-                  << occ_road->track_id;
+                   << occ_road->track_id;
       }
     }
   }
@@ -833,7 +909,7 @@ OccGuideLineManager::GetBestOccPair(
   }
 
   HLOG_DEBUG << "[occ module] best passible region:" << "idx:" << min_occ_idx
-            << "," << "angle:" << min_occ_angle;
+             << "," << "angle:" << min_occ_angle;
 
   std::vector<std::pair<em::Id, em::OccRoad::Ptr>> best_occ_pair;
   const auto& right_occ = front_occ_pair.at(min_occ_idx);
@@ -939,9 +1015,9 @@ Eigen::Vector3f OccGuideLineManager::CalcuDirectionVecV2(
           return (point - a->point).norm() < (point - b->point).norm();
         });
     HLOG_DEBUG << "[occ module] dir vector start point:" << query_point.x()
-              << "," << query_point.y();
-    HLOG_DEBUG << "[occ module] dir vector end point:" << (*it)->point.x() << ","
-              << (*it)->point.y();
+               << "," << query_point.y();
+    HLOG_DEBUG << "[occ module] dir vector end point:" << (*it)->point.x()
+               << "," << (*it)->point.y();
 
     if (value_line->nodes.size() == 1) {
       dir_vector = (*it)->point - query_point;
@@ -980,9 +1056,9 @@ Eigen::Vector3f OccGuideLineManager::CalcuDirectionVecV2(
       window_value_indexs.emplace_back(
           std::distance(value_line->nodes.begin(), it));
       HLOG_DEBUG << "[occ module] dir vector start point:" << query_point.x()
-                << "," << query_point.y();
+                 << "," << query_point.y();
       HLOG_DEBUG << "[occ module] dir vector end point:" << (*it)->point.x()
-                << "," << (*it)->point.y();
+                 << "," << (*it)->point.y();
 
       if (value_line->nodes.size() == 1) {
         dir_vector = (*it)->point - query_point;
@@ -1022,9 +1098,9 @@ Eigen::Vector3f OccGuideLineManager::CalcuDirectionVecV2(
           return (point - a->point).norm() < (point - b->point).norm();
         });
     HLOG_DEBUG << "[occ module] dir vector start point:" << query_point.x()
-              << "," << query_point.y();
-    HLOG_DEBUG << "[occ module] dir vector end point:" << (*it)->point.x() << ","
-              << (*it)->point.y();
+               << "," << query_point.y();
+    HLOG_DEBUG << "[occ module] dir vector end point:" << (*it)->point.x()
+               << "," << (*it)->point.y();
 
     if (value_line->nodes.size() == 1) {
       dir_vector = (*it)->point - query_point;
@@ -1092,9 +1168,9 @@ Eigen::Vector3f OccGuideLineManager::CalcuDirectionVec(
         return (point - a->point).norm() < (point - b->point).norm();
       });
   HLOG_DEBUG << "[occ module] dir vector start point:" << query_point.x() << ","
-            << query_point.y();
+             << query_point.y();
   HLOG_DEBUG << "[occ module] dir vector end point:" << (*it)->point.x() << ","
-            << (*it)->point.y();
+             << (*it)->point.y();
   Eigen::Vector3f dir_vector;
   if (value_line->nodes.size() == 1) {
     dir_vector = (*it)->point - query_point;
@@ -1213,17 +1289,18 @@ bool OccGuideLineManager::CheckOccWhetherStable() {
   }
 
   HLOG_DEBUG << "[occ module]:" << "right_x_max:" << right_x_max << ","
-            << "right_x_min:" << right_x_min << ","
-            << "delta_x:" << right_x_max - right_x_min << ","
-            << "right_y_max:" << right_y_max << ","
-            << "right_y_min:" << right_y_min << ","
-            << "delta_y:" << right_y_max - right_y_min;
+             << "right_x_min:" << right_x_min << ","
+             << "delta_x:" << right_x_max - right_x_min << ","
+             << "right_y_max:" << right_y_max << ","
+             << "right_y_min:" << right_y_min << ","
+             << "delta_y:" << right_y_max - right_y_min;
 
   HLOG_DEBUG << "[occ module]:" << "left_x_max:" << left_x_max << ","
-            << "left_x_min:" << left_x_min << ","
-            << "delta_x:" << left_x_max - left_x_min << ","
-            << "left_y_max:" << left_y_max << "," << "left_y_min:" << left_y_min
-            << "," << "delta_y:" << left_y_max - left_y_min;
+             << "left_x_min:" << left_x_min << ","
+             << "delta_x:" << left_x_max - left_x_min << ","
+             << "left_y_max:" << left_y_max << ","
+             << "left_y_min:" << left_y_min << ","
+             << "delta_y:" << left_y_max - left_y_min;
 
   return std::abs(right_x_max - right_x_min) <= 2 * distance_error_thresh_ &&
          std::abs(right_y_max - right_y_min) <= distance_error_thresh_ &&
@@ -1252,7 +1329,7 @@ float OccGuideLineManager::AssumeOccVirtualLaneWidth() {
   float averge_lane_width = 3.5;
   const auto& lineline_boundries = bev_laneline_boundarys_;
   HLOG_DEBUG << "[occ module]:" << "bev laneline nums..."
-            << lineline_boundries.size();
+             << lineline_boundries.size();
   if (lineline_boundries.empty()) {
     return averge_lane_width;
   }
@@ -1265,7 +1342,7 @@ float OccGuideLineManager::AssumeOccVirtualLaneWidth() {
       continue;
     }
     HLOG_DEBUG << "[occ module]:" << "bevlaneline boundary lanepos: "
-              << static_cast<int>(boundary.second->lanepos);
+               << static_cast<int>(boundary.second->lanepos);
     HLOG_DEBUG << "start x:" << boundary.second->nodes.front()->point.x();
     if (boundary.second->nodes.front()->point.x() <= 5.0) {
       HLOG_DEBUG << "back_lines add one line";
@@ -1434,7 +1511,7 @@ void OccGuideLineManager::FineTuneOccPair(
   left_occ_heading /= static_cast<float>(left_heading_nums);
   left_occ_heading.normalize();
   HLOG_DEBUG << "left heading:" << left_occ_heading.x() << ","
-            << left_occ_heading.y();
+             << left_occ_heading.y();
 
   // 计算右边路沿的前5米的平均heading;
   Eigen::Vector3f right_occ_heading{0.0, 0.0, 0.0};
@@ -1552,13 +1629,14 @@ std::vector<em::Boundary> OccGuideLineManager::OccRegionSplit(
           (occ_width - safe_distance_ * 2) / assume_lane_width_ + 0.3)),
       1.0));
   HLOG_DEBUG << "[occ module] entrance lanes width:" << "averge_lane_width:"
-            << assume_lane_width_ << ", occ width: " << occ_width
-            << ", entrance lanes nums:" << assume_lane_nums;
+             << assume_lane_width_ << ", occ width: " << occ_width
+             << ", entrance lanes nums:" << assume_lane_nums;
 
   std::vector<em::Boundary> virtual_lines(assume_lane_nums + 1);
 
   for (const auto& node : right_occ->nodes) {
-    HLOG_DEBUG << "444 right occ node:" << node->point.x() << "," << node->point.y();
+    HLOG_DEBUG << "444 right occ node:" << node->point.x() << ","
+               << node->point.y();
     auto it = std::min_element(
         left_occ->nodes.begin(), left_occ->nodes.end(),
         [&point = node->point](const em::BoundaryNode::Ptr& a,
@@ -1566,10 +1644,12 @@ std::vector<em::Boundary> OccGuideLineManager::OccRegionSplit(
           return (point - a->point).norm() < (point - b->point).norm();
         });
     Eigen::Vector3f closestPointB = (*it)->point;
-    HLOG_DEBUG << "444 left occ node:" << closestPointB.x() << "," << closestPointB.y();
+    HLOG_DEBUG << "444 left occ node:" << closestPointB.x() << ","
+               << closestPointB.y();
     Eigen::Vector3f delta_norm_vector =
         (closestPointB - node->point).normalized();
-    HLOG_DEBUG << "444 delta_norm_vector:" << delta_norm_vector.x() << "," << delta_norm_vector.y();
+    HLOG_DEBUG << "444 delta_norm_vector:" << delta_norm_vector.x() << ","
+               << delta_norm_vector.y();
     float norm_value =
         (closestPointB - node->point).norm() - 2 * safe_distance_;
     for (int i = 0; i <= assume_lane_nums; ++i) {
@@ -1588,9 +1668,9 @@ std::vector<em::Boundary> OccGuideLineManager::OccRegionSplit(
   }
 
   HLOG_DEBUG << "OccRegionSplit FineTuneOccPair right occ node size:"
-            << best_occ_pair.front()->nodes.size();
+             << best_occ_pair.front()->nodes.size();
   HLOG_DEBUG << "OccRegionSplit FineTuneOccPair left occ node size:"
-            << best_occ_pair.back()->nodes.size();
+             << best_occ_pair.back()->nodes.size();
   // IsLineBetweenOcc
   virtual_lines.erase(
       std::remove_if(virtual_lines.begin(), virtual_lines.end(),
@@ -1613,19 +1693,19 @@ std::vector<em::Boundary> OccGuideLineManager::InferGuideLineOnlyByOcc() {
   // !TBD, 基于最短距离点做截断，根据一次防方程做前端补齐。
   // FineTuneOccPair(best_occ_pair);
   HLOG_DEBUG << "after FineTuneOccPair right occ node size:"
-            << best_occ_pair.front()->nodes.size();
+             << best_occ_pair.front()->nodes.size();
   HLOG_DEBUG << "after FineTuneOccPair left occ node size:"
-            << best_occ_pair.back()->nodes.size();
+             << best_occ_pair.back()->nodes.size();
 
   HLOG_DEBUG << "right occ end node x loc:"
-            << best_occ_pair.front()->nodes.back()->point.x();
+             << best_occ_pair.front()->nodes.back()->point.x();
   HLOG_DEBUG << "left occ end node x loc:"
-            << best_occ_pair.back()->nodes.back()->point.x();
+             << best_occ_pair.back()->nodes.back()->point.x();
 
   HLOG_DEBUG << "right occ front node x loc:"
-            << best_occ_pair.front()->nodes.front()->point.x();
+             << best_occ_pair.front()->nodes.front()->point.x();
   HLOG_DEBUG << "left occ front node x loc:"
-            << best_occ_pair.back()->nodes.front()->point.x();
+             << best_occ_pair.back()->nodes.front()->point.x();
   std::vector<em::Boundary> virtual_lines = OccRegionSplit(best_occ_pair);
   return virtual_lines;
 }

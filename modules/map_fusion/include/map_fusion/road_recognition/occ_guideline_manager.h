@@ -101,6 +101,9 @@ class OccGuideLineManager {
   bool IsPointOnOccLeftSide(const em::BoundaryNode::Ptr& node,
                             const em::Boundary::Ptr& occ_data);
 
+  bool IsPointOnOccRightSide(const em::BoundaryNode::Ptr& node,
+                             const em::Boundary::Ptr& occ_data);
+
   em::ElementMap::Ptr input_ele_map_ = nullptr;
   std::map<int, std::vector<Line_kd>>* bevlanelines_ = nullptr;
   std::vector<std::pair<int, em::Boundary::Ptr>> bev_laneline_boundarys_;

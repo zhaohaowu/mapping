@@ -14,7 +14,7 @@
 
 #include "modules/map_fusion_02/common/calc_util.h"
 #include "modules/map_fusion_02/data_convert/data_convert.h"
-#include "modules/map_fusion_02/data_manager/dr_data_manager.h"
+#include "modules/map_fusion_02/data_manager/location_data_manager.h"
 #include "modules/map_fusion_02/data_manager/percep_obj_manager.h"
 #include "modules/map_fusion_02/modules/geo/elements_filter_base.h"
 #include "modules/util/include/util/mapping_log.h"
@@ -33,8 +33,8 @@ bool ElementsFilter::Process(ElementMap::Ptr origin_element_map_ptr) {
   // get road edge
   road_edge_table_ = origin_element_map_ptr->road_edges;
   // get pose
-  LocInfo::ConstPtr T_ptr =
-      DR_MANAGER->GetDrPoseByTimeStamp(origin_element_map_ptr->map_info.stamp);
+  LocInfo::ConstPtr T_ptr = LOCATION_MANAGER->GetDrPoseByTimeStamp(
+      origin_element_map_ptr->map_info.stamp);
   T_L_V_ = T_ptr->pose.matrix().cast<double>();
   // filter element map lines
   FilterElementMapLines(origin_element_map_ptr->lane_boundaries);

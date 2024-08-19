@@ -1,6 +1,6 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
- *   file       ： dr_data_manager.h
+ *   file       ： location_data_manager.h
  *   author     ： chenlongxi
  *   date       ： 2023.09
  ******************************************************************************/
@@ -24,7 +24,7 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
-class DrDataManager {
+class LocationDataManager {
  public:
   bool Init();
   MessageBuffer<LocInfo::ConstPtr>& GetDrBuffer();
@@ -37,7 +37,7 @@ class DrDataManager {
   bool PushDrData(const LocInfo::ConstPtr& latest_localization);
   void PushLocalDrData(double timestamp, const LocInfo::ConstPtr& local_pose);
   void SetTimeStampDrPose(const LocInfo::ConstPtr& dr_pose_ptr);
-  ~DrDataManager() = default;
+  ~LocationDataManager() = default;
 
  private:
   // 存储原始的location数据信息
@@ -67,10 +67,10 @@ class DrDataManager {
   Eigen::Affine3d last_T_w_v_;
 
   // get instance by Instance()
-  DECLARE_SINGLETON_PERCEPTION(DrDataManager)
+  DECLARE_SINGLETON_PERCEPTION(LocationDataManager)
 };
 
-#define DR_MANAGER DrDataManager::Instance()
+#define LOCATION_MANAGER LocationDataManager::Instance()
 
 }  // namespace mf
 }  // namespace mp

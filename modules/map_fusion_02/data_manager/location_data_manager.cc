@@ -1,24 +1,24 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
- *   file       ： dr_data_manager.cc
+ *   file       ： location_data_manager.cc
  *   author     ： chenlongxi
  *   date       ： 2023.09
  ******************************************************************************/
 
-#include "modules/map_fusion_02/data_manager/dr_data_manager.h"
+#include "modules/map_fusion_02/data_manager/location_data_manager.h"
 
 namespace hozon {
 namespace mp {
 namespace mf {
 
 namespace perception_lib = hozon::perception::lib;
-DrDataManager::DrDataManager() { CHECK_EQ(this->Init(), true); }
+LocationDataManager::LocationDataManager() { CHECK_EQ(this->Init(), true); }
 
-MessageBuffer<LocInfo::ConstPtr>& DrDataManager::GetDrBuffer() {
+MessageBuffer<LocInfo::ConstPtr>& LocationDataManager::GetDrBuffer() {
   return local_dr_buffer_;
 }
 
-bool DrDataManager::Init() {
+bool LocationDataManager::Init() {
   std::lock_guard<std::mutex> lock(mutex_);
   if (inited_) {
     return true;
@@ -74,7 +74,7 @@ bool DrDataManager::Init() {
   return true;
 }
 
-LocInfo::ConstPtr DrDataManager::GetDrPoseByTimeStamp(double timestamp) {
+LocInfo::ConstPtr LocationDataManager::GetDrPoseByTimeStamp(double timestamp) {
   LocInfo::ConstPtr before = nullptr;
   LocInfo::ConstPtr after = nullptr;
   origin_dr_buffer_.get_messages_around(timestamp, before, after);
@@ -127,7 +127,8 @@ LocInfo::ConstPtr DrDataManager::GetDrPoseByTimeStamp(double timestamp) {
   return dr_pose_state;
 }
 
-void DrDataManager::SetTimeStampDrPose(const LocInfo::ConstPtr& dr_pose_ptr) {
+void LocationDataManager::SetTimeStampDrPose(
+    const LocInfo::ConstPtr& dr_pose_ptr) {
   if (dr_pose_ptr) {
     cur_T_w_v_ = dr_pose_ptr->pose;
     T_cur_last_ = cur_T_w_v_.inverse() * last_T_w_v_;
@@ -135,7 +136,8 @@ void DrDataManager::SetTimeStampDrPose(const LocInfo::ConstPtr& dr_pose_ptr) {
   }
 }
 
-bool DrDataManager::PushDrData(const LocInfo::ConstPtr& latest_localization) {
+bool LocationDataManager::PushDrData(
+    const LocInfo::ConstPtr& latest_localization) {
   HLOG_DEBUG << "latest_localization timestamp: " << SET_PRECISION(20)
              << latest_localization->timestamp;
   if (origin_dr_buffer_.is_empty() ||
@@ -148,12 +150,12 @@ bool DrDataManager::PushDrData(const LocInfo::ConstPtr& latest_localization) {
   return false;
 }
 
-void DrDataManager::PushLocalDrData(double timestamp,
-                                    const LocInfo::ConstPtr& local_pose) {
+void LocationDataManager::PushLocalDrData(double timestamp,
+                                          const LocInfo::ConstPtr& local_pose) {
   local_dr_buffer_.push_new_message(timestamp, local_pose);
 }
 
-bool DrDataManager::IsStaticState() {
+bool LocationDataManager::IsStaticState() {
   const auto& velocity = origin_dr_buffer_.back()->linear_velocity;
   const auto& angular_velocity = origin_dr_buffer_.back()->angular_velocity;
 
@@ -189,7 +191,7 @@ bool DrDataManager::IsStaticState() {
   return is_static_state;
 }
 
-bool DrDataManager::IsTurnState() {
+bool LocationDataManager::IsTurnState() {
   if (origin_dr_buffer_.buffer_size() < 2) {
     turn_count_ = 0;
     turn_state_ = false;
@@ -206,11 +208,11 @@ bool DrDataManager::IsTurnState() {
   return turn_state_;
 }
 
-bool DrDataManager::GetTurnState() const { return turn_state_; }
+bool LocationDataManager::GetTurnState() const { return turn_state_; }
 
-Eigen::Affine3d DrDataManager::GetDeltaPose() { return T_cur_last_; }
+Eigen::Affine3d LocationDataManager::GetDeltaPose() { return T_cur_last_; }
 
-Eigen::Affine3d DrDataManager::GetCurrentPose() { return cur_T_w_v_; }
+Eigen::Affine3d LocationDataManager::GetCurrentPose() { return cur_T_w_v_; }
 
 }  // namespace mf
 }  // namespace mp

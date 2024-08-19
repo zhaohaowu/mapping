@@ -10,7 +10,7 @@
 #include <Eigen/Core>
 
 #include "modules/map_fusion_02/data_convert/data_convert.h"
-#include "modules/map_fusion_02/data_manager/dr_data_manager.h"
+#include "modules/map_fusion_02/data_manager/location_data_manager.h"
 
 namespace hozon {
 namespace mp {
@@ -37,7 +37,7 @@ bool PercepObjManager::PushObjects(
     return false;
   }
   LocInfo::ConstPtr perception_pose =
-      DR_MANAGER->GetDrPoseByTimeStamp(obj_msg->header().data_stamp());
+      LOCATION_MANAGER->GetDrPoseByTimeStamp(obj_msg->header().data_stamp());
   if (perception_pose == nullptr) {
     HLOG_ERROR << "obj_msg perception_pose is nullptr";
     return false;

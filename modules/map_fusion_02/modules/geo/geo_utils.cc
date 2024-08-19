@@ -12,7 +12,7 @@
 #include <limits>
 
 #include "modules/map_fusion_02/common/calc_util.h"
-#include "modules/map_fusion_02/data_manager/dr_data_manager.h"
+#include "modules/map_fusion_02/data_manager/location_data_manager.h"
 
 namespace hozon {
 namespace mp {
@@ -41,7 +41,7 @@ bool CheckOppositeLineByObj(
     const std::vector<Eigen::Vector3d>& line_points,
     const boost::circular_buffer<std::shared_ptr<Object>>& objects) {
   std::vector<Eigen::Vector3d> obj_points;
-  const auto& cur_T_w_v_ = DR_MANAGER->GetCurrentPose();
+  const auto& cur_T_w_v_ = LOCATION_MANAGER->GetCurrentPose();
   for (const auto& object : objects) {
     Eigen::Vector3d p_local(object->position);
     Eigen::Vector3d p_veh = cur_T_w_v_.inverse() * p_local;

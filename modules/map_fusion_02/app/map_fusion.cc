@@ -9,7 +9,7 @@
 
 #include <tuple>
 
-#include "modules/map_fusion_02/data_manager/dr_data_manager.h"
+#include "modules/map_fusion_02/data_manager/location_data_manager.h"
 #include "modules/map_fusion_02/data_manager/percep_obj_manager.h"
 #include "util/mapping_log.h"
 #include "util/rate.h"
@@ -59,7 +59,7 @@ int MapFusion::OnLocalization(
     return -1;
   }
 
-  if (!DR_MANAGER->PushDrData(cur_loc_info_)) {
+  if (!LOCATION_MANAGER->PushDrData(cur_loc_info_)) {
     HLOG_ERROR << "localization timestamp error";
     return -1;
   }
@@ -114,15 +114,16 @@ bool MapFusion::InDataMapping(
   }
 
   LocInfo::ConstPtr perception_pose =
-      DR_MANAGER->GetDrPoseByTimeStamp(map_msg->header().data_stamp());
+      LOCATION_MANAGER->GetDrPoseByTimeStamp(map_msg->header().data_stamp());
   if (perception_pose == nullptr) {
     HLOG_ERROR << "map_msg time is:"
                << std::to_string(map_msg->header().data_stamp());
     HLOG_ERROR << "map_msg is nullptr";
     return false;
   }
-  DR_MANAGER->SetTimeStampDrPose(perception_pose);
-  DR_MANAGER->PushLocalDrData(map_msg->header().data_stamp(), perception_pose);
+  LOCATION_MANAGER->SetTimeStampDrPose(perception_pose);
+  LOCATION_MANAGER->PushLocalDrData(map_msg->header().data_stamp(),
+                                    perception_pose);
 
   return true;
 }

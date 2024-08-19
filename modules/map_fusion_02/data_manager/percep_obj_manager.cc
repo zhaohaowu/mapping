@@ -37,7 +37,7 @@ bool PercepObjManager::PushObjects(
     return false;
   }
   LocInfo::ConstPtr perception_pose =
-      LOCATION_MANAGER->GetDrPoseByTimeStamp(obj_msg->header().data_stamp());
+      LOCATION_MANAGER->GetLocationByTimeStamp(obj_msg->header().data_stamp());
   if (perception_pose == nullptr) {
     HLOG_ERROR << "obj_msg perception_pose is nullptr";
     return false;

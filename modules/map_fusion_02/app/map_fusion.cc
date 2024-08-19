@@ -59,7 +59,7 @@ int MapFusion::OnLocalization(
     return -1;
   }
 
-  if (!LOCATION_MANAGER->PushDrData(cur_loc_info_)) {
+  if (!LOCATION_MANAGER->PushOriginLocData(cur_loc_info_)) {
     HLOG_ERROR << "localization timestamp error";
     return -1;
   }
@@ -114,16 +114,16 @@ bool MapFusion::InDataMapping(
   }
 
   LocInfo::ConstPtr perception_pose =
-      LOCATION_MANAGER->GetDrPoseByTimeStamp(map_msg->header().data_stamp());
+      LOCATION_MANAGER->GetLocationByTimeStamp(map_msg->header().data_stamp());
   if (perception_pose == nullptr) {
     HLOG_ERROR << "map_msg time is:"
                << std::to_string(map_msg->header().data_stamp());
     HLOG_ERROR << "map_msg is nullptr";
     return false;
   }
-  LOCATION_MANAGER->SetTimeStampDrPose(perception_pose);
-  LOCATION_MANAGER->PushLocalDrData(map_msg->header().data_stamp(),
-                                    perception_pose);
+  LOCATION_MANAGER->SetTimeStampLocation(perception_pose);
+  LOCATION_MANAGER->PushLocalMapLocData(map_msg->header().data_stamp(),
+                                        perception_pose);
 
   return true;
 }

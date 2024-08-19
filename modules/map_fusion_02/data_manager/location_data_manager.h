@@ -27,23 +27,24 @@ namespace mf {
 class LocationDataManager {
  public:
   bool Init();
-  MessageBuffer<LocInfo::ConstPtr>& GetDrBuffer();
-  LocInfo::ConstPtr GetDrPoseByTimeStamp(double timestamp);
+  MessageBuffer<LocInfo::ConstPtr>& GetLocalMapLocBuffer();
+  LocInfo::ConstPtr GetLocationByTimeStamp(double timestamp);
   Eigen::Affine3d GetDeltaPose();
   Eigen::Affine3d GetCurrentPose();
   bool IsStaticState();
   bool IsTurnState();
   bool GetTurnState() const;
-  bool PushDrData(const LocInfo::ConstPtr& latest_localization);
-  void PushLocalDrData(double timestamp, const LocInfo::ConstPtr& local_pose);
-  void SetTimeStampDrPose(const LocInfo::ConstPtr& dr_pose_ptr);
+  bool PushOriginLocData(const LocInfo::ConstPtr& latest_localization);
+  void PushLocalMapLocData(double timestamp,
+                           const LocInfo::ConstPtr& local_pose);
+  void SetTimeStampLocation(const LocInfo::ConstPtr& dr_pose_ptr);
   ~LocationDataManager() = default;
 
  private:
   // 存储原始的location数据信息
-  MessageBuffer<LocInfo::ConstPtr> origin_dr_buffer_;
+  MessageBuffer<LocInfo::ConstPtr> origin_loc_buffer_;
   // 存储接收到local_map时刻的location数据信息
-  MessageBuffer<LocInfo::ConstPtr> local_dr_buffer_;
+  MessageBuffer<LocInfo::ConstPtr> localmap_loc_buffer_;
 
   // 静止策略状态统计量
   int turn_count_{0};

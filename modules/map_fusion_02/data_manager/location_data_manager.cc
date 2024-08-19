@@ -14,8 +14,8 @@ namespace mf {
 namespace perception_lib = hozon::perception::lib;
 LocationDataManager::LocationDataManager() { CHECK_EQ(this->Init(), true); }
 
-MessageBuffer<LocInfo::ConstPtr>& LocationDataManager::GetDrBuffer() {
-  return local_dr_buffer_;
+MessageBuffer<LocInfo::ConstPtr>& LocationDataManager::GetLocalMapLocBuffer() {
+  return localmap_loc_buffer_;
 }
 
 bool LocationDataManager::Init() {
@@ -24,11 +24,11 @@ bool LocationDataManager::Init() {
     return true;
   }
 
-  origin_dr_buffer_.set_capacity(1000);
-  local_dr_buffer_.set_capacity(2);
+  origin_loc_buffer_.set_capacity(1000);
+  localmap_loc_buffer_.set_capacity(2);
 
-  origin_dr_buffer_.clear();
-  local_dr_buffer_.clear();
+  origin_loc_buffer_.clear();
+  localmap_loc_buffer_.clear();
 
   auto* config_manager = perception_lib::ConfigManager::Instance();
   const perception_lib::ModelConfig* model_config = nullptr;
@@ -74,10 +74,11 @@ bool LocationDataManager::Init() {
   return true;
 }
 
-LocInfo::ConstPtr LocationDataManager::GetDrPoseByTimeStamp(double timestamp) {
+LocInfo::ConstPtr LocationDataManager::GetLocationByTimeStamp(
+    double timestamp) {
   LocInfo::ConstPtr before = nullptr;
   LocInfo::ConstPtr after = nullptr;
-  origin_dr_buffer_.get_messages_around(timestamp, before, after);
+  origin_loc_buffer_.get_messages_around(timestamp, before, after);
 
   if (before == nullptr && after == nullptr) {
     HLOG_ERROR << "GetDrPoseForTime is null: " << timestamp;
@@ -127,7 +128,7 @@ LocInfo::ConstPtr LocationDataManager::GetDrPoseByTimeStamp(double timestamp) {
   return dr_pose_state;
 }
 
-void LocationDataManager::SetTimeStampDrPose(
+void LocationDataManager::SetTimeStampLocation(
     const LocInfo::ConstPtr& dr_pose_ptr) {
   if (dr_pose_ptr) {
     cur_T_w_v_ = dr_pose_ptr->pose;
@@ -136,28 +137,28 @@ void LocationDataManager::SetTimeStampDrPose(
   }
 }
 
-bool LocationDataManager::PushDrData(
+bool LocationDataManager::PushOriginLocData(
     const LocInfo::ConstPtr& latest_localization) {
   HLOG_DEBUG << "latest_localization timestamp: " << SET_PRECISION(20)
              << latest_localization->timestamp;
-  if (origin_dr_buffer_.is_empty() ||
-      origin_dr_buffer_.back()->timestamp < latest_localization->timestamp) {
+  if (origin_loc_buffer_.is_empty() ||
+      origin_loc_buffer_.back()->timestamp < latest_localization->timestamp) {
     LocInfo::Ptr dr_data_ptr = std::make_shared<LocInfo>(*latest_localization);
-    origin_dr_buffer_.push_new_message(latest_localization->timestamp,
-                                       dr_data_ptr);
+    origin_loc_buffer_.push_new_message(latest_localization->timestamp,
+                                        dr_data_ptr);
     return true;
   }
   return false;
 }
 
-void LocationDataManager::PushLocalDrData(double timestamp,
-                                          const LocInfo::ConstPtr& local_pose) {
-  local_dr_buffer_.push_new_message(timestamp, local_pose);
+void LocationDataManager::PushLocalMapLocData(
+    double timestamp, const LocInfo::ConstPtr& local_pose) {
+  localmap_loc_buffer_.push_new_message(timestamp, local_pose);
 }
 
 bool LocationDataManager::IsStaticState() {
-  const auto& velocity = origin_dr_buffer_.back()->linear_velocity;
-  const auto& angular_velocity = origin_dr_buffer_.back()->angular_velocity;
+  const auto& velocity = origin_loc_buffer_.back()->linear_velocity;
+  const auto& angular_velocity = origin_loc_buffer_.back()->angular_velocity;
 
   if (!use_idle_strategy_) {
     return false;
@@ -192,12 +193,12 @@ bool LocationDataManager::IsStaticState() {
 }
 
 bool LocationDataManager::IsTurnState() {
-  if (origin_dr_buffer_.buffer_size() < 2) {
+  if (origin_loc_buffer_.buffer_size() < 2) {
     turn_count_ = 0;
     turn_state_ = false;
     return false;
   }
-  double yaw_rate = origin_dr_buffer_.back()->angular_velocity[2];
+  double yaw_rate = origin_loc_buffer_.back()->angular_velocity[2];
   if (std::abs(yaw_rate) > u_turn_angle_velocity_limit_) {
     turn_count_++;
     turn_state_ = (turn_count_ >= turn_count_threshold_);

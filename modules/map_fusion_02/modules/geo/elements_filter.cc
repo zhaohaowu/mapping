@@ -33,7 +33,7 @@ bool ElementsFilter::Process(ElementMap::Ptr origin_element_map_ptr) {
   // get road edge
   road_edge_table_ = origin_element_map_ptr->road_edges;
   // get pose
-  LocInfo::ConstPtr T_ptr = LOCATION_MANAGER->GetDrPoseByTimeStamp(
+  LocInfo::ConstPtr T_ptr = LOCATION_MANAGER->GetLocationByTimeStamp(
       origin_element_map_ptr->map_info.stamp);
   T_L_V_ = T_ptr->pose.matrix().cast<double>();
   // filter element map lines

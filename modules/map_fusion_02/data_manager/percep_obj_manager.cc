@@ -19,7 +19,6 @@ namespace mf {
 PercepObjManager::PercepObjManager() { CHECK_EQ(this->Init(), true); }
 
 bool PercepObjManager::Init() {
-  std::lock_guard<std::mutex> lock(mutex_);
   if (inited_) {
     return true;
   }
@@ -43,6 +42,7 @@ bool PercepObjManager::PushObjects(
     HLOG_ERROR << "obj_msg perception_pose is nullptr";
     return false;
   }
+  std::lock_guard<std::mutex> lock(mutex_);
   for (const auto& object : obj_msg->perception_obstacle()) {
     auto elem_obj = std::make_shared<Object>();
     DataConvert::cvtPb2obj(object, elem_obj);
@@ -60,12 +60,14 @@ bool PercepObjManager::PushObjects(
 }
 
 boost::circular_buffer<std::shared_ptr<Object>>
-PercepObjManager::GetHistoryObjs() const {
+PercepObjManager::GetHistoryObjs() {
+  std::lock_guard<std::mutex> lock(mutex_);
   return history_objs_;
 }
 
 boost::circular_buffer<std::shared_ptr<Object>>
-PercepObjManager::GetInverseHistoryObjs() const {
+PercepObjManager::GetInverseHistoryObjs() {
+  std::lock_guard<std::mutex> lock(mutex_);
   return inverse_history_objs_;
 }
 

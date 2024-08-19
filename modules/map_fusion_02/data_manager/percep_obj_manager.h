@@ -26,8 +26,8 @@ class PercepObjManager {
   bool PushObjects(
       const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg);
 
-  boost::circular_buffer<std::shared_ptr<Object>> GetHistoryObjs() const;
-  boost::circular_buffer<std::shared_ptr<Object>> GetInverseHistoryObjs() const;
+  boost::circular_buffer<std::shared_ptr<Object>> GetHistoryObjs();
+  boost::circular_buffer<std::shared_ptr<Object>> GetInverseHistoryObjs();
 
  private:
   // 类初始化相关

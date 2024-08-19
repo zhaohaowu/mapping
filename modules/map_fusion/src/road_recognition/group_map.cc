@@ -2914,9 +2914,49 @@ bool GroupMap::MatchLaneAndStopLine(const Lane::Ptr& lane,
   auto start_right = lane->right_boundary->pts.front().pt;
   auto end_left = lane->left_boundary->pts.back().pt;
   auto end_right = lane->right_boundary->pts.back().pt;
+  Eigen::Vector2f stop_line_center = (Eigen::Vector2f(stop_line->points.back().x(),
+                                           stop_line->points.back().y()) +
+                           Eigen::Vector2f(stop_line->points.front().x(),
+                                           stop_line->points.front().y())) /
+                          2;
+  bool is_right_side = PointInVectorSide(
+                  Eigen::Vector2f(end_left.x(), end_left.y()),
+                  Eigen::Vector2f(end_right.x(), end_right.y()),
+                  stop_line_center) >= 0;
+  bool is_start_match =
+      MatchLanePtAndStopLine(start_left, start_right, *stop_line);
+  bool is_end_match = MatchLanePtAndStopLine(end_left, end_right, *stop_line);
+  // HLOG_ERROR << "lane id: " << lane->str_id_with_group
+  //            << "lane->left_boundary->lanepos: " <<
+  //            lane->left_boundary->lanepos
+  //            << " ,lane->right_boundary->lanepos: "
+  //            << lane->right_boundary->lanepos;
+  // HLOG_ERROR << " start_left x: " << start_left.x()
+  //            << " ,y : " << start_left.y()
+  //            << " ,start_right x: " << start_right.x()
+  //            << " , y: " << start_right.y();
+  // HLOG_ERROR << " end_left x: " << end_left.x() << " ,y : " << end_left.y()
+  //            << " ,end_right x: " << end_right.x() << " , y: " <<
+  //            end_right.y();
+  // if (stop_line->points.size() > 1) {
+  //   HLOG_ERROR << " stop_line front x: " << stop_line->points.front().x()
+  //              << " ,y : " << stop_line->points.front().y()
+  //              << " ,stop_line back x: " << stop_line->points.back().x()
+  //              << " , y: " << stop_line->points.back().y();
+  // }
 
-  return MatchLanePtAndStopLine(start_left, start_right, *stop_line) ||
-         MatchLanePtAndStopLine(end_left, end_right, *stop_line);
+  // if (lane->next_lane_str_id_with_group.size() > 0) {
+  //   HLOG_ERROR << "next_lane_str_id_with_group:"
+  //              << lane->next_lane_str_id_with_group[0];
+  // }
+  /* 三种情况: 1. 停止线在lane的开头附近，且位于lane结尾的右侧
+  **          2. 停止线在lane的结尾附近， 且位于lane结尾的右侧
+  **          3. 停止线在lane的结尾附近，但是位于lane结尾的左侧，需要lane无后继
+  */
+  return (is_start_match && is_right_side) ||
+         (is_end_match && is_right_side) ||
+         (is_end_match && !is_right_side &&
+          lane->next_lane_str_id_with_group.size() == 0);
 }
 
 bool GroupMap::MatchLaneAndZebraLine(const Lane::Ptr& lane,
@@ -4286,10 +4326,6 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
     // 右侧为同向车道，左侧为反向车道.
     //! TBD：综合考虑黄线、路沿、栅栏等作为隔离线.
     SetGroupLaneOrient(grp);
-    // 关联停止线
-    MatchStopLineWithGroup(grp);
-    // 关联斑马线
-    MatchZebraWithGroup(grp);
     // 关联左右
     MatchLRLane(grp);
   }
@@ -4351,6 +4387,12 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
               << after_remove_grp_nums - before_remove_grp_nums;
   }
   // 停止线斑马线路面箭头与车道绑定
+  for (auto& grp : *groups) {
+    // 关联停止线
+    MatchStopLineWithGroup(grp);
+    // 关联斑马线
+    MatchZebraWithGroup(grp);
+  }
   if (groups->size() > 1) {
     // 仅保留前向只有一个路口存在
     RemainOnlyOneForwardCrossWalk(groups);
@@ -4484,13 +4526,32 @@ bool GroupMap::MatchLRLane(Group::Ptr grp) {
 
 bool GroupMap::MatchStopLineWithGroup(Group::Ptr grp) {
   // 将车道关联到停止线
-  for (const auto& lane : grp->lanes) {
-    // 过滤对向车道
-    if (lane->left_boundary->isego == em::Other_Road) {
+  // HLOG_ERROR << "*****grp id: " << grp->seg_str_id;
+  for (auto& stop_line : stopline_) {
+    // grp已经关联过停止线后后面的grp不再关联,不然会关联到前后两个lane上
+    // TODO(fml)
+    // 关联到lane的相应位置而不是lane的头或尾，没有lane就关联到最近的lane尾部
+    // HLOG_ERROR << "stop_line id: " << stop_line.first;
+    if (stop_line.second->lane_id.size() > 0) {
       continue;
     }
-    for (auto& stop_line : stopline_) {
+    for (const auto& lane : grp->lanes) {
+      // 过滤对向车道
+      if (lane->left_boundary->isego == em::Other_Road) {
+        continue;
+      }
       if (MatchLaneAndStopLine(lane, stop_line.second)) {
+        stop_line.second->lane_id.emplace_back(lane->str_id_with_group);
+      }
+    }
+    // 如果当前grop中有一个lane能关联上，其它同向的都关联上
+    if (stop_line.second->lane_id.size() > 0) {
+      stop_line.second->lane_id.clear();
+      for (const auto& lane : grp->lanes) {
+        // 过滤对向车道
+        if (lane->left_boundary->isego == em::Other_Road) {
+          continue;
+        }
         stop_line.second->lane_id.emplace_back(lane->str_id_with_group);
       }
     }
@@ -4517,6 +4578,55 @@ bool GroupMap::CloseToLaneEnd(const std::vector<Group::Ptr>& groups,
     }
   }
   return false;
+}
+
+float GroupMap::LengthToLaneStart(const std::vector<Group::Ptr>& groups,
+                                  std::string str_id,
+                                  const Eigen::Vector3f& target_point) {
+  float length2start{0.0};
+  for (const auto& grp : groups) {
+    for (const auto& lane : grp->lanes) {
+      if (lane->str_id_with_group == str_id) {
+        if (lane->center_line_pts.size() >= 2 &&
+            lane->left_boundary->pts.size() >= 2 &&
+            lane->right_boundary->pts.size() >= 2) {
+          float length{0.0};
+          em::Point prev_pt = lane->center_line_pts[0].pt;
+          for (size_t i = 1; i < lane->center_line_pts.size(); ++i) {
+            const auto& pt = lane->center_line_pts[i].pt;
+            length += Dist(pt, prev_pt);
+            prev_pt = pt;
+          }
+          auto start_left = lane->left_boundary->pts.front().pt;
+          auto start_right = lane->right_boundary->pts.front().pt;
+          auto end_left = lane->left_boundary->pts.back().pt;
+          auto end_right = lane->right_boundary->pts.back().pt;
+          Eigen::Vector2f stop_point(target_point.x(), target_point.y());
+          if (PointInVectorSide(
+                  Eigen::Vector2f(start_left.x(), start_left.y()),
+                  Eigen::Vector2f(start_right.x(), start_right.y()),
+                  stop_point) > 0) {
+            length2start = 0.0;
+          } else if (PointInVectorSide(
+                         Eigen::Vector2f(end_left.x(), end_left.y()),
+                         Eigen::Vector2f(end_right.x(), end_right.y()),
+                         stop_point) < 0) {
+            length2start = length - 0.1;
+          } else {
+            Eigen::Vector3f front_pt = lane->center_line_pts.front().pt;
+            Eigen::Vector3f end_pt = lane->center_line_pts.back().pt;
+            auto length_to_front = Dist(target_point, front_pt);
+            auto length_to_end = Dist(target_point, end_pt);
+            length2start = length_to_end < length_to_front
+                               ? length - length_to_end - 0.1
+                               : length_to_front - 0.1;
+          }
+        }
+        return length2start;
+      }
+    }
+  }
+  return length2start;
 }
 
 bool GroupMap::MatchZebraWithGroup(Group::Ptr grp) {
@@ -7992,14 +8102,11 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
 
         // 对停止线和车道线关联对构建overlap
         auto* stopline_overlap = map->add_overlap();
-        stopline_overlap->mutable_id()->set_id(
-            "01" + std::to_string(stopline_it.first) + "_" +
-            std::to_string(lane_id_hash[lane_id_it]));
+        auto id = "01" + std::to_string(stopline_it.first) + "_" +
+                  std::to_string(lane_id_hash[lane_id_it]);
+        stopline_overlap->mutable_id()->set_id(id);
 
-        auto* overlap_id = signal->add_overlap_id();
-        overlap_id->set_id("01" + std::to_string(stopline_it.first) + "_" +
-                           std::to_string(lane_id_hash[lane_id_it]));
-
+        signal->add_overlap_id()->set_id(id);
         auto* object_stopline = stopline_overlap->add_object();
         object_stopline->mutable_id()->set_id(
             "01" + std::to_string(stopline_it.first));
@@ -8012,22 +8119,15 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
         // 判断是否关联对是进路口还是出路口关联形式
         auto target_point =
             (stopline_it.second->points[0] + stopline_it.second->points[1]) / 2;
-        if (CloseToLaneEnd(groups, lane_id_it, target_point)) {
-          auto lane_length = GetLaneLength(groups, lane_id_it);
-          laneinfo->set_start_s(lane_length - 0.1);
-          laneinfo->set_end_s(lane_length);
-        } else {
-          laneinfo->set_start_s(0.0);
-          laneinfo->set_end_s(0.1);
-        }
+        auto length_to_start = LengthToLaneStart(groups, lane_id_it, target_point);
+        laneinfo->set_start_s(length_to_start);
+        laneinfo->set_end_s(length_to_start + 0.1);
         // 给map.lane.overlap_id赋值
         for (int i = 0; i < map->lane_size(); ++i) {
           auto* pro_lane = map->mutable_lane(i);
           if (pro_lane->id().id() == std::to_string(lane_id_hash[lane_id_it])) {
             auto* lane_overlap_id = pro_lane->add_overlap_id();
-            lane_overlap_id->set_id("01" + std::to_string(stopline_it.first) +
-                                    "_" +
-                                    std::to_string(lane_id_hash[lane_id_it]));
+            lane_overlap_id->set_id(id);
           }
         }
       }

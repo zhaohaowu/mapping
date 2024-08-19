@@ -495,6 +495,9 @@ class GroupMap {
 
   bool CloseToLaneEnd(const std::vector<Group::Ptr>& groups, std::string str_id,
                       const Eigen::Vector3f& target_point);
+  float LengthToLaneStart(const std::vector<Group::Ptr>& groups,
+                          std::string str_id,
+                          const Eigen::Vector3f& target_point);
   void ExtendFrontCenterLine(std::vector<Group::Ptr>* groups);
   void AddVirtualLine(std::vector<Group::Ptr>* groups);
   int BesideGroup(

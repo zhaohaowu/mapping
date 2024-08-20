@@ -20,10 +20,12 @@
 #include <vector>
 
 #include "modules/map_fusion_02/base/interface_option.h"
+#include "modules/map_fusion_02/base/processor.h"
 #include "modules/map_fusion_02/common/calc_util.h"
 #include "modules/map_fusion_02/common/common_data.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/broken_point_search.h"
 #include "modules/util/include/util/mapping_log.h"
+#include "nlohmann/detail/meta/cpp_future.hpp"
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d.hpp"
 
@@ -33,13 +35,13 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
-class RoadConstruct {
+class RoadConstruct : ProcessorBase {
  public:
   RoadConstruct() = default;
 
   ~RoadConstruct() = default;
 
-  void Init(const LaneFusionProcessOption& conf);
+  bool Init(const LaneFusionProcessOption& conf);
 
   bool ConstructLane(const std::vector<CutPoint>& cutpoints,
                      std::deque<Line::Ptr> lines,
@@ -47,9 +49,11 @@ class RoadConstruct {
                      const KinePosePtr& curr_pose,
                      const ElementMap::Ptr& ele_map);
 
-  void GetDistPoints(std::vector<Eigen::Vector3f>* distpoints);
+  std::vector<Eigen::Vector3f> GetDistPoints();
 
-  void GetGroups(std::vector<Group::Ptr>* groups);
+  std::vector<Group::Ptr> GetGroups();
+
+  void Clear() override;
 
  private:
   void BuildKDtrees(std::deque<Line::Ptr>* lines);
@@ -57,40 +61,39 @@ class RoadConstruct {
   void UpdatePathInCurrPose(const std::vector<KinePosePtr>& path,
                             const KinePose& curr_pose);
 
-  void BuildGroupSegments(const std::vector<CutPoint>& cutpoints,
-                          std::deque<Line::Ptr>* lines,
-                          std::vector<GroupSegment::Ptr>* group_segments,
-                          const ElementMap::Ptr& ele_map);
-
-  void CreateGroupSegFromCutPoints(const std::vector<CutPoint>& cutpoints,
-                                   std::vector<GroupSegment::Ptr>* segments);
-
-  void SplitPtsToGroupSeg(std::deque<Line::Ptr>* lines,
-                          std::vector<GroupSegment::Ptr>* segments);
-
-  void GenLaneSegInGroupSeg(std::vector<GroupSegment::Ptr>* segments);
-
   float DistByKDtree(const Eigen::Vector3f& ref_point, const LineSegment& line);
 
   float GetDistPointLane(const Eigen::Vector3f& point_a,
                          const Eigen::Vector3f& point_b,
                          const Eigen::Vector3f& point_c);
 
-  void EgoLineTrajectory(std::vector<GroupSegment::Ptr>* grp_segment,
-                         const ElementMap::Ptr& ele_map);
-
   void FitLaneline(const ElementMap::Ptr& ele_map, int id_1, int id_2,
                    int near_line);
 
   std::vector<double> FitLaneline(const std::vector<Point>& centerline);
 
-  void BuildGroups(const ElementMap::Ptr& ele_map,
-                   const std::vector<GroupSegment::Ptr>& group_segments,
+  void BuildGroups(const std::vector<CutPoint>& cutpoints,
+                   std::deque<Line::Ptr>* lines, const ElementMap::Ptr& ele_map,
                    std::vector<Group::Ptr>* groups);
 
-  void UniteGroupSegmentsToGroups(
-      double stamp, const std::vector<GroupSegment::Ptr>& group_segments,
-      std::vector<Group::Ptr>* groups);
+  void CreatGroupsFromCutPoints(const std::vector<CutPoint>& cutpoints,
+                                std::vector<Group::Ptr>* groups);
+
+  void SplitPtsToGroup(std::deque<Line::Ptr>* lines,
+                       std::vector<Group::Ptr>* groups);
+
+  void GenLanesInGroups(std::vector<Group::Ptr>* groups,
+                        const ElementMap::Ptr& ele_map, double stamp);
+
+  void GenGroupAllLanes(const Group::Ptr& grp);
+
+  void FilterGroupBadLane(const Group::Ptr& grp);
+
+  void GenGroupName(const Group::Ptr& grp, int grp_id, double stamp);
+
+  void EgoLineTrajectory(const Group::Ptr& grp, const ElementMap::Ptr& ele_map);
+
+  void SetBrokenId(std::vector<Group::Ptr>* groups);
 
   void GenLanesInGroups(std::vector<Group::Ptr>* groups,
                         std::map<Id, OccRoad::Ptr> occ_roads, double stamp);
@@ -122,7 +125,6 @@ class RoadConstruct {
   std::map<int, std::shared_ptr<cv::flann::Index>> KDTrees_;
   std::map<int, std::shared_ptr<std::vector<cv::Point2f>>> line_points_;
 
-  std::vector<GroupSegment::Ptr> group_segments_;
   std::vector<Group::Ptr> groups_;
 
   std::vector<Pose> path_in_curr_pose_;

@@ -117,15 +117,6 @@ struct LineSegment : public Line {
   DEFINE_PTR(LineSegment)
 };
 
-struct LaneSegment {
-  LineSegment::Ptr left_boundary;
-  LineSegment::Ptr right_boundary;
-
-  std::string str_id;
-  std::string lanepos_id;
-  DEFINE_PTR(LaneSegment)
-};
-
 struct Lane {
   LineSegment::Ptr left_boundary;
   LineSegment::Ptr right_boundary;
@@ -158,30 +149,24 @@ struct SliceLine {
   Eigen::Vector3f pr;  // 右边点
 };
 
-struct GroupSegment {
-  //  void CropAndBuild(const std::vector<Line::Ptr>& lines, )
-
-  SliceLine start_slice;
-  SliceLine end_slice;
-  //  std::map<em::Id, LineSegment::Ptr> line_segments;
-  std::vector<LineSegment::Ptr> line_segments;
-  std::vector<LaneSegment::Ptr> lane_segments;
-  std::string str_id;
-  DEFINE_PTR(GroupSegment)
-};
-
 struct Group {
   enum GroupState {
     NORMAL = 0,
     DELETE = 1,
     VIRTUAL = 2,
   };
-  std::vector<GroupSegment::Ptr> group_segments;
+
+  SliceLine start_slice;
+  SliceLine end_slice;
+  std::vector<LineSegment::Ptr> line_segments;
+
   std::vector<Lane::Ptr> lanes;
   std::string str_id;
   std::string seg_str_id;
   double stamp = 0;
   bool is_last_after_erased = false;
+
+  int broken_id = 0;
 
   GroupState group_state = GroupState::NORMAL;
 
@@ -189,7 +174,6 @@ struct Group {
   std::vector<Point> guide_points_toviz;
   void Clear() {
     guide_points_toviz.clear();
-    group_segments.clear();
     lanes.clear();
   }
   DEFINE_PTR(Group)

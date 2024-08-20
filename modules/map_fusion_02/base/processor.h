@@ -5,6 +5,7 @@
  *   date       ： 2024.01
  ******************************************************************************/
 #pragma once
+#include "modules/map_fusion_02/base/interface_option.h"
 
 namespace hozon {
 namespace mp {
@@ -16,7 +17,9 @@ class ProcessorBase {
   virtual ~ProcessorBase() = default;
   ProcessorBase(const ProcessorBase&) = delete;
   ProcessorBase& operator=(const ProcessorBase&) = delete;
-  virtual bool Init() = 0;
+  virtual bool Init() {
+    return true;
+  }
   virtual void Clear() = 0;
 };
 }  // namespace mf

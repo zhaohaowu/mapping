@@ -11,6 +11,16 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
+bool BrokenPointSearch::Init() {
+  detect_cut_pt_ = std::make_shared<DetectCutPt>();
+  return true;
+}
+
+void BrokenPointSearch::Clear() {
+  lines_.clear();
+  cutpoints_.clear();
+}
+
 bool BrokenPointSearch::SearchCtp(
     const std::shared_ptr<std::vector<KinePosePtr>>& path,
     const KinePosePtr& curr_pose, const ElementMap::Ptr& ele_map) {
@@ -38,23 +48,21 @@ bool BrokenPointSearch::SearchCtp(
   return true;
 }
 
-void BrokenPointSearch::GetCutPoints(std::vector<CutPoint>* cut_points) {
-  if (cut_points == nullptr) {
-    return;
-  }
-  cut_points->reserve(cutpoints_.size());
+std::vector<CutPoint> BrokenPointSearch::GetCutPoints() {
+  std::vector<CutPoint> cut_points;
+  cut_points.reserve(cutpoints_.size());
   for (const auto& ctp : cutpoints_) {
-    cut_points->emplace_back(ctp);
+    cut_points.emplace_back(ctp);
   }
+  return cut_points;
 }
 
-void BrokenPointSearch::GetLines(std::deque<Line::Ptr>* lines) {
-  if (lines == nullptr) {
-    return;
-  }
+std::deque<Line::Ptr> BrokenPointSearch::GetLines() {
+  std::deque<Line::Ptr> lines;
   for (const auto& l : lines_) {
-    lines->emplace_back(l);
+    lines.emplace_back(l);
   }
+  return lines;
 }
 
 // 从原始ElementMap里提取出车道线：

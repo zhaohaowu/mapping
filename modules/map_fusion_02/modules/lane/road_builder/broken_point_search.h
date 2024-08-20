@@ -10,12 +10,12 @@
 #include <cfloat>
 #include <cmath>
 #include <cstddef>
+#include <deque>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <deque>
 
 #include <Sophus/se3.hpp>
 #include <Sophus/so3.hpp>
@@ -23,6 +23,7 @@
 #include "common/math/vec2d.h"
 #include "modules/map_fusion_02/base/element_base.h"
 #include "modules/map_fusion_02/base/element_map.h"
+#include "modules/map_fusion_02/base/processor.h"
 #include "modules/map_fusion_02/common/calc_util.h"
 #include "modules/map_fusion_02/common/common_data.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/ctp_util.h"
@@ -33,15 +34,18 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
-class BrokenPointSearch {
+class BrokenPointSearch : ProcessorBase {
  public:
-  BrokenPointSearch() { detect_cut_pt_ = std::make_shared<DetectCutPt>(); }
+  BrokenPointSearch() = default;
   ~BrokenPointSearch() = default;
+  bool Init() override;
 
   bool SearchCtp(const std::shared_ptr<std::vector<KinePosePtr>>& path,
                  const KinePosePtr& curr_pose, const ElementMap::Ptr& ele_map);
-  void GetCutPoints(std::vector<CutPoint>* cut_points);
-  void GetLines(std::deque<Line::Ptr>* lines);
+  std::vector<CutPoint> GetCutPoints();
+  std::deque<Line::Ptr> GetLines();
+
+  void Clear() override;
 
  private:
   void RetrieveBoundaries(const ElementMap::Ptr& ele_map, float interp_dist,

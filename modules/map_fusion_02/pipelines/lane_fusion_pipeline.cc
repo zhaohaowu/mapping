@@ -6,6 +6,7 @@
  ******************************************************************************/
 
 #include "modules/map_fusion_02/pipelines/lane_fusion_pipeline.h"
+
 #include <memory>
 
 namespace hozon {
@@ -92,7 +93,8 @@ bool LaneFusionPipeline::Init() {
   path_manager_ = std::make_shared<PathManager>();
   path_manager_->Init(options_);
 
-  // broken_pt_search_ = std::make_unique<BrokenPointSearch>();
+  broken_pt_search_ = std::make_unique<BrokenPointSearch>();
+  broken_pt_search_->Init();
 
   road_constructor_ = std::make_unique<RoadConstruct>();
   road_constructor_->Init(options_);
@@ -102,7 +104,10 @@ bool LaneFusionPipeline::Init() {
   return true;
 }
 
-void LaneFusionPipeline::Clear() {}
+void LaneFusionPipeline::Clear() {
+  broken_pt_search_->Clear();
+  road_constructor_->Clear();
+}
 
 void LaneFusionPipeline::InsertPose(const LocInfo::Ptr& pose) {
   if (!path_manager_) {
@@ -147,19 +152,18 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
   mf_rviz_->VizPath(*path, *curr_pose);
 
   // 计算切分点和切分线
-  BrokenPointSearch bps;
-  auto ret_bps = bps.SearchCtp(path, curr_pose, element_map_ptr);
+  auto ret_bps = broken_pt_search_->SearchCtp(path, curr_pose, element_map_ptr);
   if (!ret_bps) {
     HLOG_ERROR << "Search broken point failed";
     return false;
   }
 
   std::vector<CutPoint> cut_points;
-  bps.GetCutPoints(&cut_points);
+  cut_points = broken_pt_search_->GetCutPoints();
   mf_rviz_->VizCutpoint(cut_points, element_map_ptr->map_info.stamp);
 
   std::deque<Line::Ptr> lines;
-  bps.GetLines(&lines);
+  lines = broken_pt_search_->GetLines();
 
   // 构建车道
   auto ret_rc = road_constructor_->ConstructLane(cut_points, lines, path,
@@ -170,11 +174,11 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
   }
 
   std::vector<Eigen::Vector3f> distpoints;
-  road_constructor_->GetDistPoints(&distpoints);
+  distpoints = road_constructor_->GetDistPoints();
   mf_rviz_->VizDistpoint(distpoints, element_map_ptr->map_info.stamp);
 
   std::vector<Group::Ptr> groups;
-  road_constructor_->GetGroups(&groups);
+  groups = road_constructor_->GetGroups();
   mf_rviz_->VizGroup(groups, element_map_ptr->map_info.stamp);
 
   return true;

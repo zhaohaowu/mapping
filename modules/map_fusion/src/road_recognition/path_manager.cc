@@ -191,6 +191,7 @@ void PathManager::GetPath(std::vector<KinePose::Ptr>* path,
     pose_ndt->pos = p_ndt;
     pose_ndt->quat = q_ndt;
     path->emplace_back(pose_ndt);
+    curr_ang_vel = curr_ang_vel * 0.95;
   }
 }
 

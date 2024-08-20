@@ -14,6 +14,9 @@ namespace mf {
 
 std::string MapFusionRviz::Name() const { return "MapFusionRviz"; }
 
+// init没有放在构造函数中,因为init用到了其他单例,会有初始化顺序问题
+MapFusionRviz::MapFusionRviz() = default;
+
 bool MapFusionRviz::Init() {
   auto* config_manager = hozon::perception::lib::ConfigManager::Instance();
   const hozon::perception::lib::ModelConfig* model_config = nullptr;
@@ -464,7 +467,8 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
       marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
           lane->center_line_pts.front().pt.z());
       auto* text = marker_str_id_with_group->mutable_text();
-      *text = lane->str_id_with_group + " broken id " + std::to_string(grp->broken_id);
+      *text = lane->str_id_with_group + " broken id " +
+              std::to_string(grp->broken_id);
       if (!lane->next_lane_str_id_with_group.empty() &&
           lane->center_line_pts.size() > 2) {
         marker_str_id_with_group = marker_array->add_markers();

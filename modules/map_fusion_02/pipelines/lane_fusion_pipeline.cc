@@ -88,14 +88,6 @@ bool LaneFusionPipeline::Init() {
     return false;
   }
 
-  mf_rviz_ = std::make_unique<MapFusionRviz>();
-  auto ret = mf_rviz_->Init();
-  if (!ret) {
-    HLOG_FATAL << "RvizAgent init failed";
-  } else {
-    HLOG_INFO << "RvizAgent init success";
-  }
-
   path_manager_ = std::make_shared<PathManager>();
   path_manager_->Init(options_);
 
@@ -152,13 +144,13 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
     return false;
   }
 
-  mf_rviz_->VizEleMap(element_map_ptr);
+  MF_RVIZ->VizEleMap(element_map_ptr);
 
   // 获取历史和预测轨迹
   auto path = std::make_shared<std::vector<KinePosePtr>>();
   path_manager_->GetPath(path.get());
   auto curr_pose = path_manager_->LatestPose();
-  mf_rviz_->VizPath(*path, *curr_pose);
+  MF_RVIZ->VizPath(*path, *curr_pose);
 
   // 计算切分点和切分线
   auto ret_bps = broken_pt_search_->SearchCtp(path, curr_pose, element_map_ptr);
@@ -169,7 +161,7 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
 
   std::vector<CutPoint> cut_points;
   cut_points = broken_pt_search_->GetCutPoints();
-  mf_rviz_->VizCutpoint(cut_points, element_map_ptr->map_info.stamp);
+  MF_RVIZ->VizCutpoint(cut_points, element_map_ptr->map_info.stamp);
 
   std::deque<Line::Ptr> lines;
   lines = broken_pt_search_->GetLines();
@@ -184,11 +176,11 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
 
   std::vector<Eigen::Vector3f> distpoints;
   distpoints = road_constructor_->GetDistPoints();
-  mf_rviz_->VizDistpoint(distpoints, element_map_ptr->map_info.stamp);
+  MF_RVIZ->VizDistpoint(distpoints, element_map_ptr->map_info.stamp);
 
   std::vector<Group::Ptr> groups;
   groups = road_constructor_->GetGroups();
-  mf_rviz_->VizGroup(groups, element_map_ptr->map_info.stamp);
+  MF_RVIZ->VizGroup(groups, element_map_ptr->map_info.stamp);
 
   // 路口判断
   junction_check_->Process(groups);

@@ -21,8 +21,9 @@
 #include "modules/map_fusion_02/common/calc_util.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/cut_point.h"
 #include "modules/map_fusion_02/rviz/viz_common.h"
-#include "perception-lib/lib/config_manager/config_manager.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
+#include "perception-base/base/utils/macros.h"
+#include "perception-lib/lib/config_manager/config_manager.h"
 
 namespace hozon {
 namespace mp {
@@ -30,7 +31,6 @@ namespace mf {
 
 class MapFusionRviz {
  public:
-  MapFusionRviz() = default;
   ~MapFusionRviz() = default;
 
   bool Init();
@@ -56,8 +56,10 @@ class MapFusionRviz {
   std::string viz_topic_cutpoints_ = "/ccmapfusion/cut_points";
   std::string viz_topic_distpoints_ = "/ccmapfusion/dist_points";
   float viz_lifetime_ = 0;
+  DECLARE_SINGLETON_PERCEPTION(MapFusionRviz)
 };
-using MapFusionRvizPtr = std::unique_ptr<MapFusionRviz>;
+
+#define MF_RVIZ MapFusionRviz::Instance()
 
 }  // namespace mf
 }  // namespace mp

@@ -35,7 +35,12 @@ int MapFusion::Init(const YAML::Node& conf) {
   // road construction
   lane_fusion_ptr_ = std::make_unique<LaneFusionPipeline>();
   lane_fusion_ptr_->Init();
-
+  // rviz init执行,没有构造执行的原因是单例的初始化顺序不确定
+  if (!MF_RVIZ->Init()) {
+    HLOG_FATAL << "RvizAgent init failed";
+  } else {
+    HLOG_INFO << "RvizAgent init success";
+  }
   // TODO(a): map service
 
   // TODO(a): ld map matching & prediction

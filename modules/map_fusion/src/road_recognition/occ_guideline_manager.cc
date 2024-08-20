@@ -1667,6 +1667,31 @@ std::vector<em::Boundary> OccGuideLineManager::OccRegionSplit(
     }
   }
 
+  // 对于occ的线进行插值， 确保间隔小于1m/点
+  for (int i = 0; i < virtual_lines.size(); ++i) {
+    auto& line = virtual_lines[i];
+    for (int point_idx = 1; point_idx < line.nodes.size(); ++point_idx) {
+      Eigen::Vector3f p1 = line.nodes[point_idx - 1]->point;
+      Eigen::Vector3f p2 = line.nodes[point_idx]->point;
+      float distance = (p2 - p1).norm();
+      // 如果距离大于0.8米，则插入足够的点以减少距离。
+      if (distance > 0.8F) {
+        int num_segments = static_cast<int>(distance / (0.8F + 0.001F));
+        Eigen::Vector3f delta = (p2 - p1).normalized();
+        // 插入中间点。
+        for (int j = 1; j <= num_segments; ++j) {
+          Eigen::Vector3f new_point = p1 + delta * j * 0.8;
+          em::BoundaryNode::Ptr inter_node =
+              std::make_shared<em::BoundaryNode>();
+          inter_node->point = new_point;
+          inter_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
+          line.nodes.insert(line.nodes.begin() + point_idx, inter_node);
+          ++point_idx;  // 跳过新插入的点
+        }
+      }
+    }
+  }
+
   HLOG_DEBUG << "OccRegionSplit FineTuneOccPair right occ node size:"
              << best_occ_pair.front()->nodes.size();
   HLOG_DEBUG << "OccRegionSplit FineTuneOccPair left occ node size:"

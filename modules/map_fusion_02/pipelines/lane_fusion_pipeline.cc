@@ -82,6 +82,12 @@ bool LaneFusionPipeline::Init() {
     return false;
   }
 
+  if (!model_config->get_value("near_junction_dis_thresh",
+                               &options_.near_junction_dis_thresh)) {
+    HLOG_ERROR << "Get near_junction_dis_thresh failed!";
+    return false;
+  }
+
   mf_rviz_ = std::make_unique<MapFusionRviz>();
   auto ret = mf_rviz_->Init();
   if (!ret) {
@@ -98,6 +104,9 @@ bool LaneFusionPipeline::Init() {
 
   road_constructor_ = std::make_unique<RoadConstruct>();
   road_constructor_->Init(options_);
+
+  junction_check_ = std::make_unique<JunctionCheck>();
+  junction_check_->Init(options_);
 
   initialized_ = true;
 
@@ -180,6 +189,9 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
   std::vector<Group::Ptr> groups;
   groups = road_constructor_->GetGroups();
   mf_rviz_->VizGroup(groups, element_map_ptr->map_info.stamp);
+
+  // 路口判断
+  junction_check_->Process(groups);
 
   return true;
 }

@@ -39,6 +39,9 @@ struct LaneFusionProcessOption : public BaseProcessOption {
   float lane_speed_limit_kmph = 0.0;
   float road_min_max_speed_kmph = 0.0;
   float road_max_max_speed_kmph = 0.0;
+
+  // 路口判断参数
+  float near_junction_dis_thresh = 20.0;
 };
 
 }  // namespace mf

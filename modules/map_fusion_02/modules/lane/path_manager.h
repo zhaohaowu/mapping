@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <deque>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 #include "modules/map_fusion_02/base/interface_option.h"
@@ -33,13 +34,14 @@ class PathManager {
   void Init(const LaneFusionProcessOption& options);
   void AddPose(const KinePose& pose);
   void GetPath(std::vector<KinePosePtr>* path);
-  void GetPath(std::vector<KinePosePtr>* path,
-               const std::vector<double>& line_param);
+  // void GetPath(std::vector<KinePosePtr>* path,
+  //              const std::vector<double>& line_param);
   KinePosePtr LatestPose();
-  bool CheckTurnBack(const std::vector<Pose>& poses);
-  void CheckPoseState(const KinePosePtr& cur_p);
+  // bool CheckTurnBack(const std::vector<Pose>& poses);
+  // void CheckPoseState(const KinePosePtr& cur_p);
 
  private:
+  std::mutex path_mutex_;
   LaneFusionProcessOption conf_;
   float back_length_ = 0.;
   KinePose latest_pose_;

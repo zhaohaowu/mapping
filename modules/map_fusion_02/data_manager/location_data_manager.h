@@ -14,7 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "base/utils/log.h"
+#include "modules/util/include/util/mapping_log.h"
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/data_manager/data_buffer.h"
 #include "perception-base/base/utils/macros.h"

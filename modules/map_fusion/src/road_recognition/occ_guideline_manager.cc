@@ -642,12 +642,15 @@ void OccGuideLineManager::ReplaceOccLocByBevRoadEdge() {
   }
 }
 
-float OccGuideLineManager::CorrectLaneWidth(
+float OccGuideLineManager::GetEntranceLaneWidth(
     const std::vector<em::Boundary::Ptr>& bev_lanelines) {
+  float averge_entrance_lane_width = averge_exit_lane_width_;
   if (bev_lanelines.size() < 2) {
-    return assume_lane_width_;
+    return averge_exit_lane_width_;
   }
 
+  float front_lane_width_totally = 0.0;
+  int front_lane_num_calu = 0;
   for (int i = 0; i < static_cast<int>(bev_lanelines.size()) - 1; ++i) {
     if (bev_lanelines.at(i)->nodes.empty() ||
         bev_lanelines.at(i + 1)->nodes.empty()) {
@@ -655,14 +658,22 @@ float OccGuideLineManager::CorrectLaneWidth(
     }
     float lane_space =
         GetTwoBoundayDis(bev_lanelines.at(i), bev_lanelines.at(i + 1));
-    if (lane_space > 4.5 || lane_space < 2.0) {
-      continue;
-    }
 
-    return lane_space;
+    if (lane_space < 5.0 && lane_space > 2.0) {
+      front_lane_width_totally += lane_space;
+      ++front_lane_num_calu;
+    }
   }
 
-  return assume_lane_width_;
+  if (front_lane_num_calu != 0) {
+    averge_entrance_lane_width =
+        front_lane_width_totally / static_cast<float>(front_lane_num_calu);
+  }
+  if (averge_entrance_lane_width < 5.0 && averge_entrance_lane_width > 2.0) {
+    return averge_entrance_lane_width;
+  }
+
+  return averge_entrance_lane_width;
 }
 
 float OccGuideLineManager::GetTwoBoundayDis(
@@ -709,8 +720,16 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
   auto& right_occ = stable_occs.front();
   auto& left_occ = stable_occs.back();
 
-  float fine_lane_width = CorrectLaneWidth(bev_lanelines);
-  HLOG_DEBUG << "[occ module] fine_lane_width:" << fine_lane_width;
+  averge_entrance_lane_width_ = GetEntranceLaneWidth(bev_lanelines);
+  // 如果退出车道数计算过，则保持历史车道数。反之，需计算退出车道数。
+  if (assume_entrancelane_nums_by_entrancelane_ == -1) {
+    assume_entrancelane_nums_by_entrancelane_ = static_cast<int>(std::max(
+        static_cast<double>(std::floor(
+            (occ_width_ - safe_distance_ * 2) / averge_entrance_lane_width_ + 0.3)),
+        1.0));
+  }
+
+  HLOG_DEBUG << "[occ module] fine_lane_width:" << averge_entrance_lane_width_;
   const auto& far_right_line = bev_lanelines.front();
   const auto& far_left_line = bev_lanelines.back();
   if (right_occ->nodes.empty() || left_occ->nodes.empty()) {
@@ -725,7 +744,7 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
     }
 
     vitual_lane_num =
-        static_cast<int>(std::floor(right_blank_space / fine_lane_width + 0.3));
+        static_cast<int>(std::floor(right_blank_space / averge_entrance_lane_width_ + 0.3));
 
     // !TBD 这里对于生成的车道线需要做个check，需确保没有超出occ边界。
     if (vitual_lane_num > 0) {
@@ -735,7 +754,7 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
           em::BoundaryNode::Ptr virtual_node =
               std::make_shared<em::BoundaryNode>();
           virtual_node->point =
-              node->point + Eigen::Vector3f{0.0, -1 * fine_lane_width * i, 0.0};
+              node->point + Eigen::Vector3f{0.0, -1 * averge_entrance_lane_width_ * i, 0.0};
           virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
           virtual_line.nodes.emplace_back(virtual_node);
         }
@@ -755,7 +774,7 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
     }
 
     vitual_lane_num =
-        static_cast<int>(std::floor(left_blank_space / fine_lane_width + 0.3));
+        static_cast<int>(std::floor(left_blank_space / averge_entrance_lane_width_ + 0.3));
 
     if (vitual_lane_num > 0) {
       for (int i = 1; i <= vitual_lane_num; ++i) {
@@ -764,7 +783,7 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
           em::BoundaryNode::Ptr virtual_node =
               std::make_shared<em::BoundaryNode>();
           virtual_node->point =
-              node->point + Eigen::Vector3f{0.0, fine_lane_width * i, 0.0};
+              node->point + Eigen::Vector3f{0.0, averge_entrance_lane_width_ * i, 0.0};
           virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
           virtual_line.nodes.emplace_back(virtual_node);
         }
@@ -787,7 +806,7 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
       float lane_width = GetTwoBoundayDis(bev_lanelines.at(line_idx),
                                           bev_lanelines.at(line_idx + 1));
       vitual_lane_num =
-          static_cast<int>(std::floor(lane_width / fine_lane_width + 0.3));
+          static_cast<int>(std::floor(lane_width / averge_entrance_lane_width_ + 0.3));
       HLOG_DEBUG << "[occ module] line_blank_space:" << lane_width
                  << ", and virtual lane num:" << vitual_lane_num;
       if (vitual_lane_num > 1) {
@@ -797,7 +816,7 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
             em::BoundaryNode::Ptr virtual_node =
                 std::make_shared<em::BoundaryNode>();
             virtual_node->point =
-                node->point + Eigen::Vector3f{0.0, fine_lane_width * i, 0.0};
+                node->point + Eigen::Vector3f{0.0, averge_entrance_lane_width_ * i, 0.0};
             virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
             virtual_line.nodes.emplace_back(virtual_node);
           }
@@ -1325,149 +1344,88 @@ float OccGuideLineManager::perpendicular_distance(const Eigen::Vector3f& A,
   return distance;
 }
 
-float OccGuideLineManager::AssumeOccVirtualLaneWidth() {
-  float averge_lane_width = 3.5;
+float OccGuideLineManager::GetExitLaneWidth() {
+  float averge_exit_lane_width = 3.5;
   const auto& lineline_boundries = bev_laneline_boundarys_;
   HLOG_DEBUG << "[occ module]:" << "bev laneline nums..."
-             << lineline_boundries.size();
+            << lineline_boundries.size();
   if (lineline_boundries.empty()) {
-    return averge_lane_width;
+    return averge_exit_lane_width;
   }
 
   std::vector<em::Boundary::Ptr> back_lines;
-  std::vector<em::Boundary::Ptr> front_lines;
-
   for (const auto& boundary : lineline_boundries) {
     if (boundary.second->nodes.empty()) {
       continue;
     }
     HLOG_DEBUG << "[occ module]:" << "bevlaneline boundary lanepos: "
-               << static_cast<int>(boundary.second->lanepos);
+              << static_cast<int>(boundary.second->lanepos);
     HLOG_DEBUG << "start x:" << boundary.second->nodes.front()->point.x();
     if (boundary.second->nodes.front()->point.x() <= 5.0) {
       HLOG_DEBUG << "back_lines add one line";
       back_lines.emplace_back(boundary.second);
-    }
-    if (boundary.second->nodes.front()->point.x() > 5.0) {
-      HLOG_DEBUG << "front_lines add one line";
-      front_lines.emplace_back(boundary.second);
     }
   }
 
   // 确保是从右到左的车道线排序方式
   std::sort(back_lines.begin(), back_lines.end(),
             [](em::Boundary::Ptr& a, em::Boundary::Ptr& b) {
-              return static_cast<int>(a->lanepos) >
-                     static_cast<int>(b->lanepos);
+              return a->nodes.back()->point.y() < b->nodes.back()->point.y();
             });
 
-  std::sort(front_lines.begin(), front_lines.end(),
-            [](em::Boundary::Ptr& a, em::Boundary::Ptr& b) {
-              return a->nodes.front()->point.y() < b->nodes.front()->point.y();
-            });
+  if (back_lines.size() < 2) {
+    return averge_exit_lane_width;
+  }
 
-  if (front_lines.size() >= 2) {
-    int front_lane_num_calu = 0;
-    float front_lane_width_totally = 0.0;
-    HLOG_DEBUG << "[occ module]:" << "front has more than 2 lines";
-    for (int i = 0; i < static_cast<int>(front_lines.size()) - 1; ++i) {
-      em::Boundary::Ptr query_line = nullptr;
-      em::Boundary::Ptr value_line = nullptr;
-      if (front_lines.at(i)->nodes.front()->point.x() <
-          front_lines.at(i + 1)->nodes.front()->point.x()) {
-        query_line = front_lines.at(i + 1);
-        value_line = front_lines.at(i);
-      } else {
-        query_line = front_lines.at(i);
-        value_line = front_lines.at(i + 1);
-      }
-
-      const auto query_point = query_line->nodes.front()->point;
-      auto it = std::min_element(
-          value_line->nodes.begin(), value_line->nodes.end(),
-          [&point = query_point](const em::BoundaryNode::Ptr& a,
-                                 const em::BoundaryNode::Ptr& b) {
-            return (point - a->point).norm() < (point - b->point).norm();
-          });
-
-      float lane_width = 3.5;
-      if (value_line->nodes.size() == 1) {
-        lane_width = ((*it)->point - query_point).norm();
-      } else if (it == std::prev(value_line->nodes.end())) {
-        lane_width = perpendicular_distance((*std::prev(it))->point,
-                                            (*it)->point, query_point);
-      } else {
-        lane_width = perpendicular_distance((*std::next(it))->point,
-                                            (*it)->point, query_point);
-      }
-
-      HLOG_DEBUG << "[occ module] calcu front lane width:" << averge_lane_width;
-      if (lane_width < 5.0 && lane_width > 2.0) {
-        front_lane_width_totally += lane_width;
-        ++front_lane_num_calu;
-      }
+  int back_lane_num_calu = 0;
+  float back_lane_width_totally = 0.0;
+  HLOG_DEBUG << "[occ module]:" << "back has more than 2 lines";
+  for (int i = 0; i < static_cast<int>(back_lines.size()) - 1; ++i) {
+    em::Boundary::Ptr query_line = nullptr;
+    em::Boundary::Ptr value_line = nullptr;
+    if (back_lines.at(i)->nodes.back()->point.x() <
+        back_lines.at(i + 1)->nodes.back()->point.x()) {
+      query_line = back_lines.at(i);
+      value_line = back_lines.at(i + 1);
+    } else {
+      query_line = back_lines.at(i + 1);
+      value_line = back_lines.at(i);
     }
 
-    if (front_lane_num_calu != 0) {
-      averge_lane_width =
-          front_lane_width_totally / static_cast<float>(front_lane_num_calu);
+    const auto query_point = query_line->nodes.back()->point;
+    auto it = std::min_element(
+        value_line->nodes.begin(), value_line->nodes.end(),
+        [&point = query_point](const em::BoundaryNode::Ptr& a,
+                               const em::BoundaryNode::Ptr& b) {
+          return (point - a->point).norm() < (point - b->point).norm();
+        });
+
+    float lane_width = 3.5;
+    if (value_line->nodes.size() == 1) {
+      lane_width = ((*it)->point - query_point).norm();
+    } else if (it == std::prev(value_line->nodes.end())) {
+      lane_width = perpendicular_distance((*std::prev(it))->point, (*it)->point,
+                                          query_point);
+    } else {
+      lane_width = perpendicular_distance((*std::next(it))->point, (*it)->point,
+                                          query_point);
     }
-    if (averge_lane_width < 5.0 && averge_lane_width > 2.0) {
-      return averge_lane_width;
+    HLOG_DEBUG << "[occ module] calcu back lane width:" << lane_width;
+    if (lane_width < 5.0 && lane_width > 2.0) {
+      back_lane_width_totally += lane_width;
+      ++back_lane_num_calu;
     }
   }
 
-  if (back_lines.size() >= 2) {
-    int back_lane_num_calu = 0;
-    float back_lane_width_totally = 0.0;
-    HLOG_DEBUG << "[occ module]:" << "back has more than 2 lines";
-    for (int i = 0; i < static_cast<int>(back_lines.size()) - 1; ++i) {
-      em::Boundary::Ptr query_line = nullptr;
-      em::Boundary::Ptr value_line = nullptr;
-      if (back_lines.at(i)->nodes.back()->point.x() <
-          back_lines.at(i + 1)->nodes.back()->point.x()) {
-        query_line = back_lines.at(i);
-        value_line = back_lines.at(i + 1);
-      } else {
-        query_line = back_lines.at(i + 1);
-        value_line = back_lines.at(i);
-      }
-
-      const auto query_point = query_line->nodes.back()->point;
-      auto it = std::min_element(
-          value_line->nodes.begin(), value_line->nodes.end(),
-          [&point = query_point](const em::BoundaryNode::Ptr& a,
-                                 const em::BoundaryNode::Ptr& b) {
-            return (point - a->point).norm() < (point - b->point).norm();
-          });
-
-      float lane_width = 3.5;
-      if (value_line->nodes.size() == 1) {
-        lane_width = ((*it)->point - query_point).norm();
-      } else if (it == std::prev(value_line->nodes.end())) {
-        lane_width = perpendicular_distance((*std::prev(it))->point,
-                                            (*it)->point, query_point);
-      } else {
-        lane_width = perpendicular_distance((*std::next(it))->point,
-                                            (*it)->point, query_point);
-      }
-      HLOG_DEBUG << "[occ module] calcu back lane width:" << lane_width;
-      if (lane_width < 5.0 && lane_width > 2.0) {
-        back_lane_width_totally += lane_width;
-        ++back_lane_num_calu;
-      }
-    }
-
-    if (back_lane_num_calu != 0) {
-      averge_lane_width =
-          back_lane_width_totally / static_cast<float>(back_lane_num_calu);
-    }
-    if (averge_lane_width < 5.0 && averge_lane_width > 2.0) {
-      return averge_lane_width;
-    }
+  if (back_lane_num_calu != 0) {
+    averge_exit_lane_width =
+        back_lane_width_totally / static_cast<float>(back_lane_num_calu);
+  }
+  if (averge_exit_lane_width < 5.0 && averge_exit_lane_width > 2.0) {
+    return averge_exit_lane_width;
   }
 
-  return averge_lane_width;
+  return averge_exit_lane_width;
 }
 
 void OccGuideLineManager::FineTuneOccPair(
@@ -1623,16 +1581,23 @@ std::vector<em::Boundary> OccGuideLineManager::OccRegionSplit(
   }
 
   // 更新豁口宽度
-  const auto occ_width = std::min(occ_dir_vec_.norm(), 40.0F);
-  int assume_lane_nums = static_cast<int>(std::max(
-      static_cast<double>(std::floor(
-          (occ_width - safe_distance_ * 2) / assume_lane_width_ + 0.3)),
-      1.0));
-  HLOG_DEBUG << "[occ module] entrance lanes width:" << "averge_lane_width:"
-             << assume_lane_width_ << ", occ width: " << occ_width
-             << ", entrance lanes nums:" << assume_lane_nums;
+  occ_width_ = std::min(occ_dir_vec_.norm(), 40.0F);
 
-  std::vector<em::Boundary> virtual_lines(assume_lane_nums + 1);
+  // 如果退出车道数计算过，则保持历史车道数。反之，需计算退出车道数。
+  if (assume_entrancelane_nums_by_exitlane_ == -1) {
+    assume_entrancelane_nums_by_exitlane_ = static_cast<int>(std::max(
+        static_cast<double>(std::floor(
+            (occ_width_ - safe_distance_ * 2) / averge_exit_lane_width_ + 0.3)),
+        1.0));
+  }
+
+  HLOG_DEBUG << "[occ module] entrance lanes width:" << "averge_exit_lane_width:"
+            << averge_exit_lane_width_ << ", occ width: " << occ_width_
+            << ", entrance lanes nums:"
+            << assume_entrancelane_nums_by_exitlane_;
+
+  std::vector<em::Boundary> virtual_lines(
+      assume_entrancelane_nums_by_exitlane_ + 1);
 
   for (const auto& node : right_occ->nodes) {
     HLOG_DEBUG << "444 right occ node:" << node->point.x() << ","
@@ -1652,10 +1617,12 @@ std::vector<em::Boundary> OccGuideLineManager::OccRegionSplit(
                << delta_norm_vector.y();
     float norm_value =
         (closestPointB - node->point).norm() - 2 * safe_distance_;
-    for (int i = 0; i <= assume_lane_nums; ++i) {
+    for (int i = 0; i <= assume_entrancelane_nums_by_exitlane_; ++i) {
       Eigen::Vector3f point_i =
-          node->point + delta_norm_vector * (norm_value * i / assume_lane_nums +
-                                             safe_distance_);
+          node->point +
+          delta_norm_vector *
+              (norm_value * i / assume_entrancelane_nums_by_exitlane_ +
+               safe_distance_);
       HLOG_DEBUG << "444 create occ node:" << point_i.x() << "," << point_i.y();
       em::BoundaryNode::Ptr node = std::make_shared<em::BoundaryNode>();
       node->point = point_i;
@@ -1710,9 +1677,8 @@ std::vector<em::Boundary> OccGuideLineManager::OccRegionSplit(
 
 std::vector<em::Boundary> OccGuideLineManager::InferGuideLineOnlyByOcc() {
   // 猜想进入车道的平均宽度。
-  float assume_lane_width = AssumeOccVirtualLaneWidth();
-  HLOG_DEBUG << "[occ module]:" << "assume_lane_width:" << assume_lane_width;
-  assume_lane_width_ = assume_lane_width;
+  averge_exit_lane_width_ = GetExitLaneWidth();
+  HLOG_DEBUG << "[occ module]:" << "exit_lane_width:" << averge_exit_lane_width_;
   auto best_occ_pair = GetStableOcc();
 
   // !TBD, 基于最短距离点做截断，根据一次防方程做前端补齐。

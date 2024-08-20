@@ -46,7 +46,13 @@ class OccGuideLineManager {
   void Reset() {
     is_occ_stable_state_ = false;
     history_n_best_occs_.clear();
-    assume_lane_width_ = 3.5;
+    default_assume_lane_width_ = 3.5;
+    averge_exit_lane_width_ = 3.5;
+    averge_entrance_lane_width_ = 3.5;
+    assume_entrancelane_nums_by_exitlane_ = -1;
+    assume_entrancelane_nums_by_entrancelane_ = -1;
+    occ_width_ = 0.0;
+    occ_dir_vec_.setZero();
     stable_occ_datas_.clear();
   }
 
@@ -78,9 +84,10 @@ class OccGuideLineManager {
   std::vector<std::pair<em::Id, em::OccRoad::Ptr>> GetBestOccPair(
       const std::vector<std::pair<em::Id, em::OccRoad::Ptr>>& front_occ_set);
 
-  float AssumeOccVirtualLaneWidth();
+  float GetExitLaneWidth();
 
-  float CorrectLaneWidth(const std::vector<em::Boundary::Ptr>& bev_lanelines);
+  float GetEntranceLaneWidth(
+      const std::vector<em::Boundary::Ptr>& bev_lanelines);
 
   em::Boundary::Ptr TransformPbLine2Boundary(
       const std::shared_ptr<hozon::mapping::LaneLine>& pb_line);
@@ -116,8 +123,13 @@ class OccGuideLineManager {
   boost::circular_buffer<std::vector<em::Boundary::Ptr>> history_n_best_occs_;
   int history_measure_size_ = 4;
 
-  float assume_lane_width_ = 3.5;
+  float default_assume_lane_width_ = 3.5;
+  float averge_exit_lane_width_ = 3.5;
+  float averge_entrance_lane_width_ = 3.5;
+  int assume_entrancelane_nums_by_exitlane_ = -1;
+  int assume_entrancelane_nums_by_entrancelane_ = -1;
   Eigen::Vector3f occ_dir_vec_;
+  float occ_width_ = 0.0;
   std::vector<em::Boundary::Ptr> stable_occ_datas_;
 };
 

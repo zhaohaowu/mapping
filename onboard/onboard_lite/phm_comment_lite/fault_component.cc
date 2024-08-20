@@ -21,8 +21,8 @@ bool PhmComponent::InitFault() {
   FaultManager::Instance()->SetCallBackFaultReport(
       [this](const int32_t& faultid, const int32_t& objid,
              const int32_t& status, const int32_t& debounceCount,
-             const int32_t& debounceTime) {
-        return FaultReport(faultid, objid, status, debounceCount, debounceTime);
+             const int32_t& debounceTime, const base::DebounceType& debounce_type) {
+        return FaultReport(faultid, objid, status, debounceCount, debounceTime, debounce_type);
       });
   // 注册故障恢复接口
   FaultManager::Instance()->SetCallBackReset([this]() { ResetFault(); });
@@ -63,12 +63,8 @@ void PhmComponent::FaultReceiveCallback(const ReceiveFault_t& fault) {
 bool PhmComponent::FaultReport(const int32_t& faultid, const int32_t& objid,
                                const int32_t& status,
                                const int32_t& debounceCount,
-                               const int32_t& debounceTime) {
-  HLOG_DEBUG << "[DEBUG_PHM] FLAGS_enable_phm_option "
-             << FLAGS_enable_phm_option;
-  if (!FLAGS_enable_phm_option) {
-    return false;
-  }
+                               const int32_t& debounceTime,
+                               const base::DebounceType& debounce_type) {
   HLOG_DEBUG << "[DEBUG_PHM] faultid " << faultid << " objid " << objid
              << " status " << status;
   if (!phm_client_) {
@@ -83,28 +79,48 @@ bool PhmComponent::FaultReport(const int32_t& faultid, const int32_t& objid,
   if (status == 1) {
     if (it == faultmap_.end()) {
       faultmap_.insert(std::make_pair(fault_name, status));
-      HLOG_WARN << "[DEBUG_PHM] FaultManager ReportFault fault_name "
-              << fault_name;
     }
+    HLOG_WARN << "[DEBUG_CLUSTER_PHM_TEST] FaultManager ReportFault fault_name "
+              << fault_name << " faultid " << faultid << " objid " << objid;
     SendFault_t cFault(faultid, objid, status);
-    cFault.faultDebounce.debounceType =
-        hozon::netaos::phm::DebounceType::DEBOUNCE_TYPE_COUNT;
-    cFault.faultDebounce.debounceSetting.countDebounce.debounceCount =
-        debounceCount;
-    cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
-        debounceTime;
+    if (debounce_type == base::DebounceType::DEBOUNCE_TYPE_TIME) {
+      cFault.faultDebounce.debounceType =
+          hozon::netaos::phm::DebounceType::DEBOUNCE_TYPE_TIME;
+      cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
+          debounceTime;
+    } else if (debounce_type == base::DebounceType::DEBOUNCE_TYPE_COUNT) {
+      cFault.faultDebounce.debounceType =
+          hozon::netaos::phm::DebounceType::DEBOUNCE_TYPE_COUNT;
+      cFault.faultDebounce.debounceSetting.countDebounce.debounceCount =
+          debounceCount;
+      cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
+          debounceTime;
+    } else if (debounce_type == base::DebounceType::DEBOUNCE_TYPE_UNUSE) {
+      cFault.faultDebounce.debounceType =
+          hozon::netaos::phm::DebounceType::DEBOUNCE_TYPE_UNUSE;
+    }
     phm_client_->ReportFault(cFault);
   } else if (0 == status) {
     SendFault_t cFault(faultid, objid, status);
-    cFault.faultDebounce.debounceType =
-        hozon::netaos::phm::DebounceType::DEBOUNCE_TYPE_COUNT;
-    cFault.faultDebounce.debounceSetting.countDebounce.debounceCount =
-        debounceCount;
-    cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
-        debounceTime;
+    if (debounce_type == base::DebounceType::DEBOUNCE_TYPE_TIME) {
+      cFault.faultDebounce.debounceType =
+          hozon::netaos::phm::DebounceType::DEBOUNCE_TYPE_TIME;
+      cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
+          debounceTime;
+    } else if (debounce_type == base::DebounceType::DEBOUNCE_TYPE_COUNT) {
+      cFault.faultDebounce.debounceType =
+          hozon::netaos::phm::DebounceType::DEBOUNCE_TYPE_COUNT;
+      cFault.faultDebounce.debounceSetting.countDebounce.debounceCount =
+          debounceCount;
+      cFault.faultDebounce.debounceSetting.countDebounce.debounceTime =
+          debounceTime;
+    } else if (debounce_type == base::DebounceType::DEBOUNCE_TYPE_UNUSE) {
+      cFault.faultDebounce.debounceType =
+          hozon::netaos::phm::DebounceType::DEBOUNCE_TYPE_UNUSE;
+    }
+    phm_client_->ReportFault(cFault);
     if (it != faultmap_.end()) {
-      HLOG_INFO << "[DEBUG_PHM] FaultManager reset fault_name " << fault_name;
-      phm_client_->ReportFault(cFault);
+      HLOG_INFO << "[DEBUG_CLUSTER_PHM_TEST] FaultManager reset fault_name " << fault_name;
       faultmap_.erase(it);
     }
   }

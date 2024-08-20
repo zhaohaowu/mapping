@@ -67,6 +67,9 @@ struct Node {
   Eigen::Vector3d orientation = Eigen::Vector3d::Zero();
   Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
   Eigen::Vector3d linear_vel_VRF = Eigen::Vector3d::Zero();
+  // dr透传INS的角速度
+  Eigen::Vector3d ins_angular_velocity = Eigen::Vector3d::Zero();
+  // dr本身的角速度，只有yaw
   Eigen::Vector3d angular_velocity = Eigen::Vector3d::Zero();
   Eigen::Vector3d linear_accel = Eigen::Vector3d::Zero();
   Eigen::Vector3d b_a = Eigen::Vector3d::Zero();

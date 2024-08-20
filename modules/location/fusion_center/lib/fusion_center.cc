@@ -526,6 +526,13 @@ bool FusionCenter::DrToBasicInfo(
   node->velocity << msg.velocity().twist_vrf().linear_vrf().x(),
       msg.velocity().twist_vrf().linear_vrf().y(),
       msg.velocity().twist_vrf().linear_vrf().z();
+
+  if (node->type == NodeType::DR) {
+    node->ins_angular_velocity
+        << msg.velocity().twist_vrf().angular_raw_vrf().x(),
+        msg.velocity().twist_vrf().angular_raw_vrf().y(),
+        msg.velocity().twist_vrf().angular_raw_vrf().z();
+  }
   node->angular_velocity << msg.velocity().twist_vrf().angular_vrf().x(),
       msg.velocity().twist_vrf().angular_vrf().y(),
       msg.velocity().twist_vrf().angular_vrf().z();
@@ -747,6 +754,7 @@ void FusionCenter::Node2Localization(const Context& ctx,
   const auto& imu = ctx.imuins.imu_info();
   const auto& global_node = ctx.global_node;
   const auto& local_node = ctx.local_node;
+  const auto& dr_node = ctx.dr_node;
   // publish time align to dr coordinate
   const double ticktime = local_node.ticktime;
 
@@ -820,13 +828,22 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose->mutable_linear_velocity_vrf()->set_y(local_node.velocity(1));
   pose->mutable_linear_velocity_vrf()->set_z(local_node.velocity(2));
 
-  pose->mutable_linear_acceleration_vrf()->set_x(ins.linear_acceleration().x());
-  pose->mutable_linear_acceleration_vrf()->set_y(ins.linear_acceleration().y());
-  pose->mutable_linear_acceleration_vrf()->set_z(ins.linear_acceleration().z());
+  // 使用INS的加速度、角速度
+  // pose->mutable_linear_acceleration_vrf()->set_x(ins.linear_acceleration().x());
+  // pose->mutable_linear_acceleration_vrf()->set_y(ins.linear_acceleration().y());
+  // pose->mutable_linear_acceleration_vrf()->set_z(ins.linear_acceleration().z());
 
-  pose->mutable_angular_velocity_vrf()->set_x(ins.angular_velocity().x());
-  pose->mutable_angular_velocity_vrf()->set_y(ins.angular_velocity().y());
-  pose->mutable_angular_velocity_vrf()->set_z(ins.angular_velocity().z());
+  // pose->mutable_angular_velocity_vrf()->set_x(ins.angular_velocity().x());
+  // pose->mutable_angular_velocity_vrf()->set_y(ins.angular_velocity().y());
+  // pose->mutable_angular_velocity_vrf()->set_z(ins.angular_velocity().z());
+  // 使用DR的加速度、角速度
+  pose->mutable_linear_acceleration_vrf()->set_x(dr_node.linear_accel(0));
+  pose->mutable_linear_acceleration_vrf()->set_y(dr_node.linear_accel(1));
+  pose->mutable_linear_acceleration_vrf()->set_z(dr_node.linear_accel(2));
+
+  pose->mutable_angular_velocity_vrf()->set_x(dr_node.ins_angular_velocity(0));
+  pose->mutable_angular_velocity_vrf()->set_y(dr_node.ins_angular_velocity(1));
+  pose->mutable_angular_velocity_vrf()->set_z(dr_node.ins_angular_velocity(2));
 
   pose->mutable_gcj02()->set_x(global_node.blh(0));
   pose->mutable_gcj02()->set_y(global_node.blh(1));

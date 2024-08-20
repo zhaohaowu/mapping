@@ -15,9 +15,9 @@ trigger:
     type: EVENT
     mainSources:
       - name: chassis
-        timeout: 1000
+        timeout: 100
   - name: receive_imu
     type: EVENT
     mainSources:
       - name: imu_ins
-        timeout: 1000
+        timeout: 100

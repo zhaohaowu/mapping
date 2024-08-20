@@ -300,21 +300,23 @@ int32_t InsFusionLite::receive_inspva(Bundle* input) {
   auto ptr_rec_inspva = input->GetOne("inspva");
 
   if (!ptr_rec_inspva) {
-    ins_fault->Report(MAKE_FM_TUPLE(
+    ins_fault->ReportDebounceTime(MAKE_TIME_FM_TUPLE(
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::LOCALIZATION_PLUGIN_IS_NULLPTR,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 400,
+        base::DebounceType::DEBOUNCE_TYPE_TIME));
     inspva_receive_error_flag = true;
     HLOG_ERROR << "Not receive inspva";
     return -1;
   } else {
     if (inspva_receive_error_flag) {
-      ins_fault->Report(MAKE_FM_TUPLE(
+      ins_fault->ReportDebounceTime(MAKE_TIME_FM_TUPLE(
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::LOCALIZATION_PLUGIN_IS_NULLPTR,
           hozon::perception::base::FaultStatus::RESET,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 400,
+          base::DebounceType::DEBOUNCE_TYPE_TIME));
       inspva_receive_error_flag = false;
     }
   }

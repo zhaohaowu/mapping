@@ -60,6 +60,7 @@ link_directories(
     # ${THIRDPARTY_ROOT_PATH}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib
     # ${THIRDPARTY_ROOT_PATH}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib
     ${THIRDPARTY_ROOT_PATH}/third_party/x86/fast-dds/lib
+    ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/gflags/lib
     ${THIRDPARTY_ROOT_PATH}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib
 )
 endif()

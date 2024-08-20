@@ -22,7 +22,7 @@ trigger:
     type: EVENT
     mainSources:
       - name: inspva
-        timeout: 1000
+        timeout: 100
   - name: receive_ins
     type: EVENT
     mainSources:

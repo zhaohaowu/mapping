@@ -102,22 +102,24 @@ int32_t DeadReckoning::receive_chassis(Bundle* input) {
   }
 
   if (!ptr_rec_chassis) {
-    dr_fault->Report(MAKE_FM_TUPLE(
+    dr_fault->ReportDebounceTime(MAKE_TIME_FM_TUPLE(
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::CHASSIS_INPUT_SIGNAL_ERROR_MUL_FPS,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 400,
+        base::DebounceType::DEBOUNCE_TYPE_TIME));
     chassis_input_data_error_flag = true;
     HLOG_ERROR << "DR: receive chassis is null";
     return -1;
   } else {
     if (chassis_input_data_error_flag) {
-      dr_fault->Report(MAKE_FM_TUPLE(
+      dr_fault->ReportDebounceTime(MAKE_TIME_FM_TUPLE(
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::
               CHASSIS_INPUT_SIGNAL_ERROR_MUL_FPS,
           hozon::perception::base::FaultStatus::RESET,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 400,
+          base::DebounceType::DEBOUNCE_TYPE_TIME));
       chassis_input_data_error_flag = false;
     }
   }
@@ -272,21 +274,23 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
                     hozon::perception::base::HealthId::
                         CPID_IMU_FPS_AFTER_DETECT_DATA_ABSTRACT));
   if (!ptr_rec_imu) {
-    dr_fault->Report(MAKE_FM_TUPLE(
+    dr_fault->ReportDebounceTime(MAKE_TIME_FM_TUPLE(
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::IMU_DATA_ERROR_MUL_FPS,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 400,
+        base::DebounceType::DEBOUNCE_TYPE_TIME));
     input_data_error_flag = true;
     HLOG_ERROR << "DR: receive imu data is null";
     return -1;
   } else {
     if (input_data_error_flag) {
-      dr_fault->Report(MAKE_FM_TUPLE(
+      dr_fault->ReportDebounceTime(MAKE_TIME_FM_TUPLE(
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::IMU_DATA_ERROR_MUL_FPS,
           hozon::perception::base::FaultStatus::RESET,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 400,
+          base::DebounceType::DEBOUNCE_TYPE_TIME));
       input_data_error_flag = false;
     }
   }
@@ -491,7 +495,7 @@ bool DeadReckoning::isVelError(const T1& t1, const T2& t2) {
       std::sqrt(t2.x() * t2.x() + t2.y() * t2.y() + t2.z() * t2.z());
 
   HLOG_DEBUG << "vel_dr_norm_test:" << vel_dr_norm << ","
-            << "vel_ins_norm_test:" << vel_ins_norm;
+             << "vel_ins_norm_test:" << vel_ins_norm;
   HLOG_DEBUG << "vel_error_threshold_:" << vel_error_threshold_;
 
   if (std::abs(vel_dr_norm - vel_ins_norm) > vel_error_threshold_ &&

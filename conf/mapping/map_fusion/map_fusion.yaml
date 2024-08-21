@@ -1,7 +1,7 @@
 %YAML:1.0
-orin_viz: true
+# orin_viz: false
 # orin_viz_addr: tcp://10.6.74.153:9100
-orin_viz_addr: ipc:///tmp/rviz_agent_mf
+# orin_viz_addr: ipc:///tmp/rviz_agent_mf
 
 map_dir: /hd_map
 #map_dir: /data/map/changfeng_park

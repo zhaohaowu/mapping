@@ -5,7 +5,7 @@
  *   date       ： 2024.08
  ******************************************************************************/
 
-#include "modules/map_fusion_02/rviz/geo_optimization_rviz.h"
+#include "modules/rviz/geo_optimization_rviz.h"
 
 namespace hozon {
 namespace mp {
@@ -93,7 +93,7 @@ void GeoOptimizationViz::LineIdToMarker(const double stamp,
 }
 
 void GeoOptimizationViz::VizElementMap(ElementMap::Ptr element_map,
-                                      const Eigen::Affine3d& T) {
+                                       const Eigen::Affine3d& T) {
   HLOG_FATAL << "map_fusion02 geo viz elementmap";
   adsfi_proto::viz::MarkerArray markers;
   std::vector<Eigen::Vector3d> lane_points;
@@ -102,7 +102,8 @@ void GeoOptimizationViz::VizElementMap(ElementMap::Ptr element_map,
   for (auto& lane_boundary : lane_boundaries) {
     auto& lane_boundary_nodes = lane_boundary.second->nodes;
     for (auto& point : lane_boundary_nodes) {
-      Eigen::Vector3d point_local(point->point.x(), point->point.y(), point->point.z());
+      Eigen::Vector3d point_local(point->point.x(), point->point.y(),
+                                  point->point.z());
       Eigen::Vector3d point_enu = T * point_local;
       lane_points.emplace_back(point_enu);
     }
@@ -115,8 +116,7 @@ void GeoOptimizationViz::VizElementMap(ElementMap::Ptr element_map,
     if (!lane_points.empty()) {
       adsfi_proto::viz::Marker marker_id;
       auto id = std::to_string(lane_boundary.first);
-      LineIdToMarker(element_map_info.stamp, lane_points[0],
-                     id, &marker_id);
+      LineIdToMarker(element_map_info.stamp, lane_points[0], id, &marker_id);
       markers.add_markers()->CopyFrom(marker_id);
     }
   }

@@ -5,7 +5,7 @@
  *   date       ： 2023.09
  ******************************************************************************/
 
-#include "modules/map_fusion_02/rviz/viz_common.h"
+#include "modules/rviz/viz_common.h"
 
 #include <string>
 #include <vector>

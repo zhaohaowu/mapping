@@ -21,19 +21,22 @@
 
 #include "base/utils/log.h"
 #include "depend/common/utm_projection/coordinate_convertor.h"
+#include "modules/rviz/map_fusion_rviz.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "modules/util/include/util/viz_helper.h"
+#include "perception-lib/lib/config_manager/config_manager.h"
 
 namespace hozon {
-namespace perception {
-namespace common_onboard {
+namespace mp {
+namespace mf {
 
 using namespace hozon::mp::util;  // NOLINT
 
 int32_t VizConverterLite::AlgInit() {
   std::string default_work_root = "/app/";
-  std::string work_root = lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
+  std::string work_root =
+      perception::lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
   if (work_root == "") {
     HLOG_ERROR << "ENV: ADFLITE_ROOT_PATH is not set.";
     return -1;
@@ -55,6 +58,23 @@ int32_t VizConverterLite::AlgInit() {
   if (ret < 0) {
     HLOG_ERROR << "RvizAgent init failed on " << viz_addr;
     return -1;
+  }
+
+  auto* config_manager = hozon::perception::lib::ConfigManager::Instance();
+  const hozon::perception::lib::ModelConfig* model_config = nullptr;
+  if (!config_manager->GetModelConfig("RvizModulesFlag", &model_config)) {
+    HLOG_ERROR << "Parse config failed! Name: RvizModulesFlag";
+    return false;
+  }
+
+  if (!model_config->get_value("map_fusion_rviz", &map_fusion_rviz_)) {
+    HLOG_ERROR << "Get map_fusion_rviz viz failed!";
+    return false;
+  }
+
+  if (!model_config->get_value("location_rviz", &location_rviz_)) {
+    HLOG_ERROR << "Get location_rviz viz failed!";
+    return false;
   }
 
   ret = RVIZ_AGENT.Register<hozon::localization::Localization>(
@@ -200,6 +220,10 @@ int32_t VizConverterLite::AlgInit() {
   RegistAlgProcessFunc("recv_driving_status",
                        std::bind(&VizConverterLite::OnDrivingStatus, this,
                                  std::placeholders::_1));
+  // 各个模块rviz初始化
+  if (map_fusion_rviz_) {
+    MF_RVIZ->Init();
+  }
   return 0;
 }
 
@@ -833,9 +857,9 @@ int32_t VizConverterLite::OnPercepDetection(
   viz_lifetime.set_nsec(life_nsec);
 
   last_trans_ele_ma = std::make_shared<adsfi_proto::viz::MarkerArray>();
-  TransportElementToMarkers(viz_header, viz_lifetime,
-                            proto_msg->transport_element(),
-                            last_trans_ele_ma.get());
+  util::TransportElementToMarkers(viz_header, viz_lifetime,
+                                  proto_msg->transport_element(),
+                                  last_trans_ele_ma.get());
   RVIZ_AGENT.Publish(kVizTopicPercepDetectionTransportElement,
                      last_trans_ele_ma);
 
@@ -942,8 +966,8 @@ int32_t VizConverterLite::OnPercepTransport(
   viz_lifetime.set_nsec(life_nsec);
 
   last_trans_ele_ma = std::make_shared<adsfi_proto::viz::MarkerArray>();
-  TransportElementToMarkers(viz_header, viz_lifetime, *proto_msg,
-                            last_trans_ele_ma.get());
+  util::TransportElementToMarkers(viz_header, viz_lifetime, *proto_msg,
+                                  last_trans_ele_ma.get());
   RVIZ_AGENT.Publish(kVizTopicPercepTransportTransportElement,
                      last_trans_ele_ma);
 
@@ -1133,6 +1157,6 @@ int32_t VizConverterLite::OnDrivingStatus(
   return 0;
 }
 
-}  // namespace common_onboard
-}  // namespace perception
+}  // namespace mf
+}  // namespace mp
 }  // namespace hozon

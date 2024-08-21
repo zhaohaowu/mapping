@@ -17,8 +17,8 @@
 #include <string>
 
 namespace hozon {
-namespace perception {
-namespace common_onboard {
+namespace mp {
+namespace mf {
 
 class VizConverterLite : public hozon::netaos::adf_lite::Executor {
  public:
@@ -99,10 +99,14 @@ class VizConverterLite : public hozon::netaos::adf_lite::Executor {
   Eigen::Vector3d enu_station_;
   Eigen::Quaterniond quat_enu_in_local_;
   Eigen::Vector3d pos_enu_in_local_;
+
+  // 各个模块rviz开关
+  bool map_fusion_rviz_ = false;
+  bool location_rviz_ = false;
 };
 
 REGISTER_ADF_CLASS(VizConverterLite, VizConverterLite);
 
-}  // namespace common_onboard
-}  // namespace perception
+}  // namespace mf
+}  // namespace mp
 }  // namespace hozon

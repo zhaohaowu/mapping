@@ -20,10 +20,9 @@
 #include "modules/map_fusion_02/base/element_base.h"
 #include "modules/map_fusion_02/common/calc_util.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/cut_point.h"
-#include "modules/map_fusion_02/rviz/viz_common.h"
+#include "modules/rviz/viz_common.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "perception-base/base/utils/macros.h"
-#include "perception-lib/lib/config_manager/config_manager.h"
 
 namespace hozon {
 namespace mp {
@@ -46,15 +45,16 @@ class MapFusionRviz {
   std::string Name() const;
 
  private:
-  bool use_rviz_ = true;
-  std::string rviz_addr_mfr_ = "ipc:///tmp/rviz_agent_mfr";
+  bool inited_ = false;
+  bool map_fusion_group_rviz_ = false;
+  bool map_fusion_lane_loc_rviz_ = false;
   std::string viz_topic_input_ele_map_;
   std::string viz_topic_output_ele_map_;
   std::string viz_topic_path_;
   std::string viz_topic_group_;
-  std::string viz_topic_guidepoints_ = "/mapfusion/guide_points";
-  std::string viz_topic_cutpoints_ = "/ccmapfusion/cut_points";
-  std::string viz_topic_distpoints_ = "/ccmapfusion/dist_points";
+  std::string viz_topic_guidepoints_;
+  std::string viz_topic_cutpoints_;
+  std::string viz_topic_distpoints_;
   float viz_lifetime_ = 0;
   DECLARE_SINGLETON_PERCEPTION(MapFusionRviz)
 };

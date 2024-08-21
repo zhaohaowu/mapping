@@ -104,4 +104,4 @@ trigger:
       - name: driving_status
         timeout: 10000
 
-viz_addr: ipc:///tmp/rviz_agent_viz_cvt
+viz_addr: ipc:///tmp/rviz_agent_mf

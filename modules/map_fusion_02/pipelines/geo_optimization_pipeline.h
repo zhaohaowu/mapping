@@ -15,7 +15,7 @@
 #include "modules/map_fusion_02/modules/geo/elements_filter.h"
 #include "modules/map_fusion_02/modules/geo/occ_process.h"
 #include "modules/map_fusion_02/pipelines/base_fusion_pipeline.h"
-#include "modules/map_fusion_02/rviz/geo_optimization_rviz.h"
+#include "modules/rviz/geo_optimization_rviz.h"
 
 namespace hozon {
 namespace mp {

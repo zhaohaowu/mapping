@@ -5,6 +5,7 @@ add_mapping_library(onboard_lite_viz_cvt
 target_link_libraries(onboard_lite_viz_cvt
   util
   europa_common
+  mf
   )
 
 install(

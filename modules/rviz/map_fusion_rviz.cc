@@ -4,9 +4,10 @@
  *   author     ： cuijiayu
  *   date       ： 2024.01
  ******************************************************************************/
-#include "modules/map_fusion_02/rviz/map_fusion_rviz.h"
+#include "modules/rviz/map_fusion_rviz.h"
 
 #include "base/utils/log.h"
+#include "perception-lib/lib/config_manager/config_manager.h"
 
 namespace hozon {
 namespace mp {
@@ -18,6 +19,9 @@ std::string MapFusionRviz::Name() const { return "MapFusionRviz"; }
 MapFusionRviz::MapFusionRviz() = default;
 
 bool MapFusionRviz::Init() {
+  if (inited_) {
+    return true;
+  }
   auto* config_manager = hozon::perception::lib::ConfigManager::Instance();
   const hozon::perception::lib::ModelConfig* model_config = nullptr;
   if (!config_manager->GetModelConfig(Name(), &model_config)) {
@@ -25,13 +29,15 @@ bool MapFusionRviz::Init() {
     return false;
   }
 
-  if (!model_config->get_value("viz", &use_rviz_)) {
-    HLOG_ERROR << "Get viz failed!";
+  if (!model_config->get_value("map_fusion_group_rviz",
+                               &map_fusion_group_rviz_)) {
+    HLOG_ERROR << "Get map_fusion_group_rviz viz failed!";
     return false;
   }
 
-  if (!model_config->get_value("rviz_addr_mfr", &rviz_addr_mfr_)) {
-    HLOG_ERROR << "Get rviz_addr_mfr failed!";
+  if (!model_config->get_value("map_fusion_lane_loc_rviz",
+                               &map_fusion_lane_loc_rviz_)) {
+    HLOG_ERROR << "Get map_fusion_lane_loc_rviz viz failed!";
     return false;
   }
 
@@ -54,76 +60,75 @@ bool MapFusionRviz::Init() {
     HLOG_ERROR << "Get viz_topic_group failed!";
     return false;
   }
+  if (!model_config->get_value("viz_topic_guidepoints",
+                               &viz_topic_guidepoints_)) {
+    HLOG_ERROR << "Get viz_topic_guidepoints failed!";
+    return false;
+  }
+  if (!model_config->get_value("viz_topic_cutpoints", &viz_topic_cutpoints_)) {
+    HLOG_ERROR << "Get viz_topic_cutpoints failed!";
+    return false;
+  }
+  if (!model_config->get_value("viz_topic_distpoints",
+                               &viz_topic_distpoints_)) {
+    HLOG_ERROR << "Get viz_topic_distpoints failed!";
+    return false;
+  }
   if (!model_config->get_value("viz_lifetime", &viz_lifetime_)) {
     HLOG_ERROR << "Get viz_lifetime failed!";
     return false;
   }
 
-  if (use_rviz_) {
-    HLOG_FATAL << "Start RvizAgent!!!";
-    int ret = RVIZ_AGENT.Init(rviz_addr_mfr_);
-    if (ret < 0) {
-      HLOG_FATAL << "RvizAgent start failed";
-    }
-
-    if (!RVIZ_AGENT.Ok()) {
-      HLOG_FATAL << "RvizAgent not Init";
-    } else {
-      std::vector<std::string> marker_topics = {viz_topic_input_ele_map_,
-                                                viz_topic_output_ele_map_,
-                                                viz_topic_group_};
-      int ret =
-          RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(marker_topics);
-      if (ret < 0) {
-        HLOG_FATAL << "RvizAgent register marker array failed";
-        return false;
-      }
-
-      std::vector<std::string> pose_array_topics = {
-          viz_topic_path_,
-      };
-      ret = RVIZ_AGENT.Register<adsfi_proto::viz::PoseArray>(pose_array_topics);
-      if (ret < 0) {
-        HLOG_FATAL << "RvizAgent register pose array failed";
-        return false;
-      }
-
-      std::vector<std::string> guide_points_topic = {
-          viz_topic_guidepoints_,
-      };
-      ret = RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(
-          viz_topic_guidepoints_);
-      if (ret < 0) {
-        HLOG_FATAL << "RvizAgent register guide point failed";
-        return false;
-      }
-
-      std::vector<std::string> cut_points_topic = {
-          viz_topic_cutpoints_,
-      };
-      ret = RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(cut_points_topic);
-      if (ret < 0) {
-        HLOG_FATAL << "RvizAgent register cut point failed";
-        return false;
-      }
-
-      std::vector<std::string> dist_points_topic = {
-          viz_topic_distpoints_,
-      };
-      ret =
-          RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(dist_points_topic);
-      if (ret < 0) {
-        HLOG_FATAL << "RvizAgent register cut point failed";
-        return false;
-      }
-    }
+  std::vector<std::string> marker_topics = {
+      viz_topic_input_ele_map_, viz_topic_output_ele_map_, viz_topic_group_};
+  int ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(marker_topics);
+  if (ret < 0) {
+    HLOG_FATAL << "RvizAgent register marker array failed";
+    return false;
   }
-  HLOG_FATAL << "MapFusionRviz::Init true";
+
+  std::vector<std::string> pose_array_topics = {
+      viz_topic_path_,
+  };
+  ret = RVIZ_AGENT.Register<adsfi_proto::viz::PoseArray>(pose_array_topics);
+  if (ret < 0) {
+    HLOG_FATAL << "RvizAgent register pose array failed";
+    return false;
+  }
+
+  std::vector<std::string> guide_points_topic = {
+      viz_topic_guidepoints_,
+  };
+  ret =
+      RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(viz_topic_guidepoints_);
+  if (ret < 0) {
+    HLOG_FATAL << "RvizAgent register guide point failed";
+    return false;
+  }
+
+  std::vector<std::string> cut_points_topic = {
+      viz_topic_cutpoints_,
+  };
+  ret = RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(cut_points_topic);
+  if (ret < 0) {
+    HLOG_FATAL << "RvizAgent register cut point failed";
+    return false;
+  }
+
+  std::vector<std::string> dist_points_topic = {
+      viz_topic_distpoints_,
+  };
+  ret = RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(dist_points_topic);
+  if (ret < 0) {
+    HLOG_FATAL << "RvizAgent register cut point failed";
+    return false;
+  }
+  inited_ = true;
   return true;
 }
 
 void MapFusionRviz::VizEleMap(const std::shared_ptr<ElementMap>& ele_map) {
-  if (!use_rviz_ || !RVIZ_AGENT.Ok()) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
     return;
   }
 
@@ -136,7 +141,7 @@ void MapFusionRviz::VizEleMap(const std::shared_ptr<ElementMap>& ele_map) {
 
 void MapFusionRviz::VizPath(const std::vector<KinePosePtr>& path,
                             const KinePose& curr_pose) {
-  if (!use_rviz_ || !RVIZ_AGENT.Ok()) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
     return;
   }
 
@@ -174,7 +179,7 @@ void MapFusionRviz::VizPath(const std::vector<KinePosePtr>& path,
 
 void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
                              double stamp) {
-  if (!use_rviz_ || !RVIZ_AGENT.Ok()) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
     return;
   }
 
@@ -515,7 +520,7 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
 
 void MapFusionRviz::VizGuidePoint(const std::vector<Group::Ptr>& groups,
                                   double stamp) {
-  if (!use_rviz_ || !RVIZ_AGENT.Ok()) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
     return;
   }
 
@@ -549,7 +554,7 @@ void MapFusionRviz::VizGuidePoint(const std::vector<Group::Ptr>& groups,
 
 void MapFusionRviz::VizCutpoint(const std::vector<mp::mf::CutPoint>& cut_points,
                                 double stamp) {
-  if (!use_rviz_ || !RVIZ_AGENT.Ok()) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
     return;
   }
   // HLOG_ERROR << "viz cutpoint size " << cut_points.size();
@@ -579,7 +584,7 @@ void MapFusionRviz::VizCutpoint(const std::vector<mp::mf::CutPoint>& cut_points,
 
 void MapFusionRviz::VizDistpoint(const std::vector<Eigen::Vector3f>& distpoints,
                                  double stamp) {
-  if (!use_rviz_ || !RVIZ_AGENT.Ok()) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
     return;
   }
   std::vector<Eigen::Vector3f> distpoints_t = distpoints;

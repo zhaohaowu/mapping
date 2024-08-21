@@ -22,7 +22,7 @@
 #include "modules/map_fusion_02/modules/lane/road_builder/broken_point_search.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/road_construct.h"
 #include "modules/map_fusion_02/pipelines/base_fusion_pipeline.h"
-#include "modules/map_fusion_02/rviz/map_fusion_rviz.h"
+#include "modules/rviz/map_fusion_rviz.h"
 #include "perception-lib/lib/config_manager/config_manager.h"
 
 namespace hozon {

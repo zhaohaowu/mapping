@@ -20,7 +20,7 @@
 #include "modules/map_fusion_02/base/processor.h"
 #include "modules/map_fusion_02/modules/geo/elements_filter_base.h"
 #include "modules/map_fusion_02/modules/geo/geo_utils.h"
-#include "modules/map_fusion_02/rviz/geo_optimization_rviz.h"
+#include "modules/rviz/geo_optimization_rviz.h"
 
 namespace hozon {
 namespace mp {

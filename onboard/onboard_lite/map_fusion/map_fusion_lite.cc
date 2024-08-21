@@ -70,8 +70,6 @@ int32_t MapFusionLite::AlgInit() {
 
   YAML::Node config = YAML::LoadFile(config_file);
 
-  FLAGS_orin_viz = config["orin_viz"].as<bool>();
-  FLAGS_orin_viz_addr = config["orin_viz_addr"].as<std::string>();
   FLAGS_map_dir = work_root + config["map_dir"].as<std::string>();
   FLAGS_ehp_monitor = config["ehp_monitor"].as<int32_t>();
   FLAGS_enable_ehp_routing = config["enable_ehp_routing"].as<bool>();
@@ -83,14 +81,6 @@ int32_t MapFusionLite::AlgInit() {
   FLAGS_service_update_interval =
       config["service_update_interval"].as<double>();
   FLAGS_work_mode = config["work_mode"].as<std::string>();
-
-  if (FLAGS_orin_viz) {
-    HLOG_ERROR << "Start RvizAgent on " << FLAGS_orin_viz_addr;
-    int ret = RVIZ_AGENT.Init(FLAGS_orin_viz_addr);
-    if (ret < 0) {
-      HLOG_ERROR << "RvizAgent start failed";
-    }
-  }
 
   curr_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
   curr_routing_->Clear();

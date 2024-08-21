@@ -2914,15 +2914,16 @@ bool GroupMap::MatchLaneAndStopLine(const Lane::Ptr& lane,
   auto start_right = lane->right_boundary->pts.front().pt;
   auto end_left = lane->left_boundary->pts.back().pt;
   auto end_right = lane->right_boundary->pts.back().pt;
-  Eigen::Vector2f stop_line_center = (Eigen::Vector2f(stop_line->points.back().x(),
-                                           stop_line->points.back().y()) +
-                           Eigen::Vector2f(stop_line->points.front().x(),
-                                           stop_line->points.front().y())) /
-                          2;
-  bool is_right_side = PointInVectorSide(
-                  Eigen::Vector2f(end_left.x(), end_left.y()),
-                  Eigen::Vector2f(end_right.x(), end_right.y()),
-                  stop_line_center) >= 0;
+  Eigen::Vector2f stop_line_center =
+      (Eigen::Vector2f(stop_line->points.back().x(),
+                       stop_line->points.back().y()) +
+       Eigen::Vector2f(stop_line->points.front().x(),
+                       stop_line->points.front().y())) /
+      2;
+  bool is_right_side =
+      PointInVectorSide(Eigen::Vector2f(end_left.x(), end_left.y()),
+                        Eigen::Vector2f(end_right.x(), end_right.y()),
+                        stop_line_center) >= 0;
   bool is_start_match =
       MatchLanePtAndStopLine(start_left, start_right, *stop_line);
   bool is_end_match = MatchLanePtAndStopLine(end_left, end_right, *stop_line);
@@ -2953,8 +2954,7 @@ bool GroupMap::MatchLaneAndStopLine(const Lane::Ptr& lane,
   **          2. 停止线在lane的结尾附近， 且位于lane结尾的右侧
   **          3. 停止线在lane的结尾附近，但是位于lane结尾的左侧，需要lane无后继
   */
-  return (is_start_match && is_right_side) ||
-         (is_end_match && is_right_side) ||
+  return (is_start_match && is_right_side) || (is_end_match && is_right_side) ||
          (is_end_match && !is_right_side &&
           lane->next_lane_str_id_with_group.size() == 0);
 }
@@ -5461,6 +5461,20 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
   // 对远处车道线进行预测，仅对无后继的lane尝试预测
   HLOG_DEBUG << "predict success lane";
   if (conf_.predict_farthest_dist > conf_.robust_percep_dist) {
+    // 1. 删除待删除状态的group
+    int before_delete_group_nums = groups->size();
+    groups->erase(std::remove_if(groups->begin(), groups->end(),
+                                 [&](Group::Ptr& group) {
+                                   return (group->group_state ==
+                                           Group::GroupState::DELETE);
+                                 }),
+                  groups->end());
+    int after_delete_group_nums = groups->size();
+    if ((before_delete_group_nums > after_delete_group_nums) &&
+        !groups->empty()) {
+      groups->back()->is_last_after_erased = true;
+    }
+
     Group::Ptr last_grp = nullptr;
     // 找到最后一个非空的group，只预测最后一个group里的lane
     for (auto it = groups->rbegin(); it != groups->rend(); ++it) {
@@ -8119,7 +8133,8 @@ std::shared_ptr<hozon::hdmap::Map> GroupMap::ConvertToProtoMap(
         // 判断是否关联对是进路口还是出路口关联形式
         auto target_point =
             (stopline_it.second->points[0] + stopline_it.second->points[1]) / 2;
-        auto length_to_start = LengthToLaneStart(groups, lane_id_it, target_point);
+        auto length_to_start =
+            LengthToLaneStart(groups, lane_id_it, target_point);
         laneinfo->set_start_s(length_to_start);
         laneinfo->set_end_s(length_to_start + 0.1);
         // 给map.lane.overlap_id赋值

@@ -84,6 +84,9 @@ class OccGuideLineManager {
   std::vector<std::pair<em::Id, em::OccRoad::Ptr>> GetBestOccPair(
       const std::vector<std::pair<em::Id, em::OccRoad::Ptr>>& front_occ_set);
 
+  double GetOccWidth(const em::OccRoad::Ptr& right_occ,
+                     const em::OccRoad::Ptr& left_occ);
+
   float GetExitLaneWidth();
 
   float GetEntranceLaneWidth(

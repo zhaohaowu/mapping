@@ -724,8 +724,9 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
   // 如果退出车道数计算过，则保持历史车道数。反之，需计算退出车道数。
   if (assume_entrancelane_nums_by_entrancelane_ == -1) {
     assume_entrancelane_nums_by_entrancelane_ = static_cast<int>(std::max(
-        static_cast<double>(std::floor(
-            (occ_width_ - safe_distance_ * 2) / averge_entrance_lane_width_ + 0.3)),
+        static_cast<double>(std::floor((occ_width_ - safe_distance_ * 2) /
+                                           averge_entrance_lane_width_ +
+                                       0.3)),
         1.0));
   }
 
@@ -743,8 +744,8 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
       return {};
     }
 
-    vitual_lane_num =
-        static_cast<int>(std::floor(right_blank_space / averge_entrance_lane_width_ + 0.3));
+    vitual_lane_num = static_cast<int>(
+        std::floor(right_blank_space / averge_entrance_lane_width_ + 0.3));
 
     // !TBD 这里对于生成的车道线需要做个check，需确保没有超出occ边界。
     if (vitual_lane_num > 0) {
@@ -754,7 +755,8 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
           em::BoundaryNode::Ptr virtual_node =
               std::make_shared<em::BoundaryNode>();
           virtual_node->point =
-              node->point + Eigen::Vector3f{0.0, -1 * averge_entrance_lane_width_ * i, 0.0};
+              node->point +
+              Eigen::Vector3f{0.0, -1 * averge_entrance_lane_width_ * i, 0.0};
           virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
           virtual_line.nodes.emplace_back(virtual_node);
         }
@@ -773,8 +775,8 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
       return {};
     }
 
-    vitual_lane_num =
-        static_cast<int>(std::floor(left_blank_space / averge_entrance_lane_width_ + 0.3));
+    vitual_lane_num = static_cast<int>(
+        std::floor(left_blank_space / averge_entrance_lane_width_ + 0.3));
 
     if (vitual_lane_num > 0) {
       for (int i = 1; i <= vitual_lane_num; ++i) {
@@ -783,7 +785,8 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
           em::BoundaryNode::Ptr virtual_node =
               std::make_shared<em::BoundaryNode>();
           virtual_node->point =
-              node->point + Eigen::Vector3f{0.0, averge_entrance_lane_width_ * i, 0.0};
+              node->point +
+              Eigen::Vector3f{0.0, averge_entrance_lane_width_ * i, 0.0};
           virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
           virtual_line.nodes.emplace_back(virtual_node);
         }
@@ -805,8 +808,8 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
       }
       float lane_width = GetTwoBoundayDis(bev_lanelines.at(line_idx),
                                           bev_lanelines.at(line_idx + 1));
-      vitual_lane_num =
-          static_cast<int>(std::floor(lane_width / averge_entrance_lane_width_ + 0.3));
+      vitual_lane_num = static_cast<int>(
+          std::floor(lane_width / averge_entrance_lane_width_ + 0.3));
       HLOG_DEBUG << "[occ module] line_blank_space:" << lane_width
                  << ", and virtual lane num:" << vitual_lane_num;
       if (vitual_lane_num > 1) {
@@ -816,7 +819,8 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
             em::BoundaryNode::Ptr virtual_node =
                 std::make_shared<em::BoundaryNode>();
             virtual_node->point =
-                node->point + Eigen::Vector3f{0.0, averge_entrance_lane_width_ * i, 0.0};
+                node->point +
+                Eigen::Vector3f{0.0, averge_entrance_lane_width_ * i, 0.0};
             virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
             virtual_line.nodes.emplace_back(virtual_node);
           }
@@ -847,8 +851,12 @@ OccGuideLineManager::GetFrontOccRoadPair() {
         roadedge.second->group_id != static_cast<em::Id>(1)) {
       continue;
     }
+
     const auto& track_id = roadedge.first;
     const auto& occ_road = roadedge.second;
+    if (occ_road->road_points.empty()) {
+      continue;
+    }
     HLOG_DEBUG << "[occ module] track_id" << occ_road->track_id
                << ", grop_id:" << 1 << ","
                << "start_x:" << occ_road->road_points.front().x() << ","
@@ -910,6 +918,11 @@ OccGuideLineManager::GetBestOccPair(
   float min_occ_angle = FLT_MAX;
   int min_occ_idx = -1;
   for (int i = 0; i < static_cast<int>(front_occ_pair.size()) - 1; ++i) {
+    // 如果两个豁口宽度比较小，则直接过滤掉
+    if (GetOccWidth(front_occ_pair.at(i).second,
+                    front_occ_pair.at(i + 1).second) < 6.5) {
+      continue;
+    }
     const auto center_point =
         (front_occ_pair.at(i).second->road_points.front() +
          front_occ_pair.at(i + 1).second->road_points.front()) /
@@ -939,71 +952,95 @@ OccGuideLineManager::GetBestOccPair(
   return best_occ_pair;
 }
 
-// Eigen::Vector3f OccGuideLineManager::CalcuDirectionVec(
-//     em::Boundary::Ptr occ_l1_pts, em::Boundary::Ptr occ_l2_pts) {
-//   /*
-//     情况1:
-//     ------------------ occ_l2_pts
-//     →
-//       --------------- occ_l1_pts
-//   */
-//   /*
-//     情况2:
-//         --------------- occ_l2_pts
-//     →
-//     ------------------- occ_l1_pts
-//   */
-//   // 更新方向向量
-//   if (occ_l1_pts->nodes.empty() || occ_l2_pts->nodes.empty()) {
-//     return {};
-//   }
+double OccGuideLineManager::GetOccWidth(const em::OccRoad::Ptr& right_occ,
+                                        const em::OccRoad::Ptr& left_occ) {
+  Eigen::Vector3d dir_vector;
 
-//   Eigen::Vector3f dir_vec =
-//       occ_l2_pts->nodes.front()->point - occ_l1_pts->nodes.front()->point;
-//   if (occ_l1_pts->nodes.front()->point.x() >
-//       occ_l2_pts->nodes.front()->point.x()) {
-//     auto p = occ_l1_pts->nodes.front()->point;
-//     for (int i = 0; i < occ_l2_pts->nodes.size() - 1; i++) {
-//       auto a = occ_l2_pts->nodes.at(i)->point;
-//       auto b = occ_l2_pts->nodes.at(i + 1)->point;
-//       const auto& ab = b - a;
-//       const auto& ap = p - a;
-//       double ABLengthSquared = ab.squaredNorm();
-//       if (std::fabs(ABLengthSquared) < 1e-6) {
-//         continue;
-//       }
-//       double t = ab.dot(ap) / ABLengthSquared;
-//       if (t < 0 || t > 1) {
-//         continue;
-//       }
-//       t = std::max(0.0, std::min(t, 1.0));
-//       auto c = a + t * ab;  // 点到线段的最近点
-//       dir_vec = c - p;
-//       break;
-//     }
-//   } else {
-//     auto p = occ_l2_pts->nodes.front()->point;
-//     for (int i = 0; i < occ_l1_pts->nodes.size() - 1; i++) {
-//       auto a = occ_l1_pts->nodes.at(i)->point;
-//       auto b = occ_l1_pts->nodes.at(i + 1)->point;
-//       const auto& ab = b - a;
-//       const auto& ap = p - a;
-//       double ABLengthSquared = ab.squaredNorm();
-//       if (std::fabs(ABLengthSquared) < 1e-6) {
-//         continue;
-//       }
-//       double t = ab.dot(ap) / ABLengthSquared;
-//       if (t < 0 || t > 1) {
-//         continue;
-//       }
-//       t = std::max(0.0, std::min(t, 1.0));
-//       auto c = a + t * ab;  // 点到线段的最近点
-//       dir_vec = p - c;
-//       break;
-//     }
-//   }
-//   return dir_vec;
-// }
+  em::OccRoad::Ptr query_line = nullptr;
+  em::OccRoad::Ptr value_line = nullptr;
+  if (right_occ->road_points.front().x() < left_occ->road_points.front().x()) {
+    query_line = left_occ;
+    value_line = right_occ;
+  } else {
+    query_line = right_occ;
+    value_line = left_occ;
+  }
+
+  const int Window_Point_NUMS = 3;
+  for (int i = 0; i < static_cast<int>(query_line->road_points.size()) - 2;
+       ++i) {
+    std::vector<Eigen::Vector3d> windows_dir_vector;
+    std::vector<int> window_value_indexs;
+    for (int window_start = i; window_start < i + Window_Point_NUMS;
+         ++window_start) {
+      const auto query_point = query_line->road_points.at(i);
+      auto it = std::min_element(
+          value_line->road_points.begin(), value_line->road_points.end(),
+          [&point = query_point](const Eigen::Vector3d& a,
+                                 const Eigen::Vector3d& b) {
+            return (point - a).norm() < (point - b).norm();
+          });
+
+      window_value_indexs.emplace_back(
+          std::distance(value_line->road_points.begin(), it));
+      HLOG_DEBUG << "[occ module] dir vector start point:" << query_point.x()
+                 << "," << query_point.y();
+      HLOG_DEBUG << "[occ module] dir vector end point:" << (*it).x() << ","
+                 << (*it).y();
+
+      if (value_line->road_points.size() == 1) {
+        dir_vector = (*it) - query_point;
+      } else if (it == std::prev(value_line->road_points.end())) {
+        Eigen::Vector3d AB = (*it) - (*std::prev(it));
+        Eigen::Vector3d AP = query_point - (*std::prev(it));
+        AB.normalize();
+        Eigen::Vector3d crossProduct = AB.cross(AP);
+        dir_vector = crossProduct;
+      } else {
+        Eigen::Vector3d AB = (*it) - (*std::next(it));
+        Eigen::Vector3d AP = query_point - (*std::next(it));
+        AB.normalize();
+        Eigen::Vector3d crossProduct = AB.cross(AP);
+        dir_vector = crossProduct;
+      }
+      windows_dir_vector.emplace_back(dir_vector);
+    }
+
+    if (windows_dir_vector[0].norm() > windows_dir_vector[1].norm() &&
+        windows_dir_vector[1].norm() > windows_dir_vector[2].norm()) {
+      continue;
+    } else {
+      dir_vector = windows_dir_vector[2];
+      return dir_vector.norm();
+    }
+  }
+
+  const auto query_point = query_line->road_points.front();
+  auto it = std::min_element(value_line->road_points.begin(),
+                             value_line->road_points.end(),
+                             [&point = query_point](const Eigen::Vector3d& a,
+                                                    const Eigen::Vector3d& b) {
+                               return (point - a).norm() < (point - b).norm();
+                             });
+
+  if (value_line->road_points.size() == 1) {
+    dir_vector = (*it) - query_point;
+  } else if (it == std::prev(value_line->road_points.end())) {
+    Eigen::Vector3d AB = (*it) - (*std::prev(it));
+    Eigen::Vector3d AP = query_point - (*std::prev(it));
+    AB.normalize();
+    Eigen::Vector3d crossProduct = AB.cross(AP);
+    dir_vector = crossProduct;
+  } else {
+    Eigen::Vector3d AB = (*it) - (*std::next(it));
+    Eigen::Vector3d AP = query_point - (*std::next(it));
+    AB.normalize();
+    Eigen::Vector3d crossProduct = AB.cross(AP);
+    dir_vector = crossProduct;
+  }
+
+  return dir_vector.norm();
+}
 
 Eigen::Vector3f OccGuideLineManager::CalcuDirectionVecV2(
     em::Boundary::Ptr right_occ, em::Boundary::Ptr left_occ) {
@@ -1348,7 +1385,7 @@ float OccGuideLineManager::GetExitLaneWidth() {
   float averge_exit_lane_width = 3.5;
   const auto& lineline_boundries = bev_laneline_boundarys_;
   HLOG_DEBUG << "[occ module]:" << "bev laneline nums..."
-            << lineline_boundries.size();
+             << lineline_boundries.size();
   if (lineline_boundries.empty()) {
     return averge_exit_lane_width;
   }
@@ -1359,7 +1396,7 @@ float OccGuideLineManager::GetExitLaneWidth() {
       continue;
     }
     HLOG_DEBUG << "[occ module]:" << "bevlaneline boundary lanepos: "
-              << static_cast<int>(boundary.second->lanepos);
+               << static_cast<int>(boundary.second->lanepos);
     HLOG_DEBUG << "start x:" << boundary.second->nodes.front()->point.x();
     if (boundary.second->nodes.front()->point.x() <= 5.0) {
       HLOG_DEBUG << "back_lines add one line";
@@ -1591,10 +1628,10 @@ std::vector<em::Boundary> OccGuideLineManager::OccRegionSplit(
         1.0));
   }
 
-  HLOG_DEBUG << "[occ module] entrance lanes width:" << "averge_exit_lane_width:"
-            << averge_exit_lane_width_ << ", occ width: " << occ_width_
-            << ", entrance lanes nums:"
-            << assume_entrancelane_nums_by_exitlane_;
+  HLOG_DEBUG << "[occ module] entrance lanes width:"
+             << "averge_exit_lane_width:" << averge_exit_lane_width_
+             << ", occ width: " << occ_width_ << ", entrance lanes nums:"
+             << assume_entrancelane_nums_by_exitlane_;
 
   std::vector<em::Boundary> virtual_lines(
       assume_entrancelane_nums_by_exitlane_ + 1);
@@ -1678,7 +1715,8 @@ std::vector<em::Boundary> OccGuideLineManager::OccRegionSplit(
 std::vector<em::Boundary> OccGuideLineManager::InferGuideLineOnlyByOcc() {
   // 猜想进入车道的平均宽度。
   averge_exit_lane_width_ = GetExitLaneWidth();
-  HLOG_DEBUG << "[occ module]:" << "exit_lane_width:" << averge_exit_lane_width_;
+  HLOG_DEBUG << "[occ module]:" << "exit_lane_width:"
+             << averge_exit_lane_width_;
   auto best_occ_pair = GetStableOcc();
 
   // !TBD, 基于最短距离点做截断，根据一次防方程做前端补齐。

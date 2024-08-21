@@ -236,10 +236,6 @@ void MapMatching::ProcData(
         1 - 1.0 / ((std::min(default_valid_number, matching_cache_number) /
                     static_cast<double>(default_valid_number))));
   }
-  // 使用输入T_input的纵向
-  Eigen::Matrix4d T_diff = Eigen::Matrix4d::Identity();
-  T_diff(0, 3) = (T_output.inverse() * T_input).translation().x();
-  T_output = T_output * Sophus::SE3d(T_diff);
 
   // 感知和地图宽度校验
   double lane_width_diff_value = 0.0;

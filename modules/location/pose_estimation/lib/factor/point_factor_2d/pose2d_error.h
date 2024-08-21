@@ -40,7 +40,8 @@ class Pose2DError {
     Eigen::Matrix<T, 3, 1> res =
         p_v_.cast<T>() - XYYaw2Matrix(*x, *y, *yaw).inverse() * p_w_.cast<T>();
     res.array() *= T(weight_);
-    residuals_ptr[0] = res[1] * res[1];
+    residuals_ptr[0] = res(0, 0);
+    residuals_ptr[1] = res(1, 0);
 
     return true;
   }
@@ -48,14 +49,14 @@ class Pose2DError {
   static ceres::CostFunction* CreateAutoDiff(const Eigen::Vector2d& p_v,
                                              const Eigen::Vector2d& p_w,
                                              const double& weight) {
-    return (new ceres::AutoDiffCostFunction<Pose2DError, 1, 1, 1, 1>(
+    return (new ceres::AutoDiffCostFunction<Pose2DError, 2, 1, 1, 1>(
         new Pose2DError(p_v, p_w, weight)));
   }
 
   static ceres::CostFunction* CreateNumericDiff(const Eigen::Vector2d& p_v,
                                                 const Eigen::Vector2d& p_w,
                                                 const double& weight) {
-    return (new ceres::NumericDiffCostFunction<Pose2DError, ceres::CENTRAL, 1,
+    return (new ceres::NumericDiffCostFunction<Pose2DError, ceres::CENTRAL, 2,
                                                1, 1, 1>(
         new Pose2DError(p_v, p_w, weight)));
   }

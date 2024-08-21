@@ -954,8 +954,6 @@ OccGuideLineManager::GetBestOccPair(
 
 double OccGuideLineManager::GetOccWidth(const em::OccRoad::Ptr& right_occ,
                                         const em::OccRoad::Ptr& left_occ) {
-  Eigen::Vector3d dir_vector;
-
   em::OccRoad::Ptr query_line = nullptr;
   em::OccRoad::Ptr value_line = nullptr;
   if (right_occ->road_points.front().x() < left_occ->road_points.front().x()) {
@@ -966,6 +964,9 @@ double OccGuideLineManager::GetOccWidth(const em::OccRoad::Ptr& right_occ,
     value_line = left_occ;
   }
 
+  Eigen::Vector3d dir_vector;
+  int query_line_index = -1;
+  int value_line_index = -1;
   const int Window_Point_NUMS = 3;
   for (int i = 0; i < static_cast<int>(query_line->road_points.size()) - 2;
        ++i) {
@@ -1011,6 +1012,10 @@ double OccGuideLineManager::GetOccWidth(const em::OccRoad::Ptr& right_occ,
       continue;
     } else {
       dir_vector = windows_dir_vector[2];
+      query_line_index = i;
+      query_line->valid_index = query_line_index;
+      value_line_index = window_value_indexs[2];
+      value_line->valid_index = value_line_index;
       return dir_vector.norm();
     }
   }
@@ -1022,7 +1027,7 @@ double OccGuideLineManager::GetOccWidth(const em::OccRoad::Ptr& right_occ,
                                                     const Eigen::Vector3d& b) {
                                return (point - a).norm() < (point - b).norm();
                              });
-
+  value_line_index = std::distance(value_line->road_points.begin(), it);
   if (value_line->road_points.size() == 1) {
     dir_vector = (*it) - query_point;
   } else if (it == std::prev(value_line->road_points.end())) {
@@ -1038,6 +1043,8 @@ double OccGuideLineManager::GetOccWidth(const em::OccRoad::Ptr& right_occ,
     Eigen::Vector3d crossProduct = AB.cross(AP);
     dir_vector = crossProduct;
   }
+  query_line->valid_index = 0;
+  value_line->valid_index = value_line_index;
 
   return dir_vector.norm();
 }
@@ -1282,6 +1289,9 @@ void OccGuideLineManager::AddCurrentMeasurementOcc() {
       boundary_data->nodes.emplace_back(
           std::make_shared<em::BoundaryNode>(node));
     }
+
+    boundary_data->occ_valid_start_index =
+        best_occ_pair.at(i).second->valid_index;
     boundary_data->id = best_occ_pair.at(i).second->track_id;
     boundary_data->curve_params = best_occ_pair.at(i).second->curve_params;
     best_occ_pair_local.emplace_back(boundary_data);
@@ -1304,17 +1314,40 @@ bool OccGuideLineManager::CheckOccWhetherStable() {
   double right_x_max = -DBL_MAX;
   double right_y_max = -DBL_MAX;
   for (int i = 0; i < history_n_best_occs_.size(); ++i) {
-    if (history_n_best_occs_.at(i).empty() ||
-        history_n_best_occs_.at(i).front() == nullptr ||
-        history_n_best_occs_.at(i).back() == nullptr ||
-        history_n_best_occs_.at(i).front()->nodes.empty() ||
-        history_n_best_occs_.at(i).back()->nodes.empty()) {
+    const auto& occ_pairs = history_n_best_occs_.at(i);
+    if (occ_pairs.empty() || occ_pairs.front() == nullptr ||
+        occ_pairs.back() == nullptr || occ_pairs.front()->nodes.empty() ||
+        occ_pairs.back()->nodes.empty()) {
       return false;
     }
-    auto& right_occ_point =
-        history_n_best_occs_.at(i).front()->nodes.front()->point;
-    auto& left_occ_point =
-        history_n_best_occs_.at(i).back()->nodes.front()->point;
+
+    // 如果有效长度比较小， 则认为是不稳定的。
+    const auto& right_occ_vaild_start_point =
+        occ_pairs.front()
+            ->nodes.at(occ_pairs.front()->occ_valid_start_index)
+            ->point;
+    const auto& right_occ_vaild_end_point =
+        occ_pairs.front()->nodes.back()->point;
+    const auto& right_occ_valid_length =
+        (right_occ_vaild_end_point - right_occ_vaild_start_point).norm();
+
+    // 如果有效长度比较小， 则认为是不稳定的。
+    const auto& left_occ_vaild_start_point =
+        occ_pairs.back()
+            ->nodes.at(occ_pairs.back()->occ_valid_start_index)
+            ->point;
+    const auto& left_occ_vaild_end_point =
+        occ_pairs.back()->nodes.back()->point;
+    const auto& left_occ_valid_length =
+        (left_occ_vaild_end_point - left_occ_vaild_start_point).norm();
+
+    if (left_occ_valid_length < virtual_occ_line_length_thresh_ ||
+        right_occ_valid_length < virtual_occ_line_length_thresh_) {
+      return false;
+    }
+
+    auto& right_occ_point = occ_pairs.front()->nodes.front()->point;
+    auto& left_occ_point = occ_pairs.back()->nodes.front()->point;
     if (right_occ_point.x() < right_x_min) {
       right_x_min = right_occ_point.x();
     }

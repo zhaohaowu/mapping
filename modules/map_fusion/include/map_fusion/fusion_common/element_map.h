@@ -209,6 +209,8 @@ struct Boundary : public BaseElement {
   std::vector<float> curve_params;
 
   bool is_near_road_edge = false;
+
+  int occ_valid_start_index = -1;
   DEFINE_PTR(Boundary)
 };
 
@@ -437,6 +439,8 @@ struct OccRoad {
   bool is_forward;       // 车前方true,车侧或车后false(且满足条件)
   int guide_index = -1;  // occ下引導點的index
   std::vector<float> curve_params;
+
+  int valid_index = -1; // 标记有效的起始
 
   DEFINE_PTR(OccRoad)
 };

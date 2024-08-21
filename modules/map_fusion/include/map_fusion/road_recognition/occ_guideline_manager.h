@@ -83,7 +83,6 @@ class OccGuideLineManager {
   std::vector<std::pair<em::Id, em::OccRoad::Ptr>> GetFrontOccRoadPair();
   std::vector<std::pair<em::Id, em::OccRoad::Ptr>> GetBestOccPair(
       const std::vector<std::pair<em::Id, em::OccRoad::Ptr>>& front_occ_set);
-
   double GetOccWidth(const em::OccRoad::Ptr& right_occ,
                      const em::OccRoad::Ptr& left_occ);
 
@@ -120,6 +119,7 @@ class OccGuideLineManager {
   bool is_occ_stable_state_ = false;  //
   float safe_distance_ = 0.2;
   float distance_error_thresh_ = 0.8;
+  float virtual_occ_line_length_thresh_ = 10.0;
   KinePose last_pose_;
   KinePose curr_pose_;
 

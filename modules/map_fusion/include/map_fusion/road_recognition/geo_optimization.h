@@ -395,6 +395,7 @@ class GeoOptimization {
   void ContinueLocalMapUseLine();
   void FilterShortLine();
   void FilterOppositeLine();
+  void FilterNoEgoLineNoCrossing();
   void FilterReverseLine();
   void HandleOppisiteLine(const std::vector<Eigen::Vector3d>& target_line);
   void HandleOppisiteLineByStopline();
@@ -460,6 +461,10 @@ class GeoOptimization {
                       const Eigen::Vector3d& point2, double* slope_value);
   template <typename T1, typename T2>
   float evalueHeadingDiff(const T1& x, const std::vector<T2>& params);
+  void HandleOppisiteLineNoCrossing(
+      const std::vector<Eigen::Vector3d>& target_line);
+  std::vector<Eigen::Vector3d> FindTargetPointsNoCrossing(
+      const std::vector<std::vector<Eigen::Vector3d>>& nearby_road_edges);
 };
 }  // namespace mf
 }  // namespace mp

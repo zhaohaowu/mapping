@@ -6,6 +6,9 @@
  ******************************************************************************/
 #include "modules/rviz/map_fusion_rviz.h"
 
+#include <string>
+#include <unordered_map>
+
 #include "base/utils/log.h"
 #include "perception-lib/lib/config_manager/config_manager.h"
 
@@ -125,6 +128,21 @@ bool MapFusionRviz::Init() {
   }
   inited_ = true;
   return true;
+}
+
+template <typename T0, typename T1>
+static void SetXYZ(const T0& t0, T1* const t1) {
+  t1->set_x(t0.x());
+  t1->set_y(t0.y());
+  t1->set_z(t0.z());
+}
+
+template <typename T0, typename T1>
+static void SetXYZW(const T0& t0, T1* const t1) {
+  t1->set_w(t0.w());
+  t1->set_x(t0.x());
+  t1->set_y(t0.y());
+  t1->set_z(t0.z());
 }
 
 void MapFusionRviz::VizEleMap(const std::shared_ptr<ElementMap>& ele_map) {
@@ -613,6 +631,622 @@ void MapFusionRviz::VizDistpoint(const std::vector<Eigen::Vector3f>& distpoints,
 
   RVIZ_AGENT.Publish(viz_topic_distpoints_, points_msg);
   distpoints_t.clear();
+}
+
+void MapFusionRviz::PubInsTf(const Eigen::Affine3d& T_W_V, uint64_t sec,
+                             uint64_t nsec, const std::string& topic) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
+  Eigen::Vector3d p = T_W_V.translation();
+  Eigen::Quaterniond q(T_W_V.rotation());
+  static bool register_flag = true;
+  if (register_flag) {
+    RVIZ_AGENT.Register<adsfi_proto::viz::TransformStamped>(topic);
+    register_flag = false;
+  }
+  int seq = 0;
+  adsfi_proto::viz::TransformStamped tf_msg;
+  tf_msg.mutable_header()->set_seq(seq++);
+  tf_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+  tf_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+  tf_msg.mutable_header()->set_frameid("map");
+  tf_msg.set_child_frame_id("vehicle");
+  SetXYZ(p, tf_msg.mutable_transform()->mutable_translation());
+  SetXYZW(q, tf_msg.mutable_transform()->mutable_rotation());
+  RVIZ_AGENT.Publish(topic, tf_msg);
+}
+
+void MapFusionRviz::PubInsPath(const Eigen::Affine3d& T_W_V, uint64_t sec,
+                               uint64_t nsec, const std::string& topic) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
+  Eigen::Vector3d p = T_W_V.translation();
+  Eigen::Quaterniond q(T_W_V.rotation());
+  static bool register_flag = true;
+  if (register_flag) {
+    RVIZ_AGENT.Register<adsfi_proto::viz::Path>(topic);
+    register_flag = false;
+  }
+  static adsfi_proto::viz::Path path_msg;
+  auto* pose = path_msg.add_poses();
+  path_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+  path_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+  path_msg.mutable_header()->set_frameid("map");
+  pose->mutable_header()->mutable_timestamp()->set_sec(sec);
+  pose->mutable_header()->mutable_timestamp()->set_nsec(nsec);
+  pose->mutable_header()->set_frameid("map");
+  SetXYZ(p, pose->mutable_pose()->mutable_position());
+  SetXYZW(q, pose->mutable_pose()->mutable_orientation());
+  if (path_msg.poses().size() > 250) {
+    path_msg.mutable_poses()->DeleteSubrange(0, 1);
+  }
+  RVIZ_AGENT.Publish(topic, path_msg);
+}
+
+void MapFusionRviz::PubInsOdom(const Eigen::Affine3d& T_W_V, uint64_t sec,
+                               uint64_t nsec, const std::string& topic) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
+  static bool register_flag = true;
+  if (register_flag) {
+    RVIZ_AGENT.Register<adsfi_proto::viz::Odometry>(topic);
+    register_flag = false;
+  }
+  Eigen::Vector3d p = T_W_V.translation();
+  Eigen::Quaterniond q(T_W_V.rotation());
+  adsfi_proto::viz::Odometry odom_msg;
+  odom_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+  odom_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+  odom_msg.mutable_header()->set_frameid("map");
+  odom_msg.set_child_frame_id("vehicle");
+  SetXYZ(p, odom_msg.mutable_pose()->mutable_pose()->mutable_position());
+  SetXYZW(q, odom_msg.mutable_pose()->mutable_pose()->mutable_orientation());
+  for (size_t i = 0; i < 36; ++i) {
+    odom_msg.mutable_pose()->add_covariance(0.);
+  }
+  RVIZ_AGENT.Publish(topic, odom_msg);
+}
+
+void MapFusionRviz::PubPerSection(const lane_loc::Section& section,
+                                  uint64_t sec, uint64_t nsec,
+                                  const std::string& topic) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
+  static bool register_flag = true;
+  if (register_flag) {
+    RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(topic);
+    register_flag = false;
+  }
+  std::unordered_map<std::string, lane_loc::Section::Lane::LaneLine> lane_lines;
+  adsfi_proto::viz::MarkerArray markers;
+  int id = 0;
+  for (const auto& lane : section.sorted_lanes) {
+    if (lane.second.left_line.points.empty()) {
+      continue;
+    }
+    lane_lines.insert({lane.second.left_line.line_id, lane.second.left_line});
+    lane_lines.insert({lane.second.right_line.line_id, lane.second.right_line});
+    adsfi_proto::viz::Marker lane_marker;
+    lane_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    lane_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    lane_marker.set_id(id++);
+    lane_marker.mutable_lifetime()->set_sec(0);
+    lane_marker.mutable_lifetime()->set_nsec(200000000);
+    lane_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+    lane_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    lane_marker.mutable_header()->set_frameid("vehicle");
+    lane_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    lane_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    lane_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    lane_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    lane_marker.mutable_pose()->mutable_position()->set_x(0);
+    lane_marker.mutable_pose()->mutable_position()->set_y(lane.first);
+    lane_marker.mutable_pose()->mutable_position()->set_z(0);
+    lane_marker.mutable_color()->set_r(1);
+    lane_marker.mutable_color()->set_g(0);
+    lane_marker.mutable_color()->set_b(0);
+    lane_marker.mutable_color()->set_a(1);
+    lane_marker.set_text(lane.second.lane_id);
+    lane_marker.mutable_scale()->set_x(0.5);
+    lane_marker.mutable_scale()->set_y(0.5);
+    lane_marker.mutable_scale()->set_z(0.5);
+    markers.add_markers()->CopyFrom(lane_marker);
+  }
+  for (auto lane_line : lane_lines) {
+    if (lane_line.second.points.size() <= 1) {
+      continue;
+    }
+    if (lane_line.second.points.size() % 2 != 0) {
+      lane_line.second.points.push_back(*lane_line.second.points.rbegin());
+    }
+    adsfi_proto::viz::Marker point_marker;
+    point_marker.mutable_header()->set_frameid("vehicle");
+    point_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+    point_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    point_marker.set_id(id++);
+    if (lane_line.second.line_type == lane_loc::Section::Lane::DOTTED_WHITE ||
+        lane_line.second.line_type == lane_loc::Section::Lane::DOTTED_YELLOW) {
+      point_marker.set_type(adsfi_proto::viz::MarkerType::LINE_LIST);
+    } else {
+      point_marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+    }
+    point_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    point_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    point_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    point_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    point_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    point_marker.mutable_scale()->set_x(0.05);
+    point_marker.mutable_scale()->set_y(0.05);
+    point_marker.mutable_scale()->set_z(0.05);
+    point_marker.mutable_lifetime()->set_sec(0);
+    point_marker.mutable_lifetime()->set_nsec(200000000);
+    point_marker.mutable_color()->set_a(1.0);
+    if (lane_line.second.line_type == lane_loc::Section::Lane::DOTTED_WHITE ||
+        lane_line.second.line_type == lane_loc::Section::Lane::SOLID_WHITE) {
+      point_marker.mutable_color()->set_r(1);
+      point_marker.mutable_color()->set_g(1);
+      point_marker.mutable_color()->set_b(1);
+    } else {
+      point_marker.mutable_color()->set_r(1);
+      point_marker.mutable_color()->set_g(1);
+      point_marker.mutable_color()->set_b(0);
+    }
+    for (const auto& point : lane_line.second.points) {
+      auto* point_msg = point_marker.add_points();
+      SetXYZ(point, point_msg);
+    }
+    markers.add_markers()->CopyFrom(point_marker);
+    adsfi_proto::viz::Marker txt_marker;
+    txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    txt_marker.set_id(id++);
+    txt_marker.mutable_lifetime()->set_sec(0);
+    txt_marker.mutable_lifetime()->set_nsec(200000000);
+    txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+    txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    txt_marker.mutable_header()->set_frameid("vehicle");
+    txt_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    txt_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    txt_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    txt_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    txt_marker.mutable_pose()->mutable_position()->set_x(
+        lane_line.second.points[0].x());
+    txt_marker.mutable_pose()->mutable_position()->set_y(
+        lane_line.second.points[0].y());
+    txt_marker.mutable_pose()->mutable_position()->set_z(0);
+    txt_marker.mutable_color()->set_r(1);
+    txt_marker.mutable_color()->set_g(0);
+    txt_marker.mutable_color()->set_b(0);
+    txt_marker.mutable_color()->set_a(1);
+    std::string txt;
+    switch (lane_line.second.line_type) {
+      case lane_loc::Section::Lane::UNKNOWN:
+        txt = "UNKNOWN ";
+        break;
+      case lane_loc::Section::Lane::DOTTED_YELLOW:
+        txt = "DOTTED_YELLOW ";
+        break;
+      case lane_loc::Section::Lane::DOTTED_WHITE:
+        txt = "DOTTED_WHITE ";
+        break;
+      case lane_loc::Section::Lane::SOLID_YELLOW:
+        txt = "SOLID_YELLOW ";
+        break;
+      case lane_loc::Section::Lane::SOLID_WHITE:
+        txt = "SOLID_WHITE ";
+        break;
+      case lane_loc::Section::Lane::DOUBLE_YELLOW:
+        txt = "DOUBLE_YELLOW ";
+        break;
+    }
+    if (lane_line.second.is_near_road_edge) {
+      txt += " road_edge";
+    }
+    txt_marker.set_text(lane_line.first + " " + txt);
+    txt_marker.mutable_scale()->set_x(0.5);
+    txt_marker.mutable_scale()->set_y(0.5);
+    txt_marker.mutable_scale()->set_z(0.5);
+    markers.add_markers()->CopyFrom(txt_marker);
+  }
+  RVIZ_AGENT.Publish(topic, markers);
+}
+
+void MapFusionRviz::PubMapSection(const lane_loc::Section& section,
+                                  uint64_t sec, uint64_t nsec,
+                                  const std::string& topic) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
+  static bool register_flag = true;
+  if (register_flag) {
+    RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(topic);
+    register_flag = false;
+  }
+  std::unordered_map<std::string, lane_loc::Section::Lane::LaneLine> lane_lines;
+  adsfi_proto::viz::MarkerArray markers;
+  int id = 0;
+  for (const auto& lane : section.sorted_lanes) {
+    if (lane.second.left_line.points.empty()) {
+      continue;
+    }
+    lane_lines.insert({lane.second.left_line.line_id, lane.second.left_line});
+    lane_lines.insert({lane.second.right_line.line_id, lane.second.right_line});
+    adsfi_proto::viz::Marker lane_marker;
+    lane_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    lane_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    lane_marker.set_id(id++);
+    lane_marker.mutable_lifetime()->set_sec(0);
+    lane_marker.mutable_lifetime()->set_nsec(200000000);
+    lane_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+    lane_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    lane_marker.mutable_header()->set_frameid("vehicle");
+    lane_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    lane_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    lane_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    lane_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    lane_marker.mutable_pose()->mutable_position()->set_x(0);
+    lane_marker.mutable_pose()->mutable_position()->set_y(lane.first);
+    lane_marker.mutable_pose()->mutable_position()->set_z(0);
+    lane_marker.mutable_color()->set_r(1);
+    lane_marker.mutable_color()->set_g(1);
+    lane_marker.mutable_color()->set_b(1);
+    lane_marker.mutable_color()->set_a(1);
+    lane_marker.set_text(lane.second.lane_id);
+    lane_marker.mutable_scale()->set_x(0.5);
+    lane_marker.mutable_scale()->set_y(0.5);
+    lane_marker.mutable_scale()->set_z(0.5);
+    markers.add_markers()->CopyFrom(lane_marker);
+  }
+  for (auto lane_line : lane_lines) {
+    if (lane_line.second.points.size() <= 1) {
+      continue;
+    }
+    if (lane_line.second.points.size() % 2 != 0) {
+      lane_line.second.points.push_back(*lane_line.second.points.rbegin());
+    }
+    adsfi_proto::viz::Marker point_marker;
+    point_marker.mutable_header()->set_frameid("vehicle");
+    point_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+    point_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    point_marker.set_id(id++);
+    if (lane_line.second.line_type == lane_loc::Section::Lane::DOTTED_WHITE ||
+        lane_line.second.line_type == lane_loc::Section::Lane::DOTTED_YELLOW) {
+      point_marker.set_type(adsfi_proto::viz::MarkerType::LINE_LIST);
+    } else {
+      point_marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+    }
+    point_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    point_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    point_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    point_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    point_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    point_marker.mutable_scale()->set_x(0.2);
+    point_marker.mutable_scale()->set_y(0.2);
+    point_marker.mutable_scale()->set_z(0.2);
+    point_marker.mutable_lifetime()->set_sec(0);
+    point_marker.mutable_lifetime()->set_nsec(200000000);
+    point_marker.mutable_color()->set_a(0.5);
+    if (lane_line.second.line_type == lane_loc::Section::Lane::DOTTED_WHITE ||
+        lane_line.second.line_type == lane_loc::Section::Lane::SOLID_WHITE) {
+      point_marker.mutable_color()->set_r(1);
+      point_marker.mutable_color()->set_g(1);
+      point_marker.mutable_color()->set_b(1);
+    } else {
+      point_marker.mutable_color()->set_r(1);
+      point_marker.mutable_color()->set_g(1);
+      point_marker.mutable_color()->set_b(0);
+    }
+    for (const auto& point : lane_line.second.points) {
+      auto* point_msg = point_marker.add_points();
+      SetXYZ(point, point_msg);
+    }
+    markers.add_markers()->CopyFrom(point_marker);
+    adsfi_proto::viz::Marker txt_marker;
+    txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    txt_marker.set_id(id++);
+    txt_marker.mutable_lifetime()->set_sec(0);
+    txt_marker.mutable_lifetime()->set_nsec(200000000);
+    txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+    txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    txt_marker.mutable_header()->set_frameid("vehicle");
+    txt_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    txt_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    txt_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    txt_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    txt_marker.mutable_pose()->mutable_position()->set_x(
+        lane_line.second.points[0].x());
+    txt_marker.mutable_pose()->mutable_position()->set_y(
+        lane_line.second.points[0].y());
+    txt_marker.mutable_pose()->mutable_position()->set_z(0);
+    txt_marker.mutable_color()->set_r(1);
+    txt_marker.mutable_color()->set_g(1);
+    txt_marker.mutable_color()->set_b(1);
+    txt_marker.mutable_color()->set_a(1);
+    std::string txt;
+    switch (lane_line.second.line_type) {
+      case lane_loc::Section::Lane::UNKNOWN:
+        txt = "UNKNOWN ";
+        break;
+      case lane_loc::Section::Lane::DOTTED_YELLOW:
+        txt = "DOTTED_YELLOW ";
+        break;
+      case lane_loc::Section::Lane::DOTTED_WHITE:
+        txt = "DOTTED_WHITE ";
+        break;
+      case lane_loc::Section::Lane::SOLID_YELLOW:
+        txt = "SOLID_YELLOW ";
+        break;
+      case lane_loc::Section::Lane::SOLID_WHITE:
+        txt = "SOLID_WHITE ";
+        break;
+      case lane_loc::Section::Lane::DOUBLE_YELLOW:
+        txt = "DOUBLE_YELLOW ";
+        break;
+    }
+    txt_marker.set_text(lane_line.first + " " + txt);
+    txt_marker.mutable_scale()->set_x(0.5);
+    txt_marker.mutable_scale()->set_y(0.5);
+    txt_marker.mutable_scale()->set_z(0.5);
+    markers.add_markers()->CopyFrom(txt_marker);
+  }
+  RVIZ_AGENT.Publish(topic, markers);
+}
+
+void MapFusionRviz::PubLaneLocInfo(const lane_loc::LaneLocInfo& lane_loc_info,
+                                   uint64_t sec, uint64_t nsec,
+                                   const std::string& topic) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
+  static bool register_flag = true;
+  if (register_flag) {
+    RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(topic);
+    register_flag = false;
+  }
+  std::unordered_map<std::string, lane_loc::Section::Lane::LaneLine> lane_lines;
+  adsfi_proto::viz::MarkerArray markers;
+  int id = 0;
+  for (const auto& lane_info : lane_loc_info.next_lanes_info) {
+    if (lane_info.next_lane.left_line.points.empty()) {
+      continue;
+    }
+    lane_lines.insert(
+        {lane_info.next_lane.left_line.line_id, lane_info.next_lane.left_line});
+    lane_lines.insert({lane_info.next_lane.right_line.line_id,
+                       lane_info.next_lane.right_line});
+    adsfi_proto::viz::Marker lane_marker;
+    lane_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    lane_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    lane_marker.set_id(id++);
+    lane_marker.mutable_lifetime()->set_sec(0);
+    lane_marker.mutable_lifetime()->set_nsec(200000000);
+    lane_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+    lane_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    lane_marker.mutable_header()->set_frameid("vehicle");
+    lane_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    lane_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    lane_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    lane_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    lane_marker.mutable_pose()->mutable_position()->set_x(
+        lane_info.next_lane.left_line.points[0].x());
+    lane_marker.mutable_pose()->mutable_position()->set_y(
+        (lane_info.next_lane.left_line.points[0].y() +
+         lane_info.next_lane.right_line.points[0].y()) /
+        2);
+    lane_marker.mutable_pose()->mutable_position()->set_z(0);
+    lane_marker.mutable_color()->set_r(1);
+    lane_marker.mutable_color()->set_g(1);
+    lane_marker.mutable_color()->set_b(1);
+    lane_marker.mutable_color()->set_a(1);
+    lane_marker.set_text(lane_info.next_lane.lane_id);
+    lane_marker.mutable_scale()->set_x(0.5);
+    lane_marker.mutable_scale()->set_y(0.5);
+    lane_marker.mutable_scale()->set_z(0.5);
+    markers.add_markers()->CopyFrom(lane_marker);
+
+    adsfi_proto::viz::Marker lane_num_marker;
+    lane_num_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    lane_num_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    lane_num_marker.set_id(id++);
+    lane_num_marker.mutable_lifetime()->set_sec(0);
+    lane_num_marker.mutable_lifetime()->set_nsec(200000000);
+    lane_num_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+    lane_num_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    lane_num_marker.mutable_header()->set_frameid("vehicle");
+    lane_num_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    lane_num_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    lane_num_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    lane_num_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    lane_num_marker.mutable_pose()->mutable_position()->set_x(
+        lane_info.next_lane.left_line.points[0].x() + 2);
+    lane_num_marker.mutable_pose()->mutable_position()->set_y(
+        (lane_info.next_lane.left_line.points[0].y() +
+         lane_info.next_lane.right_line.points[0].y()) /
+        2);
+    lane_num_marker.mutable_pose()->mutable_position()->set_z(0);
+    lane_num_marker.mutable_color()->set_r(0);
+    lane_num_marker.mutable_color()->set_g(1);
+    lane_num_marker.mutable_color()->set_b(0);
+    lane_num_marker.mutable_color()->set_a(1);
+    lane_num_marker.set_text("next_lane_nums: " +
+                             std::to_string(lane_info.lane_num));
+    lane_num_marker.mutable_scale()->set_x(1);
+    lane_num_marker.mutable_scale()->set_y(1);
+    lane_num_marker.mutable_scale()->set_z(1);
+    markers.add_markers()->CopyFrom(lane_num_marker);
+  }
+  for (auto lane_line : lane_lines) {
+    if (lane_line.second.points.size() <= 1) {
+      continue;
+    }
+    if (lane_line.second.points.size() % 2 != 0) {
+      lane_line.second.points.push_back(*lane_line.second.points.rbegin());
+    }
+    adsfi_proto::viz::Marker point_marker;
+    point_marker.mutable_header()->set_frameid("vehicle");
+    point_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+    point_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    point_marker.set_id(id++);
+    if (lane_line.second.line_type == lane_loc::Section::Lane::DOTTED_WHITE ||
+        lane_line.second.line_type == lane_loc::Section::Lane::DOTTED_YELLOW) {
+      point_marker.set_type(adsfi_proto::viz::MarkerType::LINE_LIST);
+    } else {
+      point_marker.set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+    }
+    point_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    point_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    point_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    point_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    point_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    point_marker.mutable_scale()->set_x(0.2);
+    point_marker.mutable_scale()->set_y(0.2);
+    point_marker.mutable_scale()->set_z(0.2);
+    point_marker.mutable_lifetime()->set_sec(0);
+    point_marker.mutable_lifetime()->set_nsec(200000000);
+    point_marker.mutable_color()->set_a(1);
+    point_marker.mutable_color()->set_r(0);
+    point_marker.mutable_color()->set_g(1);
+    point_marker.mutable_color()->set_b(0);
+    for (const auto& point : lane_line.second.points) {
+      auto* point_msg = point_marker.add_points();
+      SetXYZ(point, point_msg);
+    }
+    markers.add_markers()->CopyFrom(point_marker);
+    adsfi_proto::viz::Marker txt_marker;
+    txt_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    txt_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+    txt_marker.set_id(id++);
+    txt_marker.mutable_lifetime()->set_sec(0);
+    txt_marker.mutable_lifetime()->set_nsec(200000000);
+    txt_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+    txt_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+    txt_marker.mutable_header()->set_frameid("vehicle");
+    txt_marker.mutable_pose()->mutable_orientation()->set_x(0.);
+    txt_marker.mutable_pose()->mutable_orientation()->set_y(0.);
+    txt_marker.mutable_pose()->mutable_orientation()->set_z(0.);
+    txt_marker.mutable_pose()->mutable_orientation()->set_w(1.);
+    txt_marker.mutable_pose()->mutable_position()->set_x(
+        lane_line.second.points[0].x());
+    txt_marker.mutable_pose()->mutable_position()->set_y(
+        lane_line.second.points[0].y());
+    txt_marker.mutable_pose()->mutable_position()->set_z(0);
+    txt_marker.mutable_color()->set_r(0);
+    txt_marker.mutable_color()->set_g(1);
+    txt_marker.mutable_color()->set_b(0);
+    txt_marker.mutable_color()->set_a(1);
+    std::string txt;
+    switch (lane_line.second.line_type) {
+      case lane_loc::Section::Lane::UNKNOWN:
+        txt = "UNKNOWN ";
+        break;
+      case lane_loc::Section::Lane::DOTTED_YELLOW:
+        txt = "DOTTED_YELLOW ";
+        break;
+      case lane_loc::Section::Lane::DOTTED_WHITE:
+        txt = "DOTTED_WHITE ";
+        break;
+      case lane_loc::Section::Lane::SOLID_YELLOW:
+        txt = "SOLID_YELLOW ";
+        break;
+      case lane_loc::Section::Lane::SOLID_WHITE:
+        txt = "SOLID_WHITE ";
+        break;
+      case lane_loc::Section::Lane::DOUBLE_YELLOW:
+        txt = "DOUBLE_YELLOW ";
+        break;
+    }
+    txt_marker.set_text(lane_line.first + " " + txt);
+    txt_marker.mutable_scale()->set_x(0.5);
+    txt_marker.mutable_scale()->set_y(0.5);
+    txt_marker.mutable_scale()->set_z(0.5);
+    markers.add_markers()->CopyFrom(txt_marker);
+  }
+  RVIZ_AGENT.Publish(topic, markers);
+}
+
+void MapFusionRviz::PubState(
+    const std::string& lane_num, const std::string& road_edge_state,
+    const std::string& measure_lane_index, const std::vector<double>& p_measure,
+    const lane_loc::TurnState& turn_state, const std::vector<double>& p_predict,
+    const std::string& fusion_lane_index, const std::vector<double>& p_fusion,
+    uint64_t sec, uint64_t nsec, const std::string& topic) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
+  static bool register_flag = true;
+  if (register_flag) {
+    RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(topic);
+    register_flag = false;
+  }
+  adsfi_proto::viz::MarkerArray markers;
+  adsfi_proto::viz::Marker text_marker;
+  int id = 0;
+  text_marker.set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+  text_marker.set_action(adsfi_proto::viz::MarkerAction::ADD);
+  text_marker.set_id(id++);
+  text_marker.mutable_lifetime()->set_sec(0);
+  text_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
+  text_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+  text_marker.mutable_header()->set_frameid("vehicle");
+  text_marker.mutable_pose()->mutable_position()->set_x(-5);
+  text_marker.mutable_pose()->mutable_position()->set_y(0);
+  text_marker.mutable_pose()->mutable_position()->set_z(2);
+  text_marker.mutable_pose()->mutable_orientation()->set_x(0);
+  text_marker.mutable_pose()->mutable_orientation()->set_y(0);
+  text_marker.mutable_pose()->mutable_orientation()->set_z(0);
+  text_marker.mutable_pose()->mutable_orientation()->set_w(1);
+  text_marker.mutable_color()->set_r(1);
+  text_marker.mutable_color()->set_g(1);
+  text_marker.mutable_color()->set_b(0);
+  text_marker.mutable_color()->set_a(1);
+  std::string turn_state_msg;
+  switch (turn_state) {
+    case lane_loc::STARIGHT:
+      turn_state_msg = "STARIGHT";
+      break;
+    case lane_loc::TURN_LEFT:
+      turn_state_msg = "TURN_LEFT";
+      break;
+    case lane_loc::TURN_RIGHT:
+      turn_state_msg = "TURN_RIGHT";
+      break;
+  }
+  std::string txt;
+  txt = "lane_num: " + lane_num + "\n" + road_edge_state +
+        "\nmeasure_lane_index: " + measure_lane_index + "\np_measure: ";
+  for (const auto& p : p_measure) {
+    txt += std::to_string(p) + " ";
+  }
+  txt += "\nturn_state: " + turn_state_msg + "\np_predict: ";
+  for (const auto& p : p_predict) {
+    txt += std::to_string(p) + " ";
+  }
+  text_marker.set_text(txt);
+  text_marker.mutable_scale()->set_x(1);
+  text_marker.mutable_scale()->set_y(1);
+  text_marker.mutable_scale()->set_z(1);
+
+  auto result_marker = text_marker;
+  result_marker.set_id(id++);
+  result_marker.mutable_pose()->mutable_position()->set_x(5);
+  result_marker.mutable_color()->set_r(0);
+  result_marker.mutable_color()->set_g(1);
+  result_marker.mutable_color()->set_b(0);
+  std::string result_txt =
+      "fusion_lane_index " + fusion_lane_index + "\np_fusion: ";
+  for (const auto& p : p_fusion) {
+    result_txt += std::to_string(p) + " ";
+  }
+  result_marker.set_text(result_txt);
+
+  markers.add_markers()->CopyFrom(text_marker);
+  markers.add_markers()->CopyFrom(result_marker);
+  hozon::mp::util::RvizAgent::Instance().Publish(topic, markers);
 }
 
 }  // namespace mf

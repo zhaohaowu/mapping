@@ -9,6 +9,9 @@
 
 #include <memory>
 
+#include "base/utils/log.h"
+#include "modules/lane_loc/lane_loc.h"
+
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -97,6 +100,8 @@ bool LaneFusionPipeline::Init() {
   road_constructor_ = std::make_unique<RoadConstruct>();
   road_constructor_->Init(options_);
 
+  lane_loc_ = std::make_unique<lane_loc::LaneLoc>();
+
   junction_check_ = std::make_unique<JunctionCheck>();
   junction_check_->Init(options_);
 
@@ -181,6 +186,11 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
   std::vector<Group::Ptr> groups;
   groups = road_constructor_->GetGroups();
   MF_RVIZ->VizGroup(groups, element_map_ptr->map_info.stamp);
+
+  bool lane_loc_state = lane_loc_->UpdateGroups(&groups);
+  if (!lane_loc_state) {
+    HLOG_WARN << "update group failed";
+  }
 
   // 路口判断
   junction_check_->Process(groups);

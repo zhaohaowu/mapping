@@ -38,6 +38,8 @@ class MapFusion {
   int Init(const YAML::Node& conf);
   int OnLocalization(
       const std::shared_ptr<hozon::localization::Localization>& msg);
+  int OnInsPlugin(
+      const std::shared_ptr<const hozon::localization::HafNodeInfo>& ins_msg);
   void Stop();
 
   int ProcPercep(

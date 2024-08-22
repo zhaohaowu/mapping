@@ -8,7 +8,7 @@
 #pragma once
 
 #include <Eigen/Eigen>
-
+#include <string>
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -42,6 +42,12 @@ struct LaneFusionProcessOption : public BaseProcessOption {
 
   // 路口判断参数
   float near_junction_dis_thresh = 20.0;
+};
+
+struct MapServiceOption : public BaseProcessOption {
+  int map_service_mode = 0;
+  std::string map_dir;
+  std::string work_mode;
 };
 
 }  // namespace mf

@@ -9,6 +9,7 @@
 
 #include <tuple>
 
+#include "modules/map_fusion_02/data_manager/ins_data_manager.h"
 #include "modules/map_fusion_02/data_manager/location_data_manager.h"
 #include "modules/map_fusion_02/data_manager/percep_obj_manager.h"
 #include "util/mapping_log.h"
@@ -71,6 +72,15 @@ int MapFusion::OnLocalization(
 
   lane_fusion_ptr_->InsertPose(cur_loc_info_);
 
+  return 0;
+}
+
+int MapFusion::OnInsPlugin(
+    const std::shared_ptr<const hozon::localization::HafNodeInfo>& ins_msg) {
+  if (ins_msg == nullptr) {
+    return -1;
+  }
+  INS_MANAGER->PushIns(*ins_msg);
   return 0;
 }
 

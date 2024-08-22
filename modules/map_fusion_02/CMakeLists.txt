@@ -13,7 +13,44 @@ file(GLOB_RECURSE MAP_MAP_SERVICE_SRC ${CMAKE_CURRENT_SOURCE_DIR}/map_service/*.
 file(GLOB_RECURSE MAP_MOUDLES_SRC ${CMAKE_CURRENT_SOURCE_DIR}/modules/*.cc)
 file(GLOB_RECURSE MAP_PIPELINES_SRC ${CMAKE_CURRENT_SOURCE_DIR}/pipelines/*.cc)
 file(GLOB_RECURSE MAP_RVIZ_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../rviz/*.cc)
-
+set(AMAP_LIBS
+  base_utils
+  GAdasData
+  GAdasSDK
+  GNet
+  OTAHDiff
+  GAdasEngine
+  GAdasUtils
+  GPlatformInterface
+  third_party_libs
+  )
+set(BDMAP_LIBS
+  cppsqlite3
+  dtc  
+  dynamic_info
+  ehp_v3
+  http
+  keystore
+  license
+  map_dal
+  map_engine
+  map_manager
+  noa 
+  pcs 
+  server_log 
+  tile_ota 
+  cares
+  curl 
+  hdiffpatch
+  hdmap-service-idl
+  jsoncpp
+  protobuf-lite
+  protobuf
+  protoc
+  rttr_core
+  ziplib_dynamic
+  z
+  )
 set(MAP_FUSION_SRCS
   ${MAP_APP_SRC}
   ${MAP_BASE_SRC}
@@ -36,6 +73,8 @@ target_link_libraries(mf
   opencv_flann
   opencv_core
   pcl_segmentation
+  ${AMAP_LIBS}
+  ${BDMAP_LIBS}
   neta_https
 
   perception-base-mal

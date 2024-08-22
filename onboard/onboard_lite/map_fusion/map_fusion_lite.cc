@@ -12,7 +12,7 @@
 #include <set>
 #include <string>
 
-#include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
+#include "modules/map_fusion_02/modules/map_hd/include/global_hd_map.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 #include "onboard/onboard_lite/map_fusion/map_fusion_lite.h"
@@ -95,6 +95,12 @@ int32_t MapFusionLite::AlgInit() {
   //   HLOG_INFO << "Init map select failed";
   //   return -1;
   // }
+  ms_ = std::make_shared<hozon::mp::mf::MapService>();
+  int flag = ms_->Init();
+  if (flag < 0) {
+    HLOG_ERROR << "Init MapService failed";
+    return false;
+  }
   RegistMessageType();
   RegistProcessFunc();
 
@@ -366,6 +372,11 @@ int32_t MapFusionLite::OnLocPlugin(Bundle* input) {
     std::lock_guard<std::mutex> lock(plugin_mtx_);
     curr_plugin_ =
         std::make_shared<hozon::localization::HafNodeInfo>(*loc_plugin_res);
+  }
+  // 将ins数据存储至单例
+  int ret = mf_->OnInsPlugin(loc_plugin_res);
+  if (ret < 0) {
+    HLOG_WARN << "map fusion ins plugin failed";
   }
 
   return 0;
@@ -786,14 +797,14 @@ std::shared_ptr<hozon::mapping::LocalMap> MapFusionLite::GetLatestLocalMap() {
   }
   return latest_local_map;
 }
-int MapFusionLite::DebugSelectMap() {
-  auto debug_result = std::make_shared<hozon::navigation_hdmap::MapMsg>();
-  debug_result->mutable_routing()->CopyFrom(map_select_->GetDebug());
-  auto msg = std::make_shared<hozon::netaos::adf_lite::BaseData>();
-  msg->proto_msg = debug_result;
-  SendOutput("map_select_dbg", msg);
-  return 0;
-}
+// int MapFusionLite::DebugSelectMap() {
+//   auto debug_result = std::make_shared<hozon::navigation_hdmap::MapMsg>();
+//   debug_result->mutable_routing()->CopyFrom(map_select_->GetDebug());
+//   auto msg = std::make_shared<hozon::netaos::adf_lite::BaseData>();
+//   msg->proto_msg = debug_result;
+//   SendOutput("map_select_dbg", msg);
+//   return 0;
+// }
 
 std::shared_ptr<hozon::localization::HafNodeInfo>
 MapFusionLite::GetLatestLocPlugin() {
@@ -806,200 +817,203 @@ MapFusionLite::GetLatestLocPlugin() {
   return latest_plugin;
 }
 
-int MapFusionLite::SendFusionResult(
-    const std::shared_ptr<hozon::localization::Localization>& location,
-    const std::shared_ptr<hozon::hdmap::Map>& map,
-    mp::mf::select::MapSelectResult select,
-    hozon::routing::RoutingResponse* routing) {
-  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
-  static bool input_nullptr_map_or_routing_flags = false;
-  if (map == nullptr || routing == nullptr) {
-    HLOG_ERROR << "input nullptr map or routing";
-    return -1;
-  }
-  auto phm_health = hozon::perception::lib::HealthManager::Instance();
-  phm_health->HealthReport(MAKE_HM_TUPLE(
-      hozon::perception::base::HmModuleId::MAPPING,
-      hozon::perception::base::HealthId::CPID_FUSION_MAP_SEND_MAP_DATA_FPS));
-  std::shared_ptr<hozon::navigation_hdmap::MapMsg> map_fusion =
-      std::make_shared<hozon::navigation_hdmap::MapMsg>();
+// int MapFusionLite::SendFusionResult(
+//     const std::shared_ptr<hozon::localization::Localization>& location,
+//     const std::shared_ptr<hozon::hdmap::Map>& map,
+//     mp::mf::select::MapSelectResult select,
+//     hozon::routing::RoutingResponse* routing) {
+//   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+//   static bool input_nullptr_map_or_routing_flags = false;
+//   if (map == nullptr || routing == nullptr) {
+//     HLOG_ERROR << "input nullptr map or routing";
+//     return -1;
+//   }
+//   auto phm_health = hozon::perception::lib::HealthManager::Instance();
+//   phm_health->HealthReport(MAKE_HM_TUPLE(
+//       hozon::perception::base::HmModuleId::MAPPING,
+//       hozon::perception::base::HealthId::CPID_FUSION_MAP_SEND_MAP_DATA_FPS));
+//   std::shared_ptr<hozon::navigation_hdmap::MapMsg> map_fusion =
+//       std::make_shared<hozon::navigation_hdmap::MapMsg>();
 
-  map_fusion->mutable_header()->CopyFrom(location->header());
-  map_fusion->mutable_header()->set_frame_id("map_msg");
+//   map_fusion->mutable_header()->CopyFrom(location->header());
+//   map_fusion->mutable_header()->set_frame_id("map_msg");
 
-  // // 裁剪地图
-  // std::unordered_set<std::string> routing_setction;
-  // for (const auto& road_it : routing->road()) {
-  //   routing_setction.emplace(road_it.id());
-  // }
+//   // // 裁剪地图
+//   // std::unordered_set<std::string> routing_setction;
+//   // for (const auto& road_it : routing->road()) {
+//   //   routing_setction.emplace(road_it.id());
+//   // }
 
-  // std::unordered_set<std::string> routing_lane;
-  // for (auto& road_it : *map->mutable_road()) {
-  //   for (auto road_section_it = (*road_it.mutable_section()).begin();
-  //        road_section_it != (*road_it.mutable_section()).end();) {
-  //     if (routing_setction.find((*road_section_it).id().id()) !=
-  //         routing_setction.end()) {
-  //       for (const auto& lane_it : (*road_section_it).lane_id()) {
-  //         routing_lane.emplace(lane_it.id());
-  //       }
-  //       ++road_section_it;
-  //     } else {
-  //       road_section_it =
-  //       (*road_it.mutable_section()).erase(road_section_it);
-  //     }
-  //   }
-  // }
+//   // std::unordered_set<std::string> routing_lane;
+//   // for (auto& road_it : *map->mutable_road()) {
+//   //   for (auto road_section_it = (*road_it.mutable_section()).begin();
+//   //        road_section_it != (*road_it.mutable_section()).end();) {
+//   //     if (routing_setction.find((*road_section_it).id().id()) !=
+//   //         routing_setction.end()) {
+//   //       for (const auto& lane_it : (*road_section_it).lane_id()) {
+//   //         routing_lane.emplace(lane_it.id());
+//   //       }
+//   //       ++road_section_it;
+//   //     } else {
+//   //       road_section_it =
+//   //       (*road_it.mutable_section()).erase(road_section_it);
+//   //     }
+//   //   }
+//   // }
 
-  // // 删除对应lane
-  // for (auto lane_it = (*map->mutable_lane()).begin();
-  //      lane_it != (*map->mutable_lane()).end();) {
-  //   if (routing_lane.find((*lane_it).id().id()) != routing_lane.end()) {
-  //     ++lane_it;
-  //   } else {
-  //     lane_it = (*map->mutable_lane()).erase(lane_it);
-  //   }
-  // }
+//   // // 删除对应lane
+//   // for (auto lane_it = (*map->mutable_lane()).begin();
+//   //      lane_it != (*map->mutable_lane()).end();) {
+//   //   if (routing_lane.find((*lane_it).id().id()) != routing_lane.end()) {
+//   //     ++lane_it;
+//   //   } else {
+//   //     lane_it = (*map->mutable_lane()).erase(lane_it);
+//   //   }
+//   // }
 
-  map_fusion->mutable_hdmap()->CopyFrom(*map);
+//   map_fusion->mutable_hdmap()->CopyFrom(*map);
 
-  map_fusion->mutable_hdmap()->mutable_header()->mutable_header()->CopyFrom(
-      location->header());
+//   map_fusion->mutable_hdmap()->mutable_header()->mutable_header()->CopyFrom(
+//       location->header());
 
-  map_fusion->mutable_hdmap()->mutable_header()->mutable_header()->set_frame_id(
-      "hd_map");
-  if (!FLAGS_output_hd_map) {
-    routing->mutable_routing_request()->mutable_waypoint()->Clear();
-    bool found_start = false;
-    bool found_end = false;
-    for (auto road_it = routing->road().rbegin();
-         road_it != routing->road().rend(); ++road_it) {
-      if (road_it->passage_size() > 0) {
-        int count = road_it->passage_size() - 1;
-        for (const auto& lane : map->lane()) {
-          if (lane.id().id() == road_it->passage()[count].segment()[0].id()) {
-            const auto& segments = lane.central_curve().segment();
-            auto segment_size = segments.size();
-            auto* waypoints =
-                routing->mutable_routing_request()->mutable_waypoint();
-            if (segment_size > 0 &&
-                segments[0].line_segment().point_size() > 0) {
-              auto* start_point = waypoints->Add();
-              start_point->set_id(lane.id().id());
-              start_point->set_s(0.0);
-              auto* start_pose = start_point->mutable_pose();
-              start_pose->set_x(segments[0].line_segment().point()[0].x());
-              start_pose->set_y(segments[0].line_segment().point()[0].y());
-              start_pose->set_z(0.0);
-              start_point->set_type(hozon::routing::LaneWaypointType::NORMAL);
-              found_start = true;
-            }
+//   map_fusion->mutable_hdmap()->mutable_header()->mutable_header()->set_frame_id(
+//       "hd_map");
+//   if (!FLAGS_output_hd_map) {
+//     routing->mutable_routing_request()->mutable_waypoint()->Clear();
+//     bool found_start = false;
+//     bool found_end = false;
+//     for (auto road_it = routing->road().rbegin();
+//          road_it != routing->road().rend(); ++road_it) {
+//       if (road_it->passage_size() > 0) {
+//         int count = road_it->passage_size() - 1;
+//         for (const auto& lane : map->lane()) {
+//           if (lane.id().id() == road_it->passage()[count].segment()[0].id()) {
+//             const auto& segments = lane.central_curve().segment();
+//             auto segment_size = segments.size();
+//             auto* waypoints =
+//                 routing->mutable_routing_request()->mutable_waypoint();
+//             if (segment_size > 0 &&
+//                 segments[0].line_segment().point_size() > 0) {
+//               auto* start_point = waypoints->Add();
+//               start_point->set_id(lane.id().id());
+//               start_point->set_s(0.0);
+//               auto* start_pose = start_point->mutable_pose();
+//               start_pose->set_x(segments[0].line_segment().point()[0].x());
+//               start_pose->set_y(segments[0].line_segment().point()[0].y());
+//               start_pose->set_z(0.0);
+//               start_point->set_type(hozon::routing::LaneWaypointType::NORMAL);
+//               found_start = true;
+//             }
 
-            if (segment_size > 0 &&
-                segments[segment_size - 1].line_segment().point_size() > 0) {
-              auto* end_point = waypoints->Add();
-              end_point->set_id(lane.id().id());
-              end_point->set_s(lane.length());
-              auto* end_pose = end_point->mutable_pose();
-              end_pose->set_x(segments[segment_size - 1]
-                                  .line_segment()
-                                  .point()[segments[segment_size - 1]
-                                               .line_segment()
-                                               .point_size() -
-                                           1]
-                                  .x());
-              end_pose->set_y(segments[segment_size - 1]
-                                  .line_segment()
-                                  .point()[segments[segment_size - 1]
-                                               .line_segment()
-                                               .point_size() -
-                                           1]
-                                  .y());
-              end_pose->set_z(0.0);
-              end_point->set_type(hozon::routing::LaneWaypointType::NORMAL);
-              found_end = true;
-              break;
-            }
-          }
-        }
-        if (found_start && found_end) {
-          break;
-        }
-      }
-    }
-  }
-  map_fusion->mutable_routing()->CopyFrom(*routing);
+//             if (segment_size > 0 &&
+//                 segments[segment_size - 1].line_segment().point_size() > 0) {
+//               auto* end_point = waypoints->Add();
+//               end_point->set_id(lane.id().id());
+//               end_point->set_s(lane.length());
+//               auto* end_pose = end_point->mutable_pose();
+//               end_pose->set_x(segments[segment_size - 1]
+//                                   .line_segment()
+//                                   .point()[segments[segment_size - 1]
+//                                                .line_segment()
+//                                                .point_size() -
+//                                            1]
+//                                   .x());
+//               end_pose->set_y(segments[segment_size - 1]
+//                                   .line_segment()
+//                                   .point()[segments[segment_size - 1]
+//                                                .line_segment()
+//                                                .point_size() -
+//                                            1]
+//                                   .y());
+//               end_pose->set_z(0.0);
+//               end_point->set_type(hozon::routing::LaneWaypointType::NORMAL);
+//               found_end = true;
+//               break;
+//             }
+//           }
+//         }
+//         if (found_start && found_end) {
+//           break;
+//         }
+//       }
+//     }
+//   }
+//   map_fusion->mutable_routing()->CopyFrom(*routing);
 
-  map_fusion->mutable_routing()->mutable_header()->set_publish_stamp(
-      location->header().publish_stamp());
-  std::string switch_reason = map_select_->GetSwitchMapReason();
-  map_fusion->mutable_routing()->add_origin_response(switch_reason);
-  map_fusion->set_map_type(select.map_type);
-  map_fusion->set_is_valid(select.valid);
-  map_fusion->set_fault_level(select.fault_level);
+//   map_fusion->mutable_routing()->mutable_header()->set_publish_stamp(
+//       location->header().publish_stamp());
+//   // std::string switch_reason = map_select_->GetSwitchMapReason();
+//   std::string switch_reason = "test";
+//   map_fusion->mutable_routing()->add_origin_response(switch_reason);
+//   map_fusion->set_map_type(select.map_type);
+//   map_fusion->set_is_valid(select.valid);
+//   map_fusion->set_fault_level(select.fault_level);
 
-  auto map_res = std::make_shared<hozon::netaos::adf_lite::BaseData>();
-  map_res->proto_msg = map_fusion;
+//   auto map_res = std::make_shared<hozon::netaos::adf_lite::BaseData>();
+//   map_res->proto_msg = map_fusion;
 
-  SendOutput("map_fusion", map_res);
+//   SendOutput("map_fusion", map_res);
 
-  return 0;
-}
+//   return 0;
+// }
 
-int MapFusionLite::SendPercepResult(
-    const std::shared_ptr<hozon::localization::Localization>& location,
-    const std::shared_ptr<hozon::hdmap::Map>& map,
-    mp::mf::select::MapSelectResult select,
-    const std::shared_ptr<hozon::routing::RoutingResponse>& routing) {
-  auto percep_result = std::make_shared<hozon::navigation_hdmap::MapMsg>();
-  percep_result->mutable_header()->CopyFrom(location->header());
-  percep_result->mutable_header()->set_frame_id("percep_map");
-  percep_result->mutable_hdmap()->CopyFrom(*map);
-  percep_result->mutable_hdmap()->mutable_header()->mutable_header()->CopyFrom(
-      location->header());
-  percep_result->mutable_hdmap()
-      ->mutable_header()
-      ->mutable_header()
-      ->set_frame_id("percep_map");
-  percep_result->mutable_routing()->CopyFrom(*routing);
-  percep_result->mutable_routing()->mutable_header()->CopyFrom(
-      location->header());
-  percep_result->mutable_routing()->mutable_header()->set_frame_id(
-      "percep_map");
-  std::string switch_reason = map_select_->GetSwitchMapReason();
-  if (curr_routing_.get() == nullptr) {
-    switch_reason = "fusion map routing from mapservice is nullptr";
-  } else {
-    if (curr_routing_.get()->road().empty()) {
-      switch_reason = "the road of fusion map routing from mapservice is empty";
-    }
-  }
-  if (curr_routing_.get() != nullptr) {
-    if (curr_routing_.get()->has_ehp_reason()) {
-      std::string::size_type idx =
-          curr_routing_.get()->ehp_reason().find("finish");
-      if (idx != std::string::npos) {
-        select.fault_level = 2;
-        switch_reason = "reason message is 3, Route finish";
-      }
-      percep_result->mutable_routing()->set_ehp_reason(
-          curr_routing_.get()->ehp_reason());
-    }
-  }
-  percep_result->mutable_routing()->add_origin_response(switch_reason);
-  percep_result->set_map_type(select.map_type);
-  percep_result->set_is_valid(select.valid);
-  percep_result->set_fault_level(select.fault_level);
+// int MapFusionLite::SendPercepResult(
+//     const std::shared_ptr<hozon::localization::Localization>& location,
+//     const std::shared_ptr<hozon::hdmap::Map>& map,
+//     mp::mf::select::MapSelectResult select,
+//     const std::shared_ptr<hozon::routing::RoutingResponse>& routing) {
+//   auto percep_result = std::make_shared<hozon::navigation_hdmap::MapMsg>();
+//   percep_result->mutable_header()->CopyFrom(location->header());
+//   percep_result->mutable_header()->set_frame_id("percep_map");
+//   percep_result->mutable_hdmap()->CopyFrom(*map);
+//   percep_result->mutable_hdmap()->mutable_header()->mutable_header()->CopyFrom(
+//       location->header());
+//   percep_result->mutable_hdmap()
+//       ->mutable_header()
+//       ->mutable_header()
+//       ->set_frame_id("percep_map");
+//   percep_result->mutable_routing()->CopyFrom(*routing);
+//   percep_result->mutable_routing()->mutable_header()->CopyFrom(
+//       location->header());
+//   percep_result->mutable_routing()->mutable_header()->set_frame_id(
+//       "percep_map");
+//   // 为先跑通，隐去select
+//   // std::string switch_reason = map_select_->GetSwitchMapReason();
+//   std::string switch_reason = "test";
+//   if (curr_routing_.get() == nullptr) {
+//     switch_reason = "fusion map routing from mapservice is nullptr";
+//   } else {
+//     if (curr_routing_.get()->road().empty()) {
+//       switch_reason = "the road of fusion map routing from mapservice is empty";
+//     }
+//   }
+//   if (curr_routing_.get() != nullptr) {
+//     if (curr_routing_.get()->has_ehp_reason()) {
+//       std::string::size_type idx =
+//           curr_routing_.get()->ehp_reason().find("finish");
+//       if (idx != std::string::npos) {
+//         select.fault_level = 2;
+//         switch_reason = "reason message is 3, Route finish";
+//       }
+//       percep_result->mutable_routing()->set_ehp_reason(
+//           curr_routing_.get()->ehp_reason());
+//     }
+//   }
+//   percep_result->mutable_routing()->add_origin_response(switch_reason);
+//   percep_result->set_map_type(select.map_type);
+//   percep_result->set_is_valid(select.valid);
+//   percep_result->set_fault_level(select.fault_level);
 
-  auto msg = std::make_shared<hozon::netaos::adf_lite::BaseData>();
-  msg->proto_msg = percep_result;
-  // SendOutput("map_percep", msg);
-  auto phm_health = hozon::perception::lib::HealthManager::Instance();
-  phm_health->HealthReport(MAKE_HM_TUPLE(
-      hozon::perception::base::HmModuleId::MAPPING,
-      hozon::perception::base::HealthId::CPID_FUSION_MAP_SEND_MAP_DATA_FPS));
-  SendOutput("map_fusion", msg);
-  return 0;
-}
+//   auto msg = std::make_shared<hozon::netaos::adf_lite::BaseData>();
+//   msg->proto_msg = percep_result;
+//   // SendOutput("map_percep", msg);
+//   auto phm_health = hozon::perception::lib::HealthManager::Instance();
+//   phm_health->HealthReport(MAKE_HM_TUPLE(
+//       hozon::perception::base::HmModuleId::MAPPING,
+//       hozon::perception::base::HealthId::CPID_FUSION_MAP_SEND_MAP_DATA_FPS));
+//   SendOutput("map_fusion", msg);
+//   return 0;
+// }
 
 int32_t MapFusionLite::OnRunningMode(hozon::netaos::adf_lite::Bundle* input) {
   auto rm_msg = input->GetOne("running_mode");

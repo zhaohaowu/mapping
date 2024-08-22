@@ -41,6 +41,7 @@ def parse_args():
     p.add_argument('--workspace', default=None, help='root of code repository')
     p.add_argument('-j', default=6, dest="jobs", type=int, help='make -j')
     p.add_argument('--hdmap', default='/usr/local/hd_map', help='hd_map path')
+    p.add_argument('--ldmap', default='/usr/local/ld_map', help='ld_map path')
 
     return p.parse_args()
 
@@ -184,6 +185,7 @@ def x86_build(workspace, platform, build_directory, release_directory, **kwargs)
     args['-DIND'] = "ON" if kwargs['ind'] else "OFF"
     args['-DMIDDLEWARE'] = "CYBER" if kwargs['cyber'] else "LITE"
     args['-DHDMAP'] = kwargs['hdmap']
+    args['-DLDMAP'] = kwargs['ldmap']
     if kwargs['plugin']:
         os.environ['WITH_MAL_PLUGIN_FLAG'] = 'true'
     else:
@@ -240,6 +242,7 @@ def orin_build(workspace, platform, build_directory, release_directory, **kwargs
             file.write(os.environ.get('WITH_MAL_PLUGIN_FLAG', ''))
     execute_shell('echo ${WITH_MAL_PLUGIN_FLAG}')
     args['-DHDMAP'] = kwargs['hdmap']
+    args['-DLDMAP'] = kwargs['ldmap']
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
     # args['-DENABLE_COMPILE_BASE'] = 'ON' if kwargs['base'] else "OFF"

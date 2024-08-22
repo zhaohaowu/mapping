@@ -20,6 +20,7 @@
 #include "modules/map_fusion_02/base/element_base.h"
 #include "modules/map_fusion_02/common/calc_util.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/cut_point.h"
+#include "modules/map_fusion_02/modules/lane_loc/base_lane_loc.h"
 #include "modules/rviz/viz_common.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "perception-base/base/utils/macros.h"
@@ -41,6 +42,27 @@ class MapFusionRviz {
   void VizCutpoint(const std::vector<CutPoint>& cut_points, double stamp);
   void VizDistpoint(const std::vector<Eigen::Vector3f>& distpoints,
                     double stamp);
+  // 车道级定位
+  void PubInsTf(const Eigen::Affine3d& T_W_V, uint64_t sec, uint64_t nsec,
+                const std::string& topic);
+  void PubInsPath(const Eigen::Affine3d& T_W_V, uint64_t sec, uint64_t nsec,
+                  const std::string& topic);
+  void PubInsOdom(const Eigen::Affine3d& T_W_V, uint64_t sec, uint64_t nsec,
+                  const std::string& topic);
+  void PubPerSection(const lane_loc::Section& section, uint64_t sec,
+                     uint64_t nsec, const std::string& topic);
+  void PubMapSection(const lane_loc::Section& section, uint64_t sec,
+                     uint64_t nsec, const std::string& topic);
+  void PubLaneLocInfo(const lane_loc::LaneLocInfo& lane_loc_info, uint64_t sec,
+                      uint64_t nsec, const std::string& topic);
+  void PubState(const std::string& lane_num, const std::string& road_edge_state,
+                const std::string& measure_lane_index,
+                const std::vector<double>& p_measure,
+                const lane_loc::TurnState& turn_state,
+                const std::vector<double>& p_predict,
+                const std::string& fusion_lane_index,
+                const std::vector<double>& p_fusion, uint64_t sec,
+                uint64_t nsec, const std::string& topic);
 
   std::string Name() const;
 

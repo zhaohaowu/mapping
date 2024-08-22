@@ -280,13 +280,17 @@ void MapTable::CreatRoadTable(
     RoadInfo local_road;
     local_road.road_id = road_id;
     for (const auto& it : road->sections()) {
+      if (it == nullptr) {
+        HLOG_ERROR << "RoadSection is nullptr ";
+        continue;
+      }
       if (std::find(all_section_ids_.begin(), all_section_ids_.end(),
-                    it.id().id()) == all_section_ids_.end()) {
+                    it->id().id()) == all_section_ids_.end()) {
         continue;
       }
       Section section;
-      section.section_id = it.id().id();
-      for (const auto& itt : it.lane_id()) {
+      section.section_id = it->id().id();
+      for (const auto& itt : it->lane_id()) {
         section.lane_id.emplace_back(itt.id());
       }
 

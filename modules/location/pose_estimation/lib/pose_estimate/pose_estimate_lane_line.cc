@@ -59,6 +59,7 @@ void MatchLaneLine::Match(
   line_match_pairs_.clear();
   loc_state_ = T_fc.fc_loc_state;
   if (merged_map_lines.empty() || percep_lanelines.size() == 0) {
+    HLOG_WARN << "merged_map_lines.empty || percep_lanelines.empty!!!";
     return;
   }
   LaneLineConnect(percep_lanelines, merged_map_lines);

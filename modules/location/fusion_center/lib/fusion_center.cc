@@ -1863,11 +1863,11 @@ uint32_t FusionCenter::GetGlobalLocationState(const Node& newest_fc_node) {
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
       if ((*it)->type == NodeType::POSE_ESTIMATE &&
           (*it)->cov(0, 0) <=
-              +params_.pos_exit_multiple * params_.loc2_posx_conv * 1e-11 &&
+              params_.pos_exit_multiple * params_.loc2_posx_conv * 1e-11 &&
           (*it)->cov(1, 1) <=
-              +params_.pos_exit_multiple * params_.loc2_posy_conv * 1e-11 &&
+              params_.pos_exit_multiple * params_.loc2_posy_conv * 1e-11 &&
           (*it)->cov(8, 8) <=
-              +params_.ang_exit_multiple * params_.loc2_yaw_conv * 1e-11) {
+              params_.ang_exit_multiple * params_.loc2_yaw_conv * 1e-11) {
         break;
       }
       if ((++search_cnt) > params_.search_state_cnt) {

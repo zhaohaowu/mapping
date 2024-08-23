@@ -1843,10 +1843,10 @@ uint32_t FusionCenter::GetGlobalLocationState(const Node& newest_fc_node) {
   static uint32_t state = 5;
   uint32_t search_cnt = 0;
 
-  std::unique_lock<std::mutex> lock(fusion_deque_mutex_);
   // 进入loc=2条件
   if (state != 2) {
     bool valid_dis = CheckFcMmDisValid(newest_fc_node);
+    std::unique_lock<std::mutex> lock(fusion_deque_mutex_);
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
       if ((*it)->type == NodeType::POSE_ESTIMATE && valid_dis &&
           (*it)->cov(0, 0) <= params_.loc2_posx_conv * 1e-11 &&
@@ -1860,6 +1860,7 @@ uint32_t FusionCenter::GetGlobalLocationState(const Node& newest_fc_node) {
     }
   } else {
     // 退出loc=2条件
+    std::unique_lock<std::mutex> lock(fusion_deque_mutex_);
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
       if ((*it)->type == NodeType::POSE_ESTIMATE &&
           (*it)->cov(0, 0) <=
@@ -1971,21 +1972,33 @@ double FusionCenter::OrientationToHeading(const Eigen::Vector3d& orientation) {
 }
 
 bool FusionCenter::FilterPoseEstimation(const Node& node) {
-  std::unique_lock<std::mutex> lock_pe(pe_deque_mutex_);
-  if (pe_deque_.empty() || dr_deque_.empty()) {
-    return true;
+  std::deque<std::shared_ptr<Node>> pe_deque_temp;
+  {
+    std::unique_lock<std::mutex> lock_pe(pe_deque_mutex_);
+    if (pe_deque_.empty()) {
+      return true;
+    }
+    pe_deque_temp = pe_deque_;
+  }
+
+  {
+    std::unique_lock<std::mutex> lock_dr(dr_deque_mutex_);
+    if (dr_deque_.empty()) {
+      return true;
+    }
   }
 
   bool flag = false;
-  auto pe = pe_deque_.back();
+  auto pe = pe_deque_temp.back();
   auto pe_dist = 0.0;
-  std::unique_lock<std::mutex> lock_fusion(fusion_deque_mutex_);
-  double pe_back_time = pe_deque_.back()->ticktime;
-  for (auto it = pe_deque_.rbegin(); it != pe_deque_.rend(); ++it) {
+
+  double pe_back_time = pe_deque_temp.back()->ticktime;
+  for (auto it = pe_deque_temp.rbegin(); it != pe_deque_temp.rend(); ++it) {
     auto pe_diff = pe_back_time - (*it)->ticktime;
     if (pe_diff < -1.0e-3 || pe_diff > 1) {
       continue;
     }
+    std::unique_lock<std::mutex> lock_fusion(fusion_deque_mutex_);
     for (const auto& fusion : fusion_deque_) {
       if (fabs(fusion->ticktime - (*it)->ticktime) > 0.01 ||
           fusion->sys_status != 2) {

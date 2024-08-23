@@ -4138,6 +4138,7 @@ void GroupMap::EraseEgoGroupWithNoEgoLane(std::vector<Group::Ptr>* groups) {
   int index = FindEgoGroup(groups);
   if (index == -1 || groups->size() <= index) {
     // 没找到自车所在group
+    return;
     if (groups->empty()) {
       return;
     }
@@ -5086,8 +5087,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
       if (!ContainEgoLane(groups, i + 1)) {
         // &&
         // curr_group->group_segments.back()->end_slice.po.x() > 2.0
-        groups->erase(groups->begin() + i + 1, groups->end());
-        break;
+        groups->erase(groups->begin() + i + 1);
+        i--;
       }
     }
   }
@@ -6957,7 +6958,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
         float dy = left_bound.pts[left_index].pt.y() -
                    left_bound.pts[left_index - 1].pt.y();
         while (right_pt_pred.pt.x() >
-                   curr_group->group_segments[0]->end_slice.po.x() &&
+                   curr_group->group_segments[0]->start_slice.po.x() &&
                left_index > 0 &&
                (dx > 0 && dx * dx + dy * dy > 0.4 || dx * dx + dy * dy < 0.4)) {
           dx = left_bound.pts[left_index].pt.x() -
@@ -7021,7 +7022,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
             left_pt_pred.pt.y() -
             lane_in_next->center_line_param_front[1] * left_pt_pred.pt.x();
         while (left_pt_pred.pt.x() >
-               curr_group->group_segments[0]->end_slice.po.x()) {
+               curr_group->group_segments[0]->start_slice.po.x()) {
           left_bound.pts.insert(left_bound.pts.begin(), left_pt_pred);
           float pre_x = left_pt_pred.pt.x() - 1.0;
           float pre_y =
@@ -7040,7 +7041,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
             right_pt_pred.pt.y() -
             lane_in_next->center_line_param_front[1] * right_pt_pred.pt.x();
         while (right_pt_pred.pt.x() >
-               curr_group->group_segments[0]->end_slice.po.x()) {
+               curr_group->group_segments[0]->start_slice.po.x()) {
           right_bound.pts.insert(right_bound.pts.begin(), right_pt_pred);
           float pre_x = right_pt_pred.pt.x() - 1.0;
           float pre_y =

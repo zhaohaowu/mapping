@@ -23,6 +23,7 @@
 #include "modules/map_fusion_02/base/processor.h"
 #include "modules/map_fusion_02/common/calc_util.h"
 #include "modules/map_fusion_02/common/common_data.h"
+#include "modules/map_fusion_02/data_manager/location_data_manager.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/broken_point_search.h"
 #include "modules/util/include/util/mapping_log.h"
 #include "nlohmann/detail/meta/cpp_future.hpp"
@@ -70,8 +71,6 @@ class RoadConstruct : ProcessorBase {
   void FitLaneline(const ElementMap::Ptr& ele_map, int id_1, int id_2,
                    int near_line);
 
-  std::vector<double> FitLaneline(const std::vector<Point>& centerline);
-
   void BuildGroups(const std::vector<CutPoint>& cutpoints,
                    std::deque<Line::Ptr>* lines, const ElementMap::Ptr& ele_map,
                    std::vector<Group::Ptr>* groups);
@@ -112,8 +111,6 @@ class RoadConstruct : ProcessorBase {
 
   void FitCenterLine(const Lane::Ptr& lane);
 
-  std::vector<double> FitLanelinefront(const std::vector<Point>& centerline);
-
   void RemoveNullGroup(std::vector<Group::Ptr>* groups);
 
   void SmoothCenterline(std::vector<Group::Ptr>* groups);
@@ -121,6 +118,7 @@ class RoadConstruct : ProcessorBase {
   std::vector<Point> SigmoidFunc(const std::vector<Point>& centerline,
                                  float sigma);
 
+ private:
   LaneFusionProcessOption conf_;
   std::map<int, std::shared_ptr<cv::flann::Index>> KDTrees_;
   std::map<int, std::shared_ptr<std::vector<cv::Point2f>>> line_points_;

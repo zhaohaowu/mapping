@@ -418,6 +418,10 @@ float AngleDiff(float angle_0, float angle_1);
 double CalculateHeading(const Eigen::Quaternionf& q1,
                         const Eigen::Quaternionf& q2);
 
+std::vector<double> FitLaneline(const std::vector<Point>& centerline);
+
+std::vector<double> FitLanelinefront(const std::vector<Point>& centerline);
+
 template <typename PointType>
 void ComputerLineDis(const std::vector<PointType>& line_pts,
                      const std::vector<PointType>& right_line_pts,

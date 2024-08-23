@@ -4,6 +4,7 @@
  *   author     ： chenlongxi
  *   date       ： 2023.09
  ******************************************************************************/
+#pragma once
 #include <memory>
 
 #include "modules/map_fusion_02/base/junction.h"
@@ -30,7 +31,7 @@ class JuncStatusManager {
   DECLARE_SINGLETON_PERCEPTION(JuncStatusManager)
 };
 
-#define JNUC_MANAGER JuncStatusManager::Instance()
+#define JUNC_MANAGER JuncStatusManager::Instance()
 
 }  // namespace mf
 }  // namespace mp

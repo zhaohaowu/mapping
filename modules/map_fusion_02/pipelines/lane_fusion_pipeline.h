@@ -21,6 +21,7 @@
 #include "modules/map_fusion_02/modules/lane/path_manager.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/broken_point_search.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/road_construct.h"
+#include "modules/map_fusion_02/modules/lane/road_topo_builder/topo_construct.h"
 #include "modules/map_fusion_02/modules/lane_loc/lane_loc.h"
 #include "modules/map_fusion_02/pipelines/base_fusion_pipeline.h"
 #include "modules/rviz/map_fusion_rviz.h"
@@ -49,6 +50,7 @@ class LaneFusionPipeline : public BaseFusionPipeline {
   PathManagerPtr path_manager_ = nullptr;
   BrokenPointSearchPtr broken_pt_search_ = nullptr;
   RoadConstructPtr road_constructor_ = nullptr;
+  RoadTopoConstructPtr road_topo_constructor_ = nullptr;
   JunctionCheckPtr junction_check_ = nullptr;
   LaneLocPtr lane_loc_ = nullptr;
 };

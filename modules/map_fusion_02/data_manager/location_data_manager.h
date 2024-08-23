@@ -14,9 +14,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "modules/util/include/util/mapping_log.h"
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/data_manager/data_buffer.h"
+#include "modules/util/include/util/mapping_log.h"
 #include "perception-base/base/utils/macros.h"
 #include "perception-lib/lib/config_manager/config_manager.h"
 
@@ -38,6 +38,9 @@ class LocationDataManager {
   void PushLocalMapLocData(double timestamp,
                            const LocInfo::ConstPtr& local_pose);
   void SetTimeStampLocation(const LocInfo::ConstPtr& dr_pose_ptr);
+
+  EgoLane GetEgoLane();
+  void SetEgoLane(int left_id, int right_id);
   ~LocationDataManager() = default;
 
  private:
@@ -66,6 +69,8 @@ class LocationDataManager {
   Eigen::Affine3d T_cur_last_;
   Eigen::Affine3d cur_T_w_v_;
   Eigen::Affine3d last_T_w_v_;
+  // 自车左右车道线id
+  EgoLane ego_line_id_;
 
   // get instance by Instance()
   DECLARE_SINGLETON_PERCEPTION(LocationDataManager)

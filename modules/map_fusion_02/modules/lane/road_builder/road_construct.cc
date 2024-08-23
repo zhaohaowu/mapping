@@ -7,6 +7,7 @@
 #include "modules/map_fusion_02/modules/lane/road_builder/road_construct.h"
 
 #include "base/utils/log.h"
+#include "data_manager/location_data_manager.h"
 
 namespace hozon {
 namespace mp {
@@ -410,10 +411,8 @@ void RoadConstruct::EgoLineTrajectory(const Group::Ptr& grp,
     ego_line_exist_ = true;
     FitLaneline(ele_map, line1_id, line2_id, near_line);
   }
-  ego_line_id_.left_id = line1_id;
-  ego_line_id_.right_id = line2_id;
-  HLOG_DEBUG << "ego line id:" << ego_line_id_.left_id << ","
-             << ego_line_id_.right_id;
+  LOCATION_MANAGER->SetEgoLane(line1_id, line2_id);
+  HLOG_DEBUG << "ego line id:" << line1_id << "," << line2_id;
 }
 
 void RoadConstruct::SetBrokenId(std::vector<Group::Ptr>* groups) {
@@ -686,53 +685,9 @@ void RoadConstruct::FitCenterLine(const Lane::Ptr& lane) {
     lane->center_line_pts.emplace_back(center_p);
   }
   if (lane->center_line_pts.size() > 3) {
-    lane->center_line_param = FitLaneline(lane->center_line_pts);
-    lane->center_line_param_front = FitLanelinefront(lane->center_line_pts);
+    lane->center_line_param = math::FitLaneline(lane->center_line_pts);
+    lane->center_line_param_front = math::FitLanelinefront(lane->center_line_pts);
   }
-}
-
-std::vector<double> RoadConstruct::FitLaneline(
-    const std::vector<Point>& centerline) {
-  int size_c = static_cast<int>(centerline.size());
-
-  double k = 0.0, kk = 0.0;
-  double y1 = centerline[size_c - 1].pt.y(), x1 = centerline[size_c - 1].pt.x();
-  double y2 = centerline[size_c - 2].pt.y(), x2 = centerline[size_c - 2].pt.x();
-  int idx = size_c - 2;
-  while (sqrt(pow(y1 - y2, 2) + pow(x1 - x2, 2)) < 4 && idx > 0) {
-    idx--;
-    y2 = centerline[idx].pt.y();
-    x2 = centerline[idx].pt.x();
-  }
-  if (idx < 0) {
-    return {};
-  } else {
-    kk = (y2 - y1) / (x2 - x1);
-    k = y1 - kk * x1;
-  }
-  return {k, kk};
-}
-
-std::vector<double> RoadConstruct::FitLanelinefront(
-    const std::vector<Point>& centerline) {
-  int size_c = static_cast<int>(centerline.size());
-
-  double k = 0.0, kk = 0.0;
-  double y1 = centerline[0].pt.y(), x1 = centerline[0].pt.x();
-  double y2 = centerline[1].pt.y(), x2 = centerline[1].pt.x();
-  int idx = 1;
-  while (sqrt(pow(y1 - y2, 2) + pow(x1 - x2, 2)) < 4 && idx < size_c) {
-    y2 = centerline[idx].pt.y();
-    x2 = centerline[idx].pt.x();
-    idx++;
-  }
-  if (idx >= size_c) {
-    return {};
-  } else {
-    kk = (y2 - y1) / (x2 - x1);
-    k = y1 - kk * x1;
-  }
-  return {k, kk};
 }
 
 void RoadConstruct::RemoveNullGroup(std::vector<Group::Ptr>* groups) {
@@ -753,7 +708,7 @@ void RoadConstruct::SmoothCenterline(std::vector<Group::Ptr>* groups) {
   std::unordered_map<std::string, int>
       lane_grp_index;  // lane所在对应group的index
   for (auto& grp : *groups) {
-    for (int index = 0; index < grp->lanes.size(); ++index) {
+    for (int index = 0; index < static_cast<int>(grp->lanes.size()); ++index) {
       lane_grp_index[grp->lanes[index]->str_id_with_group] = index;
     }
   }
@@ -820,7 +775,7 @@ void RoadConstruct::SmoothCenterline(std::vector<Group::Ptr>* groups) {
                 lane_grp_index[lane->prev_lane_str_id_with_group[0]];
             auto& prev_centerline =
                 groups->at(i - 1)->lanes[pre_index]->center_line_pts;
-            if (prev_centerline.size() >= 10 - ctpt_size) {
+            if (static_cast<int>(prev_centerline.size()) >= 10 - ctpt_size) {
               centerpt.insert(centerpt.begin(),
                               prev_centerline.end() - (10 - ctpt_size),
                               prev_centerline.end());
@@ -885,7 +840,7 @@ void RoadConstruct::SmoothCenterline(std::vector<Group::Ptr>* groups) {
                 lane_grp_index[next_first_lane->next_lane_str_id_with_group[0]];
             auto& next_next_ctline =
                 groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
-            if (next_next_ctline.size() >= 10 - ctpt_size) {
+            if (static_cast<int>(next_next_ctline.size()) >= 10 - ctpt_size) {
               next_centerpt.insert(next_centerpt.end(),
                                    next_next_ctline.begin(),
                                    next_next_ctline.begin() + (10 - ctpt_size));
@@ -950,7 +905,7 @@ void RoadConstruct::SmoothCenterline(std::vector<Group::Ptr>* groups) {
                                    ->next_lane_str_id_with_group[0]];
             auto& next_next_ctline =
                 groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
-            if (next_next_ctline.size() >= 10 - ctpt_size) {
+            if (static_cast<int>(next_next_ctline.size()) >= 10 - ctpt_size) {
               next_centerpt.insert(next_centerpt.end(),
                                    next_next_ctline.begin(),
                                    next_next_ctline.begin() + (10 - ctpt_size));

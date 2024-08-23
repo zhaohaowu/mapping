@@ -9,6 +9,7 @@
 
 #include <depend/common/math/vec2d.h>
 
+#include <Eigen/Core>
 #include <deque>
 #include <map>
 #include <memory>
@@ -18,8 +19,6 @@
 #include <utility>
 #include <vector>
 
-// #include "map_fusion/fusion_common/common_data.h"
-#include "Eigen/src/Core/Matrix.h"
 #include "modules/map_fusion_02/base/element_base.h"
 // #include "opencv2/core/core.hpp"
 // #include "opencv2/features2d.hpp"

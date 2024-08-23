@@ -10,6 +10,8 @@
 #include <memory>
 
 #include "base/utils/log.h"
+#include "common/calc_util.h"
+#include "modules/lane/road_topo_builder/topo_construct.h"
 #include "modules/lane_loc/lane_loc.h"
 
 namespace hozon {
@@ -102,6 +104,9 @@ bool LaneFusionPipeline::Init() {
 
   lane_loc_ = std::make_unique<lane_loc::LaneLoc>();
 
+  road_topo_constructor_ = std::make_unique<RoadTopoConstruct>();
+  road_topo_constructor_->Init(options_);
+
   junction_check_ = std::make_unique<JunctionCheck>();
   junction_check_->Init(options_);
 
@@ -185,7 +190,7 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
 
   std::vector<Group::Ptr> groups;
   groups = road_constructor_->GetGroups();
-  MF_RVIZ->VizGroup(groups, element_map_ptr->map_info.stamp);
+  // MF_RVIZ->VizGroup(groups, element_map_ptr->map_info.stamp);
 
   bool lane_loc_state = lane_loc_->UpdateGroups(&groups);
   if (!lane_loc_state) {
@@ -194,6 +199,11 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
 
   // 路口判断
   junction_check_->Process(groups);
+
+  road_topo_constructor_->ConstructTopology(&groups);
+
+  MF_RVIZ->VizGroup(groups, element_map_ptr->map_info.stamp);
+  MF_RVIZ->VizGuidePoint(groups, element_map_ptr->map_info.stamp);
 
   return true;
 }

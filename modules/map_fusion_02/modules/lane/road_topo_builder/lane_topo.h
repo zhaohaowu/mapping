@@ -1,0 +1,111 @@
+/******************************************************************************
+ *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
+ *   file       ： lane_topo.h
+ *   author     ： likuan
+ *   date       ： 2024.08
+ ******************************************************************************/
+#pragma once
+
+#include <depend/common/math/vec2d.h>
+
+#include <algorithm>
+#include <deque>
+#include <map>
+#include <memory>
+#include <set>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+#include <cfloat>
+
+// #include "modules/map_fusion_02/base/group.h"
+#include "modules/map_fusion_02/base/interface_option.h"
+#include "modules/map_fusion_02/common/calc_util.h"
+#include "modules/map_fusion_02/common/common_data.h"
+#include "modules/map_fusion_02/data_manager/location_data_manager.h"
+#include "modules/map_fusion_02/modules/lane/road_topo_builder/utils.h"
+#include "modules/util/include/util/mapping_log.h"
+
+namespace hozon {
+namespace mp {
+namespace mf {
+
+class LaneTopoConstruct {
+ public:
+  LaneTopoConstruct() = default;
+
+  ~LaneTopoConstruct() = default;
+
+  void Init(const LaneFusionProcessOption& conf);
+
+  void ConstructTopology(std::vector<Group::Ptr>* groups);
+
+ private:
+  void ForwardTopoProcess(const Group::Ptr& curr_group,
+                          const Group::Ptr& next_group,
+                          bool* is_any_next_lane_exist,
+                          bool* is_all_next_lane_exist);
+
+  void BackwardTopoProcess(const Group::Ptr& curr_group,
+                           const Group::Ptr& next_group,
+                           bool* is_any_next_lane_exist,
+                           bool* is_all_next_lane_exist);
+
+  void UpdateLaneBoundaryId(const Group::Ptr& curr_group);
+
+  bool NeedToConnect(const Lane::Ptr& lane_in_curr,
+                     const Lane::Ptr& lane_in_next);
+
+  bool ContainEgoLane(std::vector<Group::Ptr>* groups, int next_grp_index);
+
+  bool IsGroupsNoEgoLane(std::vector<Group::Ptr>* groups, int curr_group_index);
+
+  bool IsGroupNoEgoLane(const Group::Ptr& group);
+
+  void DelLaneNextStrIdInGroup(const Group::Ptr& curr_group);
+
+  void DelLanePrevStrIdInGroup(const Group::Ptr& curr_group);
+
+  void BuildVirtualLaneAfter(const Group::Ptr& curr_group, const Group::Ptr& next_group);
+
+  void BuildVirtualLaneBefore(const Group::Ptr& curr_group, const Group::Ptr& next_group);
+
+  void BuildVirtualLaneLeftRight(const Group::Ptr& curr_group, const Group::Ptr& next_group);
+
+  void EraseIntersectLane(Group::Ptr curr_group, Group::Ptr next_group);
+
+  bool IsIntersect(const Lane::Ptr& line1, const Lane::Ptr& line2);
+
+  bool IsBoundaryValid(const LineSegment& line);
+
+  bool IsAccessLane(const Lane::Ptr& lane_in_curr,
+                    const Lane::Ptr& lane_in_next);
+
+  bool IsShrinkLane(const Lane::Ptr& lane) const;
+
+  bool IsRightLane(const Group::Ptr& next_group, int cur_lane_index,
+                   int right_lane_inex);
+
+  bool IsLeftLane(const Group::Ptr& next_group, int cur_lane_index,
+                  int left_lane_index);
+
+  bool DistanceInferenceLane(const LineSegment& left_line,
+                             const LineSegment& right_line);
+
+  bool Distanceline(const LineSegment& left_line, float line_front_x,
+                    float line_front_y);
+
+ private:
+  LaneFusionProcessOption conf_;
+
+  const float kShrinkDiffThreshold = 0.5;
+  const double kMergeLengthThreshold = 10.;
+  const double kSplitLengthThreshold = 10.;
+};
+
+using LaneTopoConstructPtr = std::unique_ptr<LaneTopoConstruct>;
+
+}  // namespace mf
+}  // namespace mp
+}  // namespace hozon

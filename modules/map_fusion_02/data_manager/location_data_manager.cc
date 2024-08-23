@@ -215,6 +215,13 @@ Eigen::Affine3d LocationDataManager::GetDeltaPose() { return T_cur_last_; }
 
 Eigen::Affine3d LocationDataManager::GetCurrentPose() { return cur_T_w_v_; }
 
+EgoLane LocationDataManager::GetEgoLane() { return ego_line_id_; }
+
+void LocationDataManager::SetEgoLane(int left_id, int right_id) {
+  ego_line_id_.left_id = left_id;
+  ego_line_id_.right_id = right_id;
+}
+
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon

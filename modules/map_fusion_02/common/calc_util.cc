@@ -584,6 +584,48 @@ double CalculateHeading(const Eigen::Quaternionf& q1,
   return angle_rad;
 }
 
+std::vector<double> FitLaneline(const std::vector<Point>& centerline) {
+  int size_c = static_cast<int>(centerline.size());
+
+  double k = 0.0, kk = 0.0;
+  double y1 = centerline[size_c - 1].pt.y(), x1 = centerline[size_c - 1].pt.x();
+  double y2 = centerline[size_c - 2].pt.y(), x2 = centerline[size_c - 2].pt.x();
+  int idx = size_c - 2;
+  while (sqrt(pow(y1 - y2, 2) + pow(x1 - x2, 2)) < 4 && idx > 0) {
+    idx--;
+    y2 = centerline[idx].pt.y();
+    x2 = centerline[idx].pt.x();
+  }
+  if (idx < 0) {
+    return {};
+  } else {
+    kk = (y2 - y1) / (x2 - x1);
+    k = y1 - kk * x1;
+  }
+  return {k, kk};
+}
+
+std::vector<double> FitLanelinefront(const std::vector<Point>& centerline) {
+  int size_c = static_cast<int>(centerline.size());
+
+  double k = 0.0, kk = 0.0;
+  double y1 = centerline[0].pt.y(), x1 = centerline[0].pt.x();
+  double y2 = centerline[1].pt.y(), x2 = centerline[1].pt.x();
+  int idx = 1;
+  while (sqrt(pow(y1 - y2, 2) + pow(x1 - x2, 2)) < 4 && idx < size_c) {
+    y2 = centerline[idx].pt.y();
+    x2 = centerline[idx].pt.x();
+    idx++;
+  }
+  if (idx >= size_c) {
+    return {};
+  } else {
+    kk = (y2 - y1) / (x2 - x1);
+    k = y1 - kk * x1;
+  }
+  return {k, kk};
+}
+
 bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
              const Eigen::Vector3d& B) {
   Eigen::Vector3d AB = B - A;

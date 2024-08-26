@@ -205,15 +205,15 @@ void DRInterface::SetLocationData(
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_angular_raw_vrf()
-      ->set_x(static_cast<float>(latest_odom.loc_omg[0]));
+      ->set_x(static_cast<float>(latest_odom.ins_gyr[0]));
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_angular_raw_vrf()
-      ->set_y(static_cast<float>(latest_odom.loc_omg[1]));
+      ->set_y(static_cast<float>(latest_odom.ins_gyr[1]));
   locationDataPtr->mutable_velocity()
       ->mutable_twist_vrf()
       ->mutable_angular_raw_vrf()
-      ->set_z(static_cast<float>(latest_odom.loc_omg[2]));
+      ->set_z(static_cast<float>(latest_odom.ins_gyr[2]));
 
   // 计算角速度
   locationDataPtr->mutable_velocity()
@@ -233,15 +233,15 @@ void DRInterface::SetLocationData(
   locationDataPtr->mutable_acceleration()
       ->mutable_linear_vrf()
       ->mutable_linear_raw_vrf()
-      ->set_x(static_cast<float>(latest_odom.loc_acc[0] / 9.80645));
+      ->set_x(static_cast<float>(latest_odom.ins_acc[0]));
   locationDataPtr->mutable_acceleration()
       ->mutable_linear_vrf()
       ->mutable_linear_raw_vrf()
-      ->set_y(static_cast<float>(latest_odom.loc_acc[1] / 9.80645));
+      ->set_y(static_cast<float>(latest_odom.ins_acc[1]));
   locationDataPtr->mutable_acceleration()
       ->mutable_linear_vrf()
       ->mutable_linear_raw_vrf()
-      ->set_z(static_cast<float>(latest_odom.loc_acc[2] / 9.80645));
+      ->set_z(static_cast<float>(latest_odom.ins_acc[2]));
 
   locationDataPtr->mutable_acceleration()
       ->mutable_linear_vrf()
@@ -351,6 +351,15 @@ void DRInterface::ConvertImuData(
   imu_data.sdPosition << imu_proto->ins_info().sd_position().x(),
       imu_proto->ins_info().sd_position().y(),
       imu_proto->ins_info().sd_position().z();
+  /*
+   * 接收ins的加速度　角速度
+   */
+  imu_data.ins_acc << imu_proto->ins_info().linear_acceleration().x(),
+      imu_proto->ins_info().linear_acceleration().y(),
+      imu_proto->ins_info().linear_acceleration().z();
+  imu_data.ins_gyr << imu_proto->ins_info().augular_velocity().x(),
+      imu_proto->ins_info().augular_velocity().y(),
+      imu_proto->ins_info().augular_velocity().z();
 }
 
 void DRInterface::ConvertChassisData(

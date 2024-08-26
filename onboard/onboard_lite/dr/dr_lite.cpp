@@ -54,6 +54,11 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
     RegistAlgProcessFunc("receive_imu", std::bind(&DeadReckoning::receive_imu,
                                                   this, std::placeholders::_1));
 
+    // 读取速度故障阈值
+    YAML::Node config = YAML::LoadFile(config_file);
+    vel_error_threshold_ = config["vel_error_threshold"].as<double>();
+    HLOG_INFO << "vel_error_threshold_:" << vel_error_threshold_;
+
     HLOG_INFO << "DR: AlgInit successfully ";
     return 0;
   }
@@ -66,8 +71,14 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
                            double cur_time);
   bool IsDrDrift(double cur_time, double vel_x, double p_x, double p_y);
 
+  template <typename T1, typename T2>
+  bool isVelError(const T1& t1, const T2& t2);
+
  private:
   std::shared_ptr<hozon::mp::dr::DRInterface> dr_interface_ = nullptr;
+  std::deque<Eigen::Vector3d> deque_dr_;
+  std::deque<Eigen::Vector3d> deque_ins_;
+  double vel_error_threshold_;
 };
 
 REGISTER_ADF_CLASS(DeadReckoning, DeadReckoning);
@@ -91,22 +102,24 @@ int32_t DeadReckoning::receive_chassis(Bundle* input) {
   }
 
   if (!ptr_rec_chassis) {
-    dr_fault->Report(MAKE_FM_TUPLE(
+    dr_fault->ReportDebounceTime(MAKE_TIME_FM_TUPLE(
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::CHASSIS_INPUT_SIGNAL_ERROR_MUL_FPS,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 400,
+        base::DebounceType::DEBOUNCE_TYPE_TIME));
     chassis_input_data_error_flag = true;
     HLOG_ERROR << "DR: receive chassis is null";
     return -1;
   } else {
     if (chassis_input_data_error_flag) {
-      dr_fault->Report(MAKE_FM_TUPLE(
+      dr_fault->ReportDebounceTime(MAKE_TIME_FM_TUPLE(
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::
               CHASSIS_INPUT_SIGNAL_ERROR_MUL_FPS,
           hozon::perception::base::FaultStatus::RESET,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 400,
+          base::DebounceType::DEBOUNCE_TYPE_TIME));
       chassis_input_data_error_flag = false;
     }
   }
@@ -196,8 +209,7 @@ bool DeadReckoning::IsDrDrift(double cur_time, double vel_x, double p_x,
     return false;
   }
   if (curr_po[0] - last_po[0] >= 0.1) {
-    HLOG_WARN << "last_time: " << last_po[0]
-              << " curr_time: " << curr_po[0]
+    HLOG_WARN << "last_time: " << last_po[0] << " curr_time: " << curr_po[0]
               << " diff is larger than 0.1s !!!";
     last_po = curr_po;
     return true;
@@ -207,9 +219,9 @@ bool DeadReckoning::IsDrDrift(double cur_time, double vel_x, double p_x,
     d_p_vt = (curr_po[0] - last_po[0]) * last_po[1];
     d_p = std::sqrt(((curr_po[2] - last_po[2]) * (curr_po[2] - last_po[2])) +
                     ((curr_po[3] - last_po[3]) * (curr_po[3] - last_po[3])));
-    if (std::abs(d_p_vt - d_p) > 0.02) {
+    if (std::abs(d_p_vt - d_p) > 0.2) {
       HLOG_WARN << "d_p_vt: " << d_p_vt << " d_p: " << d_p
-                << " diff is larger than 0.02m!!!";
+                << " diff is larger than 0.2m!!!";
       last_po = curr_po;
       return true;
     }
@@ -248,6 +260,7 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
   static bool input_time_error_delay_flag = false;
   static bool input_data_nan_flag = false;
   static bool output_data_nan_flag = false;
+  static bool output_vel_error_flag = false;
 
   static int count_imu = 0;
   count_imu++;
@@ -261,21 +274,23 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
                     hozon::perception::base::HealthId::
                         CPID_IMU_FPS_AFTER_DETECT_DATA_ABSTRACT));
   if (!ptr_rec_imu) {
-    dr_fault->Report(MAKE_FM_TUPLE(
+    dr_fault->ReportDebounceTime(MAKE_TIME_FM_TUPLE(
         hozon::perception::base::FmModuleId::MAPPING,
         hozon::perception::base::FaultType::IMU_DATA_ERROR_MUL_FPS,
         hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
+        hozon::perception::base::SensorOrientation::UNKNOWN, 400,
+        base::DebounceType::DEBOUNCE_TYPE_TIME));
     input_data_error_flag = true;
     HLOG_ERROR << "DR: receive imu data is null";
     return -1;
   } else {
     if (input_data_error_flag) {
-      dr_fault->Report(MAKE_FM_TUPLE(
+      dr_fault->ReportDebounceTime(MAKE_TIME_FM_TUPLE(
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::IMU_DATA_ERROR_MUL_FPS,
           hozon::perception::base::FaultStatus::RESET,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+          hozon::perception::base::SensorOrientation::UNKNOWN, 400,
+          base::DebounceType::DEBOUNCE_TYPE_TIME));
       input_data_error_flag = false;
     }
   }
@@ -387,6 +402,79 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
         output_data_nan_flag = false;
       }
     }
+
+    /*
+     * dr ins速度存到队列当中，维持队列大小为100
+     * 队列大小为100时，计算队列的均值，进行速度判断
+     */
+    double dr_vel_x = msg->velocity().twist_vrf().linear_vrf().x();
+    Eigen::Vector3d dr_vel(dr_vel_x, 0, 0);
+    deque_dr_.push_back(dr_vel);
+    if (deque_dr_.size() > 100) {
+      deque_dr_.pop_front();
+    }
+
+    double ins_vel_x = imu_proto->ins_info().linear_velocity().x();
+    double ins_vel_y = imu_proto->ins_info().linear_velocity().y();
+    double ins_vel_z = imu_proto->ins_info().linear_velocity().z();
+    Eigen::Vector3d ins_vel(ins_vel_x, ins_vel_y, ins_vel_z);
+    deque_ins_.push_back(ins_vel);
+    if (deque_ins_.size() > 100) {
+      deque_ins_.pop_front();
+    }
+
+    Eigen::Vector3d mean_dr_vel = Eigen::Vector3d::Zero();
+    Eigen::Vector3d mean_ins_vel = Eigen::Vector3d::Zero();
+    if (deque_ins_.size() == 100 && deque_dr_.size() == 100) {
+      for (auto dr_vel : deque_dr_) {
+        mean_dr_vel += dr_vel;
+      }
+      mean_dr_vel /= deque_dr_.size();
+
+      for (auto ins_vel : deque_ins_) {
+        mean_ins_vel += ins_vel;
+      }
+      mean_ins_vel /= deque_ins_.size();
+    }
+
+    HLOG_DEBUG << "mean_dr_vel:" << mean_dr_vel.x() << "," << mean_dr_vel.y()
+               << "," << mean_dr_vel.z();
+    HLOG_DEBUG << "mean_ins_vel:" << mean_ins_vel.x() << "," << mean_ins_vel.y()
+               << "," << mean_ins_vel.z();
+
+    bool vel_error = isVelError(mean_dr_vel, mean_ins_vel);
+    static int count = 0;
+    if ((imu_proto->ins_info().gps_status() == 4) &&
+        (imu_proto->ins_info().sd_position().x() < 0.05) &&
+        (imu_proto->ins_info().sd_position().y() < 0.05)) {
+      count++;
+      if (count > 100) {
+        count = 101;
+      }
+    } else {
+      count = 0;
+    }
+
+    HLOG_DEBUG << "count:" << count;
+    if (vel_error && count > 100) {
+      dr_fault->Report(MAKE_FM_TUPLE(
+          hozon::perception::base::FmModuleId::MAPPING,
+          hozon::perception::base::FaultType::DR_OUTPUT_VELOCITY_ERROR,
+          hozon::perception::base::FaultStatus::OCCUR,
+          hozon::perception::base::SensorOrientation::UNKNOWN, 6, 100));
+      output_vel_error_flag = true;
+      HLOG_ERROR << "DR: output vel error";
+    } else {
+      if (output_vel_error_flag) {
+        dr_fault->Report(MAKE_FM_TUPLE(
+            hozon::perception::base::FmModuleId::MAPPING,
+            hozon::perception::base::FaultType::DR_OUTPUT_VELOCITY_ERROR,
+            hozon::perception::base::FaultStatus::RESET,
+            hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+        output_vel_error_flag = false;
+      }
+    }
+
 #ifdef ISORIN
     // mapping trigger 轮速计跳变
     CheckTriggerDrDrift(vel_x, pose_x, pose_y, cur_imu_time);
@@ -397,6 +485,26 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
   }
 
   return 0;
+}
+
+template <typename T1, typename T2>
+bool DeadReckoning::isVelError(const T1& t1, const T2& t2) {
+  double vel_dr_norm =
+      std::sqrt(t1.x() * t1.x() + t1.y() * t1.y() + t1.z() * t1.z());
+  double vel_ins_norm =
+      std::sqrt(t2.x() * t2.x() + t2.y() * t2.y() + t2.z() * t2.z());
+
+  HLOG_DEBUG << "vel_dr_norm_test:" << vel_dr_norm << ","
+             << "vel_ins_norm_test:" << vel_ins_norm;
+  HLOG_DEBUG << "vel_error_threshold_:" << vel_error_threshold_;
+
+  if (std::abs(vel_dr_norm - vel_ins_norm) > vel_error_threshold_ &&
+      vel_dr_norm != 0) {
+    HLOG_ERROR << "vel_dr_norm:" << vel_dr_norm << ","
+               << "vel_ins_norm:" << vel_ins_norm;
+    return true;
+  }
+  return false;
 }
 
 }  //  namespace common_onboard

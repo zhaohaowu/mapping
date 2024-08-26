@@ -229,6 +229,10 @@ bool Odometry2D::update() {
     cur_odom_data.loc_vel = local_vel;
     cur_odom_data.loc_omg = w_by_gyro_;
     cur_odom_data.loc_acc = acc_by_gyro_;
+
+    cur_odom_data.ins_gyr = imu_datas.back().ins_gyr;
+    cur_odom_data.ins_acc = imu_datas.back().ins_acc;
+
     cur_odom_data.gear = oldest_wheels[1].gear;
     cur_odom_data.chassis_seq = oldest_wheels[1].seq;
 

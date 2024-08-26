@@ -11,10 +11,11 @@
 #include <unordered_map>
 #include <vector>
 
-#include "phm/include/phm_client.h"
 #include "base/state_machine/state_machine_info.h"
 #include "lib/config_manager/config_manager.h"
 #include "onboard/onboard_lite/flags/mapping_flags.h"
+#include "phm/include/phm_client.h"
+#include "base/fault/fault_info.h"
 
 namespace hozon {
 namespace perception {
@@ -31,7 +32,9 @@ class PhmComponent {
   bool Init();
   bool FaultReport(const int32_t& faultid, const int32_t& objid,
                    const int32_t& status, const int32_t& debounceCount = 0,
-                   const int32_t& debounceTime = 0);
+                   const int32_t& debounceTime = 0,
+                   const base::DebounceType& debounce_type =
+                       base::DebounceType::DEBOUNCE_TYPE_COUNT);
   bool ReportCheckPointId(const int& reportid);
   void BindResumeTrigger(
       const std::function<int32_t(const std::string& trigger)>& resumeTrigger);
@@ -48,9 +51,7 @@ class PhmComponent {
   void NotifySmInfo(const hozon::perception::base::RunningMode& state);
   void PauseTrigger();
   void ResumeTrigger();
-  std::string Name() const {
-    return "MappingComponent";
-  }
+  std::string Name() const { return "MappingComponent"; }
 
  private:
   std::shared_ptr<PHMClient> phm_client_;

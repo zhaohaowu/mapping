@@ -526,6 +526,13 @@ bool FusionCenter::DrToBasicInfo(
   node->velocity << msg.velocity().twist_vrf().linear_vrf().x(),
       msg.velocity().twist_vrf().linear_vrf().y(),
       msg.velocity().twist_vrf().linear_vrf().z();
+
+  if (node->type == NodeType::DR) {
+    node->ins_angular_velocity
+        << msg.velocity().twist_vrf().angular_raw_vrf().x(),
+        msg.velocity().twist_vrf().angular_raw_vrf().y(),
+        msg.velocity().twist_vrf().angular_raw_vrf().z();
+  }
   node->angular_velocity << msg.velocity().twist_vrf().angular_vrf().x(),
       msg.velocity().twist_vrf().angular_vrf().y(),
       msg.velocity().twist_vrf().angular_vrf().z();
@@ -747,6 +754,7 @@ void FusionCenter::Node2Localization(const Context& ctx,
   const auto& imu = ctx.imuins.imu_info();
   const auto& global_node = ctx.global_node;
   const auto& local_node = ctx.local_node;
+  const auto& dr_node = ctx.dr_node;
   // publish time align to dr coordinate
   const double ticktime = local_node.ticktime;
 
@@ -820,13 +828,22 @@ void FusionCenter::Node2Localization(const Context& ctx,
   pose->mutable_linear_velocity_vrf()->set_y(local_node.velocity(1));
   pose->mutable_linear_velocity_vrf()->set_z(local_node.velocity(2));
 
-  pose->mutable_linear_acceleration_vrf()->set_x(ins.linear_acceleration().x());
-  pose->mutable_linear_acceleration_vrf()->set_y(ins.linear_acceleration().y());
-  pose->mutable_linear_acceleration_vrf()->set_z(ins.linear_acceleration().z());
+  // 使用INS的加速度、角速度
+  // pose->mutable_linear_acceleration_vrf()->set_x(ins.linear_acceleration().x());
+  // pose->mutable_linear_acceleration_vrf()->set_y(ins.linear_acceleration().y());
+  // pose->mutable_linear_acceleration_vrf()->set_z(ins.linear_acceleration().z());
 
-  pose->mutable_angular_velocity_vrf()->set_x(ins.angular_velocity().x());
-  pose->mutable_angular_velocity_vrf()->set_y(ins.angular_velocity().y());
-  pose->mutable_angular_velocity_vrf()->set_z(ins.angular_velocity().z());
+  // pose->mutable_angular_velocity_vrf()->set_x(ins.angular_velocity().x());
+  // pose->mutable_angular_velocity_vrf()->set_y(ins.angular_velocity().y());
+  // pose->mutable_angular_velocity_vrf()->set_z(ins.angular_velocity().z());
+  // 使用DR的加速度、角速度
+  pose->mutable_linear_acceleration_vrf()->set_x(dr_node.linear_accel(0));
+  pose->mutable_linear_acceleration_vrf()->set_y(dr_node.linear_accel(1));
+  pose->mutable_linear_acceleration_vrf()->set_z(dr_node.linear_accel(2));
+
+  pose->mutable_angular_velocity_vrf()->set_x(dr_node.ins_angular_velocity(0));
+  pose->mutable_angular_velocity_vrf()->set_y(dr_node.ins_angular_velocity(1));
+  pose->mutable_angular_velocity_vrf()->set_z(dr_node.ins_angular_velocity(2));
 
   pose->mutable_gcj02()->set_x(global_node.blh(0));
   pose->mutable_gcj02()->set_y(global_node.blh(1));
@@ -1681,9 +1698,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     // ctx->global_node = ctx->dr_node;
     // ctx->global_node.rtk_status = ctx->ins_node.rtk_status;
     ctx->global_node.cov = fusion_node.cov;
-#ifdef ISORIN
-    CheckTriggerLocState(ctx);
-#endif
+
     const auto& T_delta = Node2SE3(ni).inverse() * Node2SE3(ctx->dr_node);
     const auto& pose = Node2SE3(refer_node) * T_delta;
     ctx->global_node.enu = pose.translation();
@@ -1724,6 +1739,11 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
   ctx->global_node.location_state = loc_state;
 
   ctx->global_node.state = true;
+
+#ifdef ISORIN
+    CheckTriggerLocState(ctx);
+#endif
+
   return true;
 }
 
@@ -1823,10 +1843,10 @@ uint32_t FusionCenter::GetGlobalLocationState(const Node& newest_fc_node) {
   static uint32_t state = 5;
   uint32_t search_cnt = 0;
 
-  std::unique_lock<std::mutex> lock(fusion_deque_mutex_);
   // 进入loc=2条件
   if (state != 2) {
     bool valid_dis = CheckFcMmDisValid(newest_fc_node);
+    std::unique_lock<std::mutex> lock(fusion_deque_mutex_);
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
       if ((*it)->type == NodeType::POSE_ESTIMATE && valid_dis &&
           (*it)->cov(0, 0) <= params_.loc2_posx_conv * 1e-11 &&
@@ -1840,14 +1860,15 @@ uint32_t FusionCenter::GetGlobalLocationState(const Node& newest_fc_node) {
     }
   } else {
     // 退出loc=2条件
+    std::unique_lock<std::mutex> lock(fusion_deque_mutex_);
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
       if ((*it)->type == NodeType::POSE_ESTIMATE &&
           (*it)->cov(0, 0) <=
-              +params_.pos_exit_multiple * params_.loc2_posx_conv * 1e-11 &&
+              params_.pos_exit_multiple * params_.loc2_posx_conv * 1e-11 &&
           (*it)->cov(1, 1) <=
-              +params_.pos_exit_multiple * params_.loc2_posy_conv * 1e-11 &&
+              params_.pos_exit_multiple * params_.loc2_posy_conv * 1e-11 &&
           (*it)->cov(8, 8) <=
-              +params_.ang_exit_multiple * params_.loc2_yaw_conv * 1e-11) {
+              params_.ang_exit_multiple * params_.loc2_yaw_conv * 1e-11) {
         break;
       }
       if ((++search_cnt) > params_.search_state_cnt) {
@@ -1951,21 +1972,33 @@ double FusionCenter::OrientationToHeading(const Eigen::Vector3d& orientation) {
 }
 
 bool FusionCenter::FilterPoseEstimation(const Node& node) {
-  std::unique_lock<std::mutex> lock_pe(pe_deque_mutex_);
-  if (pe_deque_.empty() || dr_deque_.empty()) {
-    return true;
+  std::deque<std::shared_ptr<Node>> pe_deque_temp;
+  {
+    std::unique_lock<std::mutex> lock_pe(pe_deque_mutex_);
+    if (pe_deque_.empty()) {
+      return true;
+    }
+    pe_deque_temp = pe_deque_;
+  }
+
+  {
+    std::unique_lock<std::mutex> lock_dr(dr_deque_mutex_);
+    if (dr_deque_.empty()) {
+      return true;
+    }
   }
 
   bool flag = false;
-  auto pe = pe_deque_.back();
+  auto pe = pe_deque_temp.back();
   auto pe_dist = 0.0;
-  std::unique_lock<std::mutex> lock_fusion(fusion_deque_mutex_);
-  double pe_back_time = pe_deque_.back()->ticktime;
-  for (auto it = pe_deque_.rbegin(); it != pe_deque_.rend(); ++it) {
+
+  double pe_back_time = pe_deque_temp.back()->ticktime;
+  for (auto it = pe_deque_temp.rbegin(); it != pe_deque_temp.rend(); ++it) {
     auto pe_diff = pe_back_time - (*it)->ticktime;
     if (pe_diff < -1.0e-3 || pe_diff > 1) {
       continue;
     }
+    std::unique_lock<std::mutex> lock_fusion(fusion_deque_mutex_);
     for (const auto& fusion : fusion_deque_) {
       if (fabs(fusion->ticktime - (*it)->ticktime) > 0.01 ||
           fusion->sys_status != 2) {

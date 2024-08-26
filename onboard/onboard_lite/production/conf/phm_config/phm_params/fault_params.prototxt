@@ -311,6 +311,14 @@ falut_data {
 }
 falut_data {
   module_id : 3
+  fault_id : 1008
+  orientation : -1
+  report_faultid : 5010
+  report_objid : 8
+  fault_option : true
+}
+falut_data {
+  module_id : 3
   fault_id : 1100
   orientation : -1
   report_faultid : 5200
@@ -379,5 +387,13 @@ falut_data {
   orientation : -1
   report_faultid : 5200
   report_objid : 23
+  fault_option : true
+}
+falut_data {
+  module_id : 3
+  fault_id : 1080
+  orientation : -1
+  report_faultid : 5090
+  report_objid : 4
   fault_option : true
 }

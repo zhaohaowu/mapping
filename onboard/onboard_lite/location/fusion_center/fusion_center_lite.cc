@@ -138,6 +138,14 @@ int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   static bool input_data_value_error_flag = false;
   static int dr_fusion_count = 0;
+  static int dr_fusion_begin_count = 0;
+
+  ++dr_fusion_begin_count;
+  if (dr_fusion_begin_count >= 100) {
+    dr_fusion_begin_count = 0;
+    HLOG_INFO << "rev dr_fusion lite begin heartbeat";
+  }
+
   if (!input) {
     return -1;
   }
@@ -193,7 +201,7 @@ int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
   ++dr_fusion_count;
   if (dr_fusion_count >= 100) {
     dr_fusion_count = 0;
-    HLOG_INFO << "rev dr_fusion lite heartbeat";
+    HLOG_INFO << "rev dr_fusion lite end heartbeat";
   }
   return 0;
 }

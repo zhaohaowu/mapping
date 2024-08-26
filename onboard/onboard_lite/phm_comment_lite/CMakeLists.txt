@@ -13,6 +13,7 @@ set(LIBS
     perception-lib-mal
     neta_phm
     mal_gflags
+    gflags
     glog
 )
 

@@ -44,7 +44,8 @@ bool PhmComponent::InitHealth() {
         return ReportCheckPointId(checkpointid);
       });
 
-  HealthManager::Instance()->SetCallBackNotifySmInfo(
+    HealthManager::Instance()->SetCallBackNotifySmInfo(
+      "phm_onboard_lite",
       [this](const RunningMode& state) { NotifySmInfo(state); });
   return true;
 }

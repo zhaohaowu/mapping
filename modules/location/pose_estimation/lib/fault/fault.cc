@@ -379,8 +379,9 @@ std::tuple<bool, bool, bool> MmFault::FaultDetected(
   bool fc_good_match_single_check = true;
   bool fc_good_match_double_check = true;
   bool fc_width_good_match_single_check = true;
-  if (!(fabs(global_error) >= mm_params.line_error_normal_thr ||
-        fabs(global_near_error) >= mm_params.line_error_normal_thr)) {
+  if (fabs(global_error) < mm_params.line_error_normal_thr &&
+      fabs(global_near_error) < mm_params.line_error_normal_thr &&
+      width_diff < 0) {
     return std::tuple<bool, bool, bool>{fc_good_match_single_check,
                                         fc_good_match_double_check,
                                         fc_width_good_match_single_check};
@@ -399,8 +400,8 @@ std::tuple<bool, bool, bool> MmFault::FaultDetected(
       HLOG_ERROR << "130 : ser double near distance exceed thr";
       fc_good_match_double_check = false;
     }
-    if (fabs(faultParam.left_error) >= mm_params.map_lane_match_double_diff &&
-        fabs(faultParam.right_error) >= mm_params.map_lane_match_double_diff) {
+    if (fabs(faultParam.left_error) >= mm_params.map_lane_match_max &&
+        fabs(faultParam.right_error) >= mm_params.map_lane_match_max) {
       HLOG_ERROR << "130 : ser double both sides distance exceed thr";
       fc_good_match_double_check = false;
     }
@@ -481,7 +482,7 @@ std::tuple<bool, bool, bool> MmFault::FaultDetected(
   if ((fabs(faultParam.right_dist_near_v) >= mm_params.map_lane_match_diver ||
        fabs(faultParam.right_error) >= mm_params.map_lane_match_diver) &&
       fabs(faultParam.right_near_check_dist_v) < mm_params.ramp_judg_thre) {
-       right_near_point_distance = GetDistanceBySecondFaultDetected(
+    right_near_point_distance = GetDistanceBySecondFaultDetected(
         right_filtered_fcmap_lines, map_right_check_near_id,
         percep_right_target_point, FC_vel);
   }

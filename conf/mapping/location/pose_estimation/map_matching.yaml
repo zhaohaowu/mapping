@@ -37,7 +37,7 @@ left_edge_y_err: 0.0
 right_edge_y_err: 0.0
 map_lane_match_buff: 10         # 超过buff次就上报故障
 fault_restore_buff: 30
-map_lane_match_ser_max: 0.7     # 双边判断的阈值0.7
+map_lane_match_ser_max: 0.8     # 双边判断的阈值0.8
 map_lane_match_max: 0.55        # 宽度校验后的双边判断阈值
 map_percep_width_diff: 0.6      # 地图和感知宽度校验的阈值
 map_lane_match_single_diff: 1.0

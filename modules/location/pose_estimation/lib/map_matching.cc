@@ -8,13 +8,13 @@
 #include "modules/location/pose_estimation/lib/map_matching.h"
 
 #include <algorithm>
-#include <chrono>
 #include <cfloat>
+#include <chrono>
 #include <cstdint>
 #include <memory>
+#include <stack>
 #include <string>
 #include <vector>
-#include <stack>
 
 #include "Eigen/src/Core/Matrix.h"
 #include "Eigen/src/Geometry/Quaternion.h"
@@ -461,8 +461,10 @@ void MapMatching::FilterPercpLaneline(
 
 void MapMatching::MergeMapLines(
     const std::shared_ptr<MapBoundaryLine>& boundary_lines, const SE3& T,
-    std::unordered_map<std::string, std::vector<ControlPoint>>* merged_fcmap_lines,
-    std::unordered_map<std::string, std::vector<ControlPoint>>* merged_map_lines) {
+    std::unordered_map<std::string, std::vector<ControlPoint>>*
+        merged_fcmap_lines,
+    std::unordered_map<std::string, std::vector<ControlPoint>>*
+        merged_map_lines) {
   if (boundary_lines == nullptr) {
     return;
   }
@@ -524,6 +526,7 @@ void MapMatching::MergeMapLines(
   }
   std::unordered_map<std::string, int> merge_lane_ids;
   for (auto& lines : multi_linked_lines_) {
+    std::vector<std::string> last_line_ids;
     for (auto& line_ids : lines) {
       if (line_ids.empty()) {
         continue;
@@ -533,10 +536,17 @@ void MapMatching::MergeMapLines(
       auto last_line_id = line_ids[right];
       size_t mid_index = left + (right - left) / 2;
       auto mid_line_id = line_ids[mid_index];
-      std::string merge_lane_id = first_line_id + "_" + mid_line_id + "_" + last_line_id;
+      std::string merge_lane_id =
+          first_line_id + "_" + mid_line_id + "_" + last_line_id;
       if (merge_lane_ids.find(merge_lane_id) != merge_lane_ids.end()) {
-        merge_lane_ids[merge_lane_id] += 1;
-        continue;
+        if (line_ids.size() == last_line_ids.size() &&
+            std::equal(line_ids.begin(), line_ids.end(),
+                       last_line_ids.begin())) {
+          merge_lane_ids[merge_lane_id] += 1;
+          continue;
+        } else {
+          merge_lane_id = merge_lane_id + "_00000";
+        }
       }
       for (auto& line_id : line_ids) {
         for (auto control_point :
@@ -546,6 +556,7 @@ void MapMatching::MergeMapLines(
           (*merged_map_lines)[merge_lane_id].emplace_back(control_point);
         }
       }
+      last_line_ids = line_ids;
       merge_lane_ids[merge_lane_id] += 1;
     }
   }
@@ -553,7 +564,7 @@ void MapMatching::MergeMapLines(
 }
 
 void MapMatching::Traversal(const V3& root_start_point,
-                              std::vector<std::string> line_ids, int loop) {
+                            std::vector<std::string> line_ids, int loop) {
   if (lines_map_.empty()) {
     return;
   }
@@ -604,7 +615,8 @@ void MapMatching::Traversal(const V3& root_start_point,
 
 void MapMatching::MergeMapEdges(
     const std::shared_ptr<MapRoadEdge>& road_edges, const SE3& T,
-    std::unordered_map<std::string, std::vector<ControlPoint>>* merged_map_edges) {
+    std::unordered_map<std::string, std::vector<ControlPoint>>*
+        merged_map_edges) {
   if (road_edges == nullptr) {
     return;
   }
@@ -664,6 +676,7 @@ void MapMatching::MergeMapEdges(
   }
   std::unordered_map<std::string, int> merge_lane_ids;
   for (auto& lines : multi_linked_edges_) {
+    std::vector<std::string> last_line_ids;
     for (auto& line_ids : lines) {
       if (line_ids.empty()) {
         continue;
@@ -673,10 +686,17 @@ void MapMatching::MergeMapEdges(
       auto last_line_id = line_ids[right];
       size_t mid_index = left + (right - left) / 2;
       auto mid_line_id = line_ids[mid_index];
-      std::string merge_lane_id = first_line_id + "_" + mid_line_id + "_" + last_line_id;
+      std::string merge_lane_id =
+          first_line_id + "_" + mid_line_id + "_" + last_line_id;
       if (merge_lane_ids.find(merge_lane_id) != merge_lane_ids.end()) {
-        merge_lane_ids[merge_lane_id] += 1;
-        continue;
+        if (line_ids.size() == last_line_ids.size() &&
+            std::equal(line_ids.begin(), line_ids.end(),
+                       last_line_ids.begin())) {
+          merge_lane_ids[merge_lane_id] += 1;
+          continue;
+        } else {
+          merge_lane_id = merge_lane_id + "_00000";
+        }
       }
       for (auto& line_id : line_ids) {
         for (auto control_point :
@@ -685,6 +705,7 @@ void MapMatching::MergeMapEdges(
           (*merged_map_edges)[merge_lane_id].emplace_back(control_point);
         }
       }
+      last_line_ids = line_ids;
       merge_lane_ids[merge_lane_id] += 1;
     }
   }
@@ -692,8 +713,7 @@ void MapMatching::MergeMapEdges(
 }
 
 void MapMatching::EdgesTraversal(const V3& root_start_point,
-                                   std::vector<std::string> line_ids,
-                                   int loop) {
+                                 std::vector<std::string> line_ids, int loop) {
   if (edges_map_.empty()) {
     return;
   }

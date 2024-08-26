@@ -26,7 +26,6 @@
 #include "modules/map_fusion_02/data_manager/location_data_manager.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/broken_point_search.h"
 #include "modules/util/include/util/mapping_log.h"
-#include "nlohmann/detail/meta/cpp_future.hpp"
 #include "opencv2/core/core.hpp"
 #include "opencv2/features2d.hpp"
 

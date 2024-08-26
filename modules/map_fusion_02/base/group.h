@@ -116,6 +116,13 @@ struct LineSegment : public Line {
   DEFINE_PTR(LineSegment)
 };
 
+struct EdgeSegment : public LineSegment {
+  bool is_left = false;
+  bool is_right = false;
+
+  DEFINE_PTR(EdgeSegment)
+};
+
 struct Lane {
   LineSegment::Ptr left_boundary;
   LineSegment::Ptr right_boundary;
@@ -146,6 +153,7 @@ struct SliceLine {
   Eigen::Vector3f po;  // 中心原点
   Eigen::Vector3f pl;  // 左边点
   Eigen::Vector3f pr;  // 右边点
+  CutPointType cut_type;
 };
 
 struct Group {
@@ -158,6 +166,9 @@ struct Group {
   SliceLine start_slice;
   SliceLine end_slice;
   std::vector<LineSegment::Ptr> line_segments;
+  std::vector<EdgeSegment::Ptr> occ_segments;
+  std::vector<EdgeSegment::Ptr> model_edge_segments;
+  std::vector<RoadEdge::Ptr> road_edges;
 
   std::vector<Lane::Ptr> lanes;
   std::string str_id;

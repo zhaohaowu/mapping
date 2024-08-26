@@ -28,7 +28,7 @@ void RoadConstruct::Clear() {
   predict_line_params_.clear();
 }
 
-bool RoadConstruct::ConstructLane(
+bool RoadConstruct::ConstructRoad(
     const std::vector<CutPoint>& cutpoints, std::deque<Line::Ptr> lines,
     const std::shared_ptr<std::vector<KinePosePtr>>& path,
     const KinePosePtr& curr_pose, const ElementMap::Ptr& ele_map) {
@@ -138,9 +138,10 @@ void RoadConstruct::BuildGroups(const std::vector<CutPoint>& cutpoints,
   double stamp = ele_map->map_info.stamp;
 
   CreatGroupsFromCutPoints(cutpoints, groups);
-  SplitPtsToGroup(lines, groups);
+  SplitPtsToGroup(lines, ele_map, groups);
   GenLanesInGroups(groups, ele_map, stamp);
   SetBrokenId(groups);
+  GenRoadEdges(groups);
 }
 
 void RoadConstruct::CreatGroupsFromCutPoints(
@@ -168,6 +169,8 @@ void RoadConstruct::CreatGroupsFromCutPoints(
     slice.po = po_veh;
     slice.pl = pl_veh;
     slice.pr = pr_veh;
+    slice.cut_type = ctp.GetType();
+    HLOG_DEBUG << "ctp type: " << ctp.GetType();
     slice_lines.emplace_back(slice);
   }
 
@@ -187,75 +190,516 @@ void RoadConstruct::CreatGroupsFromCutPoints(
     grp->str_id.clear();
     groups->emplace_back(grp);
   }
-  HLOG_INFO << "groups size: " << groups->size();
+  HLOG_DEBUG << "groups size: " << groups->size();
+}
+
+void RoadConstruct::SplitLinesToGroup(std::deque<Line::Ptr>* lines,
+                                      const Group::Ptr& grp) {
+  // 生成LineSegments
+  const auto& start_slice = grp->start_slice;
+  Eigen::Vector2f start_po = start_slice.po.head<2>();
+  Eigen::Vector2f start_pl = start_slice.pl.head<2>();
+  const auto& end_slice = grp->end_slice;
+  Eigen::Vector2f end_po = end_slice.po.head<2>();
+  Eigen::Vector2f end_pl = end_slice.pl.head<2>();
+
+  for (auto& line : *lines) {
+    // if (!line->isego) {
+    //   continue;
+    // }
+    auto line_seg = std::make_shared<LineSegment>();
+    line_seg->id = line->id;
+    line_seg->type = line->type;
+    line_seg->color = line->color;
+    line_seg->lanepos = line->lanepos;
+    line_seg->isego = line->isego;
+    line_seg->is_near_road_edge = line->is_near_road_edge;
+
+    line_seg->mean_end_heading = line->mean_end_heading;
+    line_seg->pred_end_heading = line->pred_end_heading;
+    line_seg->mean_end_heading_std_dev = line->mean_end_heading_std_dev;
+    line_seg->mean_end_interval = line->mean_end_interval;
+    for (const auto& delete_id : line->deteled_ids) {
+      line_seg->deteled_ids.emplace_back(delete_id);
+    }
+    while (!line->pts.empty()) {
+      Eigen::Vector2f front_pt_xy = line->pts.front().pt.head<2>();
+      // 第一个点已经在end_slice的右边，直接跳过这条线
+      if (PointInVectorSide(end_po, end_pl, front_pt_xy) > 0) {
+        break;
+      }
+      // 第一个点在end_slice的左边，并且在start_slice的右边，说明属于此group，加进来
+      if (PointInVectorSide(start_po, start_pl, front_pt_xy) >= 0) {
+        line_seg->pts.emplace_back(line->pts.front());
+      }
+      // 把处理完的第一个点pop掉，防止后面重复处理
+      line->pts.pop_front();
+    }
+    if (line_seg->pts.size() < 2) {
+      continue;
+    }
+
+    //! TBD: 这里用首尾两点求中值，后续考虑对所有点取平均值得到中心点
+    // line_seg->center =
+    //     (line_seg->pts.front().pt + line_seg->pts.back().pt) * 0.5;
+    int size_line_seg = static_cast<int>(line_seg->pts.size());
+    Eigen::Vector3f point_tmp(0.0, 0.0, 0.0);
+    for (int i = 0; i < size_line_seg; ++i) {
+      point_tmp += line_seg->pts[i].pt;
+    }
+    line_seg->center = point_tmp / size_line_seg;
+    // auto dist =
+    //     PointToVectorDist(start_slice.po, end_slice.po, line_seg->center);
+    auto dist = line_seg->center[1];  // !TBD: 暂时用y坐标代替距离
+
+    Eigen::Vector2f center_xy = line_seg->center.head<2>();
+    // 在path右边，距离设为负值
+    // if (PointInVectorSide(start_po, end_po, center_xy) > 0) {
+    //   dist = -1 * dist;
+    // }
+    line_seg->dist_to_path = dist;
+    grp->line_segments.emplace_back(line_seg);
+  }
+  // 按与path的距离从大到小排序，得到的结果就是所有线都是从左到右排序号
+  std::sort(grp->line_segments.begin(), grp->line_segments.end(),
+            [](const LineSegment::Ptr& a, const LineSegment::Ptr& b) {
+              return a->dist_to_path > b->dist_to_path;
+            });
+}
+
+void RoadConstruct::SplitOccsToGroup(const ElementMap::Ptr& ele_map,
+                                     const Group::Ptr& grp) {
+  // 生成OccSegments
+  const auto& start_slice = grp->start_slice;
+  Eigen::Vector2f start_po = start_slice.po.head<2>();
+  Eigen::Vector2f start_pl = start_slice.pl.head<2>();
+  const auto& end_slice = grp->end_slice;
+  Eigen::Vector2f end_po = end_slice.po.head<2>();
+  Eigen::Vector2f end_pl = end_slice.pl.head<2>();
+
+  const auto& occr = ele_map->occ_roads;
+  if (occr.empty()) {
+    HLOG_DEBUG << "occr is empty";
+    return;
+  } else {
+    HLOG_DEBUG << "occr size: " << occr.size();
+    for (const auto& occ : occr) {
+      auto occ_seg = std::make_shared<EdgeSegment>();
+      auto& track_id = occ.first;
+      auto& occ_lane = occ.second;
+      if (occ_lane->road_points.size() < 10) {
+        continue;
+      } else {
+        for (const auto& p : occ_lane->road_points) {
+          Point point_temp{RAW, static_cast<float>(p.x()),
+                           static_cast<float>(p.y()),
+                           static_cast<float>(p.z())};
+          Eigen::Matrix<float, 2, 1> pt{static_cast<float>(p.x()),
+                                        static_cast<float>(p.y())};
+          bool is_right_of_start =
+              PointInVectorSide(start_po, start_pl, pt) >= 0;
+          bool is_left_of_end = PointInVectorSide(end_po, end_pl, pt) < 0;
+          if (is_right_of_start && is_left_of_end) {
+            occ_seg->pts.emplace_back(point_temp);
+            occ_seg->id = track_id;
+          }
+        }
+        HLOG_DEBUG << "occ_seg->pts.size():" << occ_seg->pts.size();
+        if (occ_seg->pts.size() < 1) {
+          continue;
+        }
+      }
+
+      int size_occ_seg = static_cast<int>(occ_seg->pts.size());
+      Eigen::Vector3f point_tmp(0.0, 0.0, 0.0);
+      for (int i = 0; i < size_occ_seg; ++i) {
+        point_tmp += occ_seg->pts[i].pt;
+      }
+      occ_seg->center = point_tmp / size_occ_seg;
+      // auto dist =
+      //     PointToVectorDist(start_slice.po, end_slice.po, occ_seg->center);
+      auto dist = occ_seg->center[1];  // !TBD: 暂时用y坐标代替距离
+      HLOG_DEBUG << "occ dist: " << dist;
+
+      Eigen::Vector2f center_xy = occ_seg->center.head<2>();
+      // 在path右边，距离设为负值
+      if (dist < 0) {
+        occ_seg->is_right = true;
+        HLOG_DEBUG << "occ_seg is_right";
+      } else {
+        occ_seg->is_left = true;
+        HLOG_DEBUG << "occ_seg is_left";
+      }
+      occ_seg->dist_to_path = dist;
+
+      grp->occ_segments.emplace_back(occ_seg);
+      HLOG_DEBUG << "grp->occ_segments.size():" << grp->occ_segments.size();
+    }
+  }
+  std::sort(grp->occ_segments.begin(), grp->occ_segments.end(),
+            [](const LineSegment::Ptr& a, const LineSegment::Ptr& b) {
+              return a->dist_to_path > b->dist_to_path;
+            });
+}
+
+void RoadConstruct::SplitModelEdgesToGroup(const ElementMap::Ptr& ele_map,
+                                           const Group::Ptr& grp) {
+  // 生成ModelEdgesSegments
+  const auto& start_slice = grp->start_slice;
+  Eigen::Vector2f start_po = start_slice.po.head<2>();
+  Eigen::Vector2f start_pl = start_slice.pl.head<2>();
+  const auto& end_slice = grp->end_slice;
+  Eigen::Vector2f end_po = end_slice.po.head<2>();
+  Eigen::Vector2f end_pl = end_slice.pl.head<2>();
+
+  const auto& model_edges = ele_map->road_edges;
+  if (model_edges.empty()) {
+    HLOG_DEBUG << "model_edges is empty";
+    return;
+  } else {
+    HLOG_DEBUG << "model_edges size: " << model_edges.size();
+    for (const auto& model_edge : model_edges) {
+      auto model_edge_seg = std::make_shared<EdgeSegment>();
+      auto& track_id = model_edge.first;
+      auto& edge = model_edge.second;
+      if (edge->points.size() < 10) {
+        continue;
+      } else {
+        for (const auto& p : edge->points) {
+          Point point_temp{RAW, static_cast<float>(p.x()),
+                           static_cast<float>(p.y()),
+                           static_cast<float>(p.z())};
+          Eigen::Matrix<float, 2, 1> pt{static_cast<float>(p.x()),
+                                        static_cast<float>(p.y())};
+          bool is_right_of_start =
+              PointInVectorSide(start_po, start_pl, pt) >= 0;
+          bool is_left_of_end = PointInVectorSide(end_po, end_pl, pt) < 0;
+          if (is_right_of_start && is_left_of_end) {
+            model_edge_seg->pts.emplace_back(point_temp);
+            model_edge_seg->id = track_id;
+          }
+        }
+        HLOG_DEBUG << "model_edge_seg->points.size():"
+                   << model_edge_seg->pts.size();
+        if (model_edge_seg->pts.size() < 1) {
+          continue;
+        }
+      }
+
+      int size_occ_seg = static_cast<int>(model_edge_seg->pts.size());
+      Eigen::Vector3f point_tmp(0.0, 0.0, 0.0);
+      for (int i = 0; i < size_occ_seg; ++i) {
+        point_tmp += model_edge_seg->pts[i].pt;
+      }
+      model_edge_seg->center = point_tmp / size_occ_seg;
+      // auto dist = PointToVectorDist(start_slice.po, end_slice.po,
+      //                               model_edge_seg->center);
+      auto dist = model_edge_seg->center[1];  // !TBD: 暂时用y坐标代替距离
+      HLOG_DEBUG << "model dist: " << dist;
+
+      Eigen::Vector2f center_xy = model_edge_seg->center.head<2>();
+      // 在path右边，距离设为负值
+      if (dist < 0) {
+        // dist = -1 * dist;
+        model_edge_seg->is_right = true;
+        HLOG_DEBUG << "model_edge_seg is_right";
+      } else {
+        model_edge_seg->is_left = true;
+        HLOG_DEBUG << "model_edge_seg is_left";
+      }
+      model_edge_seg->dist_to_path = dist;
+      grp->model_edge_segments.emplace_back(model_edge_seg);
+      HLOG_DEBUG << "grp->model_edge_segments.size():"
+                 << grp->model_edge_segments.size();
+    }
+  }
+  std::sort(grp->model_edge_segments.begin(), grp->model_edge_segments.end(),
+            [](const LineSegment::Ptr& a, const LineSegment::Ptr& b) {
+              return a->dist_to_path > b->dist_to_path;
+            });
 }
 
 void RoadConstruct::SplitPtsToGroup(std::deque<Line::Ptr>* lines,
+                                    const ElementMap::Ptr& ele_map,
                                     std::vector<Group::Ptr>* groups) {
-  // 将线分割并填充到Group
   for (auto& grp : *groups) {
-    // 生成LineSegments
-    const auto& start_slice = grp->start_slice;
-    Eigen::Vector2f start_po = start_slice.po.head<2>();
-    Eigen::Vector2f start_pl = start_slice.pl.head<2>();
-    const auto& end_slice = grp->end_slice;
-    Eigen::Vector2f end_po = end_slice.po.head<2>();
-    Eigen::Vector2f end_pl = end_slice.pl.head<2>();
-    for (auto& line : *lines) {
-      // if (!line->isego) {
-      //   continue;
-      // }
-      auto line_seg = std::make_shared<LineSegment>();
-      line_seg->id = line->id;
-      line_seg->type = line->type;
-      line_seg->color = line->color;
-      line_seg->lanepos = line->lanepos;
-      line_seg->isego = line->isego;
-      line_seg->is_near_road_edge = line->is_near_road_edge;
+    grp->line_segments.clear();
+    grp->occ_segments.clear();
+    grp->model_edge_segments.clear();
 
-      line_seg->mean_end_heading = line->mean_end_heading;
-      line_seg->pred_end_heading = line->pred_end_heading;
-      line_seg->mean_end_heading_std_dev = line->mean_end_heading_std_dev;
-      line_seg->mean_end_interval = line->mean_end_interval;
-      for (const auto& delete_id : line->deteled_ids) {
-        line_seg->deteled_ids.emplace_back(delete_id);
-      }
-      while (!line->pts.empty()) {
-        Eigen::Vector2f front_pt_xy = line->pts.front().pt.head<2>();
-        // 第一个点已经在end_slice的右边，直接跳过这条线
-        if (PointInVectorSide(end_po, end_pl, front_pt_xy) > 0) {
-          break;
-        }
-        // 第一个点在end_slice的左边，并且在start_slice的右边，说明属于此group，加进来
-        if (PointInVectorSide(start_po, start_pl, front_pt_xy) >= 0) {
-          line_seg->pts.emplace_back(line->pts.front());
-        }
-        // 把处理完的第一个点pop掉，防止后面重复处理
-        line->pts.pop_front();
-      }
-      if (line_seg->pts.size() < 2) {
-        continue;
-      }
+    SplitLinesToGroup(lines, grp);
+    SplitOccsToGroup(ele_map, grp);
+    SplitModelEdgesToGroup(ele_map, grp);
 
-      //! TBD: 这里用首尾两点求中值，后续考虑对所有点取平均值得到中心点
-      // line_seg->center =
-      //     (line_seg->pts.front().pt + line_seg->pts.back().pt) * 0.5;
-      int size_line_seg = static_cast<int>(line_seg->pts.size());
-      Eigen::Vector3f point_tmp(0.0, 0.0, 0.0);
-      for (int i = 0; i < size_line_seg; ++i) {
-        point_tmp += line_seg->pts[i].pt;
-      }
-      line_seg->center = point_tmp / size_line_seg;
-      auto dist =
-          PointToVectorDist(start_slice.po, end_slice.po, line_seg->center);
-      Eigen::Vector2f center_xy = line_seg->center.head<2>();
-      // 在path右边，距离设为负值
-      if (PointInVectorSide(start_po, end_po, center_xy) > 0) {
-        dist = -1 * dist;
-      }
-      line_seg->dist_to_path = dist;
-      grp->line_segments.emplace_back(line_seg);
+    HLOG_DEBUG << "grp->line_segments.size(): " << grp->line_segments.size();
+    HLOG_DEBUG << "grp->occ_segments.size(): " << grp->occ_segments.size();
+    HLOG_DEBUG << "grp->model_edge_segments.size(): "
+               << grp->model_edge_segments.size();
+  }
+}
+
+void RoadConstruct::GenRoadEdges(std::vector<Group::Ptr>* groups) {
+  HLOG_DEBUG << "GenRoadEdges";
+
+  if (groups == nullptr) {
+    HLOG_ERROR << "groups is null";
+    return;
+  }
+
+  if (groups->empty()) {
+    HLOG_ERROR << "groups is empty";
+    return;
+  }
+
+  for (auto& grp : *groups) {
+    HLOG_DEBUG << "grp name: " << grp->str_id;
+
+    grp->road_edges.clear();
+    RoadEdge::Ptr road_edge_left = std::make_shared<RoadEdge>();
+    RoadEdge::Ptr road_edge_right = std::make_shared<RoadEdge>();
+
+    if (grp->line_segments.empty() && grp->occ_segments.empty() &&
+        grp->model_edge_segments.empty()) {
+      HLOG_DEBUG << "all segments is empty";
+      continue;
     }
+
+    // line_road_edge
+    {
+      if (grp->line_segments.empty()) {
+        HLOG_DEBUG << "line_segments is empty";
+      } else {
+        HLOG_DEBUG << "line_segments size: " << grp->line_segments.size();
+        RoadEdge::Ptr line_road_edge_left = std::make_shared<RoadEdge>();
+        line_road_edge_left->id = grp->line_segments.front()->id;
+        line_road_edge_left->is_left = true;
+        line_road_edge_left->road_edge_type = LINE;
+        line_road_edge_left->dist_to_path =
+            grp->line_segments.front()->dist_to_path;
+        HLOG_DEBUG << "line_road_edge_left->dist_to_path: "
+                   << line_road_edge_left->dist_to_path;
+
+        for (const auto& p : grp->line_segments.front()->pts) {
+          line_road_edge_left->points.emplace_back(p.pt);
+        }
+        road_edge_left = line_road_edge_left;
+        HLOG_DEBUG << "road_edge_left = line_road_edge_left";
+
+        if (grp->line_segments.size() > 2) {
+          RoadEdge::Ptr line_road_edge_right = std::make_shared<RoadEdge>();
+          line_road_edge_right->id = grp->line_segments.back()->id;
+          line_road_edge_right->is_right = true;
+          line_road_edge_right->road_edge_type = LINE;
+          line_road_edge_right->dist_to_path =
+              grp->line_segments.back()->dist_to_path;
+          HLOG_DEBUG << "line_road_edge_right->dist_to_path: "
+                     << line_road_edge_right->dist_to_path;
+
+          for (const auto& p : grp->line_segments.back()->pts) {
+            line_road_edge_right->points.emplace_back(p.pt);
+          }
+          road_edge_right = line_road_edge_right;
+          HLOG_DEBUG << "road_edge_right = line_road_edge_right";
+        }
+      }
+    }
+
+    // OCC_road_edge
+    {
+      if (conf_.use_occ) {
+        if (grp->occ_segments.empty()) {
+          HLOG_DEBUG << "occ_segments is empty";
+        } else {
+          HLOG_DEBUG << "occ_segments size: " << grp->occ_segments.size();
+
+          RoadEdge::Ptr OCC_road_edge_left = std::make_shared<RoadEdge>();
+          RoadEdge::Ptr OCC_road_edge_right = std::make_shared<RoadEdge>();
+
+          for (const auto& occ_seg : grp->occ_segments) {
+            RoadEdge::Ptr OCC_road_edge_temp = std::make_shared<RoadEdge>();
+            OCC_road_edge_temp->id = occ_seg->id;
+            OCC_road_edge_temp->road_edge_type = OCC;
+            OCC_road_edge_temp->dist_to_path = occ_seg->dist_to_path;
+            HLOG_DEBUG << "OCC_road_edge_temp->dist_to_path: "
+                       << OCC_road_edge_temp->dist_to_path;
+
+            for (const auto& p : occ_seg->pts) {
+              OCC_road_edge_temp->points.emplace_back(p.pt);
+            }
+
+            if (occ_seg->is_left) {
+              OCC_road_edge_temp->is_left = true;
+              if (OCC_road_edge_left->points.empty()) {
+                HLOG_DEBUG << "First !!! OCC_road_edge_left->points.empty()";
+                OCC_road_edge_left = OCC_road_edge_temp;
+              } else {
+                HLOG_DEBUG << "OCC_road_edge_left->dist_to_path: "
+                           << OCC_road_edge_left->dist_to_path
+                           << "  OCC_road_edge_temp->dist_to_path: "
+                           << OCC_road_edge_temp->dist_to_path;
+                OCC_road_edge_left = OCC_road_edge_left->dist_to_path <
+                                             OCC_road_edge_temp->dist_to_path
+                                         ? OCC_road_edge_left
+                                         : OCC_road_edge_temp;
+                if (OCC_road_edge_left->dist_to_path >
+                    OCC_road_edge_temp->dist_to_path) {
+                  HLOG_DEBUG << "update occ left!!!!";
+                }
+              }
+            }
+            if (occ_seg->is_right) {
+              OCC_road_edge_temp->is_right = true;
+              if (OCC_road_edge_right->points.empty()) {
+                HLOG_DEBUG << "First !!! OCC_road_edge_right->points.empty()";
+                OCC_road_edge_right = OCC_road_edge_temp;
+              } else {
+                HLOG_DEBUG << "OCC_road_edge_right->dist_to_path: "
+                           << OCC_road_edge_right->dist_to_path
+                           << "  OCC_road_edge_temp->dist_to_path: "
+                           << OCC_road_edge_temp->dist_to_path;
+                OCC_road_edge_right = OCC_road_edge_right->dist_to_path >
+                                              OCC_road_edge_temp->dist_to_path
+                                          ? OCC_road_edge_right
+                                          : OCC_road_edge_temp;
+                if (OCC_road_edge_right->dist_to_path <
+                    OCC_road_edge_temp->dist_to_path) {
+                  HLOG_DEBUG << "update occ right!!!!";
+                }
+              }
+            }
+          }
+
+          if (road_edge_left->road_edge_type == LINE &&
+              !(OCC_road_edge_left->points.empty()) &&
+              fabs(road_edge_left->dist_to_path -
+                   OCC_road_edge_left->dist_to_path) < 2.0) {
+            road_edge_left = OCC_road_edge_left;
+          } else {
+            road_edge_left =
+                road_edge_left->dist_to_path < OCC_road_edge_left->dist_to_path
+                    ? road_edge_left
+                    : OCC_road_edge_left;
+          }
+          if (road_edge_right->road_edge_type == LINE &&
+              !(OCC_road_edge_right->points.empty()) &&
+              fabs(road_edge_right->dist_to_path -
+                   OCC_road_edge_right->dist_to_path) < 2.0) {
+            road_edge_right = OCC_road_edge_right;
+          } else {
+            road_edge_right = road_edge_right->dist_to_path >
+                                      OCC_road_edge_right->dist_to_path
+                                  ? road_edge_right
+                                  : OCC_road_edge_right;
+          }
+        }
+      }
+    }
+
+    // model_road_edge
+    {
+      if (grp->model_edge_segments.empty()) {
+        HLOG_DEBUG << "model_edge_segments is empty";
+      } else {
+        HLOG_DEBUG << "model_edge_segments size: "
+                   << grp->model_edge_segments.size();
+
+        RoadEdge::Ptr model_road_edge_left = std::make_shared<RoadEdge>();
+        RoadEdge::Ptr model_road_edge_right = std::make_shared<RoadEdge>();
+
+        for (const auto& model_edge_seg : grp->model_edge_segments) {
+          RoadEdge::Ptr model_road_edge_temp = std::make_shared<RoadEdge>();
+          model_road_edge_temp->id = model_edge_seg->id;
+          model_road_edge_temp->road_edge_type = MODEL;
+          model_road_edge_temp->dist_to_path = model_edge_seg->dist_to_path;
+          HLOG_DEBUG << "model_road_edge_temp->dist_to_path: "
+                     << model_road_edge_temp->dist_to_path;
+
+          for (const auto& p : model_edge_seg->pts) {
+            model_road_edge_temp->points.emplace_back(p.pt);
+          }
+
+          if (model_edge_seg->is_left) {
+            model_road_edge_temp->is_left = true;
+            if (model_road_edge_left->points.empty()) {
+              HLOG_DEBUG << "First !!! model_road_edge_left->points.empty()";
+              model_road_edge_left = model_road_edge_temp;
+            } else {
+              HLOG_DEBUG << "model_road_edge_left->dist_to_path: "
+                         << model_road_edge_left->dist_to_path
+                         << "  model_road_edge_temp->dist_to_path: "
+                         << model_road_edge_temp->dist_to_path;
+              model_road_edge_left = model_road_edge_left->dist_to_path <
+                                             model_road_edge_temp->dist_to_path
+                                         ? model_road_edge_left
+                                         : model_road_edge_temp;
+              if (model_road_edge_left->dist_to_path >
+                  model_road_edge_temp->dist_to_path) {
+                HLOG_DEBUG << "update model left!!!!";
+              }
+            }
+          }
+          if (model_edge_seg->is_right) {
+            model_road_edge_temp->is_right = true;
+            if (model_road_edge_right->points.empty()) {
+              HLOG_DEBUG << "First !!! model_road_edge_right->points.empty()";
+              model_road_edge_right = model_road_edge_temp;
+            } else {
+              HLOG_DEBUG << "model_road_edge_right->dist_to_path: "
+                         << model_road_edge_right->dist_to_path
+                         << "  model_road_edge_temp->dist_to_path: "
+                         << model_road_edge_temp->dist_to_path;
+              model_road_edge_right = model_road_edge_right->dist_to_path >
+                                              model_road_edge_temp->dist_to_path
+                                          ? model_road_edge_right
+                                          : model_road_edge_temp;
+              if (model_road_edge_right->dist_to_path <
+                  model_road_edge_temp->dist_to_path) {
+                HLOG_DEBUG << "update model right!!!!";
+              }
+            }
+          }
+        }
+
+        if (road_edge_left->road_edge_type == LINE &&
+            !(model_road_edge_left->points.empty()) &&
+            fabs(road_edge_left->dist_to_path -
+                 model_road_edge_left->dist_to_path) < 2.0) {
+          road_edge_left = model_road_edge_left;
+        } else {
+          road_edge_left =
+              road_edge_left->dist_to_path < model_road_edge_left->dist_to_path
+                  ? road_edge_left
+                  : model_road_edge_left;
+        }
+        if (road_edge_right->road_edge_type == LINE &&
+            !(model_road_edge_right->points.empty()) &&
+            fabs(road_edge_right->dist_to_path -
+                 model_road_edge_right->dist_to_path) < 2.0) {
+          road_edge_right = model_road_edge_right;
+        } else {
+          road_edge_right = road_edge_right->dist_to_path >
+                                    model_road_edge_right->dist_to_path
+                                ? road_edge_right
+                                : model_road_edge_right;
+        }
+      }
+    }
+
+    HLOG_DEBUG << "road edge info: ";
+    HLOG_DEBUG << "road_edge_left: \t" << "id: " << road_edge_left->id << " \t"
+               << "is_left: " << road_edge_left->is_left << " \t"
+               << "road_edge_type: " << road_edge_left->road_edge_type << " \t"
+               << "dist_to_path: " << road_edge_left->dist_to_path << " \t"
+               << "points: " << road_edge_left->points.size();
+
+    HLOG_DEBUG << "road_edge_right: \t" << "id: " << road_edge_right->id
+               << " \t" << "is_right: " << road_edge_right->is_right << " \t"
+               << "road_edge_type: " << road_edge_right->road_edge_type << " \t"
+               << "dist_to_path: " << road_edge_right->dist_to_path << " \t"
+               << "points: " << road_edge_right->points.size();
+
+    grp->road_edges.emplace_back(road_edge_left);
+    grp->road_edges.emplace_back(road_edge_right);
   }
 }
 
@@ -289,9 +733,12 @@ void RoadConstruct::GenLanesInGroups(std::vector<Group::Ptr>* groups,
   // 生成车道中心线
   GenLaneCenterLine(groups);
 
+  // 删除脑部多的ego_group，青鸾号:1273597
+  EraseEgoGroupWithNoEgoLane(groups);
+
   // 删除空的group数据
   int before_remove_grp_nums = static_cast<int>(groups->size());
-  RemoveNullGroup(groups);
+  // RemoveNullGroup(groups);
   int after_remove_grp_nums = static_cast<int>(groups->size());
   if (after_remove_grp_nums != before_remove_grp_nums) {
     HLOG_WARN << "*********[CrossWalk]*******delete null group nums: "
@@ -304,15 +751,10 @@ void RoadConstruct::GenLanesInGroups(std::vector<Group::Ptr>* groups,
 }
 
 void RoadConstruct::GenGroupAllLanes(const Group::Ptr& grp) {
-  // 生成LaneSegments
+  // 生成Lane
   const auto line_seg_num = grp->line_segments.size();
   if (line_seg_num > 1) {
-    // 按与path的距离从大到小排序，得到的结果就是所有线都是从左到右排序号
-    std::sort(grp->line_segments.begin(), grp->line_segments.end(),
-              [](const LineSegment::Ptr& a, const LineSegment::Ptr& b) {
-                return a->dist_to_path > b->dist_to_path;
-              });
-    // 按边线距离生成LaneSegment
+    // 按边线距离生成Lane
     for (size_t i = 0; i < line_seg_num - 1; ++i) {
       auto& left_line = grp->line_segments.at(i);
       auto& right_line = grp->line_segments.at(i + 1);
@@ -324,6 +766,7 @@ void RoadConstruct::GenGroupAllLanes(const Group::Ptr& grp) {
       auto right_center = right_line->center;
       //! 商汤切分点情况下，由于center点是用首尾两点求中值，如果在弯道，该点会在车道外，导致计算距离错误
       auto dist = DistByKDtree(left_distp, *right_line);
+      // HLOG_INFO << "dist: " << dist;
       if (dist < conf_.min_lane_width) {
         continue;
       }
@@ -354,28 +797,35 @@ void RoadConstruct::FilterGroupBadLane(const Group::Ptr& grp) {
 
 void RoadConstruct::GenGroupName(const Group::Ptr& grp, int grp_id,
                                  double stamp) {
-  if (grp->lanes.size() == 0) {
-    return;
-  }
-  std::string lane_names;
+  if (!grp->lanes.empty()) {
+    std::string lane_names;
 
-  for (auto& lane : grp->lanes) {
-    lane->str_id = std::to_string(lane->left_boundary->id) + "_" +
-                   std::to_string(lane->right_boundary->id);
-    lane->lanepos_id = std::to_string(lane->left_boundary->lanepos) + "_" +
-                       std::to_string(lane->right_boundary->lanepos);
-    if (!lane_names.empty()) {
-      lane_names += "|";
+    for (auto& lane : grp->lanes) {
+      lane->str_id = std::to_string(lane->left_boundary->id) + "_" +
+                     std::to_string(lane->right_boundary->id);
+      lane->lanepos_id = std::to_string(lane->left_boundary->lanepos) + "_" +
+                         std::to_string(lane->right_boundary->lanepos);
+      if (!lane_names.empty()) {
+        lane_names += "|";
+      }
+      lane_names += lane->str_id;
     }
-    lane_names += lane->str_id;
-  }
 
-  grp->str_id = std::string("G") + std::to_string(grp_id) + "-" + lane_names;
-  grp->stamp = stamp;
+    grp->str_id = std::string("G") + std::to_string(grp_id) + "-" + lane_names;
+    grp->stamp = stamp;
 
-  for (auto& lane : grp->lanes) {
-    lane->str_id_with_group = grp->str_id + ":" + lane->str_id;
-    HLOG_ERROR << "lane->str_id_with_group: " << lane->str_id_with_group;
+    for (auto& lane : grp->lanes) {
+      lane->str_id_with_group = grp->str_id + ":" + lane->str_id;
+      // HLOG_ERROR << "lane->str_id_with_group: " << lane->str_id_with_group;
+    }
+  } else {
+    // HLOG_INFO << "no lane in grp";
+    grp->str_id = std::string("G") + std::to_string(grp_id) + "-no_lane-";
+    grp->stamp = stamp;
+    for (auto& line_seg : grp->line_segments) {
+      grp->str_id += "_" + std::to_string(line_seg->id);
+    }
+    // HLOG_INFO << "grp->str_id: " << grp->str_id;
   }
 }
 
@@ -442,7 +892,6 @@ void RoadConstruct::SetBrokenId(std::vector<Group::Ptr>* groups) {
 
 float RoadConstruct::DistByKDtree(const Eigen::Vector3f& ref_point,
                                   const LineSegment& LineSegment) {
-  distpoits_.clear();
   distpoits_.push_back(ref_point);
   int id = LineSegment.id;
   if (KDTrees_[id] == nullptr) {
@@ -504,7 +953,8 @@ float RoadConstruct::GetDistPointLane(const Eigen::Vector3f& point_a,
 
   float dist_proj = BA.dot(BC) / BC.norm();
   // 计算点到直线的距离
-  float point_dist = sqrt(pow(BA.norm(), 2) - pow(dist_proj, 2));
+  float point_dist =
+      static_cast<float>(sqrt(pow(BA.norm(), 2) - pow(dist_proj, 2)));
   return point_dist;
 }
 
@@ -666,6 +1116,121 @@ bool RoadConstruct::GenLaneCenterLine(std::vector<Group::Ptr>* groups) {
   return true;
 }
 
+int RoadConstruct::FindEgoGroup(std::vector<Group::Ptr>* groups) {
+  int index = -1;
+  for (auto& grp : *groups) {
+    index++;
+    if (grp->start_slice.po.x() > 0.0) {
+      // 前一个group是当前group或者没有找到当前group，需要再进行判断
+      return -1;
+    }
+    if (grp->end_slice.po.x() > 0.0) {
+      // 当前group是
+      return index;
+    }
+  }
+  return -1;
+}
+
+void RoadConstruct::EraseEgoGroupWithNoEgoLane(
+    std::vector<Group::Ptr>* groups) {
+  int index = FindEgoGroup(groups);
+  if (index == -1 || static_cast<int>(groups->size()) <= index) {
+    // 没找到自车所在group
+    if (groups->empty()) {
+      return;
+    }
+    auto curr_group = groups->back();
+
+    auto curr_grp_start_slice = curr_group->start_slice;
+    auto curr_grp_end_slice = curr_group->end_slice;
+
+    Eigen::Vector2f curr_end_pl(curr_grp_end_slice.pl.x(),
+                                curr_grp_end_slice.pl.y());
+    Eigen::Vector2f curr_end_pr(curr_grp_end_slice.pr.x(),
+                                curr_grp_end_slice.pr.y());
+    Pose nearest;
+    nearest.stamp = -1;
+    float min_dist = FLT_MAX;
+    for (const auto& p : path_in_curr_pose_) {
+      Eigen::Vector2f pt(p.pos.x(), p.pos.y());
+      float dist = PointToVectorDist(curr_end_pl, curr_end_pr, pt);
+      if (dist < min_dist) {
+        min_dist = dist;
+        nearest = p;
+        nearest.stamp = 0;
+      }
+    }
+
+    // 找到与历史车辆位置最接近的curr_lane作为当前所在lane
+    min_dist = FLT_MAX;  // min_dist = FLT_MAX;
+    if (nearest.stamp >= 0) {
+      Eigen::Vector3f temp_pt(1, 0, 0);
+      // 转到当前车体系下
+      Eigen::Vector3f temp_pt_curr_veh = nearest.quat * temp_pt + nearest.pos;
+      Eigen::Vector2f p1(nearest.pos.x(), nearest.pos.y());
+      Eigen::Vector2f p0(temp_pt_curr_veh.x(), temp_pt_curr_veh.y());
+      for (auto& curr_lane : curr_group->lanes) {
+        Eigen::Vector2f pt(curr_lane->center_line_pts.back().pt.x(),
+                           curr_lane->center_line_pts.back().pt.y());
+        // 把最近的centerline添加进来，要不然太远了角度有问题
+        float pt_dis = (pt - p0).norm();
+        for (auto it = curr_lane->center_line_pts.rbegin();
+             it != curr_lane->center_line_pts.rend(); ++it) {
+          Eigen::Vector2f point_center(it->pt.x(), it->pt.y());
+          if ((point_center - p0).norm() > pt_dis) {
+            break;
+          }
+          pt = point_center;
+          pt_dis = (point_center - p0).norm();
+        }
+        float dist = PointToVectorDist(p0, p1, pt);
+        min_dist = std::min(dist, min_dist);
+      }
+    }
+    if (min_dist > conf_.max_lane_width) {
+      groups->pop_back();
+    }
+    return;
+  }
+  auto& ego_group = groups->at(index);
+  if (static_cast<int>(groups->size()) > index + 1 &&
+      ego_group->end_slice.po.x() < 0.0 &&
+      groups->at(index + 1)->start_slice.po.x() > 0.0) {
+    // 没找到自车所在group
+    return;
+  }
+  if (static_cast<int>(groups->size()) == index + 1 &&
+      ego_group->end_slice.po.x() < 0.0) {
+    return;
+  }
+  // 判断是否有自车道和邻车道
+  for (auto& lane : ego_group->lanes) {
+    if (lane->center_line_pts.size() < 1) {
+      continue;
+    }
+    int index = -1;  // centerpoint_index;
+    float best_dis = FLT_MAX;
+    for (int i = 0; i < lane->center_line_pts.size(); ++i) {
+      float dis = lane->center_line_pts[i].pt.norm();
+      if (dis < best_dis) {
+        index = i;
+        best_dis = dis;
+      } else {
+        // 点都是顺序排列的，所以如果距离变大的话就可以退出了
+        break;
+      }
+    }
+    if (index == -1) {
+      continue;
+    }
+    if (lane->center_line_pts[index].pt.norm() < conf_.max_lane_width) {
+      return;
+    }
+  }
+  groups->erase(groups->begin() + index);
+}
+
 void RoadConstruct::FitCenterLine(const Lane::Ptr& lane) {
   std::vector<Vec2d> left_pts;
   std::vector<Vec2d> right_pts;
@@ -686,12 +1251,14 @@ void RoadConstruct::FitCenterLine(const Lane::Ptr& lane) {
   }
   if (lane->center_line_pts.size() > 3) {
     lane->center_line_param = math::FitLaneline(lane->center_line_pts);
-    lane->center_line_param_front = math::FitLanelinefront(lane->center_line_pts);
+    lane->center_line_param_front =
+        math::FitLanelinefront(lane->center_line_pts);
   }
 }
 
 void RoadConstruct::RemoveNullGroup(std::vector<Group::Ptr>* groups) {
-  for (size_t grp_idx = 0; grp_idx < groups->size(); ++grp_idx) {
+  for (size_t grp_idx = 0; grp_idx < static_cast<int>(groups->size());
+       ++grp_idx) {
     auto& curr_group = groups->at(grp_idx);
     HLOG_DEBUG << "REMOVE1 curr_group->lanes.size()"
                << curr_group->lanes.size();

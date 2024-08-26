@@ -22,6 +22,7 @@
 
 #include <Sophus/se3.hpp>
 #include <Sophus/so3.hpp>
+#include "modules/map_fusion_02/base/element_base.h"
 
 namespace hozon {
 namespace mp {
@@ -111,18 +112,6 @@ inline std::string StatusToString(const SMStatus status) {
       return "";
   }
 }
-
-enum class CutPointType : std::uint8_t {
-  Unknown = 0,
-  Split = 1,
-  Merge = 2,
-  Multi2Single = 3,  // 少变多, 多变少点
-  Single2Multi = 4,
-  V_Shaped = 5,
-  V_Shaped_Inv = 6,  // 倒V字形状
-  Broken = 7,
-  Broken_Start = 8
-};
 
 template <typename T>
 bool FloatEqual(const T x, const T y) {

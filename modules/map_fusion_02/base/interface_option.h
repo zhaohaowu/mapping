@@ -42,6 +42,9 @@ struct LaneFusionProcessOption : public BaseProcessOption {
 
   // 路口判断参数
   float near_junction_dis_thresh = 20.0;
+
+  // 使用OCC构建道路边沿
+  bool use_occ = false;
 };
 
 struct MapServiceOption : public BaseProcessOption {

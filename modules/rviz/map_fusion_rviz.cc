@@ -261,6 +261,34 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
       pt->set_y(p.y());
       pt->set_z(p.z());
     }
+    // start slice cut type
+    auto* marker_start_slice_type = marker_array->add_markers();
+    marker_start_slice_type->mutable_header()->CopyFrom(viz_header);
+    marker_start_slice_type->set_ns(grp_ns + "/slice_cut");
+    marker_start_slice_type->set_id(0);
+    marker_start_slice_type->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+    double text_size = 0.5;
+    marker_start_slice_type->mutable_scale()->set_z(text_size);
+    marker_start_slice_type->mutable_lifetime()->set_sec(life_sec);
+    marker_start_slice_type->mutable_lifetime()->set_nsec(life_nsec);
+    marker_start_slice_type->mutable_color()->set_a(1.0);
+    marker_start_slice_type->mutable_color()->set_r(line_rgb.r);
+    marker_start_slice_type->mutable_color()->set_g(line_rgb.g);
+    marker_start_slice_type->mutable_color()->set_b(line_rgb.b);
+    marker_start_slice_type->set_type(
+        adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+    marker_start_slice_type->mutable_pose()->mutable_orientation()->set_w(1);
+    marker_start_slice_type->mutable_pose()->mutable_orientation()->set_x(0);
+    marker_start_slice_type->mutable_pose()->mutable_orientation()->set_y(0);
+    marker_start_slice_type->mutable_pose()->mutable_orientation()->set_z(0);
+    marker_start_slice_type->mutable_pose()->mutable_position()->set_x(
+        grp->start_slice.po.x() - 2);
+    marker_start_slice_type->mutable_pose()->mutable_position()->set_y(
+        grp->start_slice.po.y() - 1);
+    marker_start_slice_type->mutable_pose()->mutable_position()->set_z(
+        grp->start_slice.po.z());
+    auto* text_start = marker_start_slice_type->mutable_text();
+    *text_start = "cut_type: " + std::to_string(grp->start_slice.cut_type);
 
     // end_slice
     auto* marker_end_slice = marker_array->add_markers();
@@ -277,226 +305,209 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
       pt->set_y(p.y());
       pt->set_z(p.z());
     }
+    // end slice cut type
+    auto* marker_end_slice_type = marker_array->add_markers();
+    marker_end_slice_type->CopyFrom(*marker_start_slice_type);
+    marker_end_slice_type->set_id(1);
+    marker_end_slice_type->mutable_pose()->mutable_position()->set_x(
+        grp->end_slice.po.x() - 2);
+    marker_end_slice_type->mutable_pose()->mutable_position()->set_y(
+        grp->end_slice.po.y() - 1);
+    marker_end_slice_type->mutable_pose()->mutable_position()->set_z(
+        grp->end_slice.po.z());
+    auto* text_end = marker_end_slice_type->mutable_text();
+    *text_end = "cut_type: " + std::to_string(grp->end_slice.cut_type);
 
-    int lane_idx = -1;
-    for (const auto& lane : grp->lanes) {
-      lane_idx += 1;
-      std::string lane_ns =
-          "lane" + std::to_string(lane_idx) + "(" + lane->str_id + ")";
-      // left_boundary
-      auto* marker_left_bound = marker_array->add_markers();
-      marker_left_bound->mutable_header()->CopyFrom(viz_header);
-      marker_left_bound->set_ns(grp_ns + "/" + lane_ns);
-      marker_left_bound->set_id(0);
-      marker_left_bound->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
-      double width = 0.2;
-      marker_left_bound->mutable_scale()->set_x(width);
-      marker_left_bound->mutable_scale()->set_y(width);
-      marker_left_bound->mutable_scale()->set_z(width);
-      marker_left_bound->mutable_lifetime()->set_sec(life_sec);
-      marker_left_bound->mutable_lifetime()->set_nsec(life_nsec);
-      marker_left_bound->mutable_color()->set_a(1.0);
-      marker_left_bound->mutable_color()->set_r(line_rgb.r);
-      marker_left_bound->mutable_color()->set_g(line_rgb.g);
-      marker_left_bound->mutable_color()->set_b(line_rgb.b);
-      marker_left_bound->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
-      marker_left_bound->mutable_pose()->mutable_orientation()->set_w(1);
-      marker_left_bound->mutable_pose()->mutable_orientation()->set_x(0);
-      marker_left_bound->mutable_pose()->mutable_orientation()->set_y(0);
-      marker_left_bound->mutable_pose()->mutable_orientation()->set_z(0);
+    // lanes
+    if (!grp->lanes.empty()) {
+      int lane_idx = -1;
+      for (const auto& lane : grp->lanes) {
+        lane_idx += 1;
+        std::string lane_ns =
+            "lane" + std::to_string(lane_idx) + "(" + lane->str_id + ")";
+        // left_boundary
+        auto* marker_left_bound = marker_array->add_markers();
+        marker_left_bound->mutable_header()->CopyFrom(viz_header);
+        marker_left_bound->set_ns(grp_ns + "/" + lane_ns);
+        marker_left_bound->set_id(0);
+        marker_left_bound->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+        double width = 0.2;
+        marker_left_bound->mutable_scale()->set_x(width);
+        marker_left_bound->mutable_scale()->set_y(width);
+        marker_left_bound->mutable_scale()->set_z(width);
+        marker_left_bound->mutable_lifetime()->set_sec(life_sec);
+        marker_left_bound->mutable_lifetime()->set_nsec(life_nsec);
+        marker_left_bound->mutable_color()->set_a(1.0);
+        marker_left_bound->mutable_color()->set_r(line_rgb.r);
+        marker_left_bound->mutable_color()->set_g(line_rgb.g);
+        marker_left_bound->mutable_color()->set_b(line_rgb.b);
+        marker_left_bound->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+        marker_left_bound->mutable_pose()->mutable_orientation()->set_w(1);
+        marker_left_bound->mutable_pose()->mutable_orientation()->set_x(0);
+        marker_left_bound->mutable_pose()->mutable_orientation()->set_y(0);
+        marker_left_bound->mutable_pose()->mutable_orientation()->set_z(0);
 
-      // right_boundary
-      auto* marker_right_bound = marker_array->add_markers();
-      marker_right_bound->CopyFrom(*marker_left_bound);
-      marker_right_bound->set_id(1);
+        // right_boundary
+        auto* marker_right_bound = marker_array->add_markers();
+        marker_right_bound->CopyFrom(*marker_left_bound);
+        marker_right_bound->set_id(1);
 
-      // center_line_pts
-      auto* marker_center_line = marker_array->add_markers();
-      marker_center_line->CopyFrom(*marker_left_bound);
-      marker_center_line->set_id(2);
-      marker_center_line->mutable_scale()->set_x(width / 2);
-      marker_center_line->mutable_color()->set_a(0.2);
-      marker_center_line->mutable_color()->set_r(line_rgb.r);
-      marker_center_line->mutable_color()->set_g(line_rgb.g);
-      marker_center_line->mutable_color()->set_b(line_rgb.b);
+        // center_line_pts
+        auto* marker_center_line = marker_array->add_markers();
+        marker_center_line->CopyFrom(*marker_left_bound);
+        marker_center_line->set_id(2);
+        marker_center_line->mutable_scale()->set_x(width / 2);
+        marker_center_line->mutable_color()->set_a(0.2);
+        marker_center_line->mutable_color()->set_r(line_rgb.r);
+        marker_center_line->mutable_color()->set_g(line_rgb.g);
+        marker_center_line->mutable_color()->set_b(line_rgb.b);
 
-      std::vector<Eigen::Vector3f> left_pred_pts;
-      std::vector<Eigen::Vector3f> right_pred_pts;
-      // 在同一根lane可能前端和后端都有虚拟车道，要区分开来
-      std::vector<Eigen::Vector3f> left_virtual_pts;
-      std::vector<Eigen::Vector3f> right_virtual_pts;
-      std::vector<Eigen::Vector3f> left_virtual_pts_back;
-      std::vector<Eigen::Vector3f> right_virtual_pts_back;
-      adsfi_proto::viz::Marker temp_marker_left_pred;
-      adsfi_proto::viz::Marker temp_marker_right_pred;
-      adsfi_proto::viz::Marker temp_marker_left_virt;
-      adsfi_proto::viz::Marker temp_marker_right_virt;
-      adsfi_proto::viz::Marker temp_marker_left_virt_back;
-      adsfi_proto::viz::Marker temp_marker_right_virt_back;
-      temp_marker_left_pred.CopyFrom(*marker_left_bound);
-      temp_marker_left_pred.set_id(3);
-      temp_marker_left_pred.mutable_color()->set_a(0.2);
-      temp_marker_right_pred.CopyFrom(*marker_right_bound);
-      temp_marker_right_pred.set_id(4);
-      temp_marker_right_pred.mutable_color()->set_a(0.2);
-      temp_marker_left_virt.CopyFrom(*marker_left_bound);
-      temp_marker_left_virt.set_id(5);
-      temp_marker_left_virt.mutable_color()->set_a(0.5);
-      temp_marker_right_virt.CopyFrom(*marker_right_bound);
-      temp_marker_right_virt.set_id(6);
-      temp_marker_right_virt.mutable_color()->set_a(0.5);
-      temp_marker_left_virt_back.CopyFrom(*marker_left_bound);
-      temp_marker_left_virt_back.set_id(7);
-      temp_marker_left_virt_back.mutable_color()->set_a(0.5);
-      temp_marker_right_virt_back.CopyFrom(*marker_right_bound);
-      temp_marker_right_virt_back.set_id(8);
-      temp_marker_right_virt_back.mutable_color()->set_a(0.5);
-      int flag = 0;
-      for (const auto& p : lane->left_boundary->pts) {
-        if (p.type == PREDICTED) {
-          left_pred_pts.emplace_back(p.pt);
-        } else if (p.type == VIRTUAL) {
-          if (flag == 0) {
-            left_virtual_pts.emplace_back(p.pt);
+        std::vector<Eigen::Vector3f> left_pred_pts;
+        std::vector<Eigen::Vector3f> right_pred_pts;
+        // 在同一根lane可能前端和后端都有虚拟车道，要区分开来
+        std::vector<Eigen::Vector3f> left_virtual_pts;
+        std::vector<Eigen::Vector3f> right_virtual_pts;
+        std::vector<Eigen::Vector3f> left_virtual_pts_back;
+        std::vector<Eigen::Vector3f> right_virtual_pts_back;
+        adsfi_proto::viz::Marker temp_marker_left_pred;
+        adsfi_proto::viz::Marker temp_marker_right_pred;
+        adsfi_proto::viz::Marker temp_marker_left_virt;
+        adsfi_proto::viz::Marker temp_marker_right_virt;
+        adsfi_proto::viz::Marker temp_marker_left_virt_back;
+        adsfi_proto::viz::Marker temp_marker_right_virt_back;
+        temp_marker_left_pred.CopyFrom(*marker_left_bound);
+        temp_marker_left_pred.set_id(3);
+        temp_marker_left_pred.mutable_color()->set_a(0.2);
+        temp_marker_right_pred.CopyFrom(*marker_right_bound);
+        temp_marker_right_pred.set_id(4);
+        temp_marker_right_pred.mutable_color()->set_a(0.2);
+        temp_marker_left_virt.CopyFrom(*marker_left_bound);
+        temp_marker_left_virt.set_id(5);
+        temp_marker_left_virt.mutable_color()->set_a(0.5);
+        temp_marker_right_virt.CopyFrom(*marker_right_bound);
+        temp_marker_right_virt.set_id(6);
+        temp_marker_right_virt.mutable_color()->set_a(0.5);
+        temp_marker_left_virt_back.CopyFrom(*marker_left_bound);
+        temp_marker_left_virt_back.set_id(7);
+        temp_marker_left_virt_back.mutable_color()->set_a(0.5);
+        temp_marker_right_virt_back.CopyFrom(*marker_right_bound);
+        temp_marker_right_virt_back.set_id(8);
+        temp_marker_right_virt_back.mutable_color()->set_a(0.5);
+        int flag = 0;
+        for (const auto& p : lane->left_boundary->pts) {
+          if (p.type == PREDICTED) {
+            left_pred_pts.emplace_back(p.pt);
+          } else if (p.type == VIRTUAL) {
+            if (flag == 0) {
+              left_virtual_pts.emplace_back(p.pt);
+            } else {
+              left_virtual_pts_back.emplace_back(p.pt);
+            }
           } else {
-            left_virtual_pts_back.emplace_back(p.pt);
+            auto* pt = marker_left_bound->add_points();
+            pt->set_x(p.pt.x());
+            pt->set_y(p.pt.y());
+            pt->set_z(p.pt.z());
+            flag = 1;
           }
-        } else {
-          auto* pt = marker_left_bound->add_points();
+        }
+        flag = 0;
+        for (const auto& p : lane->right_boundary->pts) {
+          if (p.type == PREDICTED) {
+            right_pred_pts.emplace_back(p.pt);
+          } else if (p.type == VIRTUAL) {
+            if (flag == 0) {
+              right_virtual_pts.emplace_back(p.pt);
+            } else {
+              right_virtual_pts_back.emplace_back(p.pt);
+            }
+          } else {
+            auto* pt = marker_right_bound->add_points();
+            pt->set_x(p.pt.x());
+            pt->set_y(p.pt.y());
+            pt->set_z(p.pt.z());
+            flag = 1;
+          }
+        }
+        for (const auto& p : lane->center_line_pts) {
+          auto* pt = marker_center_line->add_points();
           pt->set_x(p.pt.x());
           pt->set_y(p.pt.y());
           pt->set_z(p.pt.z());
-          flag = 1;
         }
-      }
-      flag = 0;
-      for (const auto& p : lane->right_boundary->pts) {
-        if (p.type == PREDICTED) {
-          right_pred_pts.emplace_back(p.pt);
-        } else if (p.type == VIRTUAL) {
-          if (flag == 0) {
-            right_virtual_pts.emplace_back(p.pt);
-          } else {
-            right_virtual_pts_back.emplace_back(p.pt);
+
+        if (left_pred_pts.size() > 1) {
+          auto* marker_left_pred = marker_array->add_markers();
+          marker_left_pred->CopyFrom(temp_marker_left_pred);
+          if (!marker_left_bound->points().empty()) {
+            auto* pt = marker_left_pred->add_points();
+            pt->CopyFrom(*marker_left_bound->points().rbegin());
           }
-        } else {
-          auto* pt = marker_right_bound->add_points();
-          pt->set_x(p.pt.x());
-          pt->set_y(p.pt.y());
-          pt->set_z(p.pt.z());
-          flag = 1;
+          for (const auto& p : left_pred_pts) {
+            auto* pt = marker_left_pred->add_points();
+            pt->set_x(p.x());
+            pt->set_y(p.y());
+            pt->set_z(p.z());
+          }
         }
-      }
-      for (const auto& p : lane->center_line_pts) {
-        auto* pt = marker_center_line->add_points();
-        pt->set_x(p.pt.x());
-        pt->set_y(p.pt.y());
-        pt->set_z(p.pt.z());
-      }
+        if (right_pred_pts.size() > 1) {
+          auto* marker_right_pred = marker_array->add_markers();
+          marker_right_pred->CopyFrom(temp_marker_right_pred);
+          if (!marker_right_bound->points().empty()) {
+            auto* pt = marker_right_pred->add_points();
+            pt->CopyFrom(*marker_right_bound->points().rbegin());
+          }
+          for (const auto& p : right_pred_pts) {
+            auto* pt = marker_right_pred->add_points();
+            pt->set_x(p.x());
+            pt->set_y(p.y());
+            pt->set_z(p.z());
+          }
+        }
+        if (left_virtual_pts.size() > 1) {
+          auto* marker_left_virt = marker_array->add_markers();
+          marker_left_virt->CopyFrom(temp_marker_left_virt);
+          for (const auto& p : left_virtual_pts) {
+            auto* pt = marker_left_virt->add_points();
+            pt->set_x(p.x());
+            pt->set_y(p.y());
+            pt->set_z(p.z());
+          }
+        }
+        if (right_virtual_pts.size() > 1) {
+          auto* marker_right_virt = marker_array->add_markers();
+          marker_right_virt->CopyFrom(temp_marker_right_virt);
+          for (const auto& p : right_virtual_pts) {
+            auto* pt = marker_right_virt->add_points();
+            pt->set_x(p.x());
+            pt->set_y(p.y());
+            pt->set_z(p.z());
+          }
+        }
+        if (left_virtual_pts_back.size() > 1) {
+          auto* marker_left_virt = marker_array->add_markers();
+          marker_left_virt->CopyFrom(temp_marker_left_virt_back);
+          for (const auto& p : left_virtual_pts_back) {
+            auto* pt = marker_left_virt->add_points();
+            pt->set_x(p.x());
+            pt->set_y(p.y());
+            pt->set_z(p.z());
+          }
+        }
+        if (right_virtual_pts_back.size() > 1) {
+          auto* marker_right_virt = marker_array->add_markers();
+          marker_right_virt->CopyFrom(temp_marker_right_virt_back);
+          for (const auto& p : right_virtual_pts_back) {
+            auto* pt = marker_right_virt->add_points();
+            pt->set_x(p.x());
+            pt->set_y(p.y());
+            pt->set_z(p.z());
+          }
+        }
 
-      if (left_pred_pts.size() > 1) {
-        auto* marker_left_pred = marker_array->add_markers();
-        marker_left_pred->CopyFrom(temp_marker_left_pred);
-        if (!marker_left_bound->points().empty()) {
-          auto* pt = marker_left_pred->add_points();
-          pt->CopyFrom(*marker_left_bound->points().rbegin());
-        }
-        for (const auto& p : left_pred_pts) {
-          auto* pt = marker_left_pred->add_points();
-          pt->set_x(p.x());
-          pt->set_y(p.y());
-          pt->set_z(p.z());
-        }
-      }
-      if (right_pred_pts.size() > 1) {
-        auto* marker_right_pred = marker_array->add_markers();
-        marker_right_pred->CopyFrom(temp_marker_right_pred);
-        if (!marker_right_bound->points().empty()) {
-          auto* pt = marker_right_pred->add_points();
-          pt->CopyFrom(*marker_right_bound->points().rbegin());
-        }
-        for (const auto& p : right_pred_pts) {
-          auto* pt = marker_right_pred->add_points();
-          pt->set_x(p.x());
-          pt->set_y(p.y());
-          pt->set_z(p.z());
-        }
-      }
-      if (left_virtual_pts.size() > 1) {
-        auto* marker_left_virt = marker_array->add_markers();
-        marker_left_virt->CopyFrom(temp_marker_left_virt);
-        for (const auto& p : left_virtual_pts) {
-          auto* pt = marker_left_virt->add_points();
-          pt->set_x(p.x());
-          pt->set_y(p.y());
-          pt->set_z(p.z());
-        }
-      }
-      if (right_virtual_pts.size() > 1) {
-        auto* marker_right_virt = marker_array->add_markers();
-        marker_right_virt->CopyFrom(temp_marker_right_virt);
-        for (const auto& p : right_virtual_pts) {
-          auto* pt = marker_right_virt->add_points();
-          pt->set_x(p.x());
-          pt->set_y(p.y());
-          pt->set_z(p.z());
-        }
-      }
-      if (left_virtual_pts_back.size() > 1) {
-        auto* marker_left_virt = marker_array->add_markers();
-        marker_left_virt->CopyFrom(temp_marker_left_virt_back);
-        for (const auto& p : left_virtual_pts_back) {
-          auto* pt = marker_left_virt->add_points();
-          pt->set_x(p.x());
-          pt->set_y(p.y());
-          pt->set_z(p.z());
-        }
-      }
-      if (right_virtual_pts_back.size() > 1) {
-        auto* marker_right_virt = marker_array->add_markers();
-        marker_right_virt->CopyFrom(temp_marker_right_virt_back);
-        for (const auto& p : right_virtual_pts_back) {
-          auto* pt = marker_right_virt->add_points();
-          pt->set_x(p.x());
-          pt->set_y(p.y());
-          pt->set_z(p.z());
-        }
-      }
-
-      auto* marker_str_id_with_group = marker_array->add_markers();
-      marker_str_id_with_group->mutable_header()->CopyFrom(viz_header);
-      marker_str_id_with_group->set_ns(grp_ns + "/" + lane_ns);
-      marker_str_id_with_group->set_id(9);
-      marker_str_id_with_group->set_action(
-          adsfi_proto::viz::MarkerAction::MODIFY);
-      double text_size = 0.5;
-      marker_str_id_with_group->mutable_scale()->set_z(text_size);
-      marker_str_id_with_group->mutable_lifetime()->set_sec(life_sec);
-      marker_str_id_with_group->mutable_lifetime()->set_nsec(life_nsec);
-      marker_str_id_with_group->mutable_color()->set_a(0.2);
-      marker_str_id_with_group->mutable_color()->set_r(line_rgb.r);
-      marker_str_id_with_group->mutable_color()->set_g(line_rgb.g);
-      marker_str_id_with_group->mutable_color()->set_b(line_rgb.b);
-      marker_str_id_with_group->set_type(
-          adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
-      marker_str_id_with_group->mutable_pose()->mutable_orientation()->set_w(1);
-      marker_str_id_with_group->mutable_pose()->mutable_orientation()->set_x(0);
-      marker_str_id_with_group->mutable_pose()->mutable_orientation()->set_y(0);
-      marker_str_id_with_group->mutable_pose()->mutable_orientation()->set_z(0);
-      marker_str_id_with_group->mutable_pose()->mutable_position()->set_x(
-          lane->center_line_pts.front().pt.x());
-      marker_str_id_with_group->mutable_pose()->mutable_position()->set_y(
-          lane->center_line_pts.front().pt.y());
-      marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
-          lane->center_line_pts.front().pt.z());
-      auto* text = marker_str_id_with_group->mutable_text();
-      *text = lane->str_id_with_group + " broken id " +
-              std::to_string(grp->broken_id);
-      if (!lane->next_lane_str_id_with_group.empty() &&
-          lane->center_line_pts.size() > 2) {
-        marker_str_id_with_group = marker_array->add_markers();
+        auto* marker_str_id_with_group = marker_array->add_markers();
         marker_str_id_with_group->mutable_header()->CopyFrom(viz_header);
-        marker_str_id_with_group->set_ns(grp_ns + "/" + lane_ns + "/next");
+        marker_str_id_with_group->set_ns(grp_ns + "/" + lane_ns);
         marker_str_id_with_group->set_id(9);
         marker_str_id_with_group->set_action(
             adsfi_proto::viz::MarkerAction::MODIFY);
@@ -519,14 +530,196 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
         marker_str_id_with_group->mutable_pose()->mutable_orientation()->set_z(
             0);
         marker_str_id_with_group->mutable_pose()->mutable_position()->set_x(
-            lane->center_line_pts[lane->center_line_pts.size() - 3].pt.x());
+            lane->center_line_pts.front().pt.x());
         marker_str_id_with_group->mutable_pose()->mutable_position()->set_y(
-            lane->center_line_pts[lane->center_line_pts.size() - 3].pt.y());
+            lane->center_line_pts.front().pt.y());
         marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
-            lane->center_line_pts[lane->center_line_pts.size() - 3].pt.z());
-        text = marker_str_id_with_group->mutable_text();
-        for (int i = 0; i < lane->next_lane_str_id_with_group.size(); ++i) {
-          *text = *text + lane->next_lane_str_id_with_group[i] + "  ";
+            lane->center_line_pts.front().pt.z());
+        auto* text = marker_str_id_with_group->mutable_text();
+        *text = lane->str_id_with_group + " broken id " +
+                std::to_string(grp->broken_id);
+        if (!lane->next_lane_str_id_with_group.empty() &&
+            lane->center_line_pts.size() > 2) {
+          marker_str_id_with_group = marker_array->add_markers();
+          marker_str_id_with_group->mutable_header()->CopyFrom(viz_header);
+          marker_str_id_with_group->set_ns(grp_ns + "/" + lane_ns + "/next");
+          marker_str_id_with_group->set_id(9);
+          marker_str_id_with_group->set_action(
+              adsfi_proto::viz::MarkerAction::MODIFY);
+          double text_size = 0.5;
+          marker_str_id_with_group->mutable_scale()->set_z(text_size);
+          marker_str_id_with_group->mutable_lifetime()->set_sec(life_sec);
+          marker_str_id_with_group->mutable_lifetime()->set_nsec(life_nsec);
+          marker_str_id_with_group->mutable_color()->set_a(0.2);
+          marker_str_id_with_group->mutable_color()->set_r(line_rgb.r);
+          marker_str_id_with_group->mutable_color()->set_g(line_rgb.g);
+          marker_str_id_with_group->mutable_color()->set_b(line_rgb.b);
+          marker_str_id_with_group->set_type(
+              adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+          marker_str_id_with_group->mutable_pose()
+              ->mutable_orientation()
+              ->set_w(1);
+          marker_str_id_with_group->mutable_pose()
+              ->mutable_orientation()
+              ->set_x(0);
+          marker_str_id_with_group->mutable_pose()
+              ->mutable_orientation()
+              ->set_y(0);
+          marker_str_id_with_group->mutable_pose()
+              ->mutable_orientation()
+              ->set_z(0);
+          marker_str_id_with_group->mutable_pose()->mutable_position()->set_x(
+              lane->center_line_pts[lane->center_line_pts.size() - 3].pt.x());
+          marker_str_id_with_group->mutable_pose()->mutable_position()->set_y(
+              lane->center_line_pts[lane->center_line_pts.size() - 3].pt.y());
+          marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
+              lane->center_line_pts[lane->center_line_pts.size() - 3].pt.z());
+          text = marker_str_id_with_group->mutable_text();
+          for (int i = 0; i < lane->next_lane_str_id_with_group.size(); ++i) {
+            *text = *text + lane->next_lane_str_id_with_group[i] + "  ";
+          }
+        }
+      }
+    } else {
+      auto* marker_str_id_with_group = marker_array->add_markers();
+      marker_str_id_with_group->mutable_header()->CopyFrom(viz_header);
+      marker_str_id_with_group->set_ns(grp_ns + "/no_lane");
+      marker_str_id_with_group->set_id(0);
+      marker_str_id_with_group->set_action(
+          adsfi_proto::viz::MarkerAction::MODIFY);
+      double text_size = 0.5;
+      marker_str_id_with_group->mutable_scale()->set_z(text_size);
+      marker_str_id_with_group->mutable_lifetime()->set_sec(life_sec);
+      marker_str_id_with_group->mutable_lifetime()->set_nsec(life_nsec);
+      marker_str_id_with_group->mutable_color()->set_a(0.2);
+      marker_str_id_with_group->mutable_color()->set_r(line_rgb.r);
+      marker_str_id_with_group->mutable_color()->set_g(line_rgb.g);
+      marker_str_id_with_group->mutable_color()->set_b(line_rgb.b);
+      marker_str_id_with_group->set_type(
+          adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+      marker_str_id_with_group->mutable_pose()->mutable_orientation()->set_w(1);
+      marker_str_id_with_group->mutable_pose()->mutable_orientation()->set_x(0);
+      marker_str_id_with_group->mutable_pose()->mutable_orientation()->set_y(0);
+      marker_str_id_with_group->mutable_pose()->mutable_orientation()->set_z(0);
+      int idx = static_cast<int>(grp->line_segments.front()->pts.size() / 2);
+      marker_str_id_with_group->mutable_pose()->mutable_position()->set_x(
+          grp->line_segments.front()->pts[idx].pt.x());
+      marker_str_id_with_group->mutable_pose()->mutable_position()->set_y(
+          grp->line_segments.front()->pts[idx].pt.y() - 1);
+      marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
+          grp->line_segments.front()->pts[idx].pt.z());
+      auto* text = marker_str_id_with_group->mutable_text();
+      *text = grp->str_id + " broken id " + std::to_string(grp->broken_id);
+    }
+
+    // road edges
+    if (!grp->road_edges.empty()) {
+      HLOG_INFO << "road edges size: " << grp->road_edges.size();
+
+      int edge_id = -1;
+      for (const auto& road_edge : grp->road_edges) {
+        if (road_edge == nullptr) {
+          continue;
+        }
+        if (road_edge->points.empty()) {
+          continue;
+        }
+        HLOG_INFO << "road edge points size: " << road_edge->points.size();
+
+        edge_id += 1;
+        std::string edge_ns = "road_edge_" + std::to_string(edge_id);
+        auto* marker_edge_text = marker_array->add_markers();
+
+        // text
+        marker_edge_text->mutable_header()->CopyFrom(viz_header);
+        marker_edge_text->set_ns(grp_ns + "/" + edge_ns);
+        marker_edge_text->set_id(edge_id++);
+        marker_edge_text->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+        double text_size = 1.0;
+        marker_edge_text->mutable_scale()->set_z(text_size);
+        marker_edge_text->mutable_lifetime()->set_sec(life_sec);
+        marker_edge_text->mutable_lifetime()->set_nsec(life_nsec);
+        marker_edge_text->mutable_color()->set_a(1.0);
+        if (road_edge->road_edge_type == LINE) {
+          RvizRgb line_edge_rgb = ColorRgb(RvizColor::R_GREY);
+          marker_edge_text->mutable_color()->set_r(line_edge_rgb.r);
+          marker_edge_text->mutable_color()->set_g(line_edge_rgb.g);
+          marker_edge_text->mutable_color()->set_b(line_edge_rgb.b);
+        } else if (road_edge->road_edge_type == OCC) {
+          RvizRgb occ_edge_rgb = ColorRgb(RvizColor::R_PURPLE);
+          marker_edge_text->mutable_color()->set_r(occ_edge_rgb.r);
+          marker_edge_text->mutable_color()->set_g(occ_edge_rgb.g);
+          marker_edge_text->mutable_color()->set_b(occ_edge_rgb.b);
+        } else if (road_edge->road_edge_type == MODEL) {
+          RvizRgb model_edge_rgb = ColorRgb(RvizColor::R_RED);
+          marker_edge_text->mutable_color()->set_r(model_edge_rgb.r);
+          marker_edge_text->mutable_color()->set_g(model_edge_rgb.g);
+          marker_edge_text->mutable_color()->set_b(model_edge_rgb.b);
+        }
+        marker_edge_text->set_type(
+            adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+        marker_edge_text->mutable_pose()->mutable_orientation()->set_w(1);
+        marker_edge_text->mutable_pose()->mutable_orientation()->set_x(0);
+        marker_edge_text->mutable_pose()->mutable_orientation()->set_y(0);
+        marker_edge_text->mutable_pose()->mutable_orientation()->set_z(0);
+        marker_edge_text->mutable_pose()->mutable_position()->set_x(
+            road_edge->points[0].x());
+        if (road_edge->is_left) {
+          marker_edge_text->mutable_pose()->mutable_position()->set_y(
+              road_edge->points[0].y() + 2);
+        }
+        if (road_edge->is_right) {
+          marker_edge_text->mutable_pose()->mutable_position()->set_y(
+              road_edge->points[0].y() - 2);
+        }
+        marker_edge_text->mutable_pose()->mutable_position()->set_z(
+            road_edge->points[0].z());
+        auto* text = marker_edge_text->mutable_text();
+        *text = "edge \n id: " + std::to_string(road_edge->id) +
+                "\n left: " + std::to_string(road_edge->is_left) +
+                "\n right: " + std::to_string(road_edge->is_right) +
+                "\n type: " + std::to_string(road_edge->road_edge_type);
+
+        // points
+        auto* marker_road_edge = marker_array->add_markers();
+        marker_road_edge->mutable_header()->CopyFrom(viz_header);
+        marker_road_edge->set_ns(grp_ns + "/" + edge_ns);
+        marker_road_edge->set_id(edge_id++);
+        marker_road_edge->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+        double width = 0.2;
+        marker_road_edge->mutable_scale()->set_x(width);
+        marker_road_edge->mutable_scale()->set_y(width);
+        marker_road_edge->mutable_scale()->set_z(width);
+        marker_road_edge->mutable_lifetime()->set_sec(life_sec);
+        marker_road_edge->mutable_lifetime()->set_nsec(life_nsec);
+        marker_road_edge->mutable_color()->set_a(1.0);
+        if (road_edge->road_edge_type == LINE) {
+          RvizRgb line_edge_rgb = ColorRgb(RvizColor::R_GREY);
+          marker_road_edge->mutable_color()->set_r(line_edge_rgb.r);
+          marker_road_edge->mutable_color()->set_g(line_edge_rgb.g);
+          marker_road_edge->mutable_color()->set_b(line_edge_rgb.b);
+        } else if (road_edge->road_edge_type == OCC) {
+          RvizRgb occ_edge_rgb = ColorRgb(RvizColor::R_PURPLE);
+          marker_road_edge->mutable_color()->set_r(occ_edge_rgb.r);
+          marker_road_edge->mutable_color()->set_g(occ_edge_rgb.g);
+          marker_road_edge->mutable_color()->set_b(occ_edge_rgb.b);
+        } else if (road_edge->road_edge_type == MODEL) {
+          RvizRgb model_edge_rgb = ColorRgb(RvizColor::R_RED);
+          marker_road_edge->mutable_color()->set_r(model_edge_rgb.r);
+          marker_road_edge->mutable_color()->set_g(model_edge_rgb.g);
+          marker_road_edge->mutable_color()->set_b(model_edge_rgb.b);
+        }
+        marker_road_edge->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+        marker_road_edge->mutable_pose()->mutable_orientation()->set_w(1);
+        marker_road_edge->mutable_pose()->mutable_orientation()->set_x(0);
+        marker_road_edge->mutable_pose()->mutable_orientation()->set_y(0);
+        marker_road_edge->mutable_pose()->mutable_orientation()->set_z(0);
+
+        for (const auto& p : road_edge->points) {
+          auto* pt = marker_road_edge->add_points();
+          pt->set_x(p.x());
+          pt->set_y(p.y());
+          pt->set_z(p.z());
         }
       }
     }

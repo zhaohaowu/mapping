@@ -44,7 +44,7 @@ class RoadConstruct : ProcessorBase {
 
   bool Init(const LaneFusionProcessOption& conf);
 
-  bool ConstructLane(const std::vector<CutPoint>& cutpoints,
+  bool ConstructRoad(const std::vector<CutPoint>& cutpoints,
                      std::deque<Line::Ptr> lines,
                      const std::shared_ptr<std::vector<KinePosePtr>>& path,
                      const KinePosePtr& curr_pose,
@@ -79,7 +79,17 @@ class RoadConstruct : ProcessorBase {
                                 std::vector<Group::Ptr>* groups);
 
   void SplitPtsToGroup(std::deque<Line::Ptr>* lines,
+                       const ElementMap::Ptr& ele_map,
                        std::vector<Group::Ptr>* groups);
+
+  void SplitLinesToGroup(std::deque<Line::Ptr>* lines, const Group::Ptr& grp);
+
+  void SplitOccsToGroup(const ElementMap::Ptr& ele_map, const Group::Ptr& grp);
+
+  void SplitModelEdgesToGroup(const ElementMap::Ptr& ele_map,
+                              const Group::Ptr& grp);
+
+  void GenRoadEdges(std::vector<Group::Ptr>* groups);
 
   void GenLanesInGroups(std::vector<Group::Ptr>* groups,
                         const ElementMap::Ptr& ele_map, double stamp);
@@ -108,6 +118,10 @@ class RoadConstruct : ProcessorBase {
   bool OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups);
 
   bool GenLaneCenterLine(std::vector<Group::Ptr>* groups);
+
+  int FindEgoGroup(std::vector<Group::Ptr>* groups);
+
+  void EraseEgoGroupWithNoEgoLane(std::vector<Group::Ptr>* groups);
 
   void FitCenterLine(const Lane::Ptr& lane);
 

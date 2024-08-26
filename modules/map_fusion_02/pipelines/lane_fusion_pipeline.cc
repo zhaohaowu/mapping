@@ -93,6 +93,12 @@ bool LaneFusionPipeline::Init() {
     return false;
   }
 
+  if (!model_config->get_value("use_occ",
+                               &options_.use_occ)) {
+    HLOG_ERROR << "Get use_occ failed!";
+    return false;
+  }
+
   path_manager_ = std::make_shared<PathManager>();
   path_manager_->Init(options_);
 
@@ -177,7 +183,7 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
   lines = broken_pt_search_->GetLines();
 
   // 构建车道
-  auto ret_rc = road_constructor_->ConstructLane(cut_points, lines, path,
+  auto ret_rc = road_constructor_->ConstructRoad(cut_points, lines, path,
                                                  curr_pose, element_map_ptr);
   if (!ret_rc) {
     HLOG_ERROR << "Construct road failed";

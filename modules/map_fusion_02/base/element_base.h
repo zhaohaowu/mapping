@@ -276,6 +276,18 @@ enum ObjType {
   ANIMAL,
 };
 
+enum CutPointType : std::uint8_t {
+  Unknown = 0,
+  Split = 1,
+  Merge = 2,
+  Multi2Single = 3,  // 少变多, 多变少点
+  Single2Multi = 4,
+  V_Shaped = 5,
+  V_Shaped_Inv = 6,  // 倒V字形状
+  Broken = 7,
+  Broken_Start = 8
+};
+
 struct LaneIDSet {
   Id id;
   LaneType lane_type = UNKNOWN_LANE_TYPE;
@@ -318,9 +330,20 @@ enum SceneType {
   TUNNEL,
 };
 
+enum RoadEdgeType {
+  LINE = 0,   // 车道线
+  OCC = 1,    // OCC路沿
+  MODEL = 2,  // 感知路沿
+};
+
 struct RoadEdge {
   Id id;
   std::vector<Eigen::Vector3f> points;
+  bool is_left = false;
+  bool is_right = false;
+  double dist_to_path;
+  RoadEdgeType road_edge_type;
+
   DEFINE_PTR(RoadEdge)
 };
 

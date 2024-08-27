@@ -30,7 +30,7 @@
 
 --v=2
 #map fusion
---map_service_mode=0
+--map_service_mode=2
 
 --channel_ins_node_info=/localization/location_node
 

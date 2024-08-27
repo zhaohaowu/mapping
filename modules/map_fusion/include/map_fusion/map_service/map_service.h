@@ -10,8 +10,10 @@
 #include <depend/proto/localization/node_info.pb.h>
 
 #include <memory>
+#include <mutex>
 #include <queue>
 #include <string>
+#include <thread>
 #include <unordered_set>
 
 #include "base/utils/log.h"
@@ -22,6 +24,7 @@
 #include "common/util/util.h"
 #include "map/ehr/ehr_factory.h"
 #include "map/hdmap/hdmap.h"
+#include "map_fusion/map_service/baidu_map.h"
 #include "map_fusion/map_service/ehp/amap_core.h"
 #include "map_fusion/map_service/map_service_fault.h"
 #include "modules/map_fusion/include/map_fusion/map_service/ehp/amap_core.h"
@@ -72,6 +75,7 @@ class MapService {
 
  private:
   void GetUidThread();
+  void BaiduProc();
   bool EhpProc(const hozon::localization::HafNodeInfo& ins_msg,
                const hozon::planning::ADCTrajectory& adc_msg,
                const std::shared_ptr<hozon::routing::RoutingResponse>& routing);
@@ -91,6 +95,8 @@ class MapService {
   hozon::common::math::Vec2d last_pose_;
   std::chrono::steady_clock::time_point last_send_time_{};
   std::unique_ptr<hozon::ehr::Ehr> ehr_ = nullptr;
+  std::unique_ptr<hozon::mp::mf::BaiDuMapEngine> baidu_map_ = nullptr;
+
   hozon::mp::mf::AmapAdapter amap_adapter_;
 
   std::future<void> amap_tsp_proc_{};
@@ -100,6 +106,9 @@ class MapService {
   std::string uuid_{};
   MapServiceFault fault_{MS_NO_ERROR};
   std::mutex fault_mutex_{};
+  std::thread tmp_thread_;
+  hozon::localization::HafNodeInfo ins_msg_;
+  std::mutex ins_msg_thread_;
 };
 
 }  // namespace mf

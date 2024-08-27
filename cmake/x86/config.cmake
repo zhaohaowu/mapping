@@ -50,12 +50,15 @@ include_directories(
     ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/include/fast-dds
     ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/yaml-cpp/include
     ${THIRDPARTY_ROOT_PATH}/perception-base
+    ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/baidu_map/include
     ${THIRDPARTY_ROOT_PATH}/perception-lib
     ${CMAKE_CURRENT_SOURCE_DIR}/onboard/onboard_lite/
 )
 
 link_directories(
     ${THIRDPARTY_ROOT_PATH}/nos/x86_2004/lib
+    ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/baidu_map/lib
+    ${THIRDPARTY_ROOT_PATH}/third_party/x86_2004/baidu_map/3rdlib
     # ${THIRDPARTY_ROOT_PATH}/perception-common-onboard/release/x86/lib
     # ${THIRDPARTY_ROOT_PATH}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib
     # ${THIRDPARTY_ROOT_PATH}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib

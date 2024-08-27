@@ -193,6 +193,8 @@ if(IND)
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/jsoncpp/lib/
         ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/
         ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/baidu_map/lib/
+        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/baidu_map/3rdlib/
         DESTINATION ${EXTERNAL_LIB_PATH}
         FILES_MATCHING
         PATTERN "*.so*"
@@ -247,4 +249,11 @@ if(IND)
     ")
     file(WRITE "${CMAKE_INSTALL_PREFIX}/../CREATE_HDMAP_LINK_SHELL.sh" "${CREATE_HDMAP_LINK_SHELL}")
     install(CODE "execute_process(COMMAND bash CREATE_HDMAP_LINK_SHELL.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")
+    set(CREATE_LDMAP_LINK_SHELL "
+        if [[ -L ${CMAKE_INSTALL_PREFIX}/data/baidu_map ]]; then
+            exit 0
+        fi
+        mkdir -p ${CMAKE_INSTALL_PREFIX}/data/baidu_map && ln -s ${LDMAP} ${CMAKE_INSTALL_PREFIX}/data/baidu_map")
+    file(WRITE "${CMAKE_INSTALL_PREFIX}/../CREATE_LDMAP_LINK_SHELL.sh" "${CREATE_LDMAP_LINK_SHELL}")
+    install(CODE "execute_process(COMMAND bash CREATE_LDMAP_LINK_SHELL.sh WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/..)")
 endif()

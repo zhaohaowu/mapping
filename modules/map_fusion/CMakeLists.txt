@@ -37,7 +37,10 @@ set(MAPSERVICE_SRCS
   src/map_service/map_proto_marker.cc
   src/map_service/map_service.cc
   src/map_service/global_hd_map.cc
+  src/map_service/global_ld_map.cc
   src/map_service/map_table.cc
+  src/map_service/baidu_map.cc
+  src/map_service/coordinate_convertor.cc
   )
 set(AMAP_LIBS
   base_utils
@@ -49,6 +52,33 @@ set(AMAP_LIBS
   GAdasUtils
   GPlatformInterface
   third_party_libs
+  )
+  set(BDMAP_LIBS
+  cppsqlite3
+  dtc  
+  dynamic_info
+  ehp_v3
+  http
+  keystore
+  license
+  map_dal
+  map_engine
+  map_manager
+  noa 
+  pcs 
+  server_log 
+  tile_ota 
+  cares
+  curl 
+  hdiffpatch
+  hdmap-service-idl
+  jsoncpp
+  protobuf-lite
+  protobuf
+  protoc
+  rttr_core
+  ziplib_dynamic
+  z
   )
 set(MAPSELECT_SRCS
   src/map_select/map_select_lite.cc
@@ -80,6 +110,7 @@ target_link_libraries(mf
   opencv_core
   pcl_segmentation
   ${AMAP_LIBS}
+  ${BDMAP_LIBS}
   neta_https
   )
 

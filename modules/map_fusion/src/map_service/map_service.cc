@@ -3,12 +3,14 @@
  * Description:  ehp
  */
 #include "map_fusion/map_service/map_service.h"
+#include <unistd.h>
 
 #include <cstdlib>
 #include <iomanip>
 #include <list>
 #include <memory>
 #include <string>
+#include <thread>
 #include <unordered_set>
 #include <vector>
 
@@ -21,6 +23,7 @@
 #include "common/math/vec2d.h"
 #include "common/time/clock.h"
 #include "https/include/tsp_comm.h"
+#include "lib/environment/environment.h"
 #include "map/hdmap/hdmap.h"
 #include "map/hdmap/hdmap_util.h"
 #include "map_fusion/map_service/global_hd_map.h"
@@ -30,6 +33,7 @@
 #include "proto/map/map_id.pb.h"
 #include "proto/routing/routing.pb.h"
 #include "util/mapping_log.h"
+#include "util/tic_toc.h"
 
 // NOLINTBEGIN
 DEFINE_double(radius, 500, "radius of the vehicle position");
@@ -51,8 +55,28 @@ bool MapService::Init() {
   } else if (FLAGS_map_service_mode == 1) {
     amap_tsp_proc_ = std::async(&MapService::GetUidThread, this);
     ehr_ = std::make_unique<hozon::ehr::AmapEhrImpl>();
+
+    std::string default_work_root = "/app/";
+    std::string work_root =
+        hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
+    std::string dbpath = work_root + "/data/baidu_map/hdmap/";
+
+    std::string vid = "HeZhong2024010166";
+    baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>(dbpath, vid);
+    baidu_map_->AlgInit();
+    tmp_thread_ = std::thread(&MapService::BaiduProc, this);
   } else if (FLAGS_map_service_mode == 2) {
     // todo map api
+    // ld map 在线
+    std::string default_work_root = "/app/";
+    std::string work_root =
+        hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
+    std::string dbpath = work_root + "/data/baidu_map/hdmap/";
+
+    std::string vid = "HeZhong2024010166";
+    baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>(dbpath, vid);
+    baidu_map_->AlgInit();
+    tmp_thread_ = std::thread(&MapService::BaiduProc, this);
   }
 
   return true;
@@ -139,6 +163,29 @@ void MapService::OnInsAdcNodeInfo(
     }
     EhpProc(ins_msg, adc_msg, routing_);
     SetFautl();
+
+    ins_msg_thread_.lock();
+    ins_msg_ = ins_msg;
+    ins_msg_thread_.unlock();
+  } else if (FLAGS_map_service_mode == 2) {
+    ins_msg_thread_.lock();
+    ins_msg_ = ins_msg;
+    ins_msg_thread_.unlock();
+  }
+}
+
+void MapService::BaiduProc() {
+  while (true) {
+    INSPos ins_pos;
+    ins_msg_thread_.lock();
+    ins_pos.x = ins_msg_.pos_gcj02().x();
+    ins_pos.y = ins_msg_.pos_gcj02().y();
+    ins_msg_thread_.unlock();
+    baidu_map_->UpdateBaiDuMap(ins_pos);
+    hozon::hdmap::Map test_map;
+    GLOBAL_HD_MAP->GetMap(&test_map);
+    HLOG_ERROR << "zr123   lane size :" << test_map.lane_size();
+    usleep(1e6);
   }
 }
 
@@ -355,6 +402,9 @@ MapServiceFault MapService::GetFault() {
 MapService::~MapService() {
   is_amap_tsp_thread_stop_ = true;
   amap_tsp_proc_.get();
+  if (tmp_thread_.joinable()) {
+    tmp_thread_.join();
+  }
 }
 
 }  // namespace mf

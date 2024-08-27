@@ -18,6 +18,7 @@ export LD_LIBRARY_PATH=${WORK_ROOT}/../../../depend/third_party/x86_2004/gflags/
 export LD_LIBRARY_PATH=${WORK_ROOT}/../../../depend/third_party/x86_2004/opencv/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=${WORK_ROOT}/../../../depend/third_party/x86_2004/amap/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=${WORK_ROOT}/../../../depend/third_party/x86_2004/absl/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=${WORK_ROOT}/../../../depend/third_party/x86_2004/cuda/targets/x86_64-linux/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=${WORK_ROOT}/../../../depend/nos/x86_2004/lib:$LD_LIBRARY_PATH
 
 

@@ -335,8 +335,12 @@ class GeoOptimization {
   void VerifyEgoLane(const int& left_id, const int& right_id,
                      const std::vector<int>& other_ids, bool* flag,
                      std::pair<int, int>* ego_other_ids);
+  bool CheckEgoLane(const int& left_id, const int& right_id,
+                    const std::vector<int>& other_ids);
 
-  Eigen::Vector3d FindMinDisLinePoint(const Line_kd& kd_line);
+  Eigen::Vector3f FindMinDisLinePoint(
+      const Line_kd& kd_line,
+      std::vector<float> query_point = std::vector<float>(2, 0));
 
   void FitMissedLaneLine(const std::pair<int, int>& ex);
 

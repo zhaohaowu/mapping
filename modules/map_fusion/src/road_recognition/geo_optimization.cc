@@ -4012,7 +4012,7 @@ void GeoOptimization::HandleExtraWideLane() {
       right_track_ids.emplace_back(local_line.track_id());
     }
     if (local_line.lanepos() == 99 && !local_line.points().empty() &&
-        local_line.points(0).x() < 0.0) {
+        local_line.points(0).x() < 30.0) {
       other_ids.emplace_back(local_line.track_id());
     }
   }
@@ -4023,15 +4023,11 @@ void GeoOptimization::HandleExtraWideLane() {
   for (const auto& left_id : left_track_ids) {
     for (const auto& right_id : right_track_ids) {
       // 校验自车左右所在的车道线(两根线的中间可能会夹有lane_pos为99的线)
-      bool flag = false;
-      std::pair<int, int> ego_other_ids;
-      VerifyEgoLane(left_id, right_id, other_ids, &flag, &ego_other_ids);
+      if (!CheckEgoLane(left_id, right_id, other_ids)) {
+        continue;
+      }
       int ego_left_id = left_id;
       int ego_right_id = right_id;
-      if (!flag) {
-        ego_left_id = ego_other_ids.first;
-        ego_right_id = ego_other_ids.second;
-      }
       auto left_pts = local_line_table_.at(ego_left_id).local_line_pts;
       auto right_pts = local_line_table_.at(ego_right_id).local_line_pts;
       std::vector<double> line_wids;
@@ -4081,14 +4077,18 @@ void GeoOptimization::VerifyEgoLane(const int& left_id, const int& right_id,
     *flag = false;
     return;
   }
+  HLOG_INFO << "left_min_pt:" << left_min_pt.x() << "," << left_min_pt.y();
+  HLOG_INFO << "right_min_pt:" << right_min_pt.x() << "," << right_min_pt.y();
   bool is_mid = false;
   double greater_than_zero_dis = left_min_pt.y();
   double less_than_zero_dis = right_min_pt.y();
   int ego_left_id = left_id;
   int ego_right_id = right_id;
   for (const auto& other_id : other_ids) {
+    HLOG_INFO << "other_id:" << other_id;
     auto other_kd_line = local_line_table_.at(other_id).kd_line;
     auto other_min_pt = FindMinDisLinePoint(other_kd_line);
+    HLOG_INFO << "other_min_pt:" << other_min_pt.x() << "," << other_min_pt.y();
     if (other_min_pt.z() < -10.0) {
       continue;
     }
@@ -4120,19 +4120,51 @@ void GeoOptimization::VerifyEgoLane(const int& left_id, const int& right_id,
   }
 }
 
-Eigen::Vector3d GeoOptimization::FindMinDisLinePoint(const Line_kd& kd_line) {
+bool GeoOptimization::CheckEgoLane(const int& left_id, const int& right_id,
+                                   const std::vector<int>& other_ids) {
+  if (local_line_table_.find(left_id) == local_line_table_.end() ||
+      local_line_table_.find(right_id) == local_line_table_.end()) {
+    return false;
+  }
+  if (other_ids.empty()) {
+    return true;
+  }
+  auto left_kd_line = local_line_table_.at(left_id).kd_line;
+  auto right_kd_line = local_line_table_.at(right_id).kd_line;
+  for (const auto& other_id : other_ids) {
+    HLOG_INFO << "other_id:" << other_id;
+    auto other_kd_line = local_line_table_.at(other_id).kd_line;
+    auto other_min_pt = FindMinDisLinePoint(other_kd_line);
+    HLOG_INFO << "other_min_pt:" << other_min_pt.x() << "," << other_min_pt.y();
+    if (other_min_pt.z() < -10.0) {
+      continue;
+    }
+    std::vector<float> query_point = {other_min_pt.x(), other_min_pt.y()};
+    auto left_min_pt = FindMinDisLinePoint(left_kd_line, query_point);
+    auto right_min_pt = FindMinDisLinePoint(right_kd_line, query_point);
+
+    if (other_min_pt.y() > 0 && other_min_pt.y() < left_min_pt.y()) {
+      return false;
+    }
+    if (other_min_pt.y() < 0 && other_min_pt.y() > right_min_pt.y()) {
+      return false;
+    }
+  }
+  return true;
+}
+
+Eigen::Vector3f GeoOptimization::FindMinDisLinePoint(
+    const Line_kd& kd_line, std::vector<float> query_point) {
   int dim = 1;
   std::vector<int> nearest_index(dim);
   std::vector<float> nearest_dis(dim);
-  std::vector<float> query_point =
-      std::vector<float>{static_cast<float>(0.0), static_cast<float>(0.0)};
   kd_line.line_kdtree->knnSearch(query_point, nearest_index, nearest_dis, dim,
                                  cv::flann::SearchParams(-1));
   if (nearest_index.size() < 1) {
-    Eigen::Vector3d pt(0.0, 0.0, -10.0);
+    Eigen::Vector3f pt(0.0, 0.0, -10.0);
     return pt;
   }
-  Eigen::Vector3d min_pt(kd_line.line->points(nearest_index[0]).x(),
+  Eigen::Vector3f min_pt(kd_line.line->points(nearest_index[0]).x(),
                          kd_line.line->points(nearest_index[0]).y(), 0.0);
   return min_pt;
 }

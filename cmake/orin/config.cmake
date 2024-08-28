@@ -23,6 +23,7 @@ include_directories(
     ${THIRDPARTY_ROOT_PATH}/nos/orin/include/crypto/include/keys
     ${THIRDPARTY_ROOT_PATH}/nos/orin/include/crypto/include/utility
     ${THIRDPARTY_ROOT_PATH}/nos/orin/include/crypto/include/x509
+    ${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/baiduhdmap/include
     ${THIRDPARTY_ROOT_PATH}/nos/${LOCAL_TARGET_PLATFORM}/include/fast-dds
     ${THIRDPARTY_ROOT_PATH}/nos/${LOCAL_TARGET_PLATFORM}/include/fast-dds/include
     ${THIRDPARTY_ROOT_PATH}/perception-base
@@ -34,4 +35,5 @@ link_directories(
     ${THIRDPARTY_ROOT_PATH}/nos/${LOCAL_TARGET_PLATFORM}/lib
     /usr/local/orin_sdk/usr/local/cuda-11.4/targets/aarch64-linux/lib
     ${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/fast-dds/lib
+    ${THIRDPARTY_ROOT_PATH}/third_party/${LOCAL_TARGET_PLATFORM}/baiduhdmap/lib
 )

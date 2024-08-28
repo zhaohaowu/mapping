@@ -440,7 +440,7 @@ struct OccRoad {
   int guide_index = -1;  // occ下引導點的index
   std::vector<float> curve_params;
 
-  int valid_index = -1; // 标记有效的起始
+  int valid_index = -1;  // 标记有效的起始
 
   DEFINE_PTR(OccRoad)
 };

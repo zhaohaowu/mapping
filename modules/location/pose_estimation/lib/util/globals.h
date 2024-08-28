@@ -49,6 +49,7 @@ struct MapMatchLaneLineParams {
   double map_lane_match_diver;
   double ramp_judg_thre;
   double fault_restore_dis;
+  double quit_link_thr;
   double fault_restore_ave_dis;
   double left_edge_y_err;
   double right_edge_y_err;

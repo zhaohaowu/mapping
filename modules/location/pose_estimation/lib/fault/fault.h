@@ -75,6 +75,13 @@ class MmFault {
       const SE3& FC_pose, const Eigen::Vector3d& FC_vel, bool is_ramp_road);
   inline ERROR_TYPE GetErrorType() { return err_type_; }
   void set_ins_ts(const double& ins_ts);
+  void LineLinkEdgeCheck(
+      const std::unordered_map<std::string, std::vector<V3>>&
+          filtered_fcmap_lines,
+      const std::unordered_map<std::string, std::vector<ControlPoint>>&
+          merged_map_edges,
+      std::unordered_map<std::string, std::vector<V3>>* link_edge_fcmap_lines,
+      double* lane_link_edge_ins_duration);
   void CalLinesMinDist(const LaneLinePerceptionPtr& percep,
                        const std::unordered_map<std::string, std::vector<V3>>&
                            filtered_fcmap_lines,

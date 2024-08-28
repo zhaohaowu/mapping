@@ -48,6 +48,7 @@ bool MapMatching::Init(const std::string& config_file) {
   mm_params.map_lane_match_diver = config["map_lane_match_diver"].as<double>();
   mm_params.ramp_judg_thre = config["ramp_judg_thre"].as<double>();
   mm_params.fault_restore_dis = config["fault_restore_dis"].as<double>();
+  mm_params.quit_link_thr = config["quit_link_thr"].as<double>();
   mm_params.left_edge_y_err = config["left_edge_y_err"].as<double>();
   mm_params.right_edge_y_err = config["right_edge_y_err"].as<double>();
   mm_params.fault_restore_buff = config["fault_restore_buff"].as<int>();

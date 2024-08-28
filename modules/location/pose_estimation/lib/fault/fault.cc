@@ -147,6 +147,29 @@ void MmFault::CheckIsGoodMatchFCbyLine(
       }
     }
   }
+  // 当车道线和路沿有前后继关系，那么进行连接
+  std::unordered_map<std::string, std::vector<V3>> left_link_edge_fcmap_lines;
+  std::unordered_map<std::string, std::vector<V3>> right_link_edge_fcmap_lines;
+  static double left_lane_link_edge_ins_duration = 0.0;
+  static double right_lane_link_edge_ins_duration = 0.0;
+  LineLinkEdgeCheck(left_filtered_fcmap_lines, merged_map_edges,
+                    &left_link_edge_fcmap_lines,
+                    &left_lane_link_edge_ins_duration);
+  LineLinkEdgeCheck(right_filtered_fcmap_lines, merged_map_edges,
+                    &right_link_edge_fcmap_lines,
+                    &right_lane_link_edge_ins_duration);
+  if (left_lane_link_edge_ins_duration > 0.1 &&
+      left_lane_link_edge_ins_duration < mm_params.quit_link_thr) {
+    left_filtered_fcmap_lines = left_link_edge_fcmap_lines;
+  } else {
+    left_lane_link_edge_ins_duration = 0;
+  }
+  if (right_lane_link_edge_ins_duration > 0.1 &&
+      right_lane_link_edge_ins_duration < mm_params.quit_link_thr) {
+    right_filtered_fcmap_lines = right_link_edge_fcmap_lines;
+  } else {
+    right_lane_link_edge_ins_duration = 0;
+  }
   std::pair<std::string, std::vector<ControlPoint>> nearest_left_edge;
   std::pair<std::string, std::vector<ControlPoint>> nearest_right_edge;
   uint32_t map_edge_posi_cnt = 0;
@@ -206,7 +229,7 @@ void MmFault::CheckIsGoodMatchFCbyLine(
   }
   for (const auto& line : line_list) {
     auto far_dis =
-        std::min(FC_vel(0) * 2.5, static_cast<double>(line->Max()) * 0.75);
+        std::min(FC_vel(0) * 2.5, static_cast<double>(line->Max()) * 0.8);
     auto near_dis =
         std::min(FC_vel(0) * 2.0, static_cast<double>(line->Max()) * 0.6);
     if (is_big_curvature_ || FC_vel.norm() < mm_params.min_vel) {
@@ -361,6 +384,41 @@ void MmFault::CheckIsGoodMatchFCbyLine(
   }
 }
 
+void MmFault::LineLinkEdgeCheck(
+    const std::unordered_map<std::string, std::vector<V3>>&
+        filtered_fcmap_lines,
+    const std::unordered_map<std::string, std::vector<ControlPoint>>&
+        merged_map_edges,
+    std::unordered_map<std::string, std::vector<V3>>* link_edge_fcmap_lines,
+    double* lane_link_edge_ins_duration) {
+  if (filtered_fcmap_lines.empty() || merged_map_edges.empty() ||
+      !link_edge_fcmap_lines || !lane_link_edge_ins_duration) {
+    return;
+  }
+  std::unordered_map<std::string, std::vector<V3>> link_edge_lines;
+  for (const auto& map_line : filtered_fcmap_lines) {
+    const auto line_idx = map_line.first;
+    link_edge_lines[line_idx] = map_line.second;
+  }
+  for (auto& line : link_edge_lines) {
+    for (const auto& edge : merged_map_edges) {
+      std::vector<V3> map_edge_points;
+      for (const auto& control_point : edge.second) {
+        map_edge_points.emplace_back(control_point.point);
+      }
+      if (fabs(edge.second.front().point.x() - line.second.back().x()) <= 0.3 &&
+          fabs(edge.second.front().point.y() - line.second.back().y()) <= 0.3) {
+        // 把 map_edge_points 点加到 line 里
+        *lane_link_edge_ins_duration +=
+            fabs(ins_timestamp_ - last_ins_timestamp_);
+        line.second.insert(line.second.end(), map_edge_points.begin(),
+                           map_edge_points.end());
+      }
+    }
+  }
+  *link_edge_fcmap_lines = link_edge_lines;
+}
+
 std::tuple<bool, bool, bool> MmFault::FaultDetected(
     const FaultParam& faultParam, const std::string& map_right_check_near_id,
     const V3& percep_right_target_point,
@@ -400,8 +458,8 @@ std::tuple<bool, bool, bool> MmFault::FaultDetected(
       HLOG_ERROR << "130 : ser double near distance exceed thr";
       fc_good_match_double_check = false;
     }
-    if (fabs(faultParam.left_error) >= mm_params.map_lane_match_max &&
-        fabs(faultParam.right_error) >= mm_params.map_lane_match_max) {
+    if (fabs(faultParam.left_error) >= mm_params.map_lane_match_double_diff &&
+        fabs(faultParam.right_error) >= mm_params.map_lane_match_double_diff) {
       HLOG_ERROR << "130 : ser double both sides distance exceed thr";
       fc_good_match_double_check = false;
     }

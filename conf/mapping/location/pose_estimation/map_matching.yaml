@@ -34,6 +34,7 @@ ramp_judg_thre: 0.5             # 匝道单边策略阈值0.5
 fault_restore_dis: 0.15         # 退出130的近端点阈值
 fault_restore_ave_dis: 0.3      # 退出130的平均阈值
 left_edge_y_err: 0.0
+quit_link_thr: 1.5             # 退出路沿和车道线连接时间1.5s
 right_edge_y_err: 0.0
 map_lane_match_buff: 10         # 超过buff次就上报故障
 fault_restore_buff: 30

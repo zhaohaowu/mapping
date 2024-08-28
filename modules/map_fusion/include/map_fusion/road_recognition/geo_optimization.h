@@ -13,6 +13,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -247,6 +248,7 @@ class GeoOptimization {
   bool init_ = false;
   std::string init_pose_ser_;
   adsfi_proto::viz::Path location_path_;
+  std::unordered_set<int> is_not_ego_lane_track_id_;
   void VizLocation(const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
                    const double stamp);
 

@@ -1454,7 +1454,7 @@ void GeoOptimization::FilterReverseLine() {
       }
     }
   }
-
+  HandleOppisiteLineByStopline();  // 停止线过滤目前不稳定
   // 确定双黄线的左右侧是否有车道线
   std::vector<Eigen::Vector3d> double_solid_yellow_pts;
   double_solid_yellow_pts = FindTargetPoints(double_solid_yellow_line);
@@ -1538,6 +1538,23 @@ void GeoOptimization::HandleOppisiteLineByStopline() {
     std::vector<Eigen::Vector2f> stopline_pts{pt_left, pt_right};
     forward_stoplines.emplace_back(stopline_pts);
   }
+  if (forward_stoplines.empty()) {
+    return;
+  }
+  std::unordered_set<int> track_ids;
+  for (auto& line_vector : all_lines_) {
+    for (auto& line : line_vector.second) {
+      track_ids.insert(line.line->track_id());
+    }
+  }
+  for (auto it = is_not_ego_lane_track_id_.begin();
+       it != is_not_ego_lane_track_id_.end();) {
+    if (track_ids.find(*it) != track_ids.end()) {
+      it++;
+    } else {
+      it = is_not_ego_lane_track_id_.erase(it);
+    }
+  }
   for (auto& line_vector : all_lines_) {
     if (line_vector.second.empty()) {
       continue;
@@ -1547,22 +1564,55 @@ void GeoOptimization::HandleOppisiteLineByStopline() {
           (!line.line->points().empty() && line.line->points().at(0).x() < 0)) {
         continue;
       }
-      // 前向车道线的第一个点能投影在前向停止线上,且投影距离<10,认为是对向车道线
+      if (is_not_ego_lane_track_id_.find(line.line->track_id()) !=
+          is_not_ego_lane_track_id_.end()) {
+        line.is_ego_road = false;
+        continue;
+      }
+      // 前向车道线的第一个点能投影在前向停止线上,且投影距离<10,且停止线的右边点在车道线的右侧1.5米以外，
+      // 且车道线的终点要在停止线的左边5m以外，认为是对向车道线
       Eigen::Vector2f line_first_point(line.line->points().at(0).x(),
                                        line.line->points().at(0).y());
+      Eigen::Vector2f line_end_point(line.line->points().rbegin()->x(),
+                                     line.line->points().rbegin()->y());
       for (auto& forward_stopline : forward_stoplines) {
         if (forward_stopline.size() < 2) {
           continue;
         }
-        if (ProjectedInSegment(forward_stopline[0], forward_stopline[1],
-                               line_first_point) &&
+        auto point_it = std::find_if(
+            line.line->points().begin() + 1, line.line->points().end(),
+            [&](const hozon::common::Point3D& point) {
+              return PointInVectorSide(forward_stopline[0], forward_stopline[1],
+                                       Eigen::Vector2f(point.x(), point.y())) <
+                     0;
+            });
+        Eigen::Vector2f line_second_point;
+        if (point_it == line.line->points().end()) {
+          line_second_point << line.line->points().rbegin()->x(),
+              line.line->points().rbegin()->y();
+        } else {
+          line_second_point << point_it->x(), point_it->y();
+        }
+
+        if (PointToVectorDist(forward_stopline[0], forward_stopline[1],
+                              line_first_point) < 10 &&
+            PointInVectorSide(line_first_point, line_second_point,
+                              forward_stopline[1]) > 0 &&
+            PointToVectorDist(line_first_point, line_second_point,
+                              forward_stopline[1]) > 1.5 &&
+            PointInVectorSide(forward_stopline[0], forward_stopline[1],
+                              line_end_point) < 0 &&
             PointToVectorDist(forward_stopline[0], forward_stopline[1],
-                              line_first_point) < 10) {
+                              line_end_point) > 5.0f) {
           line.is_ego_road = false;
+          is_not_ego_lane_track_id_.insert(line.line->track_id());
         }
       }
     }
   }
+  // for (const auto& id : is_not_ego_lane_track_id_) {
+  //   HLOG_ERROR << "is_not_ego_lane_track_id: " << id;
+  // }
 }
 
 bool GeoOptimization::CheckOppisiteLineByObj(

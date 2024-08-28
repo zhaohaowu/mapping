@@ -29,6 +29,9 @@ void LaneTopoConstruct::ConstructTopology(std::vector<Group::Ptr>* groups) {
   for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
     auto& curr_group = groups->at(i);
     auto& next_group = groups->at(i + 1);
+    if (curr_group->lanes.empty() || next_group->lanes.empty()) {
+      continue;
+    }
     // if (curr_group->group_segments.empty() ||
     //     next_group->group_segments.empty()) {
     //   continue;

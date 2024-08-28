@@ -601,15 +601,17 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
       marker_str_id_with_group->mutable_pose()->mutable_orientation()->set_x(0);
       marker_str_id_with_group->mutable_pose()->mutable_orientation()->set_y(0);
       marker_str_id_with_group->mutable_pose()->mutable_orientation()->set_z(0);
-      int idx = static_cast<int>(grp->line_segments.front()->pts.size() / 2);
-      marker_str_id_with_group->mutable_pose()->mutable_position()->set_x(
-          grp->line_segments.front()->pts[idx].pt.x());
-      marker_str_id_with_group->mutable_pose()->mutable_position()->set_y(
-          grp->line_segments.front()->pts[idx].pt.y() - 1);
-      marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
-          grp->line_segments.front()->pts[idx].pt.z());
-      auto* text = marker_str_id_with_group->mutable_text();
-      *text = grp->str_id + " broken id " + std::to_string(grp->broken_id);
+      if (!grp->line_segments.empty()) {
+        int idx = static_cast<int>(grp->line_segments.front()->pts.size() / 2);
+        marker_str_id_with_group->mutable_pose()->mutable_position()->set_x(
+            grp->line_segments.front()->pts[idx].pt.x());
+        marker_str_id_with_group->mutable_pose()->mutable_position()->set_y(
+            grp->line_segments.front()->pts[idx].pt.y() - 1);
+        marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
+            grp->line_segments.front()->pts[idx].pt.z());
+        auto* text = marker_str_id_with_group->mutable_text();
+        *text = grp->str_id + " broken id " + std::to_string(grp->broken_id);
+      }
     }
 
     // road edges

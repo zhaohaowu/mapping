@@ -876,6 +876,10 @@ void GroupMap::GenLaneSegInGroupSeg(std::vector<GroupSegment::Ptr>* segments) {
         auto& left_center = left_line->center;
         auto right_center = right_line->center;
         auto dist = DistByKDtree(left_center, *right_line);
+        if (left_line->is_near_road_edge && right_line->is_near_road_edge &&
+            line_seg_num > 5) {
+          continue;
+        }
         if (dist < conf_.min_lane_width ||
             ((left_line->is_near_road_edge || right_line->is_near_road_edge) &&
              dist < 2.5)) {
@@ -1003,6 +1007,8 @@ void GroupMap::UniteGroupSegmentsToGroups(
     for (size_t i = 1; i < group_segments.size() - 2; ++i) {
       if ((group_segments[i]->str_id != group_segments[i - 1]->str_id) &&
           ((group_segments[i]->str_id != group_segments[i + 1]->str_id))) {
+        //    ||
+        //  (group_segments[i]->str_id != group_segments[i + 2]->str_id)
         group_segments.erase(group_segments.begin() + i);
         i--;
       }
@@ -1012,7 +1018,6 @@ void GroupMap::UniteGroupSegmentsToGroups(
   // if (!group_segments.empty()) {
   //   HLOG_ERROR << "group_segments2.size() = " << group_segments.size();
   // }
-
   int grp_idx = -1;
   for (const auto& seg : group_segments) {
     if (seg->str_id == "") {
@@ -2237,7 +2242,8 @@ void GroupMap::RelateGroups(std::vector<Group::Ptr>* groups, double stamp) {
         // HLOG_INFO << "curr_group NAME = " << curr_group->str_id
         //           << "  dist_to_slice = " << dist_to_slice
         //           << "  veh_in_this_junction = " << veh_in_this_junction
-        //           << "  next_group_name = " << next_group->str_id;
+        //           << "  next_group_name = " << next_group->str_id
+        //           << "grp_idx = " << grp_idx;
         if (veh_in_this_junction) {
           Lane::Ptr ego_curr_lane = nullptr;
           FindNearestLaneToHisVehiclePosition(curr_group, &ego_curr_lane);
@@ -4303,6 +4309,105 @@ void GroupMap::AddVirtualLine(std::vector<Group::Ptr>* groups) {
     BuildVirtualLaneRight(ego_group);
   }
 }
+bool GroupMap::IsNearLine(LineSegment::Ptr line1, LineSegment::Ptr line2) {
+  // 第一个点的距离和最后一个点的距离都得算
+  if (line1->id == line2->id) {
+    if ((line1->pts.empty() || line1->pts[0].type == RAW) &&
+        (line2->pts.empty() || line2->pts[0].type == RAW)) {
+      return true;
+    }
+  }
+  if (line1->pts.size() < 2 || line2->pts.size() < 2) {
+    return true;
+  }
+  const double line_dis_thresh = 0.5;
+  std::vector<Point> line1_pts(
+      std::vector<Point>(line1->pts.begin(), line1->pts.end()));
+
+  std::vector<Point> line2_pts(
+      std::vector<Point>(line2->pts.begin(), line2->pts.end()));
+  std::vector<double> line1_param_front;
+  std::vector<double> line2_param_front;
+  std::vector<double> line1_param;
+  std::vector<double> line2_param;
+  line1_param_front = FitLanelinefront(line1_pts);
+  line2_param_front = FitLanelinefront(line2_pts);
+  line1_param = FitLaneline(line1_pts);
+  line2_param = FitLaneline(line2_pts);
+  if (line1_param_front.empty() && line2_param_front.empty()) {
+    if ((line1->pts[0].pt, line2->pts[0].pt).norm() > line_dis_thresh) {
+      return false;
+    }
+  } else if (line1_param_front.empty()) {
+    auto x = line1->pts[0].pt.x();
+    auto y = line1->pts[0].pt.y();
+    double dis = abs(line2_param_front[0] + line2_param_front[1] * x - y) /
+                 sqrt(1 + pow(line2_param_front[1], 2));
+    if (dis > line_dis_thresh) {
+      return false;
+    }
+  } else {
+    auto x = line2->pts[0].pt.x();
+    auto y = line2->pts[0].pt.y();
+    double dis = abs(line1_param_front[0] + line1_param_front[1] * x - y) /
+                 sqrt(1 + pow(line1_param_front[1], 2));
+    if (dis > line_dis_thresh) {
+      return false;
+    }
+  }
+
+  if (line1_param.empty() && line2_param.empty()) {
+    if ((line1->pts.back().pt, line2->pts.back().pt).norm() > line_dis_thresh) {
+      return false;
+    }
+  } else if (line1_param.empty()) {
+    auto x = line1->pts.back().pt.x();
+    auto y = line1->pts.back().pt.y();
+    double dis = abs(line2_param[0] + line2_param[1] * x - y) /
+                 sqrt(1 + pow(line2_param[1], 2));
+    if (dis > line_dis_thresh) {
+      return false;
+    }
+  } else {
+    auto x = line2->pts.back().pt.x();
+    auto y = line2->pts.back().pt.y();
+    double dis = abs(line1_param[0] + line1_param[1] * x - y) /
+                 sqrt(1 + pow(line1_param[1], 2));
+    if (dis > line_dis_thresh) {
+      return false;
+    }
+  }
+  return true;
+}
+void GroupMap::NeighborLane(std::vector<Group::Ptr>* groups) {
+  for (auto& grp : *groups) {
+    std::sort(grp->lanes.begin(), grp->lanes.end(),
+              [](const Lane::Ptr& a, const Lane::Ptr& b) {
+                return a->right_lane_str_id_with_group.size() >
+                       b->right_lane_str_id_with_group.size();
+              });
+    for (const auto& lane : grp->lanes) {
+      lane->left_lane_str_id_with_group.clear();
+      lane->right_lane_str_id_with_group.clear();
+    }
+    for (int i = 0; i < grp->lanes.size() - 1; ++i) {
+      // 车道线是否逆向，类型不一致不能是左右邻
+      if (grp->lanes[i]->left_boundary->isego !=
+          grp->lanes[i + 1]->right_boundary->isego) {
+        continue;
+      }
+      // 边线差距不能错车道
+      if (!IsNearLine(grp->lanes[i]->right_boundary,
+                      grp->lanes[i + 1]->left_boundary)) {
+        continue;
+      }
+      grp->lanes[i]->right_lane_str_id_with_group.emplace_back(
+          grp->lanes[i + 1]->str_id_with_group);
+      grp->lanes[i + 1]->left_lane_str_id_with_group.emplace_back(
+          grp->lanes[i]->str_id_with_group);
+    }
+  }
+}
 // 把Group里一个个GroupSegment中包含的小的LaneSegment，纵向上聚合成一个个大的Lane，
 // 并且生成出：左右关联、前后关联、远端预测线、中心线
 void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
@@ -4398,9 +4503,9 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
     // 仅保留前向只有一个路口存在
     RemainOnlyOneForwardCrossWalk(groups);
   }
-
   SetCurrentRoadScene(groups);
   RelateGroups(groups, stamp);
+  NeighborLane(groups);
   // 1351477
   ExtendFrontCenterLine(groups);
   AvoidSplitMergeLane(groups);
@@ -4744,139 +4849,351 @@ bool GroupMap::OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups) {
   }
   return true;
 }
-
-void GroupMap::VirtualLaneLeftRight(Group::Ptr curr_group,
-                                    Group::Ptr next_group) {
-  // 默认补齐的group的lanenumber一致，且一条lane有且仅有一个后继或前驱
-  // is_after对应的从前往后或者从后往前
-  std::unordered_map<std::string, int>
-      next_lane_index;  // next_group的lane对应的index
-  for (int i = 0; i < next_group->lanes.size(); ++i) {
-    next_lane_index[next_group->lanes[i]->str_id_with_group] = i;
-    // 按照curr_group的左右邻来更新
-    next_group->lanes[i]->left_lane_str_id_with_group.clear();
-    next_group->lanes[i]->right_lane_str_id_with_group.clear();
-  }
-  std::unordered_map<std::string, int>
-      curr_lane_index;  // curr_group的lane对应的index
-  for (int i = 0; i < curr_group->lanes.size(); ++i) {
-    curr_lane_index[curr_group->lanes[i]->str_id_with_group] = i;
-  }
-  for (int curr_index = 0; curr_index < curr_group->lanes.size();
-       ++curr_index) {
-    if (curr_group->lanes[curr_index]->next_lane_str_id_with_group.empty()) {
-      continue;
-    }
-    int index = next_lane_index[curr_group->lanes[curr_index]
-                                    ->next_lane_str_id_with_group[0]];
-    auto& lane_next =
-        next_group->lanes[index];  // curr_lane对应next_group里的后继lane
-    for (auto& left_lane :
-         curr_group->lanes[curr_index]->left_lane_str_id_with_group) {
-      // curr_lane所有的左边线
-      int left_lane_index =
-          curr_lane_index[left_lane];  // 左边线对应curr_group的index
-      if (curr_group->lanes[left_lane_index]
-              ->next_lane_str_id_with_group.empty()) {
-        continue;
-      }
-      std::string left_lane_next_id =
-          curr_group->lanes[left_lane_index]->next_lane_str_id_with_group
-              [0];  // 左边线对应next_group里的后继lane_id
-      lane_next->left_lane_str_id_with_group.emplace_back(
-          left_lane_next_id);  // 将左边线lane_id添加到lane_next的左边线中
-    }
-    for (auto& right_lane :
-         curr_group->lanes[curr_index]->right_lane_str_id_with_group) {
-      int right_lane_index = curr_lane_index[right_lane];
-      if (curr_group->lanes[right_lane_index]
-              ->next_lane_str_id_with_group.empty()) {
-        continue;
-      }
-      std::string right_lane_next_id =
-          curr_group->lanes[right_lane_index]->next_lane_str_id_with_group[0];
-      lane_next->right_lane_str_id_with_group.emplace_back(right_lane_next_id);
+void GroupMap::VirtualLaneNeighborBefore(Group::Ptr curr_group,
+                                         Group::Ptr next_group) {
+  bool is_all_lane_has_ctlpf = true;
+  for (auto& lane : curr_group->lanes) {
+    lane->left_lane_str_id_with_group.clear();
+    lane->right_lane_str_id_with_group.clear();
+    if (lane->center_line_param.empty() || lane->center_line_pts.empty()) {
+      is_all_lane_has_ctlpf = false;
+      break;
     }
   }
-
-  // 存在少变多场景，导致误删左右邻。青鸾问题:1232877
-  if (next_group->lanes.size() > 1) {
-    std::vector<int> next_group_lanes;  // lane对应group的下标
-    for (auto& lane : next_group->lanes) {
-      // HLOG_DEBUG << "lane->str_id is " << lane->str_id
-      //           << "  next_group->str_id is " << next_group->str_id;
-      if (next_group->str_id.find(lane->str_id) < next_group->str_id.length()) {
-        // int index = next_group->str_id.find(lane->str_id);
-        // HLOG_DEBUG << "lane->str_id is " << lane->str_id
-        //           << "  next_group->str_id is " << next_group->str_id
-        //           << "  index = " << index;
-        next_group_lanes.emplace_back(next_lane_index[lane->str_id_with_group]);
-      }
+  if (!curr_group->group_segments.empty() && is_all_lane_has_ctlpf &&
+      !curr_group->lanes.empty()) {
+    const auto& start_slice = curr_group->group_segments.back()->start_slice;
+    Eigen::Vector2f start_po = start_slice.po.head<2>();
+    const auto& end_slice = curr_group->group_segments.back()->end_slice;
+    Eigen::Vector2f end_po = end_slice.po.head<2>();
+    float po_y = curr_group->group_segments.back()->end_slice.po.y();
+    std::sort(
+        curr_group->lanes.begin(), curr_group->lanes.end(),
+        [&start_po, &end_po](const Lane::Ptr& a, const Lane::Ptr& b) {
+          Eigen::Vector2f center_a = a->center_line_pts.back().pt.head<2>();
+          auto dist_a = PointToVectorDist(start_po, end_po, center_a);
+          // 在path右边，距离设为负值
+          if (PointInVectorSide(start_po, end_po, center_a) > 0) {
+            dist_a = -1 * dist_a;
+          }
+          Eigen::Vector2f center_b = b->center_line_pts.back().pt.head<2>();
+          auto dist_b = PointToVectorDist(start_po, end_po, center_b);
+          // 在path右边，距离设为负值
+          if (PointInVectorSide(start_po, end_po, center_b) > 0) {
+            dist_b = -1 * dist_b;
+          }
+          return dist_a > dist_b;
+        });
+    MatchLRLane(curr_group);
+  } else {
+    std::unordered_map<std::string, int>
+        curr_lane_index;  // curr_group的lane对应的index
+    for (int i = 0; i < curr_group->lanes.size(); ++i) {
+      curr_lane_index[curr_group->lanes[i]->str_id_with_group] = i;
+      // 按照curr_group的左右邻来更新
+      curr_group->lanes[i]->left_lane_str_id_with_group.clear();
+      curr_group->lanes[i]->right_lane_str_id_with_group.clear();
     }
-    if (next_group_lanes.empty()) {
-      return;
+    std::unordered_map<std::string, int>
+        next_lane_index;  // curr_group的lane对应的index
+    for (int i = 0; i < next_group->lanes.size(); ++i) {
+      next_lane_index[next_group->lanes[i]->str_id_with_group] = i;
     }
-    for (int i = 0; i < next_group_lanes.size(); i++) {
-      int cur_lane_index = next_group_lanes[i];
-      if (cur_lane_index >= next_group->lanes.size()) {
+    for (int curr_index = 0; curr_index < next_group->lanes.size();
+         ++curr_index) {
+      if (next_group->lanes[curr_index]->prev_lane_str_id_with_group.empty()) {
         continue;
       }
-      for (int j = i + 1; j < next_group_lanes.size(); ++j) {
-        int right_lane_inex = next_group_lanes[j];
-        if (right_lane_inex >= next_group->lanes.size()) {
+      int index = curr_lane_index[next_group->lanes[curr_index]
+                                      ->prev_lane_str_id_with_group[0]];
+      auto& lane_prev =
+          curr_group->lanes[index];  // curr_lane对应next_group里的后继lane
+      for (auto& left_lane :
+           next_group->lanes[curr_index]->left_lane_str_id_with_group) {
+        // curr_lane所有的左边线
+        int left_lane_index =
+            next_lane_index[left_lane];  // 左边线对应curr_group的index
+        if (next_group->lanes[left_lane_index]
+                ->prev_lane_str_id_with_group.empty()) {
           continue;
         }
-        bool exist = IsRightLane(next_group, cur_lane_index, right_lane_inex);
+        std::string left_lane_next_id =
+            next_group->lanes[left_lane_index]->prev_lane_str_id_with_group
+                [0];  // 左边线对应next_group里的后继lane_id
+        lane_prev->left_lane_str_id_with_group.emplace_back(
+            left_lane_next_id);  // 将左边线lane_id添加到lane_next的左边线中
+      }
+      for (auto& right_lane :
+           next_group->lanes[curr_index]->right_lane_str_id_with_group) {
+        int right_lane_index = curr_lane_index[right_lane];
+        if (next_group->lanes[right_lane_index]
+                ->prev_lane_str_id_with_group.empty()) {
+          continue;
+        }
+        std::string right_lane_next_id =
+            next_group->lanes[right_lane_index]->prev_lane_str_id_with_group[0];
+        lane_prev->right_lane_str_id_with_group.emplace_back(
+            right_lane_next_id);
+      }
+    }
 
-        if (!exist) {
-          next_group->lanes[cur_lane_index]
-              ->right_lane_str_id_with_group.emplace_back(
-                  next_group->lanes[right_lane_inex]->str_id_with_group);
-          next_group->lanes[right_lane_inex]
-              ->left_lane_str_id_with_group.emplace_back(
-                  next_group->lanes[cur_lane_index]->str_id_with_group);
+    // 存在少变多场景，导致误删左右邻。青鸾问题:1232877
+    if (curr_group->lanes.size() > 1) {
+      std::vector<int> curr_group_lanes;  // lane对应group的下标
+      for (auto& lane : curr_group->lanes) {
+        // HLOG_DEBUG << "lane->str_id is " << lane->str_id
+        //           << "  next_group->str_id is " << next_group->str_id;
+        if (curr_group->str_id.find(lane->str_id) <
+            curr_group->str_id.length()) {
+          // int index = next_group->str_id.find(lane->str_id);
+          // HLOG_DEBUG << "lane->str_id is " << lane->str_id
+          //           << "  next_group->str_id is " << next_group->str_id
+          //           << "  index = " << index;
+          curr_group_lanes.emplace_back(
+              curr_lane_index[lane->str_id_with_group]);
+        }
+      }
+      if (curr_group_lanes.empty()) {
+        return;
+      }
+      for (int i = 0; i < curr_group_lanes.size(); i++) {
+        int cur_lane_index = curr_group_lanes[i];
+        if (cur_lane_index >= curr_group->lanes.size()) {
+          continue;
+        }
+        for (int j = i + 1; j < curr_group_lanes.size(); ++j) {
+          int right_lane_inex = curr_group_lanes[j];
+          if (right_lane_inex >= curr_group->lanes.size()) {
+            continue;
+          }
+          bool exist = IsRightLane(curr_group, cur_lane_index, right_lane_inex);
+
+          if (!exist) {
+            curr_group->lanes[cur_lane_index]
+                ->right_lane_str_id_with_group.emplace_back(
+                    curr_group->lanes[right_lane_inex]->str_id_with_group);
+            curr_group->lanes[right_lane_inex]
+                ->left_lane_str_id_with_group.emplace_back(
+                    curr_group->lanes[cur_lane_index]->str_id_with_group);
+          }
+        }
+      }
+      // 由于补全的车道都添加在group->lanes的后面，所以直接从后面找
+      for (int i = curr_group_lanes.back() + 1; i < curr_group->lanes.size();
+           ++i) {
+        int index =
+            curr_group_lanes
+                .size();  // 补全的lane相对与实际lane所在的index，物理意义：实际从下标index开始的lane的左边
+        for (int j = 0; j < curr_group_lanes.size(); ++j) {
+          int cur_lane_index = curr_group_lanes[j];
+          bool exist_left = IsLeftLane(curr_group, cur_lane_index, i);
+
+          if (exist_left) {
+            index = j;
+            break;
+          }
+        }
+        // 将这根虚拟道next_group->lanes[i]，添加到其左边的右邻
+        for (int j = 0; j < index; ++j) {
+          int cur_lane_index = curr_group_lanes[j];
+          bool exist_right =
+              IsRightLane(curr_group, cur_lane_index, i);  // 是否已经存在右邻
+          if (!exist_right) {
+            curr_group->lanes[cur_lane_index]
+                ->right_lane_str_id_with_group.emplace_back(
+                    curr_group->lanes[i]->str_id_with_group);
+            curr_group->lanes[i]->left_lane_str_id_with_group.emplace_back(
+                curr_group->lanes[cur_lane_index]->str_id_with_group);
+          }
+        }
+        // 将这根虚拟道next_group->lanes[i]，添加到其右边的左邻
+        for (int j = index; j < curr_group_lanes.size(); ++j) {
+          int cur_lane_index = curr_group_lanes[j];
+          bool exist_left =
+              IsLeftLane(curr_group, cur_lane_index, i);  // 是否已经存在左邻
+          if (!exist_left) {
+            curr_group->lanes[cur_lane_index]
+                ->left_lane_str_id_with_group.emplace_back(
+                    curr_group->lanes[i]->str_id_with_group);
+            curr_group->lanes[i]->right_lane_str_id_with_group.emplace_back(
+                curr_group->lanes[cur_lane_index]->str_id_with_group);
+          }
         }
       }
     }
-    // 由于补全的车道都添加在group->lanes的后面，所以直接从后面找
-    for (int i = next_group_lanes.back() + 1; i < next_group->lanes.size();
-         ++i) {
-      int index =
-          next_group_lanes
-              .size();  // 补全的lane相对与实际lane所在的index，物理意义：实际从下标index开始的lane的左边
-      for (int j = 0; j < next_group_lanes.size(); ++j) {
-        int cur_lane_index = next_group_lanes[j];
-        bool exist_left = IsLeftLane(next_group, cur_lane_index, i);
+  }
+}
+void GroupMap::VirtualLaneLeftRight(Group::Ptr curr_group,
+                                    Group::Ptr next_group) {
+  bool is_all_lane_has_ctlpf = true;  // center_line_param_front
+  for (auto& lane : next_group->lanes) {
+    lane->left_lane_str_id_with_group.clear();
+    lane->right_lane_str_id_with_group.clear();
+    if (lane->center_line_param_front.empty() ||
+        lane->center_line_pts.empty()) {
+      is_all_lane_has_ctlpf = false;
+      break;
+    }
+  }
+  if (!next_group->group_segments.empty() && is_all_lane_has_ctlpf &&
+      !next_group->lanes.empty()) {
+    // 每条lane的centerline的第一个点到start_po end_po向量的距离
+    const auto& start_slice = next_group->group_segments.front()->start_slice;
+    Eigen::Vector2f start_po = start_slice.po.head<2>();
+    const auto& end_slice = next_group->group_segments.front()->end_slice;
+    Eigen::Vector2f end_po = end_slice.po.head<2>();
+    float po_y = next_group->group_segments.front()->start_slice.po.y();
+    std::sort(next_group->lanes.begin(), next_group->lanes.end(),
+              [&start_po, &end_po](const Lane::Ptr& a, const Lane::Ptr& b) {
+                Eigen::Vector2f center_a = a->center_line_pts[0].pt.head<2>();
+                auto dist_a = PointToVectorDist(start_po, end_po, center_a);
+                // 在path右边，距离设为负值
+                if (PointInVectorSide(start_po, end_po, center_a) > 0) {
+                  dist_a = -1 * dist_a;
+                }
+                Eigen::Vector2f center_b = b->center_line_pts[0].pt.head<2>();
+                auto dist_b = PointToVectorDist(start_po, end_po, center_b);
+                // 在path右边，距离设为负值
+                if (PointInVectorSide(start_po, end_po, center_b) > 0) {
+                  dist_b = -1 * dist_b;
+                }
+                return dist_a > dist_b;
+              });
+    MatchLRLane(next_group);
+  } else {
+    // 默认补齐的group的lanenumber一致，且一条lane有且仅有一个后继或前驱
+    // is_after对应的从前往后或者从后往前
+    std::unordered_map<std::string, int>
+        next_lane_index;  // next_group的lane对应的index
+    for (int i = 0; i < next_group->lanes.size(); ++i) {
+      next_lane_index[next_group->lanes[i]->str_id_with_group] = i;
+      // 按照curr_group的左右邻来更新
+      next_group->lanes[i]->left_lane_str_id_with_group.clear();
+      next_group->lanes[i]->right_lane_str_id_with_group.clear();
+    }
+    std::unordered_map<std::string, int>
+        curr_lane_index;  // curr_group的lane对应的index
+    for (int i = 0; i < curr_group->lanes.size(); ++i) {
+      curr_lane_index[curr_group->lanes[i]->str_id_with_group] = i;
+    }
+    for (int curr_index = 0; curr_index < curr_group->lanes.size();
+         ++curr_index) {
+      if (curr_group->lanes[curr_index]->next_lane_str_id_with_group.empty()) {
+        continue;
+      }
+      int index = next_lane_index[curr_group->lanes[curr_index]
+                                      ->next_lane_str_id_with_group[0]];
+      auto& lane_next =
+          next_group->lanes[index];  // curr_lane对应next_group里的后继lane
+      for (auto& left_lane :
+           curr_group->lanes[curr_index]->left_lane_str_id_with_group) {
+        // curr_lane所有的左边线
+        int left_lane_index =
+            curr_lane_index[left_lane];  // 左边线对应curr_group的index
+        if (curr_group->lanes[left_lane_index]
+                ->next_lane_str_id_with_group.empty()) {
+          continue;
+        }
+        std::string left_lane_next_id =
+            curr_group->lanes[left_lane_index]->next_lane_str_id_with_group
+                [0];  // 左边线对应next_group里的后继lane_id
+        lane_next->left_lane_str_id_with_group.emplace_back(
+            left_lane_next_id);  // 将左边线lane_id添加到lane_next的左边线中
+      }
+      for (auto& right_lane :
+           curr_group->lanes[curr_index]->right_lane_str_id_with_group) {
+        int right_lane_index = curr_lane_index[right_lane];
+        if (curr_group->lanes[right_lane_index]
+                ->next_lane_str_id_with_group.empty()) {
+          continue;
+        }
+        std::string right_lane_next_id =
+            curr_group->lanes[right_lane_index]->next_lane_str_id_with_group[0];
+        lane_next->right_lane_str_id_with_group.emplace_back(
+            right_lane_next_id);
+      }
+    }
 
-        if (exist_left) {
-          index = j;
-          break;
+    // 存在少变多场景，导致误删左右邻。青鸾问题:1232877
+    if (next_group->lanes.size() > 1) {
+      std::vector<int> next_group_lanes;  // lane对应group的下标
+      for (auto& lane : next_group->lanes) {
+        // HLOG_DEBUG << "lane->str_id is " << lane->str_id
+        //           << "  next_group->str_id is " << next_group->str_id;
+        if (next_group->str_id.find(lane->str_id) <
+            next_group->str_id.length()) {
+          // int index = next_group->str_id.find(lane->str_id);
+          // HLOG_DEBUG << "lane->str_id is " << lane->str_id
+          //           << "  next_group->str_id is " << next_group->str_id
+          //           << "  index = " << index;
+          next_group_lanes.emplace_back(
+              next_lane_index[lane->str_id_with_group]);
         }
       }
-      // 将这根虚拟道next_group->lanes[i]，添加到其左边的右邻
-      for (int j = 0; j < index; ++j) {
-        int cur_lane_index = next_group_lanes[j];
-        bool exist_right =
-            IsRightLane(next_group, cur_lane_index, i);  // 是否已经存在右邻
-        if (!exist_right) {
-          next_group->lanes[cur_lane_index]
-              ->right_lane_str_id_with_group.emplace_back(
-                  next_group->lanes[i]->str_id_with_group);
-          next_group->lanes[i]->left_lane_str_id_with_group.emplace_back(
-              next_group->lanes[cur_lane_index]->str_id_with_group);
+      if (next_group_lanes.empty()) {
+        return;
+      }
+      for (int i = 0; i < next_group_lanes.size(); i++) {
+        int cur_lane_index = next_group_lanes[i];
+        if (cur_lane_index >= next_group->lanes.size()) {
+          continue;
+        }
+        for (int j = i + 1; j < next_group_lanes.size(); ++j) {
+          int right_lane_inex = next_group_lanes[j];
+          if (right_lane_inex >= next_group->lanes.size()) {
+            continue;
+          }
+          bool exist = IsRightLane(next_group, cur_lane_index, right_lane_inex);
+
+          if (!exist) {
+            next_group->lanes[cur_lane_index]
+                ->right_lane_str_id_with_group.emplace_back(
+                    next_group->lanes[right_lane_inex]->str_id_with_group);
+            next_group->lanes[right_lane_inex]
+                ->left_lane_str_id_with_group.emplace_back(
+                    next_group->lanes[cur_lane_index]->str_id_with_group);
+          }
         }
       }
-      // 将这根虚拟道next_group->lanes[i]，添加到其右边的左邻
-      for (int j = index; j < next_group_lanes.size(); ++j) {
-        int cur_lane_index = next_group_lanes[j];
-        bool exist_left =
-            IsLeftLane(next_group, cur_lane_index, i);  // 是否已经存在左邻
-        if (!exist_left) {
-          next_group->lanes[cur_lane_index]
-              ->left_lane_str_id_with_group.emplace_back(
-                  next_group->lanes[i]->str_id_with_group);
-          next_group->lanes[i]->right_lane_str_id_with_group.emplace_back(
-              next_group->lanes[cur_lane_index]->str_id_with_group);
+      // 由于补全的车道都添加在group->lanes的后面，所以直接从后面找
+      for (int i = next_group_lanes.back() + 1; i < next_group->lanes.size();
+           ++i) {
+        int index = next_group_lanes.size();  //
+        // 补全的lane相对与实际lane所在的index，物理意义：实际从下标index开始的lane的左边
+        for (int j = 0; j < next_group_lanes.size(); ++j) {
+          int cur_lane_index = next_group_lanes[j];
+          bool exist_left = IsLeftLane(next_group, cur_lane_index, i);
+
+          if (exist_left) {
+            index = j;
+            break;
+          }
+        }
+        // 将这根虚拟道next_group->lanes[i]，添加到其左边的右邻
+        for (int j = 0; j < index; ++j) {
+          int cur_lane_index = next_group_lanes[j];
+          bool exist_right =
+              IsRightLane(next_group, cur_lane_index, i);  // 是否已经存在右邻
+          if (!exist_right) {
+            next_group->lanes[cur_lane_index]
+                ->right_lane_str_id_with_group.emplace_back(
+                    next_group->lanes[i]->str_id_with_group);
+            next_group->lanes[i]->left_lane_str_id_with_group.emplace_back(
+                next_group->lanes[cur_lane_index]->str_id_with_group);
+          }
+        }
+        // 将这根虚拟道next_group->lanes[i]，添加到其右边的左邻
+        for (int j = index; j < next_group_lanes.size(); ++j) {
+          int cur_lane_index = next_group_lanes[j];
+          bool exist_left =
+              IsLeftLane(next_group, cur_lane_index, i);  // 是否已经存在左邻
+          if (!exist_left) {
+            next_group->lanes[cur_lane_index]
+                ->left_lane_str_id_with_group.emplace_back(
+                    next_group->lanes[i]->str_id_with_group);
+            next_group->lanes[i]->right_lane_str_id_with_group.emplace_back(
+                next_group->lanes[cur_lane_index]->str_id_with_group);
+          }
         }
       }
     }
@@ -5136,8 +5453,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
           lane_in_next->prev_lane_str_id_with_group.emplace_back(
               lane_in_curr->str_id_with_group);
           // HLOG_ERROR << "the prev lane is " <<
-          // lane_in_curr->str_id_with_group; if
-          // (lane_in_curr->center_line_param.empty()) {
+          // lane_in_curr->str_id_with_group;
+          // if(lane_in_curr->center_line_param.empty()) {
           //   lane_in_curr->center_line_param =
           //       lane_in_next->center_line_param_front;
           // }
@@ -5175,6 +5492,7 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
           !is_all_next_lane_exit && group_distance < 10.0) {
         // HLOG_DEBUG << " is connect";
         BuildVirtualLaneBefore(curr_group, next_group);
+        VirtualLaneNeighborBefore(curr_group, next_group);
         // groups->erase(groups->begin() + i - 1);
       }
       DelLanePrevStrIdInGroup(next_group);
@@ -6991,7 +7309,7 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
         float dy = right_bound.pts[right_index].pt.y() -
                    right_bound.pts[right_index - 1].pt.y();
         while (left_pt_pred.pt.x() >
-                   curr_group->group_segments[0]->end_slice.po.x() &&
+                   curr_group->group_segments[0]->start_slice.po.x() &&
                right_index > 0 &&
                (dx > 0 && dx * dx + dy * dy > 0.4 || dx * dx + dy * dy < 0.4)) {
           dx = right_bound.pts[right_index].pt.x() -
@@ -7078,7 +7396,6 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
                  << lane_pre.left_boundary->pts.size()
                  << "  lane_pre.right_boundary = "
                  << lane_pre.right_boundary->pts.size();
-
       if (lane_ptr->center_line_pts.empty()) {
         return;
       }

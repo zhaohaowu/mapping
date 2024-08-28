@@ -1785,6 +1785,9 @@ std::vector<Eigen::Vector3d> GeoOptimization::FindTargetPoints(
           line_pts.emplace_back(pt);
         }
         ComputerLineDis(road_edge, line_pts, &widths);
+        if (widths.empty()) {
+          continue;
+        }
         double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
                            static_cast<double>(widths.size());
         if (IsTargetOnLineRight(road_edge, line) == RelativePosition::RIGHT &&
@@ -1814,8 +1817,7 @@ std::vector<Eigen::Vector3d> GeoOptimization::FindTargetPointsNoCrossing(
   std::vector<Eigen::Vector3d> res;
   for (const auto& road_edge : nearby_road_edges) {
     if (road_edge.size() < 2 ||
-        (!road_edge.empty() && road_edge.at(0).x() > 0) ||
-        (!road_edge.empty() && road_edge.at(road_edge.size() - 1).x() < 0)) {
+        (!road_edge.empty() && road_edge.at(0).x() > 0)) {
       continue;
     }
 
@@ -1828,9 +1830,7 @@ std::vector<Eigen::Vector3d> GeoOptimization::FindTargetPointsNoCrossing(
       for (const auto& line : line_vec.second) {
         if (line.line->points_size() < 2 ||
             (!line.line->points().empty() &&
-             line.line->points().at(0).x() > 0) ||
-            (!line.line->points().empty() &&
-             line.line->points().at(line.line->points_size() - 1).x() < 0)) {
+             line.line->points().at(0).x() > 0)) {
           continue;
         }
         std::vector<double> widths;
@@ -1840,6 +1840,9 @@ std::vector<Eigen::Vector3d> GeoOptimization::FindTargetPointsNoCrossing(
           line_pts.emplace_back(pt);
         }
         ComputerLineDis(road_edge, line_pts, &widths);
+        if (widths.empty()) {
+          continue;
+        }
         double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
                            static_cast<double>(widths.size());
         if (IsTargetOnLineRight(road_edge, line) == RelativePosition::RIGHT &&
@@ -1947,7 +1950,7 @@ RelativePosition GeoOptimization::IsTargetOnLineRight(
   if (line_size < 2 || target_line.size() < 1) {
     return RelativePosition::UNCERTAIN;
   }
-  if (target_line.front().x() >= line.line->points(line_size - 1).x() &&
+  if (target_line.front().x() >= line.line->points(line_size - 1).x() ||
       line.line->points(0).x() >= target_line.back().x()) {
     return RelativePosition::UNCERTAIN;
   }
@@ -2004,9 +2007,7 @@ void GeoOptimization::HandleOppisiteLineNoCrossing(
     }
     for (auto& line : line_vector.second) {
       if (line.line->points_size() < 2 ||
-          (!line.line->points().empty() && line.line->points().at(0).x() > 0) ||
-          (!line.line->points().empty() &&
-           line.line->points().at(line.line->points_size() - 1).x() < 0)) {
+          (!line.line->points().empty() && line.line->points().at(0).x() > 0)) {
         continue;
       }
       std::vector<double> widths;
@@ -2016,6 +2017,9 @@ void GeoOptimization::HandleOppisiteLineNoCrossing(
         line_pts.emplace_back(pt);
       }
       ComputerLineDis(target_line, line_pts, &widths);
+      if (widths.empty()) {
+        continue;
+      }
       double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
                          static_cast<double>(widths.size());
       if (IsTargetOnLineRight(target_line, line) == RelativePosition::RIGHT &&
@@ -2047,6 +2051,9 @@ void GeoOptimization::HandleOppisiteLine(
         line_pts.emplace_back(pt);
       }
       ComputerLineDis(target_line, line_pts, &widths);
+      if (widths.empty()) {
+        continue;
+      }
       double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
                          static_cast<double>(widths.size());
       if (IsTargetOnLineRight(target_line, line) == RelativePosition::RIGHT &&
@@ -2629,8 +2636,7 @@ void GeoOptimization::OnLocalMap(
   FilterReverseLine();
 
   // 过滤非路口场景非主路车道线
-  // ToDo(zhike) 对逆向车道线增加标识后解开
-  // FilterNoEgoLineNoCrossing();
+  FilterNoEgoLineNoCrossing();
 
   // 将输出填入elementmap
   AppendElemtMap(local_map_use_, per_objs_);
@@ -4035,8 +4041,6 @@ void GeoOptimization::ComputerLineDis(
       break;
     }
   }
-  double sum = std::accumulate(val_dis.begin(), val_dis.end(), 0.0);
-  double mean = sum / static_cast<double>(val_dis.size());
   *line_dis = val_dis;
 }
 

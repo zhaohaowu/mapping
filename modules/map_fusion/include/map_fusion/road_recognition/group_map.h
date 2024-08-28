@@ -254,8 +254,7 @@ struct EgoLane {
 
 class GroupMap {
  public:
-  explicit GroupMap(const GroupMapConf& conf) : conf_(conf) {
-  }
+  explicit GroupMap(const GroupMapConf& conf) : conf_(conf) {}
   ~GroupMap() = default;
 
   bool Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
@@ -507,6 +506,11 @@ class GroupMap {
   void BuildVirtualLaneRight(Group::Ptr group);
   void AddCrossLaneNeighbor(Group::Ptr cross_group,
                             Group::Ptr next_group);  // 路口生成车道左右邻添加
+  void NeighborLane(std::vector<Group::Ptr>* groups);
+  void VirtualLaneNeighborBefore(
+      Group::Ptr curr_group,
+      Group::Ptr next_group);  // 从后往前补的车道左右邻添加
+  bool IsNearLine(LineSegment::Ptr line1, LineSegment::Ptr line2);
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;
   std::map<em::Id, Arrow::Ptr> arrow_;

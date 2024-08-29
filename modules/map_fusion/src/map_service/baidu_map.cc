@@ -30,12 +30,7 @@ int32_t BaiDuMapEngine::AlgInit() {
         "", "",
         baidu::imap::LogControl(5, 100 * 1024, "./hdmap_log",
                                 baidu::imap::LogControl::INFO));
-    std::string default_work_root = "/app/";
-    std::string work_root =
-        hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
-    std::string dbpath = work_root + "/data/baidu_map/hdmap/";
-    HLOG_ERROR << "dbpath " << dbpath;
-
+    std::string dbpath = FLAGS_ldmap_dir + "/";
     std::string vid = "HeZhong2024010166";
     if (map_engine_ptr_->initialize(dbpath, vid, init_param) !=
         baidu::imap::IMAP_STATUS_OK) {

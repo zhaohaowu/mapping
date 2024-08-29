@@ -46,6 +46,7 @@ int32_t MapFusionLite::AlgInit() {
   FLAGS_orin_viz = config["orin_viz"].as<bool>();
   FLAGS_orin_viz_addr = config["orin_viz_addr"].as<std::string>();
   FLAGS_map_dir = work_root + config["map_dir"].as<std::string>();
+  FLAGS_ldmap_dir = work_root + config["ldmap_dir"].as<std::string>();
   FLAGS_ehp_monitor = config["ehp_monitor"].as<int32_t>();
   FLAGS_enable_ehp_routing = config["enable_ehp_routing"].as<bool>();
   FLAGS_ehp_log_root_dir = config["ehp_log_root_dir"].as<std::string>();
@@ -778,7 +779,8 @@ int MapFusionLite::SendFusionResult(
   std::string switch_reason = map_select_->GetSwitchMapReason();
   map_fusion->mutable_routing()->add_origin_response(switch_reason);
   if (FLAGS_map_service_mode == 0) {
-    map_fusion->mutable_routing()->mutable_header()->set_seq(location->header().seq());
+    map_fusion->mutable_routing()->mutable_header()->set_seq(
+        location->header().seq());
   }
   map_fusion->set_map_type(select.map_type);
   map_fusion->set_is_valid(select.valid);

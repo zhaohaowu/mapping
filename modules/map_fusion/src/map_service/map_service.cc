@@ -27,6 +27,7 @@
 #include "map/hdmap/hdmap.h"
 #include "map/hdmap/hdmap_util.h"
 #include "map_fusion/map_service/global_hd_map.h"
+#include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 #include "proto/localization/node_info.pb.h"
 #include "proto/map/ehp.pb.h"
 #include "proto/map/map.pb.h"
@@ -38,6 +39,7 @@
 // NOLINTBEGIN
 DEFINE_double(radius, 500, "radius of the vehicle position");
 DEFINE_double(transform_distance, 200, "distance to update the map");
+DEFINE_string(ldmap_dir, "/ldmap", "ldmap path");
 // NOLINTEND
 
 namespace hozon {
@@ -56,11 +58,10 @@ bool MapService::Init() {
     amap_tsp_proc_ = std::async(&MapService::GetUidThread, this);
     ehr_ = std::make_unique<hozon::ehr::AmapEhrImpl>();
 
-    std::string default_work_root = "/app/";
-    std::string work_root =
-        hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
-    std::string dbpath = work_root + "/data/baidu_map/hdmap/";
-
+    std::string dbpath = FLAGS_ldmap_dir + "/";
+#ifdef ISORIN
+    dbpath = "/hd_map/ld_map/";
+#endif
     std::string vid = "HeZhong2024010166";
     baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>(dbpath, vid);
     baidu_map_->AlgInit();
@@ -68,11 +69,8 @@ bool MapService::Init() {
   } else if (FLAGS_map_service_mode == 2) {
     // todo map api
     // ld map 在线
-    std::string default_work_root = "/app/";
-    std::string work_root =
-        hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
-    std::string dbpath = work_root + "/data/baidu_map/hdmap/";
 
+    std::string dbpath = FLAGS_ldmap_dir + "/";
     std::string vid = "HeZhong2024010166";
     baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>(dbpath, vid);
     baidu_map_->AlgInit();

@@ -1605,7 +1605,9 @@ void GeoOptimization::HandleOppisiteLineByStopline() {
             PointToVectorDist(forward_stopline[0], forward_stopline[1],
                               line_end_point) > 5.0f) {
           line.is_ego_road = false;
-          is_not_ego_lane_track_id_.insert(line.line->track_id());
+          if (line.line->track_id() < 1000) {
+            is_not_ego_lane_track_id_.insert(line.line->track_id());
+          }
         }
       }
     }

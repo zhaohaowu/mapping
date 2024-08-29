@@ -31,6 +31,10 @@ int32_t BaiDuMapEngine::AlgInit() {
         baidu::imap::LogControl(5, 100 * 1024, "./hdmap_log",
                                 baidu::imap::LogControl::INFO));
     std::string dbpath = FLAGS_ldmap_dir + "/";
+#ifdef ISORIN
+    dbpath = "/hd_map/ld_map/";
+#endif
+    HLOG_ERROR << "dbpath " << dbpath;
     std::string vid = "HeZhong2024010166";
     if (map_engine_ptr_->initialize(dbpath, vid, init_param) !=
         baidu::imap::IMAP_STATUS_OK) {

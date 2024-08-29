@@ -9,6 +9,8 @@
 #include <gflags/gflags.h>
 #include <gflags/gflags_declare.h>
 
+#include <string>
+
 #include "common/configs/config_gflags.h"
 
 DECLARE_bool(orin_viz);
@@ -22,6 +24,5 @@ DECLARE_string(ldmap_dir);
 
 static const std::string kWorkModeFusionMap = "FusionMap";  // NOLINT
 static const std::string kWorkModePercepMap = "PercepMap";  // NOLINT
-static const std::string kWorkModeFusionAndPercepMap =
-    "FusionMap+PercepMap";  // NOLINT
+static const std::string kWorkModeFusionAndPercepMap = "FusionMap+PercepMap";  // NOLINT
 DECLARE_string(work_mode);

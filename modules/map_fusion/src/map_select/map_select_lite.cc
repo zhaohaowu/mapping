@@ -115,26 +115,26 @@ MapSelectResult MapSelectLite::Process(
     const std::shared_ptr<hozon::hdmap::Map>& perc_map,
     const std::shared_ptr<hozon::functionmanager::FunctionManagerIn>& fct_in) {
   switch_map_reason_ = "nothing is unnormal";
-  bool fct_valid = CheckFctIn(fct_in);
-  if (!fct_valid) {
-    bool percep_available = PercepMapAvailable(perc_map, localization);
-    if (percep_available) {
-      HLOG_DEBUG << "fct invalid, percep available";
-      return {MapMsg::PERCEP_MAP, true, 2};
-    }
-    HLOG_DEBUG << "fct invalid, percep unavailable";
-    return {MapMsg::INVALID, false, 2};
-  }
+  // bool fct_valid = CheckFctIn(fct_in);
+  // if (!fct_valid) {
+  //   bool percep_available = PercepMapAvailable(perc_map, localization);
+  //   if (percep_available) {
+  //     HLOG_DEBUG << "fct invalid, percep available";
+  //     return {MapMsg::PERCEP_MAP, true, 2};
+  //   }
+  //   HLOG_DEBUG << "fct invalid, percep unavailable";
+  //   return {MapMsg::INVALID, false, 2};
+  // }
 
-  if (!NnpSwitchOn(fct_in)) {
-    bool percep_available = PercepMapAvailable(perc_map, localization);
-    if (percep_available) {
-      HLOG_DEBUG << "fct valid, nnp off, percep available";
-      return {MapMsg::PERCEP_MAP, true, 0};
-    }
-    HLOG_DEBUG << "fct valid, nnp off, percep unavailable";
-    return {MapMsg::INVALID, false, 0};
-  }
+  // if (!NnpSwitchOn(fct_in)) {
+  //   bool percep_available = PercepMapAvailable(perc_map, localization);
+  //   if (percep_available) {
+  //     HLOG_DEBUG << "fct valid, nnp off, percep available";
+  //     return {MapMsg::PERCEP_MAP, true, 0};
+  //   }
+  //   HLOG_DEBUG << "fct valid, nnp off, percep unavailable";
+  //   return {MapMsg::INVALID, false, 0};
+  // }
   bool fusion_available =
       FusionMapAvailable(fusion_map, localization, localization);
   if (fusion_available) {
@@ -1613,10 +1613,10 @@ bool MapSelectLite::CheckGlobalLoc(
   std::set<uint32_t> normal_loc_states = {
       2,  // 组合导航+MM+DR
   };
-  if (normal_loc_states.find(loc_state) == normal_loc_states.end()) {
-    switch_map_reason_ = "loc_states is not 2";
-    return false;
-  }
+  // if (normal_loc_states.find(loc_state) == normal_loc_states.end()) {
+  //   switch_map_reason_ = "loc_states is not 2";
+  //   return false;
+  // }
 
   return true;
 }

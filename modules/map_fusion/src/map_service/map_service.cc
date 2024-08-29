@@ -62,6 +62,7 @@ bool MapService::Init() {
 #ifdef ISORIN
     dbpath = "/hd_map/ld_map/";
 #endif
+    HLOG_ERROR << "dbpath " << dbpath;
     std::string vid = "HeZhong2024010166";
     baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>(dbpath, vid);
     baidu_map_->AlgInit();
@@ -71,6 +72,10 @@ bool MapService::Init() {
     // ld map 在线
 
     std::string dbpath = FLAGS_ldmap_dir + "/";
+#ifdef ISORIN
+    dbpath = "/hd_map/ld_map/";
+#endif
+    HLOG_ERROR << "dbpath " << dbpath;
     std::string vid = "HeZhong2024010166";
     baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>(dbpath, vid);
     baidu_map_->AlgInit();

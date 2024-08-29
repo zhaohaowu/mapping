@@ -1857,6 +1857,10 @@ void MapPrediction::GetRoutingLanesFromFile() {
   hozon::routing::RoutingResponse routing;
   std::string routing_file_path =
       FLAGS_map_dir + "/default_routing_response.txt";
+#ifdef ISORIN
+  routing_file_path =
+      "/app/data/map/changfeng_park/default_routing_response.txt";
+#endif
   if (!hozon::common::GetProtoFromASCIIFile(routing_file_path, &routing)) {
     HLOG_ERROR << "get default routing response from file faild:"
                << routing_file_path;

@@ -175,6 +175,8 @@ int MapFusion::ProcFusion(
       map = pred_->GetHdMapNNP(need_update_global_hd, routing);
     } else if (FLAGS_map_service_mode == 0) {
       map = pred_->GetHdMapNCP(routing);
+    } else if (FLAGS_map_service_mode == 2) {
+      map = pred_->GetHdMapNCP(routing);
     }
   }
 

@@ -18,7 +18,7 @@ namespace mp {
 class GlobalLDMap {
  public:
   std::shared_ptr<hdmap::HDMap> GetLDMap() {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<std::mutex> lock(ld_mtx_);
     return ld_map_;
   }
 
@@ -28,11 +28,12 @@ class GlobalLDMap {
     static GlobalLDMap instance;
     return &instance;
   }
+  void UpdateLDMap(const hozon::hdmap::Map& map);
 
  private:
   int Init();
   std::shared_ptr<hdmap::HDMap> ld_map_ = nullptr;
-  std::mutex mtx_;
+  std::mutex ld_mtx_;
   GlobalLDMap() { Init(); }
   ~GlobalLDMap() = default;
   GlobalLDMap(const GlobalLDMap&) { Init(); }

@@ -4,7 +4,7 @@
  *   author     ： zhangrui
  *   date       ： 2024.5
  ******************************************************************************/
-#include "modules/map_fusion_02/modules/map_ld/include/baidu_map.h"
+#include "modules/map_fusion_02/modules/map_ld/baidu_map.h"
 
 #include "base/utils/log.h"
 #include "lib/environment/environment.h"
@@ -1122,10 +1122,9 @@ void BaiDuMapEngine::UpdateBaiDuMap(const INSPos& pos) {
   for (const auto& lane : neta_lanes_um) {
     neta_map_.add_lane()->CopyFrom(lane.second);
   }
-  util::TicToc bdmap_tic1;
-  bdmap_tic1.Tic();
-  GLOBAL_LD_MAP->LoadMapFromProto(neta_map_);
-  // HLOG_ERROR << "zr123 LoadMapFromProto  time ::" << bdmap_tic1.Toc();
+  hozon::mp::GlobalLDMap::Instance()->UpdateLDMap(neta_map_);
+  // GLOBAL_LD_MAP->LoadMapFromProto(neta_map_);
+
 }
 
 }  // namespace mf

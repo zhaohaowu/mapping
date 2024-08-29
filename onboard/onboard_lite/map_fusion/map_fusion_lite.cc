@@ -12,7 +12,7 @@
 #include <set>
 #include <string>
 
-#include "modules/map_fusion_02/modules/map_hd/include/global_hd_map.h"
+#include "modules/map_fusion_02/modules/map_hd/global_hd_map.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 #include "onboard/onboard_lite/map_fusion/map_fusion_lite.h"

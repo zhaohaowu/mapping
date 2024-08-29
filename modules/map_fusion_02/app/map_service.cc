@@ -4,6 +4,7 @@
  */
 #include "modules/map_fusion_02/app/map_service.h"
 #include <unistd.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <iomanip>
@@ -27,7 +28,7 @@
 #include "map/hdmap/hdmap.h"
 #include "map/hdmap/hdmap_util.h"
 #include "modules/map_fusion_02/data_manager/ins_data_manager.h"
-#include "modules/map_fusion_02/modules/map_hd/include/global_hd_map.h"
+#include "modules/map_fusion_02/modules/map_hd/global_hd_map.h"
 #include "proto/localization/node_info.pb.h"
 #include "proto/map/ehp.pb.h"
 #include "proto/map/map.pb.h"
@@ -113,8 +114,8 @@ void MapService::GetUidThread() {
           ofs << uuid_ << std::endl;
           ofs.close();
         } else {
-          HLOG_ERROR << "uid code: " << uid_result.result_code;
-          HLOG_ERROR << "uid: " << uid_result.response;
+          HLOG_WARN << "uid code: " << uid_result.result_code;
+          HLOG_WARN << "uid: " << uid_result.response;
         }
       }
       ++counter;
@@ -144,7 +145,7 @@ void MapService::AMapProc() {
       EhpProc(*ins_ptr, routing_);
       SetFautl();
     } else {
-      HLOG_INFO << "ins_ptr is nullptr when load hd map";
+      HLOG_WARN << "ins_ptr is nullptr when load hd map";
     }
     usleep(1e6);
   }
@@ -220,7 +221,10 @@ bool MapService::EhpProc(
     shrinked_map_protos.emplace_back(deleted_map);
   }
   if (!extended_map_protos.empty() || !shrinked_map_protos.empty()) {
-    GLOBAL_HD_MAP->UpdateMapFromProto(extended_map_protos, shrinked_map_protos);
+    // GLOBAL_HD_MAP->UpdateMapFromProto(extended_map_protos,
+    // shrinked_map_protos);
+    hozon::mp::GlobalHdMap::Instance()->UpdateHdMap(extended_map_protos,
+                                                    shrinked_map_protos);
   }
 
   return true;

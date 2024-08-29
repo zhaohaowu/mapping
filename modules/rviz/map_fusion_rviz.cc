@@ -222,7 +222,7 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
     std::string grp_ns =
         "grp" + std::to_string(grp_idx) + "(" + grp->str_id + ")";
     if (grp == nullptr) {
-      HLOG_ERROR << "found nullptr group";
+      // HLOG_ERROR << "found nullptr group";
       continue;
     }
 
@@ -587,8 +587,7 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
       marker_str_id_with_group->set_id(0);
       marker_str_id_with_group->set_action(
           adsfi_proto::viz::MarkerAction::MODIFY);
-      double text_size = 0.5;
-      marker_str_id_with_group->mutable_scale()->set_z(text_size);
+      marker_str_id_with_group->mutable_scale()->set_z(0.5);
       marker_str_id_with_group->mutable_lifetime()->set_sec(life_sec);
       marker_str_id_with_group->mutable_lifetime()->set_nsec(life_nsec);
       marker_str_id_with_group->mutable_color()->set_a(0.2);
@@ -616,7 +615,7 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
 
     // road edges
     if (!grp->road_edges.empty()) {
-      HLOG_INFO << "road edges size: " << grp->road_edges.size();
+      // HLOG_INFO << "road edges size: " << grp->road_edges.size();
 
       int edge_id = -1;
       for (const auto& road_edge : grp->road_edges) {
@@ -626,7 +625,7 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
         if (road_edge->points.empty()) {
           continue;
         }
-        HLOG_INFO << "road edge points size: " << road_edge->points.size();
+        // HLOG_INFO << "road edge points size: " << road_edge->points.size();
 
         edge_id += 1;
         std::string edge_ns = "road_edge_" + std::to_string(edge_id);
@@ -637,8 +636,7 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
         marker_edge_text->set_ns(grp_ns + "/" + edge_ns);
         marker_edge_text->set_id(edge_id++);
         marker_edge_text->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
-        double text_size = 1.0;
-        marker_edge_text->mutable_scale()->set_z(text_size);
+        marker_edge_text->mutable_scale()->set_z(1.0);
         marker_edge_text->mutable_lifetime()->set_sec(life_sec);
         marker_edge_text->mutable_lifetime()->set_nsec(life_nsec);
         marker_edge_text->mutable_color()->set_a(1.0);

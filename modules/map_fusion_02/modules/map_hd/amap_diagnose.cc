@@ -3,7 +3,7 @@
  * Description:  ehp
  */
 
-#include "modules/map_fusion_02/modules/map_hd/include/ehp/amap_diagnose.h"
+#include "modules/map_fusion_02/modules/map_hd/amap_diagnose.h"
 #include <memory.h>
 
 #include <cmath>

@@ -2,7 +2,7 @@
  * Copyright (c) Hozon Technologies Co., Ltd. 2019-2021. All rights reserved.
  * Description:  ehp
  */
-#include "modules/map_fusion_02/modules/map_hd/include/ehp/amap_system.h"
+#include "modules/map_fusion_02/modules/map_hd/amap_system.h"
 #include <memory.h>
 #include <sys/statfs.h>
 

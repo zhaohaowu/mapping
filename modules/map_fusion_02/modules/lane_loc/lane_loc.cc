@@ -23,7 +23,7 @@
 #include "modules/map_fusion_02/modules/lane_loc/detect_turn_state.h"
 #include "modules/map_fusion_02/modules/lane_loc/fusion_lane_loc.h"
 #include "modules/map_fusion_02/modules/lane_loc/measure_lane_loc.h"
-#include "modules/map_fusion_02/modules/map_ld/include/global_ld_map.h"
+#include "modules/map_fusion_02/modules/map_ld/global_ld_map.h"
 #include "modules/rviz/map_fusion_rviz.h"
 #include "modules/util/include/util/geo.h"
 #include "util/rviz_agent/rviz_agent.h"

@@ -19,7 +19,7 @@ namespace mp {
 class GlobalHdMap {
  public:
   std::shared_ptr<hdmap::HDMap> GetHdMap() {
-    std::lock_guard<std::mutex> lock(mtx_);
+    std::lock_guard<std::mutex> lock(hd_mtx_);
     return hd_map_;
   }
 
@@ -29,11 +29,13 @@ class GlobalHdMap {
     static GlobalHdMap instance;
     return &instance;
   }
+  void UpdateHdMap(const std::list<hozon::hdmap::Map>& extended_map_protos,
+                   const std::list<hozon::hdmap::Map>& shrinkedmap_protos);
 
  private:
   int Init();
   std::shared_ptr<hdmap::HDMap> hd_map_ = nullptr;
-  std::mutex mtx_;
+  std::mutex hd_mtx_;
   GlobalHdMap() { Init(); }
   ~GlobalHdMap() = default;
   GlobalHdMap(const GlobalHdMap&) { Init(); }

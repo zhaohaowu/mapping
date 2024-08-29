@@ -2,7 +2,7 @@
  * Copyright (c) Hozon Technologies Co., Ltd. 2019-2021. All rights reserved.
  * Description:  ehp
  */
-#include "modules/map_fusion_02/modules/map_hd/include/ehp/amap_data.h"
+#include "modules/map_fusion_02/modules/map_hd/amap_data.h"
 #include <memory.h>
 
 #include <cmath>
@@ -10,8 +10,8 @@
 #include <iostream>
 
 #include "common/configs/config_gflags.h"
-#include "util/mapping_log.h"
 #include "proto/map/adasisv3.pb.h"
+#include "util/mapping_log.h"
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -31,7 +31,7 @@ bool AdasisV3DataListenerImp::shouldReceiveMessage() {
 
 bool AdasisV3DataListenerImp::receiveGlobalData(
     const ::hdmap::service::GlobalData& globalData) {
-  HLOG_DEBUG << "globalData";
+  // HLOG_DEBUG << "globalData";
   std::string glaobal_data;
   glaobal_data.assign(
       reinterpret_cast<const char*>(globalData.getData()),  // NOLINT
@@ -51,7 +51,7 @@ bool AdasisV3DataListenerImp::receiveGlobalData(
 
 bool AdasisV3DataListenerImp::receivePosition(
     const ::hdmap::service::PositionData& positionData) {
-  HLOG_INFO << "positionData";
+  // HLOG_INFO << "positionData";
   std::string position_data;
   position_data.assign(
       reinterpret_cast<const char*>(positionData.getData()),  // NOLINT
@@ -70,7 +70,7 @@ bool AdasisV3DataListenerImp::receivePosition(
 
 bool AdasisV3DataListenerImp::receivePathControl(
     const ::hdmap::service::PathControlData& pathControlData) {
-  HLOG_INFO << "pathControlData";
+  // HLOG_INFO << "pathControlData";
   std::string pathcontrol_data;
   pathcontrol_data.assign(
       reinterpret_cast<const char*>(pathControlData.getData()),  // NOLINT
@@ -90,7 +90,7 @@ bool AdasisV3DataListenerImp::receivePathControl(
 
 bool AdasisV3DataListenerImp::receiveProfileControl(
     const ::hdmap::service::ProfileControlData& profileControlData) {
-  HLOG_INFO << "profileControlData";
+  // HLOG_INFO << "profileControlData";
   std::string profilecontrol_data;
   profilecontrol_data.assign(
       reinterpret_cast<const char*>(profileControlData.getData()),  // NOLINT
@@ -110,7 +110,6 @@ bool AdasisV3DataListenerImp::receiveProfileControl(
 
 bool AdasisV3DataListenerImp::receiveProfile(
     const ::hdmap::service::ProfileData& profileData) {
-  HLOG_INFO << "profiledata";
   // apollo::adasisv3::MessageOnBus message;
   std::string profile_data;
   profile_data.assign(
@@ -132,7 +131,7 @@ bool AdasisV3DataListenerImp::receiveProfile(
 
 bool AdasisV3DataListenerImp::receiveReason(
     const ::hdmap::service::ReasonData& reasonData) {
-  HLOG_INFO << "reason message";
+  // HLOG_INFO << "reason message";
   // apollo::adasisv3::MessageOnBus message;
   std::string reason_message;
   reason_message.assign(
@@ -140,10 +139,10 @@ bool AdasisV3DataListenerImp::receiveReason(
       reasonData.getLength());
 
   // HLOG_ERROR << "profileDatalength: " << profileData.getLength();
-  hozon::adasisv3::MessageOnBus message;
+  // hozon::adasisv3::MessageOnBus message;
 
-  message.ParseFromString(reason_message);
-  HLOG_ERROR << "profilemessage: " << message.DebugString();
+  // message.ParseFromString(reason_message);
+  // HLOG_ERROR << "profilemessage: " << message.DebugString();
 
   // 解析 profile 消息成功,使用 message 实例对象获取相关属性
   std::lock_guard<std::mutex> lock(mutex_);

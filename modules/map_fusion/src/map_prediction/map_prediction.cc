@@ -1956,6 +1956,11 @@ void MapPrediction::HDMapLaneToLocal() {
         point->set_y(pt_local.y());
         point->set_z(0);
       }
+      Eigen::Vector3d pt_start_point = UtmPtToLocalEnu(seg.start_position());
+      pt_start_point = T_local_enu_to_local_ * pt_start_point;
+      (*seg.mutable_start_position()).set_x(pt_start_point.x());
+      (*seg.mutable_start_position()).set_y(pt_start_point.y());
+      (*seg.mutable_start_position()).set_z(0);
       (*seg.mutable_line_segment()->mutable_original_point()).Clear();
     }
 
@@ -1970,6 +1975,11 @@ void MapPrediction::HDMapLaneToLocal() {
         point->set_y(pt_local.y());
         point->set_z(0);
       }
+      Eigen::Vector3d pt_start_point = UtmPtToLocalEnu(seg.start_position());
+      pt_start_point = T_local_enu_to_local_ * pt_start_point;
+      (*seg.mutable_start_position()).set_x(pt_start_point.x());
+      (*seg.mutable_start_position()).set_y(pt_start_point.y());
+      (*seg.mutable_start_position()).set_z(0);
       (*seg.mutable_line_segment()->mutable_original_point()).Clear();
     }
 
@@ -1985,6 +1995,11 @@ void MapPrediction::HDMapLaneToLocal() {
         point->set_y(pt_local.y());
         point->set_z(0);
       }
+      Eigen::Vector3d pt_start_point = UtmPtToLocalEnu(seg.start_position());
+      pt_start_point = T_local_enu_to_local_ * pt_start_point;
+      (*seg.mutable_start_position()).set_x(pt_start_point.x());
+      (*seg.mutable_start_position()).set_y(pt_start_point.y());
+      (*seg.mutable_start_position()).set_z(0);
       (*seg.mutable_line_segment()->mutable_original_point()).Clear();
     }
   }
@@ -2299,11 +2314,11 @@ void MapPrediction::NCPMapToLocal() {
           pt.set_z(0);
         }
         if (segment.line_segment().point_size() > 0) {
-          Eigen::Vector3d pt_local =
-              UtmPtToLocalEnu(segment.line_segment().point(0));
-          segment.mutable_start_position()->set_x(pt_local.x());
-          segment.mutable_start_position()->set_y(pt_local.y());
-          segment.mutable_start_position()->set_z(0);
+          (*segment.mutable_start_position())
+              .set_x(segment.line_segment().point(0).x());
+          (*segment.mutable_start_position())
+              .set_y(segment.line_segment().point(0).y());
+          (*segment.mutable_start_position()).set_z(0);
         }
       }
     }
@@ -2347,6 +2362,7 @@ void MapPrediction::NCPMapToLocal() {
           pt.set_z(0);
         }
         Eigen::Vector3d pt_local = UtmPtToLocalEnu(segment.start_position());
+        pt_local = T_local_enu_to_local_ * pt_local;
         segment.mutable_start_position()->set_x(pt_local.x());
         segment.mutable_start_position()->set_y(pt_local.y());
         segment.mutable_start_position()->set_z(0);

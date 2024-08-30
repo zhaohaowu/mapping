@@ -177,7 +177,7 @@ bool MatchLaneLine::GetNeighboringMapLines(
   for (auto& map_lane : map_points_cache) {
     auto map_line_id = map_lane.first;
     auto map_points = map_lane.second;
-    if (map_points.empty()) {
+    if (map_points.size() < 2) {
       continue;
     }
     V3 map_line_nearest_point;
@@ -192,9 +192,9 @@ bool MatchLaneLine::GetNeighboringMapLines(
     if (nearest_map_pt_flag && (map_line_nearest_point).norm() > 1e-10) {
       nearest_delta_y = fabs(target_perception_line_nearest_point.y() -
                              (map_line_nearest_point).y());
-      HLOG_DEBUG << "nearest_delta_y: " << nearest_delta_y
-                 << ", map_line_id: " << map_line_id
-                 << ", ts: " << ins_timestamp_;
+      HLOG_DEBUG "nearest_delta_y: " << nearest_delta_y
+                                     << ", map_line_id: " << map_line_id
+                                     << ", ts: " << ins_timestamp_;
       if (nearest_delta_y < min_delta_y) {
         nearest_line_match_pairs->emplace_back(
             make_pair(target_perception_line_nearest_point, map_line_id));
@@ -213,18 +213,28 @@ bool MatchLaneLine::GetNeighboringMapLines(
                     [](const ControlPoint& cpt_1, const ControlPoint& cpt_2) {
                       return cpt_1.point.x() < cpt_2.point.x();
                     });
+          const auto& first_point = map_points[0].point;
+          int i = 1;
+          auto second_point = map_points[i].point;
+          for (; i < map_points.size(); ++i) {
+            if ((map_points[i].point - first_point).norm() > 1) {
+              break;
+            }
+          }
+          if (i >= map_points.size()) {
+            i = map_points.size() - 1;
+          }
+          second_point = map_points[i].point;
           double nearest_point_distance = CalCulatePointToLineDistance(
-              target_perception_line_nearest_point, map_points[0].point,
-              map_points[1].point);
-          HLOG_DEBUG << "point_distance: " << nearest_point_distance
-                     << ", map_id: " << map_line_id;
+              target_perception_line_nearest_point, first_point, second_point);
           if (nearest_point_distance > 1.5) {
+            HLOG_WARN << "nearest_point_distance > 1.5";
             continue;
           }
         } else if (nearest_delta_y > 1.5) {
-          HLOG_DEBUG << "nearest_delta_y > 1.5, so dont add this farest map "
-                        "line, map_line_id: "
-                     << map_line_id;
+          HLOG_WARN << "nearest_delta_y > 1.5, so dont add this farest map "
+                       "line, map_line_id: "
+                    << map_line_id;
           continue;
         }
         farest_line_match_pairs->emplace_back(

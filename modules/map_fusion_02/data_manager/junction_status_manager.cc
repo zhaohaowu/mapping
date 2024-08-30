@@ -11,6 +11,8 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
+JuncStatusManager::JuncStatusManager() { this->Init(); }
+
 bool JuncStatusManager::Init() {
   if (inited_) {
     return true;

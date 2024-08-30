@@ -19,6 +19,7 @@ namespace mf {
 
 class InsDataManager {
  public:
+  bool Init();
   ~InsDataManager() = default;
   std::shared_ptr<hozon::localization::HafNodeInfo> GetIns();
   void PushIns(const hozon::localization::HafNodeInfo& latest_ins);

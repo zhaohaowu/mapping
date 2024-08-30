@@ -930,6 +930,7 @@ void BaiDuMapEngine::SetOverlap(
     if (neta_lanes_um->count(lane_id) != 0) {
       GetLineLaneIntersect(cen_line, neta_lanes_um->at(lane_id), &s, true);
     }
+    s = neta_lanes_um->at(lane_id).length();
     HLOG_ERROR << "stop line: " << stopline_id << " lane id: " << lane_id
                << " s: " << s;
     laneoverlapinfo->set_start_s(s - stopline_width / 2);

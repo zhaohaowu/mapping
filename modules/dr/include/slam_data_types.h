@@ -56,6 +56,8 @@ struct OdometryData {
   double longitude;          // 经度 Unit: deg
   double altitude;           // 海拔高度 Unit: meter
   Eigen::Vector3d attitude;  // 三轴姿态(roll, ptich, yaw), Unit: rad  不需要
+  Eigen::Vector3d ins_gyr;
+  Eigen::Vector3d ins_acc;
 
   // imu sync_stamp
   double sync_stamp;
@@ -107,6 +109,8 @@ struct ImuDataHozon {
   Eigen::Vector3d acc_bias;
   Eigen::Vector3d mounting_error;
   Eigen::Vector3d sdPosition;  // 经纬高标准差 Unit: meter
+  Eigen::Vector3d ins_acc;
+  Eigen::Vector3d ins_gyr;
 
   // sync stamp
   double sync_stamp;

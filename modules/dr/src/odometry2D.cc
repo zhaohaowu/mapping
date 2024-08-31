@@ -229,6 +229,10 @@ bool Odometry2D::update() {
     cur_odom_data.loc_vel = local_vel;
     cur_odom_data.loc_omg = w_by_gyro_;
     cur_odom_data.loc_acc = acc_by_gyro_;
+
+    cur_odom_data.ins_gyr = imu_datas.back().ins_gyr;
+    cur_odom_data.ins_acc = imu_datas.back().ins_acc;
+
     cur_odom_data.gear = oldest_wheels[1].gear;
     cur_odom_data.chassis_seq = oldest_wheels[1].seq;
 
@@ -384,8 +388,68 @@ std::tuple<Eigen::Vector3d, double> Odometry2D::UpdatePosByWheel(
   wheel_vel_buffer_.emplace_back(
       std::pair<double, double>(cur.timestamp, wheel_speed));
   Eigen::Vector3d vel(wheel_speed, 0, 0);
+
+  /*
+   * 直接对脉冲处理，根据rolling counter 去除重复和跳变数据
+   */
+  int distance = (cur.rolling_counter - last.rolling_counter);
+  bool flag = false;
+  if (distance == 1 || distance == -15) {
+    HLOG_DEBUG << "the true counter";
+    flag = true;
+  } else {
+    HLOG_DEBUG << "the false counter";
+  }
+
+  if (!flag) {
+    left_diff /= 2;
+    right_diff /= 2;
+  }
+
+  static double last_left_diff = 0;
+  static double last_right_diff = 0;
+
+  if (fabs(cur.rolling_counter - last.rolling_counter) < 1e-2) {
+    left_diff += last_left_diff;
+    right_diff += last_right_diff;
+  }
+
+  last_left_diff = left_diff;
+  last_right_diff = right_diff;
+
+  HLOG_DEBUG << "wsj_rear_left_wheel_start" << left_diff
+             << "wsj_rear_left_wheel_end";
+
+  HLOG_DEBUG << "wsj_rear_right_wheel_start" << right_diff
+             << "wsj_rear_right_wheel_end";
+
+  /*
+   * 根据脉冲计算速度并进行滤波，再计算距离
+   */
+  double right_dist_deal = right_diff * wheel_param_.kr_;
+  double left_dist_deal = left_diff * wheel_param_.kl_;
+
+  double delta_dist_deal = (right_dist_deal + left_dist_deal) * 0.5;
+
+  double deal_vel_filter = delta_dist_deal / dt;
+
+  Eigen::Vector3d encode_vel_deal(deal_vel_filter, 0, 0);
+
+  /*
+   *　对速度做丢帧处理，丢帧时用上一帧速度补上
+   */
+  static double last_vel_x = 0;
+  if (dt > 0.015 && last_vel_x != 0) {
+    encode_vel_deal.x() = last_vel_x;
+  }
+  last_vel_x = encode_vel_deal.x();
+
+  ButterWorthFilter(encode_vel_deal);
+  double deal_delta_dist_filter = encode_vel_deal.x() * dt;
+
   // return std::make_tuple(vel, delta_dist);
-  return std::make_tuple(vel, delta_dist_filter);
+  // return std::make_tuple(vel, delta_dist_filter);
+  return std::make_tuple(encode_vel_deal, deal_delta_dist_filter);
 }
 
 void Odometry2D::UpdateOrientationByIMU(const ImuDataHozon& last_imu,
@@ -526,6 +590,48 @@ bool Odometry2D::EstimatedRollPitch() {
   Eigen::AngleAxisd yaw_aa(yaw_pre * M_PI / 180.0, Eigen::Vector3d::UnitZ());
   qat_3D_ = yaw_aa * pitch_aa * roll_aa;  // 完成转换
   return true;
+}
+
+void Odometry2D::ButterWorthFilter(Eigen::Vector3d& wheel) {
+  static double x1;
+  static double x2;
+  static double y1;
+  static double y2;
+  static double b0;
+  static double b1;
+  static double b2;
+  static double a1;
+  static double a2;
+  static bool init = false;
+  if (!init) {
+    x1 = x2 = y1 = y2 = wheel.x();
+    init = true;
+    return;
+  }
+
+  double sampling_freq = 100.0;
+  double cutoff_freq = 2;
+  // 计算滤波器系数
+  double wc = 2.0 * M_PI * cutoff_freq / sampling_freq;
+  double k = std::tan(wc / 2.0);
+  double k2 = k * k;
+  double sqrt2 = std::sqrt(2.0);
+
+  b0 = k2 / (1 + sqrt2 * k + k2);
+  b1 = 2 * b0;
+  b2 = b0;
+  a1 = 2 * (k2 - 1) / (1 + sqrt2 * k + k2);
+  a2 = (1 - sqrt2 * k + k2) / (1 + sqrt2 * k + k2);
+
+  double output = b0 * wheel.x() + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+
+  // 更新历史状态
+  x2 = x1;
+  x1 = wheel.x();
+  y2 = y1;
+  y1 = output;
+
+  wheel.x() = output;
 }
 
 }  // namespace dr

@@ -157,10 +157,13 @@ bool MatchLaneLine::GetNeighboringMapLines(
     return false;
   }
   constexpr double min_delta_y = 1.5;
-  V3 target_perception_line_nearest_point{0, 0, 0},
-      target_perception_line_farest_point{0, 0, 0};
-  bool nearest_percp_pt_flag = false, farest_percp_pt_flag = false;
-  bool nearest_map_pt_flag = false, farest_map_pt_flag = false;
+  V3 target_perception_line_nearest_point{0, 0, 0};
+  V3 target_perception_line_farest_point{0, 0, 0};
+  bool nearest_percp_pt_flag = false;
+  bool farest_percp_pt_flag = false;
+  bool nearest_map_pt_flag = false;
+  bool farest_map_pt_flag = false;
+  bool mid_map_pt_flag = false;
   if (target_perception_line_points.front().x() > min_dis) {
     target_perception_line_nearest_point =
         target_perception_line_points.front();
@@ -174,6 +177,10 @@ bool MatchLaneLine::GetNeighboringMapLines(
     farest_percp_pt_flag = GetFitPoints(target_perception_line_points, max_dis,
                                         &target_perception_line_farest_point);
   }
+  V3 target_perception_line_mid_point =
+      0.5 * (target_perception_line_nearest_point +
+             target_perception_line_farest_point);
+
   for (auto& map_lane : map_points_cache) {
     auto map_line_id = map_lane.first;
     auto map_points = map_lane.second;
@@ -182,13 +189,18 @@ bool MatchLaneLine::GetNeighboringMapLines(
     }
     V3 map_line_nearest_point;
     V3 map_line_farest_point;
+    V3 map_line_mid_point;
     nearest_map_pt_flag =
         GetFitMapPoints(map_points, target_perception_line_nearest_point.x(),
                         &map_line_nearest_point);
     farest_map_pt_flag =
         GetFitMapPoints(map_points, target_perception_line_farest_point.x(),
                         &map_line_farest_point);
-    double nearest_delta_y = 0.f, farest_delta_y = 0.f;
+
+    mid_map_pt_flag = GetFitMapPoints(
+        map_points, target_perception_line_mid_point.x(), &map_line_mid_point);
+    double nearest_delta_y = 0.0;
+    double farest_delta_y = 0.0;
     if (nearest_map_pt_flag && (map_line_nearest_point).norm() > 1e-10) {
       nearest_delta_y = fabs(target_perception_line_nearest_point.y() -
                              (map_line_nearest_point).y());
@@ -196,8 +208,29 @@ bool MatchLaneLine::GetNeighboringMapLines(
                                      << ", map_line_id: " << map_line_id
                                      << ", ts: " << ins_timestamp_;
       if (nearest_delta_y < min_delta_y) {
-        nearest_line_match_pairs->emplace_back(
-            make_pair(target_perception_line_nearest_point, map_line_id));
+        // 计算角度是否接近
+        double percep_line_heading = 0.0;
+        double map_line_heading = 0.0;
+        if (mid_map_pt_flag &&
+            (map_line_mid_point - map_line_nearest_point).norm() > 1.0) {
+          percep_line_heading =
+              atan2(target_perception_line_mid_point.y() -
+                        target_perception_line_nearest_point.y(),
+                    target_perception_line_mid_point.x() -
+                        target_perception_line_nearest_point.x());
+          map_line_heading =
+              atan2(map_line_mid_point.y() - map_line_nearest_point.y(),
+                    map_line_mid_point.x() - map_line_nearest_point.x());
+        }
+        double heading_diff =
+            CmpAngleDiff(map_line_heading, percep_line_heading);
+        HLOG_DEBUG << "nearest check" << map_line_heading * 180 / M_PI << ","
+                   << percep_line_heading * 180.0 / M_PI << ","
+                   << heading_diff * 180.0 / M_PI;
+        if (fabs(heading_diff) < 20 * M_PI / 180.0) {
+          nearest_line_match_pairs->emplace_back(
+              make_pair(target_perception_line_nearest_point, map_line_id));
+        }
       }
     }
     if (farest_map_pt_flag && (map_line_farest_point).norm() > 1e-10) {
@@ -237,8 +270,28 @@ bool MatchLaneLine::GetNeighboringMapLines(
                     << map_line_id;
           continue;
         }
-        farest_line_match_pairs->emplace_back(
-            std::make_pair(target_perception_line_farest_point, map_line_id));
+        // 计算角度是否接近
+        double percep_line_heading = 0.0;
+        double map_line_heading = 0.0;
+        if (mid_map_pt_flag &&
+            (map_line_farest_point - map_line_mid_point).norm() > 1.0) {
+          percep_line_heading = atan2(target_perception_line_farest_point.y() -
+                                          target_perception_line_mid_point.y(),
+                                      target_perception_line_farest_point.x() -
+                                          target_perception_line_mid_point.x());
+          map_line_heading =
+              atan2(map_line_farest_point.y() - map_line_mid_point.y(),
+                    map_line_farest_point.x() - map_line_mid_point.x());
+        }
+        double heading_diff =
+            CmpAngleDiff(map_line_heading, percep_line_heading);
+        HLOG_DEBUG << "farest check" << map_line_heading * 180 / M_PI << ","
+                   << percep_line_heading * 180.0 / M_PI << ","
+                   << heading_diff * 180.0 / M_PI;
+        if (fabs(heading_diff) < 20 * M_PI / 180.0) {
+          farest_line_match_pairs->emplace_back(
+              std::make_pair(target_perception_line_farest_point, map_line_id));
+        }
       }
     }
   }

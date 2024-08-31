@@ -183,6 +183,16 @@ class MatchLaneLine {
   void FilterPointPair(std::vector<PointMatchPair>* match_pairs, const SE3& T);
   std::pair<double, double> CmpWidth(const MatchMapLine& match_pair0,
                                      const MatchMapLine& match_pair1);
+  double CmpAngleDiff(double ang1, double ang2) {
+    double diff = ang1 - ang2;
+    if (diff > M_PI) {
+      diff -= 2 * M_PI;
+    }
+    if (diff < -M_PI) {
+      diff += 2 * M_PI;
+    }
+    return diff;
+  }
   /**
    * @brief line to line match
    * @param map_line_idx : map lane line id

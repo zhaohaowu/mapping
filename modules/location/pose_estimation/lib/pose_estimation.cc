@@ -16,10 +16,10 @@
 #include "Eigen/src/Geometry/Transform.h"
 #include "Sophus/se3.hpp"
 #include "base/utils/log.h"
+#include "modules/location/pose_estimation/lib/clipper/clipper.hpp"
 #include "modules/location/pose_estimation/lib/reloc/reloc_rviz.hpp"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "modules/util/include/util/tic_toc.h"
-#include "modules/location/pose_estimation/lib/clipper/clipper.hpp"
 namespace hozon {
 namespace mp {
 namespace loc {
@@ -617,9 +617,9 @@ bool PoseEstimation::GetHdMapLane(const LocalizationPtr& fc_pose_ptr,
   GLOBAL_HD_MAP->GetJunctions(utm_position, 20, &junctions);
   ClipperLib::DoublePoint point{utm_position.x(), utm_position.y()};
   ClipperLib::DoublePath path;
-  for (const auto& junction: junctions) {
+  for (const auto& junction : junctions) {
     path.clear();
-    for (const auto& p:junction->polygon().points()) {
+    for (const auto& p : junction->polygon().points()) {
       path.emplace_back(ClipperLib::DoublePoint{p.x(), p.y()});
     }
     if (!path.empty()) {
@@ -785,9 +785,9 @@ bool PoseEstimation::PercepConvert(const TransportElement& perception,
   for (const auto& lane_line : perception.lane()) {
     auto& every_lane_line = lane_lines[per_id++];
     for (const auto& point : lane_line.points()) {
-      if (point.x() > 40) {
-        continue;
-      }
+      // if (point.x() > 40) {
+      //   continue;
+      // }
       every_lane_line.points.emplace_back(point.x(), point.y(), point.z());
       if (lane_line.lanetype() == perception::SolidLine ||
           lane_line.lanetype() == perception::DoubleSolidLine ||
@@ -807,9 +807,9 @@ bool PoseEstimation::PercepConvert(const TransportElement& perception,
   for (const auto& road_edge : perception.road_edges()) {
     auto& every_lane_line = lane_lines[per_id++];
     for (const auto& point : road_edge.points()) {
-      if (point.x() > 40) {
-        continue;
-      }
+      // if (point.x() > 40) {
+      //   continue;
+      // }
       every_lane_line.lane_type = LaneType::Road_Edge;
       every_lane_line.points.emplace_back(point.x(), point.y(), point.z());
     }
@@ -952,14 +952,14 @@ void PoseEstimation::RvizFunc() {
                                     "/pe/perception_by_input");
     RelocRviz::PubPerceptionMarkerByFc(T_fc_10hz, perception, sec, nsec,
                                        "/pe/perception_marker_by_fc");
-    RelocRviz::PubKFParamsByFc(FC_KF_kydiff_100hz, FC_KF_cov_100hz, sec,
-                                     nsec, "/pe/KFParams_marker_by_fc");
+    RelocRviz::PubKFParamsByFc(FC_KF_kydiff_100hz, FC_KF_cov_100hz, sec, nsec,
+                               "/pe/KFParams_marker_by_fc");
     RelocRviz::PubHdmap(T_fc_10hz, hdmap, sec, nsec, "/pe/hdmap");
     RelocRviz::PubHdmapMarker(T_fc_10hz, hdmap, sec, nsec, "/pe/hdmap_marker");
-    RelocRviz::PubInsLocationState(T_fc_100hz, ins_state_, sd_position_,
-                                   location_state_, perception.timestamp,
-                                   velocity_, fc_heading_, ins_heading_, conv,
-                                   sec, nsec, "/pe/ins_location_state", gps_week_, gps_second_);
+    RelocRviz::PubInsLocationState(
+        T_fc_100hz, ins_state_, sd_position_, location_state_,
+        perception.timestamp, velocity_, fc_heading_, ins_heading_, conv, sec,
+        nsec, "/pe/ins_location_state", gps_week_, gps_second_);
     RelocRviz::PubInsOdom(T_ins_100hz, sec, nsec, "/pe/ins_odom");
     RelocRviz::PubInputOdom(T_input, sec, nsec, "/pe/input_odom");
     usleep(9 * 1e3);

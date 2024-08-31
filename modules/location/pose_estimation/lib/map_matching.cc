@@ -8,13 +8,13 @@
 #include "modules/location/pose_estimation/lib/map_matching.h"
 
 #include <algorithm>
-#include <chrono>
 #include <cfloat>
+#include <chrono>
 #include <cstdint>
 #include <memory>
+#include <stack>
 #include <string>
 #include <vector>
-#include <stack>
 
 #include "Eigen/src/Core/Matrix.h"
 #include "Eigen/src/Geometry/Quaternion.h"
@@ -404,7 +404,7 @@ void MapMatching::FilterPercpLaneline(
         mm_params.lane_confidence_thre) {
       continue;
     }
-    if (line->Max() < 0.f || line->Min() > 100.f ||
+    if (line->Max() < 0.f || line->Min() > 40.f ||
         line->Max() - line->Min() < mm_params.perceplane_len_lowerbound) {
       continue;
     }
@@ -428,8 +428,10 @@ void MapMatching::FilterPercpLaneline(
 
 void MapMatching::MergeMapLines(
     const std::shared_ptr<MapBoundaryLine>& boundary_lines, const SE3& T,
-    std::unordered_map<std::string, std::vector<ControlPoint>>* merged_fcmap_lines,
-    std::unordered_map<std::string, std::vector<ControlPoint>>* merged_map_lines) {
+    std::unordered_map<std::string, std::vector<ControlPoint>>*
+        merged_fcmap_lines,
+    std::unordered_map<std::string, std::vector<ControlPoint>>*
+        merged_map_lines) {
   if (boundary_lines == nullptr) {
     return;
   }
@@ -517,7 +519,7 @@ void MapMatching::MergeMapLines(
 }
 
 void MapMatching::Traversal(const V3& root_start_point,
-                              std::vector<std::string> line_ids, int loop) {
+                            std::vector<std::string> line_ids, int loop) {
   if (lines_map_.empty()) {
     return;
   }
@@ -568,7 +570,8 @@ void MapMatching::Traversal(const V3& root_start_point,
 
 void MapMatching::MergeMapEdges(
     const std::shared_ptr<MapRoadEdge>& road_edges, const SE3& T,
-    std::unordered_map<std::string, std::vector<ControlPoint>>* merged_map_edges) {
+    std::unordered_map<std::string, std::vector<ControlPoint>>*
+        merged_map_edges) {
   if (road_edges == nullptr) {
     return;
   }
@@ -653,8 +656,7 @@ void MapMatching::MergeMapEdges(
 }
 
 void MapMatching::EdgesTraversal(const V3& root_start_point,
-                                   std::vector<std::string> line_ids,
-                                   int loop) {
+                                 std::vector<std::string> line_ids, int loop) {
   if (edges_map_.empty()) {
     return;
   }

@@ -6,7 +6,7 @@ recv_dr: true
 recv_pe: true
 imu_deque_max_size: 10
 ins_deque_max_size: 25100
-dr_deque_max_size: 300
+dr_deque_max_size: 25100
 pe_deque_max_size: 10
 
 passthrough_ins: false

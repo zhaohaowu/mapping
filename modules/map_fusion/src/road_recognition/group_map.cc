@@ -7557,6 +7557,10 @@ bool AreAdjacentLaneGroupsDisconnected(Group::Ptr curr_group,
              << curr_group->group_segments.size()
              << "next_group->group_segments size:"
              << next_group->group_segments.size();
+  if (curr_group->group_segments.empty() ||
+      next_group->group_segments.empty()) {
+    return false;
+  }
   double group_distance = (curr_group->group_segments.back()->end_slice.po -
                            next_group->group_segments.front()->start_slice.po)
                               .norm();
@@ -7740,8 +7744,8 @@ std::vector<Point> GuidePathManager::GetCwForwardLaneGuidePoints() {
 
   float ego_to_lane_center =
       std::atan2(center_first_point.y(), center_first_point.x());
-  HLOG_DEBUG << "forward center point:"
-             << ", center.x()" << center_first_point.x() << ", center.y()"
+  HLOG_DEBUG << "forward center point:" << ", center.x()"
+             << center_first_point.x() << ", center.y()"
              << center_first_point.y() << "atan2:" << ego_to_lane_center
              << ", line_radians_mean_heading" << line_radians_mean_heading;
 
@@ -7882,10 +7886,9 @@ std::vector<Point> GuidePathManager::GetRoadEdgeGuidePoints() {
     const auto& query_point =
         0.5 * (right_first_point_2f + left_first_point_2f);
 
-    HLOG_DEBUG << "roadedge center point:"
-               << ", center.x()" << query_point.x() << ", center.y()"
-               << query_point.y() << ", line_radians_mean_heading"
-               << line_radians_mean_heading;
+    HLOG_DEBUG << "roadedge center point:" << ", center.x()" << query_point.x()
+               << ", center.y()" << query_point.y()
+               << ", line_radians_mean_heading" << line_radians_mean_heading;
     // float junction_guide_angle_ratio = 0.2;
 
     // heading方向补个50米长度。

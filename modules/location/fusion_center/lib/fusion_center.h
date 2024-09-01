@@ -17,6 +17,8 @@
 #include <Sophus/se3.hpp>
 
 #include "Eigen/src/Core/Matrix.h"
+#include "Eigen/src/Geometry/Transform.h"
+#include "defines.h"
 #include "modules/location/fusion_center/lib/eskf.h"
 #include "modules/location/fusion_center/lib/kalman_filter.h"
 #include "modules/location/fusion_center/lib/monitor.h"
@@ -34,6 +36,13 @@ using hozon::localization::HafNodeInfo;
 using hozon::localization::Localization;
 using hozon::soc::ImuIns;
 
+struct InsOffset {
+  bool init = false;
+  int smooth_cnt = -1;
+  Eigen::Isometry3d offset;
+  Node latest_ins_node;
+  Node latest_pe_node;
+};
 class FusionCenter {
  public:
   FusionCenter() = default;
@@ -60,9 +69,11 @@ class FusionCenter {
   void SetRefpoint(const Eigen::Vector3d& blh);
   Eigen::Vector3d Refpoint();
   void Node2Localization(const Context& ctx, Localization* const location);
+  Eigen::Isometry3d Node2Eigen(const Node& node);
+
   void RunFusion();
   bool PoseInit(const Eigen::Vector3d& refpoint);
-  bool GenerateNewESKFPre();   // 用于收集融合的预测
+  bool GenerateNewESKFPre();  // 用于收集融合的预测
   bool GenerateNewESKFMeas(
       const Eigen::Vector3d& refpoint);  // 用于收集融合的观测
   Node State2Node(const State& state, const Eigen::Vector3d& refpoint);
@@ -177,6 +188,9 @@ class FusionCenter {
 
   // mapping trigger
   std::deque<std::shared_ptr<Node>> ins_trig_deque_;
+
+  // ins measure
+  InsOffset ins_offset_;
 };
 
 }  // namespace fc

@@ -13,6 +13,7 @@
 #include <boost/filesystem.hpp>
 
 #include "Eigen/src/Core/Matrix.h"
+#include "Eigen/src/Geometry/Transform.h"
 #include "modules/location/common/data_verify.h"
 #include "modules/location/fusion_center/lib/eulerangle.h"
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
@@ -143,6 +144,8 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
     HLOG_WARN << "ExtractBasicInfo ins fail";
     return;
   }
+  // 标准差赋值
+  node.cov(0, 0) = std::max(ins.sd_position().x(), ins.sd_position().y());
   // 随距离切refpoint
   if (node.enu.norm() > params_.refpoint_update_dist) {
     SetRefpoint(node.blh);
@@ -215,26 +218,30 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   prev_raw_pe_ = pe;
 
   // 时间戳同步:使用将mm时间戳对齐至ins时间戳
+  Node ins_node;
   {
     std::unique_lock<std::mutex> lock(ins_deque_mutex_);
-    auto it = ins_deque_.rbegin();
-    for (; it != ins_deque_.rend(); ++it) {
-      if ((*it)->ticktime <= node.ticktime) {
+    auto ins_it = ins_deque_.rbegin();
+    for (; ins_it != ins_deque_.rend(); ++ins_it) {
+      if ((*ins_it)->ticktime <= node.ticktime) {
         break;
       }
     }
-    if (it == ins_deque_.rend()) {
+    if (ins_it == ins_deque_.rend()) {
       HLOG_ERROR << "Not find ins node in INS deque,error!";
       return;
-    } else if (it == ins_deque_.rbegin()) {
-      node.ticktime = (*it)->ticktime;
+    } else if (ins_it == ins_deque_.rbegin()) {
+      node.ticktime = (*ins_it)->ticktime;
+      ins_node = *(*ins_it);
     } else {
-      auto it_next = std::prev(it);
-      if (abs(node.ticktime - (*it)->ticktime) <=
+      auto it_next = std::prev(ins_it);
+      if (abs(node.ticktime - (*ins_it)->ticktime) <=
           abs(node.ticktime - (*it_next)->ticktime)) {
-        node.ticktime = (*it)->ticktime;
+        node.ticktime = (*ins_it)->ticktime;
+        ins_node = *(*ins_it);
       } else {
         node.ticktime = (*it_next)->ticktime;
+        ins_node = *(*it_next);
       }
     }
   }
@@ -253,6 +260,50 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   std::unique_lock<std::mutex> lock(pe_deque_mutex_);
   pe_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&pe_deque_, params_.pe_deque_max_size);
+
+  // 计算ins与mm之间的偏差
+  // mm不在路口内 并且 ins的标准差<0.05
+  HLOG_INFO << "ins cov:" << ins_node.cov(0, 0) << "," << node.rtk_status;
+  if (ins_node.cov(0, 0) < 0.05 && node.rtk_status == 0) {
+    auto ref_point = Refpoint();
+    node.enu = hmu::Geo::BlhToEnu(node.blh, ref_point);
+    ins_node.enu = hmu::Geo::BlhToEnu(ins_node.blh, ref_point);
+    auto ins2pe_offset = Node2Eigen(ins_node).inverse() * Node2Eigen((node));
+    if (ins_offset_.init) {
+      // 计算上一次偏差地点和本次的差距
+      auto last_enu =
+          hmu::Geo::BlhToEnu(ins_offset_.latest_ins_node.blh, ref_point);
+      // 距离太远 不平滑 直接重置
+      if ((ins_node.enu - last_enu).norm() > 200.0) {
+        ins_offset_.smooth_cnt = 0;
+        ins_offset_.offset = ins2pe_offset;
+        ins_offset_.latest_ins_node = ins_node;
+        ins_offset_.latest_pe_node = node;
+      } else {
+        // 平滑
+        ins_offset_.smooth_cnt++;
+        Eigen::Quaterniond q_cur(ins2pe_offset.rotation());
+        Eigen::Quaterniond q_last(ins_offset_.offset.rotation());
+        Eigen::Quaterniond q = q_last.slerp(0.4, q_cur);
+        Eigen::Vector3d t = 0.4 * ins_offset_.offset.translation() +
+                            0.6 * ins2pe_offset.translation();
+        ins_offset_.offset = Eigen::Isometry3d::Identity();
+        ins_offset_.offset.linear() = q.toRotationMatrix();
+        ins_offset_.offset.translation() = t;
+        ins_offset_.latest_ins_node = ins_node;
+        ins_offset_.latest_pe_node = node;
+      }
+    } else {
+      ins_offset_.init = true;
+      ins_offset_.smooth_cnt = 0;
+      ins_offset_.offset = ins2pe_offset;
+      ins_offset_.latest_ins_node = ins_node;
+      ins_offset_.latest_pe_node = node;
+    }
+    HLOG_INFO << "ins offset:" << ins_offset_.smooth_cnt << ","
+              << ins_offset_.offset.translation().x() << ","
+              << ins_offset_.offset.translation().y();
+  }
 
   // debug print enu and euler diff
   if (params_.use_debug_txt) {
@@ -734,6 +785,15 @@ double ConvertHeading(double heading) {
   return cal_heading;
 }
 
+Eigen::Isometry3d FusionCenter::Node2Eigen(const Node& node) {
+  Eigen::Quaterniond q(node.quaternion);
+  Eigen::Vector3d t(node.enu);
+  Eigen::Isometry3d res = Eigen::Isometry3d::Identity();
+  res.rotate(q);
+  res.pretranslate(t);
+  return res;
+}
+
 void FusionCenter::Node2Localization(const Context& ctx,
                                      Localization* const location) {
   if (location == nullptr) {
@@ -903,9 +963,12 @@ void FusionCenter::Node2Localization(const Context& ctx,
   //     imu.imuvb_angular_velocity().z());
 
   // KF滤波参数
-  pose->mutable_linear_acceleration_raw_vrf()->set_x(global_node.KF_kdiff(0) * 1e5);
-  pose->mutable_linear_acceleration_raw_vrf()->set_y(global_node.KF_kdiff(1) * 1e5);
-  pose->mutable_linear_acceleration_raw_vrf()->set_z(global_node.KF_kdiff(2) * 1e5);
+  pose->mutable_linear_acceleration_raw_vrf()->set_x(global_node.KF_kdiff(0) *
+                                                     1e5);
+  pose->mutable_linear_acceleration_raw_vrf()->set_y(global_node.KF_kdiff(1) *
+                                                     1e5);
+  pose->mutable_linear_acceleration_raw_vrf()->set_z(global_node.KF_kdiff(2) *
+                                                     1e5);
 
   pose->mutable_angular_velocity_raw_vrf()->set_x(global_node.KF_cov(0, 0));
   pose->mutable_angular_velocity_raw_vrf()->set_y(global_node.KF_cov(1, 1));
@@ -1178,7 +1241,8 @@ bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
   fusion_deque_mutex_.lock();
   auto last_fc_node = fusion_deque_.back();
   double cur_fusion_ticktime = last_fc_node->ticktime;
-  Eigen::Vector3d cur_eskf_enu = hmu::Geo::BlhToEnu(last_fc_node->blh, refpoint);
+  Eigen::Vector3d cur_eskf_enu =
+      hmu::Geo::BlhToEnu(last_fc_node->blh, refpoint);
   fusion_deque_mutex_.unlock();
   bool meas_flag = false;
   meas_deque_.clear();

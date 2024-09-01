@@ -154,16 +154,18 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
               << node.blh(1) << "," << node.blh(2);
   }
 
-  std::unique_lock<std::mutex> lock(ins_deque_mutex_);
-  ins_deque_.emplace_back(std::make_shared<Node>(node));
-  ShrinkQueue(&ins_deque_, params_.ins_deque_max_size);
+  {
+    std::unique_lock<std::mutex> lock_ins_deque(ins_deque_mutex_);
+    ins_deque_.emplace_back(std::make_shared<Node>(node));
+    ShrinkQueue(&ins_deque_, params_.ins_deque_max_size);
+  }
+
   if (init_dr_) {
     if (!init_dr_ins_) {
       init_dr_ins_ = true;
       init_ins_node_ = node;
     }
   }
-
   // 加入ins+偏差修正的观测队列,10hz频率加入
   if (params_.lateral_error_compensation && node.cov(0, 0) < 0.05 &&
       node.rtk_status == 4 && ins_meas_cnt_ % 10 == 0) {
@@ -171,22 +173,24 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
     auto node_enu = hmu::Geo::BlhToEnu(node.blh, ref_point);
     InsOffset offset;
     {
-      std::unique_lock<std::mutex> lock(ins_offset_mutex_);
+      std::unique_lock<std::mutex> lock_ins_offset(ins_offset_mutex_);
       offset = ins_offset_;
     }
-    auto last_enu = hmu::Geo::BlhToEnu(offset.latest_ins_node.blh, ref_point);
-    if ((node_enu - last_enu).norm() < 200 && offset.smooth_cnt >= 5) {
-      auto compensate_pose = Node2Eigen(node) * offset.offset;
-      node.blh = hmu::Geo::EnuToBlh(compensate_pose.translation(), ref_point);
-      node.quaternion = Eigen::Quaterniond(compensate_pose.rotation());
-      node.orientation = Sophus::SO3d(node.quaternion).log();
-      node.enu = hmu::Geo::BlhToEnu(node.blh, node.refpoint);
+    if (offset.init) {
+      auto last_enu = hmu::Geo::BlhToEnu(offset.latest_ins_node.blh, ref_point);
+      if ((node_enu - last_enu).norm() < 200 && offset.smooth_cnt >= 5) {
+        auto compensate_pose = Node2Eigen(node) * offset.offset;
+        node.blh = hmu::Geo::EnuToBlh(compensate_pose.translation(), ref_point);
+        node.quaternion = Eigen::Quaterniond(compensate_pose.rotation());
+        node.orientation = Sophus::SO3d(node.quaternion).log();
+        node.enu = hmu::Geo::BlhToEnu(node.blh, node.refpoint);
+      }
+      node.type = NodeType::INS_MM;
+      std::unique_lock<std::mutex> lock_ins_meas_deque(ins_meas_deque_mutex_);
+      ins_meas_deque_.emplace_back(std::make_shared<Node>(node));
+      ShrinkQueue(&ins_meas_deque_, 100);
+      HLOG_INFO << "add ins meas";
     }
-    node.type = NodeType::INS_MM;
-    std::unique_lock<std::mutex> lock(ins_meas_deque_mutex_);
-    ins_meas_deque_.emplace_back(std::make_shared<Node>(node));
-    ShrinkQueue(&ins_meas_deque_, 100);
-    HLOG_INFO << "add ins meas";
   }
   ins_meas_cnt_++;
 }
@@ -283,9 +287,11 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
     filter_valid_pe_ = true;
   }
 
-  std::unique_lock<std::mutex> lock(pe_deque_mutex_);
-  pe_deque_.emplace_back(std::make_shared<Node>(node));
-  ShrinkQueue(&pe_deque_, params_.pe_deque_max_size);
+  {
+    std::unique_lock<std::mutex> lock(pe_deque_mutex_);
+    pe_deque_.emplace_back(std::make_shared<Node>(node));
+    ShrinkQueue(&pe_deque_, params_.pe_deque_max_size);
+  }
 
   // 计算ins与mm之间的偏差
   // mm不在路口内 并且 ins的标准差<0.05
@@ -296,41 +302,43 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
     node.enu = hmu::Geo::BlhToEnu(node.blh, ref_point);
     ins_node.enu = hmu::Geo::BlhToEnu(ins_node.blh, ref_point);
     auto ins2pe_offset = Node2Eigen(ins_node).inverse() * Node2Eigen((node));
-    std::unique_lock<std::mutex> lock(ins_offset_mutex_);
-    if (ins_offset_.init) {
-      // 计算上一次偏差地点和本次的差距
-      auto last_enu =
-          hmu::Geo::BlhToEnu(ins_offset_.latest_ins_node.blh, ref_point);
-      // 距离太远 不平滑 直接重置
-      if ((ins_node.enu - last_enu).norm() > 200.0) {
+    {
+      std::unique_lock<std::mutex> lock_ins_offset(ins_offset_mutex_);
+      if (ins_offset_.init) {
+        // 计算上一次偏差地点和本次的差距
+        auto last_enu =
+            hmu::Geo::BlhToEnu(ins_offset_.latest_ins_node.blh, ref_point);
+        // 距离太远 不平滑 直接重置
+        if ((ins_node.enu - last_enu).norm() > 200.0) {
+          ins_offset_.smooth_cnt = 0;
+          ins_offset_.offset = ins2pe_offset;
+          ins_offset_.latest_ins_node = ins_node;
+          ins_offset_.latest_pe_node = node;
+        } else {
+          // 平滑
+          ins_offset_.smooth_cnt++;
+          Eigen::Quaterniond q_cur(ins2pe_offset.rotation());
+          Eigen::Quaterniond q_last(ins_offset_.offset.rotation());
+          Eigen::Quaterniond q = q_last.slerp(0.4, q_cur);
+          Eigen::Vector3d t = 0.4 * ins_offset_.offset.translation() +
+                              0.6 * ins2pe_offset.translation();
+          ins_offset_.offset = Eigen::Isometry3d::Identity();
+          ins_offset_.offset.linear() = q.toRotationMatrix();
+          ins_offset_.offset.translation() = t;
+          ins_offset_.latest_ins_node = ins_node;
+          ins_offset_.latest_pe_node = node;
+        }
+      } else {
+        ins_offset_.init = true;
         ins_offset_.smooth_cnt = 0;
         ins_offset_.offset = ins2pe_offset;
         ins_offset_.latest_ins_node = ins_node;
         ins_offset_.latest_pe_node = node;
-      } else {
-        // 平滑
-        ins_offset_.smooth_cnt++;
-        Eigen::Quaterniond q_cur(ins2pe_offset.rotation());
-        Eigen::Quaterniond q_last(ins_offset_.offset.rotation());
-        Eigen::Quaterniond q = q_last.slerp(0.4, q_cur);
-        Eigen::Vector3d t = 0.4 * ins_offset_.offset.translation() +
-                            0.6 * ins2pe_offset.translation();
-        ins_offset_.offset = Eigen::Isometry3d::Identity();
-        ins_offset_.offset.linear() = q.toRotationMatrix();
-        ins_offset_.offset.translation() = t;
-        ins_offset_.latest_ins_node = ins_node;
-        ins_offset_.latest_pe_node = node;
       }
-    } else {
-      ins_offset_.init = true;
-      ins_offset_.smooth_cnt = 0;
-      ins_offset_.offset = ins2pe_offset;
-      ins_offset_.latest_ins_node = ins_node;
-      ins_offset_.latest_pe_node = node;
+      HLOG_INFO << "ins offset:" << ins_offset_.smooth_cnt << ","
+                << ins_offset_.offset.translation().x() << ","
+                << ins_offset_.offset.translation().y();
     }
-    HLOG_INFO << "ins offset:" << ins_offset_.smooth_cnt << ","
-              << ins_offset_.offset.translation().x() << ","
-              << ins_offset_.offset.translation().y();
   }
 
   // debug print enu and euler diff

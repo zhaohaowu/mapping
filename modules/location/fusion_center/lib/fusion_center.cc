@@ -219,7 +219,7 @@ void FusionCenter::OnDR(const hozon::dead_reckoning::DeadReckoning& dr) {
   std::unique_lock<std::mutex> lock(dr_deque_mutex_);
   dr_deque_.emplace_back(std::make_shared<Node>(node));
   ShrinkQueue(&dr_deque_, params_.dr_deque_max_size);
-  if (init_dr_ == false && dr_deque_.size() >= 3) {
+  if (!init_dr_ && dr_deque_.size() >= 3) {
     OnInitDR(*(dr_deque_.front()));
     init_dr_ = true;
   }
@@ -346,7 +346,7 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   if (params_.use_debug_txt) {
     std::unique_lock<std::mutex> lock(ins_deque_mutex_);
     Node ins_debug_node;
-    for (auto ins_node : ins_deque_) {
+    for (const auto& ins_node : ins_deque_) {
       if (ins_node->ticktime - node.ticktime < 0.001) {
         ins_debug_node = *ins_node;
       }
@@ -438,7 +438,7 @@ bool FusionCenter::IsInsDrift(const std::shared_ptr<Node> ins_node) {
     return false;
   }
   const Eigen::Vector3d refpoint = Refpoint();
-  int i_size = ins_trig_deque_.size();
+  int i_size = static_cast<int>(ins_trig_deque_.size());
   if (i_size < 20) {
     ins_trig_deque_.push_back(ins_node);
     return false;
@@ -467,7 +467,8 @@ bool FusionCenter::IsInsDrift(const std::shared_ptr<Node> ins_node) {
 }
 
 bool FusionCenter::IsInsStateChange(const std::shared_ptr<Node> node) {
-  static uint32_t last_sys, last_rtk;
+  static uint32_t last_sys;
+  static uint32_t last_rtk;
   static bool first_flag = true;
   if (first_flag) {
     last_sys = node->sys_status;
@@ -732,7 +733,6 @@ void FusionCenter::RunFusion() {
     if (pre_flag && meas_flag) {
       RunESKFFusion(refpoint);
     }
-
     PruneDeques();
     usleep(params_.run_fusion_interval_ms * 1000);
   }
@@ -911,7 +911,6 @@ void FusionCenter::Node2Localization(const Context& ctx,
   }
   pose->set_heading(static_cast<float>(heading));
 
-  Eigen::Vector3d vehicle_vel = rot.inverse() * global_node.velocity;
   pose->mutable_linear_velocity_vrf()->set_x(local_node.velocity(0));
   pose->mutable_linear_velocity_vrf()->set_y(local_node.velocity(1));
   pose->mutable_linear_velocity_vrf()->set_z(local_node.velocity(2));

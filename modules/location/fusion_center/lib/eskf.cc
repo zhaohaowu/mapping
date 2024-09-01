@@ -174,16 +174,23 @@ void ESKF::Correct(const Node& cur_meas_data) {
   Mat6T R;
   R.setZero();
   switch (cur_meas_data.type) {
-    case NodeType::INS:
+    case NodeType::INS: {
       R = R_ins_;
       break;
-    default:
+    }
+    case NodeType::INS_MM: {
+      double INS_MM_cov_coef = 2.0;
+      R = INS_MM_cov_coef * R_mm_;
+      break;
+    }
+    default: {
       double pe_cov_coef = 1.0;
       if (cur_meas_data.pe_cov_coef > 1.0) {
         pe_cov_coef = cur_meas_data.pe_cov_coef;
       }
       R = pe_cov_coef * R_mm_;
       break;
+    }
   }
 
   // 2.计算H
@@ -212,22 +219,22 @@ void ESKF::Correct(const Node& cur_meas_data) {
   ++count;
   if (count >= 100) {
     HLOG_INFO << "meas_ticktime: " << cur_meas_data.ticktime
-              << ",meas_type: " << X_.meas_type << ",ydiff_pos1:" << y_diff(0)
-              << ",ydiff_pos2:" << y_diff(1) << ",ydiff_pos3:" << y_diff(2)
-              << ",ydiff_ori1:" << y_diff(3) << ",ydiff_ori2:" << y_diff(4)
-              << ",ydiff_ori3:" << y_diff(5) << ",Kydiff_pos1:" << X_dx_(0)
-              << ",Kydiff_pos2:" << X_dx_(1) << ",Kydiff_pos3:" << X_dx_(2)
-              << ",Kydiff_ori1:" << X_dx_(6) << ",Kydiff_ori2:" << X_dx_(7)
-              << ",Kydiff_ori3:" << X_dx_(8) << ",P_pos_1:" << P_(0, 0)
-              << ",P_pos_2:" << P_(1, 1) << ",P_pos_3:" << P_(2, 2)
-              << ",P_angle_1:" << P_(6, 6) << ",P_angle_1:" << P_(7, 7)
-              << ",P_angle_1:" << P_(8, 8);
+              << ",meas_type: " << static_cast<int>(X_.meas_type)
+              << ",ydiff_pos1:" << y_diff(0) << ",ydiff_pos2:" << y_diff(1)
+              << ",ydiff_pos3:" << y_diff(2) << ",ydiff_ori1:" << y_diff(3)
+              << ",ydiff_ori2:" << y_diff(4) << ",ydiff_ori3:" << y_diff(5)
+              << ",Kydiff_pos1:" << X_dx_(0) << ",Kydiff_pos2:" << X_dx_(1)
+              << ",Kydiff_pos3:" << X_dx_(2) << ",Kydiff_ori1:" << X_dx_(6)
+              << ",Kydiff_ori2:" << X_dx_(7) << ",Kydiff_ori3:" << X_dx_(8)
+              << ",P_pos_1:" << P_(0, 0) << ",P_pos_2:" << P_(1, 1)
+              << ",P_pos_3:" << P_(2, 2) << ",P_angle_1:" << P_(6, 6)
+              << ",P_angle_1:" << P_(7, 7) << ",P_angle_1:" << P_(8, 8);
     count = 0;
   }
-
   // 5.更新名义状态，并重置X_dx_
   UpdateAndReset();
-  HLOG_DEBUG << "eskf update............X_.meas_type: " << X_.meas_type;
+  HLOG_DEBUG << "eskf update............X_.meas_type: "
+             << static_cast<int>(X_.meas_type);
 }
 
 void ESKF::UpdateAndReset() {

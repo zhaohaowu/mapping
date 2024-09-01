@@ -8,6 +8,7 @@
 #include "modules/location/fusion_center/lib/fusion_center.h"
 #include <yaml-cpp/yaml.h>
 
+#include <algorithm>
 #include <chrono>
 
 #include <boost/filesystem.hpp>

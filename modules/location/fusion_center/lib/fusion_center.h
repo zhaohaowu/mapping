@@ -18,7 +18,7 @@
 
 #include "Eigen/src/Core/Matrix.h"
 #include "Eigen/src/Geometry/Transform.h"
-#include "defines.h"
+#include "modules/location/fusion_center/lib/defines.h"
 #include "modules/location/fusion_center/lib/eskf.h"
 #include "modules/location/fusion_center/lib/kalman_filter.h"
 #include "modules/location/fusion_center/lib/monitor.h"

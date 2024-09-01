@@ -1303,6 +1303,7 @@ bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
       if (ticktime_diff > 0 && ins_mm_node->ticktime > last_meas_time_) {
         meas_deque_.emplace_back(std::make_shared<Node>(*ins_mm_node));
         meas_flag = true;
+        HLOG_INFO << "add ins_mm measre";
       }
     }
   }
@@ -1860,7 +1861,8 @@ uint32_t FusionCenter::GetGlobalLocationState() {
   // 进入loc=2条件
   if (state != 2) {
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
-      if ((*it)->type == NodeType::POSE_ESTIMATE) {
+      if ((*it)->type == NodeType::POSE_ESTIMATE ||
+          (*it)->type == NodeType::INS_MM) {
         state = 2;
       }
       if ((++search_cnt) > params_.search_state_cnt) {
@@ -1870,7 +1872,8 @@ uint32_t FusionCenter::GetGlobalLocationState() {
   } else {
     // 退出loc=2条件
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
-      if ((*it)->type == NodeType::POSE_ESTIMATE) {
+      if ((*it)->type == NodeType::POSE_ESTIMATE ||
+          (*it)->type == NodeType::INS_MM) {
         break;
       }
       if ((++search_cnt) > params_.search_state_cnt) {

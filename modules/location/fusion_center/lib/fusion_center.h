@@ -178,8 +178,6 @@ class FusionCenter {
   std::deque<std::shared_ptr<Node>> meas_deque_;
   std::ofstream fc_ins_diff_file_;
   std::ofstream mm_ins_diff_file_;
-  std::deque<std::pair<double, double>> lateral_error_compensation_;
-  bool lateral_error_compensation_state_ = false;
   double x_lateral_error_ = 0;
   double y_lateral_error_ = 0;
   bool init_dr_ins_ = false;

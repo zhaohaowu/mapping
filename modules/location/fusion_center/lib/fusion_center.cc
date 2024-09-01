@@ -45,7 +45,6 @@ FusionCenter::~FusionCenter() {
       mm_ins_diff_file_.close();
     }
   }
-  lateral_error_compensation_.clear();
 }
 
 bool FusionCenter::Init(const std::string& configfile,
@@ -166,8 +165,8 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
   }
 
   // 加入ins+偏差修正的观测队列,10hz频率加入
-  if (node.cov(0, 0) < 0.05 && node.rtk_status == 4 &&
-      ins_meas_cnt_ % 10 == 0) {
+  if (params_.lateral_error_compensation && node.cov(0, 0) < 0.05 &&
+      node.rtk_status == 4 && ins_meas_cnt_ % 10 == 0) {
     auto ref_point = node.refpoint;
     auto node_enu = hmu::Geo::BlhToEnu(node.blh, ref_point);
     InsOffset offset;
@@ -184,6 +183,7 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
         return;
       }
     }
+    node.type = NodeType::INS_MM;
     std::unique_lock<std::mutex> lock(ins_meas_deque_mutex_);
     ins_meas_deque_.emplace_back(std::make_shared<Node>(node));
     ShrinkQueue(&ins_meas_deque_, 100);
@@ -291,7 +291,8 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   // 计算ins与mm之间的偏差
   // mm不在路口内 并且 ins的标准差<0.05
   HLOG_INFO << "ins cov:" << ins_node.cov(0, 0) << "," << node.rtk_status;
-  if (ins_node.rtk_status == 4 &&ins_node.cov(0, 0) < 0.05 && node.rtk_status == 0) {
+  if (ins_node.rtk_status == 4 && ins_node.cov(0, 0) < 0.05 &&
+      node.rtk_status == 0) {
     auto ref_point = Refpoint();
     node.enu = hmu::Geo::BlhToEnu(node.blh, ref_point);
     ins_node.enu = hmu::Geo::BlhToEnu(ins_node.blh, ref_point);
@@ -1286,29 +1287,18 @@ bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
         meas_flag = true;
       }
     }
-
-    std::unique_lock<std::mutex> lock2(ins_deque_mutex_);
-    bool find_nearest_ins_fc = false;
-    for (const auto& ins_node : ins_deque_) {
-      auto ticktime_diff = ins_node->ticktime - cur_fusion_ticktime;
-      if (!find_nearest_ins_fc && ticktime_diff > 0 && ticktime_diff < 0.1) {
-        // currently we implement the high precision positioning.
-        if (ins_node->rtk_status != 4 || ins_node->sys_status != 2) {
-          continue;
-        }
-        auto diff = last_fc_node->enu - ins_node->enu;
-        auto half_lane = 3.75 / 2.0;
-        if (diff.norm() > half_lane) {
-          continue;
-        }
-        lateral_error_compensation_.emplace_back(
-            std::pair<double, double>{diff(0), diff(1)});
-        find_nearest_ins_fc = true;
-        break;
+  }
+  // 1.2 加入ins_mm测量
+  {
+    std::unique_lock<std::mutex> lock(ins_meas_deque_mutex_);
+    for (const auto& ins_mm_node : ins_meas_deque_) {
+      auto ticktime_diff = ins_mm_node->ticktime - cur_fusion_ticktime;
+      if (ticktime_diff > 0 && ins_mm_node->ticktime > last_meas_time_) {
+        meas_deque_.emplace_back(std::make_shared<Node>(*ins_mm_node));
+        meas_flag = true;
       }
     }
   }
-
   // 1.2 MM不工作时
   if (!meas_flag) {
     latest_ins_mutex_.lock();
@@ -1317,7 +1307,7 @@ bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
 
     double time_diff = params_.no_mm_max_time;
     pe_deque_mutex_.lock();
-    int mm_size = pe_deque_.size();
+    int mm_size = static_cast<int>(pe_deque_.size());
     if (mm_size != 0) {
       lastest_valid_pe_mutex_.lock();
       double cur_mm_ticktime = lastest_valid_pe_.ticktime;
@@ -1337,37 +1327,15 @@ bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
       dis_diff = (cur_eskf_enu - cur_output_enu).norm();
     }
     prev_global_node_mutex_.unlock();
-
     // (1)INS测量加入
     if (mm_size == 0 || time_diff >= no_mm_max_time ||
         dis_diff >= params_.no_mm_max_dis) {
-      if (params_.lateral_error_compensation) {
-        auto cnt = 0;
-        if (!lateral_error_compensation_state_) {
-          x_lateral_error_ = 0;
-          y_lateral_error_ = 0;
-          for (auto it = lateral_error_compensation_.begin();
-               it != lateral_error_compensation_.end(); ++it) {
-            ++cnt;
-            x_lateral_error_ += (*it).first / (1 << cnt);
-            y_lateral_error_ += (*it).second / (1 << cnt);
-          }
-          lateral_error_compensation_state_ = true;
-        }
-      }
       std::unique_lock<std::mutex> lock(ins_deque_mutex_);
       for (const auto& ins_node : ins_deque_) {
         if (ins_node->ticktime > cur_fusion_ticktime &&
             ins_node->ticktime > last_meas_time_) {
           std::shared_ptr<Node> new_ins_node =
               std::make_shared<Node>(*ins_node);
-          if (params_.lateral_error_compensation) {
-            auto lateral_error = std::sqrt(std::pow(x_lateral_error_, 2) +
-                                           std::pow(y_lateral_error_, 2));
-            auto heading = new_ins_node->heading / 180 * M_PI;
-            new_ins_node->enu(0) += lateral_error * std::cos(heading);
-            new_ins_node->enu(1) += lateral_error * std::sin(heading);
-          }
           meas_deque_.emplace_back(std::make_shared<Node>(*new_ins_node));
           meas_flag = true;
         }
@@ -1376,7 +1344,6 @@ bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
                  << time_diff;
     }
   }
-  ShrinkQueue(&lateral_error_compensation_, 10);
 
   // 2. DR测量加入（目前用INS的相对代替）
   if (params_.use_dr_measurement) {
@@ -1395,13 +1362,11 @@ bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
           del_index = it;
         }
       }
-
       sort_deque.push_back(min_node);
       meas_deque_.erase(del_index);
     }
     meas_deque_ = sort_deque;
   }
-
   return meas_flag;
 }
 

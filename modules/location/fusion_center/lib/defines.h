@@ -54,7 +54,14 @@ struct Params {
   std::vector<std::pair<uint32_t, uint32_t>> ins_init_status;
 };
 
-enum NodeType { NONE = -1, INS = 0, DR = 1, MM = 2, POSE_ESTIMATE = 3 };
+enum NodeType {
+  NONE = -1,
+  INS = 0,
+  DR = 1,
+  MM = 2,
+  POSE_ESTIMATE = 3,
+  INS_MM = 4
+};
 
 struct Node {
   uint32_t seq = 0;

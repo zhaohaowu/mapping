@@ -178,10 +178,9 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
     if ((node_enu - last_enu).norm() < 200 && offset.smooth_cnt >= 5) {
       auto compensate_pose = Node2Eigen(node) * offset.offset;
       node.blh = hmu::Geo::EnuToBlh(compensate_pose.translation(), ref_point);
-      if (!ExtractBasicInfo(ins, &node)) {
-        HLOG_WARN << "ExtractBasicInfo ins meas fail";
-        return;
-      }
+      node.quaternion = Eigen::Quaterniond(compensate_pose.rotation());
+      node.orientation = Sophus::SO3d(node.quaternion).log();
+      node.enu = hmu::Geo::BlhToEnu(node.blh, node.refpoint);
     }
     node.type = NodeType::INS_MM;
     std::unique_lock<std::mutex> lock(ins_meas_deque_mutex_);
@@ -1276,7 +1275,7 @@ bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
   bool meas_flag = false;
   meas_deque_.clear();
 
-  // 1.1 MM工作时，MM测量加入
+  // 1.1 加入MM测量
   {
     std::unique_lock<std::mutex> lock(pe_deque_mutex_);
     for (const auto& mm_node : pe_deque_) {
@@ -1299,7 +1298,7 @@ bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
       }
     }
   }
-  // 1.2 MM不工作时
+  // 1.3 MM不工作时
   if (!meas_flag) {
     latest_ins_mutex_.lock();
     double ins_ticktime = latest_ins_data_.header().data_stamp();
@@ -1344,7 +1343,6 @@ bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
                  << time_diff;
     }
   }
-
   // 2. DR测量加入（目前用INS的相对代替）
   if (params_.use_dr_measurement) {
     if (!InsertESKFMeasDR()) {
@@ -1367,6 +1365,12 @@ bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
     }
     meas_deque_ = sort_deque;
   }
+  // 队列排序
+  std::sort(meas_deque_.begin(), meas_deque_.end(),
+            [](const std::shared_ptr<Node>& node1,
+               const std::shared_ptr<Node>& node2) {
+              return node1->ticktime < node2->ticktime;
+            });
   return meas_flag;
 }
 

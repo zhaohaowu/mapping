@@ -233,9 +233,7 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
     perception_count = 0;
     HLOG_INFO << "rev perception heartbeat";
   }
-
   pose_estimation_->OnPerception(perception);
-
   return 0;
 }
 

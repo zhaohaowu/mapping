@@ -16,6 +16,7 @@
 #include "Eigen/src/Core/Matrix.h"
 #include "Eigen/src/Geometry/Transform.h"
 #include "modules/location/common/data_verify.h"
+#include "modules/location/fusion_center/lib/defines.h"
 #include "modules/location/fusion_center/lib/eulerangle.h"
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
@@ -241,7 +242,7 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   }
 
   Node node;
-  node.type = NodeType::POSE_ESTIMATE;
+  node.type = NodeType::MM;
   if (!ExtractBasicInfo(pe, &node)) {
     return;
   }
@@ -688,7 +689,7 @@ bool FusionCenter::ExtractBasicInfo(const HafNodeInfo& msg, Node* const node) {
   node->heading = msg.heading();
   node->refpoint = Refpoint();
 
-  if (node->type == NodeType::POSE_ESTIMATE) {
+  if (node->type == NodeType::MM) {
     node->pe_cov_coef = msg.sd_velocity().y();
   }
 
@@ -1248,7 +1249,6 @@ bool FusionCenter::PoseInit(const Eigen::Vector3d& refpoint) {
       }
     }
   }
-
   return false;
 }
 
@@ -1437,12 +1437,7 @@ bool FusionCenter::PredictMMMeas() {
     }
   }
   ins_deque_mutex_.unlock();
-
-  if (meas_deque_.size() > 0) {
-    return true;
-  }
-
-  return false;
+  return (meas_deque_.size() > 0);
 }
 
 void FusionCenter::InsertESKFFusionTmpNode(const Node& node) {
@@ -1481,7 +1476,7 @@ void FusionCenter::RunESKFFusion(const Eigen::Vector3d& refpoint) {
   HLOG_DEBUG << "-------eskf前-------"
              << "pre_deque_.size():" << pre_deque_.size()
              << ", meas_deque_.size():" << meas_deque_.size()
-             << ", meas_type:" << meas_deque_.back()->type
+             << ", meas_type:" << static_cast<int>(meas_deque_.back()->type)
              << ", fusion_deque.size():" << fusion_deque_.size();
   auto init_node = std::make_shared<Node>(*fusion_deque_.back());
   fusion_deque_mutex_.unlock();
@@ -1491,7 +1486,8 @@ void FusionCenter::RunESKFFusion(const Eigen::Vector3d& refpoint) {
   eskf_->StateInit(init_node);
 
   while (!pre_deque_.empty() && !meas_deque_.empty()) {
-    Node meas_node, predict_node;
+    Node meas_node;
+    Node predict_node;
     if (meas_deque_.front() == nullptr || pre_deque_.front() == nullptr) {
       HLOG_ERROR << "meas_deque_.front() and pre_deque_.front() is nullptr-";
       return;
@@ -1536,7 +1532,7 @@ void FusionCenter::RunESKFFusion(const Eigen::Vector3d& refpoint) {
   HLOG_DEBUG << "-------eskf后-------"
              << "pre_deque_.size():" << pre_deque_.size()
              << ", meas_deque_.size():" << meas_deque_.size()
-             << ", meas_type:" << meas_deque_.back()->type
+             << ", meas_type:" << static_cast<int>(meas_deque_.back()->type)
              << ", fusion_deque.size():" << fusion_deque_.size();
   fusion_deque_mutex_.unlock();
 }
@@ -1544,7 +1540,6 @@ void FusionCenter::RunESKFFusion(const Eigen::Vector3d& refpoint) {
 Node FusionCenter::State2Node(const State& state,
                               const Eigen::Vector3d& refpoint) {
   Node node;
-
   node.refpoint = refpoint;
   node.ticktime = state.ticktime;
   node.type = state.meas_type;
@@ -1571,21 +1566,15 @@ Node FusionCenter::State2Node(const State& state,
 }
 
 bool FusionCenter::AllowInsMeas(uint32_t sys_status, uint32_t rtk_status) {
-  if ((sys_status == 1 || sys_status == 2 || sys_status == 3) &&
-      (rtk_status == 1 || rtk_status == 2 || rtk_status == 3 ||
-       rtk_status == 4 || rtk_status == 5)) {
-    return true;
-  }
-  return false;
+  return ((sys_status == 1 || sys_status == 2 || sys_status == 3) &&
+          (rtk_status == 1 || rtk_status == 2 || rtk_status == 3 ||
+           rtk_status == 4 || rtk_status == 5));
 }
 
 bool FusionCenter::AllowInit(uint32_t sys_status, uint32_t rtk_status) {
-  if ((sys_status == 1 || sys_status == 2 || sys_status == 3) &&
-      (rtk_status == 1 || rtk_status == 2 || rtk_status == 3 ||
-       rtk_status == 4 || rtk_status == 5)) {
-    return true;
-  }
-  return false;
+  return ((sys_status == 1 || sys_status == 2 || sys_status == 3) &&
+          (rtk_status == 1 || rtk_status == 2 || rtk_status == 3 ||
+           rtk_status == 4 || rtk_status == 5));
 }
 
 bool FusionCenter::InsertESKFMeasDR() {
@@ -1716,7 +1705,7 @@ bool FusionCenter::GetGlobalPose(Context* const ctx) {
     // 判断融合队列的值是通过Ins、MM观测更新的才有效输出
     auto it = fusion_deque_.rbegin();
     for (; it != fusion_deque_.rend(); ++it) {
-      if ((*it)->type >= 0) {
+      if ((*it)->type != NodeType::NONE) {
         (*it)->enu = hmu::Geo::BlhToEnu((*it)->blh, refpoint);
         fusion_node = *((*it));
         break;
@@ -1861,8 +1850,7 @@ uint32_t FusionCenter::GetGlobalLocationState() {
   // 进入loc=2条件
   if (state != 2) {
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
-      if ((*it)->type == NodeType::POSE_ESTIMATE ||
-          (*it)->type == NodeType::INS_MM) {
+      if ((*it)->type == NodeType::MM || (*it)->type == NodeType::INS_MM) {
         state = 2;
       }
       if ((++search_cnt) > params_.search_state_cnt) {
@@ -1872,8 +1860,7 @@ uint32_t FusionCenter::GetGlobalLocationState() {
   } else {
     // 退出loc=2条件
     for (auto it = fusion_deque_.rbegin(); it != fusion_deque_.rend(); ++it) {
-      if ((*it)->type == NodeType::POSE_ESTIMATE ||
-          (*it)->type == NodeType::INS_MM) {
+      if ((*it)->type == NodeType::MM || (*it)->type == NodeType::INS_MM) {
         break;
       }
       if ((++search_cnt) > params_.search_state_cnt) {

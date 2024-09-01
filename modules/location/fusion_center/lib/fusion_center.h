@@ -190,7 +190,11 @@ class FusionCenter {
   std::deque<std::shared_ptr<Node>> ins_trig_deque_;
 
   // ins measure
+  std::mutex ins_offset_mutex_;
   InsOffset ins_offset_;
+  std::mutex ins_meas_deque_mutex_;
+  std::deque<std::shared_ptr<Node>> ins_meas_deque_;
+  int ins_meas_cnt_ = 0;
 };
 
 }  // namespace fc

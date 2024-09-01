@@ -164,6 +164,32 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
       init_ins_node_ = node;
     }
   }
+
+  // 加入ins+偏差修正的观测队列,10hz频率加入
+  if (node.cov(0, 0) < 0.05 && node.rtk_status == 4 &&
+      ins_meas_cnt_ % 10 == 0) {
+    auto ref_point = node.refpoint;
+    auto node_enu = hmu::Geo::BlhToEnu(node.blh, ref_point);
+    InsOffset offset;
+    {
+      std::unique_lock<std::mutex> lock(ins_offset_mutex_);
+      offset = ins_offset_;
+    }
+    auto last_enu = hmu::Geo::BlhToEnu(offset.latest_ins_node.blh, ref_point);
+    if ((node_enu - last_enu).norm() < 200 && offset.smooth_cnt >= 5) {
+      auto compensate_pose = Node2Eigen(node) * offset.offset;
+      node.blh = hmu::Geo::EnuToBlh(compensate_pose.translation(), ref_point);
+      if (!ExtractBasicInfo(ins, &node)) {
+        HLOG_WARN << "ExtractBasicInfo ins meas fail";
+        return;
+      }
+    }
+    std::unique_lock<std::mutex> lock(ins_meas_deque_mutex_);
+    ins_meas_deque_.emplace_back(std::make_shared<Node>(node));
+    ShrinkQueue(&ins_meas_deque_, 100);
+    HLOG_INFO << "add ins meas";
+  }
+  ins_meas_cnt_++;
 }
 
 void FusionCenter::OnDR(const hozon::dead_reckoning::DeadReckoning& dr) {
@@ -265,11 +291,12 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   // 计算ins与mm之间的偏差
   // mm不在路口内 并且 ins的标准差<0.05
   HLOG_INFO << "ins cov:" << ins_node.cov(0, 0) << "," << node.rtk_status;
-  if (ins_node.cov(0, 0) < 0.05 && node.rtk_status == 0) {
+  if (ins_node.rtk_status == 4 &&ins_node.cov(0, 0) < 0.05 && node.rtk_status == 0) {
     auto ref_point = Refpoint();
     node.enu = hmu::Geo::BlhToEnu(node.blh, ref_point);
     ins_node.enu = hmu::Geo::BlhToEnu(ins_node.blh, ref_point);
     auto ins2pe_offset = Node2Eigen(ins_node).inverse() * Node2Eigen((node));
+    std::unique_lock<std::mutex> lock(ins_offset_mutex_);
     if (ins_offset_.init) {
       // 计算上一次偏差地点和本次的差距
       auto last_enu =

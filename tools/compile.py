@@ -33,7 +33,6 @@ def parse_args():
     p.add_argument('--rviz', action='store_true', help='enable building targets for using rviz')
     p.add_argument('--tool', action='store_true', help='enable building Mapping_tools, should be used with --cyber')
     p.add_argument('--cyber', action='store_true', help='enable cyber')
-    p.add_argument('--ind', action='store_true', help='copy third party libs')
     p.add_argument('--plugin', action='store_true', help='build with mal_plugin')
     p.add_argument('--ccache', action='store_true', help='enable ccache, file compiled will not compiled again.')
     p.add_argument('--proto', action='store_true', help='build personal proto, false: hardhard using nos proto hash ')
@@ -75,10 +74,7 @@ def copy_file(source_path, destination_path):
     shutil.copy2(source_path, destination_path)
 
 def del_remain_external_lib(workspace, platform, release_directory, **kwargs):
-    """delete residual third lib with no --ind params"""
-    if kwargs['ind']:
-        return
-
+    """delete residual third lib with no params"""
     prefix = osp.join(workspace, release_directory, "mal_" + platform, 'lib')
     tgt_names = ['libglobalproto.so']
     tgt_names = [osp.join(prefix, n) for n in tgt_names]
@@ -154,7 +150,6 @@ def mdc_build(workspace, platform, build_directory, release_directory, **kwargs)
     args['-DMAPPING_LIB_PREFIX'] = kwargs['prefix']
     args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
     args['-DMIDDLEWARE'] = "ADF"
-    args['-DIND'] = "ON" if kwargs['ind'] else "OFF"
     args['-DHDMAP'] = kwargs['hdmap']
     for (pkg, pkg_cmake_enable) in zip(PKG_ALIAS, PKG_CMAKE_ENABLES):
         args[pkg_cmake_enable] = 'ON' if kwargs[pkg] else "OFF"
@@ -182,7 +177,6 @@ def x86_build(workspace, platform, build_directory, release_directory, **kwargs)
     args['-DMAPPING_SINGLE_MODULE_COMPILE'] = 'ON'
     args['-DMAPPING_LIB_PREFIX'] = kwargs['prefix']
     args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
-    args['-DIND'] = "ON" if kwargs['ind'] else "OFF"
     args['-DMIDDLEWARE'] = "CYBER" if kwargs['cyber'] else "LITE"
     args['-DHDMAP'] = kwargs['hdmap']
     if kwargs['plugin']:
@@ -232,7 +226,6 @@ def orin_build(workspace, platform, build_directory, release_directory, **kwargs
     args['-DMAPPING_LIB_PREFIX'] = kwargs['prefix']
     args['-DCMAKE_EXPORT_COMPILE_COMMANDS'] = '1'
     args['-DMIDDLEWARE'] = "LITE"
-    args['-DIND'] = "ON" if kwargs['ind'] else "OFF"
     if kwargs['plugin']:
         os.environ['WITH_MAL_PLUGIN_FLAG'] = 'true'
     else:

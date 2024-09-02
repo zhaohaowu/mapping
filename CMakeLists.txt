@@ -187,71 +187,7 @@ install(
     DIRECTORY conf/mapping/laneline_postprocess
     DESTINATION ${CMAKE_INSTALL_PREFIX}/conf/mapping)
 
-# 打包third party环境
-if(IND)
-    install(DIRECTORY
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/yaml-cpp/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/glog/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gflags/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/protobuf/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/ceres/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/boost/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/opencv/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/pcl/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/absl/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/zmq/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/gtest/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/amap/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/zipper/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/jsoncpp/lib/
-        ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/
-        ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib/
-        DESTINATION ${EXTERNAL_LIB_PATH}
-        FILES_MATCHING
-        PATTERN "*.so*"
-    )
-
-    if(NOT ${PLATFORM} STREQUAL "orin")
-        install(DIRECTORY
-            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/hzavpmap/lib/
-            DESTINATION ${EXTERNAL_LIB_PATH}
-            FILES_MATCHING
-            PATTERN "*.so*"
-        )
-    endif()
-
-
-    if(${PLATFORM} STREQUAL "x86_2004")
-        install(DIRECTORY
-            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/cuda/targets/x86_64-linux/lib/
-            DESTINATION ${EXTERNAL_LIB_PATH}
-            FILES_MATCHING
-            PATTERN "libcudart*"
-        )
-        install(DIRECTORY
-            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fastrtps/lib/
-            ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/amap/lib/
-            DESTINATION ${EXTERNAL_LIB_PATH}
-            FILES_MATCHING
-            PATTERN "*.so*"
-        )
-    endif()
-
-    if(MIDDLEWARE MATCHES LITE)
-        install(
-            DIRECTORY ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/fast-dds/lib/
-            DESTINATION ${EXTERNAL_LIB_PATH}
-            FILES_MATCHING
-            PATTERN "*.so*"
-        )
-        if(${PLATFORM} STREQUAL "x86_2004")
-	    install(DIRECTORY
-                ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/cyber/lib/
-                DESTINATION ${EXTERNAL_LIB_PATH}
-            )
-	endif()
-    endif()
-
+if(${LOCAL_TARGET_PLATFORM} STREQUAL "x86")
     set(CREATE_HDMAP_LINK_SHELL "
         if [[ -L ${CMAKE_INSTALL_PREFIX}/data/map/amap_all/hd_map ]]; then
             exit 0
@@ -263,11 +199,10 @@ if(IND)
 endif()
 
 if(${LOCAL_TARGET_PLATFORM} STREQUAL "x86" AND ENABLE_ASAN)
-install(CODE "
-    # 修改 map_fusion.yaml
-    file(READ \"\${CMAKE_INSTALL_PREFIX}/runtime_service/mapping/conf/mapping/map_fusion/map_fusion.yaml\" MAP_FUSION_FILE_CONTENTS)
-    string(REPLACE \"map_dir: /hd_map\\n#map_dir: /data/map/changfeng_park\" \"# map_dir: /hd_map\\nmap_dir: /data/map/changfeng_park\" NEW_MAP_FUSION_FILE_CONTENTS \"\${MAP_FUSION_FILE_CONTENTS}\")
-    file(WRITE \"\${CMAKE_INSTALL_PREFIX}/runtime_service/mapping/conf/mapping/map_fusion/map_fusion.yaml\" \"\${NEW_MAP_FUSION_FILE_CONTENTS}\")
-")
+    install(CODE "
+        # 修改 map_fusion.yaml
+        file(READ \"\${CMAKE_INSTALL_PREFIX}/runtime_service/mapping/conf/mapping/map_fusion/map_fusion.yaml\" MAP_FUSION_FILE_CONTENTS)
+        string(REPLACE \"map_dir: /hd_map\\n#map_dir: /data/map/changfeng_park\" \"# map_dir: /hd_map\\nmap_dir: /data/map/changfeng_park\" NEW_MAP_FUSION_FILE_CONTENTS \"\${MAP_FUSION_FILE_CONTENTS}\")
+        file(WRITE \"\${CMAKE_INSTALL_PREFIX}/runtime_service/mapping/conf/mapping/map_fusion/map_fusion.yaml\" \"\${NEW_MAP_FUSION_FILE_CONTENTS}\")
+    ")
 endif()
-

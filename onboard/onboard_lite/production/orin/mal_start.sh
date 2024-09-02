@@ -12,6 +12,7 @@ WORKSPACE="$(builtin cd ${OUTPUT_ROOT}/../.. && pwd -P)"
 echo ${WORKSPACE}
 
 # third so
+export LD_LIBRARY_PATH=/app/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=${OUTPUT_ROOT}/lib:$LD_LIBRARY_PATH
 export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../lib:$LD_LIBRARY_PATH
 # mapping so

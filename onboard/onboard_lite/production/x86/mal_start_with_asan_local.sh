@@ -20,6 +20,22 @@ function start_mapping() {
   # mapping so
   export LD_LIBRARY_PATH=${OUTPUT_ROOT}/runtime_service/mapping/lib:$LD_LIBRARY_PATH
   export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/nos/x86_2004/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/yaml-cpp/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/glog/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/gflags/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/protobuf/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/ceres/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/boost/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/opencv/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/pcl/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/absl/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/zmq/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/gtest/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/amap/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/zipper/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/jsoncpp/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/hzavpmap/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/fastrtps/lib:$LD_LIBRARY_PATH
 
   full_path="${OUTPUT_ROOT}/../../asan/asan.log"
   if [ ! -f "$full_path" ]; then

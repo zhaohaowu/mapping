@@ -180,6 +180,9 @@ void ESKF::Correct(const Node& cur_meas_data) {
     }
     case NodeType::INS_MM: {
       double INS_MM_cov_coef = 2.0;
+      if (cur_meas_data.pe_cov_coef > 1.0) {
+        INS_MM_cov_coef *= cur_meas_data.pe_cov_coef;
+      }
       R = INS_MM_cov_coef * R_mm_;
       break;
     }

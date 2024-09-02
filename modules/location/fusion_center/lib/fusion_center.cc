@@ -168,7 +168,7 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
     }
   }
   // 加入ins+偏差修正的观测队列,10hz频率加入
-  if (params_.lateral_error_compensation && node.cov(0, 0) < 0.05 &&
+  if (params_.lateral_error_compensation && node.cov(0, 0) <= 0.08 &&
       node.rtk_status == 4 && ins_meas_cnt_ % 10 == 0) {
     auto ref_point = node.refpoint;
     auto node_enu = hmu::Geo::BlhToEnu(node.blh, ref_point);
@@ -187,6 +187,7 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
         node.enu = hmu::Geo::BlhToEnu(node.blh, node.refpoint);
       }
       node.type = NodeType::INS_MM;
+      node.pe_cov_coef = node.cov(0, 0) / 0.02;
       std::unique_lock<std::mutex> lock_ins_meas_deque(ins_meas_deque_mutex_);
       ins_meas_deque_.emplace_back(std::make_shared<Node>(node));
       ShrinkQueue(&ins_meas_deque_, 100);
@@ -298,7 +299,7 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   // mm不在路口内 并且 ins的标准差<0.05
   HLOG_INFO << "ins cov:" << ins_node.cov(0, 0) << "," << node.rtk_status;
   if (ins_node.rtk_status == 4 && ins_node.cov(0, 0) < 0.05 &&
-      node.rtk_status == 0) {
+      node.pe_cov_coef <= 1.0 && node.rtk_status == 0) {
     auto ref_point = Refpoint();
     node.enu = hmu::Geo::BlhToEnu(node.blh, ref_point);
     ins_node.enu = hmu::Geo::BlhToEnu(ins_node.blh, ref_point);

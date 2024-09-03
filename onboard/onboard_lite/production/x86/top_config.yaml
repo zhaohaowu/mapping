@@ -31,7 +31,7 @@ executors:
     quit_order: 10
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_ins_fusion_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_fc_config.yaml
-  # - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_pose_estimation_config.yaml
+  - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/location/mapping_location_pose_estimation_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/dr/dr_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/laneline_postprocess/lp_config.yaml
   - confFile: ${ADFLITE_ROOT_PATH}/runtime_service/mapping/conf/lite/local_mapping/lm_config.yaml

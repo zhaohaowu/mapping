@@ -20,7 +20,6 @@
 #include "Eigen/src/Geometry/Transform.h"
 #include "depend/proto/perception/transport_element.pb.h"
 #include "modules/location/pose_estimation/lib/map_matching.h"
-#include "modules/location/pose_estimation/lib/reloc/base.hpp"
 #include "modules/location/pose_estimation/lib/reloc/reloc.hpp"
 #include "proto/localization/localization.pb.h"
 #include "proto/localization/node_info.pb.h"
@@ -63,6 +62,12 @@ class PoseEstimation {
   bool CheckMmTrackingState();
 
   void ProcData();
+  void RvizFunc(const LocalizationPtr& fc_pose_ptr,
+                 const LocalizationPtr& ins_pose_ptr,
+                 const TrackingManager& tracking_manager,
+                 const MappingManager& map_manager,
+                 const Eigen::Affine3d& T_input,
+                 const Eigen::Affine3d& T_fc_10hz);
   Eigen::Affine3d Localization2Eigen(const LocalizationPtr& pose_ptr);
   template <typename T>
   void ShrinkQueue(T* deque, int maxsize);
@@ -107,42 +112,18 @@ class PoseEstimation {
   std::mutex perception_mutex_;
   std::mutex ref_point_mutex_;
   std::mutex rviz_mutex_;
-  std::mutex cv_mutex_;
-  std::condition_variable cv_;
 
   int ins_deque_max_size_ = 100;
   int fc_deque_max_size_ = 100;
   int perception_deque_max_size_ = 2;
 
-  std::atomic<int> ins_state_{4};
-  std::atomic<double> sd_position_{0.0};
-  std::atomic<int> location_state_{2};
-  std::atomic<double> velocity_{0.0};
-  std::atomic<bool> use_rviz_{false};
   std::atomic<bool> reloc_test_ = false;
-  std::atomic<double> ins_height_ = 0.0;
-  std::atomic<bool> rviz_init_ = false;
-  std::atomic<double> fc_heading_ = 0.0;
-  std::atomic<double> ins_heading_ = 0.0;
-  std::atomic<double> gps_week_{0.0};
-  std::atomic<double> gps_second_{0.0};
-  std::string conv_;
 
-  std::string rviz_addr_;
-  Eigen::Affine3d T_fc_100hz_;
-  Eigen::Affine3d T_dr_100hz_;
-  Eigen::Affine3d T_ins_100hz_;
-  Eigen::Affine3d T_fc_10hz_;
-  Eigen::Affine3d T_input_;
-  Eigen::Vector4d FC_KF_kydiff_100hz_;
-  Eigen::Vector4d FC_KF_cov_100hz_;
   TrackingManager tracking_manager_;
   MappingManager map_manager_;
 
   std::thread proc_thread_;
-  std::thread rviz_thread_;
   bool proc_thread_run_{false};
-  bool stop_rviz_thread_{false};
   Eigen::Vector3d ref_point_;
 
   std::unique_ptr<MapMatching> map_matching_ = nullptr;

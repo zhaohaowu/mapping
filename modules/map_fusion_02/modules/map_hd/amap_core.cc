@@ -174,9 +174,9 @@ bool AmapAdapter::Process(
       static_cast<int>(localization_input.pos_wgs().x() * 1e6);
   auto speed = sqrt(pow(localization_input.linear_velocity().x(), 2) +
                     pow(localization_input.linear_velocity().y(), 2));
-  HLOG_ERROR << "current lon " << sign_data.gnss.lon << " lat "
-             << sign_data.gnss.lat << "zr123 localization_input.heading: "
-             << localization_input.heading();
+  // HLOG_ERROR << "current lon " << sign_data.gnss.lon << " lat "
+  //            << sign_data.gnss.lat << "zr123 localization_input.heading: "
+  //            << localization_input.heading();
 
   if (speed < 0.1) {
     speed = 10;

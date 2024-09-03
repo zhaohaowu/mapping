@@ -72,7 +72,7 @@ bool LaneLoc::UpdateGroups(Groups* groups_ptr) {
   auto nsec = cur_time.tv_nsec;
   MF_RVIZ->PubInsOdom(T_ins, sec, nsec, "/lanc_loc/ins_odom");
   MF_RVIZ->PubInsPath(T_ins, sec, nsec, "/lanc_loc/ins_path");
-  MF_RVIZ->PubInsTf(T_ins, sec, nsec, "/lanc_loc/ins_tf");
+  // MF_RVIZ->PubInsTf(T_ins, sec, nsec, "/lanc_loc/ins_tf");
 
   // 3. 获取感知section (将groups转换成当前车所在section)
   SectionPtr per_section_ptr = GetPerSection(*groups_ptr);

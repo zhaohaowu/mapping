@@ -207,7 +207,6 @@ if(IND)
         ${DEPEND}/perception-lib/release/${LOCAL_TARGET_PLATFORM}/lib/
         ${DEPEND}/perception-base/release/${LOCAL_TARGET_PLATFORM}/lib/
         ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/baidu_map/lib/
-        ${THIRDPARTY_ROOT}/${TARGET_PLATFORM}/baidu_map/3rdlib/
         DESTINATION ${EXTERNAL_LIB_PATH}
         FILES_MATCHING
         PATTERN "*.so*"

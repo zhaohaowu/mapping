@@ -310,8 +310,7 @@ void RoadConstruct::SplitOccsToGroup(const ElementMap::Ptr& ele_map,
           continue;
         }
       }
-      auto occ_length =
-          Dist(occ_seg->pts.front().pt, occ_seg->pts.back().pt);
+      auto occ_length = Dist(occ_seg->pts.front().pt, occ_seg->pts.back().pt);
       auto grp_length = Dist(grp->start_slice.po, grp->end_slice.po);
       if (occ_length < 10.0 || occ_length < (grp_length * 0.1)) {
         continue;
@@ -458,8 +457,9 @@ void RoadConstruct::ExtendLineToAlignSlice(const Group::Ptr& grp) {
   auto start_slice = grp->start_slice;
   auto end_slice = grp->end_slice;
   HLOG_DEBUG << "start_slice.po: " << start_slice.po.x() << ", "
-            << start_slice.po.y();
-  HLOG_DEBUG << "end_slice.po: " << end_slice.po.x() << ", " << end_slice.po.y();
+             << start_slice.po.y();
+  HLOG_DEBUG << "end_slice.po: " << end_slice.po.x() << ", "
+             << end_slice.po.y();
 
   // 向前
   for (auto& line_seg : grp->line_segments) {
@@ -494,8 +494,8 @@ void RoadConstruct::ExtendLineToAlignSlice(const Group::Ptr& grp) {
                  Eigen::Vector2f(start_slice.pl.head<2>()),
                  Eigen::Vector2f(line_seg->pts.front().pt.head<2>())) > 0) {
         HLOG_DEBUG << "start dist: "
-                  << PointToVectorDist(start_slice.po, start_slice.pr,
-                                       line_seg->pts.front().pt);
+                   << PointToVectorDist(start_slice.po, start_slice.pr,
+                                        line_seg->pts.front().pt);
         cnt++;
         if (cnt > siz) {
           break;
@@ -527,8 +527,8 @@ void RoadConstruct::ExtendLineToAlignSlice(const Group::Ptr& grp) {
                  Eigen::Vector2f(end_slice.pl.head<2>()),
                  Eigen::Vector2f(line_seg->pts.back().pt.head<2>())) < 0) {
         HLOG_DEBUG << "end dist: "
-                  << PointToVectorDist(end_slice.po, end_slice.pl,
-                                       line_seg->pts.back().pt);
+                   << PointToVectorDist(end_slice.po, end_slice.pl,
+                                        line_seg->pts.back().pt);
         cnt++;
         if (cnt > siz) {
           break;
@@ -570,22 +570,22 @@ void RoadConstruct::GenRoadEdges(std::vector<Group::Ptr>* groups) {
       continue;
     }
 
-    UpdateRoadEdgeWithOccs(grp, road_edge_left, road_edge_right);
-    UpdateRoadEdgeWithModelEdges(grp, road_edge_left, road_edge_right);
-    UpdateRoadEdgeWithLines(grp, road_edge_left, road_edge_right);
+    UpdateRoadEdgeWithOccs(grp, &road_edge_left, &road_edge_right);
+    UpdateRoadEdgeWithModelEdges(grp, &road_edge_left, &road_edge_right);
+    UpdateRoadEdgeWithLines(grp, &road_edge_left, &road_edge_right);
 
     HLOG_DEBUG << "road edge info: ";
     HLOG_DEBUG << "road_edge_left: \t" << "id: " << road_edge_left->id << " \t"
-              << "is_left: " << road_edge_left->is_left << " \t"
-              << "road_edge_type: " << road_edge_left->road_edge_type << " \t"
-              << "dist_to_path: " << road_edge_left->dist_to_path << " \t"
-              << "points: " << road_edge_left->points.size();
+               << "is_left: " << road_edge_left->is_left << " \t"
+               << "road_edge_type: " << road_edge_left->road_edge_type << " \t"
+               << "dist_to_path: " << road_edge_left->dist_to_path << " \t"
+               << "points: " << road_edge_left->points.size();
 
-    HLOG_DEBUG << "road_edge_right: \t" << "id: " << road_edge_right->id << " \t"
-              << "is_right: " << road_edge_right->is_right << " \t"
-              << "road_edge_type: " << road_edge_right->road_edge_type << " \t"
-              << "dist_to_path: " << road_edge_right->dist_to_path << " \t"
-              << "points: " << road_edge_right->points.size();
+    HLOG_DEBUG << "road_edge_right: \t" << "id: " << road_edge_right->id
+               << " \t" << "is_right: " << road_edge_right->is_right << " \t"
+               << "road_edge_type: " << road_edge_right->road_edge_type << " \t"
+               << "dist_to_path: " << road_edge_right->dist_to_path << " \t"
+               << "points: " << road_edge_right->points.size();
 
     grp->road_edges.emplace_back(road_edge_left);
     grp->road_edges.emplace_back(road_edge_right);
@@ -593,8 +593,8 @@ void RoadConstruct::GenRoadEdges(std::vector<Group::Ptr>* groups) {
 }
 
 void RoadConstruct::UpdateRoadEdgeWithOccs(const Group::Ptr& grp,
-                                           RoadEdge::Ptr& road_edge_left,
-                                           RoadEdge::Ptr& road_edge_right) {
+                                           RoadEdge::Ptr* road_edge_left,
+                                           RoadEdge::Ptr* road_edge_right) {
   if (conf_.use_occ) {
     if (grp->occ_segments.empty()) {
       HLOG_DEBUG << "occ_segments is empty";
@@ -604,8 +604,8 @@ void RoadConstruct::UpdateRoadEdgeWithOccs(const Group::Ptr& grp,
       RoadEdge::Ptr OCC_road_edge_left = std::make_shared<RoadEdge>();
       RoadEdge::Ptr OCC_road_edge_right = std::make_shared<RoadEdge>();
 
-      FindNearestCaditate(grp->occ_segments, OCC_road_edge_left,
-                          OCC_road_edge_right);
+      FindNearestCaditate(grp->occ_segments, &OCC_road_edge_left,
+                          &OCC_road_edge_right);
 
       UpdateWithCandidate(road_edge_left, road_edge_right, OCC_road_edge_left,
                           OCC_road_edge_right);
@@ -614,8 +614,8 @@ void RoadConstruct::UpdateRoadEdgeWithOccs(const Group::Ptr& grp,
 }
 
 void RoadConstruct::UpdateRoadEdgeWithModelEdges(
-    const Group::Ptr& grp, RoadEdge::Ptr& road_edge_left,
-    RoadEdge::Ptr& road_edge_right) {
+    const Group::Ptr& grp, RoadEdge::Ptr* road_edge_left,
+    RoadEdge::Ptr* road_edge_right) {
   if (grp->model_edge_segments.empty()) {
     HLOG_DEBUG << "model_edge_segments is empty";
   } else {
@@ -625,8 +625,8 @@ void RoadConstruct::UpdateRoadEdgeWithModelEdges(
     RoadEdge::Ptr model_road_edge_left = std::make_shared<RoadEdge>();
     RoadEdge::Ptr model_road_edge_right = std::make_shared<RoadEdge>();
 
-    FindNearestCaditate(grp->model_edge_segments, model_road_edge_left,
-                        model_road_edge_right);
+    FindNearestCaditate(grp->model_edge_segments, &model_road_edge_left,
+                        &model_road_edge_right);
 
     UpdateWithCandidate(road_edge_left, road_edge_right, model_road_edge_left,
                         model_road_edge_right);
@@ -634,8 +634,8 @@ void RoadConstruct::UpdateRoadEdgeWithModelEdges(
 }
 
 void RoadConstruct::UpdateRoadEdgeWithLines(const Group::Ptr& grp,
-                                            RoadEdge::Ptr& road_edge_left,
-                                            RoadEdge::Ptr& road_edge_right) {
+                                            RoadEdge::Ptr* road_edge_left,
+                                            RoadEdge::Ptr* road_edge_right) {
   if (grp->line_segments.empty()) {
     HLOG_DEBUG << "line_segments is empty";
   } else {
@@ -672,15 +672,15 @@ void RoadConstruct::UpdateRoadEdgeWithLines(const Group::Ptr& grp,
 
 void RoadConstruct::FindNearestCaditate(
     const std::vector<EdgeSegment::Ptr>& edge_segments,
-    RoadEdge::Ptr& candidate_road_edge_left,
-    RoadEdge::Ptr& candidate_road_edge_right) {
+    RoadEdge::Ptr* candidate_road_edge_left,
+    RoadEdge::Ptr* candidate_road_edge_right) {
   for (const auto& seg : edge_segments) {
     RoadEdge::Ptr road_edge_temp = std::make_shared<RoadEdge>();
     road_edge_temp->id = seg->id;
     road_edge_temp->road_edge_type = seg->road_edge_type;
     road_edge_temp->dist_to_path = seg->dist_to_path;
     HLOG_DEBUG << "road_edge_temp->dist_to_path: "
-              << road_edge_temp->dist_to_path;
+               << road_edge_temp->dist_to_path;
 
     for (const auto& p : seg->pts) {
       road_edge_temp->points.emplace_back(p.pt);
@@ -688,43 +688,43 @@ void RoadConstruct::FindNearestCaditate(
 
     if (seg->is_left) {
       road_edge_temp->is_left = true;
-      if (candidate_road_edge_left->points.empty()) {
+      if ((*candidate_road_edge_left)->points.empty()) {
         HLOG_DEBUG << "First !!! candidate_road_edge_left->points.empty()";
-        candidate_road_edge_left = road_edge_temp;
+        (*candidate_road_edge_left) = road_edge_temp;
       } else {
         HLOG_DEBUG << "candidate_road_edge_left->dist_to_path: "
-                  << candidate_road_edge_left->dist_to_path
-                  << "  road_edge_temp->dist_to_path: "
-                  << road_edge_temp->dist_to_path;
-        candidate_road_edge_left = candidate_road_edge_left->dist_to_path <
+                   << (*candidate_road_edge_left)->dist_to_path
+                   << "  road_edge_temp->dist_to_path: "
+                   << road_edge_temp->dist_to_path;
+        (*candidate_road_edge_left) = (*candidate_road_edge_left)->dist_to_path <
                                            road_edge_temp->dist_to_path
-                                       ? candidate_road_edge_left
+                                       ? (*candidate_road_edge_left)
                                        : road_edge_temp;
-        if (candidate_road_edge_left->dist_to_path >
+        if ((*candidate_road_edge_left)->dist_to_path >
             road_edge_temp->dist_to_path) {
           HLOG_DEBUG << "update left "
-                    << candidate_road_edge_left->road_edge_type;
+                     << (*candidate_road_edge_left)->road_edge_type;
         }
       }
     }
     if (seg->is_right) {
       road_edge_temp->is_right = true;
-      if (candidate_road_edge_right->points.empty()) {
+      if ((*candidate_road_edge_right)->points.empty()) {
         HLOG_DEBUG << "First !!! candidate_road_edge_right->points.empty()";
-        candidate_road_edge_right = road_edge_temp;
+        (*candidate_road_edge_right) = road_edge_temp;
       } else {
         HLOG_DEBUG << "candidate_road_edge_right->dist_to_path: "
-                  << candidate_road_edge_right->dist_to_path
-                  << "  road_edge_temp->dist_to_path: "
-                  << road_edge_temp->dist_to_path;
-        candidate_road_edge_right = candidate_road_edge_right->dist_to_path >
+                   << (*candidate_road_edge_right)->dist_to_path
+                   << "  road_edge_temp->dist_to_path: "
+                   << road_edge_temp->dist_to_path;
+        (*candidate_road_edge_right) = (*candidate_road_edge_right)->dist_to_path >
                                             road_edge_temp->dist_to_path
-                                        ? candidate_road_edge_right
+                                        ? (*candidate_road_edge_right)
                                         : road_edge_temp;
-        if (candidate_road_edge_right->dist_to_path <
+        if ((*candidate_road_edge_right)->dist_to_path <
             road_edge_temp->dist_to_path) {
           HLOG_DEBUG << "update right "
-                    << candidate_road_edge_right->road_edge_type;
+                     << (*candidate_road_edge_right)->road_edge_type;
         }
       }
     }
@@ -732,54 +732,55 @@ void RoadConstruct::FindNearestCaditate(
 }
 
 void RoadConstruct::UpdateWithCandidate(
-    RoadEdge::Ptr& road_edge_left, RoadEdge::Ptr& road_edge_right,
-    RoadEdge::Ptr& candidate_road_edge_left,
-    RoadEdge::Ptr& candidate_road_edge_right) {
-  if (road_edge_left->points.empty()) {
-    road_edge_left = candidate_road_edge_left;
+    RoadEdge::Ptr* road_edge_left, RoadEdge::Ptr* road_edge_right,
+    const RoadEdge::Ptr& candidate_road_edge_left,
+    const RoadEdge::Ptr& candidate_road_edge_right) {
+  if ((*road_edge_left)->points.empty()) {
+    (*road_edge_left) = candidate_road_edge_left;
   } else {
     HLOG_DEBUG << "road_edge_left->dist_to_path: "
-              << road_edge_left->dist_to_path;
+               << (*road_edge_left)->dist_to_path;
     HLOG_DEBUG << "candidate_road_edge_left->dist_to_path: "
-              << candidate_road_edge_left->dist_to_path;
+               << candidate_road_edge_left->dist_to_path;
     auto dist_left =
-        candidate_road_edge_left->dist_to_path - road_edge_left->dist_to_path;
+        candidate_road_edge_left->dist_to_path - (*road_edge_left)->dist_to_path;
     if (candidate_road_edge_left->road_edge_type != LINE) {
-      road_edge_left =
-          dist_left > 0.0 ? road_edge_left : candidate_road_edge_left;
+      (*road_edge_left) =
+          dist_left > 0.0 ? (*road_edge_left) : candidate_road_edge_left;
       if (dist_left < 0.0) {
-        HLOG_DEBUG << "update left " << candidate_road_edge_left->road_edge_type;
+        HLOG_DEBUG << "update left "
+                   << candidate_road_edge_left->road_edge_type;
       }
     } else {
       if (dist_left < 0 && (dist_left > -1.0 || dist_left < -20.0)) {
-        road_edge_left = candidate_road_edge_left;
+        (*road_edge_left) = candidate_road_edge_left;
         HLOG_DEBUG << "line update left "
-                  << candidate_road_edge_left->road_edge_type;
+                   << candidate_road_edge_left->road_edge_type;
       }
     }
   }
 
-  if (road_edge_right->points.empty()) {
-    road_edge_right = candidate_road_edge_right;
+  if ((*road_edge_right)->points.empty()) {
+    (*road_edge_right) = candidate_road_edge_right;
   } else {
     HLOG_DEBUG << "road_edge_right->dist_to_path: "
-              << road_edge_right->dist_to_path;
+               << (*road_edge_right)->dist_to_path;
     HLOG_DEBUG << "candidate_road_edge_right->dist_to_path: "
-              << candidate_road_edge_right->dist_to_path;
+               << candidate_road_edge_right->dist_to_path;
     auto dist_right =
-        candidate_road_edge_right->dist_to_path - road_edge_right->dist_to_path;
+        candidate_road_edge_right->dist_to_path - (*road_edge_right)->dist_to_path;
     if (candidate_road_edge_right->road_edge_type != LINE) {
-      road_edge_right =
-          dist_right < 0.0 ? road_edge_right : candidate_road_edge_right;
+      (*road_edge_right) =
+          dist_right < 0.0 ? (*road_edge_right) : candidate_road_edge_right;
       if (dist_right > 0.0) {
         HLOG_DEBUG << "update right "
-                  << candidate_road_edge_right->road_edge_type;
+                   << candidate_road_edge_right->road_edge_type;
       }
     } else {
       if (dist_right > 0 && (dist_right < 1.0 || dist_right > 20.0)) {
-        road_edge_right = candidate_road_edge_right;
+        (*road_edge_right) = candidate_road_edge_right;
         HLOG_DEBUG << "line update right "
-                  << candidate_road_edge_right->road_edge_type;
+                   << candidate_road_edge_right->road_edge_type;
       }
     }
   }

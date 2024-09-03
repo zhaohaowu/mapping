@@ -38,12 +38,6 @@ bool MapFusionRviz::Init() {
     return false;
   }
 
-  if (!model_config->get_value("map_fusion_lane_loc_rviz",
-                               &map_fusion_lane_loc_rviz_)) {
-    HLOG_ERROR << "Get map_fusion_lane_loc_rviz viz failed!";
-    return false;
-  }
-
   if (!model_config->get_value("viz_topic_input_ele_map",
                                &viz_topic_input_ele_map_)) {
     HLOG_ERROR << "Get viz_topic_input_ele_map_ failed!";
@@ -263,7 +257,8 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
         adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
     marker_start_slice_type->mutable_color()->set_a(1.0);
     double text_size = 0.5;
-    SetMarker(marker_start_slice_type, line_rgb, text_size, life_sec, life_nsec);
+    SetMarker(marker_start_slice_type, line_rgb, text_size, life_sec,
+              life_nsec);
 
     marker_start_slice_type->mutable_pose()->mutable_position()->set_x(
         grp->start_slice.po.x() - 2);
@@ -485,7 +480,8 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
             adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
         marker_str_id_with_group->mutable_color()->set_a(0.2);
         double text_size = 0.5;
-        SetMarker(marker_str_id_with_group, line_rgb, text_size, life_sec, life_nsec);
+        SetMarker(marker_str_id_with_group, line_rgb, text_size, life_sec,
+                  life_nsec);
 
         marker_str_id_with_group->mutable_pose()->mutable_position()->set_x(
             lane->center_line_pts.front().pt.x());
@@ -508,7 +504,8 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
               adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
           marker_str_id_with_group->mutable_color()->set_a(0.2);
           double text_size = 0.5;
-          SetMarker(marker_str_id_with_group, line_rgb, text_size, life_sec, life_nsec);
+          SetMarker(marker_str_id_with_group, line_rgb, text_size, life_sec,
+                    life_nsec);
 
           marker_str_id_with_group->mutable_pose()->mutable_position()->set_x(
               lane->center_line_pts[lane->center_line_pts.size() - 3].pt.x());
@@ -533,7 +530,8 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
           adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
       marker_str_id_with_group->mutable_color()->set_a(0.2);
       double text_size = 0.5;
-      SetMarker(marker_str_id_with_group, line_rgb, text_size, life_sec, life_nsec);
+      SetMarker(marker_str_id_with_group, line_rgb, text_size, life_sec,
+                life_nsec);
 
       if (!grp->line_segments.empty()) {
         int idx = static_cast<int>(grp->line_segments.front()->pts.size() / 2);
@@ -577,13 +575,16 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
         double text_size = 1.0;
         if (road_edge->road_edge_type == LINE) {
           RvizRgb line_edge_rgb = ColorRgb(RvizColor::R_GREY);
-          SetMarker(marker_edge_text, line_edge_rgb, text_size, life_sec, life_nsec);
+          SetMarker(marker_edge_text, line_edge_rgb, text_size, life_sec,
+                    life_nsec);
         } else if (road_edge->road_edge_type == OCC) {
           RvizRgb occ_edge_rgb = ColorRgb(RvizColor::R_PURPLE);
-          SetMarker(marker_edge_text, occ_edge_rgb, text_size, life_sec, life_nsec);
+          SetMarker(marker_edge_text, occ_edge_rgb, text_size, life_sec,
+                    life_nsec);
         } else if (road_edge->road_edge_type == MODEL) {
           RvizRgb model_edge_rgb = ColorRgb(RvizColor::R_RED);
-          SetMarker(marker_edge_text, model_edge_rgb, text_size, life_sec, life_nsec);
+          SetMarker(marker_edge_text, model_edge_rgb, text_size, life_sec,
+                    life_nsec);
         }
 
         marker_edge_text->mutable_pose()->mutable_position()->set_x(
@@ -612,16 +613,18 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
         marker_road_edge->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
         marker_road_edge->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
         marker_road_edge->mutable_color()->set_a(1.0);
-        double width = 0.2; 
+        double width = 0.2;
         if (road_edge->road_edge_type == LINE) {
           RvizRgb line_edge_rgb = ColorRgb(RvizColor::R_GREY);
-          SetMarker(marker_road_edge, line_edge_rgb, width, life_sec, life_nsec);
+          SetMarker(marker_road_edge, line_edge_rgb, width, life_sec,
+                    life_nsec);
         } else if (road_edge->road_edge_type == OCC) {
           RvizRgb occ_edge_rgb = ColorRgb(RvizColor::R_PURPLE);
           SetMarker(marker_road_edge, occ_edge_rgb, width, life_sec, life_nsec);
         } else if (road_edge->road_edge_type == MODEL) {
           RvizRgb model_edge_rgb = ColorRgb(RvizColor::R_RED);
-          SetMarker(marker_road_edge, model_edge_rgb, width, life_sec, life_nsec);
+          SetMarker(marker_road_edge, model_edge_rgb, width, life_sec,
+                    life_nsec);
         }
         for (const auto& p : road_edge->points) {
           auto* pt = marker_road_edge->add_points();

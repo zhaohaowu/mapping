@@ -93,25 +93,25 @@ class RoadConstruct : ProcessorBase {
   void GenRoadEdges(std::vector<Group::Ptr>* groups);
 
   void UpdateRoadEdgeWithLines(const Group::Ptr& grp,
-                               RoadEdge::Ptr& road_edge_left,
-                               RoadEdge::Ptr& road_edge_right);
+                               RoadEdge::Ptr* road_edge_left,
+                               RoadEdge::Ptr* road_edge_right);
 
   void UpdateRoadEdgeWithModelEdges(const Group::Ptr& grp,
-                                    RoadEdge::Ptr& road_edge_left,
-                                    RoadEdge::Ptr& road_edge_right);
+                                    RoadEdge::Ptr* road_edge_left,
+                                    RoadEdge::Ptr* road_edge_right);
 
   void UpdateRoadEdgeWithOccs(const Group::Ptr& grp,
-                              RoadEdge::Ptr& road_edge_left,
-                              RoadEdge::Ptr& road_edge_right);
+                              RoadEdge::Ptr* road_edge_left,
+                              RoadEdge::Ptr* road_edge_right);
 
   void FindNearestCaditate(const std::vector<EdgeSegment::Ptr>& edge_segments,
-                           RoadEdge::Ptr& candidate_road_edge_left,
-                           RoadEdge::Ptr& candidate_road_edge_right);
+                           RoadEdge::Ptr* candidate_road_edge_left,
+                           RoadEdge::Ptr* candidate_road_edge_right);
 
-  void UpdateWithCandidate(RoadEdge::Ptr& road_edge_left,
-                           RoadEdge::Ptr& road_edge_right,
-                           RoadEdge::Ptr& candidate_road_edge_left,
-                           RoadEdge::Ptr& candidate_road_edge_right);
+  void UpdateWithCandidate(RoadEdge::Ptr* road_edge_left,
+                           RoadEdge::Ptr* road_edge_right,
+                           const RoadEdge::Ptr& candidate_road_edge_left,
+                           const RoadEdge::Ptr& candidate_road_edge_right);
 
   void GenLanesInGroups(std::vector<Group::Ptr>* groups,
                         const ElementMap::Ptr& ele_map, double stamp);

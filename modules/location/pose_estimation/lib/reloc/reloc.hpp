@@ -189,7 +189,6 @@ class Reloc {
 
   // @brief: lane-level relocalization matching core
   bool ProcData(
-      bool use_rviz,
       const std::shared_ptr<::hozon::localization::Localization>& localization,
       const std::shared_ptr<TrackingManager>& tracking_manager,
       const std::shared_ptr<MappingManager>& map_manager);

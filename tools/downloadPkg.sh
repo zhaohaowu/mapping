@@ -11,8 +11,34 @@ depend='./depend'
 ENABLE_SINGLE_COMPILE_PROTO=$2
 echo "ENABLE_SINGLE_COMPILE_PROTO : $ENABLE_SINGLE_COMPILE_PROTO"
 
+DOWNLOAD_SDK_FLAGS=$3
+echo "DOWNLOAD_SDK_FLAGS : $DOWNLOAD_SDK_FLAGS"
+
 if [ ! -d ~/.jfrog ]; then
     mkdir -p ~/.jfrog && cp ./tools/jfrog/jfrog-cli.conf.v5 ~/.jfrog/
+fi
+
+if [ "$DOWNLOAD_SDK_FLAGS" = "ON" ]; then
+    currORINSDK=$(python3 -c "import sys, json;
+with open('version.json','r') as f: print(json.load(f)['ORIN']['EP41']['ORIN_X_SDK'])")
+    if [ -z "$currORINSDK" ]; then
+        echo "****** currORINSDK is empty, please check version.json : ORIN_X_SDK not exsit ******"
+        return 1
+    else
+        echo "current ORIN_X_SDK in version.json is $currORINSDK"
+        ORIN_SDK_VersionInfo=''
+        if [ -f /usr/local/orin_sdk/version.json ]; then
+            ORIN_SDK_VersionInfo=$(python3 -c "import sys, json;
+with open('/usr/local/orin_sdk/version.json','r') as f: print(json.load(f)['releaseVersion'])")
+        fi
+
+        if [[ "$ORIN_SDK_VersionInfo" != "$currORINSDK" ]]; then
+            echo "current orin sdk in orin sdk version.json is $ORIN_SDK_VersionInfo"
+            ./tools/jfrog/jfrog rt dl --flat --user=$user --password=$password --url=$url nvidia/SDK/release/$currORINSDK*
+            echo "tar -xf $currORINSDK.tar.gz"
+            sudo rm -rf /usr/local/orin_sdk && sudo tar -xf $currORINSDK.tar.gz -C /usr/local/ && rm $currORINSDK*
+        fi
+    fi
 fi
 
 # package alias in version.json

@@ -34,6 +34,9 @@ int32_t BaiDuMapEngine::AlgInit() {
     std::string work_root =
         hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", default_work_root);
     std::string dbpath = work_root + "/data/baidu_map/hdmap/";
+#ifdef ISORIN
+    dbpath = "/hd_map/ld_map/";
+#endif
     std::string vid = "HeZhong2024010166";
     if (map_engine_ptr_->initialize(dbpath, vid, init_param) !=
         baidu::imap::IMAP_STATUS_OK) {
@@ -549,8 +552,8 @@ void BaiDuMapEngine::SetBoundaryType(
     bool is_left, bool in_junction,
     const std::vector<baidu::imap::HdLaneBoundaryPtr>& bd_marks,
     hozon::hdmap::LaneBoundary* boundary) {
-  // HLOG_INFO << " left boundary: " << is_left << " bdsize: " << bd_marks.size();
-  // for (const auto& bd_mark : bd_marks) {
+  // HLOG_INFO << " left boundary: " << is_left << " bdsize: " <<
+  // bd_marks.size(); for (const auto& bd_mark : bd_marks) {
   //   HLOG_INFO << " bd boundary type: " << bd_mark->get_type()
   //             << " is road boundary: " << bd_mark->get_is_road_boundary();
   // }
@@ -1124,7 +1127,6 @@ void BaiDuMapEngine::UpdateBaiDuMap(const INSPos& pos) {
   }
   hozon::mp::GlobalLDMap::Instance()->UpdateLDMap(neta_map_);
   // GLOBAL_LD_MAP->LoadMapFromProto(neta_map_);
-
 }
 
 }  // namespace mf

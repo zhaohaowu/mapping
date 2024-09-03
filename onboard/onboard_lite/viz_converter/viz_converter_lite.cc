@@ -21,6 +21,7 @@
 
 #include "base/utils/log.h"
 #include "depend/common/utm_projection/coordinate_convertor.h"
+#include "modules/rviz/location_rviz.h"
 #include "modules/rviz/map_fusion_rviz.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
@@ -223,6 +224,9 @@ int32_t VizConverterLite::AlgInit() {
   // 各个模块rviz初始化
   if (map_fusion_rviz_) {
     MF_RVIZ->Init();
+  }
+  if (location_rviz_) {
+    LOC_RVIZ->Init();
   }
   return 0;
 }

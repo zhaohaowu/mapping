@@ -72,7 +72,6 @@ class MapFusionRviz {
  private:
   bool inited_ = false;
   bool map_fusion_group_rviz_ = false;
-  bool map_fusion_lane_loc_rviz_ = false;
   std::string viz_topic_input_ele_map_;
   std::string viz_topic_output_ele_map_;
   std::string viz_topic_path_;

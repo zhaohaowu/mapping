@@ -37,12 +37,12 @@ def parse_args():
     p.add_argument('--plugin', action='store_true', help='build with mal_plugin')
     p.add_argument('--ccache', action='store_true', help='enable ccache, file compiled will not compiled again.')
     p.add_argument('--proto', action='store_true', help='build personal proto, false: hardhard using nos proto hash ')
+    p.add_argument('--dlsdk', action='store_true', help='download orin sdk for /usr/local/orin_sdk directory')
     # 默认值类型
     p.add_argument('--workspace', default=None, help='root of code repository')
     p.add_argument('-j', default=6, dest="jobs", type=int, help='make -j')
     p.add_argument('--hdmap', default='/usr/local/hd_map', help='hd_map path')
     p.add_argument('--ldmap', default='/usr/local/ld_map', help='ld_map path')
-
     return p.parse_args()
 
 # 执行shell命令
@@ -130,7 +130,7 @@ def cmake_build(workspace, platform, build_directory, cmake_args, jobs, verbose=
 
 def mdc_build(workspace, platform, build_directory, release_directory, **kwargs):
     # download release package
-    dlplg_args = '{}'.format("ON" if kwargs['proto'] else "OFF")
+    dlplg_args = '{}'.format("ON" if kwargs['proto'] else "OFF") + " " + '{}'.format("ON" if kwargs['dlsdk'] else "OFF")
     cmd = 'bash tools/downloadPkg.sh mdc ' + dlplg_args
     sp.run(cmd, shell=1)
 
@@ -165,7 +165,7 @@ def mdc_build(workspace, platform, build_directory, release_directory, **kwargs)
 
 def x86_build(workspace, platform, build_directory, release_directory, **kwargs):
     """x86 编译流程"""
-    dlplg_args = '{}'.format("ON" if kwargs['proto'] else "OFF")
+    dlplg_args = '{}'.format("ON" if kwargs['proto'] else "OFF") + " " + '{}'.format("ON" if kwargs['dlsdk'] else "OFF")
     cmd = 'bash tools/downloadPkg.sh x86 ' + dlplg_args
     sp.run(cmd, shell=1)
     set_env('PATH', '/usr/bin')
@@ -220,7 +220,7 @@ def orin_build(workspace, platform, build_directory, release_directory, **kwargs
     # sync submodule version
     execute_shell("git submodule update --init")
     # download release package
-    dlplg_args = '{}'.format("ON" if kwargs['proto'] else "OFF")
+    dlplg_args = '{}'.format("ON" if kwargs['proto'] else "OFF") + " " + '{}'.format("ON" if kwargs['dlsdk'] else "OFF")
     cmd = 'bash tools/downloadPkg.sh orin ' + dlplg_args
     sp.run(cmd, shell=1)
     # cmake param set

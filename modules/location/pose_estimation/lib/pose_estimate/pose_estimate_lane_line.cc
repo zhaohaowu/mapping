@@ -380,7 +380,9 @@ void MatchLaneLine::GetMatchMapLineCache(
             static_cast<PercepLineType>(percep_line_type), weight));
       }
     }
-    (*match_mapline_cache)[percep_line_type].emplace_back(tmp_MatchMapLine);
+    if (tmp_MatchMapLine.match_pairs.size() > 3) {
+      (*match_mapline_cache)[percep_line_type].emplace_back(tmp_MatchMapLine);
+    }
   }
 }
 

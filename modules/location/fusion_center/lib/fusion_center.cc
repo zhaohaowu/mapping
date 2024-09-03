@@ -179,7 +179,8 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
     }
     if (offset.init) {
       auto last_enu = hmu::Geo::BlhToEnu(offset.latest_ins_node.blh, ref_point);
-      if ((node_enu - last_enu).norm() < 200 && offset.smooth_cnt >= 5) {
+      double last_estimate_dis = (node_enu - last_enu).norm();
+      if (last_estimate_dis < 120 && offset.smooth_cnt >= 5) {
         auto compensate_pose = Node2Eigen(node) * offset.offset;
         node.blh = hmu::Geo::EnuToBlh(compensate_pose.translation(), ref_point);
         node.quaternion = Eigen::Quaterniond(compensate_pose.rotation());
@@ -188,6 +189,7 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
       }
       node.type = NodeType::INS_MM;
       node.pe_cov_coef = node.cov(0, 0) / 0.02;
+      node.pe_cov_coef = last_estimate_dis / 20;
       std::unique_lock<std::mutex> lock_ins_meas_deque(ins_meas_deque_mutex_);
       ins_meas_deque_.emplace_back(std::make_shared<Node>(node));
       ShrinkQueue(&ins_meas_deque_, 100);
@@ -298,7 +300,7 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   // 计算ins与mm之间的偏差
   // mm不在路口内 并且 ins的标准差<0.05
   HLOG_INFO << "ins cov:" << ins_node.cov(0, 0) << "," << node.rtk_status;
-  if (ins_node.rtk_status == 4 && ins_node.cov(0, 0) < 0.05 &&
+  if (ins_node.rtk_status == 4 && ins_node.cov(0, 0) < 0.08 &&
       node.pe_cov_coef <= 1.0 && node.rtk_status == 0) {
     auto ref_point = Refpoint();
     node.enu = hmu::Geo::BlhToEnu(node.blh, ref_point);
@@ -311,7 +313,7 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
         auto last_enu =
             hmu::Geo::BlhToEnu(ins_offset_.latest_ins_node.blh, ref_point);
         // 距离太远 不平滑 直接重置
-        if ((ins_node.enu - last_enu).norm() > 200.0) {
+        if ((ins_node.enu - last_enu).norm() > 100.0) {
           ins_offset_.smooth_cnt = 0;
           ins_offset_.offset = ins2pe_offset;
           ins_offset_.latest_ins_node = ins_node;
@@ -321,9 +323,9 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
           ins_offset_.smooth_cnt++;
           Eigen::Quaterniond q_cur(ins2pe_offset.rotation());
           Eigen::Quaterniond q_last(ins_offset_.offset.rotation());
-          Eigen::Quaterniond q = q_last.slerp(0.4, q_cur);
-          Eigen::Vector3d t = 0.4 * ins_offset_.offset.translation() +
-                              0.6 * ins2pe_offset.translation();
+          Eigen::Quaterniond q = q_last.slerp(0.2, q_cur);
+          Eigen::Vector3d t = 0.2 * ins_offset_.offset.translation() +
+                              0.8 * ins2pe_offset.translation();
           ins_offset_.offset = Eigen::Isometry3d::Identity();
           ins_offset_.offset.linear() = q.toRotationMatrix();
           ins_offset_.offset.translation() = t;

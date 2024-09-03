@@ -41,11 +41,12 @@ void AdaptorPointManager::init(Eigen::Matrix<double, 40, 1>* XPtr,
   near_measure_pt_ = measurement_points[0].vehicle_point;
   far_measure_pt_ = measurement_points.back().vehicle_point;
   // 选取阈值, 取检测点的平均点间隔
-  for (int i = 1; i < measurement_points.size(); ++i) {
+  for (int i = 1; i < static_cast<int>(measurement_points.size()); ++i) {
     threshold_ += measurement_points[i].vehicle_point.x -
                   measurement_points[i - 1].vehicle_point.x;
   }
-  threshold_ = threshold_ / (measurement_points.size() - 1);
+  threshold_ =
+      threshold_ / (static_cast<int>(measurement_points.size()) - 1 + 0.000001);
   return;
 }
 
@@ -142,7 +143,8 @@ void AdaptorPointManager::DelPointsFar(
   int count_track_over_dect = 0;
   // 检测远端的平均距离
   double mean_far_dect_x = 0.0;
-  for (int i = latest_measurement_lines_.size() - 1, j = 1; i >= 0; i--, j++) {
+  for (int i = static_cast<int>(latest_measurement_lines_.size()) - 1, j = 1;
+       i >= 0; i--, j++) {
     // HLOG_DEBUG << "###### latest_measurement_lines_ size():"
     //           << (latest_measurement_lines_[i]);
     const auto& dect_pt = (latest_measurement_lines_[i]).back().vehicle_point;

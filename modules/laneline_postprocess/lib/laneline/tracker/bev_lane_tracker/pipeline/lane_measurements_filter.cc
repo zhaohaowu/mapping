@@ -77,18 +77,18 @@ bool LanePostMeasurementFilter::IsSamePosLaneLine(
 
 bool LanePostMeasurementFilter::DelHighlyOverlayShortLaneLine(
     std::vector<perception_base::LaneLineMeasurementPtr>* measure_lanelines) {
-  if (measure_lanelines->size() == 0) {
+  if (static_cast<int>(measure_lanelines->size()) == 0) {
     return true;
   }
 
   std::vector<int> remove_index;
   HLOG_DEBUG << "measure_lanelines_nums:" << measure_lanelines->size();
-  for (int i = 0; i < measure_lanelines->size() - 1; ++i) {
+  for (int i = 0; i < static_cast<int>(measure_lanelines->size()) - 1; ++i) {
     HLOG_DEBUG << "measure_lanelines_idxs:" << i;
     auto left_lane = measure_lanelines->at(i);
     float left_lane_length = GetLength(left_lane->point_set);
 
-    for (int j = i + 1; j < measure_lanelines->size(); ++j) {
+    for (int j = i + 1; j < static_cast<int>(measure_lanelines->size()); ++j) {
       auto right_lane = measure_lanelines->at(j);
       if (!IsSamePosLaneLine(left_lane, right_lane)) {
         continue;
@@ -113,7 +113,7 @@ bool LanePostMeasurementFilter::DelHighlyOverlayShortLaneLine(
   sort(remove_index.begin(), remove_index.end());
   remove_index.erase(std::unique(remove_index.begin(), remove_index.end()),
                      remove_index.end());
-  for (int idx = remove_index.size() - 1; idx >= 0; --idx) {
+  for (int idx = static_cast<int>(remove_index.size()) - 1; idx >= 0; --idx) {
     measure_lanelines->erase(measure_lanelines->begin() + remove_index[idx]);
   }
   return true;
@@ -125,11 +125,11 @@ bool LanePostMeasurementFilter::DelHighlyOverlayLowConfLaneLine(
     return true;
   }
 
-  for (int i = 0; i < measure_lanelines->size() - 1; ++i) {
+  for (int i = 0; i < static_cast<int>(measure_lanelines->size()) - 1; ++i) {
     auto left_lane = measure_lanelines->at(i);
     float left_lane_length = GetLength(left_lane->point_set);
 
-    for (int j = i + 1; j < measure_lanelines->size(); ++j) {
+    for (int j = i + 1; j < static_cast<int>(measure_lanelines->size()); ++j) {
       auto right_lane = measure_lanelines->at(j);
       if (!IsSamePosLaneLine(left_lane, right_lane)) {
         continue;
@@ -154,7 +154,7 @@ bool LanePostMeasurementFilter::DelHighlyOverlayLowConfLaneLine(
   sort(remove_index.begin(), remove_index.end());
   remove_index.erase(std::unique(remove_index.begin(), remove_index.end()),
                      remove_index.end());
-  for (int idx = remove_index.size() - 1; idx >= 0; --idx) {
+  for (int idx = static_cast<int>(remove_index.size()) - 1; idx >= 0; --idx) {
     measure_lanelines->erase(measure_lanelines->begin() + remove_index[idx]);
   }
   return true;
@@ -167,11 +167,11 @@ bool LanePostMeasurementFilter::DelMiddleOverlayFarLaneline(
   }
 
   std::vector<int> remove_index;
-  for (int i = 0; i < measure_lanelines->size() - 1; ++i) {
+  for (int i = 0; i < static_cast<int>(measure_lanelines->size()) - 1; ++i) {
     auto left_lane = measure_lanelines->at(i);
     float left_lane_length = GetLength(left_lane->point_set);
 
-    for (int j = i + 1; j < measure_lanelines->size(); ++j) {
+    for (int j = i + 1; j < static_cast<int>(measure_lanelines->size()); ++j) {
       auto right_lane = measure_lanelines->at(j);
       if (!IsSamePosLaneLine(left_lane, right_lane)) {
         continue;
@@ -208,7 +208,7 @@ bool LanePostMeasurementFilter::DelMiddleOverlayFarLaneline(
   sort(remove_index.begin(), remove_index.end());
   remove_index.erase(std::unique(remove_index.begin(), remove_index.end()),
                      remove_index.end());
-  for (int idx = remove_index.size() - 1; idx >= 0; --idx) {
+  for (int idx = static_cast<int>(remove_index.size()) - 1; idx >= 0; --idx) {
     measure_lanelines->erase(measure_lanelines->begin() + remove_index[idx]);
   }
   return true;
@@ -220,7 +220,7 @@ bool LanePostMeasurementFilter::DelAnomalyIntervalLaneLine(
     return true;
   }
   std::vector<int> remove_index;
-  for (int i = 0; i < measure_lanelines->size(); ++i) {
+  for (int i = 0; i < static_cast<int>(measure_lanelines->size()); ++i) {
     auto laneline = measure_lanelines->at(i);
     if (!laneline->point_set.size() > 0) {
       continue;
@@ -230,13 +230,14 @@ bool LanePostMeasurementFilter::DelAnomalyIntervalLaneLine(
     }
     // 计算点的平均距离
     float laneline_length = GetLength(laneline->point_set);
-    float avg_dist = laneline_length / laneline->point_set.size();
+    float avg_dist = laneline_length /
+                     (static_cast<int>(laneline->point_set.size()) + 0.000001);
     float variance = 0.f;
     HLOG_DEBUG << "index: " << i << " ,laneline_length: " << laneline_length;
 
     // 计算两点距离
     int anomaly_inter_flag = 0;
-    for (int j = 1; j < laneline->point_set.size() - 1; ++j) {
+    for (int j = 1; j < static_cast<int>(laneline->point_set.size()) - 1; ++j) {
       float dist = sqrt((laneline->point_set[j - 1].vehicle_point.x -
                          laneline->point_set[j].vehicle_point.x) *
                             (laneline->point_set[j - 1].vehicle_point.x -
@@ -254,10 +255,12 @@ bool LanePostMeasurementFilter::DelAnomalyIntervalLaneLine(
       }
       HLOG_DEBUG << "dist: " << dist;
     }
-    variance = variance / laneline->point_set.size();
+    variance =
+        variance / (static_cast<int>(laneline->point_set.size()) + 0.000001);
     HLOG_DEBUG << " ,avg_dist:" << avg_dist << " ,dist variance :" << variance
                << " ,anomaly_inter_flag: " << anomaly_inter_flag;
-    if (anomaly_inter_flag / (laneline->point_set.size() + 0.000001) >
+    if (anomaly_inter_flag /
+                (static_cast<int>(laneline->point_set.size()) + 0.000001) >
             lane_meas_filter_param_.anomaly_inter_ratio_thresh() ||
         avg_dist < lane_meas_filter_param_.min_interval_thresh()) {
       remove_index.push_back(i);
@@ -268,7 +271,7 @@ bool LanePostMeasurementFilter::DelAnomalyIntervalLaneLine(
   sort(remove_index.begin(), remove_index.end());
   remove_index.erase(std::unique(remove_index.begin(), remove_index.end()),
                      remove_index.end());
-  for (int idx = remove_index.size() - 1; idx >= 0; --idx) {
+  for (int idx = static_cast<int>(remove_index.size()) - 1; idx >= 0; --idx) {
     measure_lanelines->erase(measure_lanelines->begin() + remove_index[idx]);
   }
   return true;

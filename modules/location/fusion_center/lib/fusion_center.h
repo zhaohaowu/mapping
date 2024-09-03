@@ -128,6 +128,7 @@ class FusionCenter {
   std::atomic<bool> fusion_run_{false};
   std::atomic<bool> filter_valid_pe_{false};
   std::atomic<bool> ref_init_{false};
+  std::atomic<bool> mm_is_valid_{false};
 
   std::mutex refpoint_mutex_;
   Eigen::Vector3d init_refpoint_ = Eigen::Vector3d::Zero();

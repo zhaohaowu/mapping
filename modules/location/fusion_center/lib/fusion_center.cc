@@ -234,15 +234,29 @@ void FusionCenter::OnPoseEstimate(const HafNodeInfo& pe) {
   if (!ref_init_ || !params_.recv_pe) {
     return;
   }
+
+  static int count = 0;
   if (pe.header().data_stamp() == prev_raw_pe_.header().data_stamp()) {
+    ++count;
+    if (count >= 10) {
+      count = 0;
+      mm_is_valid_ = false;
+    }
     HLOG_ERROR << "error OnPE,data_stamp:" << pe.header().data_stamp();
     return;
   }
   monitor_->OnPeFault(pe);
 
   if (!pe.valid_estimate()) {
+    ++count;
+    if (count >= 10) {
+      count = 0;
+      mm_is_valid_ = false;
+    }
     return;
   }
+  count = 0;
+  mm_is_valid_ = true;
 
   Node node;
   node.type = NodeType::MM;
@@ -1298,7 +1312,7 @@ bool FusionCenter::GenerateNewESKFMeas(const Eigen::Vector3d& refpoint) {
     }
   }
   // 1.2 加入ins_mm测量
-  {
+  if (mm_is_valid_ == false) {
     std::unique_lock<std::mutex> lock(ins_meas_deque_mutex_);
     for (const auto& ins_mm_node : ins_meas_deque_) {
       auto ticktime_diff = ins_mm_node->ticktime - cur_fusion_ticktime;

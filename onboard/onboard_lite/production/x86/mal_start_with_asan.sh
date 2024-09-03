@@ -36,6 +36,7 @@ function start_mapping() {
   export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/jsoncpp/lib:$LD_LIBRARY_PATH
   export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/hzavpmap/lib:$LD_LIBRARY_PATH
   export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/fastrtps/lib:$LD_LIBRARY_PATH
+  export LD_LIBRARY_PATH=${OUTPUT_ROOT}/../../depend/third_party/x86_2004/cyber/lib:$LD_LIBRARY_PATH
 
   full_path="${OUTPUT_ROOT}/../../asan/asan.log"
   if [ ! -f "$full_path" ]; then

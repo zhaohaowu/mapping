@@ -279,27 +279,27 @@ void DetectCutPt::TransCtpToVehicle(const Sophus::SE3d& Twv,
               return a.GetPoint().x < b.GetPoint().x;
             });
 
-  for (int i = 0; i < static_cast<int>(back_ctps.size() - 1); i++) {
-    auto ctp1 = back_ctps.at(i);
-    auto ctp2 = back_ctps.at(i + 1);
-    HLOG_DEBUG << "ctp1 type: " << static_cast<char>(ctp1.GetType());
-    HLOG_DEBUG << "ctp2 type: " << static_cast<char>(ctp2.GetType());
+  // for (int i = 0; i < static_cast<int>(back_ctps.size() - 1); i++) {
+  //   auto ctp1 = back_ctps.at(i);
+  //   auto ctp2 = back_ctps.at(i + 1);
+  //   HLOG_DEBUG << "ctp1 type: " << static_cast<char>(ctp1.GetType());
+  //   HLOG_DEBUG << "ctp2 type: " << static_cast<char>(ctp2.GetType());
 
-    auto c_d = ctp2.GetPoint() - ctp1.GetPoint();
-    auto c_sd = ctp2.GetStamp() - ctp1.GetStamp();
+  //   auto c_d = ctp2.GetPoint() - ctp1.GetPoint();
+  //   auto c_sd = ctp2.GetStamp() - ctp1.GetStamp();
 
-    HLOG_DEBUG << "ctp1 point: " << ctp1.GetPoint().x << ", "
-               << ctp1.GetPoint().y;
-    HLOG_DEBUG << "ctp2 point: " << ctp2.GetPoint().x << ", "
-               << ctp2.GetPoint().y;
-    HLOG_DEBUG << "dist: " << c_d.Norm2D();
-    HLOG_DEBUG << "c_sd: " << c_sd;
+  //   HLOG_DEBUG << "ctp1 point: " << ctp1.GetPoint().x << ", "
+  //              << ctp1.GetPoint().y;
+  //   HLOG_DEBUG << "ctp2 point: " << ctp2.GetPoint().x << ", "
+  //              << ctp2.GetPoint().y;
+  //   HLOG_DEBUG << "dist: " << c_d.Norm2D();
+  //   HLOG_DEBUG << "c_sd: " << c_sd;
 
-    if (c_d.Norm2D() < 10.0 || c_sd < 1.0) {
-      HLOG_DEBUG << "rmv ctp2!!!!!";
-      back_ctps.erase(back_ctps.begin() + i + 1);
-    }
-  }
+  //   if (c_d.Norm2D() < 10.0 || c_sd < 1.0) {
+  //     HLOG_DEBUG << "rmv ctp2!!!!!";
+  //     back_ctps.erase(back_ctps.begin() + i + 1);
+  //   }
+  // }
   cutpoints->insert(cutpoints->end(), back_ctps.begin(), back_ctps.end());
   cutpoints->insert(cutpoints->end(), front_ctps.begin(), front_ctps.end());
 
@@ -338,7 +338,7 @@ void DetectCutPt::TransLinesToVehicle(
 Eigen::Vector3d DetectCutPt::GetLineDir(const std::vector<Point3D>& line_points,
                                         const int& id, const bool& forward) {
   Eigen::Vector3d dir(0.0, 0.0, 0.0);
-  int l_size = line_points.size();
+  int l_size = static_cast<int>(line_points.size());
   if (l_size < 2) {
     return dir;
   }
@@ -384,9 +384,9 @@ Eigen::Vector3d DetectCutPt::GetLineDir(const std::vector<Point3D>& line_points,
       }
     }
     if (dir.norm() < 1e-6) {
-      dir = Eigen::Vector3d(line_points.front().x - p.x,
-                            line_points.front().y - p.y,
-                            line_points.front().z - p.z);
+      dir = Eigen::Vector3d(p.x - line_points.front().x,
+                            p.y - line_points.front().y,
+                            p.z - line_points.front().z);
     }
   }
   return dir;
@@ -1607,7 +1607,7 @@ bool DetectCutPt::IsGoodLaneTwoLine(const std::vector<Point3D>& segment1,
     dist1 = (segment1.back() - candi_pt1).Norm2D();
     dist2 = (segment2.back() - candi_pt2).Norm2D();
   }
-  const double dist_thr = 20.0;
+  const double dist_thr = 10.0;
   if (dist1 < dist_thr && dist2 < dist_thr) {
     return true;
   }

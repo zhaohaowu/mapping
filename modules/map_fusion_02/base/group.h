@@ -119,6 +119,7 @@ struct LineSegment : public Line {
 struct EdgeSegment : public LineSegment {
   bool is_left = false;
   bool is_right = false;
+  RoadEdgeType road_edge_type;
 
   DEFINE_PTR(EdgeSegment)
 };

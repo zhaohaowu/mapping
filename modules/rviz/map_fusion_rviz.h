@@ -38,6 +38,9 @@ class MapFusionRviz {
   void VizEleMap(const std::shared_ptr<ElementMap>& ele_map);
   void VizPath(const std::vector<KinePosePtr>& path, const KinePose& curr_pose);
   void VizGroup(const std::vector<Group::Ptr>& groups, double stamp);
+  void SetMarker(::adsfi_proto::viz::Marker* marker, const RvizRgb& color,
+                 const double& scale, const uint32_t& life_sec,
+                 const uint32_t& life_nsec);
   void VizGuidePoint(const std::vector<Group::Ptr>& groups, double stamp);
   void VizCutpoint(const std::vector<CutPoint>& cut_points, double stamp);
   void VizDistpoint(const std::vector<Eigen::Vector3f>& distpoints,

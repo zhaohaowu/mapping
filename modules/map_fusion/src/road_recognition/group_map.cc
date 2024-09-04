@@ -23,8 +23,11 @@
 #include "Eigen/src/Core/Matrix.h"
 #include "base/utils/log.h"
 #include "common/math/vec2d.h"
+
 #include "map_fusion/fusion_common/calc_util.h"
 #include "map_fusion/fusion_common/element_map.h"
+// #include "util/common.h"
+// #include "util/tic_toc.h"
 
 namespace hozon {
 namespace mp {
@@ -157,16 +160,21 @@ bool GroupMap::Build(const std::shared_ptr<std::vector<KinePose::Ptr>>& path,
   curr_pose_ = curr_pose;
   std::deque<Line::Ptr> lines;
   // lane_line_interp_dist可以设为-1，当前上游点间隔已经是1m，这里不用插值出更细的点
+
   RetrieveBoundaries(ele_map, conf_.lane_line_interp_dist, &lines);
-  BuildKDtrees(&lines);
+
   UpdatePathInCurrPose(*path, *curr_pose);
+
   BuildGroupSegments(path, curr_pose, &lines, &group_segments_, ele_map);
+
   BuildGroups(ele_map, group_segments_, &groups_);
+
   is_cross->next_lane_left = is_cross_.next_lane_left;
   is_cross->next_lane_right = is_cross_.next_lane_right;
   is_cross->is_connect_ = is_cross_.is_connect_;
   is_cross->is_crossing_ = is_cross_.is_crossing_;
   is_cross->next_satisefy_lane_seg = is_cross_.next_satisefy_lane_seg;
+
   return true;
 }
 
@@ -529,8 +537,11 @@ void GroupMap::BuildGroupSegments(
   }
 
   CreateGroupSegFromPath(path, *curr_pose, group_segments);
+
   SplitPtsToGroupSeg(lines, group_segments);
+
   GenLaneSegInGroupSeg(group_segments);
+
   EgoLineTrajectory(group_segments, ele_map);
 }
 
@@ -838,6 +849,38 @@ float GroupMap::DistByKDtree(const em::Point& ref_point,
   }
 }
 
+float GroupMap::DistPointNew(const em::Point& ref_point,
+                             const LineSegment& lineSegment) {
+  if (std::isnan(ref_point.x()) || std::isnan(ref_point.y())) {
+    return 0.0;
+  }
+
+  // 找到最近的点
+  auto it = std::min_element(
+      lineSegment.pts.begin(), lineSegment.pts.end(),
+      [&ref_point](const gm::Point& a, const gm::Point& b) {
+        return (ref_point - a.pt).norm() < (ref_point - b.pt).norm();
+      });
+
+  // 找到最近的点在向量中的位置
+  size_t tar_idx = std::distance(lineSegment.pts.begin(), it);
+  em::Point tar_point = lineSegment.pts[tar_idx].pt;
+  if (lineSegment.pts.size() == 1) {
+    return (ref_point - tar_point).norm();
+  } else {
+    int id_next = 0;
+    // 获取后一个点
+    if (tar_idx < lineSegment.pts.size() - 1) {
+      id_next = tar_idx + 1;
+    } else {
+      // 获取前一个点
+      id_next = tar_idx - 1;
+    }
+    em::Point tar_point_next = lineSegment.pts[id_next].pt;
+    return GetDistPointLane(ref_point, tar_point, tar_point_next);
+  }
+}
+
 float GroupMap::GetDistPointLane(const em::Point& point_a,
                                  const em::Point& point_b,
                                  const em::Point& point_c) {
@@ -875,7 +918,8 @@ void GroupMap::GenLaneSegInGroupSeg(std::vector<GroupSegment::Ptr>* segments) {
         auto& right_line = seg->line_segments.at(i + 1);
         auto& left_center = left_line->center;
         auto right_center = right_line->center;
-        auto dist = DistByKDtree(left_center, *right_line);
+        auto dist = DistPointNew(left_center, *right_line);
+        // HLOG_INFO << "1111 dist: " << dist;
         if (left_line->is_near_road_edge && right_line->is_near_road_edge &&
             line_seg_num > 5) {
           continue;
@@ -3012,6 +3056,43 @@ void GroupMap::FitCenterLine(Lane::Ptr lane) {
               0);
     lane->center_line_pts.emplace_back(cpt);
   }
+
+  if (lane->center_line_pts.size() > 3) {
+    lane->center_line_param = FitLaneline(lane->center_line_pts);
+    lane->center_line_param_front = FitLanelinefront(lane->center_line_pts);
+  }
+}
+
+void GroupMap::ComputeCenterPoints(Lane::Ptr lane) {
+  auto main_ptr = lane->left_boundary;
+  auto less_ptr = lane->right_boundary;
+  if (lane->left_boundary->pts.size() <= lane->right_boundary->pts.size()) {
+    main_ptr = lane->right_boundary;
+    less_ptr = lane->left_boundary;
+  }
+  const auto& main_pts = main_ptr->pts;
+  const auto& less_pts = less_ptr->pts;
+  size_t less_pts_start_idx = 0;
+  for (size_t i = 0; i < main_pts.size(); i++) {
+    const auto& main_pt = main_pts[i];
+
+    size_t nearest_idx = 0;
+    float nearest_dis = FLT_MAX;
+    for (size_t j = less_pts_start_idx; j < less_pts.size(); j++) {
+      float dis = (main_pt.pt - less_pts[j].pt).norm();
+      if (dis < nearest_dis) {
+        nearest_dis = dis;
+        nearest_idx = j;
+      }
+    }
+    less_pts_start_idx = nearest_idx;
+    const auto& less_pt = less_pts[nearest_idx];
+    auto center_pt = (main_pt.pt + less_pt.pt) / 2;
+    Point ct_pt(gm::RAW, static_cast<float>(center_pt.x()),
+                static_cast<float>(center_pt.y()),
+                static_cast<float>(center_pt.z()));
+    lane->center_line_pts.emplace_back(ct_pt);
+  }
   if (lane->center_line_pts.size() > 3) {
     lane->center_line_param = FitLaneline(lane->center_line_pts);
     lane->center_line_param_front = FitLanelinefront(lane->center_line_pts);
@@ -4417,6 +4498,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
     return;
   }
   HLOG_DEBUG << "GenLanesInGroups";
+
   for (auto& grp : *groups) {
     std::vector<Lane::Ptr> possible_lanes;
     possible_lanes.clear();
@@ -4450,6 +4532,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
   // 对上面相邻的Group，SliceLine切分处会缺失点，导致前一个group里的线与后一个group里的线断开了，
   // 这里对于前一个group里每根线，从后一个group查找是否存在，如果存在就将后一个group那根线的front
   // 直接加到前一个group的back
+
   OptiPreNextLaneBoundaryPoint(groups);
   // 生成车道中心线
   GenLaneCenterLine(groups);
@@ -4464,26 +4547,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
   // 设置lane属性(is_ego、is_tran)
   SetLaneStatus(groups);
   // 左车道断开或者右车道断开导致没形成道
-  // if(groups.size()>2){
-  //   for(size_t i = 0; i < groups.size()-2; i++){
-  //   }
-  // }
-  // HLOG_ERROR << "groups->size() = " << groups->size();
-  // for (auto& grp : *groups) {
-  //   HLOG_INFO << "grp name is " << grp->str_id;
-  //   HLOG_ERROR << "group segment size is " << grp->group_segments.size();
-  //   for (auto lane : grp->lanes) {
-  //     HLOG_INFO << "lane name is " << lane->str_id_with_group;
-  //     HLOG_DEBUG << "lane left neighbor lanes are ";
-  //     for (auto lane_left : lane->left_lane_str_id_with_group) {
-  //       HLOG_DEBUG << lane_left;
-  //     }
-  //     HLOG_DEBUG << "lane right neighbor lanes are ";
-  //     for (auto lane_right : lane->right_lane_str_id_with_group) {
-  //       HLOG_DEBUG << lane_right;
-  //     }
-  //   }
-  // }
+
   // 删除空的group数据
   int before_remove_grp_nums = groups->size();
   RemoveNullGroup(groups);
@@ -4492,6 +4556,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
     HLOG_WARN << "*********[CrossWalk]*******delete null group nums: "
               << after_remove_grp_nums - before_remove_grp_nums;
   }
+
   // 停止线斑马线路面箭头与车道绑定
   for (auto& grp : *groups) {
     // 关联停止线
@@ -4499,6 +4564,7 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
     // 关联斑马线
     MatchZebraWithGroup(grp);
   }
+
   if (groups->size() > 1) {
     // 仅保留前向只有一个路口存在
     RemainOnlyOneForwardCrossWalk(groups);
@@ -4509,10 +4575,13 @@ void GroupMap::GenLanesInGroups(std::vector<Group::Ptr>* groups,
   // 1351477
   ExtendFrontCenterLine(groups);
   AvoidSplitMergeLane(groups);
+
   SmoothCenterline(groups);
+
 #if 0
   OptiNextLane(groups);
 #endif
+
   LaneForwardPredict(groups, stamp);
 }
 
@@ -4796,7 +4865,8 @@ bool GroupMap::SetGroupLaneOrient(Group::Ptr grp) {
 bool GroupMap::GenLaneCenterLine(std::vector<Group::Ptr>* groups) {
   for (auto& grp : *groups) {
     for (auto& lane : grp->lanes) {
-      FitCenterLine(lane);
+      // FitCenterLine(lane);
+      ComputeCenterPoints(lane);
     }
   }
 
@@ -5858,12 +5928,16 @@ bool GroupMap::LaneForwardPredict(std::vector<Group::Ptr>* groups,
       // 使用平均heading，这样可以使得预测的线都是平行的，不交叉
       // 由于部分弯道heading偏差较大，导致整体平均heading发生偏差，
       // 现增加pred_end_heading字段用于预测，使用PCL欧式聚类对heading进行聚类
+      // util::TicToc heading_cluster_tic;
+      // util::common tic_common;
       if (!lines_need_pred.empty()) {
         // PCL欧式聚类 阈值为10度
         const double heading_threshold = 10. / 180. * M_PI;
+        // heading_cluster_tic.Tic();
         HeadingCluster(lanes_need_pred, &lines_need_pred, heading_threshold,
                        need_pred_kappa);
-
+        // auto time_cost = tic_common.Precusion(heading_cluster_tic.Toc(), 2);
+        // HLOG_ERROR << "HeadingCluster cost:" << time_cost;
         // 重新构建group 线的类型为虚线
         std::vector<Lane::Ptr> center_line_pred;
         for (auto& lane : lanes_need_pred) {
@@ -6039,15 +6113,15 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
 
   std::tuple<double, double, double> ego_left_pred_data{0, 0, 0};
   std::tuple<double, double, double> ego_right_pred_data{0, 0, 0};
-  pcl::PointCloud<pcl::PointXYZ>::Ptr heading_data(
-      new pcl::PointCloud<pcl::PointXYZ>);
+  // pcl::PointCloud<pcl::PointXYZ>::Ptr heading_data(
+  //     new pcl::PointCloud<pcl::PointXYZ>);
   for (const auto& line : *lines_need_pred) {
     pcl::PointXYZ point;
     point.x = static_cast<float>(
         std::get<0>(line->pred_end_heading));  // 将一维heading添加到x轴上
     point.y = 0.0;
     point.z = 0.0;
-    heading_data->emplace_back(point);
+    // heading_data->emplace_back(point);
     HLOG_DEBUG << "----mean_heading:" << line->id << ","
                << std::get<0>(line->pred_end_heading) * 180 / M_PI;
     HLOG_DEBUG << "----mean_heading:" << line->id << ","
@@ -6100,74 +6174,74 @@ void GroupMap::HeadingCluster(const std::vector<Lane::Ptr>& lanes_need_pred,
     dkappa = 0.;
   }
 
-  pcl::search::KdTree<pcl::PointXYZ>::Ptr heading_data_tree(
-      new pcl::search::KdTree<pcl::PointXYZ>);
-  heading_data_tree->setInputCloud(heading_data);
+  // pcl::search::KdTree<pcl::PointXYZ>::Ptr heading_data_tree(
+  //     new pcl::search::KdTree<pcl::PointXYZ>);
+  // heading_data_tree->setInputCloud(heading_data);
 
-  // 对heading进行欧式聚类
-  pcl::EuclideanClusterExtraction<pcl::PointXYZ> heading_cluster;
-  heading_cluster.setClusterTolerance(threshold);
-  heading_cluster.setMinClusterSize(1);
-  heading_cluster.setMaxClusterSize(heading_data->size());
-  heading_cluster.setSearchMethod(heading_data_tree);
-  heading_cluster.setInputCloud(heading_data);
+  // // 对heading进行欧式聚类
+  // pcl::EuclideanClusterExtraction<pcl::PointXYZ> heading_cluster;
+  // heading_cluster.setClusterTolerance(threshold);
+  // heading_cluster.setMinClusterSize(1);
+  // heading_cluster.setMaxClusterSize(heading_data->size());
+  // heading_cluster.setSearchMethod(heading_data_tree);
+  // heading_cluster.setInputCloud(heading_data);
 
-  std::vector<pcl::PointIndices> heading_cluster_indices;
-  heading_cluster.extract(heading_cluster_indices);
-  HLOG_DEBUG << "cluser size:" << heading_cluster_indices.size();
+  // std::vector<pcl::PointIndices> heading_cluster_indices;
+  // heading_cluster.extract(heading_cluster_indices);
+  // HLOG_DEBUG << "cluser size:" << heading_cluster_indices.size();
   double predict_heading = 0.0;
   if (ego_line_flag) {
     predict_heading = heading;
     predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
     HLOG_DEBUG << "heading mode 1:" << predict_heading;
   } else {
-    if (heading_cluster_indices.size() == 1) {
-      double heading_sum = 0.;
-      int heading_data_size = 0;
-      for (const auto& idx : heading_cluster_indices[0].indices) {
-        auto heading_data_element = (*heading_data)[idx].x;
-        heading_sum = heading_sum + heading_data_element;
-        heading_data_size = heading_data_size + 1;
-      }
-      predict_heading =
-          heading_data_size != 0 ? heading_sum / heading_data_size : 0;
-      HLOG_DEBUG << "heading mode 2:" << predict_heading << ","
-                 << heading_cluster_indices.size();
-      predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
-    } else {
-      int nearest_lane_index = -1;
-      double nearest_lane_dist = std::numeric_limits<float>::max();
-      // 找到自车所在的lane
-      Eigen::Vector3f cur_pose = {0, 0, 0};
-      for (int i = 0; i < lanes_need_pred.size(); i++) {
-        auto lane_ptr = lanes_need_pred[i];
-        float cur_dist = PointToLaneDis(lane_ptr, cur_pose);
-        if (cur_dist < nearest_lane_dist) {
-          nearest_lane_dist = cur_dist;
-          nearest_lane_index = i;
-        }
-      }
-      if (nearest_lane_index != -1) {
-        auto lane_ptr = lanes_need_pred[nearest_lane_index];
-        predict_heading =
-            (std::get<0>(lane_ptr->left_boundary->pred_end_heading) +
-             std::get<0>(lane_ptr->right_boundary->pred_end_heading)) /
-            2.0;
-        HLOG_DEBUG << "heading mode 3:" << predict_heading << ","
-                   << nearest_lane_dist;
-        predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
-      } else {
-        // 求平均值
-        double sum = 0;
-        for (const auto& line : *lines_need_pred) {
-          sum += std::get<0>(line->pred_end_heading);
-        }
-        predict_heading =
-            lines_need_pred->empty() ? 0.0 : (sum / lines_need_pred->size());
-        HLOG_DEBUG << "heading mode 4:" << predict_heading;
-        predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
+    // if (heading_cluster_indices.size() == 1) {
+    //   double heading_sum = 0.;
+    //   int heading_data_size = 0;
+    //   for (const auto& idx : heading_cluster_indices[0].indices) {
+    //     auto heading_data_element = (*heading_data)[idx].x;
+    //     heading_sum = heading_sum + heading_data_element;
+    //     heading_data_size = heading_data_size + 1;
+    //   }
+    //   predict_heading =
+    //       heading_data_size != 0 ? heading_sum / heading_data_size : 0;
+    //   HLOG_DEBUG << "heading mode 2:" << predict_heading << ","
+    //              << heading_cluster_indices.size();
+    //   predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
+    // } else {
+    int nearest_lane_index = -1;
+    double nearest_lane_dist = std::numeric_limits<float>::max();
+    // 找到自车所在的lane
+    Eigen::Vector3f cur_pose = {0, 0, 0};
+    for (int i = 0; i < lanes_need_pred.size(); i++) {
+      auto lane_ptr = lanes_need_pred[i];
+      float cur_dist = PointToLaneDis(lane_ptr, cur_pose);
+      if (cur_dist < nearest_lane_dist) {
+        nearest_lane_dist = cur_dist;
+        nearest_lane_index = i;
       }
     }
+    if (nearest_lane_index != -1) {
+      auto lane_ptr = lanes_need_pred[nearest_lane_index];
+      predict_heading =
+          (std::get<0>(lane_ptr->left_boundary->pred_end_heading) +
+           std::get<0>(lane_ptr->right_boundary->pred_end_heading)) /
+          2.0;
+      HLOG_DEBUG << "heading mode 3:" << predict_heading << ","
+                 << nearest_lane_dist;
+      predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
+    } else {
+      // 求平均值
+      double sum = 0;
+      for (const auto& line : *lines_need_pred) {
+        sum += std::get<0>(line->pred_end_heading);
+      }
+      predict_heading =
+          lines_need_pred->empty() ? 0.0 : (sum / lines_need_pred->size());
+      HLOG_DEBUG << "heading mode 4:" << predict_heading;
+      predict_heading = 0.8 * last_predict_angle + 0.2 * predict_heading;
+    }
+    //}
   }
 
   kappa = 0.4 * last_predict_kappa + 0.6 * kappa;
@@ -6709,7 +6783,8 @@ void GroupMap::BuildVirtualLaneLeft(Group::Ptr group) {
   lane_pre.left_boundary = std::make_shared<LineSegment>(left_bound);
   lane_pre.right_boundary = lane_in_curr->left_boundary;
   Lane::Ptr lane_ptr = std::make_shared<Lane>(lane_pre);
-  FitCenterLine(lane_ptr);
+  // FitCenterLine(lane_ptr);
+  ComputeCenterPoints(lane_ptr);
   if (lane_ptr->center_line_param.empty()) {
     lane_ptr->center_line_param = lane_in_curr->center_line_param;
   }
@@ -6783,7 +6858,8 @@ void GroupMap::BuildVirtualLaneRight(Group::Ptr group) {
   lane_pre.right_boundary = std::make_shared<LineSegment>(right_bound);
   lane_pre.left_boundary = lane_in_curr->right_boundary;
   Lane::Ptr lane_ptr = std::make_shared<Lane>(lane_pre);
-  FitCenterLine(lane_ptr);
+  // FitCenterLine(lane_ptr);
+  ComputeCenterPoints(lane_ptr);
   if (lane_ptr->center_line_param.empty()) {
     lane_ptr->center_line_param = lane_in_curr->center_line_param;
   }
@@ -7120,7 +7196,8 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
       lane_pre.left_boundary = std::make_shared<LineSegment>(left_bound);
       lane_pre.right_boundary = std::make_shared<LineSegment>(right_bound);
       Lane::Ptr lane_ptr = std::make_shared<Lane>(lane_pre);
-      FitCenterLine(lane_ptr);
+      // FitCenterLine(lane_ptr);
+      ComputeCenterPoints(lane_ptr);
       if (lane_ptr->center_line_param.empty()) {
         // lane_ptr->center_line_para_line_pts.size() = "
         //            << lane_pre.center_line_pts.size() << "   "
@@ -7381,7 +7458,8 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
       // lane_in_next->center_line_param_front; lane_pre.center_line_pts =
       // ctr_pts;
       Lane::Ptr lane_ptr = std::make_shared<Lane>(lane_pre);
-      FitCenterLine(lane_ptr);
+      // FitCenterLine(lane_ptr);
+      ComputeCenterPoints(lane_ptr);
       if (lane_ptr->center_line_param.empty()) {
         lane_ptr->center_line_param = lane_in_next->center_line_param_front;
       }

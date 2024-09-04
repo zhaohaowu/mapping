@@ -7,6 +7,7 @@
 
 #include "map_fusion/map_fusion.h"
 
+#include <string>
 #include <tuple>
 
 #include "map_fusion/map_prediction/map_prediction.h"
@@ -211,20 +212,32 @@ int MapFusion::ProcPercep(
     return -1;
   }
 
+  // HLOG_DEBUG << "[overtime debug]"
+  //           << ", input localmap seq:" << curr_local_map->header().seq()
+  //           << ", data stamp:"
+  //           << std::to_string(curr_local_map->header().data_stamp())
+  //           << ", localmap pub stamp:"
+  //           << std::to_string(curr_local_map->header().publish_stamp());
+
   if (recog_ == nullptr) {
     HLOG_ERROR << "nullptr road recognition";
     return -1;
   }
   HLOG_DEBUG << "Proc Pilot start!";
+
   recog_->OnLocalization(curr_loc);
+
   recog_->OnLocalMap(curr_local_map, curr_obj, map_speed_limit_);
+
   HLOG_DEBUG << "OnLocalMap!";
+
   auto map = recog_->GetPercepMap();
   if (map == nullptr) {
     HLOG_ERROR << "get nullptr percep map";
     return -1;
   }
   percep_map->CopyFrom(*map);
+
   HLOG_DEBUG << "get routingrespose!";
   auto routing = recog_->GetRouting();
 

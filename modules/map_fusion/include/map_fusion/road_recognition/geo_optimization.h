@@ -328,9 +328,14 @@ class GeoOptimization {
 
   void AlignmentVecLane();
 
-  void ComputerLineDis(const std::vector<Eigen::Vector3d>& line_pts,
+  bool ComputerLineDis(const std::vector<Eigen::Vector3d>& line_pts,
                        const std::vector<Eigen::Vector3d>& right_line_pts,
-                       std::vector<double>* line_dis);
+                       double* avg_width, int pts_interval = 2);
+
+  bool ComputerLineDis(const std::vector<Eigen::Vector3d>& line_pts,
+                       const std::vector<Eigen::Vector3d>& right_line_pts,
+                       std::vector<double>* line_dis, double* avg_width,
+                       int pts_interval = 2);
 
   void HandleExtraWideLane();
 

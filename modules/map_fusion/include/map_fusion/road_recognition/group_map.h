@@ -301,6 +301,8 @@ class GroupMap {
                           std::deque<Line::Ptr>* lines);
   void BuildKDtrees(std::deque<Line::Ptr>* lines);
   float DistByKDtree(const em::Point& ref_point, const LineSegment& line);
+  float DistPointNew(const em::Point& ref_point,
+                     const LineSegment& lineSegment);
   float GetDistPointLane(const em::Point& point_a, const em::Point& point_b,
                          const em::Point& point_c);
   void BuildGroupSegments(
@@ -511,6 +513,7 @@ class GroupMap {
       Group::Ptr curr_group,
       Group::Ptr next_group);  // 从后往前补的车道左右邻添加
   bool IsNearLine(LineSegment::Ptr line1, LineSegment::Ptr line2);
+  void ComputeCenterPoints(Lane::Ptr lane);
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;
   std::map<em::Id, Arrow::Ptr> arrow_;

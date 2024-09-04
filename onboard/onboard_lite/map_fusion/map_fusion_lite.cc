@@ -106,9 +106,6 @@ void MapFusionLite::RegistMessageType() {
   REGISTER_PROTO_MESSAGE_TYPE("map_fusion", hozon::navigation_hdmap::MapMsg);
   REGISTER_PROTO_MESSAGE_TYPE("running_mode",
                               hozon::perception::common_onboard::running_mode);
-  REGISTER_PROTO_MESSAGE_TYPE("percep_transport",
-                              hozon::perception::TransportElement);
-  REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
   REGISTER_PROTO_MESSAGE_TYPE("function_manager_in",
                               hozon::functionmanager::FunctionManagerIn);
   REGISTER_PROTO_MESSAGE_TYPE("percep_obj",
@@ -133,11 +130,6 @@ void MapFusionLite::RegistProcessFunc() {
   RegistAlgProcessFunc(
       "recv_running_mode",
       std::bind(&MapFusionLite::OnRunningMode, this, std::placeholders::_1));
-  RegistAlgProcessFunc("recv_percep_transport",
-                       std::bind(&MapFusionLite::OnPercepTransport, this,
-                                 std::placeholders::_1));
-  RegistAlgProcessFunc(
-      "recv_dr", std::bind(&MapFusionLite::OnDR, this, std::placeholders::_1));
   RegistAlgProcessFunc("recv_fct_in", std::bind(&MapFusionLite::OnFCTIn, this,
                                                 std::placeholders::_1));
   RegistAlgProcessFunc("recv_percep_obj", std::bind(&MapFusionLite::OnObj, this,
@@ -374,57 +366,6 @@ int32_t MapFusionLite::OnFCTIn(Bundle* input) {
   return 0;
 }
 
-int32_t MapFusionLite::OnPercepTransport(Bundle* input) {
-  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
-  if (!input) {
-    return -1;
-  }
-  auto p_per = input->GetOne("percep_transport");
-  if (!p_per) {
-    HLOG_WARN << "nullptr percep_transport message";
-    return -1;
-  }
-  const auto percep_res =
-      std::static_pointer_cast<hozon::perception::TransportElement>(
-          p_per->proto_msg);
-
-  if (!percep_res) {
-    HLOG_WARN << "nullptr percep_transport";
-    return -1;
-  }
-  {
-    std::lock_guard<std::mutex> lock(percep_map_mtx_);
-    curr_percep_ =
-        std::make_shared<hozon::perception::TransportElement>(*percep_res);
-  }
-  return 0;
-}
-
-int32_t MapFusionLite::OnDR(Bundle* input) {
-  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
-  if (!input) {
-    return -1;
-  }
-  auto p_dr = input->GetOne("dr");
-  if (!p_dr) {
-    HLOG_WARN << "nullptr dr message";
-    return -1;
-  }
-  const auto dr_res =
-      std::static_pointer_cast<hozon::dead_reckoning::DeadReckoning>(
-          p_dr->proto_msg);
-
-  if (!dr_res) {
-    HLOG_WARN << "nullptr dr";
-    return -1;
-  }
-  {
-    std::lock_guard<std::mutex> lock(dr_mtx_);
-    curr_dr_ = std::make_shared<hozon::dead_reckoning::DeadReckoning>(*dr_res);
-  }
-  return 0;
-}
-
 int32_t MapFusionLite::OnObj(Bundle* input) {
   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
   if (!input) {
@@ -452,6 +393,10 @@ int32_t MapFusionLite::OnObj(Bundle* input) {
 }
 
 int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      mf_proc_start = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+          std::chrono::system_clock::now());
+
   if (!mf_) {
     HLOG_WARN << "nullptr map fusion";
     return -1;
@@ -471,7 +416,9 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     phm_health->HealthReport(MAKE_HM_TUPLE(
         hozon::perception::base::HmModuleId::MAPPING,
         hozon::perception::base::HealthId::CPID_MAP_SEND_HD_AND_HQ_FPS));
+
     mf_->ProcService(latest_plugin, latest_planning, curr_routing_.get());
+
     global_hd_updated = true;
     last = now;
   }
@@ -488,24 +435,10 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
   //   return -1;
   // }
 
-  std::shared_ptr<hozon::perception::TransportElement> latest_percep =
-      GetLatestPercep();
-  // if (latest_percep == nullptr) {
-  //   HLOG_ERROR << "nullptr latest latest_percep";
-  //   return -1;
-  // }
-
   std::shared_ptr<hozon::perception::PerceptionObstacles> latest_obj =
       GetLatestObj();
   // if (latest_obj == nullptr) {
   //   HLOG_ERROR << "nullptr latest latest_obj";
-  //   return -1;
-  // }
-
-  std::shared_ptr<hozon::dead_reckoning::DeadReckoning> latest_dr =
-      GetLatestDR();
-  // if (latest_percep == nullptr) {
-  //   HLOG_ERROR << "nullptr latest latest_dr";
   //   return -1;
   // }
 
@@ -638,6 +571,40 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
       HLOG_ERROR << "map select return wrong map type:"
                  << curr_map_type_.map_type << ", " << curr_map_type_.valid
                  << ", " << curr_map_type_.fault_level;
+    }
+
+    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+        mf_proc_end = std::chrono::time_point_cast<std::chrono::nanoseconds>(
+            std::chrono::system_clock::now());
+    double frame_proc_time =
+        static_cast<double>(mf_proc_end.time_since_epoch().count()) * 1.0e-9 -
+        static_cast<double>(mf_proc_start.time_since_epoch().count()) * 1.0e-9;
+
+    ++frame_proc_num;
+    if (frame_proc_time >= 0.1) {
+      ++frame_overtime_nums;
+      HLOG_INFO << "[mapfusion overtime debug], MapFusionOutput trigger func process "
+                   "overtime frame num is:"
+                << frame_overtime_nums
+                << ", and totally frame num is:" << frame_proc_num
+                << ", and current trigger func process used time:"
+                << std::to_string(frame_proc_time) << ", current timestamp is:"
+                << std::to_string(static_cast<double>(
+                                      mf_proc_end.time_since_epoch().count()) *
+                                  1.0e-9);
+
+      if (frame_proc_time > frame_proc_maxtime_) {
+        frame_proc_maxtime_ = frame_proc_time;
+        HLOG_INFO << "[mapfusion overtime debug], MapFusionOutput trigger func process "
+                     "used max time:"
+                  << std::to_string(frame_proc_maxtime_);
+      }
+    }
+
+    if(frame_proc_num % 3000 == 0) {
+      HLOG_INFO << "[mapfusion overtime debug], MapFusionOutput trigger func process "
+                     "used max time in history 5 mins: "
+                  << std::to_string(frame_proc_maxtime_);
     }
 
     MapFusionOutputEvaluation(latest_loc);
@@ -930,17 +897,6 @@ int32_t MapFusionLite::OnRunningMode(hozon::netaos::adf_lite::Bundle* input) {
   return 0;
 }
 
-std::shared_ptr<hozon::perception::TransportElement>
-MapFusionLite::GetLatestPercep() {
-  std::shared_ptr<hozon::perception::TransportElement> latest_percep = nullptr;
-  std::lock_guard<std::mutex> lock(percep_map_mtx_);
-  if (curr_percep_ != nullptr) {
-    latest_percep =
-        std::make_shared<hozon::perception::TransportElement>(*curr_percep_);
-  }
-  return latest_percep;
-}
-
 std::shared_ptr<hozon::perception::PerceptionObstacles>
 MapFusionLite::GetLatestObj() {
   std::shared_ptr<hozon::perception::PerceptionObstacles> latest_obj = nullptr;
@@ -952,16 +908,6 @@ MapFusionLite::GetLatestObj() {
   return latest_obj;
 }
 
-std::shared_ptr<hozon::dead_reckoning::DeadReckoning>
-MapFusionLite::GetLatestDR() {
-  std::shared_ptr<hozon::dead_reckoning::DeadReckoning> latest_dr = nullptr;
-  std::lock_guard<std::mutex> lock(dr_mtx_);
-  if (curr_dr_ != nullptr) {
-    latest_dr =
-        std::make_shared<hozon::dead_reckoning::DeadReckoning>(*curr_dr_);
-  }
-  return latest_dr;
-}
 std::shared_ptr<hozon::functionmanager::FunctionManagerIn>
 MapFusionLite::GetLatestFCTIn() {
   std::shared_ptr<hozon::functionmanager::FunctionManagerIn> latest_fct_in =

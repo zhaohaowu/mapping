@@ -980,7 +980,9 @@ void GeoOptimization::FilterLocalMapLine(
     }
     std::vector<cv::Point2f> kdtree_points;
     Line_kd line_kd;
-    for (const auto& point : line.points()) {
+    int pt_interval = 2;
+    for (int i = 0; i < line.points_size(); i += pt_interval) {
+      const auto& point = line.points(i);
       if (std::isnan(point.x()) || std::isnan(point.y()) ||
           std::isnan(point.z())) {
         HLOG_ERROR << "found nan point in local map lane line";
@@ -1786,12 +1788,10 @@ std::vector<Eigen::Vector3d> GeoOptimization::FindTargetPoints(
           Eigen::Vector3d pt(it.x(), it.y(), it.z());
           line_pts.emplace_back(pt);
         }
-        ComputerLineDis(road_edge, line_pts, &widths);
-        if (widths.empty()) {
+        double avg_width = 0.0;
+        if (!ComputerLineDis(road_edge, line_pts, &avg_width)) {
           continue;
         }
-        double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
-                           static_cast<double>(widths.size());
         if (IsTargetOnLineRight(road_edge, line) == RelativePosition::RIGHT &&
             avg_width > 3.0) {
           have_left_line = true;
@@ -1841,12 +1841,10 @@ std::vector<Eigen::Vector3d> GeoOptimization::FindTargetPointsNoCrossing(
           Eigen::Vector3d pt(it.x(), it.y(), it.z());
           line_pts.emplace_back(pt);
         }
-        ComputerLineDis(road_edge, line_pts, &widths);
-        if (widths.empty()) {
+        double avg_width = 0.0;
+        if (!ComputerLineDis(road_edge, line_pts, &avg_width)) {
           continue;
         }
-        double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
-                           static_cast<double>(widths.size());
         if (IsTargetOnLineRight(road_edge, line) == RelativePosition::RIGHT &&
             avg_width > 3.0) {
           have_left_line = true;
@@ -2018,12 +2016,10 @@ void GeoOptimization::HandleOppisiteLineNoCrossing(
         Eigen::Vector3d pt(it.x(), it.y(), it.z());
         line_pts.emplace_back(pt);
       }
-      ComputerLineDis(target_line, line_pts, &widths);
-      if (widths.empty()) {
+      double avg_width = 0.0;
+      if (!ComputerLineDis(target_line, line_pts, &avg_width)) {
         continue;
       }
-      double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
-                         static_cast<double>(widths.size());
       if (IsTargetOnLineRight(target_line, line) == RelativePosition::RIGHT &&
           avg_width > 2.0) {
         line.is_ego_road = false;
@@ -2052,12 +2048,10 @@ void GeoOptimization::HandleOppisiteLine(
         Eigen::Vector3d pt(it.x(), it.y(), it.z());
         line_pts.emplace_back(pt);
       }
-      ComputerLineDis(target_line, line_pts, &widths);
-      if (widths.empty()) {
+      double avg_width = 0.0;
+      if (!ComputerLineDis(target_line, line_pts, &avg_width)) {
         continue;
       }
-      double avg_width = std::accumulate(widths.begin(), widths.end(), 0.0) /
-                         static_cast<double>(widths.size());
       if (IsTargetOnLineRight(target_line, line) == RelativePosition::RIGHT &&
           avg_width > 2.0) {
         line.is_ego_road = false;
@@ -2540,8 +2534,9 @@ void GeoOptimization::OnLocalMap(
     T_U_V.pretranslate(ins_pose_);
     T_U_V_ = T_U_V;
   }
-  local_map_ = std::make_shared<hozon::mapping::LocalMap>();
-  local_map_->CopyFrom(*msg);
+  // local_map_ = std::make_shared<hozon::mapping::LocalMap>();
+  // local_map_->CopyFrom(*msg);
+  local_map_ = msg;
 
   if (obj_msg != nullptr) {
     per_objs_ = std::make_shared<hozon::perception::PerceptionObstacles>();
@@ -2801,13 +2796,8 @@ void GeoOptimization::ExtractOccRoadGap() {
     for (const auto& line : vec_occ_line) {
       double ave_width = std::numeric_limits<double>::max();
       if (!currentGroup.empty()) {
-        std::vector<double> l_widths;
         ComputerLineDis(line.second.road_points,
-                        currentGroup.back().second.road_points, &l_widths);
-        if (!l_widths.empty()) {
-          ave_width = std::accumulate(l_widths.begin(), l_widths.end(), 0.0) /
-                      static_cast<double>(l_widths.size());
-        }
+                        currentGroup.back().second.road_points, &ave_width);
       }
       if (currentGroup.empty() || std::abs(ave_width) <= 1.0) {
         currentGroup.push_back(line);
@@ -2888,15 +2878,10 @@ void GeoOptimization::CompareGroupLines(
       for (const auto& occ2 : group) {
         auto occ_l1 = occ1.second.road_points;
         auto occ_l2 = occ2.second.road_points;
-
-        std::vector<double> l_widths;
-        ComputerLineDis(occ_l1, occ_l2, &l_widths);
-        if (l_widths.empty()) {
+        double ave_width = 0.0;
+        if (!ComputerLineDis(occ_l1, occ_l2, &ave_width)) {
           continue;
         }
-        auto ave_width =
-            std::accumulate(l_widths.begin(), l_widths.end(), 0.0) /
-            static_cast<double>(l_widths.size());
         if (ave_width < 5) {
           continue;
         }
@@ -3312,7 +3297,9 @@ void GeoOptimization::CreateLocalLineTable() {
     auto lane_pos = local_line.lanepos();
     auto line_track_id = local_line.track_id();
     std::vector<Eigen::Vector3d> local_pts;
-    for (const auto& pt : local_line.points()) {
+    int pt_interval = 2;
+    for (int i = 0; i < local_line.points_size(); i += pt_interval) {
+      const auto& pt = local_line.points(i);
       if (std::isnan(pt.x()) || std::isnan(pt.y())) {
         continue;
       }
@@ -3333,65 +3320,6 @@ void GeoOptimization::CreateLocalLineTable() {
     line_info.kd_line = line_kd;
     local_line_table_.insert_or_assign(line_track_id, line_info);
   }
-
-#if 0
-  // 存储local map中每根道路边沿的几何
-  std::vector<Eigen::Vector3d> right_road_pts;
-  std::vector<Eigen::Vector3d> left_road_pts;
-  for (const auto& local_road : local_map_->road_edges()) {
-    if (static_cast<int>(local_road.lanepos()) == 1) {
-      for (const auto& road_pt : local_road.points()) {
-        Eigen::Vector3d pt(road_pt.x(), road_pt.y(), road_pt.z());
-        right_road_pts.emplace_back(pt);
-      }
-    }
-    if (static_cast<int>(local_road.lanepos()) == -1) {
-      for (const auto& road_pt : local_road.points()) {
-        Eigen::Vector3d pt(road_pt.x(), road_pt.y(), road_pt.z());
-        left_road_pts.emplace_back(pt);
-      }
-    }
-  }
-
-  for (const auto &local_line : local_map_use_->lane_lines()) {
-    auto lane_pos = local_line.lanepos();
-    auto right_line_pos =
-        static_cast<hozon::mapping::LanePositionType>(lane_pos + 1);
-    if (static_cast<int>(lane_pos) + 1 == 0) {
-      right_line_pos =
-          static_cast<hozon::mapping::LanePositionType>(lane_pos + 2);
-    }
-    auto left_line_pos =
-        static_cast<hozon::mapping::LanePositionType>(lane_pos - 1);
-    if (static_cast<int>(lane_pos) - 1 == 0) {
-      left_line_pos =
-          static_cast<hozon::mapping::LanePositionType>(lane_pos - 2);
-    }
-    if (local_line_table_.find(right_line_pos) == local_line_table_.end()) {
-      local_line_table_.at(lane_pos).flag = 1;
-      continue;
-    }
-    if (local_line_table_.find(left_line_pos) == local_line_table_.end()) {
-      local_line_table_.at(lane_pos).flag = 0;
-    } else {
-      local_line_table_.at(lane_pos).flag = 2;
-    }
-    auto line_pts = local_line_table_.at(lane_pos).local_line_pts;
-    auto right_line_pts = local_line_table_.at(right_line_pos).local_line_pts;
-    // 存储每根车道线到相邻右车道线的距离
-    std::vector<double> line_dis;
-    ComputerLineDis(line_pts, right_line_pts, &line_dis);
-    local_line_table_.at(lane_pos).right_width = line_dis;
-    // 存储每根车道线到右侧路沿的距离
-    std::vector<double> line_road_r;
-    ComputerLineDis(line_pts, right_road_pts, &line_road_r);
-    local_line_table_.at(lane_pos).right_road_width = line_road_r;
-    // 存储每根车道线到左侧路沿的距离
-    std::vector<double> line_road_l;
-    ComputerLineDis(line_pts, left_road_pts, &line_road_l);
-    local_line_table_.at(lane_pos).left_road_width = line_road_l;
-  }
-#endif
 }
 
 void GeoOptimization::MakeRoadEdgeToLaneLine() {
@@ -3432,14 +3360,10 @@ void GeoOptimization::CompareRoadAndLines(
       Eigen::Vector3d point(pt.x(), pt.y(), pt.z());
       line_pts.emplace_back(point);
     }
-    std::vector<double> road_line_dis;
-    ComputerLineDis(road_pts, line_pts, &road_line_dis);
-    if (road_line_dis.empty()) {
+    double road_avg_dis = 0.0;
+    if (!ComputerLineDis(road_pts, line_pts, &road_avg_dis)) {
       continue;
     }
-    auto road_avg_dis =
-        std::accumulate(road_line_dis.begin(), road_line_dis.end(), 0.0) /
-        static_cast<double>(road_line_dis.size());
     if (road_avg_dis < min_dis) {
       min_dis = road_avg_dis;
       target_line = line;
@@ -3885,9 +3809,8 @@ void GeoOptimization::AlignmentVecLane() {
       }
       auto left_pts = local_line_table_.at(ego_left_id).local_line_pts;
       auto right_pts = local_line_table_.at(ego_right_id).local_line_pts;
-      std::vector<double> line_wids;
-      ComputerLineDis(left_pts, right_pts, &line_wids);
-      if (line_wids.empty()) {
+      double line_wids = 0.0;
+      if (!ComputerLineDis(left_pts, right_pts, &line_wids)) {
         continue;
       }
       ego_ids.emplace_back(ego_left_id, ego_right_id);
@@ -4014,16 +3937,28 @@ void GeoOptimization::AlignmentVecLane() {
   }
 }
 
-void GeoOptimization::ComputerLineDis(
+bool GeoOptimization::ComputerLineDis(
+    const std::vector<Eigen::Vector3d>& line_pts,
+    const std::vector<Eigen::Vector3d>& right_line_pts, double* avg_width,
+    int pts_interval) {
+  return ComputerLineDis(line_pts, right_line_pts, nullptr, avg_width,
+                         pts_interval);
+}
+bool GeoOptimization::ComputerLineDis(
     const std::vector<Eigen::Vector3d>& line_pts,
     const std::vector<Eigen::Vector3d>& right_line_pts,
-    std::vector<double>* line_dis) {
+    std::vector<double>* line_dis, double* avg_width, int pts_interval) {
   // 计算线与线之间距离
   if (line_pts.empty() || right_line_pts.empty()) {
-    return;
+    return false;
   }
-  std::vector<double> val_dis;
-  for (const auto& P : line_pts) {
+  int count_num = 0;
+  bool flag = false;
+  double original_val = *avg_width;
+  *avg_width = 0.0;
+  for (int index = 0; index < static_cast<int>(line_pts.size());
+       index += pts_interval) {
+    const auto& P = line_pts[index];
     for (size_t i = 1; i < right_line_pts.size(); i++) {
       const auto& A = right_line_pts[i - 1];
       const auto& B = right_line_pts[i];
@@ -4039,11 +3974,23 @@ void GeoOptimization::ComputerLineDis(
       }
       t = std::max(0.0, std::min(t, 1.0));
       auto C = A + t * AB;  // 点到线段的最近点
-      val_dis.emplace_back((P - C).norm());
+      auto dis = (P - C).norm();
+      *avg_width += dis;
+      if (line_dis != nullptr) {
+        line_dis->emplace_back(dis);
+      }
+      count_num++;
       break;
     }
   }
-  *line_dis = val_dis;
+  if (count_num > 0) {
+    flag = true;
+    *avg_width /= count_num;
+  } else {
+    flag = false;
+    *avg_width = original_val;
+  }
+  return flag;
 }
 
 void GeoOptimization::HandleExtraWideLane() {
@@ -4087,8 +4034,8 @@ void GeoOptimization::HandleExtraWideLane() {
       auto left_pts = local_line_table_.at(ego_left_id).local_line_pts;
       auto right_pts = local_line_table_.at(ego_right_id).local_line_pts;
       std::vector<double> line_wids;
-      ComputerLineDis(left_pts, right_pts, &line_wids);
-      if (line_wids.empty()) {
+      double avg_width = 0.0;
+      if (!ComputerLineDis(left_pts, right_pts, &line_wids, &avg_width)) {
         continue;
       }
       for (const auto& wid : line_wids) {
@@ -5011,15 +4958,10 @@ void GeoOptimization::FillIsNearRoadLine(
     line_it.emplace_back(ptt);
   }
   for (const auto& road_it : roads) {
-    std::vector<double> line_road_dis;
-    ComputerLineDis(line_it, road_it, &line_road_dis);
-    if (line_road_dis.empty()) {
+    double avg_dis = 0.0;
+    if (!ComputerLineDis(line_it, road_it, &avg_dis)) {
       continue;
     }
-    // 计算平均距离
-    double avg_dis =
-        std::accumulate(line_road_dis.begin(), line_road_dis.end(), 0.0) /
-        static_cast<double>(line_road_dis.size());
     if (avg_dis < 1.0) {
       lane_line->is_near_road_edge = true;
       break;

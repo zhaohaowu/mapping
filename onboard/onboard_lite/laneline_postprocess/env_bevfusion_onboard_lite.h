@@ -48,6 +48,10 @@ class EnvBevfusionOnboard : public hozon::netaos::adf_lite::Executor {
   std::unique_ptr<environment::LanePostProcess> lane_postprocessor_;
   std::unique_ptr<environment::RoadEdgePostProcess> roadedge_postprocessor_;
   std::shared_ptr<perception_base::Location> location_msg_;
+
+  double frame_proc_maxtime_ = 0.0;
+  int frame_proc_num = 0;
+  int frame_overtime_nums = 0;
 };
 
 REGISTER_ADF_CLASS(EnvBevfusionOnboard, EnvBevfusionOnboard);

@@ -142,6 +142,10 @@ int32_t LocalMappingOnboard::OnRunningMode(adf_lite_Bundle* input) {
 
 int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
   HLOG_INFO << "*** LocalMappingOnboard Run Start ***";
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      onperception_proc_start =
+          std::chrono::time_point_cast<std::chrono::nanoseconds>(
+              std::chrono::system_clock::now());
   if (nullptr == input) {
     HLOG_ERROR << "input is nullptr.";
     return -1;
@@ -235,7 +239,48 @@ int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
     PublishLocalMap();
     HLOG_DEBUG << "finish send localmap data to External pb ...";
 
+    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+        onperception_proc_end =
+            std::chrono::time_point_cast<std::chrono::nanoseconds>(
+                std::chrono::system_clock::now());
+    double frame_proc_time =
+        static_cast<double>(onperception_proc_end.time_since_epoch().count()) *
+            1.0e-9 -
+        static_cast<double>(
+            onperception_proc_start.time_since_epoch().count()) *
+            1.0e-9;
+
+    ++frame_proc_num;
+    if (frame_proc_time >= 0.1) {
+      ++frame_overtime_nums;
+      HLOG_INFO
+          << "[localmap overtime debug], Onperception trigger func process "
+             "overtime frame num is:"
+          << frame_overtime_nums
+          << ", and totally frame num is:" << frame_proc_num
+          << ", and current trigger func process used time:"
+          << std::to_string(frame_proc_time) << ", current timestamp is:"
+          << std::to_string(
+                 static_cast<double>(
+                     onperception_proc_end.time_since_epoch().count()) *
+                 1.0e-9);
+      if (frame_proc_time > frame_proc_maxtime_) {
+        frame_proc_maxtime_ = frame_proc_time;
+        HLOG_INFO
+            << "[localmap overtime debug], Onperception trigger func process "
+               "used max time:"
+            << std::to_string(frame_proc_maxtime_);
+      }
+    }
+
+    if(frame_proc_num % 3000 == 0) {
+      HLOG_INFO << "[localmap overtime debug], Onperception trigger func process "
+                     "used max time in history 5 mins: "
+                  << std::to_string(frame_proc_maxtime_);
+    }
+
     HLOG_INFO << "*** LocalMappingOnboard Run End ***";
+
     return 0;
   } else {
     phm_fault->Report(MAKE_FM_TUPLE(
@@ -545,6 +590,13 @@ int32_t LocalMappingOnboard::PublishLocalMap() {
       hozon::perception::base::FaultType::LOCALMAPPING_CANNOT_OUTPUT_LOCAL_MAP,
       hozon::perception::base::FaultStatus::RESET,
       hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+
+  HLOG_DEBUG << "[overtime debug]"
+             << ", localmap list output, seq:" << localmap_pb->header().seq()
+             << ", data stamp:"
+             << std::to_string(localmap_pb->header().data_stamp())
+             << ", localmap pub stamp:"
+             << std::to_string(localmap_pb->header().publish_stamp());
 
   return 0;
 }

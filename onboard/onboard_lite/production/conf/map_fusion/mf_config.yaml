@@ -13,10 +13,6 @@ input:
       capacity: 5
     - topic: running_mode 
       capacity: 5
-    - topic: percep_transport 
-      capacity: 5
-    - topic: dr 
-      capacity: 5
     - topic: function_manager_in 
       capacity: 5
     - topic: percep_obj 
@@ -31,7 +27,6 @@ trigger:
     - name: recv_location
       type: EVENT
       mainSources:
-      
         - name: localization
           timeout: 100
     - name: recv_local_map
@@ -52,16 +47,6 @@ trigger:
       mainSources:
         - name: running_mode
           timeout: 1000
-    - name: recv_percep_transport
-      type: EVENT
-      mainSources:
-        - name: percep_transport
-          timeout: 1000
-    - name: recv_dr
-      type: EVENT
-      mainSources:
-        - name: dr
-          timeout: 100
     - name: recv_fct_in
       type: EVENT
       mainSources:

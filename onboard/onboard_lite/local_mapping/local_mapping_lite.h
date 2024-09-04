@@ -56,6 +56,10 @@ class LocalMappingOnboard : public hozon::netaos::adf_lite::Executor {
 
  private:
   std::shared_ptr<LocalMapApp> app_ptr_ = nullptr;  // 整个localmap逻辑处理类
+
+  double frame_proc_maxtime_ = 0.0;
+  int frame_proc_num = 0;
+  int frame_overtime_nums = 0;
 };
 
 REGISTER_ADF_CLASS(LocalMappingOnboard, LocalMappingOnboard);

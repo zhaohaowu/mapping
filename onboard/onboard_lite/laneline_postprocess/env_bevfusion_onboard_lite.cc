@@ -139,6 +139,12 @@ int32_t EnvBevfusionOnboard::ReceiveDr(adf_lite_Bundle* input) {
 
 int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
   HLOG_INFO << "LaneLine PostProcess Lite start!!!";
+
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      receive_detect_laneline_proc_start =
+          std::chrono::time_point_cast<std::chrono::nanoseconds>(
+              std::chrono::system_clock::now());
+
   if (nullptr == input) {
     HLOG_ERROR << "input bundle is nullptr.";
     return -1;
@@ -261,6 +267,48 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
   adf_lite_Bundle lane_node_bundle;
   lane_node_bundle.Add("percep_transport", EnvDataPtr);
   SendOutput(&lane_node_bundle);
+
+  std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
+      receive_detect_laneline_proc_end =
+          std::chrono::time_point_cast<std::chrono::nanoseconds>(
+              std::chrono::system_clock::now());
+  double frame_proc_time =
+      static_cast<double>(
+          receive_detect_laneline_proc_end.time_since_epoch().count()) *
+          1.0e-9 -
+      static_cast<double>(
+          receive_detect_laneline_proc_start.time_since_epoch().count()) *
+          1.0e-9;
+
+  ++frame_proc_num;
+  if (frame_proc_time >= 0.1) {
+    ++frame_overtime_nums;
+    HLOG_INFO << "[laneline postprocess overtime debug], ReceiveDetectLaneLine "
+                 "trigger func process "
+                 "overtime frame num is:"
+              << frame_overtime_nums
+              << ", and totally frame num is:" << frame_proc_num
+              << ", and current trigger func process used time:"
+              << std::to_string(frame_proc_time) << ", current timestamp is:"
+              << std::to_string(
+                     static_cast<double>(
+                         receive_detect_laneline_proc_end.time_since_epoch()
+                             .count()) *
+                     1.0e-9);
+    if (frame_proc_time > frame_proc_maxtime_) {
+      frame_proc_maxtime_ = frame_proc_time;
+      HLOG_INFO << "[laneline postprocess overtime debug], ReceiveDetectLaneLine trigger "
+                   "func process "
+                   "used max time:"
+                << std::to_string(frame_proc_maxtime_);
+    }
+  }
+
+  if(frame_proc_num % 3000 == 0) {
+      HLOG_INFO << "[laneline postprocess overtime debug], ReceiveDetectLaneLine trigger func process "
+                     "used max time in history 5 mins: "
+                  << std::to_string(frame_proc_maxtime_);
+    }
 
   HLOG_INFO << "LaneLine PostProcess Lite End...";
   return 0;

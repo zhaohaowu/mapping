@@ -111,8 +111,11 @@ void RoutingGeneration::Generate(
     return;
   }
   routing_ = std::make_shared<hozon::routing::RoutingResponse>();
-  percep_map_ = std::make_shared<hozon::hdmap::Map>();
-  percep_map_->CopyFrom(*percep_map);
+  // percep_map_ = std::make_shared<hozon::hdmap::Map>();
+  // percep_map_->CopyFrom(*percep_map);
+
+  // 不进行复制，直接传递指针进行效率优化。
+  percep_map_ = percep_map;
 
   SetRouting();
 }

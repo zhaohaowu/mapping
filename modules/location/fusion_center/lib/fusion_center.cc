@@ -791,10 +791,6 @@ void FusionCenter::PruneDeques() {
   CutoffDeque(ticktime, &dr_deque_);
   dr_deque_mutex_.unlock();
 
-  pe_deque_mutex_.lock();
-  CutoffDeque(ticktime, &pe_deque_);
-  pe_deque_mutex_.unlock();
-
   imuins_deque_mutex_.lock();
   while (!imuins_deque_.empty()) {
     const auto& imu_phy_data = imuins_deque_.front();

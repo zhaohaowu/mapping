@@ -164,7 +164,6 @@ class RoadConstruct : ProcessorBase {
   std::vector<Pose> path_in_curr_pose_;
   std::vector<Eigen::Vector3f> distpoits_;
   bool ego_line_exist_ = false;              // todo need?
-  EgoLane ego_line_id_;                      // todo need?
   std::vector<double> predict_line_params_;  // todo need? 三次样条
 };
 

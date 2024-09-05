@@ -575,14 +575,16 @@ void RoadConstruct::GenRoadEdges(std::vector<Group::Ptr>* groups) {
     UpdateRoadEdgeWithLines(grp, &road_edge_left, &road_edge_right);
 
     HLOG_DEBUG << "road edge info: ";
-    HLOG_DEBUG << "road_edge_left: \t" << "id: " << road_edge_left->id << " \t"
+    HLOG_DEBUG << "road_edge_left: \t"
+               << "id: " << road_edge_left->id << " \t"
                << "is_left: " << road_edge_left->is_left << " \t"
                << "road_edge_type: " << road_edge_left->road_edge_type << " \t"
                << "dist_to_path: " << road_edge_left->dist_to_path << " \t"
                << "points: " << road_edge_left->points.size();
 
-    HLOG_DEBUG << "road_edge_right: \t" << "id: " << road_edge_right->id
-               << " \t" << "is_right: " << road_edge_right->is_right << " \t"
+    HLOG_DEBUG << "road_edge_right: \t"
+               << "id: " << road_edge_right->id << " \t"
+               << "is_right: " << road_edge_right->is_right << " \t"
                << "road_edge_type: " << road_edge_right->road_edge_type << " \t"
                << "dist_to_path: " << road_edge_right->dist_to_path << " \t"
                << "points: " << road_edge_right->points.size();
@@ -696,10 +698,11 @@ void RoadConstruct::FindNearestCaditate(
                    << (*candidate_road_edge_left)->dist_to_path
                    << "  road_edge_temp->dist_to_path: "
                    << road_edge_temp->dist_to_path;
-        (*candidate_road_edge_left) = (*candidate_road_edge_left)->dist_to_path <
-                                           road_edge_temp->dist_to_path
-                                       ? (*candidate_road_edge_left)
-                                       : road_edge_temp;
+        (*candidate_road_edge_left) =
+            (*candidate_road_edge_left)->dist_to_path <
+                    road_edge_temp->dist_to_path
+                ? (*candidate_road_edge_left)
+                : road_edge_temp;
         if ((*candidate_road_edge_left)->dist_to_path >
             road_edge_temp->dist_to_path) {
           HLOG_DEBUG << "update left "
@@ -717,10 +720,11 @@ void RoadConstruct::FindNearestCaditate(
                    << (*candidate_road_edge_right)->dist_to_path
                    << "  road_edge_temp->dist_to_path: "
                    << road_edge_temp->dist_to_path;
-        (*candidate_road_edge_right) = (*candidate_road_edge_right)->dist_to_path >
-                                            road_edge_temp->dist_to_path
-                                        ? (*candidate_road_edge_right)
-                                        : road_edge_temp;
+        (*candidate_road_edge_right) =
+            (*candidate_road_edge_right)->dist_to_path >
+                    road_edge_temp->dist_to_path
+                ? (*candidate_road_edge_right)
+                : road_edge_temp;
         if ((*candidate_road_edge_right)->dist_to_path <
             road_edge_temp->dist_to_path) {
           HLOG_DEBUG << "update right "
@@ -742,8 +746,8 @@ void RoadConstruct::UpdateWithCandidate(
                << (*road_edge_left)->dist_to_path;
     HLOG_DEBUG << "candidate_road_edge_left->dist_to_path: "
                << candidate_road_edge_left->dist_to_path;
-    auto dist_left =
-        candidate_road_edge_left->dist_to_path - (*road_edge_left)->dist_to_path;
+    auto dist_left = candidate_road_edge_left->dist_to_path -
+                     (*road_edge_left)->dist_to_path;
     if (candidate_road_edge_left->road_edge_type != LINE) {
       (*road_edge_left) =
           dist_left > 0.0 ? (*road_edge_left) : candidate_road_edge_left;
@@ -767,8 +771,8 @@ void RoadConstruct::UpdateWithCandidate(
                << (*road_edge_right)->dist_to_path;
     HLOG_DEBUG << "candidate_road_edge_right->dist_to_path: "
                << candidate_road_edge_right->dist_to_path;
-    auto dist_right =
-        candidate_road_edge_right->dist_to_path - (*road_edge_right)->dist_to_path;
+    auto dist_right = candidate_road_edge_right->dist_to_path -
+                      (*road_edge_right)->dist_to_path;
     if (candidate_road_edge_right->road_edge_type != LINE) {
       (*road_edge_right) =
           dist_right < 0.0 ? (*road_edge_right) : candidate_road_edge_right;

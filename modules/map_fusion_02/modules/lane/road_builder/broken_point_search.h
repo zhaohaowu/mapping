@@ -48,6 +48,7 @@ class BrokenPointSearch : ProcessorBase {
   void Clear() override;
 
  private:
+  void ComputeLineHeading(const Line::Ptr& line);
   void RetrieveBoundaries(const ElementMap::Ptr& ele_map, float interp_dist,
                           std::deque<Line::Ptr>* lines);
   bool PoseLineAdapter2Cpt(const std::deque<Line::Ptr>& lines,

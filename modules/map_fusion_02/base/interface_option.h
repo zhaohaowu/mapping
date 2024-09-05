@@ -45,6 +45,16 @@ struct LaneFusionProcessOption : public BaseProcessOption {
 
   // 使用OCC构建道路边沿
   bool use_occ = false;
+  // 路口内预瞄最大距离，这个未加防抖机制
+  float junction_predict_distance = 40.0;
+  // 远端车道线预测距离，小于等于robust_percep_dist时不预测
+  float predict_farthest_dist = 0.0;
+  // 车道线末端点间距阈值
+  float min_predict_interval = 0.0;
+  // 车道线末端heading阈值
+  float max_heading_rad = 0.0;  // in rad
+  // 可信赖的感知区间距离
+  float robust_percep_dist = 0.0;
 };
 
 struct MapServiceOption : public BaseProcessOption {

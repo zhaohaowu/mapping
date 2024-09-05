@@ -7,6 +7,10 @@
 
 #include "modules/map_fusion_02/modules/lane/road_builder/broken_point_search.h"
 
+#include <algorithm>
+
+using hozon::common::math::Vec2d;
+
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -63,6 +67,87 @@ std::deque<Line::Ptr> BrokenPointSearch::GetLines() {
     lines.emplace_back(l);
   }
   return lines;
+}
+
+void BrokenPointSearch::ComputeLineHeading(const Line::Ptr& line) {
+  // 计算末端平均heading
+  double heading = 0;
+  std::vector<double> thetas;
+  for (int i = static_cast<int>(line->pts.size()) - 1; i > 0; i--) {
+    int j = i - 1;
+    for (; j >= 0; j--) {
+      const Eigen::Vector2f pb(line->pts[i].pt[0], line->pts[i].pt[1]);
+      const Eigen::Vector2f pa(line->pts[j].pt[0], line->pts[j].pt[1]);
+      Eigen::Vector2f v = pb - pa;
+      if (v.norm() > 5.0) {
+        double theta = atan2(v.y(), v.x());
+        thetas.emplace_back(theta);
+        i = j;
+        break;
+      }
+    }
+    if (thetas.size() >= 1) {
+      break;
+    }
+  }
+  heading = thetas.empty() ? 0.0
+                           : std::accumulate(thetas.begin(), thetas.end(), 0.) /
+                                 thetas.size();
+  if (line->pts.size() < 2) {
+    line->mean_end_interval = 0;
+    line->mean_end_heading = 0;
+    line->mean_end_heading_std_dev = 0;
+    line->pred_end_heading = std::make_tuple(0., 0., 0.);
+  } else {
+    std::vector<Vec2d> points;
+    std::vector<double> kappas;
+    std::vector<double> dkappas;
+    double kappa = 0.;
+    double dkappa = 0.;
+    Vec2d dist_point;
+    for (const auto& point : line->pts) {
+      Vec2d temp_point;
+      temp_point.set_x(dist_point.x() - point.pt.x());
+      temp_point.set_y(dist_point.y() - point.pt.y());
+      if (temp_point.Length() >= 0.4) {
+        points.emplace_back(point.pt.x(), point.pt.y());
+      }
+      dist_point.set_x(point.pt.x());
+      dist_point.set_y(point.pt.y());
+    }
+    std::vector<double> fit_result;
+    std::vector<Vec2d> fit_points;
+
+    if (points.size() >= 10) {
+      int fit_num = std::min(50, static_cast<int>(points.size()));
+      std::copy(points.rbegin(), points.rbegin() + fit_num,
+                std::back_inserter(fit_points));
+      math::FitLaneLinePoint(fit_points, &fit_result);
+      std::vector<Vec2d> cmp_points;
+      std::copy(points.rbegin(), points.rbegin() + 10,
+                std::back_inserter(cmp_points));
+      math::ComputeDiscretePoints(cmp_points, fit_result, &kappas, &dkappas);
+      // 整体平均
+      kappa = kappas.empty() ? 0.0
+                             : std::accumulate(kappas.begin() + 3,
+                                               kappas.begin() + 8, 0.) /
+                                   5.;
+      dkappa = dkappas.empty() ? 0.0
+                               : std::accumulate(dkappas.begin() + 3,
+                                                 dkappas.begin() + 8, 0.) /
+                                     5.;
+      kappa = kappa / 8.;
+      dkappa = dkappa / 8.;
+    }
+    line->mean_end_interval = 1.0;
+    line->mean_end_heading = heading;
+    line->mean_end_heading_std_dev = 0;
+    line->pred_end_heading = std::make_tuple(heading, kappa, dkappa);
+    HLOG_DEBUG << "line id:" << line->id << "," << line->mean_end_heading << ","
+               << line->mean_end_interval << "," << kappas.size();
+    HLOG_DEBUG << "line id:" << line->id << "," << line->mean_end_heading << ","
+               << line->mean_end_interval << "," << kappas.size();
+  }
 }
 
 // 从原始ElementMap里提取出车道线：
@@ -127,6 +212,7 @@ void BrokenPointSearch::RetrieveBoundaries(const ElementMap::Ptr& ele_map,
     if (line->pts.empty()) {
       continue;
     }
+    ComputeLineHeading(line);
     lines->emplace_back(line);
   }
 }

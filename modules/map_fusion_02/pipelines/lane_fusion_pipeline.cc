@@ -93,9 +93,32 @@ bool LaneFusionPipeline::Init() {
     return false;
   }
 
-  if (!model_config->get_value("use_occ",
-                               &options_.use_occ)) {
+  if (!model_config->get_value("use_occ", &options_.use_occ)) {
     HLOG_ERROR << "Get use_occ failed!";
+    return false;
+  }
+
+  if (!model_config->get_value("junction_predict_distance",
+                               &options_.junction_predict_distance)) {
+    HLOG_ERROR << "Get junction_predict_distance failed!";
+    return false;
+  }
+
+  if (!model_config->get_value("predict_farthest_dist",
+                               &options_.predict_farthest_dist)) {
+    HLOG_ERROR << "Get predict_farthest_dist failed!";
+    return false;
+  }
+
+  if (!model_config->get_value("min_predict_interval",
+                               &options_.min_predict_interval)) {
+    HLOG_ERROR << "Get min_predict_interval failed!";
+    return false;
+  }
+
+  if (!model_config->get_value("robust_percep_dist",
+                               &options_.robust_percep_dist)) {
+    HLOG_ERROR << "Get robust_percep_dist failed!";
     return false;
   }
 
@@ -116,6 +139,9 @@ bool LaneFusionPipeline::Init() {
   junction_check_ = std::make_unique<JunctionCheck>();
   junction_check_->Init(options_);
 
+  lane_prediction_ = std::make_unique<LanePrediction>();
+  lane_prediction_->Init(options_);
+
   initialized_ = true;
 
   return true;
@@ -124,6 +150,7 @@ bool LaneFusionPipeline::Init() {
 void LaneFusionPipeline::Clear() {
   broken_pt_search_->Clear();
   road_constructor_->Clear();
+  lane_prediction_->Clear();
 }
 
 void LaneFusionPipeline::InsertPose(const LocInfo::Ptr& pose) {
@@ -196,7 +223,6 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
 
   std::vector<Group::Ptr> groups;
   groups = road_constructor_->GetGroups();
-  // MF_RVIZ->VizGroup(groups, element_map_ptr->map_info.stamp);
 
   bool lane_loc_state = lane_loc_->UpdateGroups(&groups);
   if (!lane_loc_state) {
@@ -205,9 +231,14 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
 
   // 路口判断
   junction_check_->Process(groups);
-
+  // 构造拓扑
   road_topo_constructor_->ConstructTopology(&groups);
 
+  // 车道线预测
+  lane_prediction_->SetEgoLaneId();
+  lane_prediction_->ComputeHeadingCompensation(curr_pose);
+  lane_prediction_->LaneForwardPredict(&groups,
+                                       element_map_ptr->map_info.stamp);
   MF_RVIZ->VizGroup(groups, element_map_ptr->map_info.stamp);
   MF_RVIZ->VizGuidePoint(groups, element_map_ptr->map_info.stamp);
 

@@ -1,6 +1,6 @@
 %YAML:1.0
 
-library: "${ADFLITE_ROOT_PATH}/lib/libadf-lite-ds.so"
+library: "${ADFLITE_ROOT_PATH}/../../depend/nos/x86_2004/lib/libadf-lite-ds.so"
 depLibPath: ["${ADFLITE_ROOT_PATH}/lib/"]
 executorName: DataSource
 

@@ -6,6 +6,7 @@
 #include "modules/local_mapping/lib/filter/lane_position_manager.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "modules/local_mapping/utils/lane_utils.h"
 
@@ -261,20 +262,96 @@ void LanePositionManager::IfCross(const LaneLinesPtr& laneline_ptrs) {
     }
   }
 }
+void removeDuplicatesWithSet(std::vector<LaneLinePtr>* vec_lane) {
+  std::unordered_set<LaneLinePtr> seen;
+  std::vector<LaneLinePtr> result;
+
+  for (auto& lane : *vec_lane) {
+    if (seen.find(lane) == seen.end()) {
+      seen.insert(lane);
+      result.push_back(lane);
+    }
+  }
+
+  vec_lane->swap(result);
+}
 void LanePositionManager::SelectLaneLines(
     const std::vector<LaneLinePtr>& normal_lanelines,
     std::vector<LaneLinePtr>* selected_lanelines) {
+  bool left_valid = false;
+  bool right_valid = false;
+  // 判断自车左右是否有主车道线
   for (const auto& lane_line : normal_lanelines) {
     if (lane_line->vehicle_points.empty()) {
       continue;
     }
+    float d = 0.f;
+    // 理论c0相距过近则用参考c0,如果参考和理论符号相反，相信理论cO
+    if (lane_line->theory_c0 * lane_line->refer_c0 < 0) {
+      d = lane_line->theory_c0;
+    }
+    if (!lane_line->cross) {
+      d = lane_line->theory_c0;
+    } else {
+      d = lane_line->refer_c0;
+    }
     if (lane_line->vehicle_points.front().x() < 0 &&
         lane_line->vehicle_points.back().x() > 0) {
-      selected_lanelines->emplace_back(lane_line);
+      // d>0 左边,d<0，右边
+      if (d > 0 && std::fabs(d) < 4) {
+        left_valid = true;
+        selected_lanelines->emplace_back(lane_line);
+      }
+      if (d < 0 && std::fabs(d) < 4) {
+        right_valid = true;
+        selected_lanelines->emplace_back(lane_line);
+      }
+    }
+    // else {
+    //   lane_line->mf_position = LaneLinePosition::OTHER;
+    // }
+  }
+  // 选择需要排序的主车道线
+  for (const auto& lane_line : normal_lanelines) {
+    if (lane_line->vehicle_points.empty()) {
+      continue;
+    }
+    float d = 0.f;
+    // 理论c0相距过近则用参考c0,如果参考和理论符号相反，相信理论cO
+    if (lane_line->theory_c0 * lane_line->refer_c0 < 0) {
+      d = lane_line->theory_c0;
+    }
+    if (!lane_line->cross) {
+      d = lane_line->theory_c0;
     } else {
-      lane_line->mf_position = LaneLinePosition::OTHER;
+      d = lane_line->refer_c0;
+    }
+    if (left_valid && right_valid) {
+      if (lane_line->vehicle_points.front().x() < 0 &&
+          lane_line->vehicle_points.back().x() > 0) {
+        selected_lanelines->emplace_back(lane_line);
+      } else {
+        lane_line->mf_position = LaneLinePosition::OTHER;
+      }
+    } else if (left_valid && !right_valid) {
+      if (d < 0 && std::fabs(d) < 4 &&
+          lane_line->vehicle_points.front().x() > 0) {
+        selected_lanelines->emplace_back(lane_line);
+      }
+    } else if (!left_valid && right_valid) {
+      if (d > 0 && std::fabs(d) < 4 &&
+          lane_line->vehicle_points.front().x() > 0) {
+        selected_lanelines->emplace_back(lane_line);
+      }
+    } else if (!left_valid && !right_valid) {
+      // 如果左右都没有，则排前方最多4条车道线
+      if (std::fabs(d) < 8 && lane_line->vehicle_points.front().x() > 0) {
+        selected_lanelines->emplace_back(lane_line);
+      }
     }
   }
+  // 对选择的线进行去重
+  removeDuplicatesWithSet(selected_lanelines);
 }
 }  // namespace lm
 }  // namespace mp

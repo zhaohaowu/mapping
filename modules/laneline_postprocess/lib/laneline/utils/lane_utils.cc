@@ -64,6 +64,7 @@ void GetRefValueForLineCurve(const LaneLineCurve& curve, float* d,
     ref_max_lane = std::min(curve.min + ref_length, curve.max);
   }
   float sample_interval = (ref_max_lane - ref_min_lane) / sample_num;
+  sample_interval = std::max(sample_interval, 1.0f);
   *d = 0.0f;
   for (float y = ref_min_lane; y < ref_max_lane; y += sample_interval) {
     for (int i = 0; i < curve.coeffs.size(); ++i) {

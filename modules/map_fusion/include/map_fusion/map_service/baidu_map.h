@@ -30,12 +30,13 @@
 #include "map_engine/hdmap_enum.h"
 #include "map_engine/map_engine.h"
 #include "map_fusion/map_service/coordinate_convertor.h"
-#include "map_fusion/map_service/global_ld_map.h"
 #include "map_fusion/map_service/global_hd_map.h"
+#include "map_fusion/map_service/global_ld_map.h"
 #include "proto/common/error_code.pb.h"
 #include "proto/map/map.pb.h"
 #include "proto/map/map_lane.pb.h"
 #include "proto/map/map_road.pb.h"
+#include "proto/routing/nav_data.pb.h"
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -78,9 +79,14 @@ class BaiDuMapEngine : public hozon::netaos::adf_lite::Executor {
   int32_t AlgInit() override;
   void AlgRelease() override;
 
-  void UpdateBaiDuMap(const INSPos& pos);
+  // void UpdateBaiDuMap(const INSPos& pos);
   const hozon::hdmap::Map& GetNetaMap() const { return neta_map_; }
   BaiDuMapEngine() {}
+  void UpdateBaiDuMap(
+      const INSPos& pos,
+      const std::shared_ptr<hozon::hmi::NAVDataService>& hmi_nav);
+  // const hozon::hdmap::Map& GetNetaMap(){return neta_map_};
+  bool UpdateHMINav(const std::shared_ptr<hozon::hmi::NAVDataService>& hmi_nav);
 
  private:
   std::string dbpath;

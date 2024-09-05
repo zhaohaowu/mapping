@@ -20,7 +20,7 @@
 #include <thread>
 
 #include "map_fusion/map_service/map_service_fault.h"
-
+#include "proto/routing/nav_data.pb.h"
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -54,6 +54,8 @@ class MapFusion {
       const std::shared_ptr<hozon::localization::Localization>& curr_loc,
       const std::shared_ptr<hozon::mapping::LocalMap>& curr_local_map,
       hozon::hdmap::Map* fusion_map, hozon::routing::RoutingResponse* routing);
+  void UpdateHMINavData(const std::shared_ptr<hozon::hmi::NAVDataService>&nav_data);
+
 
  private:
   std::shared_ptr<MapService> map_service_ = nullptr;
@@ -61,6 +63,8 @@ class MapFusion {
   std::shared_ptr<MapPrediction> pred_ = nullptr;
   std::shared_ptr<MapTable> map_table_ = nullptr;
   std::shared_ptr<RoadRecognition> recog_ = nullptr;
+  std::mutex ms_nav_mtx_;
+  std::shared_ptr<hozon::hmi::NAVDataService> hmi_nav_data_ = nullptr;
 };
 
 }  // namespace mf

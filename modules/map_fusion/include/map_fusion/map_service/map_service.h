@@ -33,6 +33,7 @@
 #include "proto/map/ehp.pb.h"
 #include "proto/map/map.pb.h"
 #include "proto/planning/planning.pb.h"
+#include "proto/routing/nav_data.pb.h"
 #include "proto/routing/routing.pb.h"
 #include "util/geo.h"
 
@@ -72,6 +73,8 @@ class MapService {
     return routing_;
   }
   MapServiceFault GetFault();
+  void UpdateHMINavService(
+      const std::shared_ptr<hozon::hmi::NAVDataService>& nav_data);
 
  private:
   void GetUidThread();
@@ -109,6 +112,7 @@ class MapService {
   std::thread tmp_thread_;
   hozon::localization::HafNodeInfo ins_msg_;
   std::mutex ins_msg_thread_;
+  std::shared_ptr<hozon::hmi::NAVDataService> hmi_nav_data_ = nullptr;
 };
 
 }  // namespace mf

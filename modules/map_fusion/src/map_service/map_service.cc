@@ -3,14 +3,12 @@
  * Description:  ehp
  */
 #include "map_fusion/map_service/map_service.h"
-#include <unistd.h>
 
 #include <cstdlib>
 #include <iomanip>
 #include <list>
 #include <memory>
 #include <string>
-#include <thread>
 #include <unordered_set>
 #include <vector>
 
@@ -23,23 +21,19 @@
 #include "common/math/vec2d.h"
 #include "common/time/clock.h"
 #include "https/include/tsp_comm.h"
-#include "lib/environment/environment.h"
 #include "map/hdmap/hdmap.h"
 #include "map/hdmap/hdmap_util.h"
 #include "map_fusion/map_service/global_hd_map.h"
-#include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 #include "proto/localization/node_info.pb.h"
 #include "proto/map/ehp.pb.h"
 #include "proto/map/map.pb.h"
 #include "proto/map/map_id.pb.h"
 #include "proto/routing/routing.pb.h"
 #include "util/mapping_log.h"
-#include "util/tic_toc.h"
 
 // NOLINTBEGIN
 DEFINE_double(radius, 500, "radius of the vehicle position");
 DEFINE_double(transform_distance, 200, "distance to update the map");
-DEFINE_string(ldmap_dir, "/ldmap", "ldmap path");
 // NOLINTEND
 
 namespace hozon {
@@ -405,9 +399,6 @@ MapServiceFault MapService::GetFault() {
 MapService::~MapService() {
   is_amap_tsp_thread_stop_ = true;
   amap_tsp_proc_.get();
-  if (tmp_thread_.joinable()) {
-    tmp_thread_.join();
-  }
 }
 
 }  // namespace mf

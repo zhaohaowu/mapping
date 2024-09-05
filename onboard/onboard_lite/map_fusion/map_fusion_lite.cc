@@ -18,6 +18,7 @@
 #include "onboard/onboard_lite/map_fusion/map_fusion_lite.h"
 #include "perception-base/base/state_machine/state_machine_info.h"
 // #include "proto/fsm/function_manager.pb.h"
+#include "proto/routing/nav_data.pb.h"
 #include "yaml-cpp/yaml.h"
 
 namespace hozon {
@@ -112,6 +113,7 @@ void MapFusionLite::RegistMessageType() {
   REGISTER_PROTO_MESSAGE_TYPE("dr", hozon::dead_reckoning::DeadReckoning);
   REGISTER_PROTO_MESSAGE_TYPE("function_manager_in",
                               hozon::functionmanager::FunctionManagerIn);
+  REGISTER_PROTO_MESSAGE_TYPE("dv_nav_data", hozon::hmi::NAVDataService);
 }
 
 void MapFusionLite::RegistProcessFunc() {
@@ -137,8 +139,39 @@ void MapFusionLite::RegistProcessFunc() {
                                  std::placeholders::_1));
   RegistAlgProcessFunc(
       "recv_dr", std::bind(&MapFusionLite::OnDR, this, std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_dv_nav_data",
+      std::bind(&MapFusionLite::OnNavData, this, std::placeholders::_1));
   RegistAlgProcessFunc("recv_fct_in", std::bind(&MapFusionLite::OnFCTIn, this,
                                                 std::placeholders::_1));
+}
+
+int32_t MapFusionLite::OnNavData(Bundle* input) {
+  if (!input) {
+    HLOG_ERROR << "input is nullptr";
+    return -1;
+  }
+  auto p_nav_data = input->GetOne("dv_nav_data");
+  if (!p_nav_data) {
+    HLOG_ERROR << "OnNavData GetOne error ";
+    return -1;
+  }
+  HLOG_WARN << "OnNavData ======================================";
+
+  const auto nav_data_msg =
+      std::static_pointer_cast<hozon::hmi::NAVDataService>(
+          p_nav_data->proto_msg);
+  if (!nav_data_msg) {
+    HLOG_ERROR << "nav_data_msg is nullptr ";
+    return -1;
+  }
+  {
+    std::lock_guard<std::mutex> lock(hmi_nav_mtx_);
+    hmi_nav_data_ = std::make_shared<hozon::hmi::NAVDataService>(*nav_data_msg);
+    mf_->UpdateHMINavData(hmi_nav_data_);
+  }
+
+  return 0;
 }
 
 int32_t MapFusionLite::OnLocation(Bundle* input) {
@@ -345,7 +378,16 @@ int32_t MapFusionLite::OnLocPlugin(Bundle* input) {
 
   return 0;
 }
-
+std::shared_ptr<hozon::hmi::NAVDataService>
+MapFusionLite::GetLatestHMINavData() {
+  std::shared_ptr<hozon::hmi::NAVDataService> latest_nav_data = nullptr;
+  std::lock_guard<std::mutex> lock(hmi_nav_mtx_);
+  if (hmi_nav_data_ != nullptr) {
+    latest_nav_data =
+        std::make_shared<hozon::hmi::NAVDataService>(*hmi_nav_data_);
+  }
+  return latest_nav_data;
+}
 int32_t MapFusionLite::OnFCTIn(Bundle* input) {
   if (!input) {
     return -1;

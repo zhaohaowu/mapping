@@ -44,6 +44,10 @@ dataSourcesIn:
     type: proto_proxy
     cmTopic: /planning/ego_trajectory
     cmDomainId: 0
+  - topic: dv_nav_data
+    type: proto_proxy
+    cmTopic: /hozon/routing/nav_data
+    cmDomainId: 0
 
 dataSourcesOut:
   - topic: localization

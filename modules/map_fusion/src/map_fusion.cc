@@ -59,6 +59,16 @@ int MapFusion::Init(const YAML::Node& conf) {
   return 0;
 }
 
+void MapFusion::UpdateHMINavData(
+    const std::shared_ptr<hozon::hmi::NAVDataService>& nav_data) {
+  if (nav_data != nullptr) {
+    // hmi_nav_data_ = nav_data;
+    map_service_->UpdateHMINavService(nav_data);
+  } else {
+    HLOG_WARN << "hmi_nav_data_ is nullptr when load hd map";
+  }
+}
+
 void MapFusion::Stop() {
   HLOG_ERROR << "try stopping map prediction";
   if (pred_) {

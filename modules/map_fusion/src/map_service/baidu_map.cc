@@ -1091,7 +1091,91 @@ void BaiDuMapEngine::Clear() {
   juns_um_.clear();
   neta_map_.Clear();
 }
+<<<<<<< HEAD:modules/map_fusion/src/map_service/baidu_map.cc
 void BaiDuMapEngine::UpdateBaiDuMap(const INSPos& pos) {
+=======
+bool BaiDuMapEngine::UpdateHMINav(
+    const std::shared_ptr<hozon::hmi::NAVDataService>& hmi_nav) {
+      HLOG_INFO << "OnNavData UpdateBaiDuMap-----------------------3 ";
+  if (hmi_nav == nullptr) {
+    HLOG_ERROR << "OnNavData hmi_nav id nullptr ";
+    return false;
+  }
+  if (hmi_nav->sd_road_array().empty()) {
+    HLOG_ERROR << "OnNavData hmi_nav id nullptr ";
+    return false;
+  }
+  HLOG_INFO << "OnNavData hmi_nav->sd_road_array size " << hmi_nav->sd_road_array_size();
+  std::vector<baidu::imap::SDLinkInfo> sd_info_vec;
+  for (const auto& sd_road : hmi_nav->sd_road_array()) {
+    if (sd_road.road_lgt_size() != sd_road.road_lat_size()) {
+      HLOG_ERROR << "hmi nav lat and lgt num is not same, road id : "
+                 << sd_road.road_id();
+      continue;
+    }
+    baidu::imap::SDLinkInfo sd_road_info;
+    sd_road_info.linkid = sd_road.road_id();
+    sd_road_info.formway = sd_road.road_kind();
+    sd_road_info.func_class = sd_road.road_type();
+    sd_road_info.name = sd_road.link_name();
+    sd_road_info.direction = sd_road.trfc_dir();
+    sd_road_info.length = sd_road.road_len();
+    sd_road_info.speed_limit = sd_road.max_limv();
+    sd_road_info.is_under_pass = sd_road.is_under_pass();
+    sd_road_info.laneNum = sd_road.lane_num();
+    sd_road_info.is_over_pass = sd_road.is_over_pass();
+    sd_road_info.length = sd_road.road_len();
+    int point_size = sd_road.road_lat_size();
+    for (int i = 0; i < point_size; i++) {
+      baidu::imap::Point3D point_pos;
+      // 纬度  纬经高
+      point_pos.x = static_cast<double>(sd_road.road_lat().at(i) / 1e6);
+      point_pos.y = static_cast<double>(sd_road.road_lgt().at(i) / 1e6);
+      point_pos.y = 0.0;
+      sd_road_info.coords.emplace_back(point_pos);
+    }
+    sd_info_vec.emplace_back(sd_road_info);
+  }
+
+  if (!map_engine_ptr_->set_sdlink_info(sd_info_vec)) {
+    HLOG_ERROR << "something is error when set_sdlink_info";
+    return false;
+  }
+  // 可选接口
+  if (hmi_nav->has_nav_data()) {
+    std::vector<baidu::imap::TBTInfo> tbt_info_vec;
+    int tbt_num = hmi_nav->nav_data().tar_chartc_info().steer_info_num();
+    if ((hmi_nav->nav_data().tar_chartc_info().tar_dst().size() != tbt_num) ||
+        (hmi_nav->nav_data().tar_chartc_info().steer_info().size() !=
+         tbt_num) ||
+        (tbt_num == 0)) {
+      HLOG_ERROR << "tbt_info from hmi nav is error ";
+    } else {
+      for (int i = 0; i < tbt_num; i++) {
+        baidu::imap::TBTInfo tbt_info;
+        tbt_info.offset = hmi_nav->nav_data()
+                              .tar_chartc_info()
+                              .tar_dst()
+                              .at(i)
+                              .tar_local_dst();
+        tbt_info.action = hmi_nav->nav_data()
+                              .tar_chartc_info()
+                              .steer_info()
+                              .at(i)
+                              .steer_local_info();
+        tbt_info_vec.emplace_back(tbt_info);
+      }
+      if (!map_engine_ptr_->set_tbt_info(tbt_info_vec)) {
+        HLOG_ERROR << "something is error when set_tbt_info";
+      }
+    }
+  }
+  return true;
+}
+void BaiDuMapEngine::UpdateBaiDuMap(
+    const INSPos& pos,
+    const std::shared_ptr<hozon::hmi::NAVDataService>& hmi_nav) {
+>>>>>>> sync ld map code from nc_demo debug:modules/map_fusion_02/modules/map_ld/baidu_map.cc
   baidu::imap::GpsCoord gps;
   // gps.lon = 121.395844;
   // gps.lat = 31.224504;
@@ -1106,6 +1190,7 @@ void BaiDuMapEngine::UpdateBaiDuMap(const INSPos& pos) {
   baidu::imap::LinkPtr p_link = nullptr;
   baidu::imap::ObjectPtr p_obj = nullptr;
   baidu::imap::JunctionPtr p_jc = nullptr;
+  HLOG_INFO << "OnNavData UpdateBaiDuMap-----------------------1 ";
 
   // uint32_t link_id = 17509173;
   // uint32_t lane_id = 162732831;
@@ -1153,12 +1238,30 @@ void BaiDuMapEngine::UpdateBaiDuMap(const INSPos& pos) {
   for (const auto& lane : neta_lanes_um) {
     neta_map_.add_lane()->CopyFrom(lane.second);
   }
+<<<<<<< HEAD:modules/map_fusion/src/map_service/baidu_map.cc
   util::TicToc bdmap_tic1;
   bdmap_tic1.Tic();
   if (FLAGS_map_service_mode == 2) {
     GLOBAL_HD_MAP->LoadMapFromProto(neta_map_);
   } else {
     GLOBAL_LD_MAP->LoadMapFromProto(neta_map_);
+=======
+  bool res_result = UpdateHMINav(hmi_nav);
+  HLOG_INFO << "OnNavData UpdateHMINav res_result " << res_result;
+  if (res_result) {
+    std::vector<uint32_t> linkid_list;
+    uint32_t route_res = 0;
+    route_res = map_engine_ptr_->get_route(linkid_list);
+    if (route_res != baidu::imap::IMAP_STATUS_OK) {
+      HLOG_ERROR << "OnNavData get route from baidu failed, status: " << route_res;
+    }
+    if (linkid_list.empty()) {
+      HLOG_ERROR << "OnNavData get route from baidu is empty";
+    }
+    for (const auto& link_id : linkid_list) {
+      HLOG_INFO << "OnNavData >>>>>>>>>>>>>>>zr 123 link_id of route:" << link_id;
+    }
+>>>>>>> sync ld map code from nc_demo debug:modules/map_fusion_02/modules/map_ld/baidu_map.cc
   }
 
   // static bool saved = false;

@@ -173,6 +173,7 @@ void MapService::OnInsAdcNodeInfo(
 
 void MapService::BaiduProc() {
   while (true) {
+<<<<<<< HEAD:modules/map_fusion/src/map_service/map_service.cc
     INSPos ins_pos;
     ins_msg_thread_.lock();
     ins_pos.x = ins_msg_.pos_gcj02().x();
@@ -182,6 +183,28 @@ void MapService::BaiduProc() {
     hozon::hdmap::Map test_map;
     GLOBAL_HD_MAP->GetMap(&test_map);
     HLOG_ERROR << "zr123   lane size :" << test_map.lane_size();
+=======
+    auto ins_ptr = INS_MANAGER->GetIns();
+    // auto hmi_nav_ptr = hmi_nav_ptr_->GetLatestHMINavData();
+    // if(hmi_nav_ptr == nullptr){
+    //   HLOG_INFO << "hmi_nav_ptr is nullptr when load ld map";
+    // }
+    if (ins_ptr != nullptr) {
+      INSPos ins_pos;
+      ins_pos.x = ins_ptr->pos_gcj02().x();
+      ins_pos.y = ins_ptr->pos_gcj02().y();
+      std::lock_guard<std::mutex> lock(ms_nav_mtx_);
+      baidu_map_->UpdateBaiDuMap(ins_pos, hmi_nav_data_);
+      // hozon::hdmap::Map test_map;
+      // GLOBAL_LD_MAP->GetMap(&test_map);
+      // HLOG_ERROR << "ld  lane size :" << test_map.lane_size();
+    } else {
+      HLOG_WARN << "ins_ptr is nullptr when load ld map";
+    }
+    // hozon::hdmap::Map hd_map;
+    // GLOBAL_HD_MAP->GetMap(&hd_map);
+    // HLOG_ERROR << "hd lane size :" << hd_map.lane_size();
+>>>>>>> sync ld map code from nc_demo debug:modules/map_fusion_02/app/map_service.cc
     usleep(1e6);
   }
 }

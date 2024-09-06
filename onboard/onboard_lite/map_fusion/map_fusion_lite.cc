@@ -165,6 +165,7 @@ int32_t MapFusionLite::OnNavData(Bundle* input) {
     HLOG_ERROR << "nav_data_msg is nullptr ";
     return -1;
   }
+
   {
     std::lock_guard<std::mutex> lock(hmi_nav_mtx_);
     hmi_nav_data_ = std::make_shared<hozon::hmi::NAVDataService>(*nav_data_msg);

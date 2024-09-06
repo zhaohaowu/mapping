@@ -16,6 +16,14 @@ void DataConvert::ElemMapAppendStopLine(
     const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
     ElementMap::Ptr element_map_ptr) {
   for (const auto& stop_line : local_map->stop_lines()) {
+    if (std::isnan(stop_line.left_point().x()) ||
+        std::isnan(stop_line.left_point().y()) ||
+        std::isnan(stop_line.left_point().z()) ||
+        std::isnan(stop_line.right_point().x()) ||
+        std::isnan(stop_line.right_point().y()) ||
+        std::isnan(stop_line.right_point().z())) {
+      continue;
+    }
     StopLine stopline;
     stopline.id = stop_line.track_id();
     Eigen::Vector3f slpt(static_cast<float>(stop_line.left_point().x()),

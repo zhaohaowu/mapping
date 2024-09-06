@@ -36,6 +36,8 @@ class MapFusionRviz {
   bool Init();
 
   void VizEleMap(const std::shared_ptr<ElementMap>& ele_map);
+  void VizGeoInputEleMap(const std::shared_ptr<ElementMap>& ele_map);
+  void VizGeoOutputEleMap(const std::shared_ptr<ElementMap>& ele_map);
   void VizPath(const std::vector<KinePosePtr>& path, const KinePose& curr_pose);
   void VizGroup(const std::vector<Group::Ptr>& groups, double stamp);
   void SetMarker(::adsfi_proto::viz::Marker* marker, const RvizRgb& color,
@@ -74,6 +76,8 @@ class MapFusionRviz {
   bool map_fusion_group_rviz_ = false;
   std::string viz_topic_input_ele_map_;
   std::string viz_topic_output_ele_map_;
+  std::string viz_topic_geo_input_ele_map_;
+  std::string viz_topic_geo_output_ele_map_;
   std::string viz_topic_path_;
   std::string viz_topic_group_;
   std::string viz_topic_guidepoints_;

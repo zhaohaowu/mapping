@@ -5,6 +5,7 @@
  *   date       ： 2024.08
  ******************************************************************************/
 #include "modules/map_fusion_02/modules/lane/road_topo_builder/junction_topo.h"
+#include <vector>
 
 namespace hozon {
 namespace mp {

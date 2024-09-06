@@ -172,21 +172,17 @@ void OccProcessor::CompareGroupLines() {
       for (auto& occ2 : group) {
         const auto& occ_l1 = occ1.second->road_points;
         const auto& occ_l2 = occ2.second->road_points;
-
-        std::vector<double> l_widths;
-        math::ComputerLineDis(occ_l1, occ_l2, &l_widths);
-        if (l_widths.empty()) {
+        double ave_width = 0.0;
+        if (!math::ComputerLineDis(occ_l1, occ_l2, &ave_width)) {
           continue;
         }
-        auto ave_width =
-            std::accumulate(l_widths.begin(), l_widths.end(), 0.0) /
-            static_cast<double>(l_widths.size());
         HLOG_DEBUG << "ComputerLineDis occ1: " << occ1.first
                    << ", occ2: " << occ2.first << ", " << ave_width;
         if (ave_width < 5) {
           continue;
         }
-        auto overlay_ratio = math::GetOverLayRatioBetweenTwoLane(occ_l1, occ_l2);
+        auto overlay_ratio =
+            math::GetOverLayRatioBetweenTwoLane(occ_l1, occ_l2);
         HLOG_DEBUG << "GetOverLayRatioBetweenTwoLane occ1: " << occ1.first
                    << ", y: " << occ_l1.back().y() << ", occ2: " << occ2.first
                    << ", y: " << occ_l2.back().y() << ", " << overlay_ratio;
@@ -260,13 +256,11 @@ void OccProcessor::ConstructLinePairs() {
     for (const auto& line : vec_occ_line_) {
       double ave_width = std::numeric_limits<double>::max();
       if (!currentGroup.empty()) {
-        std::vector<double> l_widths;
-        math::ComputerLineDis(line.second->road_points,
-                              currentGroup.back().second->road_points,
-                              &l_widths);
-        if (!l_widths.empty()) {
-          ave_width = std::accumulate(l_widths.begin(), l_widths.end(), 0.0) /
-                      static_cast<double>(l_widths.size());
+        double ave_width = 0.0;
+        if (!math::ComputerLineDis(line.second->road_points,
+                                   currentGroup.back().second->road_points,
+                                   &ave_width)) {
+          continue;
         }
       }
       if (currentGroup.empty() || std::abs(ave_width) <= 1.0) {

@@ -6,6 +6,7 @@
  ******************************************************************************/
 
 #include "modules/map_fusion_02/common/calc_util.h"
+
 #include <depend/common/math/double_type.h>
 
 #include <numeric>
@@ -626,17 +627,17 @@ std::vector<double> FitLanelinefront(const std::vector<Point>& centerline) {
   return {k, kk};
 }
 
-bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
-             const Eigen::Vector3d& B) {
-  Eigen::Vector3d AB = B - A;
-  Eigen::Vector3d AP = P - A;
+bool IsRight(const Eigen::Vector3f& P, const Eigen::Vector3f& A,
+             const Eigen::Vector3f& B) {
+  Eigen::Vector3f AB = B - A;
+  Eigen::Vector3f AP = P - A;
   double ABLength = AB.norm();
   double t = AB.dot(AP) / ABLength;
-  Eigen::Vector3d C = A + t * AB;
+  Eigen::Vector3f C = A + t * AB;
   return C.y() > P.y();  // 由于y轴是指向左边，所以c<p的意思是p是否在c的右边
 }
 
-double CalMeanLineHeading(const std::vector<Eigen::Vector3d>& points) {
+double CalMeanLineHeading(const std::vector<Eigen::Vector3f>& points) {
   if (points.size() < 2) {
     return 0;
   }
@@ -664,6 +665,130 @@ double CalMeanLineHeading(const std::vector<Eigen::Vector3d>& points) {
     mean_theta /= count;
   }
   return mean_theta;
+}
+
+RelativePosition IsTargetOnLineRight(
+    const std::vector<Eigen::Vector3f>& target_line,
+    const std::vector<Eigen::Vector3f>& line) {
+  int line_size = line.size();
+  if (line_size < 2 || target_line.size() < 1) {
+    return RelativePosition::UNCERTAIN;
+  }
+  if (target_line.front().x() >= line.back().x() &&
+      line.front().x() >= target_line.back().x()) {
+    return RelativePosition::UNCERTAIN;
+  }
+  int num_thresh = 0, num_calculate = 0;
+  for (int target_index = 0, line_index = 0; target_index < target_line.size();
+       ++target_index) {
+    if (target_line[target_index].x() < line.front().x()) {
+      continue;
+    }
+    while (line_index < line_size - 1 &&
+           line[line_index + 1].x() < target_line[target_index].x()) {
+      ++line_index;
+    }
+    if (line_index == line_size - 1) {
+      break;
+    }
+    auto line1 = line[line_index];
+    auto line2 = line[line_index + 1];
+    num_calculate++;
+    if (IsRight(target_line[target_index], line1, line2)) {
+      num_thresh++;
+    }
+  }
+  if (num_thresh < 1 ||
+      (num_calculate != 0 && (static_cast<double>(num_thresh) /
+                              static_cast<double>(num_calculate)) < 0.5)) {
+    return RelativePosition::LEFT;
+  }
+  return RelativePosition::RIGHT;
+}
+
+RelativePosition IsRoadEdgeOnVehicleRight(
+    const std::vector<Eigen::Vector3f>& points, const double& heading) {
+  if (points.empty() || std::abs(heading) > M_PI) {
+    return RelativePosition::UNCERTAIN;
+  }
+  Eigen::Vector3f p1(0, 0, 0);
+  Eigen::Vector3f p2(cos(heading), sin(heading), 0);
+  int num_thresh = 0;
+  int num_calculate = 0;
+  for (const auto& point : points) {
+    num_calculate++;
+    if (IsRight(point, p1, p2)) {
+      num_thresh++;
+    }
+  }
+  if (num_thresh < 1 ||
+      (num_calculate != 0 && (static_cast<double>(num_thresh) /
+                              static_cast<double>(num_calculate)) < 0.5)) {
+    return RelativePosition::LEFT;
+  }
+  return RelativePosition::RIGHT;
+}
+
+bool DropIntersectLine(
+    const std::vector<Eigen::Vector3f>& selected_line_pts,
+    const std::vector<Eigen::Vector3f>& candidated_line_pts) {
+  if (selected_line_pts.empty() || candidated_line_pts.empty()) {
+    return false;
+  }
+  Eigen::Vector2f intersect_point{0.f, 0.f};
+  Eigen::Vector2f a(selected_line_pts.front().x(),
+                    selected_line_pts.front().y());
+  Eigen::Vector2f b(selected_line_pts.back().x(), selected_line_pts.back().y());
+  Eigen::Vector2f c(candidated_line_pts.front().x(),
+                    candidated_line_pts.front().y());
+  Eigen::Vector2f d(candidated_line_pts.back().x(),
+                    candidated_line_pts.back().y());
+  if (SegmentIntersection(a, b, c, d, &intersect_point)) {
+    return true;
+  }
+  return false;
+}
+
+void GetCompensatePoints(const std::vector<Eigen::Vector3f>& road_pts,
+                         const std::vector<Eigen::Vector3f>& target_line_pts,
+                         const bool& compensating_flag,
+                         std::vector<Eigen::Vector3f>* compensated_pts) {
+  if (compensated_pts == nullptr) {
+    return;
+  }
+  Eigen::Vector3f fit_point;
+  if (compensating_flag) {
+    for (const auto& road_pt : road_pts) {
+      if (road_pt.x() > target_line_pts.back().x()) {
+        fit_point = target_line_pts.back() - road_pt;
+        break;
+      }
+    }
+    for (const auto& road_pt : road_pts) {
+      if (road_pt.x() < target_line_pts.back().x()) {
+        continue;
+      }
+      auto fit_road_pt = road_pt + fit_point;
+      compensated_pts->emplace_back(fit_road_pt);
+    }
+  }
+  if (!compensating_flag) {
+    for (const auto& road_pt : road_pts) {
+      if (road_pt.x() < target_line_pts.front().x()) {
+        continue;
+      }
+      fit_point = target_line_pts.front() - road_pt;
+      break;
+    }
+    for (const auto& road_pt : road_pts) {
+      if (road_pt.x() > target_line_pts.front().x()) {
+        continue;
+      }
+      auto fit_road_pt = road_pt + fit_point;
+      compensated_pts->emplace_back(fit_road_pt);
+    }
+  }
+  return;
 }
 
 }  // namespace math

@@ -8,6 +8,8 @@
 #include "modules/map_fusion_02/pipelines/geo_optimization_pipeline.h"
 
 #include "glog/logging.h"
+#include "modules/map_fusion_02/data_manager/location_data_manager.h"
+#include "modules/rviz/map_fusion_rviz.h"
 
 namespace hozon {
 namespace mp {
@@ -24,10 +26,12 @@ bool GeoOptimizationPipeline::Init() {
 }
 bool GeoOptimizationPipeline::Process(const ProcessOption& option,
                                       ElementMap::Ptr element_map_ptr) {
+  MF_RVIZ->VizGeoInputEleMap(element_map_ptr);
   // 元素过滤操作
   elements_filter_->Process(element_map_ptr);
   // occ处理操作
   occ_processor_->Process(element_map_ptr);
+  MF_RVIZ->VizGeoOutputEleMap(element_map_ptr);
   return true;
 }
 

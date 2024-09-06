@@ -1,8 +1,8 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
  *   file       ： elements_filter.h
- *   author     ： hozon
- *   date       ： 2023.09
+ *   author     ： oyhl
+ *   date       ： 2024.09
  ******************************************************************************/
 
 #pragma once
@@ -12,15 +12,14 @@
 #include <numeric>
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
-
 #include <boost/circular_buffer.hpp>
 
+#include "modules/map_fusion_02/base/element_base.h"
 #include "modules/map_fusion_02/base/element_map.h"
 #include "modules/map_fusion_02/base/processor.h"
-#include "modules/map_fusion_02/modules/geo/elements_filter_base.h"
 #include "modules/map_fusion_02/modules/geo/geo_utils.h"
-#include "modules/rviz/geo_optimization_rviz.h"
 
 namespace hozon {
 namespace mp {
@@ -46,29 +45,40 @@ class ElementsFilter : public ProcessorBase {
   // void CreateLineTable();
   void MakeRoadEdgeToLaneLine();
   void HandleExtraWideLane();
-  void CompareRoadAndLines(const std::vector<Eigen::Vector3d>& road_pts,
+  void CompareRoadAndLines(const std::vector<Eigen::Vector3f>& road_pts,
                            const int& road_id);
+  bool IsBetweenLinesMid(
+      const std::vector<Eigen::Vector3f>& compensated_line_pts,
+      const GeoLineInfo& target_line, const bool& flag);
   /*识别逆向车道线*/
   void FilterReverseLine();
   void HandleOppisiteLineByObj();
-  std::vector<Eigen::Vector3d> GetdRoadEdgePts();
-  std::vector<Eigen::Vector3d> GetDoubleSolidYellowLine();
-  std::vector<Eigen::Vector3d> FindTargetPoints(
-      const std::vector<std::vector<Eigen::Vector3d>>& forward_road_edges);
-  RelativePosition IsTargetOnLineRight(
-      const std::vector<Eigen::Vector3d>& target_line, const LineInfo& line);
-  RelativePosition IsRoadEdgeOnVehicleRight(
-      const std::vector<Eigen::Vector3d>& points, const double& heading);
-  void HandleOppisiteLine(const std::vector<Eigen::Vector3d>& target_line);
+  std::vector<Eigen::Vector3f> GetdRoadEdgePts();
+  std::vector<Eigen::Vector3f> GetDoubleSolidYellowLine();
+  std::vector<Eigen::Vector3f> FindTargetPoints(
+      const std::vector<std::vector<Eigen::Vector3f>>& forward_road_edges);
+  void HandleOppisiteLine(const std::vector<Eigen::Vector3f>& target_line);
   void HandleOppisiteLineByObjAndYelloLine();
+  /*根据停止线过滤逆向车道*/
+  void HandleOppisiteLineByStopline();
+  void GetStopLine(
+      std::vector<std::vector<Eigen::Vector2f>>* forward_stoplines);
+  /*过滤非路口场景非主路车道线*/
+  void FilterNoEgoLineNoCrossing();
+  void HandleOppisiteLineNoCrossing(
+      const std::vector<Eigen::Vector3f>& target_road_edge);
+  void FindTargetPointsNoCrossing(
+      const std::vector<std::vector<Eigen::Vector3f>>& nearby_road_edges,
+      std::vector<Eigen::Vector3f>* target_road_edge);
+  void UpdateElementMapLines(std::map<Id, Boundary::Ptr>* lane_boundaries);
 
  private:
   Eigen::Isometry3d T_L_V_;  // 车体系在local系的位姿
   std::set<int> last_track_id_;
-  std::unordered_map<int, LineInfo> line_table_;
+  std::unordered_set<int> is_not_ego_lane_track_id_;
+  std::unordered_map<int, GeoLineInfo> line_table_;
   std::map<int, RoadEdge::Ptr> road_edge_table_;
-
-  GeoOptimizationViz geo_viz_;
+  std::map<int, StopLine::Ptr> stop_lines_talbe_;
 };
 
 }  // namespace mf

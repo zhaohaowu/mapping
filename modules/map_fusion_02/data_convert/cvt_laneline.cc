@@ -167,20 +167,55 @@ void FillIsNearRoadLine(hozon::mp::mf::Boundary* lane_line,
     line_it.emplace_back(ptt);
   }
   for (const auto& road_it : roads) {
-    std::vector<double> line_road_dis;
-    math::ComputerLineDis(line_it, road_it, &line_road_dis);
-    if (line_road_dis.empty()) {
+    double avg_dis = 0.0;
+    if (!math::ComputerLineDis(line_it, road_it, &avg_dis)) {
       continue;
     }
-    // 计算平均距离
-    double avg_dis =
-        std::accumulate(line_road_dis.begin(), line_road_dis.end(), 0.0) /
-        static_cast<double>(line_road_dis.size());
     if (avg_dis < 1.0) {
       lane_line->is_near_road_edge = true;
       break;
     }
   }
+}
+
+bool DataConvert::CvtLine2Boundary(const GeoLineInfo& line,
+                                   Boundary::Ptr boundary_line) {
+  if (line.line_pts.empty()) {
+    return false;
+  }
+  int node_id = 1;
+  Eigen::Vector3f last_point;
+  bool last_point_added = false;
+  if (!boundary_line->nodes.empty()) {
+    boundary_line->nodes.clear();
+  }
+  for (auto& point : line.line_pts) {
+    if (std::isnan(point.x()) || std::isnan(point.y()) ||
+        std::isnan(point.z())) {
+      continue;
+    }
+    if (!last_point_added) {
+      last_point = point;
+      last_point_added = true;
+    } else {
+      if ((last_point - point).norm() < 0.1) {
+        continue;
+      }
+      last_point = point;
+    }
+    BoundaryNode::Ptr node = std::make_shared<BoundaryNode>();
+    node->point.x() = point.x();
+    node->point.y() = point.y();
+    node->point.z() = point.z();
+    node->id = node_id;
+    boundary_line->nodes.emplace_back(node);
+    ++node_id;
+  }
+  boundary_line->color = line.color;
+  boundary_line->id = line.line_track_id;
+  boundary_line->linetype = line.line_type;
+  boundary_line->is_ego = line.is_ego;
+  return true;
 }
 
 void DataConvert::ElemMapAppendLaneBoundary(

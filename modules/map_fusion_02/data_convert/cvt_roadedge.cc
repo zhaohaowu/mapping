@@ -19,6 +19,9 @@ void DataConvert::ElemMapAppendRoadEdge(
     RoadEdge road_edge;
     road_edge.id = road.track_id();
     for (const auto& pt : road.points()) {
+      if (std::isnan(pt.x()) || std::isnan(pt.y()) || std::isnan(pt.z())) {
+        continue;
+      }
       Eigen::Vector3f ptt(static_cast<float>(pt.x()),
                           static_cast<float>(pt.y()),
                           static_cast<float>(pt.z()));

@@ -41,6 +41,9 @@ void DataConvert::ElemMapAppendOcc(
     }
     OccRoad occ_road;
     for (const auto& pt : occ.points()) {
+      if (std::isnan(pt.x()) || std::isnan(pt.y()) || std::isnan(pt.z())) {
+        continue;
+      }
       Eigen::Vector3d p(pt.x(), pt.y(), pt.z());
       occ_road.ori_detect_points.emplace_back(p);
     }

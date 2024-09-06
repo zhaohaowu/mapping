@@ -10,6 +10,7 @@
 #include "modules/map_fusion_02/modules/geo/geo_utils.h"
 
 #include <limits>
+#include <algorithm>
 
 #include "modules/map_fusion_02/common/calc_util.h"
 #include "modules/map_fusion_02/data_manager/location_data_manager.h"
@@ -40,11 +41,14 @@ double OccLineFitError(OccRoad::Ptr occ) {
 bool CheckOppositeLineByObj(
     const std::vector<Eigen::Vector3d>& line_points,
     const boost::circular_buffer<std::shared_ptr<Object>>& objects) {
-  std::vector<Eigen::Vector3d> obj_points;
+  std::vector<Eigen::Vector3f> obj_points;
   const auto& cur_T_w_v_ = LOCATION_MANAGER->GetCurrentPose();
   for (const auto& object : objects) {
     Eigen::Vector3d p_local(object->position);
-    Eigen::Vector3d p_veh = cur_T_w_v_.inverse() * p_local;
+    Eigen::Vector3f p_veh(
+        static_cast<float>((cur_T_w_v_.inverse() * p_local).x()),
+        static_cast<float>((cur_T_w_v_.inverse() * p_local).y()),
+        static_cast<float>((cur_T_w_v_.inverse() * p_local).z()));
     obj_points.emplace_back(p_veh);
   }
   if (obj_points.empty()) {
@@ -62,10 +66,10 @@ bool CheckOppositeLineByObj(
     int num_thresh = 0;
     int num_calculate = 0;
     for (int line_index = 0; line_index < line_size - 1; line_index++) {
-      Eigen::Vector3d pt1(line_points[line_index].x(),
+      Eigen::Vector3f pt1(line_points[line_index].x(),
                           line_points[line_index].y(),
                           line_points[line_index].z());
-      Eigen::Vector3d pt2(line_points[line_index + 1].x(),
+      Eigen::Vector3f pt2(line_points[line_index + 1].x(),
                           line_points[line_index + 1].y(),
                           line_points[line_index + 1].z());
       num_calculate++;
@@ -80,6 +84,46 @@ bool CheckOppositeLineByObj(
     }
   }
   return false;
+}
+
+void ComputeLaneLineHeading(const std::vector<Eigen::Vector3f>& line_pts,
+                            Eigen::Vector3f* avg_heading) {
+  if (line_pts.empty() || line_pts.size() < 2 ||
+      avg_heading == nullptr) {
+    return;
+  }
+  Eigen::Vector3f sum_heading(0.0, 0.0, 0.0);
+  for (int i = 0; i < static_cast<int>(line_pts.size()) - 1; ++i) {
+    Eigen::Vector3f point1(line_pts[i].x(), line_pts[i].y(),
+                           line_pts[i].z());
+    Eigen::Vector3f point2(line_pts[i + 1].x(), line_pts[i + 1].y(),
+                          line_pts[i + 1].z());
+    Eigen::Vector3f dir_heading = point2 - point1;
+    sum_heading += dir_heading;
+  }
+  *avg_heading = sum_heading / (line_pts.size() - 1);
+  return;
+}
+
+void ComputeAngleBetweenVectors(const Eigen::Vector3f& v1,
+                                const Eigen::Vector3f& v2, float* angle_deg) {
+  if (angle_deg == nullptr) {
+    return;
+  }
+  float dot_product = v1.dot(v2);
+  float v1_norm = v1.norm();
+  float v2_norm = v2.norm();
+
+  if (v1_norm == 0.0 || v2_norm == 0.0) {
+    HLOG_WARN << "Error: Zero vector encountered.";
+    return;
+  }
+  float cos_theta = dot_product / (v1_norm * v2_norm);
+  cos_theta = std::max(static_cast<float>(1.0),
+                       std::min(static_cast<float>(1.0), cos_theta));
+  float angle_rad = std::acos(cos_theta);
+  *angle_deg = angle_rad * 180.0 / M_PI;
+  return;
 }
 
 }  // namespace mf

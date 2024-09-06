@@ -423,16 +423,22 @@ std::vector<double> FitLaneline(const std::vector<Point>& centerline);
 std::vector<double> FitLanelinefront(const std::vector<Point>& centerline);
 
 template <typename PointType>
-void ComputerLineDis(const std::vector<PointType>& line_pts,
+bool ComputerLineDis(const std::vector<PointType>& line_pts,
                      const std::vector<PointType>& right_line_pts,
-                     std::vector<double>* line_dis);
+                     double* avg_width, int pts_interval = 2);
 
-bool IsRight(const Eigen::Vector3d& P, const Eigen::Vector3d& A,
-             const Eigen::Vector3d& B);
+template <typename PointType>
+bool ComputerLineDis(const std::vector<PointType>& line_pts,
+                     const std::vector<PointType>& right_line_pts,
+                     std::vector<double>* line_dis, double* avg_width,
+                     int pts_interval = 2);
+
+bool IsRight(const Eigen::Vector3f& P, const Eigen::Vector3f& A,
+             const Eigen::Vector3f& B);
 
 template <typename T1, typename T2>
 float evaluateHeadingDiff(const T1& x, const std::vector<T2>& params);
-double CalMeanLineHeading(const std::vector<Eigen::Vector3d>& points);
+double CalMeanLineHeading(const std::vector<Eigen::Vector3f>& points);
 
 template <typename T, typename M>
 T CubicResolve(const std::vector<T>& coefs, M t);
@@ -457,6 +463,20 @@ float GetOverLayRatioBetweenTwoLane(const std::vector<pointType>& curve1,
 template <typename T>
 void SamplingCubic(const LineCubic& cubic, float step,
                    std::vector<Eigen::Matrix<T, 3, 1>>* pts);
+
+RelativePosition IsTargetOnLineRight(
+    const std::vector<Eigen::Vector3f>& target_line,
+    const std::vector<Eigen::Vector3f>& line);
+
+RelativePosition IsRoadEdgeOnVehicleRight(
+    const std::vector<Eigen::Vector3f>& points, const double& heading);
+
+bool DropIntersectLine(const std::vector<Eigen::Vector3f>& selected_line_pts,
+                       const std::vector<Eigen::Vector3f>& candidated_line_pts);
+void GetCompensatePoints(const std::vector<Eigen::Vector3f>& road_pts,
+                         const std::vector<Eigen::Vector3f>& target_line_pts,
+                         const bool& compensating_flag,
+                         std::vector<Eigen::Vector3f>* compensated_pts);
 
 }  // namespace math
 

@@ -22,6 +22,9 @@ void DataConvert::ElemMapAppendZebra(
     CrossWalk crw;
     crw.id = cross_walk.track_id();
     for (const auto& pt : cross_walk.points().point()) {
+      if (std::isnan(pt.x()) || std::isnan(pt.y()) || std::isnan(pt.z())) {
+        continue;
+      }
       Eigen::Vector3f point(static_cast<float>(pt.x()),
                             static_cast<float>(pt.y()),
                             static_cast<float>(pt.z()));

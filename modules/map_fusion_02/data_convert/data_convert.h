@@ -13,6 +13,7 @@
 #include "depend/proto/localization/localization.pb.h"
 #include "depend/proto/perception/perception_obstacle.pb.h"
 #include "modules/map_fusion_02/base/element_map.h"
+#include "modules/map_fusion_02/base/element_base.h"
 #include "modules/util/include/util/mapping_log.h"
 
 namespace hozon {
@@ -47,6 +48,8 @@ class DataConvert {
       ElementMap::Ptr element_map_ptr);
   static void cvtPb2obj(const ::hozon::perception::PerceptionObstacle& obj,
                         Object::Ptr elem_obj);
+  static bool CvtLine2Boundary(const GeoLineInfo& line,
+                               Boundary::Ptr boundary_line);
   static void ElemMapAppendOcc(
       const std::shared_ptr<hozon::mapping::LocalMap>& local_map,
       ElementMap::Ptr element_map_ptr);

@@ -9,7 +9,6 @@
 
 #include <memory>
 #include <vector>
-
 #include <boost/circular_buffer.hpp>
 
 #include "modules/map_fusion_02/base/element_base.h"
@@ -24,6 +23,11 @@ double OccLineFitError(OccRoad::Ptr occ);
 bool CheckOppositeLineByObj(
     const std::vector<Eigen::Vector3d>& line_points,
     const boost::circular_buffer<std::shared_ptr<Object>>& objects);
+// 计算车道线heading
+void ComputeLaneLineHeading(const std::vector<Eigen::Vector3f>& line_pts,
+                            Eigen::Vector3f* avg_heading);
+void ComputeAngleBetweenVectors(const Eigen::Vector3f& v1,
+                                const Eigen::Vector3f& v2, float* angle_deg);
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon

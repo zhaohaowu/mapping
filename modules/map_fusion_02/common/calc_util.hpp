@@ -117,15 +117,29 @@ float evaluateHeadingDiff(const T1& x, const std::vector<T2>& params) {
 }
 
 template <typename PointType>
-void ComputerLineDis(const std::vector<PointType>& line_pts,
+bool ComputerLineDis(const std::vector<PointType>& line_pts,
                      const std::vector<PointType>& right_line_pts,
-                     std::vector<double>* line_dis) {
+                     double* avg_width, int pts_interval) {
+  return ComputerLineDis(line_pts, right_line_pts, nullptr, avg_width,
+                         pts_interval);
+}
+
+template <typename PointType>
+bool ComputerLineDis(const std::vector<PointType>& line_pts,
+                     const std::vector<PointType>& right_line_pts,
+                     std::vector<double>* line_dis, double* avg_width,
+                     int pts_interval) {
   // 计算线与线之间距离
   if (line_pts.empty() || right_line_pts.empty()) {
-    return;
+    return false;
   }
-  std::vector<double> val_dis;
-  for (const auto& P : line_pts) {
+  int count_num = 0;
+  bool flag = false;
+  double original_val = *avg_width;
+  *avg_width = 0.0;
+  for (int index = 0; index < static_cast<int>(line_pts.size());
+       index += pts_interval) {
+    const auto& P = line_pts[index];
     for (size_t i = 1; i < right_line_pts.size(); i++) {
       const auto& A = right_line_pts[i - 1];
       const auto& B = right_line_pts[i];
@@ -141,13 +155,23 @@ void ComputerLineDis(const std::vector<PointType>& line_pts,
       }
       t = std::max(0.0, std::min(t, 1.0));
       auto C = A + t * AB;  // 点到线段的最近点
-      val_dis.emplace_back((P - C).norm());
+      auto dis = (P - C).norm();
+      *avg_width += dis;
+      if (line_dis != nullptr) {
+        line_dis->emplace_back(dis);
+      }
+      count_num++;
       break;
     }
   }
-  double sum = std::accumulate(val_dis.begin(), val_dis.end(), 0.0);
-  double mean = sum / static_cast<double>(val_dis.size());
-  *line_dis = val_dis;
+  if (count_num > 0) {
+    flag = true;
+    *avg_width /= count_num;
+  } else {
+    flag = false;
+    *avg_width = original_val;
+  }
+  return flag;
 }
 
 }  // namespace math

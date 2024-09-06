@@ -14,6 +14,9 @@
 #include <tuple>
 #include <vector>
 
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d.hpp>
+
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -431,6 +434,8 @@ enum PointType {
   PREDICTED = 2,  // 预测车道的点
   VIRTUAL = 3,    // 虚拟车道的点
 };
+
+enum class RelativePosition { LEFT = 0, RIGHT = 1, UNCERTAIN = 2 };
 struct Point {
   PointType type = RAW;
   Eigen::Vector3f pt{0.0, 0.0, 0.0};
@@ -460,6 +465,24 @@ struct Line {
   // 末端平均点间距
   double mean_end_interval = 0;
   DEFINE_PTR(Line)
+};
+
+struct GeoLineInfo {
+  int line_track_id = -999;
+  int flag = 2;  // 0-->最左车道线，1-->最右车道线，2-->普通车道线
+  LineType line_type;
+  Color color;
+  bool store = true;  // 是否存储该线
+  bool is_continue = false;  // 是否跟别的线融合了，如果被融合则不添加该线
+  bool is_merge = false;  // 是否是汇入的线，如果是汇入的线则保留
+  IsEgo is_ego = IsEgo::Ego_Road;  // 是否主路的线
+  bool is_updated = false;         // 更新至输出element map
+  std::shared_ptr<cv::flann::Index> line_kdtree = nullptr;
+  std::vector<Eigen::Vector3f> line_pts;
+  std::vector<double> right_width{0.f};       // 距离右边线的距离
+  std::vector<double> right_road_width{0.f};  // 距离右侧路沿距离
+  std::vector<double> left_road_width{0.f};   // 距离左侧路沿距离
+  std::vector<double> param = std::vector<double>(3, 0.0);  // 存储c0 c1 c2
 };
 
 }  // namespace mf

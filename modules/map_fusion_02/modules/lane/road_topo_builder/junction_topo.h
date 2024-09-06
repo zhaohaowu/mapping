@@ -9,6 +9,8 @@
 #include <depend/common/math/vec2d.h>
 
 #include <cfloat>
+#include <vector>
+#include <memory>
 
 #include "modules/map_fusion_02/base/element_base.h"
 #include "modules/map_fusion_02/base/group.h"

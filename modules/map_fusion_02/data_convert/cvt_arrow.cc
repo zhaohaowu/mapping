@@ -90,6 +90,9 @@ void DataConvert::ElemMapAppendArrows(
     arw.id = arrow.track_id();
     FillArrowType(&arw, arrow.arrow_type());
     for (const auto& pt : arrow.points().point()) {
+      if (std::isnan(pt.x()) || std::isnan(pt.y()) || std::isnan(pt.z())) {
+        continue;
+      }
       Eigen::Vector3f point(static_cast<float>(pt.x()),
                             static_cast<float>(pt.y()),
                             static_cast<float>(pt.z()));

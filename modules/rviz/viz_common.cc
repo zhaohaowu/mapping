@@ -7,9 +7,9 @@
 
 #include "modules/rviz/viz_common.h"
 
+#include <iostream>
 #include <string>
 #include <vector>
-
 #include <opencv2/opencv.hpp>
 
 #include "modules/map_fusion_02/common/calc_util.h"
@@ -20,6 +20,8 @@ namespace mp {
 namespace mf {
 
 #define FLOAT_RGB(IntRgb) ((IntRgb) / 255.0)
+
+inline std::string FunctionName() { return __func__; }
 
 RvizRgb ColorRgb(RvizColor color) {
   // rgb value refers to: https://tool.oschina.net/commons?type=3
@@ -295,7 +297,6 @@ MarkerArrayPtr TransportElementToMarkers(
     const hozon::perception::TransportElement& element,
     const std::string& frame_id, const std::string& ns, double lifetime) {
   auto ma = std::make_shared<adsfi_proto::viz::MarkerArray>();
-
   std::string ns_lane = ns + "/lane";
   for (int i = 0; i != element.lane_size(); ++i) {
     std::string ns_lane_i = ns_lane + "/" + std::to_string(i);
@@ -320,8 +321,8 @@ MarkerArrayPtr TransportElementToMarkers(
 CompressedImagePtr JpegImageToVizImage(
     const hozon::soc::CompressedImage& sensor_img) {
   if (sensor_img.format() != "jpeg" && sensor_img.format() != "jpg") {
-    HLOG_ERROR << "not support " << sensor_img.format() << ", only support "
-               << "jpeg/jpg";
+    HLOG_WARN << "not support " << sensor_img.format() << ", only support "
+              << "jpeg/jpg";
     return nullptr;
   }
 
@@ -348,7 +349,7 @@ CompressedImagePtr YUVNV12ImageToVizImage(
     const std::shared_ptr<hozon::soc::Image>& yuv_image, int quality,
     double resize_factor) {
   if (yuv_image == nullptr) {
-    HLOG_ERROR << "nullptr input yuv";
+    HLOG_WARN << "nullptr input yuv";
     return nullptr;
   }
 
@@ -356,17 +357,17 @@ CompressedImagePtr YUVNV12ImageToVizImage(
   auto height = static_cast<int>(yuv_image->height());
   size_t nv12_bytes_num = height * width * 3 / 2;
   if (yuv_image->data().size() != nv12_bytes_num) {
-    HLOG_ERROR << "invalid yuv data size";
+    HLOG_WARN << "invalid yuv data size";
     return nullptr;
   }
 
   if (quality <= 0 || quality > 100) {
-    HLOG_ERROR << "invalid quality, should in range (0, 100]";
+    HLOG_WARN << "invalid quality, should in range (0, 100]";
     return nullptr;
   }
 
   if (resize_factor <= 0. || resize_factor > 1.) {
-    HLOG_ERROR << "invalid resize factor, should in range (0, 1]";
+    HLOG_WARN << "invalid resize factor, should in range (0, 1]";
     return nullptr;
   }
 
@@ -404,12 +405,11 @@ CompressedImagePtr YUVNV12ImageToVizImage(
 }
 
 void ElementBoundaryNodesToMarker(const std::vector<BoundaryNode::Ptr>& nodes,
-                                  const std::string& frame_id,
-                                  const std::string& ns, int32_t id,
+                                  const std::string& frame_id, int32_t id,
                                   double stamp, double lifetime,
-                                  RvizColor color,
+                                  RvizColor color, std::string* ns,
                                   adsfi_proto::viz::Marker* marker) {
-  if (!marker) {
+  if (!marker || !ns) {
     return;
   }
 
@@ -419,7 +419,8 @@ void ElementBoundaryNodesToMarker(const std::vector<BoundaryNode::Ptr>& nodes,
   auto nsec = static_cast<uint32_t>((stamp - sec) * 1e9);
   marker->mutable_header()->mutable_timestamp()->set_sec(sec);
   marker->mutable_header()->mutable_timestamp()->set_nsec(nsec);
-  std::string ns_nodes = ns + "/" + ID_PREFIX_NODE;
+  (*ns) += FunctionName();
+  std::string ns_nodes = *ns + "/" + ID_PREFIX_NODE;
   marker->set_ns(ns_nodes);
   marker->set_id(id);
   marker->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
@@ -450,7 +451,7 @@ void ElementBoundaryNodesToMarker(const std::vector<BoundaryNode::Ptr>& nodes,
 
   for (const auto& it : nodes) {
     if (!it) {
-      HLOG_ERROR << "try viz nullptr node";
+      HLOG_WARN << "try viz nullptr node";
       continue;
     }
     auto* pt = marker->add_points();
@@ -461,11 +462,11 @@ void ElementBoundaryNodesToMarker(const std::vector<BoundaryNode::Ptr>& nodes,
 }
 
 void ElementBoundaryToMarker(const Boundary& boundary,
-                             const std::string& frame_id, const std::string& ns,
-                             int32_t id, double stamp, double lifetime,
-                             RvizColor color,
+                             const std::string& frame_id, int32_t id,
+                             double stamp, double lifetime, RvizColor color,
+                             std::string* ns,
                              adsfi_proto::viz::Marker* marker) {
-  if (!marker) {
+  if (!marker || !ns) {
     return;
   }
 
@@ -475,7 +476,8 @@ void ElementBoundaryToMarker(const Boundary& boundary,
   auto nsec = static_cast<uint32_t>((stamp - sec) * 1e9);
   marker->mutable_header()->mutable_timestamp()->set_sec(sec);
   marker->mutable_header()->mutable_timestamp()->set_nsec(nsec);
-  std::string ns_nodes = ns + "/" + ID_PREFIX_BOUNDARY;
+  (*ns) += FunctionName();
+  std::string ns_nodes = *ns + "/" + ID_PREFIX_BOUNDARY;
   marker->set_ns(ns_nodes);
   marker->set_id(id);
   marker->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
@@ -499,7 +501,7 @@ void ElementBoundaryToMarker(const Boundary& boundary,
 
   for (const auto& it : boundary.nodes) {
     if (!it) {
-      HLOG_ERROR << "try viz nullptr node";
+      HLOG_WARN << "try viz nullptr node";
       continue;
     }
     auto* pt = marker->add_points();
@@ -509,11 +511,11 @@ void ElementBoundaryToMarker(const Boundary& boundary,
   }
 }
 
-void ElementOccEgoToMarker(const Boundary& boundary,
-                           const std::string& frame_id, const std::string& ns,
-                           int32_t id, double stamp, double lifetime,
-                           RvizColor color, adsfi_proto::viz::Marker* marker) {
-  // 可视化ego
+void ElementRoadEdgeToMarker(const RoadEdge& roadedge,
+                             const std::string& frame_id, int32_t id,
+                             double stamp, double lifetime, RvizColor color,
+                             std::string* ns,
+                             adsfi_proto::viz::Marker* marker) {
   if (!marker) {
     return;
   }
@@ -523,7 +525,55 @@ void ElementOccEgoToMarker(const Boundary& boundary,
   auto nsec = static_cast<uint32_t>((stamp - sec) * 1e9);
   marker->mutable_header()->mutable_timestamp()->set_sec(sec);
   marker->mutable_header()->mutable_timestamp()->set_nsec(nsec);
-  std::string ns_nodes = ns + "/" + ID_PREFIX_BOUNDARY;
+  (*ns) += FunctionName();
+  std::string ns_nodes = *ns + "/" + ID_PREFIX_BOUNDARY;
+  marker->set_ns(ns_nodes);
+  marker->set_id(id);
+  marker->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+  marker->mutable_pose()->mutable_orientation()->set_x(0.);
+  marker->mutable_pose()->mutable_orientation()->set_y(0.);
+  marker->mutable_pose()->mutable_orientation()->set_z(0.);
+  marker->mutable_pose()->mutable_orientation()->set_w(1.);
+
+  double width = 0.5;
+  marker->mutable_scale()->set_x(width);
+  sec = static_cast<uint32_t>(lifetime);
+  nsec = static_cast<uint32_t>((lifetime - sec) * 1e9);
+  marker->mutable_lifetime()->set_sec(sec);
+  marker->mutable_lifetime()->set_nsec(nsec);
+  RvizRgb rgb = ColorRgb(color);
+  marker->mutable_color()->set_a(1.0);
+  marker->mutable_color()->set_r(rgb.r);
+  marker->mutable_color()->set_g(rgb.g);
+  marker->mutable_color()->set_b(rgb.b);
+  marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+  if (roadedge.points.empty()) {
+    return;
+  }
+  for (const auto& it : roadedge.points) {
+    auto* pt = marker->add_points();
+    pt->set_x(it.x());
+    pt->set_y(it.y());
+    pt->set_z(it.z());
+  }
+}
+
+void ElementOccEgoToMarker(const Boundary& boundary,
+                           const std::string& frame_id, int32_t id,
+                           double stamp, double lifetime, RvizColor color,
+                           std::string* ns, adsfi_proto::viz::Marker* marker) {
+  // 可视化ego
+  if (!marker || !ns) {
+    return;
+  }
+  marker->Clear();
+  marker->mutable_header()->set_frameid(frame_id);
+  auto sec = static_cast<uint32_t>(stamp);
+  auto nsec = static_cast<uint32_t>((stamp - sec) * 1e9);
+  marker->mutable_header()->mutable_timestamp()->set_sec(sec);
+  marker->mutable_header()->mutable_timestamp()->set_nsec(nsec);
+  (*ns) += FunctionName();
+  std::string ns_nodes = *ns + "/" + ID_PREFIX_BOUNDARY;
   marker->set_ns(ns_nodes);
   marker->set_id(id);
   marker->set_action(adsfi_proto::viz::MarkerAction::ADD);
@@ -556,7 +606,7 @@ void ElementOccEgoToMarker(const Boundary& boundary,
   marker->set_type(adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
 
   // if (occ_road.road_points.empty()) {
-  //   HLOG_ERROR << "try viz nullptr occ_road";
+  //   HLOG_WARN << "try viz nullptr occ_road";
   //   return;
   // }
   // for (const auto& it : occ_road.road_points) {
@@ -571,11 +621,11 @@ void ElementOccEgoToMarker(const Boundary& boundary,
 }
 
 void ElementOccRoadToMarker(const OccRoad& occ_road,
-                            const std::string& frame_id, const std::string& ns,
-                            int32_t id, double stamp, double lifetime,
-                            RvizColor color, adsfi_proto::viz::Marker* marker) {
+                            const std::string& frame_id, int32_t id,
+                            double stamp, double lifetime, RvizColor color,
+                            std::string* ns, adsfi_proto::viz::Marker* marker) {
   // occ_road可视化
-  if (!marker) {
+  if (!marker || !ns) {
     return;
   }
   marker->Clear();
@@ -584,7 +634,8 @@ void ElementOccRoadToMarker(const OccRoad& occ_road,
   auto nsec = static_cast<uint32_t>((stamp - sec) * 1e9);
   marker->mutable_header()->mutable_timestamp()->set_sec(sec);
   marker->mutable_header()->mutable_timestamp()->set_nsec(nsec);
-  std::string ns_nodes = ns + "/" + ID_PREFIX_BOUNDARY;
+  *ns += FunctionName();
+  std::string ns_nodes = *ns + "/" + ID_PREFIX_BOUNDARY;
   marker->set_ns(ns_nodes);
   marker->set_id(id);
   marker->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
@@ -610,7 +661,7 @@ void ElementOccRoadToMarker(const OccRoad& occ_road,
   marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
 
   if (occ_road.road_points.empty()) {
-    HLOG_ERROR << "try viz nullptr occ_road";
+    HLOG_WARN << "try viz nullptr occ_road";
     return;
   }
   for (const auto& it : occ_road.road_points) {
@@ -622,36 +673,41 @@ void ElementOccRoadToMarker(const OccRoad& occ_road,
 }
 
 MarkerArrayPtr ElementMapToMarkers(const ElementMap& map,
-                                   const std::string& frame_id,
-                                   const std::string& ns, double stamp,
+                                   const std::string& frame_id, std::string ns,
+                                   const std::string& topic, double stamp,
                                    double lifetime) {
   auto ma = std::make_shared<adsfi_proto::viz::MarkerArray>();
   std::vector<BoundaryNode::Ptr> nodes;
   for (const auto& it : map.boundary_nodes) {
     if (!it.second) {
-      HLOG_ERROR << "nullptr node";
+      HLOG_WARN << "nullptr node";
       continue;
     }
     nodes.emplace_back(it.second);
   }
-
+  RvizColor color = RvizColor::R_GREEN;
+  if (topic == "/geo/input_ele_map") {
+    color = RvizColor::R_PURPLE;
+  } else if (topic == "/geo/output_ele_map") {
+    color = RvizColor::R_ORANGE;
+  }
   if (!nodes.empty()) {
     auto* mn = ma->add_markers();
-    ElementBoundaryNodesToMarker(nodes, frame_id, ns, 0, stamp, lifetime,
-                                 RvizColor::R_GREEN, mn);
+    ElementBoundaryNodesToMarker(nodes, frame_id, 0, stamp, lifetime, color,
+                                 &ns, mn);
   }
 
   std::vector<BoundaryNode::Ptr> untracked_nodes;
   for (const auto& it : map.lane_boundaries) {
     if (!it.second) {
-      HLOG_ERROR << "nullptr boundary";
+      HLOG_WARN << "nullptr boundary";
       continue;
     }
     // auto id = RetrieveNumInId<uint64_t>(it.second->id);
     auto id = it.second->id;
     auto* mb = ma->add_markers();
-    ElementBoundaryToMarker(*it.second, frame_id, ns, static_cast<int32_t>(id),
-                            stamp, lifetime, RvizColor::R_GREY, mb);
+    ElementBoundaryToMarker(*it.second, frame_id, static_cast<int32_t>(id),
+                            stamp, lifetime, RvizColor::R_GREY, &ns, mb);
 
     for (const auto& n : it.second->nodes) {
       if (map.boundary_nodes.find(n->id) != map.boundary_nodes.end()) {
@@ -661,32 +717,42 @@ MarkerArrayPtr ElementMapToMarkers(const ElementMap& map,
     }
   }
 
+  for (const auto& it : map.road_edges) {
+    if (!it.second) {
+      HLOG_WARN << "nullptr road edge";
+      continue;
+    }
+    auto id = it.first;
+    auto* m_re = ma->add_markers();
+    ElementRoadEdgeToMarker(*it.second, frame_id, static_cast<int32_t>(id),
+                            stamp, lifetime, RvizColor::R_BLACK, &ns, m_re);
+  }
+
   int idd = 0;
   for (const auto& occ : map.occ_roads) {
     if (!occ.second) {
-      HLOG_ERROR << "nullptr occ";
+      HLOG_WARN << "nullptr occ";
       continue;
     }
     auto* mc = ma->add_markers();
-    ElementOccRoadToMarker(*occ.second, frame_id, ns, static_cast<int32_t>(idd),
-                           stamp, lifetime, RvizColor::R_BLUE, mc);
+    ElementOccRoadToMarker(*occ.second, frame_id, static_cast<int32_t>(idd),
+                           stamp, lifetime, RvizColor::R_BLUE, &ns, mc);
     idd++;
   }
   for (const auto& it : map.lane_boundaries) {
     if (!it.second) {
-      HLOG_ERROR << "nullptr boundary";
+      HLOG_WARN << "nullptr boundary";
       continue;
     }
-    // int id = it.second->id;
     auto* md = ma->add_markers();
-    ElementOccEgoToMarker(*it.second, frame_id, ns, static_cast<int32_t>(idd),
-                          stamp, lifetime, RvizColor::R_RED, md);
+    ElementOccEgoToMarker(*it.second, frame_id, static_cast<int32_t>(idd),
+                          stamp, lifetime, RvizColor::R_RED, &ns, md);
     idd++;
   }
   if (!untracked_nodes.empty()) {
     auto* mn = ma->add_markers();
-    ElementBoundaryNodesToMarker(nodes, frame_id, ns, -1, stamp, lifetime,
-                                 RvizColor::R_RED, mn);
+    ElementBoundaryNodesToMarker(nodes, frame_id, -1, stamp, lifetime,
+                                 RvizColor::R_RED, &ns, mn);
   }
 
   if (ma->markers().empty()) {

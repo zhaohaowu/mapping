@@ -114,30 +114,34 @@ CompressedImagePtr YUVNV12ImageToVizImage(
     double resize_factor = 1.0);
 
 void ElementBoundaryNodesToMarker(const std::vector<BoundaryNode::Ptr>& nodes,
-                                  const std::string& frame_id,
-                                  const std::string& ns, int32_t id,
+                                  const std::string& frame_id, int32_t id,
                                   double stamp, double lifetime,
-                                  RvizColor color,
+                                  RvizColor color, std::string* ns,
                                   adsfi_proto::viz::Marker* marker);
 
 void ElementBoundaryToMarker(const Boundary& boundary,
-                             const std::string& frame_id, const std::string& ns,
-                             int32_t id, double stamp, double lifetime,
-                             RvizColor color, adsfi_proto::viz::Marker* marker);
+                             const std::string& frame_id, int32_t id,
+                             double stamp, double lifetime, RvizColor color,
+                             std::string* ns, adsfi_proto::viz::Marker* marker);
+
+void ElementRoadEdgeToMarker(const RoadEdge& roadedge,
+                             const std::string& frame_id, int32_t id,
+                             double stamp, double lifetime, RvizColor color,
+                             std::string* ns, adsfi_proto::viz::Marker* marker);
 
 void ElementOccEgoToMarker(const Boundary& boundary,
-                           const std::string& frame_id, const std::string& ns,
-                           int32_t id, double stamp, double lifetime,
-                           RvizColor color, adsfi_proto::viz::Marker* marker);
+                           const std::string& frame_id, int32_t id,
+                           double stamp, double lifetime, RvizColor color,
+                           std::string* ns, adsfi_proto::viz::Marker* marker);
 
 void ElementOccRoadToMarker(const OccRoad& occ_road,
-                            const std::string& frame_id, const std::string& ns,
-                            int32_t id, double stamp, double lifetime,
-                            RvizColor color, adsfi_proto::viz::Marker* marker);
+                            const std::string& frame_id, int32_t id,
+                            double stamp, double lifetime, RvizColor color,
+                            std::string* ns, adsfi_proto::viz::Marker* marker);
 
 MarkerArrayPtr ElementMapToMarkers(const ElementMap& map,
-                                   const std::string& frame_id,
-                                   const std::string& ns, double stamp,
+                                   const std::string& frame_id, std::string ns,
+                                   const std::string& topic, double stamp,
                                    double lifetime);
 
 PoseArrayPtr PosesToPoseArray(const std::vector<Pose>& poses,

@@ -49,6 +49,17 @@ bool MapFusionRviz::Init() {
     HLOG_ERROR << "Get viz_topic_output_ele_map failed!";
     return false;
   }
+  if (!model_config->get_value("viz_topic_geo_input_ele_map",
+                               &viz_topic_geo_input_ele_map_)) {
+    HLOG_ERROR << "Get viz_topic_geo_input_ele_map failed!";
+    return false;
+  }
+
+  if (!model_config->get_value("viz_topic_geo_output_ele_map",
+                               &viz_topic_geo_output_ele_map_)) {
+    HLOG_ERROR << "Get viz_topic_geo_output_ele_map failed!";
+    return false;
+  }
   if (!model_config->get_value("viz_topic_path", &viz_topic_path_)) {
     HLOG_ERROR << "Get viz_topic_path failed!";
     return false;
@@ -77,7 +88,8 @@ bool MapFusionRviz::Init() {
   }
 
   std::vector<std::string> marker_topics = {
-      viz_topic_input_ele_map_, viz_topic_output_ele_map_, viz_topic_group_};
+      viz_topic_input_ele_map_, viz_topic_output_ele_map_, viz_topic_group_,
+      viz_topic_geo_input_ele_map_, viz_topic_geo_output_ele_map_};
   int ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(marker_topics);
   if (ret < 0) {
     HLOG_FATAL << "RvizAgent register marker array failed";
@@ -145,9 +157,37 @@ void MapFusionRviz::VizEleMap(const std::shared_ptr<ElementMap>& ele_map) {
   }
 
   auto m = ElementMapToMarkers(*ele_map, "vehicle", "topo_gen",
+                               viz_topic_input_ele_map_,
                                ele_map->map_info.stamp, viz_lifetime_);
   if (m != nullptr) {
     RVIZ_AGENT.Publish(viz_topic_input_ele_map_, m);
+  }
+}
+
+void MapFusionRviz::VizGeoInputEleMap(
+    const std::shared_ptr<ElementMap>& ele_map) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
+  auto m = ElementMapToMarkers(*ele_map, "vehicle", "geo",
+                               viz_topic_geo_input_ele_map_,
+                               ele_map->map_info.stamp, viz_lifetime_);
+  if (m != nullptr) {
+    RVIZ_AGENT.Publish(viz_topic_geo_input_ele_map_, m);
+  }
+}
+
+void MapFusionRviz::VizGeoOutputEleMap(
+    const std::shared_ptr<ElementMap>& ele_map) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
+
+  auto m = ElementMapToMarkers(*ele_map, "vehicle", "geo",
+                               viz_topic_geo_output_ele_map_,
+                               ele_map->map_info.stamp, viz_lifetime_);
+  if (m != nullptr) {
+    RVIZ_AGENT.Publish(viz_topic_geo_output_ele_map_, m);
   }
 }
 

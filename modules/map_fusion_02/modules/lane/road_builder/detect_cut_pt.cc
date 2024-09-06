@@ -196,7 +196,9 @@ void DetectCutPt::FindBrokenStart(
   if (!broken_front_ctps_.empty()) {
     broken_front_ctps_.clear();
   }
-  for (auto& cat : categories) {
+  auto tmpcategories = categories;
+  SkipSinglePoint(tmpcategories, 5);
+  for (auto& cat : tmpcategories) {
     CutPoint broken_fro;
     Point3D min_p;
     id_t min_id = INT_MAX;
@@ -1101,11 +1103,14 @@ bool DetectCutPt::DetectEachSubCategories(
       std::sort(input_lines.begin(), input_lines.end(), Compare);
 
       // 尾部切分点 (最靠前的线最后一个点)
-      Point3D pt = input_lines.back()->GetPoints().back();
+      std::vector<std::vector<LaneLine::Ptr>> tmpvecLines;
+      tmpvecLines.push_back(input_lines);
+      SkipSinglePoint(tmpvecLines, 5);
+      Point3D pt = tmpvecLines.front().back()->GetPoints().back();
 
       // 待切分线的lines id
       std::vector<id_t> line_ids;
-      for (const auto& line : input_lines) {
+      for (const auto& line : tmpvecLines.front()) {
         if (line == nullptr) continue;
         line_ids.push_back(line->GetId());
       }
@@ -1126,7 +1131,7 @@ bool DetectCutPt::DetectEachSubCategories(
       DetectPointInfo detect_info;
       detect_info.world_pt = pt;
       detect_info.point_type = 7;  // broken point
-      detect_info.source_line_id = input_lines.back()->GetId();
+      detect_info.source_line_id = tmpvecLines.front().back()->GetId();
       detect_info.involve_line_ids = line_ids;
       detect_info.ref_poses = sub_path_poses;
       detect_info.cut_line_dir = car_dir_ver;
@@ -1159,8 +1164,15 @@ bool DetectCutPt::calbrokenangle(
       Point3D direction_v1;
       Point3D vec_dir(1, 0, 0);
       LaneLine::Ptr line = linesvec_broken[i][j];
-      direction_v1 =
-          line->GetPoints().back() - *std::prev(line->GetPoints().end(), 2);
+      if (line->GetPoints().size() > 5) {
+        direction_v1 =
+            line->GetPoints().back() - *std::prev(line->GetPoints().end(), 5);
+      } else if (line->GetPoints().size() > 1) {
+        direction_v1 = line->GetPoints().back() - line->GetPoints().front();
+      } else {
+        continue;
+      }
+
       if (callineangle(direction_v1, vec_dir, angle)) {
         linevec_sort[j] = std::make_pair(angle, line);
       }
@@ -1205,6 +1217,7 @@ bool DetectCutPt::clusterData(
     bool added = false;
     bool calmask = false;
     // 尝试将元素加入已有的聚类
+
     for (auto& cluster : clusters) {
       if ((!calmask) &&
           (std::find_if(
@@ -1233,22 +1246,17 @@ bool DetectCutPt::clusterData(
 }
 void DetectCutPt::calbrokenaveangle(
     const std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>& clusters,
-    std::vector<std::pair<int, double>> aveanglevec) {
+    std::vector<std::pair<int, int>>& aveanglevec) {
   for (size_t i = 0; i < clusters.size(); i++) {
-    double aveangle = 0.0;
-
-    for (const auto angle : clusters[i]) {
-      aveangle += angle.first;
-    }
-    aveangle /= clusters[i].size();
+    int aveangle = 0;
+    aveangle = clusters[i].size();
     // 索引从1开始
     aveanglevec.emplace_back(std::make_pair(i + 1, aveangle));
   }
-  std::sort(
-      aveanglevec.begin(), aveanglevec.end(),
-      [](const std::pair<int, double>& a, const std::pair<int, double>& b) {
-        return a.second < b.second;
-      });
+  std::sort(aveanglevec.begin(), aveanglevec.end(),
+            [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+              return a.second > b.second;
+            });
 }
 void DetectCutPt::SkipSinglePoint(
     std::vector<std::vector<LaneLine::Ptr>>& linevec,  // NOLINT
@@ -1261,31 +1269,33 @@ void DetectCutPt::SkipSinglePoint(
       // deal with single broken-lines
       // single broken-lines clusters
       std::vector<std::vector<std::pair<double, LaneLine::Ptr>>> clusters;
-      std::vector<std::pair<int, double>> aveanglevec;
+      std::vector<std::pair<int, int>> aveanglevec;
       clusterData(linesvec_sort[i], angle,
                   clusters);  // 聚类
       if (!clusters.empty()) {
         // 统计聚类元素的avg_angle
         calbrokenaveangle(clusters, aveanglevec);
         // 单个broken删除离散点
-        int index = -1;
-        if (!aveanglevec.empty()) {
-          // 找出最大异常值簇
-          index = aveanglevec.back().first;
-          if (index > 0 && index <= clusters.size()) {
-            std::unordered_set<int> delete_ids;
-            for (const auto& item : clusters[index - 1]) {
-              delete_ids.insert(item.second->GetId());
+        if (aveanglevec.size() > 1) {
+          std::unordered_set<int> delete_ids;
+          for (auto it = aveanglevec.begin() + 1; it != aveanglevec.end();
+               it++) {
+            int index = -1;
+            index = it->first;
+            if (index > 0 && index <= clusters.size()) {
+              for (size_t m = 0; m < clusters[index - 1].size(); m++) {
+                delete_ids.insert(clusters[index - 1][m].second->GetId());
+              }
             }
-
-            // 删除匹配ID的LaneLine
-            linevec[i].erase(
-                std::remove_if(linevec[i].begin(), linevec[i].end(),
-                               [&delete_ids](const LaneLine::Ptr& line) {
-                                 return delete_ids.count(line->GetId()) > 0;
-                               }),
-                linevec[i].end());
           }
+
+          // 删除匹配ID的LaneLine
+          linevec[i].erase(
+              std::remove_if(linevec[i].begin(), linevec[i].end(),
+                             [&delete_ids](const LaneLine::Ptr& line) {
+                               return delete_ids.count(line->GetId()) > 0;
+                             }),
+              linevec[i].end());
         }
       }
     }
@@ -1310,10 +1320,6 @@ bool DetectCutPt::DetectCategories(
   // end point
   std::vector<std::vector<LaneLine::Ptr>> end_cates;
   CreateFurtherCategory(lines_vehicle_pts, false, &end_cates);
-
-  // 这里去做过滤
-  SkipSinglePoint(start_cates, 5);
-  SkipSinglePoint(end_cates, 5);
 
   {
     HLOG_DEBUG << "\t start_cates size: " << start_cates.size();

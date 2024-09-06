@@ -12,8 +12,6 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-#include <Sophus/se3.hpp>
-#include <Sophus/so3.hpp>
 #include <list>
 #include <map>
 #include <memory>
@@ -23,6 +21,9 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+#include <Sophus/se3.hpp>
+#include <Sophus/so3.hpp>
 
 #include "modules/map_fusion_02/common/common_data.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/ctp_util.h"
@@ -260,8 +261,6 @@ class DetectCutPt {
 
   void ProcessPath(const std::shared_ptr<std::vector<KinePosePtr>>& path);
 
-  // skipsinglepoint
-
   bool callineangle(const Point3D& point1, const Point3D& point2,
                     double& angle1);  // NOLINT
   bool calbrokenangle(
@@ -278,11 +277,10 @@ class DetectCutPt {
   void calbrokenaveangle(
       const std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>&
           clusters,
-      std::vector<std::pair<int, double>> aveanglevec);
+      std::vector<std::pair<int, int>>& aveanglevec);  // NOLINT
   void SkipSinglePoint(
       std::vector<std::vector<LaneLine::Ptr>>& linevec,  // NOLINT
       const double& angle);
-  //
 
   template <typename T>
   inline std::string GetElementsIdVec(const std::vector<T>& vec);

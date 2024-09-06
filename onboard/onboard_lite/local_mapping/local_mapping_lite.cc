@@ -273,10 +273,11 @@ int32_t LocalMappingOnboard::OnPerception(adf_lite_Bundle* input) {
       }
     }
 
-    if(frame_proc_num % 3000 == 0) {
-      HLOG_INFO << "[localmap overtime debug], Onperception trigger func process "
-                     "used max time in history 5 mins: "
-                  << std::to_string(frame_proc_maxtime_);
+    if (frame_proc_num % 3000 == 0) {
+      HLOG_INFO
+          << "[localmap overtime debug], Onperception trigger func process "
+             "used max time in history 5 mins: "
+          << std::to_string(frame_proc_maxtime_);
     }
 
     HLOG_INFO << "*** LocalMappingOnboard Run End ***";

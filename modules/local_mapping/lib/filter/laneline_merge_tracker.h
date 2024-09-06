@@ -23,11 +23,6 @@ class LaneLineMergeTrack {
                             const LaneTargetPtr& right_target);
   bool MergeOverlayCrossStrategy(const LaneTargetPtr& left_line,
                                  const LaneTargetPtr& right_line);
-
-  // 利用后处理策略判断两根线是否为分合流场景，
-  // 以此来优化分合流场景时的merge处理。
-  bool IsForkConvergelike(const LaneTargetConstPtr& left_line,
-                          const LaneTargetConstPtr& right_line);
   // 选择merge后的车道线类型
   void SetLaneLineType(const LaneTargetPtr& curr_line,
                        const LaneTargetPtr& deleted_line);

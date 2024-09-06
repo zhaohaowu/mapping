@@ -297,18 +297,20 @@ int32_t EnvBevfusionOnboard::ReceiveDetectLaneLine(adf_lite_Bundle* input) {
                      1.0e-9);
     if (frame_proc_time > frame_proc_maxtime_) {
       frame_proc_maxtime_ = frame_proc_time;
-      HLOG_INFO << "[laneline postprocess overtime debug], ReceiveDetectLaneLine trigger "
+      HLOG_INFO << "[laneline postprocess overtime debug], "
+                   "ReceiveDetectLaneLine trigger "
                    "func process "
                    "used max time:"
                 << std::to_string(frame_proc_maxtime_);
     }
   }
 
-  if(frame_proc_num % 3000 == 0) {
-      HLOG_INFO << "[laneline postprocess overtime debug], ReceiveDetectLaneLine trigger func process "
-                     "used max time in history 5 mins: "
-                  << std::to_string(frame_proc_maxtime_);
-    }
+  if (frame_proc_num % 3000 == 0) {
+    HLOG_INFO << "[laneline postprocess overtime debug], ReceiveDetectLaneLine "
+                 "trigger func process "
+                 "used max time in history 5 mins: "
+              << std::to_string(frame_proc_maxtime_);
+  }
 
   HLOG_INFO << "LaneLine PostProcess Lite End...";
   return 0;

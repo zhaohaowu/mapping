@@ -583,28 +583,31 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     ++frame_proc_num;
     if (frame_proc_time >= 0.1) {
       ++frame_overtime_nums;
-      HLOG_INFO << "[mapfusion overtime debug], MapFusionOutput trigger func process "
-                   "overtime frame num is:"
-                << frame_overtime_nums
-                << ", and totally frame num is:" << frame_proc_num
-                << ", and current trigger func process used time:"
-                << std::to_string(frame_proc_time) << ", current timestamp is:"
-                << std::to_string(static_cast<double>(
-                                      mf_proc_end.time_since_epoch().count()) *
-                                  1.0e-9);
+      HLOG_INFO
+          << "[mapfusion overtime debug], MapFusionOutput trigger func process "
+             "overtime frame num is:"
+          << frame_overtime_nums
+          << ", and totally frame num is:" << frame_proc_num
+          << ", and current trigger func process used time:"
+          << std::to_string(frame_proc_time) << ", current timestamp is:"
+          << std::to_string(
+                 static_cast<double>(mf_proc_end.time_since_epoch().count()) *
+                 1.0e-9);
 
       if (frame_proc_time > frame_proc_maxtime_) {
         frame_proc_maxtime_ = frame_proc_time;
-        HLOG_INFO << "[mapfusion overtime debug], MapFusionOutput trigger func process "
+        HLOG_INFO << "[mapfusion overtime debug], MapFusionOutput trigger func "
+                     "process "
                      "used max time:"
                   << std::to_string(frame_proc_maxtime_);
       }
     }
 
-    if(frame_proc_num % 3000 == 0) {
-      HLOG_INFO << "[mapfusion overtime debug], MapFusionOutput trigger func process "
-                     "used max time in history 5 mins: "
-                  << std::to_string(frame_proc_maxtime_);
+    if (frame_proc_num % 3000 == 0) {
+      HLOG_INFO
+          << "[mapfusion overtime debug], MapFusionOutput trigger func process "
+             "used max time in history 5 mins: "
+          << std::to_string(frame_proc_maxtime_);
     }
 
     MapFusionOutputEvaluation(latest_loc);

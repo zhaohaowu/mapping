@@ -23,11 +23,14 @@
 #include "modules/local_mapping/base/scene/laneline.h"
 #include "modules/local_mapping/base/scene/localmap.h"
 #include "modules/local_mapping/lib/datalogger/pose_manager.h"
+#include "modules/local_mapping/lib/target/base_target.h"
 #include "modules/local_mapping/utils/common.h"
 
 namespace hozon {
 namespace mp {
 namespace lm {
+
+enum class LMStatus { ERROR = 0, SUCCESS = 1 };
 
 const std::map<int, LaneLinePosition> kIndex2LanePosMap = {
     {-99, LaneLinePosition::OTHER},        {1, LaneLinePosition::EGO_RIGHT},
@@ -263,6 +266,28 @@ float GetAbsYValueLine(const std::shared_ptr<lineType>& curve) {
   }
   return sum_y / (curve->vehicle_points.size());
 }
+
+double InnerProd2d(const Eigen::Vector3d& pt1, const Eigen::Vector3d& pt2);
+
+LMStatus Point2LineProject2D(const Eigen::Vector3d& pt,
+                             const Eigen::Vector3d& line_start_pt,
+                             const Eigen::Vector3d& line_end_pt,
+                             Eigen::Vector3d* project_pt, float* coef);
+
+LMStatus GetProjectPoint(const std::vector<Eigen::Vector3d>& points,
+                         const Eigen::Vector3d& ref_point,
+                         Eigen::Vector3d* proj_point, size_t* next_idx,
+                         int* pos_flag);
+
+bool DetectMergePt(const std::vector<Eigen::Vector3d>& pts1,
+                   const std::vector<Eigen::Vector3d>& pts2,
+                   Eigen::Vector3d* merge_pt);
+
+bool DetectSplitPt(const std::vector<Eigen::Vector3d>& pts1,
+                   const std::vector<Eigen::Vector3d>& pts2,
+                   Eigen::Vector3d* split_pt);
+bool IsForkConvergelike(const LaneTargetConstPtr& left_line,
+                        const LaneTargetConstPtr& right_line);
 
 }  // namespace lm
 }  // namespace mp

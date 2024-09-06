@@ -3157,8 +3157,6 @@ bool GeoOptimization::LineCublicSampling(
     auto c2 = occ.lane_param().cubic_curve_set(0).c2();
     auto c3 = occ.lane_param().cubic_curve_set(0).c3();
     *curve_params = {c0, c1, c2, c3};
-    HLOG_WARN << "XXXXXXXXXXXXXXXXXXlane_param: " << c0 << ", " << c1 << ", "
-              << c2;
     for (float x = start_x; x < end_x;) {
       float y = c3 * x * x * x + c2 * x * x + c1 * x + c0;
       Eigen::Vector3d pt(x, y, 0);

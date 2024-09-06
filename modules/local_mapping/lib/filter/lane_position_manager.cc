@@ -353,6 +353,7 @@ void LanePositionManager::SelectLaneLines(
   // 对选择的线进行去重
   removeDuplicatesWithSet(selected_lanelines);
 }
+
 }  // namespace lm
 }  // namespace mp
 }  // namespace hozon

@@ -925,7 +925,7 @@ bool GeoOptimization::ComputerPointIsInLine(const Eigen::Vector3d& P,
   if (ABLength < 0.01) {
     return false;
   }
-  double t = AB.dot(AP) / ABLength;
+  double t = AB.dot(AP) / (ABLength * ABLength);
   if (t < -0.01 || t > 1.01) {
     return false;
   }

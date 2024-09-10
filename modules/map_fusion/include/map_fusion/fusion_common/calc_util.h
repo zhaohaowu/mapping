@@ -572,6 +572,25 @@ float AngleDiff(float angle_0, float angle_1);
 double CalculateHeading(const Eigen::Quaternionf& q1,
                         const Eigen::Quaternionf& q2);
 
+template <class T>
+float perpendicular_distance(const T& A, const T& B, const T& P) {
+  // 向量 AB
+  T AB = B - A;
+  // 向量 AP
+  T AP = P - A;
+  // 叉乘 AB x AP
+  T crossProduct = AB.cross(AP);
+  // 垂线距离
+
+  if (AB.norm() < DBL_EPSILON) {
+    return AP.norm();
+  }
+
+  auto distance = static_cast<float>(crossProduct.norm() / (AB.norm() + 0.001));
+
+  return distance;
+}
+
 }  // namespace math
 
 }  // namespace mf

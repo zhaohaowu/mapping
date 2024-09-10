@@ -6,12 +6,14 @@
  ******************************************************************************/
 
 #include "map_fusion/road_recognition/occ_guideline_manager.h"
+#include <math.h>
 #include <pcl/segmentation/extract_clusters.h>
 
 #include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <cstddef>
+#include <cstdlib>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -54,6 +56,23 @@ void OccGuideLineManager::Process(
     return;
   }
 
+  // 将all_lines中的车道线转换为em::Boundary格式，方便后续数据处理。
+  bev_laneline_boundarys_.clear();
+  // std::vector<std::pair<int, em::Boundary::Ptr>> bev_laneline_boundarys;
+  for (auto& line : *bevlanelines_) {
+    if (line.second.empty()) {
+      continue;
+    }
+    for (const auto& line_vector : line.second) {
+      const auto& line = line_vector.line;
+      em::Boundary::Ptr bev_laneline_boundary = TransformPbLine2Boundary(line);
+      bev_laneline_boundarys_.emplace_back(line->track_id(),
+                                           bev_laneline_boundary);
+    }
+  }
+
+  RecordExitLaneInfos();
+
   if (!is_occ_stable_state_) {
     // occ状态不稳定，则添加当前帧的occ观测数据。
     AddCurrentMeasurementOcc();
@@ -82,7 +101,7 @@ void OccGuideLineManager::Process(
     HLOG_DEBUG << "[occ module] Occ region has some bev laneline..."
                << bev_lanelines.size();
     virtual_guide_lines =
-        FineTuneGuideLine(bev_lanelines);  // (感知出现的线保留, 其他的线虚拟)
+        FineTuneGuideLineV2(bev_lanelines);  // (感知出现的线保留, 其他的线虚拟)
   } else {
     // 只根据occ区域来生成引导线(全是虚拟线)
     HLOG_DEBUG << "[occ module] Occ region has no bev laneline...";
@@ -122,6 +141,53 @@ void OccGuideLineManager::Process(
         line_kd);
   }
 #endif
+}
+
+void OccGuideLineManager::RecordExitLaneInfos() {
+  if (exit_lane_info_.exist) {
+    return;
+  }
+
+  std::vector<em::Boundary::Ptr> exit_lane_boundarys;
+  for (const auto& boundary : bev_laneline_boundarys_) {
+    auto& nodes = boundary.second->nodes;
+    if (nodes.front()->point.x() <= 0.0) {
+      exit_lane_boundarys.emplace_back(boundary.second);
+    }
+  }
+
+  if (exit_lane_boundarys.size() < 2) {
+    exit_lane_info_.exist = false;
+    return;
+  }
+
+  // 从右到左进行排序
+  std::sort(exit_lane_boundarys.begin(), exit_lane_boundarys.end(),
+            [](const em::Boundary::Ptr& a, const em::Boundary::Ptr& b) {
+              return a->nodes.front()->point.y() < b->nodes.front()->point.y();
+            });
+
+  const auto& right_lane = exit_lane_boundarys.front()->nodes;
+  const auto& left_lane = exit_lane_boundarys.back()->nodes;
+  if (!exit_lane_info_.right_boundary_points.empty() ||
+      !exit_lane_info_.left_boundary_points.empty()) {
+    exit_lane_info_.right_boundary_points.clear();
+    exit_lane_info_.left_boundary_points.clear();
+  }
+
+  for (const auto& node : right_lane) {
+    Eigen::Vector3f f_point{node->point.x(), node->point.y(), node->point.z()};
+    auto local_pt = curr_pose_.TransformPoint(f_point);
+    exit_lane_info_.right_boundary_points.emplace_back(local_pt);
+  }
+
+  for (const auto& node : left_lane) {
+    Eigen::Vector3f f_point{node->point.x(), node->point.y(), node->point.z()};
+    auto local_pt = curr_pose_.TransformPoint(f_point);
+    exit_lane_info_.left_boundary_points.emplace_back(local_pt);
+  }
+
+  exit_lane_info_.exist = true;
 }
 
 void OccGuideLineManager::SetStableOcc() {
@@ -264,16 +330,6 @@ bool OccGuideLineManager::IsPointOnOccRightSide(
     return flag;
   }
 
-  if (node->point.x() > occ_data->nodes.back()->point.x()) {
-    flag = node->point.y() < occ_data->nodes.back()->point.y();
-    return flag;
-  }
-
-  if (node->point.x() < occ_data->nodes.front()->point.x()) {
-    flag = node->point.y() < occ_data->nodes.front()->point.y();
-    return flag;
-  }
-
   Eigen::Vector2f query_node{node->point.x(), node->point.y()};
   Eigen::Vector3f second_point_it;
   Eigen::Vector3f first_point_it;
@@ -306,7 +362,7 @@ bool OccGuideLineManager::IsPointOnOccRightSide(
                       Eigen::Vector2f{first_point_it.x(), first_point_it.y()},
                       Eigen::Vector2f{second_point_it.x(), second_point_it.y()},
                       query_node) <= 0 &&
-                  PointInVectorSide(
+                  PointToVectorDist(
                       Eigen::Vector2f{first_point_it.x(), first_point_it.y()},
                       Eigen::Vector2f{second_point_it.x(), second_point_it.y()},
                       query_node) < 1.0;
@@ -320,16 +376,6 @@ bool OccGuideLineManager::IsPointOnOccLeftSide(
 
   if (occ_data->nodes.size() == 1) {
     flag = node->point.y() > occ_data->nodes.at(0)->point.y();
-    return flag;
-  }
-
-  if (node->point.x() > occ_data->nodes.back()->point.x()) {
-    flag = node->point.y() > occ_data->nodes.back()->point.y();
-    return flag;
-  }
-
-  if (node->point.x() < occ_data->nodes.front()->point.x()) {
-    flag = node->point.y() > occ_data->nodes.front()->point.y();
     return flag;
   }
 
@@ -365,10 +411,10 @@ bool OccGuideLineManager::IsPointOnOccLeftSide(
                       Eigen::Vector2f{first_point_it.x(), first_point_it.y()},
                       Eigen::Vector2f{second_point_it.x(), second_point_it.y()},
                       query_node) >= 0 &&
-                  PointInVectorSide(
+                  PointToVectorDist(
                       Eigen::Vector2f{first_point_it.x(), first_point_it.y()},
                       Eigen::Vector2f{second_point_it.x(), second_point_it.y()},
-                      query_node) < 1;
+                      query_node) < 1.0;
 
   return flag || add_flag;
 }
@@ -383,14 +429,6 @@ bool OccGuideLineManager::IsLineBetweenOcc(const em::Boundary::Ptr& line) {
   auto& left_occ = stable_occs.back();
   HLOG_DEBUG << "right occ node size:" << right_occ->nodes.size();
   HLOG_DEBUG << "left occ node size:" << left_occ->nodes.size();
-  // Eigen::Vector2f right_occ_start_point =
-  //     right_occ->nodes.front()->point.head<2>();
-  // Eigen::Vector2f right_occ_end_point =
-  //     right_occ->nodes.back()->point.head<2>();
-  // Eigen::Vector2f left_occ_start_point =
-  //     left_occ->nodes.front()->point.head<2>();
-  // Eigen::Vector2f left_occ_end_point =
-  // left_occ->nodes.back()->point.head<2>();
 
   if (right_occ->nodes.empty() || left_occ->nodes.empty()) {
     return false;
@@ -406,10 +444,29 @@ bool OccGuideLineManager::IsLineBetweenOcc(const em::Boundary::Ptr& line) {
                << node->point.y();
   }
 
+  Eigen::Vector2f right_occ_start_point =
+      right_occ->nodes.front()->point.head<2>();
+  Eigen::Vector2f right_occ_end_point =
+      right_occ->nodes.back()->point.head<2>();
+  Eigen::Vector2f left_occ_start_point =
+      left_occ->nodes.front()->point.head<2>();
+  Eigen::Vector2f left_occ_end_point = left_occ->nodes.back()->point.head<2>();
+  float occ_min_max =
+      std::max(left_occ_start_point.x(), right_occ_start_point.x());
+  float occ_max_min = std::min(left_occ_end_point.x(), right_occ_end_point.x());
+
   int point_in_occ_num = 0;
+  int valid_node_num = 0;
   for (const auto& node : line->nodes) {
     HLOG_DEBUG << "[occ module] node point:" << node->point.x() << ","
                << node->point.y();
+
+    if (node->point.x() < occ_min_max || node->point.x() > occ_max_min) {
+      continue;
+    }
+
+    valid_node_num++;
+
     bool in_occ_left = IsPointOnOccLeftSide(node, right_occ);
     bool in_occ_right = IsPointOnOccRightSide(node, left_occ);
 
@@ -422,9 +479,8 @@ bool OccGuideLineManager::IsLineBetweenOcc(const em::Boundary::Ptr& line) {
   }
 
   HLOG_DEBUG << "[occ module] points in occ ratio:"
-             << 1.0 * point_in_occ_num / static_cast<int>(line->nodes.size());
-  bool line_in_occ =
-      1.0 * point_in_occ_num / static_cast<int>(line->nodes.size()) > 0.8;
+             << 1.0 * point_in_occ_num / (valid_node_num + 0.001);
+  bool line_in_occ = (1.0 * point_in_occ_num / (valid_node_num + 0.001)) > 0.8;
 
   return line_in_occ;
 }
@@ -441,25 +497,6 @@ std::vector<em::Boundary::Ptr> OccGuideLineManager::GetBevLaneLineInOcc() {
   Eigen::Vector2f left_occ_start_point =
       left_occ->nodes.front()->point.head<2>();
   Eigen::Vector2f left_occ_end_point = left_occ->nodes.back()->point.head<2>();
-
-  HLOG_DEBUG << "000 right occ end node x loc:"
-             << right_occ->nodes.back()->point.x();
-  HLOG_DEBUG << "000 left occ end node x loc:"
-             << left_occ->nodes.back()->point.x();
-  // 将all_lines中的车道线转换为em::Boundary格式，方便后续数据处理。
-  bev_laneline_boundarys_.clear();
-  // std::vector<std::pair<int, em::Boundary::Ptr>> bev_laneline_boundarys;
-  for (auto& line : *bevlanelines_) {
-    if (line.second.empty()) {
-      continue;
-    }
-    for (const auto& line_vector : line.second) {
-      const auto& line = line_vector.line;
-      em::Boundary::Ptr bev_laneline_boundary = TransformPbLine2Boundary(line);
-      bev_laneline_boundarys_.emplace_back(line->track_id(),
-                                           bev_laneline_boundary);
-    }
-  }
 
   for (const auto& laneline : bev_laneline_boundarys_) {
     HLOG_DEBUG << "[occ module] input laneline id:" << laneline.first;
@@ -516,21 +553,21 @@ void OccGuideLineManager::ReplaceOccLocByBevRoadEdge() {
   em::Boundary::Ptr right_bev_roadedge = nullptr;
   em::Boundary::Ptr left_bev_roadedge = nullptr;
 
-  // HLOG_DEBUG << "right occ curve params:" << right_occ->curve_params[3] <<
+  // HLOG_DEBUG<< "right occ curve params:" << right_occ->curve_params[3] <<
   // ","
   //           << right_occ->curve_params[2] << "," <<
   //           right_occ->curve_params[1]
   //           << "," << right_occ->curve_params[0];
   // for (auto& node : right_occ->nodes) {
-  //   HLOG_DEBUG << "right occ: point loc:" << node->point.x() << ","
+  //   HLOG_DEBUG<< "right occ: point loc:" << node->point.x() << ","
   //             << node->point.y();
   // }
 
-  // HLOG_DEBUG << "left occ curve params:" << left_occ->curve_params[3] << ","
+  // HLOG_DEBUG<< "left occ curve params:" << left_occ->curve_params[3] << ","
   //           << left_occ->curve_params[2] << "," << left_occ->curve_params[1]
   //           << "," << left_occ->curve_params[0];
   // for (auto& node : left_occ->nodes) {
-  //   HLOG_DEBUG << "left occ: point loc:" << node->point.x() << ","
+  //   HLOG_DEBUG<< "left occ: point loc:" << node->point.x() << ","
   //             << node->point.y();
   // }
 
@@ -559,7 +596,7 @@ void OccGuideLineManager::ReplaceOccLocByBevRoadEdge() {
       double occ_y = occ_curve[3] * std::pow(x, 3) +
                      occ_curve[2] * std::pow(x, 2) + occ_curve[1] * x +
                      occ_curve[0];
-      // HLOG_DEBUG << "bev roadedge point:" << x << "," << node->point.y() <<
+      // HLOG_DEBUG<< "bev roadedge point:" << x << "," << node->point.y() <<
       // "\n"
       //           << "occ roadedge point:" << x << "," << occ_y;
       delta_error += std::abs(occ_y - node->point.y());
@@ -569,7 +606,7 @@ void OccGuideLineManager::ReplaceOccLocByBevRoadEdge() {
     double ave_error = delta_error / point_num;
     HLOG_DEBUG << "[occ module] right Occ and Pair bev roadedge:"
                << "ave_y_error is:" << ave_error;
-    if (ave_error <= distance_error_thresh_) {
+    if (ave_error <= y_distance_error_thresh_) {
       right_bev_roadedge = roadedge.second;
       break;
     }
@@ -606,7 +643,7 @@ void OccGuideLineManager::ReplaceOccLocByBevRoadEdge() {
     double ave_error = delta_error / point_num;
     HLOG_DEBUG << "[occ module] left Occ and Pair bev roadedge:"
                << "ave_y_error is:" << ave_error;
-    if (ave_error <= distance_error_thresh_) {
+    if (ave_error <= y_distance_error_thresh_) {
       left_bev_roadedge = roadedge.second;
       break;
     }
@@ -656,8 +693,8 @@ float OccGuideLineManager::GetEntranceLaneWidth(
         bev_lanelines.at(i + 1)->nodes.empty()) {
       continue;
     }
-    float lane_space =
-        GetTwoBoundayDis(bev_lanelines.at(i), bev_lanelines.at(i + 1));
+    float lane_space = std::fabs(
+        GetTwoBoundayDis(bev_lanelines.at(i), bev_lanelines.at(i + 1)));
 
     if (lane_space < 5.0 && lane_space > 2.0) {
       front_lane_width_totally += lane_space;
@@ -673,7 +710,7 @@ float OccGuideLineManager::GetEntranceLaneWidth(
     return averge_entrance_lane_width;
   }
 
-  return averge_entrance_lane_width;
+  return averge_exit_lane_width_;
 }
 
 float OccGuideLineManager::GetTwoBoundayDis(
@@ -682,13 +719,16 @@ float OccGuideLineManager::GetTwoBoundayDis(
   float lane_space = 3.5;
   em::Boundary::Ptr query_line = nullptr;
   em::Boundary::Ptr value_line = nullptr;
+  bool query_left_occ = true;
   if (left_boundary->nodes.front()->point.x() <
       right_boundary->nodes.front()->point.x()) {
     query_line = right_boundary;
     value_line = left_boundary;
+    query_left_occ = false;
   } else {
     query_line = left_boundary;
     value_line = right_boundary;
+    query_left_occ = true;
   }
 
   const auto& query_point = query_line->nodes.front()->point;
@@ -702,13 +742,153 @@ float OccGuideLineManager::GetTwoBoundayDis(
   if (value_line->nodes.size() == 1) {
     lane_space = ((*it)->point - query_point).norm();
   } else if (it == std::prev(value_line->nodes.end())) {
-    lane_space = perpendicular_distance((*std::prev(it))->point, (*it)->point,
-                                        query_point);
+    lane_space = math::perpendicular_distance((*std::prev(it))->point,
+                                              (*it)->point, query_point);
   } else {
-    lane_space = perpendicular_distance((*std::next(it))->point, (*it)->point,
-                                        query_point);
+    lane_space = math::perpendicular_distance((*std::next(it))->point,
+                                              (*it)->point, query_point);
   }
-  return lane_space;
+
+  float output_distance = NAN;
+  if (query_left_occ) {
+    output_distance =
+        (*it)->point.y() < query_point.y() ? -1 * lane_space : lane_space;
+  } else {
+    output_distance =
+        (*it)->point.y() < query_point.y() ? lane_space : -1 * lane_space;
+  }
+
+  return output_distance;
+}
+
+float OccGuideLineManager::GetTwoBoundaryMinDis(
+    const em::Boundary::Ptr& left_boundary,
+    const em::Boundary::Ptr& right_boundary) {
+  float lane_space = 3.5;
+  float output_distance = NAN;
+  em::Boundary::Ptr query_line = nullptr;
+  em::Boundary::Ptr value_line = nullptr;
+  bool query_left_occ = true;
+  float min_dist_two_boundary = MAXFLOAT;
+  if (left_boundary->nodes.front()->point.x() <
+      right_boundary->nodes.front()->point.x()) {
+    query_line = right_boundary;
+    value_line = left_boundary;
+    query_left_occ = false;
+  } else {
+    query_line = left_boundary;
+    value_line = right_boundary;
+    query_left_occ = true;
+  }
+
+  float point_max_x = std::min(left_boundary->nodes.back()->point.x(),
+                               right_boundary->nodes.back()->point.x());
+
+  auto it = std::min_element(
+      value_line->nodes.begin(), value_line->nodes.end(),
+      [&point = query_line->nodes.front()->point](
+          const em::BoundaryNode::Ptr& a, const em::BoundaryNode::Ptr& b) {
+        return (point - a->point).norm() < (point - b->point).norm();
+      });
+  min_dist_two_boundary =
+      ((*it)->point - query_line->nodes.front()->point).norm();
+
+  bool flag = false;
+  for (auto& query_node : query_line->nodes) {
+    const auto& query_point = query_node->point;
+
+    if (query_point.x() > point_max_x) {
+      continue;
+    }
+    auto it = std::min_element(
+        value_line->nodes.begin(), value_line->nodes.end(),
+        [&point = query_point](const em::BoundaryNode::Ptr& a,
+                               const em::BoundaryNode::Ptr& b) {
+          return (point - a->point).norm() < (point - b->point).norm();
+        });
+
+    if (value_line->nodes.size() == 1) {
+      lane_space = ((*it)->point - query_point).norm();
+      HLOG_DEBUG << "[debug lane space], -1111, " << lane_space;
+    } else if (it == std::prev(value_line->nodes.end())) {
+      lane_space = math::perpendicular_distance((*std::prev(it))->point,
+                                                (*it)->point, query_point);
+      HLOG_DEBUG << "[debug lane space], 000, " << lane_space;
+    } else {
+      lane_space = math::perpendicular_distance((*std::next(it))->point,
+                                                (*it)->point, query_point);
+      // HLOG_DEBUG<< "[debug lane space], 111, pointA" <<
+      // (*std::next(it))->point.x() << "," << (*std::next(it))->point.y();
+      // HLOG_DEBUG<< "[debug lane space], 111, pointB" << (*it)->point.x() <<
+      // "," << (*it)->point.y(); HLOG_DEBUG<< "[debug lane space], 111, pointP"
+      // << query_point.x() << "," << query_point.y(); HLOG_DEBUG<< "[debug lane
+      // space], 111, " << lane_space;
+    }
+
+    if (lane_space < min_dist_two_boundary) {
+      min_dist_two_boundary = lane_space;
+      HLOG_DEBUG << "[debug min_dist_two_boundary], 111, "
+                 << min_dist_two_boundary;
+      if (query_left_occ) {
+        flag = (*it)->point.y() < query_point.y();
+      } else {
+        flag = (*it)->point.y() > query_point.y();
+      }
+    }
+  }
+
+  if (flag) {
+    min_dist_two_boundary = min_dist_two_boundary * -1;
+  }
+  HLOG_DEBUG << "[debug min_dist_two_boundary], 222, " << min_dist_two_boundary;
+
+  return min_dist_two_boundary;
+}
+
+float OccGuideLineManager::GetTwoBoundayDis(const em::OccRoad::Ptr& left_occ,
+                                            const em::OccRoad::Ptr& right_occ) {
+  float lane_space = 3.5;
+  em::OccRoad::Ptr query_line = nullptr;
+  em::OccRoad::Ptr value_line = nullptr;
+  bool query_left_occ = true;
+  if (left_occ->road_points.front().x() < right_occ->road_points.front().x()) {
+    query_line = right_occ;
+    value_line = left_occ;
+    query_left_occ = false;
+  } else {
+    query_line = left_occ;
+    value_line = right_occ;
+    query_left_occ = true;
+  }
+
+  const auto& query_point = query_line->road_points.front();
+  auto it = std::min_element(value_line->road_points.begin(),
+                             value_line->road_points.end(),
+                             [&point = query_point](const Eigen::Vector3d& a,
+                                                    const Eigen::Vector3d& b) {
+                               return (point - a).norm() < (point - b).norm();
+                             });
+
+  if (value_line->road_points.size() == 1) {
+    lane_space = static_cast<float>(((*it) - query_point).norm());
+  } else if (it == std::prev(value_line->road_points.end())) {
+    lane_space =
+        math::perpendicular_distance((*std::prev(it)), (*it), query_point);
+  } else {
+    lane_space =
+        math::perpendicular_distance((*std::next(it)), (*it), query_point);
+  }
+
+  float output_distance = NAN;
+  if (query_left_occ) {
+    output_distance =
+        (*it).y() < query_point.y() ? -1 * lane_space : lane_space;
+  } else {
+    output_distance =
+        (*it).y() < query_point.y() ? lane_space : -1 * lane_space;
+  }
+
+  return output_distance;
 }
 
 std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
@@ -738,7 +918,8 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
   }
 
   if (1) {
-    float right_blank_space = GetTwoBoundayDis(right_occ, far_right_line);
+    float right_blank_space =
+        std::fabs(GetTwoBoundayDis(right_occ, far_right_line));
     HLOG_DEBUG << "[occ module] right_blank_space:" << right_blank_space;
     if (right_blank_space < -0.3) {
       return {};
@@ -769,7 +950,8 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
   }
 
   if (1) {
-    float left_blank_space = GetTwoBoundayDis(left_occ, far_left_line);
+    float left_blank_space =
+        std::fabs(GetTwoBoundayDis(left_occ, far_left_line));
     HLOG_DEBUG << "[occ module] left_blank_space:" << left_blank_space;
     if (left_blank_space < -0.3) {
       return {};
@@ -806,8 +988,8 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
           bev_lanelines.at(line_idx + 1)->nodes.empty()) {
         continue;
       }
-      float lane_width = GetTwoBoundayDis(bev_lanelines.at(line_idx),
-                                          bev_lanelines.at(line_idx + 1));
+      float lane_width = std::fabs(GetTwoBoundayDis(
+          bev_lanelines.at(line_idx), bev_lanelines.at(line_idx + 1)));
       vitual_lane_num = static_cast<int>(
           std::floor(lane_width / averge_entrance_lane_width_ + 0.3));
       HLOG_DEBUG << "[occ module] line_blank_space:" << lane_width
@@ -835,7 +1017,273 @@ std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLine(
 
   return virutal_lines;
 }
+std::vector<em::Boundary> OccGuideLineManager::FineTuneGuideLineV2(
+    const std::vector<em::Boundary::Ptr>& bev_lanelines) {
+  std::vector<em::Boundary> virutal_lines;
+  int vitual_lane_num = -1;
 
+  auto stable_occs = GetStableOcc();
+  auto& right_occ = stable_occs.front();
+  auto& left_occ = stable_occs.back();
+
+  averge_entrance_lane_width_ = GetEntranceLaneWidth(bev_lanelines);
+  // 如果退出车道数计算过，则保持历史车道数。反之，需计算退出车道数。
+  if (assume_entrancelane_nums_by_entrancelane_ == -1) {
+    assume_entrancelane_nums_by_entrancelane_ = static_cast<int>(std::max(
+        static_cast<double>(std::floor((occ_width_ - safe_distance_ * 2) /
+                                           averge_entrance_lane_width_ +
+                                       0.3)),
+        1.0));
+  }
+
+  HLOG_DEBUG << "[occ module] fine_lane_width:" << averge_entrance_lane_width_
+             << " ,bev_lanelines size():" << bev_lanelines.size();
+  const auto& far_right_line = bev_lanelines.front();
+  const auto& far_left_line = bev_lanelines.back();
+  if (right_occ->nodes.empty() || left_occ->nodes.empty()) {
+    return {};
+  }
+  // 如果大于3.5m，n=width/3.5 -1,则先大胆的虚拟n条3.5m的车道线；
+  // 然后，对width-((n)*3.5)=余数,进行判断，如果大于5.5m，则平均为两条，否则直接到occ边缘虚拟1条。
+  float default_lane_width = 3.5f;
+  if (averge_entrance_lane_width_ <= 0) {
+    HLOG_ERROR << "[occ module] averge_entrance_lane_width_ <=0!";
+    return {};
+  }
+  HLOG_DEBUG << "right_occ id:" << right_occ->id
+             << " ,left_occ id:" << left_occ->id;
+  HLOG_DEBUG << "far_right_line start x:"
+             << far_right_line->nodes.front()->point.x()
+             << " ,y:" << far_right_line->nodes.front()->point.y();
+  HLOG_DEBUG << "far_left_line start x:"
+             << far_left_line->nodes.front()->point.x()
+             << " ,y:" << far_left_line->nodes.front()->point.y();
+  HLOG_DEBUG << "right_occ start x:" << right_occ->nodes.front()->point.x()
+             << " ,y:" << right_occ->nodes.front()->point.y();
+  HLOG_DEBUG << "left_occ start x:" << left_occ->nodes.front()->point.x()
+             << " ,y:" << left_occ->nodes.front()->point.y();
+  if (1) {
+    float right_blank_space = GetTwoBoundayDis(right_occ, far_right_line);
+    if (right_blank_space < -1.0) {
+      // 无需补虚拟线。
+    } else {
+      float right_blank_min_dist =
+          GetTwoBoundaryMinDis(right_occ, far_right_line);
+      HLOG_DEBUG << "[occ module] right_blank_space:" << right_blank_space
+                 << " ,right_blank_min_dist:" << right_blank_min_dist;
+
+      // 最小需要补的3.5m车道数目
+      int min_virtual_lane_num =
+          static_cast<int>(std::floor(std::fabs(right_blank_min_dist) /
+                                      default_lane_width)) > 0
+              ? static_cast<int>(std::floor(std::fabs(right_blank_min_dist) /
+                                            default_lane_width)) -
+                    1
+              : 0;
+
+      // 补充完最小车道数后，距离occ边界剩余的宽度
+      float remaining_width_right = std::fabs(right_blank_min_dist) -
+                                    min_virtual_lane_num * default_lane_width;
+      HLOG_DEBUG << " right min_virtual_lane_num:" << min_virtual_lane_num
+                 << " ,right remaining_width:" << remaining_width_right;
+      // 如果剩余宽度大于5.5m，则在平均补两条线，否则补一条。
+
+      if (remaining_width_right < 5.5) {
+        if (std::fabs(right_blank_min_dist) > 2.2) {
+          em::Boundary virtual_line;
+          for (const auto& node : far_right_line->nodes) {
+            Eigen::Vector2d point(node->point.x(), node->point.y());
+            em::BoundaryNode::Ptr virtual_node =
+                std::make_shared<em::BoundaryNode>();
+            virtual_node->point =
+                node->point +
+                Eigen::Vector3f{0.0, -1 * right_blank_min_dist, 0.0};
+            virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
+            virtual_line.nodes.emplace_back(virtual_node);
+          }
+          virtual_line.linetype = em::LaneType_INTERSECTION_VIRTUAL_MARKING;
+          virtual_line.color = em::WHITE;
+          virtual_line.lanepos = em::LanePositionType_OTHER;
+          virutal_lines.emplace_back(virtual_line);
+          HLOG_DEBUG << "virtual line by right occ and right line 000";
+        }
+
+      } else {
+        for (int i = 1; i <= 2; ++i) {
+          em::Boundary virtual_line;
+          for (const auto& node : far_right_line->nodes) {
+            Eigen::Vector2d point(node->point.x(), node->point.y());
+            em::BoundaryNode::Ptr virtual_node =
+                std::make_shared<em::BoundaryNode>();
+            virtual_node->point =
+                node->point +
+                Eigen::Vector3f{0.0,
+                                -1 * default_lane_width * min_virtual_lane_num -
+                                    remaining_width_right * i / 2.0,
+                                0.0};
+            virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
+            virtual_line.nodes.emplace_back(virtual_node);
+          }
+          virtual_line.linetype = em::LaneType_INTERSECTION_VIRTUAL_MARKING;
+          virtual_line.color = em::WHITE;
+          virtual_line.lanepos = em::LanePositionType_OTHER;
+          virutal_lines.emplace_back(virtual_line);
+          HLOG_DEBUG << "virtual line by right occ and right line 111";
+        }
+      }
+
+      for (int i = 1; i <= min_virtual_lane_num; ++i) {
+        em::Boundary virtual_line;
+        for (const auto& node : far_right_line->nodes) {
+          Eigen::Vector2d point(node->point.x(), node->point.y());
+          em::BoundaryNode::Ptr virtual_node =
+              std::make_shared<em::BoundaryNode>();
+          virtual_node->point =
+              node->point +
+              Eigen::Vector3f{0.0, -1 * default_lane_width * i, 0.0};
+          virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
+          virtual_line.nodes.emplace_back(virtual_node);
+        }
+        virtual_line.linetype = em::LaneType_INTERSECTION_VIRTUAL_MARKING;
+        virtual_line.color = em::WHITE;
+        virtual_line.lanepos = em::LanePositionType_OTHER;
+        virutal_lines.emplace_back(virtual_line);
+        HLOG_DEBUG << "virtual line by right occ and right line 222";
+      }
+    }
+  }
+
+  if (1) {
+    float left_blank_space = GetTwoBoundayDis(left_occ, far_left_line);
+    if (left_blank_space > 1.0) {
+      // 无需补虚拟线。
+    } else {
+      float left_blank_min_dist = GetTwoBoundaryMinDis(left_occ, far_left_line);
+      HLOG_DEBUG << "[occ module] left_blank_space:" << left_blank_space
+                 << " ,left_blank_min_dist:" << left_blank_min_dist;
+      // 最小需要补的3.5m车道数目
+      int min_virtual_lane_num =
+          static_cast<int>(std::floor(std::fabs(left_blank_min_dist) /
+                                      default_lane_width)) > 0
+              ? static_cast<int>(std::floor(std::fabs(left_blank_min_dist) /
+                                            default_lane_width)) -
+                    1
+              : 0;
+      // 如果大于3.5m，n=width/3.5 -1,则先大胆的虚拟n条3.5m的车道线；
+      // 然后，对width-((n)*3.5)=余数,进行判断，如果大于5.5m，则平均为两条，否则直接到occ边缘虚拟1条
+      float remaining_width = std::fabs(left_blank_min_dist) -
+                              min_virtual_lane_num * default_lane_width;
+      HLOG_DEBUG << " left min_virtual_lane_num:" << min_virtual_lane_num
+                 << " ,left remaining_width:" << remaining_width;
+      if (remaining_width < 5.5) {
+        if (std::fabs(left_blank_min_dist) > 2.2) {
+          em::Boundary virtual_line;
+          for (const auto& node : far_left_line->nodes) {
+            Eigen::Vector2d point(node->point.x(), node->point.y());
+            em::BoundaryNode::Ptr virtual_node =
+                std::make_shared<em::BoundaryNode>();
+            virtual_node->point =
+                node->point +
+                Eigen::Vector3f{0.0, -1 * left_blank_min_dist, 0.0};
+            virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
+            virtual_line.nodes.emplace_back(virtual_node);
+          }
+          virtual_line.linetype = em::LaneType_INTERSECTION_VIRTUAL_MARKING;
+          virtual_line.color = em::WHITE;
+          virtual_line.lanepos = em::LanePositionType_OTHER;
+          virutal_lines.emplace_back(virtual_line);
+          HLOG_DEBUG << "virtual line by left occ and left line 444 add width:"
+                     << virtual_line.nodes.front()->point.x() << ","
+                     << virtual_line.nodes.front()->point.y();
+        }
+
+      } else {
+        for (int i = 1; i <= 2; ++i) {
+          em::Boundary virtual_line;
+          for (const auto& node : far_left_line->nodes) {
+            Eigen::Vector2d point(node->point.x(), node->point.y());
+            em::BoundaryNode::Ptr virtual_node =
+                std::make_shared<em::BoundaryNode>();
+            virtual_node->point =
+                node->point +
+                Eigen::Vector3f{0.0,
+                                default_lane_width * min_virtual_lane_num +
+                                    remaining_width * i / 2.0,
+                                0.0};
+            virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
+            virtual_line.nodes.emplace_back(virtual_node);
+          }
+          virtual_line.linetype = em::LaneType_INTERSECTION_VIRTUAL_MARKING;
+          virtual_line.color = em::WHITE;
+          virtual_line.lanepos = em::LanePositionType_OTHER;
+          virutal_lines.emplace_back(virtual_line);
+          HLOG_DEBUG << "virtual line by left occ and left line 555 add width:"
+                     << virtual_line.nodes.front()->point.x() << ","
+                     << virtual_line.nodes.front()->point.y();
+        }
+      }
+
+      for (int i = 1; i <= min_virtual_lane_num; ++i) {
+        em::Boundary virtual_line;
+        for (const auto& node : far_left_line->nodes) {
+          Eigen::Vector2d point(node->point.x(), node->point.y());
+          em::BoundaryNode::Ptr virtual_node =
+              std::make_shared<em::BoundaryNode>();
+          virtual_node->point =
+              node->point + Eigen::Vector3f{0.0, default_lane_width * i, 0.0};
+
+          virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
+          virtual_line.nodes.emplace_back(virtual_node);
+        }
+        virtual_line.linetype = em::LaneType_INTERSECTION_VIRTUAL_MARKING;
+        virtual_line.color = em::WHITE;
+        virtual_line.lanepos = em::LanePositionType_OTHER;
+        virutal_lines.emplace_back(virtual_line);
+        HLOG_DEBUG << "virtual line by left occ and left line 666"
+                   << virtual_line.nodes.front()->point.x() << ","
+                   << virtual_line.nodes.front()->point.y();
+      }
+    }
+  }
+
+  // 车道线之间是否需要虚拟车道线。
+  if (bev_lanelines.size() > 1) {
+    for (int line_idx = 0;
+         line_idx < static_cast<int>(bev_lanelines.size()) - 1; ++line_idx) {
+      if (bev_lanelines.at(line_idx)->nodes.empty() ||
+          bev_lanelines.at(line_idx + 1)->nodes.empty()) {
+        continue;
+      }
+      float lane_width = GetTwoBoundayDis(bev_lanelines.at(line_idx),
+                                          bev_lanelines.at(line_idx + 1));
+      vitual_lane_num = static_cast<int>(std::floor(
+          std::fabs(lane_width) / averge_entrance_lane_width_ + 0.3));
+      HLOG_DEBUG << "[occ module] line_blank_space:" << lane_width
+                 << ", and virtual lane num:" << vitual_lane_num;
+      if (vitual_lane_num > 1) {
+        for (int i = 1; i <= vitual_lane_num - 1; ++i) {
+          em::Boundary virtual_line;
+          for (const auto& node : bev_lanelines.at(line_idx)->nodes) {
+            em::BoundaryNode::Ptr virtual_node =
+                std::make_shared<em::BoundaryNode>();
+            virtual_node->point =
+                node->point +
+                Eigen::Vector3f{0.0, averge_entrance_lane_width_ * i, 0.0};
+            virtual_node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;
+            virtual_line.nodes.emplace_back(virtual_node);
+          }
+          virtual_line.linetype = em::LaneType_INTERSECTION_VIRTUAL_MARKING;
+          virtual_line.color = em::WHITE;
+          virtual_line.lanepos = em::LanePositionType_OTHER;
+          virutal_lines.emplace_back(virtual_line);
+          HLOG_DEBUG << "virtual line by left line and right line 333";
+        }
+      }
+    }
+  }
+
+  return virutal_lines;
+}  // namespace mf
 std::vector<std::pair<em::Id, em::OccRoad::Ptr>>
 OccGuideLineManager::GetFrontOccRoadPair() {
   // 获取路口前的occ路沿线
@@ -910,7 +1358,6 @@ std::vector<std::pair<em::Id, em::OccRoad::Ptr>>
 OccGuideLineManager::GetBestOccPair(
     const std::vector<std::pair<em::Id, em::OccRoad::Ptr>>& front_occ_pair) {
   // 寻找与自车角度最小的豁口作为目标豁口
-
   if (front_occ_pair.empty()) {
     return {};
   }
@@ -923,12 +1370,13 @@ OccGuideLineManager::GetBestOccPair(
                     front_occ_pair.at(i + 1).second) < 6.5) {
       continue;
     }
-    const auto center_point =
+    const auto occ_center_point =
         (front_occ_pair.at(i).second->road_points.front() +
          front_occ_pair.at(i + 1).second->road_points.front()) /
         2.0;
 
-    float cur_angle = std::fabs(std::atan2(center_point.y(), center_point.x()));
+    float cur_angle =
+        std::fabs(std::atan2(occ_center_point.y(), occ_center_point.x()));
     if (cur_angle < min_occ_angle) {
       min_occ_angle = cur_angle;
       min_occ_idx = i;
@@ -1254,30 +1702,500 @@ Eigen::Vector3f OccGuideLineManager::CalcuDirectionVec(
   return dir_vector;
 }
 
-void OccGuideLineManager::AddCurrentMeasurementOcc() {
-  std::vector<std::pair<em::Id, em::OccRoad::Ptr>> front_occ_pair =
-      GetFrontOccRoadPair();
+bool OccGuideLineManager::CanOccPairOtherOcc(const em::OccRoad::Ptr& occ_i,
+                                             const em::OccRoad::Ptr& occ_j) {
+  if (occ_i->road_points.empty() || occ_j->road_points.empty()) {
+    return false;
+  }
+  const auto& occ_i_last_point = occ_i->road_points.back();
+  const auto& occ_j_last_point = occ_j->road_points.back();
+  const auto& occ_i_first_point = occ_i->road_points.front();
+  const auto& occ_j_first_point = occ_j->road_points.front();
+  const auto& occ_i_last_point_x = occ_i_last_point.x();
+  const auto& occ_j_last_point_x = occ_j_last_point.x();
+  const auto& occ_i_first_point_x = occ_i_first_point.x();
+  const auto& occ_j_first_point_x = occ_j_first_point.x();
+  if (occ_i_last_point_x < 0.0 && occ_j_last_point_x < 0.0) {
+    // 对于出现在ego_car后方的两条线，不进行配对。
+    HLOG_DEBUG << "occ_i_last_point_x < 0.0 and occ_j_last_point_x < 0.0";
+    return false;
+  }
+  if (occ_i_last_point_x < 0.0 || occ_j_last_point_x < 0.0) {
+    // 对于其中一条occ线位于车子后方的情况， 不进行配对(暂时也不支持处理)。
+    HLOG_DEBUG << "occ_i_last_point_x < 0.0 or occ_j_last_point_x < 0.0";
+    return false;
+  }
 
+  // 两条线贯穿自车位置的情况，考虑专门设置一个模块在自车位置附近去补线。
+  if (occ_i_first_point_x < 0.0 && occ_j_first_point_x < 0.0) {
+    HLOG_DEBUG << "occ_i_last_point_x < 0.0 and occ_j_first_point_x < 0.0";
+    return false;
+  }
+
+  float overlay_min_max = std::max(occ_i_first_point_x, occ_j_first_point_x);
+  float overlay_max_min = std::min(occ_i_last_point_x, occ_j_last_point_x);
+
+  if (overlay_max_min - overlay_min_max < 10.0) {
+    HLOG_DEBUG << "occ overlay < 10.0";
+    return false;
+  }
+
+  if (overlay_min_max < ego_line_x_dis_) {
+    return false;
+  }
+
+  // 从两条线上分别最接近x=overlay_min_max的点。
+  Eigen::Vector3d occ_i_nearest_point;
+  Eigen::Vector3d occ_j_nearest_point;
+  for (const auto& point : occ_i->road_points) {
+    if (point.x() < overlay_min_max) {
+      continue;
+    } else {
+      occ_i_nearest_point = point;
+      break;
+    }
+  }
+
+  for (const auto& point : occ_j->road_points) {
+    if (point.x() < overlay_min_max) {
+      continue;
+    } else {
+      occ_j_nearest_point = point;
+      break;
+    }
+  }
+
+  Eigen::Vector3d nearest_point =
+      0.5 * (occ_i_nearest_point + occ_j_nearest_point);
+
+  auto theta = std::atan2(nearest_point.y(), nearest_point.x());
+  // 小于45度的豁口pair，不进行配对。
+  // TODO(张文海) 后续优化为以路口判定初始时刻下的自车位置点进行角度判断。
+  if (std::abs(theta) < 1.0) {
+    // return false;
+  }
+
+  // 如果豁口宽度比较小，不进行配对。
+  if (GetOccWidth(occ_i, occ_j) < 6.5) {
+    HLOG_DEBUG << "occ width < 6.5";
+    return false;
+  }
+
+  return true;
+}
+
+std::vector<std::vector<bool>> OccGuideLineManager::ConstructPairTable() {
+  const int& occ_num = static_cast<int>(input_occ_set_.size());
+  if (occ_num == 0) {
+    return {};
+  }
+  std::vector<std::vector<bool>> pair_table(occ_num,
+                                            std::vector<bool>(occ_num, false));
+  for (int i = 0; i < occ_num - 1; ++i) {
+    for (int j = i + 1; j < occ_num; ++j) {
+      const auto& occ_i = input_occ_set_.at(i);
+      const auto& occ_j = input_occ_set_.at(j);
+      if (CanOccPairOtherOcc(occ_i, occ_j)) {
+        pair_table[i][j] = true;
+      } else {
+        pair_table[i][j] = false;
+      }
+    }
+  }
+
+  return pair_table;
+}
+
+void OccGuideLineManager::CloseOccPairStatus(
+    std::vector<std::vector<bool>>* pair_table, int i) {
+  // 将i行置为false
+  std::fill((*pair_table)[i].begin(), (*pair_table)[i].end(), false);
+
+  // 将i列置为false
+  for (auto& row : (*pair_table)) {
+    row[i] = false;
+  }
+}
+
+void OccGuideLineManager::FilterBadOccByVertical(
+    std::vector<std::vector<bool>>* pair_table) {
+  std::vector<std::vector<double>> pair_dis_table(
+      (*pair_table).size(), std::vector<double>((*pair_table)[0].size(), NAN));
+
+  // 构建occ pair之间的距离表
+  for (int i = 0; i < static_cast<int>((*pair_table).size()) - 1; ++i) {
+    for (int j = i + 1; j < static_cast<int>((*pair_table)[i].size()); ++j) {
+      if ((*pair_table)[i][j]) {
+        const auto& occ_i = input_occ_set_.at(i);
+        const auto& occ_j = input_occ_set_.at(j);
+
+        double occ_dis = GetTwoBoundayDis(occ_i, occ_j);
+        HLOG_DEBUG << "[occ debug] " << "track id:" << occ_i->track_id
+                   << " and track id:" << occ_j->track_id
+                   << " distance:" << occ_dis;
+        pair_dis_table[i][j] = occ_dis;
+        pair_dis_table[j][i] = -occ_dis;
+      }
+    }
+  }
+
+  // 横向上occ位置靠近的occ线集， 只保留离车最近的occ线。
+  for (int i = 0; i < static_cast<int>(pair_table->size()) - 1; ++i) {
+    std::vector<int> pair_indexs;
+    for (int j = 0; j < static_cast<int>((*pair_table)[i].size()); ++j) {
+      if (j == i) {
+        continue;
+      }
+
+      if ((i > j) && (*pair_table)[j][i]) {
+        pair_indexs.emplace_back(j);
+      }
+
+      if ((i < j) && (*pair_table)[i][j]) {
+        pair_indexs.emplace_back(j);
+      }
+    }
+
+    if (pair_indexs.size() < 2) {
+      continue;
+    }
+    for (int index = 0; index < static_cast<int>(pair_indexs.size()) - 1;
+         ++index) {
+      const auto& occ_i = input_occ_set_.at(pair_indexs[index]);
+      const auto& occ_j = input_occ_set_.at(pair_indexs[index + 1]);
+      // HLOG_DEBUG< "[occ debug] " << "track_id:" << occ_i->track_id << "," <<
+      // "wi"
+      if (std::fabs(pair_dis_table[i][pair_indexs[index + 1]] -
+                    pair_dis_table[i][pair_indexs[index]]) < 2.0) {
+        const auto& occ_i_last_point = occ_i->road_points.back();
+        const auto& occ_j_last_point = occ_j->road_points.back();
+        const auto& occ_i_first_point = occ_i->road_points.front();
+        const auto& occ_j_first_point = occ_j->road_points.front();
+        const auto& occ_i_last_point_x = occ_i_last_point.x();
+        const auto& occ_j_last_point_x = occ_j_last_point.x();
+        const auto& occ_i_first_point_x = occ_i_first_point.x();
+        const auto& occ_j_first_point_x = occ_j_first_point.x();
+        if (occ_j_last_point_x < 0.0) {
+          // 此时需要过滤掉j线。
+          CloseOccPairStatus(pair_table, pair_indexs[index + 1]);
+        } else if (occ_i_last_point_x < 0.0) {
+          // 此时需要过滤掉i线。
+          CloseOccPairStatus(pair_table, pair_indexs[index]);
+        } else if (occ_j_first_point_x > 0.0 &&
+                   occ_i_first_point_x > occ_j_first_point_x) {
+          // 此时需要过滤掉i线。
+          CloseOccPairStatus(pair_table, pair_indexs[index]);
+        } else if (occ_i_first_point_x > 0.0 &&
+                   occ_j_first_point_x > occ_i_first_point_x) {
+          // 此时需要过滤掉j线。
+          CloseOccPairStatus(pair_table, pair_indexs[index + 1]);
+        } else if (occ_i_first_point_x < 0.0 && occ_j_first_point_x > 0.0) {
+          // 此时需要过滤掉i线。
+          CloseOccPairStatus(pair_table, pair_indexs[index]);
+        } else if (occ_i_first_point_x > 0.0 && occ_j_first_point_x < 0.0) {
+          // 此时需要过滤掉j线。
+          CloseOccPairStatus(pair_table, pair_indexs[index + 1]);
+        } else if (occ_i_first_point_x < 0.0 && occ_j_first_point_x < 0.0 &&
+                   occ_i_last_point_x < occ_j_last_point_x) {
+          // 此时需要过滤掉i线。
+          CloseOccPairStatus(pair_table, pair_indexs[index]);
+        } else if (occ_i_first_point_x < 0.0 && occ_j_first_point_x < 0.0 &&
+                   occ_i_last_point_x > occ_j_last_point_x) {
+          // 此时需要过滤掉i线。
+          CloseOccPairStatus(pair_table, pair_indexs[index + 1]);
+        } else {
+          HLOG_WARN << "It's unnormal scene...";
+        }
+      }
+    }
+  }
+}
+
+void OccGuideLineManager::FilterBadOccByHorizon(
+    std::vector<std::vector<bool>>* pair_table) {
+  // 对于循环配对的情况，进行解循环处理。
+  /*
+
+  |    |     |
+  |    |     |
+  |    |     |
+  |    |     |
+  |    |     |
+
+  1    3     4
+
+  1 <--> 3, 3 <--> 4, 1 <--> 4
+  解循环配对，1 <--> 3, 3 <--> 4
+  */
+
+  // 横向上occ位置靠近的occ线集， 只保留离车最近的occ线。
+  for (int i = 0; i < static_cast<int>((*pair_table).size()); ++i) {
+    std::vector<int> pair_indexs;
+    for (int j = i + 1; j < static_cast<int>((*pair_table)[0].size()); ++j) {
+      if ((*pair_table)[i][j]) {
+        pair_indexs.emplace_back(j);
+      }
+    }
+
+    if (pair_indexs.size() < 2) {
+      continue;
+    }
+    for (int index = 0; index < static_cast<int>(pair_indexs.size()) - 1;
+         ++index) {
+      if ((*pair_table)[pair_indexs[index]][pair_indexs[index + 1]]) {
+        (*pair_table)[i][pair_indexs[index + 1]] = false;
+      }
+    }
+  }
+}
+
+std::vector<std::pair<em::Id, em::OccRoad::Ptr>>
+OccGuideLineManager::SelectBestOccPair(
+    const std::vector<std::vector<bool>>* pair_table) {
+  // 如果退出车道能够找到，则使用退出车道中心点来计算与occ pair之间的角度。
+  float average_exitlane_heading = 0.0;
+  Eigen::Vector3d exitlane_cp{0.0, 0.0, 0.0};
+  int calcu_times = 0;
+  if (exit_lane_info_.exist &&
+      exit_lane_info_.right_boundary_points.size() >= 5 &&
+      exit_lane_info_.left_boundary_points.size() >= 5) {
+    const auto& right_ep = exit_lane_info_.right_boundary_points.back();
+    const auto& right_sp = exit_lane_info_.right_boundary_points.at(
+        exit_lane_info_.right_boundary_points.size() - 5);
+    auto right_vehicle_ep = curr_pose_.TransLocalToVehicle(right_ep);
+    auto right_vehicle_sp = curr_pose_.TransLocalToVehicle(right_sp);
+    auto right_delta_vec = right_vehicle_ep - right_vehicle_sp;
+    const auto& right_heading =
+        std::atan2(right_delta_vec.y(), right_delta_vec.x());
+    average_exitlane_heading += right_heading;
+    calcu_times++;
+
+    const auto& left_ep = exit_lane_info_.left_boundary_points.back();
+    const auto& left_sp = exit_lane_info_.left_boundary_points.at(
+        exit_lane_info_.left_boundary_points.size() - 5);
+    auto left_vehicle_ep = curr_pose_.TransLocalToVehicle(left_ep);
+    auto left_vehicle_sp = curr_pose_.TransLocalToVehicle(left_sp);
+    auto left_delta_vec = left_vehicle_ep - left_vehicle_sp;
+    const auto& left_heading =
+        std::atan2(left_delta_vec.y(), left_delta_vec.x());
+    average_exitlane_heading += left_heading;
+    calcu_times++;
+  }
+
+  if (calcu_times != 0 && exit_lane_info_.right_boundary_points.size() >= 5 &&
+      exit_lane_info_.left_boundary_points.size() >= 5) {
+    average_exitlane_heading =
+        static_cast<float>(average_exitlane_heading / 1.0 * calcu_times);
+    const auto& right_ep = exit_lane_info_.right_boundary_points.back();
+    const auto& left_ep = exit_lane_info_.left_boundary_points.back();
+    const auto& center_cp = 0.5 * (right_ep + left_ep);
+    exitlane_cp = {center_cp.x(), center_cp.y(), center_cp.z()};
+  }
+
+  float min_occ_angle = FLT_MAX;
+  float first_passbile_dis = FLT_MAX;
+  em::OccRoad::Ptr right_occ = nullptr;
+  em::OccRoad::Ptr left_occ = nullptr;
+
+  em::OccRoad::Ptr passble_right_occ = nullptr;
+  em::OccRoad::Ptr passble_left_occ = nullptr;
+
+  for (int i = 0; i < static_cast<int>((*pair_table).size()) - 1; ++i) {
+    for (int j = i + 1; j < static_cast<int>((*pair_table)[i].size()); ++j) {
+      if ((*pair_table)[i][j]) {
+        const auto& occ_i = input_occ_set_.at(i);
+        const auto& occ_j = input_occ_set_.at(j);
+        const auto occ_center_point =
+            (occ_i->road_points.front() + occ_j->road_points.front()) / 2.0;
+        // float cur_angle = std::fabs(std::atan2(occ_center_point.y(),
+        // occ_center_point.x()));
+        const auto connect_vector = occ_center_point - exitlane_cp;
+        float cur_angle = std::atan2(connect_vector.y(), connect_vector.x());
+        cur_angle = std::fabs(cur_angle - average_exitlane_heading);
+        HLOG_DEBUG << "[occ debug] "
+                   << ", occ pair: right_occ track id:" << occ_i->track_id
+                   << "," << "left_occ track id:" << occ_j->track_id
+                   << ", angle:" << cur_angle;
+
+        HLOG_DEBUG << "[occ debug] "
+                   << ", occ pair: right_occ track id:" << occ_i->track_id
+                   << "," << " y:" << occ_i->road_points.front().y() << ","
+                   << "left_occ track id:" << occ_j->track_id
+                   << ", angle:" << " y:" << occ_j->road_points.front().y();
+        if (cur_angle < min_occ_angle) {
+          min_occ_angle = cur_angle;
+          right_occ = occ_i;
+          left_occ = occ_j;
+        }
+
+        if ((occ_i->road_points.front().y() < 0 &&
+             occ_j->road_points.front().y() > 0)) {
+          if (occ_center_point.x() < first_passbile_dis) {
+            first_passbile_dis = static_cast<float>(occ_center_point.x());
+            passble_right_occ = occ_i;
+            passble_left_occ = occ_j;
+          }
+        }
+      }
+    }
+  }
+
+  if (right_occ == nullptr || left_occ == nullptr) {
+    return {};
+  }
+
+  HLOG_DEBUG << "[occ debug] " << ", min angle occ pair: right_occ track id:"
+             << right_occ->track_id << ","
+             << "left_occ track id:" << left_occ->track_id;
+
+  if (passble_right_occ == nullptr || passble_left_occ == nullptr) {
+    HLOG_DEBUG << "[occ debug] " << ", first passbile occ pair: right_occ null:"
+               << "left_occ null:";
+  } else {
+    HLOG_DEBUG << "[occ debug] "
+               << ", first passbile occ pair: right_occ track id:"
+               << passble_right_occ->track_id << ","
+               << "left_occ track id:" << passble_left_occ->track_id;
+  }
+
+  std::vector<std::pair<em::Id, em::OccRoad::Ptr>> best_occ_pair;
+
+  if ((passble_right_occ != nullptr && passble_right_occ != nullptr) &&
+      (passble_right_occ->track_id != right_occ->track_id ||
+       passble_left_occ->track_id != left_occ->track_id)) {
+    const auto pasble_occ_center_point =
+        (passble_right_occ->road_points.front() +
+         passble_left_occ->road_points.front()) /
+        2.0;
+    const auto min_angle_occ_center_point =
+        (right_occ->road_points.front() + left_occ->road_points.front()) / 2.0;
+    if (pasble_occ_center_point.x() < min_angle_occ_center_point.x() - 8.0) {
+      best_occ_pair.emplace_back(passble_right_occ->track_id,
+                                 passble_right_occ);
+      best_occ_pair.emplace_back(passble_left_occ->track_id, passble_left_occ);
+    } else {
+      best_occ_pair.emplace_back(right_occ->track_id, right_occ);
+      best_occ_pair.emplace_back(left_occ->track_id, left_occ);
+    }
+  } else {
+    best_occ_pair.emplace_back(right_occ->track_id, right_occ);
+    best_occ_pair.emplace_back(left_occ->track_id, left_occ);
+  }
+
+  return best_occ_pair;
+}
+
+void OccGuideLineManager::DebugPrint(
+    const std::string tag, const std::vector<std::vector<bool>>& pair_table,
+    bool show = false) {
+  for (int i = 0; i < static_cast<int>((pair_table).size()); ++i) {
+    for (int j = i + 1; j < static_cast<int>((pair_table)[i].size()); ++j) {
+      if ((pair_table)[i][j]) {
+        if (show) {
+          input_occ_set_[i]->is_forward = true;
+          input_occ_set_[j]->is_forward = true;
+        }
+        HLOG_DEBUG << "[occ_debug] " << tag
+                   << ", occ track id:" << input_occ_set_[i]->track_id
+                   << ", and "
+                   << ", occ track id:" << input_occ_set_[j]->track_id
+                   << " can pair...";
+      }
+    }
+  }
+}
+
+std::vector<std::pair<em::Id, em::OccRoad::Ptr>>
+OccGuideLineManager::GetBestOccPair(
+    std::vector<std::vector<bool>>* pair_table) {
+  /* 选择最佳豁口的逻辑实现*/
+  if (pair_table->empty()) {
+    return {};
+  }
+
+  // 根据横向距离一致的，在纵向位置上策略进行配对过滤;
+  DebugPrint("before vertical filter", *pair_table, false);
+  FilterBadOccByVertical(pair_table);
+  DebugPrint("before horizon filter", *pair_table, false);
+
+  // 根据横向位置解除循环配对的occ pair;
+  FilterBadOccByHorizon(pair_table);
+  DebugPrint("before select best filter", *pair_table, false);
+
+  // 逆向障碍物标记TODO(朱晓林)
+
+  // 选泽最佳occ pair;
+  return SelectBestOccPair(pair_table);
+}
+
+float OccGuideLineManager::GetEgoLineNearestDistance() {
+  std::vector<float> x_dis;
+  for (const auto& boundary : bev_laneline_boundarys_) {
+    auto& nodes = boundary.second->nodes;
+    if (nodes.empty()) {
+      continue;
+    }
+    if (boundary.second->lanepos == em::LanePos::LanePositionType_EGO_LEFT &&
+        nodes.front()->point.x() <= 0.0 && nodes.back()->point.x() >= 0.0) {
+      x_dis.emplace_back(nodes.back()->point.x());
+    }
+    if (boundary.second->lanepos == em::LanePos::LanePositionType_EGO_RIGHT &&
+        nodes.front()->point.x() <= 0.0 && nodes.back()->point.x() >= 0.0) {
+      x_dis.emplace_back(nodes.back()->point.x());
+    }
+  }
+
+  if (x_dis.size() == 2) {
+    return std::min(x_dis[0], x_dis[1]);
+  }
+
+  if (x_dis.size() == 1 && x_dis[0] < 35.0) {
+    return x_dis[0];
+  }
+
+  return 15.0;
+}
+
+void OccGuideLineManager::AddCurrentMeasurementOcc() {
+  input_occ_set_.clear();
+  for (const auto& roadedge : input_ele_map_->occ_roads) {
+    const auto& track_id = roadedge.first;
+    const auto& occ_road = roadedge.second;
+    if (occ_road->road_points.empty()) {
+      continue;
+    }
+    input_occ_set_.emplace_back(occ_road);
+  }
+
+  HLOG_DEBUG << "[occ debug], input occ set:" << input_occ_set_.size();
+  // 根据线条第一个点的y坐标从右到左进行排序
+  std::sort(input_occ_set_.begin(), input_occ_set_.end(),
+            [](const auto& a, const auto& b) {
+              return a->road_points.front().y() < b->road_points.front().y();
+            });
+
+  // 获取主车道最近的车道线纵向长度。
+  ego_line_x_dis_ = GetEgoLineNearestDistance();
+
+  // 使用邻接表表示所有occ集合的配对关系。
+  std::vector<std::vector<bool>> pair_table = ConstructPairTable();
+  DebugPrint("construct pair table", pair_table, false);
+
+  // 从全部配对的occ中挑选一个最佳的occ pair。
+  HLOG_DEBUG << "[occ debug] " << " start get best occ pair...";
   std::vector<std::pair<em::Id, em::OccRoad::Ptr>> best_occ_pair =
-      GetBestOccPair(front_occ_pair);
+      GetBestOccPair(&pair_table);
 
   std::vector<em::Boundary::Ptr> best_occ_pair_local;
   if (best_occ_pair.empty()) {
     history_n_best_occs_.push_back(best_occ_pair_local);
     return;
   }
-  // HLOG_DEBUG << "right occ curve params:"
-  //           << best_occ_pair.front().second->curve_params[3] << ","
-  //           << best_occ_pair.front().second->curve_params[2] << ","
-  //           << best_occ_pair.front().second->curve_params[1] << ","
-  //           << best_occ_pair.front().second->curve_params[0];
-  // for (auto& node : best_occ_pair.front().second->road_points) {
-  //   HLOG_DEBUG << "right occ: before trans point loc: " << node.x() << ","
-  //             << node.y();
-  // }
+  HLOG_DEBUG << "[occ debug] " << " best occ pair:" << "occ track id, "
+             << best_occ_pair.front().first << " and occ track id, "
+             << best_occ_pair.back().first << ", can pair...";
 
   // 将occ中的点转换到local系下。
-
   for (int i = 0; i < best_occ_pair.size(); ++i) {
     em::Boundary::Ptr boundary_data = std::make_shared<em::Boundary>();
     auto& occ_points = best_occ_pair.at(i).second->road_points;
@@ -1301,6 +2219,8 @@ void OccGuideLineManager::AddCurrentMeasurementOcc() {
 }
 
 bool OccGuideLineManager::CheckOccWhetherStable() {
+  HLOG_DEBUG << "[occ debug] " << "history_n_best_occs_size, "
+             << history_n_best_occs_.size();
   if (history_n_best_occs_.size() < history_measure_size_) {
     return false;
   }
@@ -1313,31 +2233,33 @@ bool OccGuideLineManager::CheckOccWhetherStable() {
   double right_y_min = DBL_MAX;
   double right_x_max = -DBL_MAX;
   double right_y_max = -DBL_MAX;
+
+  bool right_occ_sp_before_ego = false;
+  bool left_occ_sp_before_ego = false;
   for (int i = 0; i < history_n_best_occs_.size(); ++i) {
-    const auto& occ_pairs = history_n_best_occs_.at(i);
-    if (occ_pairs.empty() || occ_pairs.front() == nullptr ||
-        occ_pairs.back() == nullptr || occ_pairs.front()->nodes.empty() ||
-        occ_pairs.back()->nodes.empty()) {
+    const auto& occ_pair = history_n_best_occs_.at(i);
+    if (occ_pair.empty() || occ_pair.front() == nullptr ||
+        occ_pair.back() == nullptr || occ_pair.front()->nodes.empty() ||
+        occ_pair.back()->nodes.empty()) {
       return false;
     }
 
     // 如果有效长度比较小， 则认为是不稳定的。
     const auto& right_occ_vaild_start_point =
-        occ_pairs.front()
-            ->nodes.at(occ_pairs.front()->occ_valid_start_index)
+        occ_pair.front()
+            ->nodes.at(occ_pair.front()->occ_valid_start_index)
             ->point;
     const auto& right_occ_vaild_end_point =
-        occ_pairs.front()->nodes.back()->point;
+        occ_pair.front()->nodes.back()->point;
     const auto& right_occ_valid_length =
         (right_occ_vaild_end_point - right_occ_vaild_start_point).norm();
 
     // 如果有效长度比较小， 则认为是不稳定的。
     const auto& left_occ_vaild_start_point =
-        occ_pairs.back()
-            ->nodes.at(occ_pairs.back()->occ_valid_start_index)
+        occ_pair.back()
+            ->nodes.at(occ_pair.back()->occ_valid_start_index)
             ->point;
-    const auto& left_occ_vaild_end_point =
-        occ_pairs.back()->nodes.back()->point;
+    const auto& left_occ_vaild_end_point = occ_pair.back()->nodes.back()->point;
     const auto& left_occ_valid_length =
         (left_occ_vaild_end_point - left_occ_vaild_start_point).norm();
 
@@ -1346,8 +2268,21 @@ bool OccGuideLineManager::CheckOccWhetherStable() {
       return false;
     }
 
-    auto& right_occ_point = occ_pairs.front()->nodes.front()->point;
-    auto& left_occ_point = occ_pairs.back()->nodes.front()->point;
+    // 对于出现在ego_car前方的occ，
+    auto& right_occ_local_point = occ_pair.front()->nodes.front()->point;
+    auto& left_occ_local_point = occ_pair.back()->nodes.front()->point;
+    Eigen::Vector3f right_occ_sp{right_occ_local_point.x(),
+                                 right_occ_local_point.y(),
+                                 right_occ_local_point.z()};
+    auto right_occ_point = curr_pose_.TransLocalToVehicle(right_occ_sp);
+    Eigen::Vector3f left_occ_sp{left_occ_local_point.x(),
+                                left_occ_local_point.y(),
+                                left_occ_local_point.z()};
+    auto left_occ_point = curr_pose_.TransLocalToVehicle(left_occ_sp);
+
+    right_occ_sp_before_ego = right_occ_point.x() < 0.0;
+    left_occ_sp_before_ego = left_occ_point.x() < 0.0;
+
     if (right_occ_point.x() < right_x_min) {
       right_x_min = right_occ_point.x();
     }
@@ -1390,28 +2325,23 @@ bool OccGuideLineManager::CheckOccWhetherStable() {
              << "left_y_max:" << left_y_max << ","
              << "left_y_min:" << left_y_min << ","
              << "delta_y:" << left_y_max - left_y_min;
+  HLOG_DEBUG << "[occ module]:" << "right_occ_sp_before_ego"
+             << right_occ_sp_before_ego;
+  HLOG_DEBUG << "[occ module]:" << "left_occ_sp_before_ego"
+             << left_occ_sp_before_ego;
+  float right_x_distance_thresh = x_distance_error_thresh_;
+  float left_x_distance_thresh = x_distance_error_thresh_;
+  if (right_occ_sp_before_ego) {
+    right_x_distance_thresh = right_x_distance_thresh * 2;
+  }
+  if (left_occ_sp_before_ego) {
+    left_x_distance_thresh = left_x_distance_thresh * 2;
+  }
 
-  return std::abs(right_x_max - right_x_min) <= 2 * distance_error_thresh_ &&
-         std::abs(right_y_max - right_y_min) <= distance_error_thresh_ &&
-         std::abs(left_x_max - left_x_min) <= 2 * distance_error_thresh_ &&
-         std::abs(left_y_max - left_y_min) <= distance_error_thresh_;
-}
-
-float OccGuideLineManager::perpendicular_distance(const Eigen::Vector3f& A,
-                                                  const Eigen::Vector3f& B,
-                                                  const Eigen::Vector3f& P) {
-  // 向量 AB
-  Eigen::Vector3f AB = B - A;
-  // 向量 AP
-  Eigen::Vector3f AP = P - A;
-  // 叉乘 AB x AP
-  Eigen::Vector3f crossProduct = AB.cross(AP);
-  // AB 的模长
-  float lengthAB = AB.norm();
-  // 垂线距离
-  float distance = crossProduct.norm() / (lengthAB + 0.001);
-
-  return distance;
+  return std::abs(right_x_max - right_x_min) <= right_x_distance_thresh &&
+         std::abs(right_y_max - right_y_min) <= y_distance_error_thresh_ &&
+         std::abs(left_x_max - left_x_min) <= left_x_distance_thresh &&
+         std::abs(left_y_max - left_y_min) <= y_distance_error_thresh_;
 }
 
 float OccGuideLineManager::GetExitLaneWidth() {
@@ -1474,11 +2404,11 @@ float OccGuideLineManager::GetExitLaneWidth() {
     if (value_line->nodes.size() == 1) {
       lane_width = ((*it)->point - query_point).norm();
     } else if (it == std::prev(value_line->nodes.end())) {
-      lane_width = perpendicular_distance((*std::prev(it))->point, (*it)->point,
-                                          query_point);
+      lane_width = math::perpendicular_distance((*std::prev(it))->point,
+                                                (*it)->point, query_point);
     } else {
-      lane_width = perpendicular_distance((*std::next(it))->point, (*it)->point,
-                                          query_point);
+      lane_width = math::perpendicular_distance((*std::next(it))->point,
+                                                (*it)->point, query_point);
     }
     HLOG_DEBUG << "[occ module] calcu back lane width:" << lane_width;
     if (lane_width < 5.0 && lane_width > 2.0) {
@@ -1578,7 +2508,7 @@ void OccGuideLineManager::FineTuneOccPair(
       // 补点方式优化，使用一次方程来补点
       Eigen::Vector3f virtual_point =
           (right_occ_start_x - x) * right_occ_heading + right_occ_start_point;
-      // HLOG_DEBUG << "[occ module]add right points:" << x << "," << y;
+      // HLOG_DEBUG<< "[occ module]add right points:" << x << "," << y;
       if (!ComputerPointIsInLine(virtual_point, left_occ->nodes.front()->point,
                                  left_occ->nodes.back()->point)) {
         break;
@@ -1600,13 +2530,14 @@ void OccGuideLineManager::FineTuneOccPair(
       Eigen::Vector3f virtual_point =
           (left_occ_start_x - x) * left_occ_heading + left_occ_start_point;
 
-      // HLOG_DEBUG << "[occ module] add left points:" << virtual_point.x() <<
+      // HLOG_DEBUG<< "[occ module] add left points:" << virtual_point.x()
+      // <<
       // ","
       //           << virtual_point.y();
-      // HLOG_DEBUG << "[occ module] right occ start points:"
+      // HLOG_DEBUG<< "[occ module] right occ start points:"
       //           << right_occ->nodes.front()->point.x() << ","
       //           << right_occ->nodes.front()->point.y();
-      // HLOG_DEBUG << "[occ module] right occ end points:"
+      // HLOG_DEBUG<< "[occ module] right occ end points:"
       //           << right_occ->nodes.back()->point.x() << ","
       //           << right_occ->nodes.back()->point.y();
       if (!ComputerPointIsInLine(virtual_point, right_occ->nodes.front()->point,
@@ -1679,12 +2610,8 @@ std::vector<em::Boundary> OccGuideLineManager::OccRegionSplit(
           return (point - a->point).norm() < (point - b->point).norm();
         });
     Eigen::Vector3f closestPointB = (*it)->point;
-    HLOG_DEBUG << "444 left occ node:" << closestPointB.x() << ","
-               << closestPointB.y();
     Eigen::Vector3f delta_norm_vector =
         (closestPointB - node->point).normalized();
-    HLOG_DEBUG << "444 delta_norm_vector:" << delta_norm_vector.x() << ","
-               << delta_norm_vector.y();
     float norm_value =
         (closestPointB - node->point).norm() - 2 * safe_distance_;
     for (int i = 0; i <= assume_entrancelane_nums_by_exitlane_; ++i) {
@@ -1693,7 +2620,6 @@ std::vector<em::Boundary> OccGuideLineManager::OccRegionSplit(
           delta_norm_vector *
               (norm_value * i / assume_entrancelane_nums_by_exitlane_ +
                safe_distance_);
-      HLOG_DEBUG << "444 create occ node:" << point_i.x() << "," << point_i.y();
       em::BoundaryNode::Ptr node = std::make_shared<em::BoundaryNode>();
       node->point = point_i;
       node->dash_seg = em::DashSegType::UNKNOWN_DASH_SEG;

@@ -293,6 +293,10 @@ class GeoOptimization {
 
   // void PridictCenterMapLanes();
 
+  void CompareOccLines(
+      const std::vector<std::pair<int, em::OccRoad>>& left_group,
+      const std::vector<std::pair<int, em::OccRoad>>& right_group,
+      std::vector<std::pair<int, int>>* line_pairs);
   void CompareGroupLines(
       std::vector<std::vector<std::pair<int, em::OccRoad>>>* groupedLines,
       std::vector<std::pair<int, int>>* line_pairs);

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "modules/local_mapping/utils/curve_fitter.h"

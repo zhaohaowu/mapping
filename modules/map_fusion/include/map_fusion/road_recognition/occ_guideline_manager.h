@@ -31,12 +31,20 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
+struct ExitLaneInfo {
+  std::vector<em::Point> left_boundary_points;
+  std::vector<em::Point> right_boundary_points;
+  bool exist = false;
+};
+
 class OccGuideLineManager {
  public:
   OccGuideLineManager() {
     input_ele_map_ = std::make_shared<em::ElementMap>();
     history_n_best_occs_.set_capacity(history_measure_size_);
     history_n_best_occs_.clear();
+
+    exit_lane_info_.exist = false;
   }
 
   void Process(const em::ElementMap::Ptr& ele_map,
@@ -54,6 +62,8 @@ class OccGuideLineManager {
     occ_width_ = 0.0;
     occ_dir_vec_.setZero();
     stable_occ_datas_.clear();
+    ego_line_x_dis_ = 0.0;
+    exit_lane_info_.exist = false;
   }
 
  protected:
@@ -61,7 +71,8 @@ class OccGuideLineManager {
   std::vector<em::Boundary::Ptr> GetBevLaneLineInOcc();
   std::vector<em::Boundary> FineTuneGuideLine(
       const std::vector<em::Boundary::Ptr>& bev_linelines);
-
+  std::vector<em::Boundary> FineTuneGuideLineV2(
+      const std::vector<em::Boundary::Ptr>& bev_linelines);
   void FineTuneOccPair(std::vector<em::Boundary::Ptr> best_occ_pair);
 
   bool IsLineBetweenOcc(const em::Boundary::Ptr& line);
@@ -74,7 +85,7 @@ class OccGuideLineManager {
 
   Eigen::Vector3f CalcuDirectionVecV2(em::Boundary::Ptr right_occ,
                                       em::Boundary::Ptr left_occ);
-
+  void RecordExitLaneInfos();
   void SetStableOcc();
   std::vector<em::Boundary::Ptr> GetStableOcc();
   void AddCurrentMeasurementOcc();
@@ -83,10 +94,24 @@ class OccGuideLineManager {
   std::vector<std::pair<em::Id, em::OccRoad::Ptr>> GetFrontOccRoadPair();
   std::vector<std::pair<em::Id, em::OccRoad::Ptr>> GetBestOccPair(
       const std::vector<std::pair<em::Id, em::OccRoad::Ptr>>& front_occ_set);
+
+  std::vector<std::vector<bool>> ConstructPairTable();
+  std::vector<std::pair<em::Id, em::OccRoad::Ptr>> GetBestOccPair(
+      std::vector<std::vector<bool>>* pair_table);
+  bool CanOccPairOtherOcc(const em::OccRoad::Ptr& occ_i,
+                          const em::OccRoad::Ptr& occ_j);
   double GetOccWidth(const em::OccRoad::Ptr& right_occ,
                      const em::OccRoad::Ptr& left_occ);
+  void FilterBadOccByVertical(std::vector<std::vector<bool>>* pair_table);
+  void FilterBadOccByHorizon(std::vector<std::vector<bool>>* pair_table);
+  void CloseOccPairStatus(std::vector<std::vector<bool>>* pair_table,
+                          int occ_index);
+  std::vector<std::pair<em::Id, em::OccRoad::Ptr>> SelectBestOccPair(
+      const std::vector<std::vector<bool>>* pair_table);
 
   float GetExitLaneWidth();
+
+  float GetEgoLineNearestDistance();
 
   float GetEntranceLaneWidth(
       const std::vector<em::Boundary::Ptr>& bev_lanelines);
@@ -98,14 +123,17 @@ class OccGuideLineManager {
 
   float GetTwoBoundayDis(const em::Boundary::Ptr& left_boundary,
                          const em::Boundary::Ptr& right_boundary);
+  float GetTwoBoundaryMinDis(const em::Boundary::Ptr& left_boundary,
+                             const em::Boundary::Ptr& right_boundary);
+  float GetTwoBoundayDis(const em::OccRoad::Ptr& left_occ,
+                         const em::OccRoad::Ptr& right_occ);
+
+  void DebugPrint(const std::string tag,
+                  const std::vector<std::vector<bool>>& pair_table, bool show);
 
  private:
   bool ComputerPointIsInLine(const Eigen::Vector3f& P, const Eigen::Vector3f& A,
                              const Eigen::Vector3f& B);
-
-  float perpendicular_distance(const Eigen::Vector3f& A,
-                               const Eigen::Vector3f& B,
-                               const Eigen::Vector3f& P);
 
   bool IsPointOnOccLeftSide(const em::BoundaryNode::Ptr& node,
                             const em::Boundary::Ptr& occ_data);
@@ -116,9 +144,11 @@ class OccGuideLineManager {
   em::ElementMap::Ptr input_ele_map_ = nullptr;
   std::map<int, std::vector<Line_kd>>* bevlanelines_ = nullptr;
   std::vector<std::pair<int, em::Boundary::Ptr>> bev_laneline_boundarys_;
+  std::vector<em::OccRoad::Ptr> input_occ_set_;
   bool is_occ_stable_state_ = false;  //
   float safe_distance_ = 0.2;
-  float distance_error_thresh_ = 0.8;
+  float x_distance_error_thresh_ = 4.0;
+  float y_distance_error_thresh_ = 0.8;
   float virtual_occ_line_length_thresh_ = 10.0;
   KinePose last_pose_;
   KinePose curr_pose_;
@@ -134,6 +164,9 @@ class OccGuideLineManager {
   Eigen::Vector3f occ_dir_vec_;
   float occ_width_ = 0.0;
   std::vector<em::Boundary::Ptr> stable_occ_datas_;
+
+  float ego_line_x_dis_ = 0.0;
+  ExitLaneInfo exit_lane_info_;
 };
 
 }  // namespace mf

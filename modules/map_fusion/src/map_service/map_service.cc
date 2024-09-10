@@ -34,6 +34,7 @@
 // NOLINTBEGIN
 DEFINE_double(radius, 500, "radius of the vehicle position");
 DEFINE_double(transform_distance, 200, "distance to update the map");
+DEFINE_string(ldmap_dir, "/data/baidu_map/hdmap", "distance to update the map");
 // NOLINTEND
 
 namespace hozon {
@@ -178,10 +179,16 @@ void MapService::BaiduProc() {
     ins_pos.x = ins_msg_.pos_gcj02().x();
     ins_pos.y = ins_msg_.pos_gcj02().y();
     ins_msg_thread_.unlock();
-    baidu_map_->UpdateBaiDuMap(ins_pos,hmi_nav_data_);
+    std::vector<uint32_t> routing_road;
+    baidu_map_->UpdateBaiDuMap(ins_pos, hmi_nav_data_, &routing_road);
+    if (!routing_road.empty()) {
+      std::lock_guard<std::mutex> lock(ld_routing_mtx_);
+      routing_road_id_ = std::make_shared<std::vector<uint32_t>>(routing_road);
+      HLOG_ERROR << "ld routing road size" << routing_road_id_->size();
+    }
     hozon::hdmap::Map test_map;
     GLOBAL_HD_MAP->GetMap(&test_map);
-    HLOG_ERROR << "zr123   lane size :" << test_map.lane_size();
+    HLOG_ERROR << "ld lane size :" << test_map.lane_size();
     // auto ins_ptr = INS_MANAGER->GetIns();
     // // auto hmi_nav_ptr = hmi_nav_ptr_->GetLatestHMINavData();
     // // if(hmi_nav_ptr == nullptr){
@@ -328,6 +335,10 @@ void MapService::SetCurrentPathId(const hozon::common::PointENU& utm_pos,
     last_laneid_pool.clear();
     last_roadid_pool.clear();
   }
+}
+void MapService::UpdateHMINavService(
+    const std::shared_ptr<hozon::hmi::NAVDataService>& nav_data) {
+  hmi_nav_data_ = nav_data;
 }
 
 void MapService::SetLaneIdsPool(

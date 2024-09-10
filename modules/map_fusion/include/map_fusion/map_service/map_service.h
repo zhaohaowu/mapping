@@ -15,6 +15,7 @@
 #include <string>
 #include <thread>
 #include <unordered_set>
+#include <vector>
 
 #include "base/utils/log.h"
 #include "common/math/vec2d.h"
@@ -72,6 +73,9 @@ class MapService {
   std::shared_ptr<hozon::routing::RoutingResponse> GetRouting() const {
     return routing_;
   }
+  std::shared_ptr<std::vector<uint32_t>> GetLDRoutingRoadId() const {
+    return routing_road_id_;
+  }
   MapServiceFault GetFault();
   void UpdateHMINavService(
       const std::shared_ptr<hozon::hmi::NAVDataService>& nav_data);
@@ -95,6 +99,7 @@ class MapService {
       std::unordered_set<hozon::hdmap::Id, IdHash, IdEqual>* lane_id_pool);
   void SetFautl();
   std::shared_ptr<hozon::routing::RoutingResponse> routing_ = nullptr;
+  std::shared_ptr<std::vector<uint32_t>> routing_road_id_ = nullptr;
   hozon::common::math::Vec2d last_pose_;
   std::chrono::steady_clock::time_point last_send_time_{};
   std::unique_ptr<hozon::ehr::Ehr> ehr_ = nullptr;
@@ -113,6 +118,7 @@ class MapService {
   hozon::localization::HafNodeInfo ins_msg_;
   std::mutex ins_msg_thread_;
   std::mutex ms_nav_mtx_;
+  std::mutex ld_routing_mtx_;
   std::shared_ptr<hozon::hmi::NAVDataService> hmi_nav_data_ = nullptr;
 };
 

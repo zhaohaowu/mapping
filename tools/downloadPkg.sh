@@ -125,13 +125,13 @@ if [ -f $thirdPartyPath/nos/orin/version.json ]; then
 with open('$thirdPartyPath/nos/orin/version.json','r') as f: print(json.load(f)['ORIN']['EP41']['proto'])")
 fi
 
-if [ "$ENABLE_SINGLE_COMPILE_PROTO" = "OFF" ]; then
-    pushd $thirdPartyPath/proto
-    git fetch --all
-    git reset ${ProtoVersion} --hard
-    echo "Submodule path 'proto': checked out :" ${ProtoVersion}
-    popd
-fi
+# if [ "$ENABLE_SINGLE_COMPILE_PROTO" = "OFF" ]; then
+#     pushd $thirdPartyPath/proto
+#     git fetch --all
+#     git reset ${ProtoVersion} --hard
+#     echo "Submodule path 'proto': checked out :" ${ProtoVersion}
+#     popd
+# fi
 }
 
 downloadPkg "$@"

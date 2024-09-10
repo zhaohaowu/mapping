@@ -980,7 +980,7 @@ void GeoOptimization::FilterLocalMapLine(
     }
     std::vector<cv::Point2f> kdtree_points;
     Line_kd line_kd;
-    int pt_interval = 2;
+    int pt_interval = 1;
     for (int i = 0; i < line.points_size(); i += pt_interval) {
       const auto& point = line.points(i);
       if (std::isnan(point.x()) || std::isnan(point.y()) ||
@@ -3348,7 +3348,7 @@ void GeoOptimization::CreateLocalLineTable() {
     auto lane_pos = local_line.lanepos();
     auto line_track_id = local_line.track_id();
     std::vector<Eigen::Vector3d> local_pts;
-    int pt_interval = 2;
+    int pt_interval = 1;
     for (int i = 0; i < local_line.points_size(); i += pt_interval) {
       const auto& pt = local_line.points(i);
       if (std::isnan(pt.x()) || std::isnan(pt.y())) {
@@ -4071,7 +4071,7 @@ void GeoOptimization::HandleExtraWideLane() {
       right_track_ids.emplace_back(local_line.track_id());
     }
     if (local_line.lanepos() == 99 && !local_line.points().empty() &&
-        local_line.points(0).x() < 30.0) {
+        local_line.points(0).x() < 40.0) {
       other_ids.emplace_back(local_line.track_id());
     }
   }

@@ -27,7 +27,7 @@ int32_t BaiDuMapEngine::AlgInit() {
   if (map_engine_ptr_ == nullptr) {
     map_engine_ptr_ = baidu::imap::sdk::get_map_engine();
     baidu::imap::InitParameter init_param(
-        "", "",
+        "202408271000003413", "",
         baidu::imap::LogControl(5, 100 * 1024, "./hdmap_log",
                                 baidu::imap::LogControl::INFO));
     std::string dbpath = FLAGS_ldmap_dir + "/";

@@ -29,10 +29,26 @@ bool InputDataSingleton::Init() {
 }
 
 bool InputDataSingleton::IsStaticState(StaticStrategyParam config) {
+  const auto& cur_pose = dr_data_buffer_.back()->pose;
   const auto& velocity = dr_data_buffer_.back()->linear_velocity;
   const auto& angular_velocity = dr_data_buffer_.back()->angular_velocity;
 
   if (!config.use_idle_strategy()) return false;
+
+  // 判断map更新的pose与当前判断静止时的pose的差值
+  Eigen::Affine3d delta_pose = cur_pose.inverse() * map_update_pose_;
+  // 从 delta_pose 中提取旋转矩阵
+  Eigen::Matrix3d rotation_matrix = delta_pose.rotation();
+  // 提取欧拉角 (顺序：X, Y, Z，即 Roll, Pitch, Yaw)
+  Eigen::Vector3d euler_angles = rotation_matrix.eulerAngles(0, 1, 2);
+  if (std::abs(euler_angles[2]) > config.angle_limit()) {
+    // 角度大， 则退出静止策略
+    return false;
+  }
+  if (delta_pose.translation().norm() > config.dist_limit()) {
+    // 距离大， 则退出静止策略
+    return false;
+  }
 
   bool is_static_state = false;
   if (std::abs(velocity.x()) > config.radial_velocity_limit()) {
@@ -84,6 +100,10 @@ bool InputDataSingleton::IsTurnState(StaticStrategyParam config) {
 }
 
 bool InputDataSingleton::GetTurnState() { return turn_state_; }
+
+void InputDataSingleton::SetMapUpdatePose(const Eigen::Affine3d& pose) {
+  map_update_pose_ = pose;
+}
 
 }  // namespace environment
 }  // namespace mp

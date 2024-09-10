@@ -74,6 +74,8 @@ bool MapWorker::Process(const MeasurementFrameConstPtr& measurement_frame_ptr) {
   static_copy_map_once_ = false;
   // 1. 清空地图数据
   auto local_map_ptr_ = MAP_MANAGER->GetWriteLocalMap();
+  // 记录更新map的pose
+  POSE_MANAGER->SetMapUpdatePose(POSE_MANAGER->GetCurrentPose());
   ClearLocalMap(local_map_ptr_);
   // 更新一下数据面时间和序列号
   local_map_ptr_->header.timestamp = measurement_frame_ptr->header.timestamp;

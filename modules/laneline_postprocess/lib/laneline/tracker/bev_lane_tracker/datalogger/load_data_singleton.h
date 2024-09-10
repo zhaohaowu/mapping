@@ -30,6 +30,7 @@ class InputDataSingleton {
   bool IsStaticState(StaticStrategyParam config);
   bool IsTurnState(StaticStrategyParam config);
   bool GetTurnState();
+  void SetMapUpdatePose(const Eigen::Affine3d& pose);
 
  public:
   /** @brief sensor data buffer. */
@@ -46,6 +47,7 @@ class InputDataSingleton {
  private:
   std::mutex mutex_;
   bool inited_ = false;
+  Eigen::Affine3d map_update_pose_;
   DECLARE_SINGLETON_PERCEPTION(InputDataSingleton)
 };
 

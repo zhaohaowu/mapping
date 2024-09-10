@@ -110,6 +110,9 @@ bool LanePostProcess::Process(
 
   ProcessOption options;
   options.timestamp = measurement_ptr->header.timestamp;
+  // 记录结果更新时的pose
+  auto& dr_datas = InputDataSingleton::Instance()->dr_data_buffer_;
+  local_data->SetMapUpdatePose(dr_datas.back()->pose);
   Process(options, measurement_ptr->lanelines_measurement_,
           fusion_ptr->scene_->lane_lines);
   last_track_lanelines_ = fusion_ptr->scene_->lane_lines->lanelines;

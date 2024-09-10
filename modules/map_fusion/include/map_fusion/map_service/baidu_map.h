@@ -37,6 +37,7 @@
 #include "proto/map/map_lane.pb.h"
 #include "proto/map/map_road.pb.h"
 #include "proto/routing/nav_data.pb.h"
+#include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 namespace hozon {
 namespace mp {
 namespace mf {

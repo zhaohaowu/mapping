@@ -112,6 +112,7 @@ class MapService {
   std::thread tmp_thread_;
   hozon::localization::HafNodeInfo ins_msg_;
   std::mutex ins_msg_thread_;
+  std::mutex ms_nav_mtx_;
   std::shared_ptr<hozon::hmi::NAVDataService> hmi_nav_data_ = nullptr;
 };
 

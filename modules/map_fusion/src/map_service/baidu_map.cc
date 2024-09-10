@@ -8,7 +8,7 @@
 
 #include "base/utils/log.h"
 #include "lib/environment/environment.h"
-#include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
+// #include "onboard/onboard_lite/map_fusion/map_fusion_config_lite.h"
 #include "util/mapping_log.h"
 #include "util/rate.h"
 #include "util/tic_toc.h"
@@ -1091,12 +1091,9 @@ void BaiDuMapEngine::Clear() {
   juns_um_.clear();
   neta_map_.Clear();
 }
-<<<<<<< HEAD:modules/map_fusion/src/map_service/baidu_map.cc
-void BaiDuMapEngine::UpdateBaiDuMap(const INSPos& pos) {
-=======
 bool BaiDuMapEngine::UpdateHMINav(
     const std::shared_ptr<hozon::hmi::NAVDataService>& hmi_nav) {
-      HLOG_INFO << "OnNavData UpdateBaiDuMap-----------------------3 ";
+  HLOG_INFO << "OnNavData UpdateBaiDuMap-----------------------3 ";
   if (hmi_nav == nullptr) {
     HLOG_ERROR << "OnNavData hmi_nav id nullptr ";
     return false;
@@ -1105,7 +1102,8 @@ bool BaiDuMapEngine::UpdateHMINav(
     HLOG_ERROR << "OnNavData hmi_nav id nullptr ";
     return false;
   }
-  HLOG_INFO << "OnNavData hmi_nav->sd_road_array size " << hmi_nav->sd_road_array_size();
+  HLOG_INFO << "OnNavData hmi_nav->sd_road_array size "
+            << hmi_nav->sd_road_array_size();
   std::vector<baidu::imap::SDLinkInfo> sd_info_vec;
   for (const auto& sd_road : hmi_nav->sd_road_array()) {
     if (sd_road.road_lgt_size() != sd_road.road_lat_size()) {
@@ -1129,8 +1127,10 @@ bool BaiDuMapEngine::UpdateHMINav(
     for (int i = 0; i < point_size; i++) {
       baidu::imap::Point3D point_pos;
       // 纬度  纬经高
-      point_pos.x = static_cast<double>(sd_road.road_lat().at(i) / 1e6);
-      point_pos.y = static_cast<double>(sd_road.road_lgt().at(i) / 1e6);
+      point_pos.x = static_cast<double>((sd_road.road_lgt().at(i) * 360.0) /
+                                        (std::numeric_limits<uint32_t>::max()));
+      point_pos.y = static_cast<double>((sd_road.road_lat().at(i) * 360.0) /
+                                        (std::numeric_limits<uint32_t>::max()));
       point_pos.y = 0.0;
       sd_road_info.coords.emplace_back(point_pos);
     }
@@ -1175,7 +1175,6 @@ bool BaiDuMapEngine::UpdateHMINav(
 void BaiDuMapEngine::UpdateBaiDuMap(
     const INSPos& pos,
     const std::shared_ptr<hozon::hmi::NAVDataService>& hmi_nav) {
->>>>>>> sync ld map code from nc_demo debug:modules/map_fusion_02/modules/map_ld/baidu_map.cc
   baidu::imap::GpsCoord gps;
   // gps.lon = 121.395844;
   // gps.lat = 31.224504;
@@ -1238,14 +1237,13 @@ void BaiDuMapEngine::UpdateBaiDuMap(
   for (const auto& lane : neta_lanes_um) {
     neta_map_.add_lane()->CopyFrom(lane.second);
   }
-<<<<<<< HEAD:modules/map_fusion/src/map_service/baidu_map.cc
   util::TicToc bdmap_tic1;
   bdmap_tic1.Tic();
   if (FLAGS_map_service_mode == 2) {
     GLOBAL_HD_MAP->LoadMapFromProto(neta_map_);
   } else {
     GLOBAL_LD_MAP->LoadMapFromProto(neta_map_);
-=======
+  }
   bool res_result = UpdateHMINav(hmi_nav);
   HLOG_INFO << "OnNavData UpdateHMINav res_result " << res_result;
   if (res_result) {
@@ -1253,15 +1251,16 @@ void BaiDuMapEngine::UpdateBaiDuMap(
     uint32_t route_res = 0;
     route_res = map_engine_ptr_->get_route(linkid_list);
     if (route_res != baidu::imap::IMAP_STATUS_OK) {
-      HLOG_ERROR << "OnNavData get route from baidu failed, status: " << route_res;
+      HLOG_ERROR << "OnNavData get route from baidu failed, status: "
+                 << route_res;
     }
     if (linkid_list.empty()) {
       HLOG_ERROR << "OnNavData get route from baidu is empty";
     }
     for (const auto& link_id : linkid_list) {
-      HLOG_INFO << "OnNavData >>>>>>>>>>>>>>>zr 123 link_id of route:" << link_id;
+      HLOG_INFO << "OnNavData >>>>>>>>>>>>>>>zr 123 link_id of route:"
+                << link_id;
     }
->>>>>>> sync ld map code from nc_demo debug:modules/map_fusion_02/modules/map_ld/baidu_map.cc
   }
 
   // static bool saved = false;

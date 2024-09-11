@@ -11,6 +11,7 @@
 #include <limits>
 #include <tuple>
 
+#include "base/group.h"
 #include "base/utils/log.h"
 #include "modules/map_fusion_02/base/element_base.h"
 #include "modules/map_fusion_02/common/calc_util.h"
@@ -123,6 +124,7 @@ bool LanePrediction::LaneForwardPredict(std::vector<Group::Ptr>* groups,
         }
         Group grp;
         grp.stamp = stamp;
+        grp.group_state = Group::GroupState::VIRTUAL;
         grp.str_id = last_grp->str_id + "P";
         grp.lanes = center_line_pred;
         (*groups).emplace_back(std::make_shared<Group>(grp));

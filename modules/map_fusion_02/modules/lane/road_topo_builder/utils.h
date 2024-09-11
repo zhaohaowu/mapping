@@ -27,6 +27,10 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
+const float kShrinkDiffThreshold = 0.5;
+const double kMergeLengthThreshold = 10.;
+const double kSplitLengthThreshold = 10.;
+
 class TopoUtils {
  public:
   TopoUtils() = default;
@@ -52,6 +56,31 @@ class TopoUtils {
                               float line_front_y);
 
   static void FitCenterLine(Lane::Ptr lane);
+
+  static bool LineIdConsistant(const LineSegment::Ptr& line, Id id);
+
+  static bool NeedToConnect(const Lane::Ptr& lane_in_curr,
+                            const Lane::Ptr& lane_in_next);
+
+  static bool NeedToConnect(
+      Group::Ptr curr_group, Group::Ptr next_group, int i, int j,
+      std::map<int, std::vector<int>>* curr_group_next_lane,
+      std::map<int, std::vector<int>>* next_group_prev_lane);
+
+  static bool IsAccessLane(const Lane::Ptr& lane_in_curr,
+                           const Lane::Ptr& lane_in_next);
+
+  static bool IsRightLane(const Group::Ptr& next_group, int cur_lane_index,
+                          int right_lane_inex);
+
+  static bool IsLeftLane(const Group::Ptr& next_group, int cur_lane_index,
+                         int left_lane_index);
+
+  static bool IsShrinkLane(const Lane::Ptr& lane, float min_lane_width);
+
+  static bool IsBoundaryValid(const LineSegment& line);
+
+  static bool IsIntersect(const Lane::Ptr& line1, const Lane::Ptr& line2);
 };
 
 }  // namespace mf

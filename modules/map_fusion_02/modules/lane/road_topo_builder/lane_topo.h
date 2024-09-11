@@ -9,6 +9,7 @@
 #include <depend/common/math/vec2d.h>
 
 #include <algorithm>
+#include <cfloat>
 #include <deque>
 #include <map>
 #include <memory>
@@ -17,7 +18,6 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <cfloat>
 
 // #include "modules/map_fusion_02/base/group.h"
 #include "modules/map_fusion_02/base/interface_option.h"
@@ -39,6 +39,8 @@ class LaneTopoConstruct {
 
   void Init(const LaneFusionProcessOption& conf);
 
+  void Clear();
+
   void ConstructTopology(std::vector<Group::Ptr>* groups);
 
  private:
@@ -52,10 +54,9 @@ class LaneTopoConstruct {
                            bool* is_any_next_lane_exist,
                            bool* is_all_next_lane_exist);
 
-  void UpdateLaneBoundaryId(const Group::Ptr& curr_group);
+  void SetLaneStatus(std::vector<Group::Ptr>* groups);
 
-  bool NeedToConnect(const Lane::Ptr& lane_in_curr,
-                     const Lane::Ptr& lane_in_next);
+  void UpdateLaneBoundaryId(const Group::Ptr& curr_group);
 
   bool ContainEgoLane(std::vector<Group::Ptr>* groups, int next_grp_index);
 
@@ -67,28 +68,16 @@ class LaneTopoConstruct {
 
   void DelLanePrevStrIdInGroup(const Group::Ptr& curr_group);
 
-  void BuildVirtualLaneAfter(const Group::Ptr& curr_group, const Group::Ptr& next_group);
+  void BuildVirtualLaneAfter(const Group::Ptr& curr_group,
+                             const Group::Ptr& next_group);
 
-  void BuildVirtualLaneBefore(const Group::Ptr& curr_group, const Group::Ptr& next_group);
+  void BuildVirtualLaneBefore(const Group::Ptr& curr_group,
+                              const Group::Ptr& next_group);
 
-  void BuildVirtualLaneLeftRight(const Group::Ptr& curr_group, const Group::Ptr& next_group);
+  void BuildVirtualLaneLeftRight(const Group::Ptr& curr_group,
+                                 const Group::Ptr& next_group);
 
   void EraseIntersectLane(Group::Ptr curr_group, Group::Ptr next_group);
-
-  bool IsIntersect(const Lane::Ptr& line1, const Lane::Ptr& line2);
-
-  bool IsBoundaryValid(const LineSegment& line);
-
-  bool IsAccessLane(const Lane::Ptr& lane_in_curr,
-                    const Lane::Ptr& lane_in_next);
-
-  bool IsShrinkLane(const Lane::Ptr& lane) const;
-
-  bool IsRightLane(const Group::Ptr& next_group, int cur_lane_index,
-                   int right_lane_inex);
-
-  bool IsLeftLane(const Group::Ptr& next_group, int cur_lane_index,
-                  int left_lane_index);
 
   bool DistanceInferenceLane(const LineSegment& left_line,
                              const LineSegment& right_line);
@@ -98,10 +87,6 @@ class LaneTopoConstruct {
 
  private:
   LaneFusionProcessOption conf_;
-
-  const float kShrinkDiffThreshold = 0.5;
-  const double kMergeLengthThreshold = 10.;
-  const double kSplitLengthThreshold = 10.;
 };
 
 using LaneTopoConstructPtr = std::unique_ptr<LaneTopoConstruct>;

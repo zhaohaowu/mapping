@@ -8,7 +8,12 @@
 
 #include <memory>
 
+#include "base/junction.h"
+#include "base/utils/log.h"
+#include "common/calc_util.h"
+#include "modules/lane/road_builder/detect_cut_pt.h"
 #include "modules/lane/road_topo_builder/junction_topo.h"
+#include "noa/noa_define.h"
 
 namespace hozon {
 namespace mp {
@@ -26,40 +31,31 @@ void RoadTopoConstruct::Init(const LaneFusionProcessOption& conf) {
   HLOG_INFO << "Road topo construct init";
 }
 
-bool RoadTopoConstruct::ConstructTopology(std::vector<Group::Ptr>* groups) {
-  // 车道线补齐逻辑，建立车道线拓扑关系
-  lane_topo_->ConstructTopology(groups);
-
-  // 设置lane属性(is_ego、is_tran)
-  SetLaneStatus(groups);
-  return true;
+void RoadTopoConstruct::Clear() {
+  lane_topo_->Clear();
+  junc_topo_->Clear();
 }
 
-bool RoadTopoConstruct::SetLaneStatus(std::vector<Group::Ptr>* groups) {
-  // 添加主路和是否当前朝向属性
-  for (auto& group : *groups) {
-    int flag = 0;
-    for (auto& lane : group->lanes) {
-      if (lane->left_boundary->isego == IsEgo::Ego_Road) {
-        lane->is_ego = 1;
-      }
-      if (flag == 0) {
-        if (lane->left_boundary->color == Color::YELLOW) {
-          flag = 1;
-          lane->is_trans = 1;
-        }
-      } else {
-        lane->is_trans = 1;
-      }
-    }
-    if (flag == 0) {
-      for (auto& lane : group->lanes) {
-        if (lane->is_ego) {
-          lane->is_trans = 1;
-        }
-      }
-    }
+bool RoadTopoConstruct::ConstructTopology(
+    double stamp, std::vector<Group::Ptr>* groups,
+    const std::shared_ptr<std::vector<KinePosePtr>>& path,
+    const KinePosePtr& curr_pose) {
+  JunctionInfo junc_info = JUNC_MANAGER->GetJuncStatus();
+  HLOG_INFO << "Road Scene Type: "
+            << static_cast<int>(junc_info.road_scene_type);
+
+  if (groups->size() < 2) {
+    return true;
   }
+
+  switch (junc_info.road_scene_type) {
+    case RoadSceneType::GENERAL_ROAD:
+    case RoadSceneType::NEAR_JUNCTION:
+      lane_topo_->ConstructTopology(groups);
+    case RoadSceneType::IN_JUNCTION:
+      junc_topo_->ConstructTopology(stamp, groups, path, curr_pose);
+  }
+
   return true;
 }
 

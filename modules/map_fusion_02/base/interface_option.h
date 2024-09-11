@@ -42,6 +42,8 @@ struct LaneFusionProcessOption : public BaseProcessOption {
 
   // 路口判断参数
   float near_junction_dis_thresh = 20.0;
+  float junction_heading_diff = 8.0;
+  float next_group_max_distance = 30.0;
 
   // 使用OCC构建道路边沿
   bool use_occ = false;

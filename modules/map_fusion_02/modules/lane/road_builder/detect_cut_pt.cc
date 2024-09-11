@@ -177,7 +177,7 @@ double DetectCutPt::LinePointDistPath(const Point3D& line_p) {
   for (auto& pose : path_) {
     double dist = std::sqrt(std::pow((pose.pos.x() - line_p.x), 2) +
                             std::pow((pose.pos.y() - line_p.y), 2));
-    HLOG_DEBUG << "dist: " << dist;
+    // HLOG_DEBUG << "dist: " << dist;
     if (dist < min_dist) {
       nearest_time = pose.stamp;
       min_dist = dist;

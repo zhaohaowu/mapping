@@ -111,6 +111,23 @@ struct Overlaps {
 };
 
 struct LineSegment : public Line {
+  void Copy(const LineSegment& line_segment, const LineType& line_type,
+            const Color& color) {
+    this->id = line_segment.id;
+    this->lanepos = line_segment.lanepos;
+    this->type = line_type;  // lane_in_curr->right_boundary->type;
+    this->color = color;     // lane_in_curr->right_boundary->color;
+    this->isego = line_segment.isego;
+    this->is_near_road_edge = line_segment.is_near_road_edge;
+    this->mean_end_heading = line_segment.mean_end_heading;
+    this->pred_end_heading = line_segment.pred_end_heading;
+    this->mean_end_heading_std_dev = line_segment.mean_end_heading_std_dev;
+    this->mean_end_interval = line_segment.mean_end_interval;
+    for (const auto& delete_id : line_segment.deteled_ids) {
+      this->deteled_ids.emplace_back(delete_id);
+    }
+  }
+
   Eigen::Vector3f center;
   double dist_to_path;
   DEFINE_PTR(LineSegment)

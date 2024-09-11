@@ -6,6 +6,7 @@
  ******************************************************************************/
 #include "modules/map_fusion_02/modules/lane/road_topo_builder/lane_topo.h"
 #include <unordered_set>
+#include <chrono>
 
 #include "base/utils/log.h"
 #include "common/calc_util.h"
@@ -21,11 +22,11 @@ void LaneTopoConstruct::Init(const LaneFusionProcessOption& conf) {
   HLOG_INFO << "Lane construct init";
 }
 
-void LaneTopoConstruct::ConstructTopology(std::vector<Group::Ptr>* groups) {
-  if (groups->size() < 2) {
-    return;
-  }
+void LaneTopoConstruct::Clear() {
 
+}
+
+void LaneTopoConstruct::ConstructTopology(std::vector<Group::Ptr>* groups) {
   // 从前往后
   for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
     auto& curr_group = groups->at(i);
@@ -141,6 +142,9 @@ void LaneTopoConstruct::ConstructTopology(std::vector<Group::Ptr>* groups) {
       DelLanePrevStrIdInGroup(next_group);
     }
   }
+
+  // 设置lane属性(is_ego、is_tran)
+  SetLaneStatus(groups);
 }
 
 void LaneTopoConstruct::ForwardTopoProcess(const Group::Ptr& curr_group,
@@ -188,7 +192,7 @@ void LaneTopoConstruct::ForwardTopoProcess(const Group::Ptr& curr_group,
         }
         break;
       }
-      if (NeedToConnect(lane_in_curr, lane_in_next)) {
+      if (TopoUtils::NeedToConnect(lane_in_curr, lane_in_next)) {
         lane_in_curr->next_lane_str_id_with_group.emplace_back(
             lane_in_next->str_id_with_group);
         lane_in_curr->left_boundary->id_next = lane_in_next->left_boundary->id;
@@ -211,12 +215,12 @@ void LaneTopoConstruct::ForwardTopoProcess(const Group::Ptr& curr_group,
     }
     if (!next_lane_exist) {
       double curr_len = TopoUtils::CalcLaneLength(lane_in_curr);
-      bool shrink = IsShrinkLane(lane_in_curr);
+      bool shrink = TopoUtils::IsShrinkLane(lane_in_curr, conf_.min_lane_width);
       const float dis_thresh = 4.5;
       if (lane_in_curr->str_id_with_group ==
               curr_group->lanes[0]->str_id_with_group &&
           curr_len > kMergeLengthThreshold && shrink &&
-          IsAccessLane(lane_in_curr, next_group->lanes[0]) &&
+          TopoUtils::IsAccessLane(lane_in_curr, next_group->lanes[0]) &&
           TopoUtils::LaneDist(lane_in_curr, next_group->lanes[0]) <
               dis_thresh &&
           TopoUtils::CalcLaneLength(next_group->lanes[0]) >
@@ -229,7 +233,8 @@ void LaneTopoConstruct::ForwardTopoProcess(const Group::Ptr& curr_group,
       } else if (lane_in_curr->str_id_with_group ==
                      curr_group->lanes.back()->str_id_with_group &&
                  curr_len > kMergeLengthThreshold && shrink &&
-                 IsAccessLane(lane_in_curr, next_group->lanes.back()) &&
+                 TopoUtils::IsAccessLane(lane_in_curr,
+                                         next_group->lanes.back()) &&
                  TopoUtils::LaneDist(lane_in_curr, next_group->lanes.back()) <
                      dis_thresh &&
                  TopoUtils::CalcLaneLength(next_group->lanes.back()) >
@@ -275,7 +280,7 @@ void LaneTopoConstruct::BackwardTopoProcess(const Group::Ptr& curr_group,
         }
         break;
       }
-      if (NeedToConnect(lane_in_curr, lane_in_next)) {
+      if (TopoUtils::NeedToConnect(lane_in_curr, lane_in_next)) {
         *is_any_next_lane_exist = true;
         next_lane_exist = true;
         lane_in_next->prev_lane_str_id_with_group.emplace_back(
@@ -295,6 +300,33 @@ void LaneTopoConstruct::BackwardTopoProcess(const Group::Ptr& curr_group,
     }
     if (!next_lane_exist) {
       *is_all_next_lane_exist = false;
+    }
+  }
+}
+
+void LaneTopoConstruct::SetLaneStatus(std::vector<Group::Ptr>* groups) {
+  // 添加主路和是否当前朝向属性
+  for (auto& group : *groups) {
+    int flag = 0;
+    for (auto& lane : group->lanes) {
+      if (lane->left_boundary->isego == IsEgo::Ego_Road) {
+        lane->is_ego = 1;
+      }
+      if (flag == 0) {
+        if (lane->left_boundary->color == Color::YELLOW) {
+          flag = 1;
+          lane->is_trans = 1;
+        }
+      } else {
+        lane->is_trans = 1;
+      }
+    }
+    if (flag == 0) {
+      for (auto& lane : group->lanes) {
+        if (lane->is_ego) {
+          lane->is_trans = 1;
+        }
+      }
     }
   }
 }
@@ -319,80 +351,6 @@ void LaneTopoConstruct::UpdateLaneBoundaryId(const Group::Ptr& curr_group) {
       lane->right_boundary->id_next = line_next[lane->right_boundary->id];
     }
   }
-}
-
-bool LaneTopoConstruct::NeedToConnect(const Lane::Ptr& lane_in_curr,
-                                      const Lane::Ptr& lane_in_next) {
-  if (lane_in_curr->left_boundary->id == lane_in_next->right_boundary->id ||
-      lane_in_curr->right_boundary->id == lane_in_next->left_boundary->id) {
-    return false;
-  }
-
-  if (!IsAccessLane(lane_in_curr, lane_in_next)) {
-    return false;
-  }
-
-  size_t sizet = lane_in_curr->center_line_pts.size();
-  float dis_pt = TopoUtils::CalculateDistPt(lane_in_next, lane_in_curr, sizet);
-  float angel_thresh{0.0};
-  float dis_thresh{0.0};
-  if (dis_pt < 8 || (lane_in_curr->lanepos_id == lane_in_next->lanepos_id &&
-                     lane_in_curr->lanepos_id != "99_99")) {
-    // HLOG_ERROR << "lane_in_curr=" << lane_in_curr->str_id_with_group
-    //            << "   lane_in_next" << lane_in_next->str_id_with_group
-    //            << "  dis_pt = " << dis_pt
-    //            << " lane_in_curr->lanepos_id =" << lane_in_curr->lanepos_id
-    //            << "  lane_in_next->lanepos_id = " <<
-    //            lane_in_next->lanepos_id;
-    return true;
-  } else if (!lane_in_curr->center_line_param.empty() &&
-             !lane_in_next->center_line_pts.empty()) {
-    if (dis_pt > 10000) {
-      // 差的太远不计算
-      return false;
-    }
-    if (dis_pt > 100) {
-      angel_thresh = 10;
-      dis_thresh = 3;
-    } else {
-      angel_thresh = 25;
-      dis_thresh = 1.8;
-    }
-    float dis =
-        TopoUtils::CalculatePoint2CenterLine(lane_in_next, lane_in_curr);
-    float angle =
-        TopoUtils::Calculate2CenterlineAngle(lane_in_next, lane_in_curr, sizet);
-    // HLOG_INFO << "angle = " << angle * 180 / pi_;
-    // HLOG_INFO << "lane angle lane_in_next->center_line_pts[0].pt  "
-    //           << lane_in_next->center_line_pts[0].pt.y() << "   "
-    //           << lane_in_next->center_line_pts[0].pt.x();
-    // HLOG_INFO << "lane_in_curr->center_line_pts[sizet - 1].pt  "
-    //           << lane_in_curr->center_line_pts[sizet - 1].pt.y() << "   "
-    //           << lane_in_curr->center_line_pts[sizet - 1].pt.x()
-    //           << "  angle is "
-    //           << atan((lane_in_next->center_line_pts[0].pt.y() -
-    //                    lane_in_curr->center_line_pts[sizet - 1].pt.y()) /
-    //                   (lane_in_next->center_line_pts[0].pt.x() -
-    //                    lane_in_curr->center_line_pts[sizet - 1].pt.x())) *
-    //                  180 / pi_;
-    // HLOG_INFO << "lane_in_curr->center_line_param[1] is"
-    //           << atan(lane_in_curr->center_line_param[1]) * 180 / pi_;
-    // HLOG_INFO << "lane_in_curr=" << lane_in_curr->str_id_with_group
-    //           << "   lane_in_next" << lane_in_next->str_id_with_group
-    //           << "  dis2l = " << dis << "  dis thresh = " << dis_thresh
-    //           << " angle = " << abs(angle) * 180 / pi_
-    //           << "  angel_thresh = " << angel_thresh;
-    if ((dis < dis_thresh && abs(angle) * 180 / M_PI < angel_thresh)) {
-      // HLOG_INFO << "lane_in_curr=" << lane_in_curr->str_id_with_group
-      //           << "   lane_in_next" << lane_in_next->str_id_with_group
-      //           << "  dis2l = " << dis << "  dis thresh = " << dis_thresh
-      //           << " angle = " << angle << "  angel_thresh = " <<
-      //           angel_thresh;
-      return true;
-    }
-  }
-  // HLOG_INFO << "lane_in_curr=" << lane_in_curr->str_id_with_group;
-  return false;
 }
 
 bool LaneTopoConstruct::ContainEgoLane(std::vector<Group::Ptr>* groups,
@@ -663,7 +621,7 @@ void LaneTopoConstruct::BuildVirtualLaneAfter(const Group::Ptr& curr_group,
           right_bound.pts.emplace_back(right_pt_pred);
           left_index++;
         }
-        if (!IsBoundaryValid(right_bound)) {
+        if (!TopoUtils::IsBoundaryValid(right_bound)) {
           HLOG_WARN << "boundary not valid";
           continue;
         }
@@ -716,7 +674,7 @@ void LaneTopoConstruct::BuildVirtualLaneAfter(const Group::Ptr& curr_group,
           left_bound.pts.emplace_back(left_pt_pred);
           right_index++;
         }
-        if (!IsBoundaryValid(left_bound)) {
+        if (!TopoUtils::IsBoundaryValid(left_bound)) {
           HLOG_WARN << "boundary not valid";
           continue;
         }
@@ -1170,7 +1128,8 @@ void LaneTopoConstruct::BuildVirtualLaneLeftRight(
         if (right_lane_inex >= next_group_lanes_size) {
           continue;
         }
-        bool exist = IsRightLane(next_group, cur_lane_index, right_lane_inex);
+        bool exist =
+            TopoUtils::IsRightLane(next_group, cur_lane_index, right_lane_inex);
 
         if (!exist) {
           next_group->lanes[cur_lane_index]
@@ -1188,7 +1147,7 @@ void LaneTopoConstruct::BuildVirtualLaneLeftRight(
           next_group_lanes_size;  // 补全的lane相对与实际lane所在的index，物理意义：实际从下标index开始的lane的左边
       for (int j = 0; j < next_group_lanes_size; ++j) {
         int cur_lane_index = next_group_lanes[j];
-        bool exist_left = IsLeftLane(next_group, cur_lane_index, i);
+        bool exist_left = TopoUtils::IsLeftLane(next_group, cur_lane_index, i);
 
         if (exist_left) {
           index = j;
@@ -1198,8 +1157,8 @@ void LaneTopoConstruct::BuildVirtualLaneLeftRight(
       // 将这根虚拟道next_group->lanes[i]，添加到其左边的右邻
       for (int j = 0; j < index; ++j) {
         int cur_lane_index = next_group_lanes[j];
-        bool exist_right =
-            IsRightLane(next_group, cur_lane_index, i);  // 是否已经存在右邻
+        bool exist_right = TopoUtils::IsRightLane(next_group, cur_lane_index,
+                                                  i);  // 是否已经存在右邻
         if (!exist_right) {
           next_group->lanes[cur_lane_index]
               ->right_lane_str_id_with_group.emplace_back(
@@ -1211,8 +1170,8 @@ void LaneTopoConstruct::BuildVirtualLaneLeftRight(
       // 将这根虚拟道next_group->lanes[i]，添加到其右边的左邻
       for (int j = index; j < next_group_lanes_size; ++j) {
         int cur_lane_index = next_group_lanes[j];
-        bool exist_left =
-            IsLeftLane(next_group, cur_lane_index, i);  // 是否已经存在左邻
+        bool exist_left = TopoUtils::IsLeftLane(next_group, cur_lane_index,
+                                                i);  // 是否已经存在左邻
         if (!exist_left) {
           next_group->lanes[cur_lane_index]
               ->left_lane_str_id_with_group.emplace_back(
@@ -1240,7 +1199,7 @@ void LaneTopoConstruct::EraseIntersectLane(Group::Ptr curr_group,
   for (int i = 0; i < static_cast<int>(next_group->lanes.size()); ++i) {
     for (int j = i + 1; j < static_cast<int>(next_group->lanes.size()); ++j) {
       bool is_intersect =
-          IsIntersect(next_group->lanes[i], next_group->lanes[j]);
+          TopoUtils::IsIntersect(next_group->lanes[i], next_group->lanes[j]);
       // HLOG_ERROR << "lane_i = " << next_group->lanes[i]->str_id_with_group
       //            << "  lane_j = " <<
       //            next_group->lanes[j]->str_id_with_group
@@ -1298,211 +1257,6 @@ void LaneTopoConstruct::EraseIntersectLane(Group::Ptr curr_group,
       next_group->lanes.erase(next_group->lanes.begin() + i);
     }
   }
-}
-
-bool LaneTopoConstruct::IsIntersect(const Lane::Ptr& line1,
-                                    const Lane::Ptr& line2) {
-  if (line1->center_line_pts.size() < 2 || line2->center_line_pts.size() < 2) {
-    return false;
-  }
-  Eigen::Vector3d l1_s(line1->center_line_pts[0].pt.x(),
-                       line1->center_line_pts[0].pt.y(), 0.0);
-  Eigen::Vector3d l1_e(line1->center_line_pts.back().pt.x(),
-                       line1->center_line_pts.back().pt.y(), 0.0);
-  Eigen::Vector3d l2_s(line2->center_line_pts[0].pt.x(),
-                       line2->center_line_pts[0].pt.y(), 0.0);
-  Eigen::Vector3d l2_e(line2->center_line_pts.back().pt.x(),
-                       line2->center_line_pts.back().pt.y(), 0.0);
-  if (!line1->center_line_param.empty() && !line2->center_line_param.empty()) {
-    // 往前延伸10米
-    Eigen::Vector3d l1_forward_norm(1.0, line1->center_line_param[1], 0.0);
-    Eigen::Vector3d l2_forward_norm(1.0, line2->center_line_param[1], 0.0);
-    l1_forward_norm.normalized();
-    l2_forward_norm.normalized();
-    // HLOG_ERROR << "l1_forward_norm.Y = " << l1_forward_norm.y()
-    //            << "  l2_forward_norm.Y = " << l2_forward_norm.y();
-    l1_e.x() = l1_e.x() + l1_forward_norm.x() * 10;
-    l1_e.y() = l1_e.y() + l1_forward_norm.y() * 10;
-    l2_e.x() = l2_e.x() + l2_forward_norm.x() * 10;
-    l2_e.y() = l2_e.y() + l2_forward_norm.y() * 10;
-  }
-  // HLOG_ERROR << " l1_s = " << l1_s.x() << "  " << l1_s.y()
-  //            << "  l1_e = " << l1_e.x() << "  " << l1_e.y();
-  // HLOG_ERROR << "l2_s = " << l2_s.x() << "  " << l2_s.y()
-  //            << "   l2_e = " << l2_e.x() << "  " << l2_e.y();
-  // 快速排除不可能相交的线
-  if ((l1_s.x() > l1_e.x() ? l1_s.x() : l1_e.x()) <
-          (l2_s.x() < l2_e.x() ? l2_s.x() : l2_e.x()) ||
-      (l2_s.x() > l2_e.x() ? l2_s.x() : l2_e.x()) <
-          (l1_s.x() < l1_e.x() ? l1_s.x() : l1_e.x()) ||
-      (l1_s.y() > l1_e.y() ? l1_s.y() : l1_e.y()) <
-          (l2_s.y() < l2_e.y() ? l2_s.y() : l2_e.y()) ||
-      (l2_s.y() > l2_e.y() ? l2_s.y() : l2_e.y()) <
-          (l1_s.y() < l1_e.y() ? l1_s.y() : l1_e.y())) {
-    return false;
-  }
-  // 叉乘判断是否相交, 叉乘的正负代表逆时针顺时针即可判断方向 AB.cross(AP)
-  if (((l1_e - l2_s).cross(l2_e - l2_s)).dot((l1_s - l2_s).cross(l2_e - l2_s)) >
-          0 ||
-      ((l2_e - l1_s).cross(l1_e - l1_s)).dot((l2_s - l1_s).cross(l1_e - l1_s)) >
-          0) {
-    return false;
-  }
-  return true;
-}
-
-bool LaneTopoConstruct::IsBoundaryValid(const LineSegment& line) {
-  if (line.pts.size() < 3) {
-    return true;
-  }
-  Eigen::Vector3f x1, x2, x3;
-  x1 = line.pts[0].pt;
-  x2 = line.pts[1].pt;
-  int index2 = 1;
-  // HLOG_ERROR << "X1=" << x1.x() << "  " << x1.y();
-  while ((x2 - x1).norm() < 0.2 &&
-         index2 < static_cast<int>(line.pts.size()) - 1) {
-    index2++;
-    x2 = line.pts[index2].pt;
-  }
-  // HLOG_ERROR << "x2=" << x2.x() << "  " << x2.y();
-  if (index2 > line.pts.size() - 2) {
-    return true;
-  }
-  int index3 = index2 + 1;
-  x3 = line.pts[index3].pt;
-  while ((x2 - x3).norm() < 0.2 &&
-         index3 < static_cast<int>(line.pts.size()) - 1) {
-    index3++;
-    x3 = line.pts[index3].pt;
-  }
-  // HLOG_ERROR << "x3=" << x3.x() << "  " << x3.y();
-  if (index3 > static_cast<int>(line.pts.size()) - 1) {
-    return true;
-  }
-  Eigen::Vector3f norm_x12 = (x1 - x2).normalized();
-  Eigen::Vector3f norm_x32 = (x3 - x2).normalized();
-
-  return (abs(norm_x12.dot(norm_x32)) >= 0.5);
-}
-
-bool LaneTopoConstruct::IsAccessLane(const Lane::Ptr& lane_in_curr,
-                                     const Lane::Ptr& lane_in_next) {
-  if (lane_in_curr->center_line_pts.empty() ||
-      lane_in_next->center_line_pts.empty()) {
-    return false;
-  }
-
-  // 从lane_in_next车道的中心线上找出一条大于2米长度的向量出来(从起点位置开始)。
-  Eigen::Vector3f lane_in_next_norm(0.0, 0.0, 0.0);
-  for (size_t next_lane_cp_idx = 1;
-       next_lane_cp_idx < lane_in_next->center_line_pts.size();
-       ++next_lane_cp_idx) {
-    lane_in_next_norm = lane_in_next->center_line_pts[next_lane_cp_idx].pt -
-                        lane_in_next->center_line_pts[0].pt;
-    if (lane_in_next_norm.norm() >= 2.0) {
-      break;
-    }
-  }
-
-  if (lane_in_next_norm.norm() <= 2.0) {
-    return false;
-  }
-
-  size_t sizet = lane_in_curr->center_line_pts.size();
-  Eigen::Vector3f lane_curr2next_vec =
-      lane_in_curr->center_line_pts[sizet - 1].pt -
-      lane_in_next->center_line_pts[0].pt;
-  lane_in_next_norm = lane_in_next_norm.normalized();
-  // 判断两车道中心线的横向距离是否大于2.0, 如果小于2米，认为是可通行的。
-  if ((lane_in_next_norm.cross(lane_curr2next_vec)).norm() <= 2.0) {
-    return true;
-  }
-
-  // 判断curr点是否在next_lane的右侧
-  bool is_right = (lane_in_next_norm.y() * lane_curr2next_vec.x() -
-                   lane_in_next_norm.x() * lane_curr2next_vec.y()) > 0;
-
-  if (is_right &&
-      (lane_in_next->right_boundary->type == LineType::LaneType_SOLID ||
-       lane_in_next->right_boundary->type == LineType::LaneType_DOUBLE_SOLID ||
-       lane_in_next->right_boundary->type ==
-           LineType::LaneType_LEFT_SOLID_RIGHT_DASHED)) {
-    HLOG_DEBUG << "NOT ACCESS RIGHT!";
-    return false;
-  }
-  if (!is_right &&
-      (lane_in_next->left_boundary->type == LineType::LaneType_SOLID ||
-       lane_in_next->left_boundary->type == LineType::LaneType_DOUBLE_SOLID ||
-       lane_in_next->left_boundary->type ==
-           LineType::LaneType_RIGHT_SOLID_LEFT_DASHED)) {
-    HLOG_DEBUG << "NOT ACCESS LEFT!";
-    return false;
-  }
-
-  return true;
-}
-
-// 判断车道是否收缩，即宽度越来越小
-bool LaneTopoConstruct::IsShrinkLane(const Lane::Ptr& lane) const {
-  // 为空或点太少，默认非收缩
-  if (lane == nullptr || lane->left_boundary->pts.size() < 3 ||
-      lane->right_boundary->pts.size() < 3) {
-    return false;
-  }
-  const auto& left = lane->left_boundary->pts;
-  const auto& right = lane->right_boundary->pts;
-  const auto& left_back_pt = left.back().pt;
-  const auto& left_mid_pt = left.at(left.size() / 2).pt;
-
-  const auto& right_back_v_pt0 =
-      right.at(static_cast<int>(right.size()) - 2).pt;
-  const auto& right_back_v_pt1 =
-      right.at(static_cast<int>(right.size()) - 1).pt;
-
-  size_t right_mid_idx = right.size() / 2;
-  const auto& right_mid_v_pt0 = right.at(right_mid_idx - 1).pt;
-  const auto& right_mid_v_pt1 = right.at(right_mid_idx).pt;
-
-  Eigen::Vector2f lfbt(left_back_pt.x(), left_back_pt.y());
-  Eigen::Vector2f lmpt(left_mid_pt.x(), left_mid_pt.y());
-  Eigen::Vector2f rbvpt0(right_back_v_pt0.x(), right_back_v_pt0.y());
-  Eigen::Vector2f rbvpt1(right_back_v_pt1.x(), right_back_v_pt1.y());
-  Eigen::Vector2f rmvpt0(right_mid_v_pt0.x(), right_mid_v_pt0.y());
-  Eigen::Vector2f rmvpt1(right_mid_v_pt1.x(), right_mid_v_pt1.y());
-
-  auto left_back_dist = PointToVectorDist(rbvpt0, rbvpt1, lfbt);
-  auto left_mid_dist = PointToVectorDist(rmvpt0, rmvpt1, lmpt);
-  auto left_diff_dist = left_mid_dist - left_back_dist;
-
-  return (left_diff_dist > 0 &&
-          std::abs(left_diff_dist) > kShrinkDiffThreshold &&
-          left_back_dist < conf_.min_lane_width + 0.5);
-}
-
-bool LaneTopoConstruct::IsRightLane(const Group::Ptr& next_group,
-                                    int cur_lane_index, int right_lane_inex) {
-  for (const auto& right_lane_name :
-       next_group->lanes[cur_lane_index]->right_lane_str_id_with_group) {
-    if (right_lane_name ==
-        next_group->lanes[right_lane_inex]->str_id_with_group) {
-      return true;
-      break;
-    }
-  }
-  return false;
-}
-
-bool LaneTopoConstruct::IsLeftLane(const Group::Ptr& next_group,
-                                   int cur_lane_index, int left_lane_index) {
-  for (const auto& left_lane_name :
-       next_group->lanes[cur_lane_index]->left_lane_str_id_with_group) {
-    if (left_lane_name ==
-        next_group->lanes[left_lane_index]->str_id_with_group) {
-      return true;
-    }
-  }
-  return false;
 }
 
 bool LaneTopoConstruct::DistanceInferenceLane(const LineSegment& left_line,

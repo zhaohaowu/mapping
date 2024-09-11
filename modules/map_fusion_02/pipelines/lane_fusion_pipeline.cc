@@ -13,6 +13,7 @@
 #include "common/calc_util.h"
 #include "modules/lane/road_topo_builder/topo_construct.h"
 #include "modules/lane_loc/lane_loc.h"
+#include "rviz/map_fusion_rviz.h"
 
 namespace hozon {
 namespace mp {
@@ -93,6 +94,18 @@ bool LaneFusionPipeline::Init() {
     return false;
   }
 
+  if (!model_config->get_value("junction_heading_diff",
+                               &options_.junction_heading_diff)) {
+    HLOG_ERROR << "Get junction_heading_diff failed!";
+    return false;
+  }
+
+  if (!model_config->get_value("next_group_max_distance",
+                               &options_.next_group_max_distance)) {
+    HLOG_ERROR << "Get next_group_max_distance failed!";
+    return false;
+  }
+
   if (!model_config->get_value("use_occ", &options_.use_occ)) {
     HLOG_ERROR << "Get use_occ failed!";
     return false;
@@ -151,6 +164,7 @@ void LaneFusionPipeline::Clear() {
   broken_pt_search_->Clear();
   road_constructor_->Clear();
   lane_prediction_->Clear();
+  road_topo_constructor_->Clear();
 }
 
 void LaneFusionPipeline::InsertPose(const LocInfo::Ptr& pose) {
@@ -230,9 +244,11 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
   }
 
   // 路口判断
-  junction_check_->Process(groups);
-  // 构造拓扑
-  road_topo_constructor_->ConstructTopology(&groups);
+  int status = junction_check_->Process(groups);
+  MF_RVIZ->VizJunctionStatus(status, element_map_ptr->map_info.stamp);
+
+  road_topo_constructor_->ConstructTopology(element_map_ptr->map_info.stamp,
+                                            &groups, path, curr_pose);
 
   // 车道线预测
   lane_prediction_->SetEgoLaneId();

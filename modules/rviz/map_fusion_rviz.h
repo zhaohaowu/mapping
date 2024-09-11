@@ -39,6 +39,7 @@ class MapFusionRviz {
   void VizGeoInputEleMap(const std::shared_ptr<ElementMap>& ele_map);
   void VizGeoOutputEleMap(const std::shared_ptr<ElementMap>& ele_map);
   void VizPath(const std::vector<KinePosePtr>& path, const KinePose& curr_pose);
+  void VizJunctionStatus(int status, double stamp);
   void VizGroup(const std::vector<Group::Ptr>& groups, double stamp);
   void SetMarker(::adsfi_proto::viz::Marker* marker, const RvizRgb& color,
                  const double& scale, const uint32_t& life_sec,
@@ -83,6 +84,7 @@ class MapFusionRviz {
   std::string viz_topic_guidepoints_;
   std::string viz_topic_cutpoints_;
   std::string viz_topic_distpoints_;
+  std::string viz_topic_junction_status_;
   float viz_lifetime_ = 0;
   DECLARE_SINGLETON_PERCEPTION(MapFusionRviz)
 };

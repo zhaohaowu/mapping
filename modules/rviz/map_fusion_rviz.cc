@@ -82,14 +82,27 @@ bool MapFusionRviz::Init() {
     HLOG_ERROR << "Get viz_topic_distpoints failed!";
     return false;
   }
+  if (!model_config->get_value("viz_topic_junction_status",
+                               &viz_topic_junction_status_)) {
+    HLOG_ERROR << "Get viz_topic_junction_status failed!";
+    return false;
+  }
   if (!model_config->get_value("viz_lifetime", &viz_lifetime_)) {
     HLOG_ERROR << "Get viz_lifetime failed!";
     return false;
   }
+  if (!model_config->get_value("viz_topic_junction_status",
+                               &viz_topic_junction_status_)) {
+    HLOG_ERROR << "Get viz_topic_junction_status failed!";
+    return false;
+  }
 
-  std::vector<std::string> marker_topics = {
-      viz_topic_input_ele_map_, viz_topic_output_ele_map_, viz_topic_group_,
-      viz_topic_geo_input_ele_map_, viz_topic_geo_output_ele_map_};
+  std::vector<std::string> marker_topics = {viz_topic_input_ele_map_,
+                                            viz_topic_output_ele_map_,
+                                            viz_topic_group_,
+                                            viz_topic_geo_input_ele_map_,
+                                            viz_topic_geo_output_ele_map_,
+                                            viz_topic_junction_status_};
   int ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(marker_topics);
   if (ret < 0) {
     HLOG_FATAL << "RvizAgent register marker array failed";
@@ -229,6 +242,55 @@ void MapFusionRviz::VizPath(const std::vector<KinePosePtr>& path,
   }
 }
 
+void MapFusionRviz::VizJunctionStatus(int status, double stamp) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
+
+  adsfi_proto::hz_Adsfi::AlgHeader viz_header;
+  viz_header.set_frameid("vehicle");
+  uint32_t sec = 0;
+  uint32_t nsec = 0;
+  SplitSeconds(stamp, &sec, &nsec);
+  viz_header.mutable_timestamp()->set_sec(sec);
+  viz_header.mutable_timestamp()->set_nsec(nsec);
+  uint32_t life_sec = 0;
+  uint32_t life_nsec = 0;
+  SplitSeconds(viz_lifetime_, &life_sec, &life_nsec);
+
+  auto marker_array = std::make_shared<adsfi_proto::viz::MarkerArray>();
+  auto* marker_junction_status = marker_array->add_markers();
+  marker_junction_status->mutable_header()->CopyFrom(viz_header);
+  marker_junction_status->set_ns("/junction_status");
+  marker_junction_status->set_id(0);
+  marker_junction_status->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+  marker_junction_status->mutable_scale()->set_z(1.0);
+  marker_junction_status->mutable_lifetime()->set_sec(life_sec);
+  marker_junction_status->mutable_lifetime()->set_nsec(life_nsec);
+  marker_junction_status->mutable_color()->set_a(1.0);
+
+  RvizRgb junc_rgb = ColorRgb(RvizColor::R_RED);
+  marker_junction_status->mutable_color()->set_r(junc_rgb.r);
+  marker_junction_status->mutable_color()->set_g(junc_rgb.g);
+  marker_junction_status->mutable_color()->set_b(junc_rgb.b);
+
+  marker_junction_status->set_type(
+      adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+  marker_junction_status->mutable_pose()->mutable_orientation()->set_w(1);
+  marker_junction_status->mutable_pose()->mutable_orientation()->set_x(0);
+  marker_junction_status->mutable_pose()->mutable_orientation()->set_y(0);
+  marker_junction_status->mutable_pose()->mutable_orientation()->set_z(0);
+  marker_junction_status->mutable_pose()->mutable_position()->set_x(-2.0);
+  marker_junction_status->mutable_pose()->mutable_position()->set_y(10.0);
+  marker_junction_status->mutable_pose()->mutable_position()->set_z(0.0);
+  auto* junc_text = marker_junction_status->mutable_text();
+  *junc_text = "junction_status: " + std::to_string(status);
+
+  if (!marker_array->markers().empty()) {
+    RVIZ_AGENT.Publish(viz_topic_junction_status_, marker_array);
+  }
+}
+
 void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
                              double stamp) {
   if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
@@ -262,80 +324,86 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
 
     RvizRgb line_rgb = ColorRgb(line_colors.at(grp_idx % line_colors.size()));
 
-    // start_slice
-    auto* marker_start_slice = marker_array->add_markers();
-    marker_start_slice->mutable_header()->CopyFrom(viz_header);
-    marker_start_slice->set_ns(grp_ns + "/slice");
-    marker_start_slice->set_id(0);
-    marker_start_slice->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
-    marker_start_slice->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
-    marker_start_slice->mutable_color()->set_a(0.1);
-    double width = 1;
-    SetMarker(marker_start_slice, line_rgb, width, life_sec, life_nsec);
+    if (grp->group_state != Group::GroupState::VIRTUAL) {
+      // start_slice
+      auto* marker_start_slice = marker_array->add_markers();
+      marker_start_slice->mutable_header()->CopyFrom(viz_header);
+      marker_start_slice->set_ns(grp_ns + "/slice");
+      marker_start_slice->set_id(0);
+      marker_start_slice->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+      marker_start_slice->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+      marker_start_slice->mutable_color()->set_a(0.1);
+      double width = 1;
+      SetMarker(marker_start_slice, line_rgb, width, life_sec, life_nsec);
 
-    double scale = 1;
-    Eigen::Vector3f left = (grp->start_slice.pl - grp->start_slice.po) * scale +
-                           grp->start_slice.po;
-    Eigen::Vector3f center = grp->start_slice.po;
-    Eigen::Vector3f right =
-        (grp->start_slice.pr - grp->start_slice.po) * scale +
-        grp->start_slice.po;
-    std::vector<Eigen::Vector3f> pts = {left, center, right};
-    for (const auto& p : pts) {
-      auto* pt = marker_start_slice->add_points();
-      pt->set_x(p.x());
-      pt->set_y(p.y());
-      pt->set_z(p.z());
+      double scale = 1;
+      Eigen::Vector3f left =
+          (grp->start_slice.pl - grp->start_slice.po) * scale +
+          grp->start_slice.po;
+      Eigen::Vector3f center = grp->start_slice.po;
+      Eigen::Vector3f right =
+          (grp->start_slice.pr - grp->start_slice.po) * scale +
+          grp->start_slice.po;
+      std::vector<Eigen::Vector3f> pts = {left, center, right};
+      for (const auto& p : pts) {
+        auto* pt = marker_start_slice->add_points();
+        pt->set_x(p.x());
+        pt->set_y(p.y());
+        pt->set_z(p.z());
+      }
+      // start slice cut type
+      auto* marker_start_slice_type = marker_array->add_markers();
+      marker_start_slice_type->mutable_header()->CopyFrom(viz_header);
+      marker_start_slice_type->set_ns(grp_ns + "/slice_cut");
+      marker_start_slice_type->set_id(0);
+      marker_start_slice_type->set_action(
+          adsfi_proto::viz::MarkerAction::MODIFY);
+      marker_start_slice_type->set_type(
+          adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+      marker_start_slice_type->mutable_color()->set_a(1.0);
+      double text_size = 0.5;
+      SetMarker(marker_start_slice_type, line_rgb, text_size, life_sec,
+                life_nsec);
+
+      marker_start_slice_type->mutable_pose()->mutable_position()->set_x(
+          grp->start_slice.po.x() - 2);
+      marker_start_slice_type->mutable_pose()->mutable_position()->set_y(
+          grp->start_slice.po.y() - 1);
+      marker_start_slice_type->mutable_pose()->mutable_position()->set_z(
+          grp->start_slice.po.z());
+      auto* text_start = marker_start_slice_type->mutable_text();
+      *text_start = "cut_type: " + std::to_string(grp->start_slice.cut_type);
+
+      // end_slice
+      auto* marker_end_slice = marker_array->add_markers();
+      marker_end_slice->CopyFrom(*marker_start_slice);
+      marker_end_slice->set_id(1);
+      marker_end_slice->clear_points();
+      left =
+          (grp->end_slice.pl - grp->end_slice.po) * scale + grp->end_slice.po;
+      center = grp->end_slice.po;
+      right =
+          (grp->end_slice.pr - grp->end_slice.po) * scale + grp->end_slice.po;
+      pts = std::vector<Eigen::Vector3f>{left, center, right};
+      for (const auto& p : pts) {
+        auto* pt = marker_end_slice->add_points();
+        pt->set_x(p.x());
+        pt->set_y(p.y());
+        pt->set_z(p.z());
+      }
+      // end slice cut type
+      auto* marker_end_slice_type = marker_array->add_markers();
+      marker_end_slice_type->CopyFrom(*marker_start_slice_type);
+      marker_end_slice_type->set_id(1);
+      marker_end_slice_type->mutable_pose()->mutable_position()->set_x(
+          grp->end_slice.po.x() - 2);
+      marker_end_slice_type->mutable_pose()->mutable_position()->set_y(
+          grp->end_slice.po.y() - 1);
+      marker_end_slice_type->mutable_pose()->mutable_position()->set_z(
+          grp->end_slice.po.z());
+      auto* text_end = marker_end_slice_type->mutable_text();
+      *text_end = "cut_type: " + std::to_string(grp->end_slice.cut_type);
     }
-    // start slice cut type
-    auto* marker_start_slice_type = marker_array->add_markers();
-    marker_start_slice_type->mutable_header()->CopyFrom(viz_header);
-    marker_start_slice_type->set_ns(grp_ns + "/slice_cut");
-    marker_start_slice_type->set_id(0);
-    marker_start_slice_type->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
-    marker_start_slice_type->set_type(
-        adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
-    marker_start_slice_type->mutable_color()->set_a(1.0);
-    double text_size = 0.5;
-    SetMarker(marker_start_slice_type, line_rgb, text_size, life_sec,
-              life_nsec);
-
-    marker_start_slice_type->mutable_pose()->mutable_position()->set_x(
-        grp->start_slice.po.x() - 2);
-    marker_start_slice_type->mutable_pose()->mutable_position()->set_y(
-        grp->start_slice.po.y() - 1);
-    marker_start_slice_type->mutable_pose()->mutable_position()->set_z(
-        grp->start_slice.po.z());
-    auto* text_start = marker_start_slice_type->mutable_text();
-    *text_start = "cut_type: " + std::to_string(grp->start_slice.cut_type);
-
-    // end_slice
-    auto* marker_end_slice = marker_array->add_markers();
-    marker_end_slice->CopyFrom(*marker_start_slice);
-    marker_end_slice->set_id(1);
-    marker_end_slice->clear_points();
-    left = (grp->end_slice.pl - grp->end_slice.po) * scale + grp->end_slice.po;
-    center = grp->end_slice.po;
-    right = (grp->end_slice.pr - grp->end_slice.po) * scale + grp->end_slice.po;
-    pts = std::vector<Eigen::Vector3f>{left, center, right};
-    for (const auto& p : pts) {
-      auto* pt = marker_end_slice->add_points();
-      pt->set_x(p.x());
-      pt->set_y(p.y());
-      pt->set_z(p.z());
-    }
-    // end slice cut type
-    auto* marker_end_slice_type = marker_array->add_markers();
-    marker_end_slice_type->CopyFrom(*marker_start_slice_type);
-    marker_end_slice_type->set_id(1);
-    marker_end_slice_type->mutable_pose()->mutable_position()->set_x(
-        grp->end_slice.po.x() - 2);
-    marker_end_slice_type->mutable_pose()->mutable_position()->set_y(
-        grp->end_slice.po.y() - 1);
-    marker_end_slice_type->mutable_pose()->mutable_position()->set_z(
-        grp->end_slice.po.z());
-    auto* text_end = marker_end_slice_type->mutable_text();
-    *text_end = "cut_type: " + std::to_string(grp->end_slice.cut_type);
 
     // lanes
     if (!grp->lanes.empty()) {

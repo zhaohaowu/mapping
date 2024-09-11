@@ -23,10 +23,10 @@
 #include "modules/map_fusion_02/base/junction.h"
 #include "modules/map_fusion_02/common/calc_util.h"
 #include "modules/map_fusion_02/common/common_data.h"
-#include "modules/map_fusion_02/data_manager/location_data_manager.h"
 #include "modules/map_fusion_02/data_manager/junction_status_manager.h"
-#include "modules/map_fusion_02/modules/lane/road_topo_builder/lane_topo.h"
+#include "modules/map_fusion_02/data_manager/location_data_manager.h"
 #include "modules/map_fusion_02/modules/lane/road_topo_builder/junction_topo.h"
+#include "modules/map_fusion_02/modules/lane/road_topo_builder/lane_topo.h"
 #include "modules/map_fusion_02/modules/lane/road_topo_builder/utils.h"
 #include "modules/util/include/util/mapping_log.h"
 
@@ -42,11 +42,13 @@ class RoadTopoConstruct {
 
   void Init(const LaneFusionProcessOption& conf);
 
-  bool ConstructTopology(std::vector<Group::Ptr>* groups);
+  void Clear();
+
+  bool ConstructTopology(double stamp, std::vector<Group::Ptr>* groups,
+                         const std::shared_ptr<std::vector<KinePosePtr>>& path,
+                         const KinePosePtr& curr_pose);
 
  private:
-  bool SetLaneStatus(std::vector<Group::Ptr>* groups);
-
  private:
   LaneFusionProcessOption conf_;
   LaneTopoConstructPtr lane_topo_ = nullptr;

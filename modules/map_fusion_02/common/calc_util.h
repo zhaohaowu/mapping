@@ -144,6 +144,17 @@ T PointInVectorSide(const Eigen::Matrix<T, 2, 1>& p0,
   return cross;
 }
 
+template <typename T, int R>
+T PointInVectorSide(const Eigen::Matrix<T, R, 1>& p0,
+                    const Eigen::Matrix<T, R, 1>& p1,
+                    const Eigen::Matrix<T, R, 1>& pt) {
+  Eigen::Matrix<T, R, 1> p0_p1 = p1 - p0;
+  Eigen::Matrix<T, R, 1> p0_pt = pt - p0;
+
+  T cross = p0_pt.x() * p0_p1.y() - p0_p1.x() * p0_pt.y();
+  return cross;
+}
+
 /// 判断pt在p0p1的投影点是否在线段内
 template <typename T>
 bool ProjectedInSegment(const Eigen::Matrix<T, 2, 1>& p0,
@@ -173,6 +184,21 @@ T ProjectionToVector(const Eigen::Matrix<T, 2, 1>& p0,
                      const Eigen::Matrix<T, 2, 1>& pt) {
   Eigen::Matrix<T, 2, 1> p0p1 = p1 - p0;
   Eigen::Matrix<T, 2, 1> p0pt = pt - p0;
+  T dot = p0p1.transpose() * p0pt;
+  T p0p1_norm = p0p1.norm();
+  T proj = 0;
+  if (std::abs(p0p1_norm - 0) > 0.000001) {
+    proj = dot / p0p1_norm;
+  }
+  return proj;
+}
+
+template <typename T, int R>
+T ProjectionToVector(const Eigen::Matrix<T, R, 1>& p0,
+                     const Eigen::Matrix<T, R, 1>& p1,
+                     const Eigen::Matrix<T, R, 1>& pt) {
+  Eigen::Matrix<T, R, 1> p0p1 = p1 - p0;
+  Eigen::Matrix<T, R, 1> p0pt = pt - p0;
   T dot = p0p1.transpose() * p0pt;
   T p0p1_norm = p0p1.norm();
   T proj = 0;

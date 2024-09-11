@@ -6,7 +6,6 @@
  ******************************************************************************/
 
 #include "modules/map_fusion_02/common/calc_util.h"
-
 #include <depend/common/math/double_type.h>
 
 #include <numeric>

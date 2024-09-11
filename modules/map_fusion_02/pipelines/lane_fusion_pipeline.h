@@ -23,6 +23,7 @@
 #include "modules/map_fusion_02/modules/lane/road_builder/broken_point_search.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/road_construct.h"
 #include "modules/map_fusion_02/modules/lane/road_topo_builder/topo_construct.h"
+#include "modules/map_fusion_02/modules/lane/virtual_lane_construct/virtual_line_generate.h"
 #include "modules/map_fusion_02/modules/lane_loc/lane_loc.h"
 #include "modules/map_fusion_02/pipelines/base_fusion_pipeline.h"
 #include "modules/rviz/map_fusion_rviz.h"
@@ -55,6 +56,7 @@ class LaneFusionPipeline : public BaseFusionPipeline {
   JunctionCheckPtr junction_check_ = nullptr;
   LaneLocPtr lane_loc_ = nullptr;
   LanePredictionPtr lane_prediction_ = nullptr;
+  VirtualLineGenPtr virtual_line_gen_ = nullptr;
 };
 
 using LaneFusionPipelinePtr = std::unique_ptr<LaneFusionPipeline>;

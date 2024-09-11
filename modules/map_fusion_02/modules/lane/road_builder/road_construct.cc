@@ -799,7 +799,7 @@ void RoadConstruct::GenLanesInGroups(std::vector<Group::Ptr>* groups,
     FilterGroupBadLane(grp);
     grp_idx++;
     GenGroupName(grp, grp_idx, stamp);
-    MatchLRLane(grp);
+    // MatchLRLane(grp);
     EgoLineTrajectory(grp, ele_map);
   }
   //   |   |
@@ -821,7 +821,7 @@ void RoadConstruct::GenLanesInGroups(std::vector<Group::Ptr>* groups,
   GenLaneCenterLine(groups);
 
   // 删除脑部多的ego_group，青鸾号:1273597
-  EraseEgoGroupWithNoEgoLane(groups);
+  // EraseEgoGroupWithNoEgoLane(groups);
 
   // 删除空的group数据
   int before_remove_grp_nums = static_cast<int>(groups->size());
@@ -834,7 +834,7 @@ void RoadConstruct::GenLanesInGroups(std::vector<Group::Ptr>* groups,
 
   HLOG_DEBUG << "current stamp is:" << std::to_string(stamp);
 
-  SmoothCenterline(groups);
+  // SmoothCenterline(groups);
 }
 
 void RoadConstruct::GenGroupAllLanes(const Group::Ptr& grp) {

@@ -154,6 +154,8 @@ bool LaneFusionPipeline::Init() {
 
   lane_prediction_ = std::make_unique<LanePrediction>();
   lane_prediction_->Init(options_);
+  virtual_line_gen_ = std::make_unique<VirtualLineGen>();
+  virtual_line_gen_->Init(options_);
 
   initialized_ = true;
 
@@ -165,6 +167,7 @@ void LaneFusionPipeline::Clear() {
   road_constructor_->Clear();
   lane_prediction_->Clear();
   road_topo_constructor_->Clear();
+  virtual_line_gen_->Clear();
 }
 
 void LaneFusionPipeline::InsertPose(const LocInfo::Ptr& pose) {
@@ -246,7 +249,9 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
   // 路口判断
   int status = junction_check_->Process(groups);
   MF_RVIZ->VizJunctionStatus(status, element_map_ptr->map_info.stamp);
-
+  // 虚拟线构建
+  virtual_line_gen_->ConstructVirtualLine(&groups);
+  // 构造拓扑
   road_topo_constructor_->ConstructTopology(element_map_ptr->map_info.stamp,
                                             &groups, path, curr_pose);
 

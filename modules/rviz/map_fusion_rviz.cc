@@ -654,6 +654,81 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
       }
     }
 
+    // virtual line generate
+    if (!grp->line_segments.empty()) {
+      int line_segment_size = -1;
+      for (auto line : grp->line_segments) {
+        if (line->type == LaneType_LANE_VIRTUAL_MARKING && !line->pts.empty()) {
+          line_segment_size += 1;
+          std::string line_ns =
+              "line_segment_virtual_" + std::to_string(line_segment_size);
+          auto* marker_line_text = marker_array->add_markers();
+          marker_line_text->mutable_header()->CopyFrom(viz_header);
+          marker_line_text->set_ns(grp_ns + '/' + line_ns);
+          marker_line_text->set_id(line_segment_size);
+          marker_line_text->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+          double width = 0.2;
+          marker_line_text->mutable_scale()->set_x(width);
+          marker_line_text->mutable_scale()->set_y(width);
+          marker_line_text->mutable_scale()->set_z(width);
+          marker_line_text->mutable_lifetime()->set_sec(life_sec);
+          marker_line_text->mutable_lifetime()->set_nsec(life_nsec);
+          marker_line_text->mutable_color()->set_a(0.5);
+          marker_line_text->mutable_color()->set_r(line_rgb.r);
+          marker_line_text->mutable_color()->set_g(line_rgb.g);
+          marker_line_text->mutable_color()->set_b(line_rgb.b);
+          marker_line_text->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+          marker_line_text->mutable_pose()->mutable_orientation()->set_w(1);
+          marker_line_text->mutable_pose()->mutable_orientation()->set_x(0);
+          marker_line_text->mutable_pose()->mutable_orientation()->set_y(0);
+          marker_line_text->mutable_pose()->mutable_orientation()->set_z(0);
+
+          for (const auto& p : line->pts) {
+            auto* pt = marker_line_text->add_points();
+            pt->set_x(p.pt.x());
+            pt->set_y(p.pt.y());
+            pt->set_z(p.pt.z());
+          }
+          auto* marker_str_id_with_group = marker_array->add_markers();
+          marker_str_id_with_group->mutable_header()->CopyFrom(viz_header);
+          marker_str_id_with_group->set_ns(grp_ns + "/" + line_ns);
+          marker_str_id_with_group->set_id(9);
+          marker_str_id_with_group->set_action(
+              adsfi_proto::viz::MarkerAction::MODIFY);
+          double text_size = 0.5;
+          marker_str_id_with_group->mutable_scale()->set_z(text_size);
+          marker_str_id_with_group->mutable_lifetime()->set_sec(life_sec);
+          marker_str_id_with_group->mutable_lifetime()->set_nsec(life_nsec);
+          marker_str_id_with_group->mutable_color()->set_a(0.2);
+          marker_str_id_with_group->mutable_color()->set_r(line_rgb.r);
+          marker_str_id_with_group->mutable_color()->set_g(line_rgb.g);
+          marker_str_id_with_group->mutable_color()->set_b(line_rgb.b);
+          marker_str_id_with_group->set_type(
+              adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+          marker_str_id_with_group->mutable_pose()
+              ->mutable_orientation()
+              ->set_w(1);
+          marker_str_id_with_group->mutable_pose()
+              ->mutable_orientation()
+              ->set_x(0);
+          marker_str_id_with_group->mutable_pose()
+              ->mutable_orientation()
+              ->set_y(0);
+          marker_str_id_with_group->mutable_pose()
+              ->mutable_orientation()
+              ->set_z(0);
+          marker_str_id_with_group->mutable_pose()->mutable_position()->set_x(
+              line->pts.front().pt.x());
+          marker_str_id_with_group->mutable_pose()->mutable_position()->set_y(
+              line->pts.front().pt.y());
+          marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
+              line->pts.front().pt.z());
+          auto* text = marker_str_id_with_group->mutable_text();
+          *text = " Virtual Line " + std::to_string(line->id);
+        }
+      }
+    }
+
     // road edges
     if (!grp->road_edges.empty()) {
       // HLOG_INFO << "road edges size: " << grp->road_edges.size();

@@ -131,11 +131,19 @@ void MmFault::CheckIsGoodMatchFCbyLine(
       } else {
         right_filtered_fcmap_lines[line_idx] = map_line_points;
       }
+      if (fabs(map_point.y()) < 0.4) {
+        left_filtered_fcmap_lines[line_idx] = map_line_points;
+        right_filtered_fcmap_lines[line_idx] = map_line_points;
+      }
     } else {
       if (map_line_points.front().x() >= 0) {
         if (map_line_points.front().y() >= 0) {
           left_filtered_fcmap_lines[line_idx] = map_line_points;
         } else {
+          right_filtered_fcmap_lines[line_idx] = map_line_points;
+        }
+        if (fabs(map_line_points.front().y()) < 0.3) {
+          left_filtered_fcmap_lines[line_idx] = map_line_points;
           right_filtered_fcmap_lines[line_idx] = map_line_points;
         }
       } else {

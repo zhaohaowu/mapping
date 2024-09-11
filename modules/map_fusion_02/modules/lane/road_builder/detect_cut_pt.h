@@ -12,6 +12,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+
 #include <list>
 #include <map>
 #include <memory>
@@ -266,7 +267,8 @@ class DetectCutPt {
   bool calbrokenangle(
       const std::vector<std::vector<LaneLine::Ptr>>& linesvec_broken,  // NOLINT
       std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>&
-          linesvec_sort);
+          linesvec_sort,  // NOLINT
+      const bool& ret);
   bool canAddToCluster(
       const std::vector<std::pair<double, LaneLine::Ptr>>& cluster,
       const double& element, const double& maxDifference);
@@ -280,7 +282,7 @@ class DetectCutPt {
       std::vector<std::pair<int, int>>& aveanglevec);  // NOLINT
   void SkipSinglePoint(
       std::vector<std::vector<LaneLine::Ptr>>& linevec,  // NOLINT
-      const double& angle);
+      const double& angle, const bool& ret);
 
   template <typename T>
   inline std::string GetElementsIdVec(const std::vector<T>& vec);

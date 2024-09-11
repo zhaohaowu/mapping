@@ -197,7 +197,7 @@ void DetectCutPt::FindBrokenStart(
     broken_front_ctps_.clear();
   }
   auto tmpcategories = categories;
-  SkipSinglePoint(tmpcategories, 5);
+  SkipSinglePoint(tmpcategories, 3, false);
   for (auto& cat : tmpcategories) {
     CutPoint broken_fro;
     Point3D min_p;
@@ -1105,7 +1105,7 @@ bool DetectCutPt::DetectEachSubCategories(
       // 尾部切分点 (最靠前的线最后一个点)
       std::vector<std::vector<LaneLine::Ptr>> tmpvecLines;
       tmpvecLines.push_back(input_lines);
-      SkipSinglePoint(tmpvecLines, 5);
+      SkipSinglePoint(tmpvecLines, 3, true);
       Point3D pt = tmpvecLines.front().back()->GetPoints().back();
 
       // 待切分线的lines id
@@ -1145,7 +1145,8 @@ bool DetectCutPt::DetectEachSubCategories(
 
 bool DetectCutPt::calbrokenangle(
     const std::vector<std::vector<LaneLine::Ptr>>& linesvec_broken,  // NOLINT
-    std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>& linesvec_sort) {
+    std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>& linesvec_sort,
+    const bool& ret) {
   // 对于单个线集合，判断离散点，然后删除离散点
   if (linesvec_broken.empty()) {
     return false;
@@ -1153,28 +1154,41 @@ bool DetectCutPt::calbrokenangle(
   linesvec_sort.resize(linesvec_broken.size());
   for (size_t i = 0; i < linesvec_broken.size(); i++) {
     // 遍历线集，删除离散点
+    if (linesvec_broken[i].empty()) {
+      return false;
+    }
     std::vector<std::pair<double, LaneLine::Ptr>> linevec_sort;
     linevec_sort.resize(linesvec_broken[i].size());
-    if (linesvec_broken[i].empty()) {
-      continue;
-    }
     double angle_vec;
     for (size_t j = 0; j < linesvec_broken[i].size(); j++) {
+      LaneLine::Ptr line = linesvec_broken[i][j];
+      if (line->GetPoints().size() < 2) {
+        return false;
+      }
       double angle;
       Point3D direction_v1;
       Point3D vec_dir(1, 0, 0);
-      LaneLine::Ptr line = linesvec_broken[i][j];
-      if (line->GetPoints().size() > 5) {
-        direction_v1 =
-            line->GetPoints().back() - *std::prev(line->GetPoints().end(), 5);
-      } else if (line->GetPoints().size() > 1) {
-        direction_v1 = line->GetPoints().back() - line->GetPoints().front();
+      const int angle_value = 5;
+      // 如果end优先执行
+      if (ret) {
+        if (line->GetPoints().size() > angle_value) {
+          direction_v1 = line->GetPoints().back() -
+                         *std::prev(line->GetPoints().end(), angle_value);
+        } else {
+          direction_v1 = line->GetPoints().back() - line->GetPoints().front();
+        }
       } else {
-        continue;
+        if (line->GetPoints().size() > angle_value) {
+          direction_v1 =
+              line->GetPoints()[angle_value] - line->GetPoints().front();
+        } else {
+          direction_v1 = line->GetPoints().back() - line->GetPoints().front();
+        }
       }
-
       if (callineangle(direction_v1, vec_dir, angle)) {
         linevec_sort[j] = std::make_pair(angle, line);
+      } else {
+        linevec_sort[j] = std::make_pair(-DOUBLE_DASH, line);
       }
     }
     linesvec_sort[i] = linevec_sort;
@@ -1260,10 +1274,10 @@ void DetectCutPt::calbrokenaveangle(
 }
 void DetectCutPt::SkipSinglePoint(
     std::vector<std::vector<LaneLine::Ptr>>& linevec,  // NOLINT
-    const double& angle) {
+    const double& angle, const bool& ret) {
   std::vector<std::vector<std::pair<double, LaneLine::Ptr>>> linesvec_sort;
   // 获取broken角度信息linesvec_sort
-  bool angle_mask = calbrokenangle(linevec, linesvec_sort);
+  bool angle_mask = calbrokenangle(linevec, linesvec_sort, ret);
   if (angle_mask) {
     for (size_t i = 0; i < linesvec_sort.size(); i++) {
       // deal with single broken-lines

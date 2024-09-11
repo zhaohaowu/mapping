@@ -295,12 +295,18 @@ void BaiDuMapEngine::MapTransition(
         std::vector<uint32_t> right_ids;
         section_lane_id->Add()->set_id(std::to_string(bd_lane_ids[i]));
         int right_i = i - 1;
-        while (right_i >= 0) {
-          right_ids.emplace_back(bd_lane_ids[right_i--]);
+        // while (right_i >= 0) {
+        //   right_ids.emplace_back(bd_lane_ids[right_i--]);
+        // }
+        if (right_i >= 0) {
+          right_ids.emplace_back(bd_lane_ids[right_i]);
         }
         int left_i = i + 1;
-        while (left_i < bd_lane_ids.size()) {
-          left_ids.emplace_back(bd_lane_ids[left_i++]);
+        // while (left_i < bd_lane_ids.size()) {
+        //   left_ids.emplace_back(bd_lane_ids[left_i++]);
+        // }
+        if (left_i < bd_lane_ids.size()) {
+          left_ids.emplace_back(bd_lane_ids[left_i]);
         }
         if (i == 0 && bd_lane_ids.size() == 1) {
           search_road_boudary = 0;
@@ -588,11 +594,11 @@ void BaiDuMapEngine::SetBoundaryType(
     switch (bd_mark_bound->get_type()) {
       case baidu::imap::DMT_MARKING_NONE:
         boundary->set_virtual_(true);
-        boundary_type->add_types(hozon::hdmap::LaneBoundaryType::UNKNOWN);
+        boundary_type->add_types(hozon::hdmap::LaneBoundaryType::DOTTED_WHITE);
         break;
       case baidu::imap::DMT_MARKING_UNKNOWN:
-        boundary->set_virtual_(false);
-        boundary_type->add_types(hozon::hdmap::LaneBoundaryType::UNKNOWN);
+        boundary->set_virtual_(true);
+        boundary_type->add_types(hozon::hdmap::LaneBoundaryType::DOTTED_WHITE);
         break;
 
       case baidu::imap::DMT_MARKING_LONG_DASHED_LINE:
@@ -988,6 +994,10 @@ void BaiDuMapEngine::Setjunctions(
 }
 
 void BaiDuMapEngine::SetJunctionPb(const baidu::imap::JunctionPtr& bd_jun) {
+  if (bd_jun->get_geometry().size() < 3) {
+    HLOG_ERROR << ">>>filter   junction";
+    return;
+  }
   auto* junction = neta_map_.mutable_junction()->Add();
   junction->mutable_id()->set_id(std::to_string(bd_jun->get_id()));
   for (const auto& geo : bd_jun->get_geometry()) {
@@ -1006,6 +1016,9 @@ void BaiDuMapEngine::SetJunctionPb(const baidu::imap::JunctionPtr& bd_jun) {
 void BaiDuMapEngine::SetJunOverlapPb(
     const baidu::imap::JunctionPtr& bd_jun,
     const std::unordered_map<std::string, hozon::hdmap::Lane>& neta_lanes_um) {
+  if (bd_jun->get_geometry().size() < 3) {
+    return;
+  }
   for (const auto& id : bd_jun->get_laneids()) {
     std::string lane_id(std::to_string(id));
     std::string jun_id(std::to_string(bd_jun->get_id()));

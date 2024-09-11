@@ -262,21 +262,21 @@ class DetectCutPt {
 
   void ProcessPath(const std::shared_ptr<std::vector<KinePosePtr>>& path);
 
-  bool callineangle(const Point3D& point1, const Point3D& point2,
+  bool CalLineAngle(const Point3D& point1, const Point3D& point2,
                     double& angle1);  // NOLINT
-  bool calbrokenangle(
+  bool CalBrokenAngle(
       const std::vector<std::vector<LaneLine::Ptr>>& linesvec_broken,  // NOLINT
       std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>&
           linesvec_sort,  // NOLINT
       const bool& ret);
-  bool canAddToCluster(
+  bool CanAddToCluster(
       const std::vector<std::pair<double, LaneLine::Ptr>>& cluster,
-      const double& element, const double& maxDifference);
-  bool clusterData(const std::vector<std::pair<double, LaneLine::Ptr>>& data,
-                   const double& maxDifference,
+      const double& element, const double& maxdifference);
+  bool ClusterData(const std::vector<std::pair<double, LaneLine::Ptr>>& data,
+                   const double& maxdifference,
                    std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>&
                        clusters);  // NOLINT
-  void calbrokenaveangle(
+  void CalBrokenAveangle(
       const std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>&
           clusters,
       std::vector<std::pair<int, int>>& aveanglevec);  // NOLINT

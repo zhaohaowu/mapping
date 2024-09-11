@@ -1143,17 +1143,15 @@ bool DetectCutPt::DetectEachSubCategories(
   return true;
 }
 
-bool DetectCutPt::calbrokenangle(
+bool DetectCutPt::CalBrokenAngle(
     const std::vector<std::vector<LaneLine::Ptr>>& linesvec_broken,  // NOLINT
     std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>& linesvec_sort,
     const bool& ret) {
-  // 对于单个线集合，判断离散点，然后删除离散点
   if (linesvec_broken.empty()) {
     return false;
   }
   linesvec_sort.resize(linesvec_broken.size());
   for (size_t i = 0; i < linesvec_broken.size(); i++) {
-    // 遍历线集，删除离散点
     if (linesvec_broken[i].empty()) {
       return false;
     }
@@ -1185,7 +1183,7 @@ bool DetectCutPt::calbrokenangle(
           direction_v1 = line->GetPoints().back() - line->GetPoints().front();
         }
       }
-      if (callineangle(direction_v1, vec_dir, angle)) {
+      if (CalLineAngle(direction_v1, vec_dir, angle)) {
         linevec_sort[j] = std::make_pair(angle, line);
       } else {
         linevec_sort[j] = std::make_pair(-DOUBLE_DASH, line);
@@ -1196,54 +1194,52 @@ bool DetectCutPt::calbrokenangle(
   return true;
 }
 
-bool DetectCutPt::callineangle(const Point3D& point1, const Point3D& point2,
+bool DetectCutPt::CalLineAngle(const Point3D& point1, const Point3D& point2,
                                double& angle1) {
   if ((0 == point1.Norm()) || (0 == point2.Norm())) {
     return false;
   }
   double value_cos = const_cast<Point3D&>(point1).Dot(point2) /
                      (point1.Norm()) * (point2.Norm());
-  if (value_cos > 1 || value_cos < -1) {
+  if (std::fabs(value_cos) > 1.0) {
     return false;
   }
   angle1 = std::acos(value_cos) * 180.0 / M_PI;
   return true;
 }
-// 添加聚类元素
-bool DetectCutPt::canAddToCluster(
+
+bool DetectCutPt::CanAddToCluster(
     const std::vector<std::pair<double, LaneLine::Ptr>>& cluster,
-    const double& element, const double& maxDifference) {
+    const double& element, const double& maxdifference) {
   for (const auto& value : cluster) {
-    if (std::fabs(value.first - element) > maxDifference) {
-      return false;  // 如果与任何一个元素的差值大于 maxDifference，则不能加入
+    if (std::fabs(value.first - element) > maxdifference) {
+      return false;
     }
   }
-  return true;  // 如果与所有元素的差值都不大于 maxDifference，则可以加入
+  return true;
 }
 
-// 聚类函数，返回聚类结果
-bool DetectCutPt::clusterData(
+bool DetectCutPt::ClusterData(
     const std::vector<std::pair<double, LaneLine::Ptr>>& data,
-    const double& maxDifference,
+    const double& maxdifference,
     std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>& clusters) {
-  if (data.size() < 2) return false;  // 如果输入为空，直接返回空结果
+  if (data.size() < 2) return false;
   for (const auto element : data) {
     bool added = false;
     bool calmask = false;
-    // 尝试将元素加入已有的聚类
-
+    // 试将元素加入已有的聚类
     for (auto& cluster : clusters) {
       if ((!calmask) &&
           (std::find_if(
                cluster.begin(), cluster.end(),
                [&element](const std::pair<double, LaneLine::Ptr>& elem) {
-                 return elem.first == element.first;  // 只比较double部分
+                 return elem.first == element.first;
                }) != cluster.end())) {
         break;
       } else {
         calmask = true;
       }
-      if (canAddToCluster(cluster, element.first, maxDifference)) {
+      if (CanAddToCluster(cluster, element.first, maxdifference)) {
         cluster.emplace_back(element);
         added = true;
         break;
@@ -1258,7 +1254,7 @@ bool DetectCutPt::clusterData(
 
   return true;
 }
-void DetectCutPt::calbrokenaveangle(
+void DetectCutPt::CalBrokenAveangle(
     const std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>& clusters,
     std::vector<std::pair<int, int>>& aveanglevec) {
   for (size_t i = 0; i < clusters.size(); i++) {
@@ -1277,18 +1273,17 @@ void DetectCutPt::SkipSinglePoint(
     const double& angle, const bool& ret) {
   std::vector<std::vector<std::pair<double, LaneLine::Ptr>>> linesvec_sort;
   // 获取broken角度信息linesvec_sort
-  bool angle_mask = calbrokenangle(linevec, linesvec_sort, ret);
+  bool angle_mask = CalBrokenAngle(linevec, linesvec_sort, ret);
   if (angle_mask) {
     for (size_t i = 0; i < linesvec_sort.size(); i++) {
       // deal with single broken-lines
-      // single broken-lines clusters
       std::vector<std::vector<std::pair<double, LaneLine::Ptr>>> clusters;
       std::vector<std::pair<int, int>> aveanglevec;
-      clusterData(linesvec_sort[i], angle,
+      ClusterData(linesvec_sort[i], angle,
                   clusters);  // 聚类
       if (!clusters.empty()) {
-        // 统计聚类元素的avg_angle
-        calbrokenaveangle(clusters, aveanglevec);
+        // 统计聚类元素的avgsize
+        CalBrokenAveangle(clusters, aveanglevec);
         // 单个broken删除离散点
         if (aveanglevec.size() > 1) {
           std::unordered_set<int> delete_ids;

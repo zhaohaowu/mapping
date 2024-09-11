@@ -1226,19 +1226,8 @@ bool DetectCutPt::ClusterData(
   if (data.size() < 2) return false;
   for (const auto element : data) {
     bool added = false;
-    bool calmask = false;
-    // 试将元素加入已有的聚类
+    // 试将元素加入已有的聚类,当满足多个簇时，优先聚类在前面的簇中
     for (auto& cluster : clusters) {
-      if ((!calmask) &&
-          (std::find_if(
-               cluster.begin(), cluster.end(),
-               [&element](const std::pair<double, LaneLine::Ptr>& elem) {
-                 return elem.first == element.first;
-               }) != cluster.end())) {
-        break;
-      } else {
-        calmask = true;
-      }
       if (CanAddToCluster(cluster, element.first, maxdifference)) {
         cluster.emplace_back(element);
         added = true;

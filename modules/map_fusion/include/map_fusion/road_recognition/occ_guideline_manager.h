@@ -62,7 +62,7 @@ class OccGuideLineManager {
     occ_width_ = 0.0;
     occ_dir_vec_.setZero();
     stable_occ_datas_.clear();
-    ego_line_x_dis_ = 0.0;
+    ego_bevlines_x_dis_.clear();
     exit_lane_info_.exist = false;
   }
 
@@ -111,10 +111,12 @@ class OccGuideLineManager {
 
   float GetExitLaneWidth();
 
-  float GetEgoLineNearestDistance();
+  std::vector<float> GetBevLineXdisOfExitAndEntrance();
 
   float GetEntranceLaneWidth(
       const std::vector<em::Boundary::Ptr>& bev_lanelines);
+
+  void ClearBadOccByBevLinePosition();
 
   em::Boundary::Ptr TransformPbLine2Boundary(
       const std::shared_ptr<hozon::mapping::LaneLine>& pb_line);
@@ -165,7 +167,7 @@ class OccGuideLineManager {
   float occ_width_ = 0.0;
   std::vector<em::Boundary::Ptr> stable_occ_datas_;
 
-  float ego_line_x_dis_ = 0.0;
+  std::vector<float> ego_bevlines_x_dis_;
   ExitLaneInfo exit_lane_info_;
 };
 

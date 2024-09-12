@@ -241,6 +241,10 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
   std::vector<Group::Ptr> groups;
   groups = road_constructor_->GetGroups();
 
+  std::deque<Line::Ptr> occ_lines;
+  occ_lines = road_constructor_->GetFitOcc();
+  MF_RVIZ->VizFitOcc(occ_lines, element_map_ptr->map_info.stamp);
+
   bool lane_loc_state = lane_loc_->UpdateGroups(&groups);
   if (!lane_loc_state) {
     HLOG_WARN << "update group failed";

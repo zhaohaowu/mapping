@@ -10,6 +10,19 @@
 namespace hozon {
 namespace mp {
 namespace mf {
+CutPoint::CutPoint(const id_t id, const Eigen::Vector3d& point,
+                   const CutPointType& cut_type, const id_t main_line_id,
+                   const Eigen::Vector3d& cut_dir_params)
+    : id_(id),
+      point_(point[0], point[1], point[2], 1.0),
+      cut_type_(cut_type),
+      main_line_id_(main_line_id),
+      cut_dir_params_(cut_dir_params) {
+  Eigen::Vector3d start_f = -cut_dir_params_ * extend_dist_ + point;
+  Eigen::Vector3d end_f = cut_dir_params_ * extend_dist_ + point;
+  extre_point_.emplace_back(start_f[0], start_f[1], start_f[2]);
+  extre_point_.emplace_back(end_f[0], end_f[1], end_f[2]);
+}
 
 void CutPoint::SetId(const id_t id) { id_ = id; }
 

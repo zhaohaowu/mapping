@@ -302,6 +302,12 @@ class CutPoint {
   DEFINE_SMART_PTR(CutPoint)
 
   CutPoint() = default;
+  // CutPoint(const CutPoint&) = default;
+
+  CutPoint(const id_t id, const Eigen::Vector3d& point,
+           const CutPointType& cut_type, const id_t main_line_id,
+           const Eigen::Vector3d& cut_dir_params);
+
   ~CutPoint() = default;
 
   void SetId(const id_t id);
@@ -366,6 +372,9 @@ class CutPoint {
 
   // for memory cut
   std::vector<Sophus::SE3d> sub_pose_path_;
+
+  // 切分线半长
+  static constexpr double extend_dist_ = 40.0;
 };
 
 }  // namespace mf

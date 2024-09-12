@@ -344,7 +344,7 @@ struct RoadEdge {
   std::vector<Eigen::Vector3f> points;
   bool is_left = false;
   bool is_right = false;
-  double dist_to_path;
+  double dist_to_path = -1000;
   RoadEdgeType road_edge_type;
 
   DEFINE_PTR(RoadEdge)

@@ -82,6 +82,10 @@ bool MapFusionRviz::Init() {
     HLOG_ERROR << "Get viz_topic_distpoints failed!";
     return false;
   }
+  if (!model_config->get_value("viz_topic_fitocc", &viz_topic_fitocc_)) {
+    HLOG_ERROR << "Get viz_topic_fitocc failed!";
+    return false;
+  }
   if (!model_config->get_value("viz_topic_junction_status",
                                &viz_topic_junction_status_)) {
     HLOG_ERROR << "Get viz_topic_junction_status failed!";
@@ -89,11 +93,6 @@ bool MapFusionRviz::Init() {
   }
   if (!model_config->get_value("viz_lifetime", &viz_lifetime_)) {
     HLOG_ERROR << "Get viz_lifetime failed!";
-    return false;
-  }
-  if (!model_config->get_value("viz_topic_junction_status",
-                               &viz_topic_junction_status_)) {
-    HLOG_ERROR << "Get viz_topic_junction_status failed!";
     return false;
   }
 
@@ -142,9 +141,20 @@ bool MapFusionRviz::Init() {
   };
   ret = RVIZ_AGENT.Register<adsfi_proto::viz::PointCloud>(dist_points_topic);
   if (ret < 0) {
-    HLOG_FATAL << "RvizAgent register cut point failed";
+    HLOG_FATAL << "RvizAgent register dist point failed";
     return false;
   }
+
+  std::vector<std::string> fitocc_topic = {
+      viz_topic_fitocc_,
+  };
+  ret = RVIZ_AGENT.Register<adsfi_proto::viz::MarkerArray>(fitocc_topic);
+  HLOG_INFO << "RvizAgent register fit occ";
+  if (ret < 0) {
+    HLOG_FATAL << "RvizAgent register fit occ failed";
+    return false;
+  }
+
   inited_ = true;
   return true;
 }
@@ -598,7 +608,7 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
         marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
             lane->center_line_pts.front().pt.z());
         auto* text = marker_str_id_with_group->mutable_text();
-        *text = lane->str_id_with_group + " broken id " +
+        *text = lane->str_id_with_group + " broken_id-" +
                 std::to_string(grp->broken_id);
         if (!lane->next_lane_str_id_with_group.empty() &&
             lane->center_line_pts.size() > 2) {
@@ -650,7 +660,17 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
         marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
             grp->line_segments.front()->pts[idx].pt.z());
         auto* text = marker_str_id_with_group->mutable_text();
-        *text = grp->str_id + " broken id " + std::to_string(grp->broken_id);
+        *text = grp->str_id + " broken_id-" + std::to_string(grp->broken_id);
+      } else if (!grp->occ_segments.empty()) {
+        int idx = static_cast<int>(grp->occ_segments.front()->pts.size() / 2);
+        marker_str_id_with_group->mutable_pose()->mutable_position()->set_x(
+            grp->occ_segments.front()->pts[idx].pt.x());
+        marker_str_id_with_group->mutable_pose()->mutable_position()->set_y(
+            grp->occ_segments.front()->pts[idx].pt.y() - 1);
+        marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
+            grp->occ_segments.front()->pts[idx].pt.z());
+        auto* text = marker_str_id_with_group->mutable_text();
+        *text = grp->str_id + " broken_id-" + std::to_string(grp->broken_id);
       }
     }
 
@@ -936,6 +956,49 @@ void MapFusionRviz::VizDistpoint(const std::vector<Eigen::Vector3f>& distpoints,
 
   RVIZ_AGENT.Publish(viz_topic_distpoints_, points_msg);
   distpoints_t.clear();
+}
+
+void MapFusionRviz::VizFitOcc(const std::deque<Line::Ptr>& occ_lines,
+                              double stamp) {
+  HLOG_INFO << "viz fit occ lines size " << occ_lines.size();
+
+  adsfi_proto::hz_Adsfi::AlgHeader viz_header;
+  viz_header.set_frameid("vehicle");
+  uint32_t sec = 0;
+  uint32_t nsec = 0;
+  SplitSeconds(stamp, &sec, &nsec);
+  viz_header.mutable_timestamp()->set_sec(sec);
+  viz_header.mutable_timestamp()->set_nsec(nsec);
+  uint32_t life_sec = 0;
+  uint32_t life_nsec = 0;
+  SplitSeconds(viz_lifetime_, &life_sec, &life_nsec);
+  int idx = 0;
+  auto marker_array = std::make_shared<adsfi_proto::viz::MarkerArray>();
+  for (const auto& occ_line : occ_lines) {
+    HLOG_INFO << "viz fit occ size " << occ_line->pts.size();
+    auto* marker_fitocc = marker_array->add_markers();
+    marker_fitocc->mutable_header()->CopyFrom(viz_header);
+    std::string fitocc_ns = "fitocc" + std::to_string(occ_line->id);
+    marker_fitocc->set_ns("fitocc_ns");
+    marker_fitocc->set_id(idx++);
+    marker_fitocc->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+    marker_fitocc->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
+    marker_fitocc->mutable_color()->set_a(0.5);
+    double width = 0.2;
+    RvizRgb fitocc_rgb = ColorRgb(RvizColor::R_WHITE);
+
+    SetMarker(marker_fitocc, fitocc_rgb, width, life_sec, life_nsec);
+    for (const auto& p : occ_line->pts) {
+      auto* pt = marker_fitocc->add_points();
+      pt->set_x(p.pt.x());
+      pt->set_y(p.pt.y());
+      pt->set_z(p.pt.z());
+    }
+  }
+  if (!marker_array->markers().empty()) {
+    HLOG_INFO << "publish viz fit occ size " << marker_array->markers().size();
+    RVIZ_AGENT.Publish(viz_topic_fitocc_, marker_array);
+  }
 }
 
 void MapFusionRviz::PubInsTf(const Eigen::Affine3d& T_W_V, uint64_t sec,

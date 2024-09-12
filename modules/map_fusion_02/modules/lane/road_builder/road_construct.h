@@ -53,6 +53,8 @@ class RoadConstruct : ProcessorBase {
 
   std::vector<Group::Ptr> GetGroups();
 
+  std::deque<Line::Ptr> GetFitOcc();
+
   void Clear() override;
 
  private:
@@ -85,12 +87,19 @@ class RoadConstruct : ProcessorBase {
 
   void SplitLinesToGroup(std::deque<Line::Ptr>* lines, const Group::Ptr& grp);
 
-  void SplitOccsToGroup(const ElementMap::Ptr& ele_map, const Group::Ptr& grp);
+  void SplitOccsToGroup(const std::map<Id, OccRoad::Ptr>& occ_roads,
+                        const Group::Ptr& grp);
 
-  void SplitModelEdgesToGroup(const ElementMap::Ptr& ele_map,
+  void SplitModelEdgesToGroup(const std::map<Id, RoadEdge::Ptr>& road_edges,
                               const Group::Ptr& grp);
 
   void GenRoadEdges(std::vector<Group::Ptr>* groups);
+
+  void RemoveInvalGroups(std::vector<Group::Ptr>* groups);
+
+  bool CheckRoadInval(std::vector<Group::Ptr>* groups, const int& i);
+
+  bool CheckMidGroupLaneInval(std::vector<Group::Ptr>* groups, const int& i);
 
   void UpdateRoadEdgeWithLines(const Group::Ptr& grp,
                                RoadEdge::Ptr* road_edge_left,
@@ -120,14 +129,12 @@ class RoadConstruct : ProcessorBase {
 
   void FilterGroupBadLane(const Group::Ptr& grp);
 
-  void GenGroupName(const Group::Ptr& grp, int grp_id, double stamp);
+  void GenGroupName(const ElementMap::Ptr& ele_map,
+                    std::vector<Group::Ptr>* groups);
 
   void EgoLineTrajectory(const Group::Ptr& grp, const ElementMap::Ptr& ele_map);
 
   void SetBrokenId(std::vector<Group::Ptr>* groups);
-
-  void GenLanesInGroups(std::vector<Group::Ptr>* groups,
-                        std::map<Id, OccRoad::Ptr> occ_roads, double stamp);
 
   void CollectGroupPossibleLanes(const Group::Ptr& grp,
                                  std::vector<Lane::Ptr>* possible_lanes);
@@ -154,6 +161,25 @@ class RoadConstruct : ProcessorBase {
   std::vector<Point> SigmoidFunc(const std::vector<Point>& centerline,
                                  float sigma);
 
+  float Dist2Path(const Eigen::Vector3f& point);
+
+  void BuildOccGroups(const ElementMap::Ptr& ele_map,
+                      std::vector<Group::Ptr>* groups);
+
+  void FitUnusedOccRoads(const ElementMap::Ptr& ele_map);
+
+  void CheckBestOccRoad(const double& good_k, const double& good_b,
+                        const double& good_y, const double& min_r_squared,
+                        const int& good_id);
+
+  void FitLineTLS(const std::vector<Eigen::Vector3d>& points, const double& k,
+                  const double& b, const double& r_squared);
+
+  void GenNewOccRoads(const double& good_k, const double& good_b,
+                      const double& good_y, const int& good_id);
+
+  void SearchOccCutPoints();
+
  private:
   LaneFusionProcessOption conf_;
   std::map<int, std::shared_ptr<cv::flann::Index>> KDTrees_;
@@ -165,6 +191,10 @@ class RoadConstruct : ProcessorBase {
   std::vector<Eigen::Vector3f> distpoits_;
   bool ego_line_exist_ = false;              // todo need?
   std::vector<double> predict_line_params_;  // todo need? 三次样条
+
+  std::map<Id, OccRoad::Ptr> unused_occ_roads_;
+  std::deque<Line::Ptr> unused_occ_road_fitlines_;
+  std::vector<CutPoint> unused_occ_ctps_;
 };
 
 using RoadConstructPtr = std::unique_ptr<RoadConstruct>;

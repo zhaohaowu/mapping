@@ -616,19 +616,23 @@ void LanePrediction::PredictLaneLine(std::vector<Lane::Ptr>* pred_lane,
   // 添加预测lane的左右邻
   std::vector<std::string> pre_str_id_with_group;
   for (const auto& str_id : curr_lane->left_lane_str_id_with_group) {
-    size_t index = str_id.find(":");
-    auto str_id_with_group =
-        str_id.substr(0, index) + "P" + str_id.substr(index);
-    pre_str_id_with_group.emplace_back(str_id_with_group);
+    if (!str_id.empty()) {
+      size_t index = str_id.find(":");
+      auto str_id_with_group =
+          str_id.substr(0, index) + "P" + str_id.substr(index);
+      pre_str_id_with_group.emplace_back(str_id_with_group);
+    }
   }
   lane_pre.left_lane_str_id_with_group = pre_str_id_with_group;
 
   pre_str_id_with_group.clear();
   for (const auto& str_id : curr_lane->right_lane_str_id_with_group) {
-    size_t index = str_id.find(":");
-    auto str_id_with_group =
-        str_id.substr(0, index) + "P" + str_id.substr(index);
-    pre_str_id_with_group.emplace_back(str_id_with_group);
+    if (!str_id.empty()) {
+      size_t index = str_id.find(":");
+      auto str_id_with_group =
+          str_id.substr(0, index) + "P" + str_id.substr(index);
+      pre_str_id_with_group.emplace_back(str_id_with_group);
+    }
   }
   lane_pre.right_lane_str_id_with_group = pre_str_id_with_group;
   if (lane_pre.left_boundary->pts.size() > 1 &&

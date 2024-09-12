@@ -12,6 +12,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
+#include <deque>
 #include <memory>
 #include <string>
 #include <utility>
@@ -48,6 +49,7 @@ class MapFusionRviz {
   void VizCutpoint(const std::vector<CutPoint>& cut_points, double stamp);
   void VizDistpoint(const std::vector<Eigen::Vector3f>& distpoints,
                     double stamp);
+  void VizFitOcc(const std::deque<Line::Ptr>& occ_lines, double stamp);
   // 车道级定位
   void PubInsTf(const Eigen::Affine3d& T_W_V, uint64_t sec, uint64_t nsec,
                 const std::string& topic);
@@ -84,6 +86,7 @@ class MapFusionRviz {
   std::string viz_topic_guidepoints_;
   std::string viz_topic_cutpoints_;
   std::string viz_topic_distpoints_;
+  std::string viz_topic_fitocc_;
   std::string viz_topic_junction_status_;
   float viz_lifetime_ = 0;
   DECLARE_SINGLETON_PERCEPTION(MapFusionRviz)

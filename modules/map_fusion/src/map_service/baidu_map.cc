@@ -1215,11 +1215,11 @@ void BaiDuMapEngine::UpdateBaiDuMap(
 
   map_engine_ptr_->set_current_position(gps);
   uint32_t status = 0;
-  while ((status = map_engine_ptr_->get_engine_status()) !=
+  if ((status = map_engine_ptr_->get_engine_status()) !=
          baidu::imap::IMAP_STATUS_OK) {
     HLOG_ERROR << "waiting buff loading ";
     HLOG_ERROR << "engine status: " << status;
-    usleep(1e6);
+    return;
   }
   uint32_t res = 0;
   res = map_engine_ptr_->get_local_map(gps, radius, local_map);

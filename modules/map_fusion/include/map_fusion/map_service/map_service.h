@@ -120,6 +120,7 @@ class MapService {
   std::mutex ms_nav_mtx_;
   std::mutex ld_routing_mtx_;
   std::shared_ptr<hozon::hmi::NAVDataService> hmi_nav_data_ = nullptr;
+  std::atomic<bool> bd_thread_flag_{false};
 };
 
 }  // namespace mf

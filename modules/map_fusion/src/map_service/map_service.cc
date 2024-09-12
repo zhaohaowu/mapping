@@ -61,6 +61,7 @@ bool MapService::Init() {
     std::string vid = "HeZhong2024010166";
     baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>(dbpath, vid);
     baidu_map_->AlgInit();
+    bd_thread_flag_ = true;
     tmp_thread_ = std::thread(&MapService::BaiduProc, this);
   } else if (FLAGS_map_service_mode == 2) {
     // todo map api
@@ -173,7 +174,7 @@ void MapService::OnInsAdcNodeInfo(
 }
 
 void MapService::BaiduProc() {
-  while (true) {
+  while (bd_thread_flag_) {
     INSPos ins_pos;
     ins_msg_thread_.lock();
     ins_pos.x = ins_msg_.pos_gcj02().x();
@@ -430,6 +431,11 @@ MapServiceFault MapService::GetFault() {
 MapService::~MapService() {
   is_amap_tsp_thread_stop_ = true;
   amap_tsp_proc_.get();
+
+  bd_thread_flag_ = flase;
+  if (tmp_thread_->joinable()) {
+    tmp_thread_->join();
+  }
 }
 
 }  // namespace mf

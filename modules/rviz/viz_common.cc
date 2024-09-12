@@ -466,7 +466,7 @@ void ElementBoundaryToMarker(const Boundary& boundary,
                              double stamp, double lifetime, RvizColor color,
                              std::string* ns,
                              adsfi_proto::viz::Marker* marker) {
-  if (!marker || !ns) {
+  if (!marker || !ns || boundary.nodes.size() < 2) {
     return;
   }
 
@@ -498,7 +498,6 @@ void ElementBoundaryToMarker(const Boundary& boundary,
   marker->mutable_color()->set_g(rgb.g);
   marker->mutable_color()->set_b(rgb.b);
   marker->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
-
   for (const auto& it : boundary.nodes) {
     if (!it) {
       HLOG_WARN << "try viz nullptr node";
@@ -535,7 +534,7 @@ void ElementRoadEdgeToMarker(const RoadEdge& roadedge,
   marker->mutable_pose()->mutable_orientation()->set_z(0.);
   marker->mutable_pose()->mutable_orientation()->set_w(1.);
 
-  double width = 0.5;
+  double width = 0.2;
   marker->mutable_scale()->set_x(width);
   sec = static_cast<uint32_t>(lifetime);
   nsec = static_cast<uint32_t>((lifetime - sec) * 1e9);
@@ -685,19 +684,23 @@ MarkerArrayPtr ElementMapToMarkers(const ElementMap& map,
     }
     nodes.emplace_back(it.second);
   }
-  RvizColor color = RvizColor::R_GREEN;
+  RvizColor nodes_color = RvizColor::R_GREEN;
   if (topic == "/geo/input_ele_map") {
-    color = RvizColor::R_PURPLE;
+    nodes_color = RvizColor::R_PURPLE;
   } else if (topic == "/geo/output_ele_map") {
-    color = RvizColor::R_ORANGE;
+    nodes_color = RvizColor::R_ORANGE;
   }
   if (!nodes.empty()) {
     auto* mn = ma->add_markers();
-    ElementBoundaryNodesToMarker(nodes, frame_id, 0, stamp, lifetime, color,
-                                 &ns, mn);
+    ElementBoundaryNodesToMarker(nodes, frame_id, 0, stamp, lifetime,
+                                 nodes_color, &ns, mn);
   }
 
   std::vector<BoundaryNode::Ptr> untracked_nodes;
+  RvizColor lane_boundaries_color = RvizColor::R_GREY;
+  if (topic == "/geo/output_ele_map") {
+    lane_boundaries_color = RvizColor::R_GREEN;
+  }
   for (const auto& it : map.lane_boundaries) {
     if (!it.second) {
       HLOG_WARN << "nullptr boundary";
@@ -707,8 +710,7 @@ MarkerArrayPtr ElementMapToMarkers(const ElementMap& map,
     auto id = it.second->id;
     auto* mb = ma->add_markers();
     ElementBoundaryToMarker(*it.second, frame_id, static_cast<int32_t>(id),
-                            stamp, lifetime, RvizColor::R_GREY, &ns, mb);
-
+                            stamp, lifetime, lane_boundaries_color, &ns, mb);
     for (const auto& n : it.second->nodes) {
       if (map.boundary_nodes.find(n->id) != map.boundary_nodes.end()) {
         continue;

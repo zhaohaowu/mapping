@@ -70,7 +70,7 @@ class ElementsFilter : public ProcessorBase {
   void FindTargetPointsNoCrossing(
       const std::vector<std::vector<Eigen::Vector3f>>& nearby_road_edges,
       std::vector<Eigen::Vector3f>* target_road_edge);
-  void UpdateElementMapLines(std::map<Id, Boundary::Ptr>* lane_boundaries);
+  void UpdateElementMapLines(ElementMap::Ptr element_map_ptr);
 
  private:
   Eigen::Isometry3d T_L_V_;  // 车体系在local系的位姿

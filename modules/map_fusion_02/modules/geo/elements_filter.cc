@@ -41,7 +41,7 @@ bool ElementsFilter::Process(ElementMap::Ptr origin_element_map_ptr) {
   FilterReverseLine();
   // 过滤非路口场景非主路车道线
   FilterNoEgoLineNoCrossing();
-  UpdateElementMapLines(&(origin_element_map_ptr->lane_boundaries));
+  UpdateElementMapLines(origin_element_map_ptr);
   return true;
 }
 
@@ -62,6 +62,7 @@ void ElementsFilter::FilterElementMapLines(
     auto track_id = lane_boundary.first;
     const auto& lane_boundary_ptr = lane_boundary.second;
     const auto& lane_boundary_nodes = lane_boundary_ptr->nodes;
+    const auto& line_type = lane_boundary_ptr->linetype;
     auto lane_boundary_nodes_size = lane_boundary_nodes.size();
     if (lane_boundary_nodes_size < 2) {
       continue;
@@ -90,6 +91,7 @@ void ElementsFilter::FilterElementMapLines(
     line_info.line_kdtree = kdtree_ptr;
     line_info.line_track_id = track_id;
     line_info.line_pts = local_points;
+    line_info.line_type = line_type;
     line_table_[track_id] = line_info;
   }
   return;
@@ -239,11 +241,6 @@ void ElementsFilter::CompareRoadAndLines(
       }
     }
     if (road_pts.front().x() < target_line_pts.front().x()) {
-      std::vector<Eigen::Vector3f> retained_pts;
-      for (const auto& pt : target_line_pts) {
-        retained_pts.emplace_back(pt);
-      }
-      target_line_pts.clear();
       std::vector<Eigen::Vector3f> compensated_backward_pts;
       math::GetCompensatePoints(road_pts, target_line_pts, false,
                                 &compensated_backward_pts);
@@ -253,6 +250,11 @@ void ElementsFilter::CompareRoadAndLines(
       if (IsBetweenLinesMid(compensated_backward_pts, target_line, false)) {
         return;
       }
+      std::vector<Eigen::Vector3f> retained_pts;
+      for (const auto& pt : target_line_pts) {
+        retained_pts.emplace_back(pt);
+      }
+      target_line_pts.clear();
       for (int i = 0; i < static_cast<int>(compensated_backward_pts.size()) - 1;
            ++i) {
         auto heading =
@@ -369,19 +371,21 @@ bool ElementsFilter::IsBetweenLinesMid(
   return (left_count != 0 && right_count != 0);
 }
 
-void ElementsFilter::UpdateElementMapLines(
-    std::map<Id, Boundary::Ptr>* lane_boundaries) {
-  if (lane_boundaries == nullptr || line_table_.empty()) {
+void ElementsFilter::UpdateElementMapLines(ElementMap::Ptr element_map_ptr) {
+  if (line_table_.empty()) {
     return;
   }
-  lane_boundaries->clear();
+  if (!element_map_ptr->lane_boundaries.empty()) {
+    element_map_ptr->lane_boundaries.clear();
+  }
+  int loop = 0;
   for (auto& line : line_table_) {
     if (line.second.line_pts.empty()) {
+      HLOG_WARN << "line_pts empty, line id: " << line.first;
       continue;
     }
     Boundary::Ptr boundary_added = std::make_shared<Boundary>();
     DataConvert::CvtLine2Boundary(line.second, boundary_added);
-    (*lane_boundaries)[line.first] = boundary_added;
     for (const auto& road : road_edge_table_) {
       double avg_dis = 0.0;
       if (!math::ComputerLineDis(line.second.line_pts, road.second->points,
@@ -389,11 +393,15 @@ void ElementsFilter::UpdateElementMapLines(
         continue;
       }
       if (avg_dis < 1.0) {
-        (*lane_boundaries)[line.first]->is_near_road_edge = true;
+        boundary_added->is_near_road_edge = true;
         break;
       }
     }
-    (*lane_boundaries)[line.first]->is_ego = line.second.is_ego;
+    if (element_map_ptr->lane_boundaries.find(line.first) !=
+        element_map_ptr->lane_boundaries.end()) {
+      continue;
+    }
+    element_map_ptr->lane_boundaries[line.first] = boundary_added;
   }
   return;
 }

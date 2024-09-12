@@ -97,9 +97,9 @@ class RoadConstruct : ProcessorBase {
 
   void RemoveInvalGroups(std::vector<Group::Ptr>* groups);
 
-  bool CheckRoadInval(std::vector<Group::Ptr>* groups, const int& i);
+  void CheckRoadInval(std::vector<Group::Ptr>* groups);
 
-  bool CheckMidGroupLaneInval(std::vector<Group::Ptr>* groups, const int& i);
+  void CheckMidGroupLaneInval(std::vector<Group::Ptr>* groups);
 
   void UpdateRoadEdgeWithLines(const Group::Ptr& grp,
                                RoadEdge::Ptr* road_edge_left,
@@ -168,12 +168,11 @@ class RoadConstruct : ProcessorBase {
 
   void FitUnusedOccRoads(const ElementMap::Ptr& ele_map);
 
-  void CheckBestOccRoad(const double& good_k, const double& good_b,
-                        const double& good_y, const double& min_r_squared,
-                        const int& good_id);
+  void CheckBestOccRoad(double* good_k, double* good_b, double* good_y,
+                        double* max_r_squared, int* good_id);
 
-  void FitLineTLS(const std::vector<Eigen::Vector3d>& points, const double& k,
-                  const double& b, const double& r_squared);
+  void FitLineTLS(const std::vector<Eigen::Vector3d>& points, double* k,
+                  double* b, double* r_squared);
 
   void GenNewOccRoads(const double& good_k, const double& good_b,
                       const double& good_y, const int& good_id);

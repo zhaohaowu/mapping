@@ -1789,7 +1789,7 @@ void RoadConstruct::FitUnusedOccRoads(const ElementMap::Ptr& ele_map) {
   int good_id = 0;
 
   // 选择拟合度最好的线
-  CheckBestOccRoad(good_k, good_b, good_y, max_r_squared, good_id);
+  CheckBestOccRoad(&good_k, &good_b, &good_y, &max_r_squared, &good_id);
   HLOG_DEBUG << "good_id: " << good_id << " good_k: " << good_k
              << " good_b: " << good_b << " max_r_squared: " << max_r_squared;
 
@@ -1799,9 +1799,9 @@ void RoadConstruct::FitUnusedOccRoads(const ElementMap::Ptr& ele_map) {
              << unused_occ_road_fitlines_.size();
 }
 
-void RoadConstruct::CheckBestOccRoad(double& good_k, double& good_b,
-                                     double& good_y, double& max_r_squared,
-                                     int& good_id) {
+void RoadConstruct::CheckBestOccRoad(double* good_k, double* good_b,
+                                     double* good_y, double* max_r_squared,
+                                     int* good_id) {
   for (const auto& occr : unused_occ_roads_) {
     double k = 0;
     double b = 0;
@@ -1810,19 +1810,19 @@ void RoadConstruct::CheckBestOccRoad(double& good_k, double& good_b,
     if (curr_size < 10) {
       continue;
     }
-    FitLineTLS(occr.second->road_points, k, b, r_squared);
-    if (r_squared > max_r_squared) {
-      max_r_squared = r_squared;
-      good_k = k;
-      good_b = b;
-      good_id = occr.first;
-      good_y = occr.second->road_points[static_cast<int>(curr_size / 2)].y();
+    FitLineTLS(occr.second->road_points, &k, &b, &r_squared);
+    if (&r_squared > max_r_squared) {
+      max_r_squared = &r_squared;
+      *good_k = k;
+      *good_b = b;
+      *good_id = occr.first;
+      *good_y = occr.second->road_points[static_cast<int>(curr_size / 2)].y();
     }
   }
 }
 
 void RoadConstruct::FitLineTLS(const std::vector<Eigen::Vector3d>& points,
-                               double& k, double& b, double& r_squared) {
+                               double* k, double* b, double* r_squared) {
   if (static_cast<int>(points.size()) < 2) {
     HLOG_DEBUG << "fit occ points.size() < 2";
     return;
@@ -1853,8 +1853,8 @@ void RoadConstruct::FitLineTLS(const std::vector<Eigen::Vector3d>& points,
           .normalized();  // 拿到最小特征值对应的特征向量
 
   // 4. 计算直线的斜率 k 和截距 b
-  k = direction.y() / direction.x();  // 方向向量的斜率
-  b = mean.y() - k * mean.x();        // 通过均值点计算截距
+  *k = direction.y() / direction.x();  // 方向向量的斜率
+  *b = mean.y() - (*k) * mean.x();     // 通过均值点计算截距
 
   // 5. 计算拟合度（R²）和残差平方和（RSS）
   double total_sum_squares = 0.0;     // 总平方和
@@ -1863,16 +1863,16 @@ void RoadConstruct::FitLineTLS(const std::vector<Eigen::Vector3d>& points,
 
   for (const auto& point : points) {
     double y_actual = point.y();
-    double y_predicted = k * point.x() + b;
+    double y_predicted = (*k) * point.x() + (*b);
     total_sum_squares += (y_actual - mean_y) * (y_actual - mean_y);
     residual_sum_squares += (y_actual - y_predicted) * (y_actual - y_predicted);
   }
 
-  r_squared = 1.0 - (residual_sum_squares / total_sum_squares);  // R² 公式
+  *r_squared = 1.0 - (residual_sum_squares / total_sum_squares);  // R² 公式
 }
 
-void RoadConstruct::GenNewOccRoads(double& good_k, double& good_b,
-                                   double& good_y, int& good_id) {
+void RoadConstruct::GenNewOccRoads(const double& good_k, const double& good_b,
+                                   const double& good_y, const int& good_id) {
   std::vector<Eigen::Vector3d> new_points;
   for (const auto& occr : unused_occ_roads_) {
     if (occr.first == good_id) {
@@ -1949,9 +1949,39 @@ void RoadConstruct::RemoveInvalGroups(std::vector<Group::Ptr>* groups) {
   if (groups->empty()) {
     return;
   }
+  CheckRoadInval(groups);
+  CheckMidGroupLaneInval(groups);
+}
+
+void RoadConstruct::CheckRoadInval(std::vector<Group::Ptr>* groups) {
   int group_size = static_cast<int>(groups->size());
+
   for (int i = 0; i < group_size; i++) {
-    if (CheckRoadInval(groups, i) || CheckMidGroupLaneInval(groups, i)) {
+    auto grp = groups->at(i);
+    if (static_cast<int>(grp->road_edges.size()) < 2) {
+      groups->erase(groups->begin() + i);
+      group_size--;
+      continue;
+    }
+    bool have_left_edge = false;
+    bool have_right_edge = false;
+    RoadEdge::Ptr left_edge = std::make_shared<RoadEdge>();
+    RoadEdge::Ptr right_edge = std::make_shared<RoadEdge>();
+    for (auto& road_edge : grp->road_edges) {
+      if (road_edge->is_left) {
+        have_left_edge = true;
+        left_edge = road_edge;
+      } else if (road_edge->is_right) {
+        have_right_edge = true;
+        right_edge = road_edge;
+      }
+    }
+    if (!have_left_edge || !have_right_edge) {
+      groups->erase(groups->begin() + i);
+      group_size--;
+      continue;
+    }
+    if (std::fabs(left_edge->dist_to_path - right_edge->dist_to_path) < 3.0) {
       groups->erase(groups->begin() + i);
       group_size--;
       continue;
@@ -1959,49 +1989,20 @@ void RoadConstruct::RemoveInvalGroups(std::vector<Group::Ptr>* groups) {
   }
 }
 
-bool RoadConstruct::CheckRoadInval(std::vector<Group::Ptr>* groups,
-                                   const int& i) {
-  auto grp = groups->at(i);
-  if (static_cast<int>(grp->road_edges.size()) < 2) {
-    groups->erase(groups->begin() + i);
-    return true;
-  }
+void RoadConstruct::CheckMidGroupLaneInval(std::vector<Group::Ptr>* groups) {
+  int group_size = static_cast<int>(groups->size());
 
-  bool have_left_edge = false;
-  bool have_right_edge = false;
-  RoadEdge::Ptr left_edge = std::make_shared<RoadEdge>();
-  RoadEdge::Ptr right_edge = std::make_shared<RoadEdge>();
-  for (auto& road_edge : grp->road_edges) {
-    if (road_edge->is_left) {
-      have_left_edge = true;
-      left_edge = road_edge;
-    } else if (road_edge->is_right) {
-      have_right_edge = true;
-      right_edge = road_edge;
+  for (int i = 0; i < group_size; i++) {
+    auto grp = groups->at(i);
+    if (0 < i && i < (static_cast<int>(groups->size()) - 1)) {
+      if (!groups->at(i - 1)->line_segments.empty() &&
+          !groups->at(i + 1)->line_segments.empty() && grp->lanes.empty()) {
+        groups->erase(groups->begin() + i);
+        group_size--;
+        continue;
+      }
     }
   }
-  if (!have_left_edge || !have_right_edge) {
-    groups->erase(groups->begin() + i);
-    return true;
-  } else if (std::fabs(left_edge->dist_to_path - right_edge->dist_to_path) <
-             3.0) {
-    groups->erase(groups->begin() + i);
-    return true;
-  }
-  return false;
-}
-
-bool RoadConstruct::CheckMidGroupLaneInval(std::vector<Group::Ptr>* groups,
-                                           const int& i) {
-  auto grp = groups->at(i);
-
-  if (0 < i && i < (static_cast<int>(groups->size()) - 1)) {
-    if (!groups->at(i - 1)->line_segments.empty() &&
-        !groups->at(i + 1)->line_segments.empty() && grp->lanes.empty()) {
-      return true;
-    }
-  }
-  return false;
 }
 
 }  // namespace mf

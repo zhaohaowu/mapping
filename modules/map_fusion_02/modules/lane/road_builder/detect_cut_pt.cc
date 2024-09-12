@@ -188,7 +188,7 @@ double DetectCutPt::LinePointDistPath(const Point3D& line_p) {
 }
 
 void DetectCutPt::FindBrokenStart(
-    const std::vector<std::vector<LaneLine::Ptr>>& categories) {
+    std::vector<std::vector<LaneLine::Ptr>>& categories) {
   if (path_.empty()) {
     return;
   }
@@ -196,7 +196,7 @@ void DetectCutPt::FindBrokenStart(
   if (!broken_front_ctps_.empty()) {
     broken_front_ctps_.clear();
   }
-  auto tmpcategories = categories;
+  auto& tmpcategories = categories;
   SkipSinglePoint(tmpcategories, 3, false);
   for (auto& cat : tmpcategories) {
     CutPoint broken_fro;
@@ -1146,7 +1146,7 @@ bool DetectCutPt::DetectEachSubCategories(
 bool DetectCutPt::CalBrokenAngle(
     const std::vector<std::vector<LaneLine::Ptr>>& linesvec_broken,  // NOLINT
     std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>& linesvec_sort,
-    const bool& ret) {
+    const bool ret) {
   if (linesvec_broken.empty()) {
     return false;
   }
@@ -1210,7 +1210,7 @@ bool DetectCutPt::CalLineAngle(const Point3D& point1, const Point3D& point2,
 
 bool DetectCutPt::CanAddToCluster(
     const std::vector<std::pair<double, LaneLine::Ptr>>& cluster,
-    const double& element, const double& maxdifference) {
+    const double element, const double maxdifference) {
   for (const auto& value : cluster) {
     if (std::fabs(value.first - element) > maxdifference) {
       return false;
@@ -1221,7 +1221,7 @@ bool DetectCutPt::CanAddToCluster(
 
 bool DetectCutPt::ClusterData(
     const std::vector<std::pair<double, LaneLine::Ptr>>& data,
-    const double& maxdifference,
+    const double maxdifference,
     std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>& clusters) {
   if (data.size() < 2) return false;
   for (const auto element : data) {
@@ -1259,7 +1259,7 @@ void DetectCutPt::CalBrokenAveangle(
 }
 void DetectCutPt::SkipSinglePoint(
     std::vector<std::vector<LaneLine::Ptr>>& linevec,  // NOLINT
-    const double& angle, const bool& ret) {
+    const double& angle, const bool ret) {
   std::vector<std::vector<std::pair<double, LaneLine::Ptr>>> linesvec_sort;
   // 获取broken角度信息linesvec_sort
   bool angle_mask = CalBrokenAngle(linevec, linesvec_sort, ret);

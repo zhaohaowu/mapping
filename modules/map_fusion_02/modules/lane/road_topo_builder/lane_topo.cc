@@ -23,7 +23,6 @@ void LaneTopoConstruct::Init(const LaneFusionProcessOption& conf) {
 }
 
 void LaneTopoConstruct::Clear() {
-
 }
 
 void LaneTopoConstruct::ConstructTopology(std::vector<Group::Ptr>* groups) {

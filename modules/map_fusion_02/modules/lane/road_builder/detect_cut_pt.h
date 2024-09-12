@@ -242,7 +242,7 @@ class DetectCutPt {
                              std::vector<CategoryInfo>* cate_infos);
 
   void FindBrokenStart(
-      const std::vector<std::vector<LaneLine::Ptr>>& categories);
+      std::vector<std::vector<LaneLine::Ptr>>& categories);  // NOLINT
 
   double LinePointDistPath(const Point3D& line_p);
 
@@ -268,12 +268,12 @@ class DetectCutPt {
       const std::vector<std::vector<LaneLine::Ptr>>& linesvec_broken,  // NOLINT
       std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>&
           linesvec_sort,  // NOLINT
-      const bool& ret);
+      const bool ret);
   bool CanAddToCluster(
       const std::vector<std::pair<double, LaneLine::Ptr>>& cluster,
-      const double& element, const double& maxdifference);
+      const double element, const double maxdifference);
   bool ClusterData(const std::vector<std::pair<double, LaneLine::Ptr>>& data,
-                   const double& maxdifference,
+                   const double maxdifference,
                    std::vector<std::vector<std::pair<double, LaneLine::Ptr>>>&
                        clusters);  // NOLINT
   void CalBrokenAveangle(
@@ -282,7 +282,7 @@ class DetectCutPt {
       std::vector<std::pair<int, int>>& aveanglevec);  // NOLINT
   void SkipSinglePoint(
       std::vector<std::vector<LaneLine::Ptr>>& linevec,  // NOLINT
-      const double& angle, const bool& ret);
+      const double& angle, const bool ret);
 
   template <typename T>
   inline std::string GetElementsIdVec(const std::vector<T>& vec);

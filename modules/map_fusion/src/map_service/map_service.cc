@@ -62,7 +62,7 @@ bool MapService::Init() {
     baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>(dbpath, vid);
     baidu_map_->AlgInit();
     bd_thread_flag_ = true;
-    tmp_thread_ = std::thread(&MapService::BaiduProc, this);
+    bd_thread_ = std::thread(&MapService::BaiduProc, this);
   } else if (FLAGS_map_service_mode == 2) {
     // todo map api
     // ld map 在线
@@ -74,8 +74,9 @@ bool MapService::Init() {
     HLOG_ERROR << "dbpath " << dbpath;
     std::string vid = "HeZhong2024010166";
     baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>(dbpath, vid);
+    bd_thread_flag_ = true;
     baidu_map_->AlgInit();
-    tmp_thread_ = std::thread(&MapService::BaiduProc, this);
+    bd_thread_ = std::thread(&MapService::BaiduProc, this);
   }
 
   return true;
@@ -163,23 +164,31 @@ void MapService::OnInsAdcNodeInfo(
     EhpProc(ins_msg, adc_msg, routing_);
     SetFautl();
 
-    ins_msg_thread_.lock();
+    ins_msg_mtx_.lock();
     ins_msg_ = ins_msg;
-    ins_msg_thread_.unlock();
+    ins_msg_mtx_.unlock();
   } else if (FLAGS_map_service_mode == 2) {
-    ins_msg_thread_.lock();
+    ins_msg_mtx_.lock();
     ins_msg_ = ins_msg;
-    ins_msg_thread_.unlock();
+    ins_msg_mtx_.unlock();
   }
 }
 
 void MapService::BaiduProc() {
   while (bd_thread_flag_) {
     INSPos ins_pos;
-    ins_msg_thread_.lock();
+    ins_msg_mtx_.lock();
     ins_pos.x = ins_msg_.pos_gcj02().x();
     ins_pos.y = ins_msg_.pos_gcj02().y();
-    ins_msg_thread_.unlock();
+    ins_msg_mtx_.unlock();
+    if (rev_nav_flag_) {
+      bool res_result = baidu_map_->UpdateHMINav(hmi_nav_data_);
+      if (res_result) {
+        rev_nav_flag_ = false;
+      } else {
+        HLOG_ERROR << "set sdlink info failed";
+      }
+    }
     std::vector<uint32_t> routing_road;
     baidu_map_->UpdateBaiDuMap(ins_pos, hmi_nav_data_, &routing_road);
     if (!routing_road.empty()) {
@@ -339,6 +348,7 @@ void MapService::SetCurrentPathId(const hozon::common::PointENU& utm_pos,
 }
 void MapService::UpdateHMINavService(
     const std::shared_ptr<hozon::hmi::NAVDataService>& nav_data) {
+  rev_nav_flag_ = true;
   hmi_nav_data_ = nav_data;
 }
 
@@ -432,9 +442,9 @@ MapService::~MapService() {
   is_amap_tsp_thread_stop_ = true;
   amap_tsp_proc_.get();
 
-  bd_thread_flag_ = flase;
-  if (tmp_thread_->joinable()) {
-    tmp_thread_->join();
+  bd_thread_flag_ = false;
+  if (bd_thread_.joinable()) {
+    bd_thread_.join();
   }
 }
 

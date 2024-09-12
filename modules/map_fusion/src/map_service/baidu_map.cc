@@ -1191,7 +1191,6 @@ void BaiDuMapEngine::UpdateBaiDuMap(
   // gps.lat = 31.224504;
   gps.lon = pos.y;
   gps.lat = pos.x;
-  HLOG_ERROR << "zr123 经度：" << gps.lon << "纬度：" << gps.lat;
   double radius = 500;
   baidu::imap::LocalMap local_map;
   std::string map_version;
@@ -1200,13 +1199,6 @@ void BaiDuMapEngine::UpdateBaiDuMap(
   baidu::imap::LinkPtr p_link = nullptr;
   baidu::imap::ObjectPtr p_obj = nullptr;
   baidu::imap::JunctionPtr p_jc = nullptr;
-  HLOG_INFO << "OnNavData UpdateBaiDuMap-----------------------1 ";
-
-  // uint32_t link_id = 17509173;
-  // uint32_t lane_id = 162732831;
-
-  // uint32_t obj_id = 214885465;
-  // uint32_t jc_id = 4395287;
 
   if (map_engine_ptr_ == nullptr) {
     HLOG_ERROR << "baidu map engine is not initialized. Call AlgInit first.";
@@ -1216,7 +1208,7 @@ void BaiDuMapEngine::UpdateBaiDuMap(
   map_engine_ptr_->set_current_position(gps);
   uint32_t status = 0;
   if ((status = map_engine_ptr_->get_engine_status()) !=
-         baidu::imap::IMAP_STATUS_OK) {
+      baidu::imap::IMAP_STATUS_OK) {
     HLOG_ERROR << "waiting buff loading ";
     HLOG_ERROR << "engine status: " << status;
     return;
@@ -1248,21 +1240,19 @@ void BaiDuMapEngine::UpdateBaiDuMap(
   for (const auto& lane : neta_lanes_um) {
     neta_map_.add_lane()->CopyFrom(lane.second);
   }
-  bool res_result = UpdateHMINav(hmi_nav);
-  if (res_result) {
-    std::vector<uint32_t> linkid_list;
-    uint32_t route_res = 0;
-    route_res = map_engine_ptr_->get_route(linkid_list);
-    if (route_res != baidu::imap::IMAP_STATUS_OK) {
-      HLOG_ERROR << "OnNavData get route from baidu failed, status: "
-                 << route_res;
-    }
-    if (!linkid_list.empty()) {
-      for (const auto& link_id : linkid_list) {
-        road_ids->emplace_back(link_id);
-      }
+
+  std::vector<uint32_t> linkid_list;
+  uint32_t route_res = 0;
+  route_res = map_engine_ptr_->get_route(linkid_list);
+  if (route_res != baidu::imap::IMAP_STATUS_OK) {
+    HLOG_ERROR << "get route from baidu failed, status: " << route_res;
+  }
+  if (!linkid_list.empty()) {
+    for (const auto& link_id : linkid_list) {
+      road_ids->emplace_back(link_id);
     }
   }
+
   if (FLAGS_map_service_mode == 2) {
     GLOBAL_HD_MAP->LoadMapFromProto(neta_map_);
   } else {

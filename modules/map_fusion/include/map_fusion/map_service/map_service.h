@@ -104,23 +104,24 @@ class MapService {
   std::chrono::steady_clock::time_point last_send_time_{};
   std::unique_ptr<hozon::ehr::Ehr> ehr_ = nullptr;
   std::unique_ptr<hozon::mp::mf::BaiDuMapEngine> baidu_map_ = nullptr;
-
+  // for hd map
   hozon::mp::mf::AmapAdapter amap_adapter_;
-
   std::future<void> amap_tsp_proc_{};
   std::mutex mutex_{};
-
   std::atomic<bool> is_amap_tsp_thread_stop_{false};
   std::string uuid_{};
   MapServiceFault fault_{MS_NO_ERROR};
   std::mutex fault_mutex_{};
-  std::thread tmp_thread_;
+
+  // for ld map
+  std::thread bd_thread_;
   hozon::localization::HafNodeInfo ins_msg_;
-  std::mutex ins_msg_thread_;
+  std::mutex ins_msg_mtx_;
   std::mutex ms_nav_mtx_;
   std::mutex ld_routing_mtx_;
   std::shared_ptr<hozon::hmi::NAVDataService> hmi_nav_data_ = nullptr;
   std::atomic<bool> bd_thread_flag_{false};
+  std::atomic<bool> rev_nav_flag_{false};
 };
 
 }  // namespace mf

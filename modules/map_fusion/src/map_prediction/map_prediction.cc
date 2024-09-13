@@ -2087,7 +2087,7 @@ void MapPrediction::GetRoutingFromLdRouting(
   // 根据ld routing构造routing response
   current_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
   current_routing_->mutable_header()->set_seq(0);
-  current_routing_->mutable_header()->set_frame_id("from_ld_routing");
+  current_routing_->mutable_header()->set_frame_id("from_file_routing");
   current_routing_->mutable_header()->set_data_stamp(0);
 
   for (const auto& road_it : *ld_routing) {

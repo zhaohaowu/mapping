@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "common/configs/config_gflags.h"
 #include "map_fusion/fusion_common/calc_util.h"
 #include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
 #include "modules/util/include/util/orin_trigger_manager.h"
@@ -135,6 +136,13 @@ MapSelectResult MapSelectLite::Process(
   //   HLOG_DEBUG << "fct valid, nnp off, percep unavailable";
   //   return {MapMsg::INVALID, false, 0};
   // }
+  HLOG_INFO << "zr123 >>>>>>>>>>>>>>>>>>>>>>>>>>";
+  if (FLAGS_map_service_mode == 2) {
+    if (fusion_map != nullptr) {
+      return {MapMsg::FUSION_NNP_MAP, true, 0};
+    }
+  }
+
   bool fusion_available =
       FusionMapAvailable(fusion_map, localization, localization);
   if (fusion_available) {

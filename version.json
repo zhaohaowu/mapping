@@ -12,7 +12,7 @@
                 "extractPath": "./depend/nos"
             },
             "third_party": {
-                "name": "v5.2.38_x86_2004_20240621",
+                "name": "EP41_ORIN_TP_05.03.99_master_20240913",
                 "extractPath": "./depend"
             },
             "CUDA": {

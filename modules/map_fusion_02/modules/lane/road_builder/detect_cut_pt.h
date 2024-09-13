@@ -12,7 +12,6 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
-
 #include <list>
 #include <map>
 #include <memory>
@@ -242,7 +241,7 @@ class DetectCutPt {
                              std::vector<CategoryInfo>* cate_infos);
 
   void FindBrokenStart(
-      std::vector<std::vector<LaneLine::Ptr>>& categories);  // NOLINT
+      const std::vector<std::vector<LaneLine::Ptr>>& categories);
 
   double LinePointDistPath(const Point3D& line_p);
 

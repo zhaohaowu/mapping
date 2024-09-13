@@ -188,7 +188,7 @@ double DetectCutPt::LinePointDistPath(const Point3D& line_p) {
 }
 
 void DetectCutPt::FindBrokenStart(
-    std::vector<std::vector<LaneLine::Ptr>>& categories) {
+    const std::vector<std::vector<LaneLine::Ptr>>& categories) {
   if (path_.empty()) {
     return;
   }
@@ -196,7 +196,7 @@ void DetectCutPt::FindBrokenStart(
   if (!broken_front_ctps_.empty()) {
     broken_front_ctps_.clear();
   }
-  auto& tmpcategories = categories;
+  auto tmpcategories = categories;
   SkipSinglePoint(tmpcategories, 3, false);
   for (auto& cat : tmpcategories) {
     CutPoint broken_fro;
@@ -1157,13 +1157,13 @@ bool DetectCutPt::CalBrokenAngle(
     }
     std::vector<std::pair<double, LaneLine::Ptr>> linevec_sort;
     linevec_sort.resize(linesvec_broken[i].size());
-    double angle_vec;
+    double angle_vec = 0.0;
     for (size_t j = 0; j < linesvec_broken[i].size(); j++) {
       LaneLine::Ptr line = linesvec_broken[i][j];
       if (line->GetPoints().size() < 2) {
         return false;
       }
-      double angle;
+      double angle = 0.0;
       Point3D direction_v1;
       Point3D vec_dir(1, 0, 0);
       const int angle_value = 5;
@@ -1186,7 +1186,7 @@ bool DetectCutPt::CalBrokenAngle(
       if (CalLineAngle(direction_v1, vec_dir, angle)) {
         linevec_sort[j] = std::make_pair(angle, line);
       } else {
-        linevec_sort[j] = std::make_pair(-DOUBLE_DASH, line);
+        linevec_sort[j] = std::make_pair(-DBL_MAX, line);
       }
     }
     linesvec_sort[i] = linevec_sort;
@@ -1200,7 +1200,7 @@ bool DetectCutPt::CalLineAngle(const Point3D& point1, const Point3D& point2,
     return false;
   }
   double value_cos = const_cast<Point3D&>(point1).Dot(point2) /
-                     (point1.Norm()) * (point2.Norm());
+                     (point1.Norm() * point2.Norm());
   if (std::fabs(value_cos) > 1.0) {
     return false;
   }
@@ -1248,7 +1248,7 @@ void DetectCutPt::CalBrokenAveangle(
     std::vector<std::pair<int, int>>& aveanglevec) {
   for (size_t i = 0; i < clusters.size(); i++) {
     int aveangle = 0;
-    aveangle = clusters[i].size();
+    aveangle = static_cast<int>(clusters[i].size());
     // 索引从1开始
     aveanglevec.emplace_back(std::make_pair(i + 1, aveangle));
   }

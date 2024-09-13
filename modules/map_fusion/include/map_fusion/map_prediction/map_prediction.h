@@ -73,6 +73,9 @@ class MapPrediction {
       bool need_update_global_hd, hozon::routing::RoutingResponse* routing);
   std::shared_ptr<hozon::hdmap::Map> GetHdMapNCP(
       hozon::routing::RoutingResponse* routing);
+  std::shared_ptr<hozon::hdmap::Map> GetLdMapNCP(
+      std::vector<uint32_t>* ld_routing,
+      hozon::routing::RoutingResponse* routing);
   std::shared_ptr<hozon::hdmap::Map> GetPredictionMap();
 
   void Prediction();
@@ -193,6 +196,7 @@ class MapPrediction {
       const std::string& lane_id,
       const std::vector<std::vector<std::string>>& routing_lanes);
   void GetRoutingLanesFromFile();
+  void GetRoutingFromLdRouting(const hozon::common::PointENU& utm_pos, std::vector<uint32_t>* ld_routing);
 
   std::mutex mtx_;
   std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>

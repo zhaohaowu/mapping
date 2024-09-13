@@ -186,7 +186,8 @@ int MapFusion::ProcFusion(
     } else if (FLAGS_map_service_mode == 0) {
       map = pred_->GetHdMapNCP(routing);
     } else if (FLAGS_map_service_mode == 2) {
-      map = pred_->GetHdMapNCP(routing);
+      auto ld_routing = map_service_->GetLDRoutingRoadId();
+      map = pred_->GetLdMapNCP(ld_routing.get(), routing);
     }
   }
 

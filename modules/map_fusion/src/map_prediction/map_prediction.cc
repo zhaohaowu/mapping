@@ -823,6 +823,197 @@ std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetHdMapNCP(
   return hq_map_;
 }
 
+std::shared_ptr<hozon::hdmap::Map> MapPrediction::GetLdMapNCP(
+    std::vector<uint32_t>* ld_routing,
+    hozon::routing::RoutingResponse* routing) {
+  if (!GLOBAL_HD_MAP) {
+    HLOG_ERROR << "nullptr hq_map_server_";
+    return nullptr;
+  }
+
+  hozon::common::PointENU utm_pos;
+  utm_pos.set_x(location_utm_.x());
+  utm_pos.set_y(location_utm_.y());
+  utm_pos.set_z(0);
+
+  // 构造routing放入current_routing_中并构造default_routing_set_
+  // default_routing_lanes_
+  GetRoutingFromLdRouting(utm_pos, ld_routing);
+
+  if (default_routing_lanes_.empty()) {
+    HLOG_ERROR << "get routing message failed";
+    return nullptr;
+  }
+
+  double nearest_s = 0.;
+  std::string current_lane_id;
+  GetCurrentLane(utm_pos, default_routing_set_, default_routing_lanes_,
+                 &current_lane_id, &nearest_s);
+  if (current_lane_id.empty()) {
+    HLOG_ERROR << "get current lane failed";
+    return nullptr;
+  }
+
+  int row = GetRoutingLaneIndex(current_lane_id, default_routing_lanes_);
+  if (row == -1) {
+    HLOG_ERROR << "find vehicle lane failed";
+    return nullptr;
+  }
+
+  double lane_length_forward = -nearest_s;
+  double lane_length_backward = nearest_s;
+
+  int row_max = -1;
+  int row_max_routing = -1;
+  int row_min = 0;
+
+  for (int i = row; i < default_routing_lanes_.size(); ++i) {
+    if (!default_routing_lanes_[i].empty()) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(default_routing_lanes_[i].back());
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        lane_length_forward = lane_length_forward + lane_ptr->lane().length();
+      }
+      row_max = i;
+      if (lane_length_forward >= 200) {
+        break;
+      }
+    }
+  }
+
+  lane_length_forward = -nearest_s;
+  for (int i = row; i < default_routing_lanes_.size(); ++i) {
+    if (!default_routing_lanes_[i].empty()) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(default_routing_lanes_[i].back());
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        lane_length_forward = lane_length_forward + lane_ptr->lane().length();
+      }
+      row_max_routing = i;
+      if (lane_length_forward >= 1000) {
+        break;
+      }
+    }
+  }
+
+  for (int i = row - 1; i >= 0; --i) {
+    if (!default_routing_lanes_[i].empty()) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(default_routing_lanes_[i].back());
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        lane_length_backward = lane_length_backward + lane_ptr->lane().length();
+      }
+      row_min = i;
+      if (lane_length_backward >= 100) {
+        break;
+      }
+    }
+  }
+
+  std::unordered_set<std::string> road_id_set;
+  std::unordered_set<std::string> lane_id_set;
+  hq_map_ = std::make_shared<hozon::hdmap::Map>();
+  for (int i = row_min; i <= row_max; ++i) {
+    for (int j = 0; j < default_routing_lanes_[i].size(); ++j) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(default_routing_lanes_[i][j]);
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        hq_map_->add_lane()->CopyFrom(lane_ptr->lane());
+        road_id_set.emplace(lane_ptr->road_id().id());
+        lane_id_set.emplace(lane_ptr->id().id());
+      }
+    }
+  }
+
+  for (int i = row_max + 1; i <= row_max_routing; ++i) {
+    for (int j = 0; j < default_routing_lanes_[i].size(); ++j) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(default_routing_lanes_[i][j]);
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        AppendRoutingLane(lane_ptr);
+        road_id_set.emplace(lane_ptr->road_id().id());
+      }
+    }
+  }
+
+  // 和50m范围做一个并集
+  std::shared_ptr<hozon::hdmap::Map> hq_map_local_small =
+      std::make_shared<hozon::hdmap::Map>();
+  auto ret =
+      GLOBAL_HD_MAP->GetLocalMap(utm_pos, {50, 50}, hq_map_local_small.get());
+  if (ret != 0) {
+    HLOG_ERROR << "GetLocalMap 50m range failed";
+  }
+
+  std::vector<std::string> local_lanes_small;
+  for (const auto& lane_it : hq_map_local_small->lane()) {
+    local_lanes_small.emplace_back(lane_it.id().id());
+  }
+
+  for (const auto& lane_id_it : local_lanes_small) {
+    if (lane_id_set.count(lane_id_it) == 0) {
+      hozon::hdmap::Id lane_id;
+      lane_id.set_id(lane_id_it);
+      auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+      if (lane_ptr != nullptr) {
+        hq_map_->add_lane()->CopyFrom(lane_ptr->lane());
+        road_id_set.emplace(lane_ptr->road_id().id());
+      }
+    }
+  }
+
+  // road
+  for (auto road_id_it = road_id_set.begin(); road_id_it != road_id_set.end();
+       ++road_id_it) {
+    hozon::hdmap::Id road_id;
+    road_id.set_id(*road_id_it);
+    auto road_ptr = GLOBAL_HD_MAP->GetRoadById(road_id);
+    if (road_ptr != nullptr) {
+      hq_map_->add_road()->CopyFrom(road_ptr->road());
+    }
+  }
+
+  std::shared_ptr<hozon::hdmap::Map> hq_map_local_wide =
+      std::make_shared<hozon::hdmap::Map>();
+  ret =
+      GLOBAL_HD_MAP->GetLocalMap(utm_pos, {200, 200}, hq_map_local_wide.get());
+  if (ret != 0) {
+    HLOG_ERROR << "GetLocalMap 200m range failed";
+  }
+
+  // 以下元素都是200m范围内的
+  hq_map_->mutable_junction()->CopyFrom(hq_map_local_wide->junction());
+  hq_map_->mutable_crosswalk()->CopyFrom(hq_map_local_wide->crosswalk());
+  hq_map_->mutable_signal()->CopyFrom(hq_map_local_wide->signal());
+  hq_map_->mutable_overlap()->CopyFrom(hq_map_local_wide->overlap());
+  hq_map_->mutable_speed_bump()->CopyFrom(hq_map_local_wide->speed_bump());
+  hq_map_->mutable_arraw()->CopyFrom(hq_map_local_wide->arraw());
+
+  if (local_enu_center_flag_) {
+    HLOG_ERROR << "init_pose_ not inited";
+    return nullptr;
+  }
+
+  HDMapLaneToLocal();
+  HDMapRoadToLocal();
+  NCPMapToLocal();
+
+  // 透传routing
+  if (current_routing_ != nullptr) {
+    routing->Clear();
+    routing->CopyFrom(*current_routing_);
+    end_routing_lane_id_ = default_routing_lanes_[row_max].back();
+    RoutingPointToLocal(true, routing, end_routing_lane_id_);
+  }
+
+  return hq_map_;
+}
+
 void MapPrediction::Clear() {
   far_table_.clear();
   lane_table_.clear();
@@ -1886,6 +2077,71 @@ void MapPrediction::GetRoutingLanesFromFile() {
     return;
   }
   get_default_routing_ = true;
+}
+
+void MapPrediction::GetRoutingFromLdRouting(
+    const hozon::common::PointENU& utm_pos, std::vector<uint32_t>* ld_routing) {
+  if (ld_routing == nullptr) {
+    return;
+  }
+  // 根据ld routing构造routing response
+  current_routing_ = std::make_shared<hozon::routing::RoutingResponse>();
+  current_routing_->mutable_header()->set_seq(0);
+  current_routing_->mutable_header()->set_frame_id("from_ld_routing");
+  current_routing_->mutable_header()->set_data_stamp(0);
+
+  for (const auto& road_it : *ld_routing) {
+    hozon::hdmap::Id road_id;
+    road_id.set_id("bd" + std::to_string(road_it));
+    auto road_ptr = GLOBAL_HD_MAP->GetRoadById(road_id);
+    if (road_ptr != nullptr) {
+      std::vector<std::string> routing_lane;
+      for (const auto& section_it : road_ptr->sections()) {
+        for (const auto& lane_it : section_it.lane_id()) {
+          routing_lane.emplace_back(lane_it.id());
+          default_routing_set_.insert(lane_it.id());
+        }
+      }
+      default_routing_lanes_.emplace_back(routing_lane);
+    }
+  }
+
+  // 设置can_exit和change_lane_type字段
+  for (const auto& road_it : *ld_routing) {
+    hozon::hdmap::Id road_id;
+    road_id.set_id("bd" + std::to_string(road_it));
+    auto road_ptr = GLOBAL_HD_MAP->GetRoadById(road_id);
+    if (road_ptr != nullptr) {
+      auto routing_road = current_routing_->add_road();
+      routing_road->set_id(road_id.id());
+      for (const auto& section_it : road_ptr->sections()) {
+        auto routing_passage = routing_road->add_passage();
+        for (const auto& lane_it : section_it.lane_id()) {
+          auto routing_segment = routing_passage->add_segment();
+          routing_segment->set_id(lane_it.id());
+          // 后续考虑起点在lane上面的投影情况
+          routing_segment->set_start_s(0);
+          hozon::hdmap::Id lane_id;
+          lane_id.set_id(lane_it.id());
+          auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+          if (lane_ptr != nullptr) {
+            routing_segment->set_end_s(lane_ptr->lane().length());
+            for (const auto& successor_id_it :
+                 lane_ptr->lane().successor_id()) {
+              if (default_routing_set_.count(successor_id_it.id()) != 0) {
+                routing_passage->set_can_exit(true);
+                routing_passage->set_change_lane_type(
+                    hozon::routing::ChangeLaneType::FORWARD);
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  // 设置routing_request字段
+  // 具体 way point字段可以设置成历史信息
 }
 
 void MapPrediction::ConvertToLocal() {

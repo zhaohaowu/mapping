@@ -85,6 +85,7 @@ class OccGuideLineManager {
 
   Eigen::Vector3f CalcuDirectionVecV2(em::Boundary::Ptr right_occ,
                                       em::Boundary::Ptr left_occ);
+  double ComputeCurvature(const em::Boundary::Ptr& boundary_ptr);
   void RecordExitLaneInfos();
   void SetStableOcc();
   std::vector<em::Boundary::Ptr> GetStableOcc();

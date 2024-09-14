@@ -3455,19 +3455,13 @@ void GeoOptimization::CompareRoadAndLines(
           auto fit_vec_normlized = fit_vec.normalized();
           auto fit_road_pt = road_pt + fit_vec_normlized * fit_dis;
           new_road_pts.emplace_back(fit_road_pt);
-          // 简单策略:先根据横向距离对点进行调整,防止车道线跟路沿连接时不平滑
-          // 后续可以严格计算点线距离
-          // auto* new_pt = line.add_points();
-          // new_pt->set_x(fit_road_pt.x());
-          // new_pt->set_y(fit_road_pt.y());
-          // new_pt->set_z(fit_road_pt.z());
         }
         if (new_road_pts.empty()) {
-          return;
+          break;
         }
         // 判断虚拟的点是否处于两根线中间
         if (IsBetweenLinesMid(new_road_pts, target_line, 0)) {
-          return;
+          break;
         }
         for (int i = 0; i < static_cast<int>(new_road_pts.size()) - 1; i++) {
           auto road_heading = new_road_pts[i + 1] - new_road_pts[i];
@@ -3514,14 +3508,10 @@ void GeoOptimization::CompareRoadAndLines(
           auto fit_vec_normlized = fit_vec.normalized();
           auto fit_road_pt = road_pt + fit_vec_normlized * fit_dis;
           new_road_pts.emplace_back(fit_road_pt);
-          // auto* new_pt = line.add_points();
-          // new_pt->set_x(fit_road_pt.x());
-          // new_pt->set_y(fit_road_pt.y());
-          // new_pt->set_z(fit_road_pt.z());
         }
         // 判断虚拟的点是否处于两根线中间
         if (IsBetweenLinesMid(new_road_pts, target_line, 1)) {
-          return;
+          break;
         }
         line.mutable_points()->Clear();
         for (int i = 0; i < static_cast<int>(new_road_pts.size()) - 1; i++) {
@@ -3546,16 +3536,6 @@ void GeoOptimization::CompareRoadAndLines(
       }
     }
   }
-  // 判断是否满足条件
-  // if (min_dis < 2.0 || min_dis > 5.5) {
-  //   HLOG_DEBUG << "road and line min distance < 2m or > 5.5m";
-  //   return;
-  // }
-
-  // if (target_line.lanetype() != em::LineType::LaneType_DASHED) {
-  //   HLOG_DEBUG << "the line type is not dashed";
-  //   return;
-  // } && min_dis < 5.5
   if (((target_line.lanetype() == em::LineType::LaneType_DASHED ||
         target_line.lanetype() == em::LineType::LaneType_FISHBONE_DASHED ||
         target_line.lanetype() == em::LineType::LaneType_DOUBLE_DASHED ||
@@ -3579,12 +3559,6 @@ void GeoOptimization::CompareRoadAndLines(
       new_pt->set_y(road_pts[i].y());
       new_pt->set_z(road_pts[i].z());
     }
-    // for (const auto& pt : road_pts) {
-    //   auto* new_pt = new_line->add_points();
-    //   new_pt->set_x(pt.x());
-    //   new_pt->set_y(pt.y());
-    //   new_pt->set_z(pt.z());
-    // }
     auto new_track_id = road_id + 1000;
     new_line->set_lanepos(
         static_cast<hozon::mapping::LanePositionType>(new_track_id));

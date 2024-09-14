@@ -36,6 +36,9 @@ int MapFusion::Init(const YAML::Node& conf) {
   // road construction
   lane_fusion_ptr_ = std::make_unique<LaneFusionPipeline>();
   lane_fusion_ptr_->Init();
+  history_id_.lane_id = 0;
+  history_id_.road_id = 0;
+  history_id_.cicle = 2000;
   // TODO(a): map service
 
   // TODO(a): ld map matching & prediction
@@ -96,12 +99,19 @@ int MapFusion::ProcPercep(
     return -1;
   }
   // 各个pipeline处理
-  HLOG_DEBUG << "Proc Pilot start!";
+  HLOG_INFO << "Proc Pilot start!";
   geo_optimization_ptr_->Process(option, cur_elem_map_);
   lane_fusion_ptr_->Process(cur_elem_map_);
-  HLOG_DEBUG << "Proc Pilot end!";
+  std::vector<Group::Ptr> groups;
+  groups = lane_fusion_ptr_->GetGroups();
+  std::map<Id, Zebra::Ptr> zebra;
+  std::map<Id, Stpl::Ptr> stopline;
+
+  //! TBD: TLR output zebra,arrow,stopline...
+  HLOG_INFO << "Proc Pilot end!";
   // 输出数据处理转换
-  if (!OutDataMapping(fusion_map, routing)) {
+  if (!OutDataMapping(fusion_map, routing, groups, cur_elem_map_, zebra,
+                      stopline)) {
     HLOG_ERROR << "Output data mapping failed";
     return -1;
   }
@@ -137,24 +147,30 @@ bool MapFusion::InDataMapping(
   return true;
 }
 
-bool MapFusion::OutDataMapping(
-    hozon::hdmap::Map* percep_map,
-    hozon::routing::RoutingResponse* percep_routing) {
+bool MapFusion::OutDataMapping(hozon::hdmap::Map* percep_map,
+                               hozon::routing::RoutingResponse* percep_routing,
+                               const std::vector<Group::Ptr>& groups,
+                               const ElementMap::Ptr& element_map_ptr,
+                               const std::map<Id, Zebra::Ptr>& zebra,
+                               const std::map<Id, Stpl::Ptr>& stopline) {
   // TODO(a): map从对应模块的对象中获取,指针结构自行调整
-  // std::shared_ptr<hozon::hdmap::Map> map;
-  // if (map == nullptr) {
-  //   HLOG_ERROR << "get nullptr percep map";
-  //   return false;
-  // }
-  // percep_map->CopyFrom(*map);
+
+  std::shared_ptr<hozon::hdmap::Map> map = DataConvert::ConvertToProtoMap(
+      groups, element_map_ptr, &history_id_, zebra, stopline);
+  if (map == nullptr) {
+    HLOG_ERROR << "get nullptr percep map";
+    return false;
+  }
+  percep_map->CopyFrom(*map);
 
   // TODO(a): routing从对应模块的对象中获取,指针结构自行调整
-  // std::shared_ptr<hozon::routing::RoutingResponse> routing;
-  // if (routing == nullptr) {
-  //   HLOG_ERROR << "get nullptr routing!";
-  //   return false;
-  // }
-  // percep_routing->CopyFrom(*routing);
+  std::shared_ptr<hozon::routing::RoutingResponse> routing =
+      DataConvert::SetRouting(map);
+  if (routing == nullptr) {
+    HLOG_ERROR << "get nullptr routing!";
+    return false;
+  }
+  percep_routing->CopyFrom(*routing);
 
   return true;
 }

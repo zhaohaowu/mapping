@@ -52,15 +52,18 @@ class MapFusion {
   LocInfo::Ptr cur_loc_info_ = nullptr;
   ElementMap::Ptr cur_elem_map_ = nullptr;
   Group::Ptr cur_group_ = nullptr;
-
   std::unique_ptr<LaneFusionPipeline> lane_fusion_ptr_ = nullptr;
   std::unique_ptr<GeoOptimizationPipeline> geo_optimization_ptr_ = nullptr;
-
+  HistoryId history_id_;
   bool InDataMapping(
       const std::shared_ptr<hozon::mapping::LocalMap>& map_msg,
       const std::shared_ptr<hozon::perception::PerceptionObstacles>& obj_msg);
   bool OutDataMapping(hozon::hdmap::Map* percep_map,
-                      hozon::routing::RoutingResponse* percep_routing);
+                      hozon::routing::RoutingResponse* percep_routing,
+                      const std::vector<Group::Ptr>& groups,
+                      const ElementMap::Ptr& element_map_ptr,
+                      const std::map<Id, Zebra::Ptr>& zebra,
+                      const std::map<Id, Stpl::Ptr>& stopline);
   void Clear();
 };
 

@@ -764,8 +764,15 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
     HLOG_WARN << "map fusion ProcPercep failed";
     percep_map->Clear();
   } else {
+    HLOG_INFO << "percep_map->lane_size() = " << percep_map->lane_size();
+    HLOG_INFO << "percep_routing = " << percep_routing->road_size();
     latest_percep_map = percep_map;
     latest_percep_routing = percep_routing;
+    int ret =
+        SendPercepResult(latest_loc, latest_percep_map, latest_percep_routing);
+    if (ret < 0) {
+      HLOG_ERROR << "SendPercepResult failed";
+    }
   }
 
   pre_word_mode = work_mode_;
@@ -887,7 +894,8 @@ MapFusionLite::GetLatestLocPlugin() {
 //       if (road_it->passage_size() > 0) {
 //         int count = road_it->passage_size() - 1;
 //         for (const auto& lane : map->lane()) {
-//           if (lane.id().id() == road_it->passage()[count].segment()[0].id()) {
+//           if (lane.id().id() == road_it->passage()[count].segment()[0].id())
+//           {
 //             const auto& segments = lane.central_curve().segment();
 //             auto segment_size = segments.size();
 //             auto* waypoints =
@@ -957,63 +965,62 @@ MapFusionLite::GetLatestLocPlugin() {
 //   return 0;
 // }
 
-// int MapFusionLite::SendPercepResult(
-//     const std::shared_ptr<hozon::localization::Localization>& location,
-//     const std::shared_ptr<hozon::hdmap::Map>& map,
-//     mp::mf::select::MapSelectResult select,
-//     const std::shared_ptr<hozon::routing::RoutingResponse>& routing) {
-//   auto percep_result = std::make_shared<hozon::navigation_hdmap::MapMsg>();
-//   percep_result->mutable_header()->CopyFrom(location->header());
-//   percep_result->mutable_header()->set_frame_id("percep_map");
-//   percep_result->mutable_hdmap()->CopyFrom(*map);
-//   percep_result->mutable_hdmap()->mutable_header()->mutable_header()->CopyFrom(
-//       location->header());
-//   percep_result->mutable_hdmap()
-//       ->mutable_header()
-//       ->mutable_header()
-//       ->set_frame_id("percep_map");
-//   percep_result->mutable_routing()->CopyFrom(*routing);
-//   percep_result->mutable_routing()->mutable_header()->CopyFrom(
-//       location->header());
-//   percep_result->mutable_routing()->mutable_header()->set_frame_id(
-//       "percep_map");
-//   // 为先跑通，隐去select
-//   // std::string switch_reason = map_select_->GetSwitchMapReason();
-//   std::string switch_reason = "test";
-//   if (curr_routing_.get() == nullptr) {
-//     switch_reason = "fusion map routing from mapservice is nullptr";
-//   } else {
-//     if (curr_routing_.get()->road().empty()) {
-//       switch_reason = "the road of fusion map routing from mapservice is empty";
-//     }
-//   }
-//   if (curr_routing_.get() != nullptr) {
-//     if (curr_routing_.get()->has_ehp_reason()) {
-//       std::string::size_type idx =
-//           curr_routing_.get()->ehp_reason().find("finish");
-//       if (idx != std::string::npos) {
-//         select.fault_level = 2;
-//         switch_reason = "reason message is 3, Route finish";
-//       }
-//       percep_result->mutable_routing()->set_ehp_reason(
-//           curr_routing_.get()->ehp_reason());
-//     }
-//   }
-//   percep_result->mutable_routing()->add_origin_response(switch_reason);
-//   percep_result->set_map_type(select.map_type);
-//   percep_result->set_is_valid(select.valid);
-//   percep_result->set_fault_level(select.fault_level);
+int MapFusionLite::SendPercepResult(
+    const std::shared_ptr<hozon::localization::Localization>& location,
+    const std::shared_ptr<hozon::hdmap::Map>& map,
+    const std::shared_ptr<hozon::routing::RoutingResponse>& routing) {
+  auto percep_result = std::make_shared<hozon::navigation_hdmap::MapMsg>();
+  percep_result->mutable_header()->CopyFrom(location->header());
+  percep_result->mutable_header()->set_frame_id("percep_map");
+  percep_result->mutable_hdmap()->CopyFrom(*map);
+  percep_result->mutable_hdmap()->mutable_header()->mutable_header()->CopyFrom(
+      location->header());
+  percep_result->mutable_hdmap()
+      ->mutable_header()
+      ->mutable_header()
+      ->set_frame_id("percep_map");
+  percep_result->mutable_routing()->CopyFrom(*routing);
+  percep_result->mutable_routing()->mutable_header()->CopyFrom(
+      location->header());
+  percep_result->mutable_routing()->mutable_header()->set_frame_id(
+      "percep_map");
+  // 为先跑通，隐去select
+  // std::string switch_reason = map_select_->GetSwitchMapReason();
+  std::string switch_reason = "test";
+  if (curr_routing_.get() == nullptr) {
+    switch_reason = "fusion map routing from mapservice is nullptr";
+  } else {
+    if (curr_routing_.get()->road().empty()) {
+      switch_reason = "the road of fusion map routing from mapservice is empty";
+    }
+  }
+  if (curr_routing_.get() != nullptr) {
+    if (curr_routing_.get()->has_ehp_reason()) {
+      std::string::size_type idx =
+          curr_routing_.get()->ehp_reason().find("finish");
+      // if (idx != std::string::npos) {
+      //   select.fault_level = 2;
+      //   switch_reason = "reason message is 3, Route finish";
+      // }
+      percep_result->mutable_routing()->set_ehp_reason(
+          curr_routing_.get()->ehp_reason());
+    }
+  }
+  percep_result->mutable_routing()->add_origin_response(switch_reason);
+  // percep_result->set_map_type(select.map_type);
+  // percep_result->set_is_valid(select.valid);
+  // percep_result->set_fault_level(select.fault_level);
 
-//   auto msg = std::make_shared<hozon::netaos::adf_lite::BaseData>();
-//   msg->proto_msg = percep_result;
-//   // SendOutput("map_percep", msg);
-//   auto phm_health = hozon::perception::lib::HealthManager::Instance();
-//   phm_health->HealthReport(MAKE_HM_TUPLE(
-//       hozon::perception::base::HmModuleId::MAPPING,
-//       hozon::perception::base::HealthId::CPID_FUSION_MAP_SEND_MAP_DATA_FPS));
-//   SendOutput("map_fusion", msg);
-//   return 0;
-// }
+  auto msg = std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  msg->proto_msg = percep_result;
+  // SendOutput("map_percep", msg);
+  auto phm_health = hozon::perception::lib::HealthManager::Instance();
+  phm_health->HealthReport(MAKE_HM_TUPLE(
+      hozon::perception::base::HmModuleId::MAPPING,
+      hozon::perception::base::HealthId::CPID_FUSION_MAP_SEND_MAP_DATA_FPS));
+  SendOutput("map_fusion", msg);
+  return 0;
+}
 
 int32_t MapFusionLite::OnRunningMode(hozon::netaos::adf_lite::Bundle* input) {
   auto rm_msg = input->GetOne("running_mode");

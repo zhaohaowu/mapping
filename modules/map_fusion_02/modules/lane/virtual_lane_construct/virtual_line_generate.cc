@@ -95,16 +95,22 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
     Group::Ptr next_grp = nullptr;
     GroupVirtualLine curr_grp_lines = groups_lines_[curr_grp->str_id];
     GroupVirtualLine prev_grp_lines, next_grp_lines;
+    Eigen::Vector3f start_po = curr_grp->start_slice.po;
+    Eigen::Vector3f start_pr = curr_grp->start_slice.pr;
+    Eigen::Vector3f end_po = curr_grp->end_slice.po;
+    Eigen::Vector3f end_pr = curr_grp->end_slice.pr;
     if (i > 0) {
-      if (Dist(groups->at(i - 1)->end_slice.po, curr_grp->start_slice.po) <
-          1.0) {
+      if (PointToVectorDist(start_po, start_pr,
+                            groups->at(i - 1)->end_slice.po) < 1.0 &&
+          groups->at(i - 1)->group_state == Group::NORMAL) {
         prev_grp = groups->at(i - 1);
         prev_grp_lines = groups_lines_[prev_grp->str_id];
       }
     }
     if (i < groups->size() - 1) {
-      if (Dist(groups->at(i + 1)->start_slice.po, curr_grp->end_slice.po) <
-          1.0) {
+      if (PointToVectorDist(end_po, end_pr, groups->at(i + 1)->start_slice.po) <
+              1.0 &&
+          groups->at(i + 1)->group_state == Group::NORMAL) {
         next_grp = groups->at(i + 1);
         next_grp_lines = groups_lines_[next_grp->str_id];
       }
@@ -122,10 +128,6 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
       //            << curr_grp->road_edges[1]->points.size();
       continue;
     }
-    Eigen::Vector3f start_po = curr_grp->start_slice.po;
-    Eigen::Vector3f start_pr = curr_grp->start_slice.pr;
-    Eigen::Vector3f end_po = curr_grp->end_slice.po;
-    Eigen::Vector3f end_pr = curr_grp->end_slice.pr;
     // 道路宽度
     // float road_width =
     //     GetTwoBoundayDis(curr_grp->road_edges[0], curr_grp->road_edges[1]);
@@ -156,7 +158,7 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
     //! TBD:车道宽度用前后当前group的lane减去最小和最大值，再求平均
 
     // HLOG_INFO << "currgroup id is " << curr_grp->str_id
-    //            << "   lane_width = " << lane_width;
+    //           << "   lane_width = " << lane_width;
 
     // 计算点在slice上的的投影
     std::vector<float> prev_grp_lines2start_slice;
@@ -169,7 +171,7 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
                 prev_grp_lines2start_slice.end());  // left to right
     }
     // HLOG_INFO << "prev_grp_lines2start_slice.size() = "
-    //            << prev_grp_lines2start_slice.size();
+    //           << prev_grp_lines2start_slice.size();
     // for (auto& start_line_dis : prev_grp_lines2start_slice) {
     //   HLOG_INFO << "start_line_dis = " << start_line_dis;
     // }
@@ -201,10 +203,10 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
       }
       std::vector<float> line_dis =
           GetTwoBoundayFrontBackDis(left_line, right_line);
-      // HLOG_INFO << "curr group id is " << curr_grp->str_id
-      //            << "   left_line is " << left_line->id << "  right_line is "
-      //            << right_line->id << "  line_dis is " << line_dis[0] << " "
-      //            << line_dis[1];
+      // HLOG_INFO << "curr group id is " << curr_grp->str_id << "   left_line
+      // is "
+      //           << left_line->id << "  right_line is " << right_line->id
+      //           << "  line_dis is " << line_dis[0] << " " << line_dis[1];
       start_between_lr.clear();
       NeighborLineStSlP(start_po, start_pr, left_line->pts[0].pt,
                         right_line->pts[0].pt, prev_grp_lines2start_slice,
@@ -234,7 +236,7 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
               });  // 重新排序
     // for (auto& line : curr_grp->line_segments) {
     //   HLOG_INFO << "line->id = " << line->id
-    //              << " line->dist_to_path =  " << line->dist_to_path;
+    //             << " line->dist_to_path =  " << line->dist_to_path;
     // }
     GenGroupAllLanes(curr_grp);  // 重新生成车道
 
@@ -964,10 +966,10 @@ void VirtualLineGen::SlicePointVirtualLine(
     base_line = right_line;
     base_line_flag = 1;
   }
-  HLOG_ERROR << "start_between_lr.size() = " << start_between_lr.size();
-  for (auto& start_lr : start_between_lr) {
-    HLOG_ERROR << "start_lr = " << start_lr;
-  }
+  // HLOG_ERROR << "start_between_lr.size() = " << start_between_lr.size();
+  // for (auto& start_lr : start_between_lr) {
+  //   HLOG_ERROR << "start_lr = " << start_lr;
+  // }
   auto start_po = curr_group->start_slice.po;
   auto start_pr = curr_group->start_slice.pr;
 
@@ -987,7 +989,7 @@ void VirtualLineGen::SlicePointVirtualLine(
   }
   std::vector<float> startslicept_bsl_dis;
   std::vector<Eigen::Vector3f> startslicept;
-  HLOG_ERROR << "lane_width = " << lane_width;
+  // HLOG_ERROR << "lane_width = " << lane_width;
   float last_dis = 100;
   for (int i = 1; i < start_between_lr.size(); ++i) {
     float p1 = start_between_lr[i - 1];
@@ -999,8 +1001,8 @@ void VirtualLineGen::SlicePointVirtualLine(
     }
     float p2_dis = Pt2BaselineDis(base_line, vec_popr, start_po, p2);
     float line_width = abs(last_dis - p2_dis);
-    HLOG_ERROR << "last_dis = " << last_dis << " p2_dis = " << p2_dis
-               << " line_width = " << line_width;
+    // HLOG_ERROR << "last_dis = " << last_dis << " p2_dis = " << p2_dis
+    //            << " line_width = " << line_width;
     if (line_width > lane_width) {
       int assume_nums = static_cast<int>(std::max(
           static_cast<float>(std::floor(line_width / lane_width + 0.3)), 1.0F));
@@ -1014,10 +1016,10 @@ void VirtualLineGen::SlicePointVirtualLine(
             vec_popr * (p1 + (p2 - p1) / static_cast<float>(assume_nums) *
                                  static_cast<float>(assume_num)));
       }
-      HLOG_ERROR << "line_width - static_cast<float>(assume_nums - 1) * "
-                    "abs(l_width) = "
-                 << line_width -
-                        static_cast<float>(assume_nums - 1) * abs(l_width);
+      // HLOG_ERROR << "line_width - static_cast<float>(assume_nums - 1) * "
+      //               "abs(l_width) = "
+      //            << line_width -
+      //                   static_cast<float>(assume_nums - 1) * abs(l_width);
 
       float lane_w = std::min(lane_width, averge_exit_lane_width_);
       if (line_width - static_cast<float>(assume_nums - 1) * abs(l_width) >
@@ -1047,10 +1049,10 @@ void VirtualLineGen::SlicePointVirtualLine(
     startslicept_bsl_dis.emplace_back(last_dis);
     startslicept.emplace_back(start_po + vec_popr * start_between_lr[0]);
   }
-  HLOG_ERROR << "startslicept_bsl_dis.size() = " << startslicept_bsl_dis.size();
-  for (auto& dis : startslicept_bsl_dis) {
-    HLOG_ERROR << "startslicept_bsl_dis  dis = " << dis;
-  }
+  // HLOG_ERROR << "startslicept_bsl_dis.size() = " <<
+  // startslicept_bsl_dis.size(); for (auto& dis : startslicept_bsl_dis) {
+  //   HLOG_ERROR << "startslicept_bsl_dis  dis = " << dis;
+  // }
   if (base_line_flag == 0) {
     float left_start_last_dis = 0.0;
     int left_start_last_index = 0;
@@ -2100,22 +2102,22 @@ void VirtualLineGen::SameLineNumVirtualBuild(
                                      static_cast<double>(line_width) *
                                      static_cast<double>(num) * lane_width +
                                  base_line->dist_to_path;
-      // HLOG_ERROR << "tmp.pt = " << tmp.pt.x() << "  " <<
-      // tmp.pt.y();
+      // HLOG_ERROR << "tmp.pt = " << tmp.pt.x() << "  " << tmp.pt.y();
       TranslateLine(&line_virtual, tmp, base_line, curr_group);
       line_virtual.dist_to_path = dist_to_path_line;
       LineSegment::Ptr line_virtual_ptr =
           std::make_shared<LineSegment>(line_virtual);
       (*line_virtual_vec).emplace_back(line_virtual_ptr);
     }
-    HLOG_ERROR
-        << "line_width = " << line_width
-        << " static_cast<float>(assume_nums - 1) * lane_width = "
-        << static_cast<float>(assume_nums - 1) * lane_width
-        << "  line_width - static_cast<float>(assume_nums - 1) * lane_width =  "
-        << line_width - static_cast<float>(assume_nums - 1) * lane_width;
+    // HLOG_ERROR
+    //     << "line_width = " << line_width
+    //     << " static_cast<float>(assume_nums - 1) * lane_width = "
+    //     << static_cast<float>(assume_nums - 1) * lane_width
+    //     << "  line_width - static_cast<float>(assume_nums - 1) * lane_width =
+    //     "
+    //     << line_width - static_cast<float>(assume_nums - 1) * lane_width;
     if (line_width - static_cast<float>(assume_nums - 1) * lane_width >
-            conf_.max_lane_width ||
+            conf_.max_lane_width - 0.5 ||
         (line_width - static_cast<float>(assume_nums - 1) * lane_width >
              lane_width &&
          left_type != right_type)) {
@@ -2129,7 +2131,7 @@ void VirtualLineGen::SameLineNumVirtualBuild(
           dis_to_path_norm / static_cast<double>(line_width) *
               static_cast<double>(assume_nums) * lane_width +
           base_line->dist_to_path;
-      HLOG_ERROR << "tmp.pt = " << tmp.pt.x() << "  " << tmp.pt.y();
+      // HLOG_ERROR << "tmp.pt = " << tmp.pt.x() << "  " << tmp.pt.y();
       TranslateLine(&line_virtual, tmp, base_line, curr_group);
       line_virtual.dist_to_path = dist_to_path_line;
       LineSegment::Ptr line_virtual_ptr =

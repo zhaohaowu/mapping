@@ -68,11 +68,10 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   //     const std::shared_ptr<hozon::hdmap::Map>& map,
   //     mp::mf::select::MapSelectResult select,
   //     hozon::routing::RoutingResponse* routing);
-  // int SendPercepResult(
-  //     const std::shared_ptr<hozon::localization::Localization>& location,
-  //     const std::shared_ptr<hozon::hdmap::Map>& map,
-  //     mp::mf::select::MapSelectResult select,
-  //     const std::shared_ptr<hozon::routing::RoutingResponse>& routing);
+  int SendPercepResult(
+      const std::shared_ptr<hozon::localization::Localization>& location,
+      const std::shared_ptr<hozon::hdmap::Map>& map,
+      const std::shared_ptr<hozon::routing::RoutingResponse>& routing);
 
   int MapFusionOutputEvaluation(
       const std::shared_ptr<hozon::localization::Localization>& location);

@@ -39,14 +39,15 @@ class LaneFusionPipeline : public BaseFusionPipeline {
   void Clear() override;
 
   void InsertPose(const LocInfo::Ptr& pose);
-  bool Process(const ElementMap::Ptr& element_map_ptr) const;
-
+  bool Process(const ElementMap::Ptr& element_map_ptr);
+  std::vector<Group::Ptr> GetGroups();
   std::string Name() const override;
 
  private:
   // 私有函数
  private:
   // 私有成员变量
+  std::vector<Group::Ptr> groups_;
   bool initialized_ = false;
   LaneFusionProcessOption options_;
   PathManagerPtr path_manager_ = nullptr;

@@ -156,11 +156,13 @@ bool LaneFusionPipeline::Init() {
   lane_prediction_->Init(options_);
   virtual_line_gen_ = std::make_unique<VirtualLineGen>();
   virtual_line_gen_->Init(options_);
-
+  groups_.clear();
   initialized_ = true;
 
   return true;
 }
+
+std::vector<Group::Ptr> LaneFusionPipeline::GetGroups() { return groups_; }
 
 void LaneFusionPipeline::Clear() {
   broken_pt_search_->Clear();
@@ -168,6 +170,7 @@ void LaneFusionPipeline::Clear() {
   lane_prediction_->Clear();
   road_topo_constructor_->Clear();
   virtual_line_gen_->Clear();
+  groups_.clear();
 }
 
 void LaneFusionPipeline::InsertPose(const LocInfo::Ptr& pose) {
@@ -198,7 +201,7 @@ void LaneFusionPipeline::InsertPose(const LocInfo::Ptr& pose) {
   path_manager_->AddPose(curr);
 }
 
-bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
+bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) {
   if (!initialized_) {
     HLOG_ERROR << "Lane fusion pipline not initialized";
     return false;
@@ -239,6 +242,7 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
   MF_RVIZ->VizDistpoint(distpoints, element_map_ptr->map_info.stamp);
 
   std::vector<Group::Ptr> groups;
+
   groups = road_constructor_->GetGroups();
 
   std::deque<Line::Ptr> occ_lines;
@@ -264,9 +268,10 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) const {
   lane_prediction_->ComputeHeadingCompensation(curr_pose);
   lane_prediction_->LaneForwardPredict(&groups,
                                        element_map_ptr->map_info.stamp);
+  groups_.clear();
+  groups_ = groups;
   MF_RVIZ->VizGroup(groups, element_map_ptr->map_info.stamp);
   MF_RVIZ->VizGuidePoint(groups, element_map_ptr->map_info.stamp);
-
   return true;
 }
 

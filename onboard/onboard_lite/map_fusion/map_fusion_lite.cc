@@ -148,7 +148,7 @@ void MapFusionLite::RegistProcessFunc() {
 
 int32_t MapFusionLite::OnNavData(Bundle* input) {
   if (!input) {
-    HLOG_ERROR << "input is nullptr";
+    HLOG_ERROR << "route: OnNavData input is nullptr";
     return -1;
   }
   auto p_nav_data = input->GetOne("dv_nav_data");
@@ -156,19 +156,20 @@ int32_t MapFusionLite::OnNavData(Bundle* input) {
     HLOG_ERROR << "OnNavData GetOne error ";
     return -1;
   }
-  HLOG_WARN << "OnNavData ======================================";
+  HLOG_WARN << "route: OnNavData ======================================";
 
   const auto nav_data_msg =
       std::static_pointer_cast<hozon::hmi::NAVDataService>(
           p_nav_data->proto_msg);
   if (!nav_data_msg) {
-    HLOG_ERROR << "nav_data_msg is nullptr ";
+    HLOG_ERROR << "route: nav_data_msg is nullptr ";
     return -1;
   }
 
   {
     std::lock_guard<std::mutex> lock(hmi_nav_mtx_);
     hmi_nav_data_ = std::make_shared<hozon::hmi::NAVDataService>(*nav_data_msg);
+    HLOG_ERROR << "route: start to UpdateHMINavData ";
     mf_->UpdateHMINavData(hmi_nav_data_);
   }
 

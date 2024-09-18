@@ -53,13 +53,13 @@ bool MapService::Init() {
     amap_tsp_proc_ = std::async(&MapService::GetUidThread, this);
     ehr_ = std::make_unique<hozon::ehr::AmapEhrImpl>();
 
-    std::string dbpath = FLAGS_ldmap_dir + "/";
-#ifdef ISORIN
-    dbpath = "/hd_map/ld_map/";
-#endif
-    HLOG_ERROR << "dbpath " << dbpath;
-    std::string vid = "HeZhong2024010166";
-    baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>(dbpath, vid);
+//     std::string dbpath = FLAGS_ldmap_dir + "/";
+// #ifdef ISORIN
+//     dbpath = "/hd_map/ld_map/";
+// #endif
+//     HLOG_ERROR << "dbpath " << dbpath;
+//     std::string vid = "HeZhong2024010166";
+    baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>();
     baidu_map_->AlgInit();
     bd_thread_flag_ = true;
     bd_thread_ = std::thread(&MapService::BaiduProc, this);
@@ -67,13 +67,13 @@ bool MapService::Init() {
     // todo map api
     // ld map 在线
 
-    std::string dbpath = FLAGS_ldmap_dir + "/";
-#ifdef ISORIN
-    dbpath = "/hd_map/ld_map/";
-#endif
-    HLOG_ERROR << "dbpath " << dbpath;
-    std::string vid = "HeZhong2024010166";
-    baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>(dbpath, vid);
+//     std::string dbpath = FLAGS_ldmap_dir + "/";
+// #ifdef ISORIN
+//     dbpath = "/hd_map/ld_map/";
+// #endif
+//     HLOG_ERROR << "dbpath " << dbpath;
+//     std::string vid = "HeZhong2024010166";
+    baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>();
     bd_thread_flag_ = true;
     baidu_map_->AlgInit();
     bd_thread_ = std::thread(&MapService::BaiduProc, this);
@@ -186,7 +186,7 @@ void MapService::BaiduProc() {
       if (res_result) {
         rev_nav_flag_ = false;
       } else {
-        HLOG_ERROR << "set sdlink info failed";
+        HLOG_ERROR << "route: set sdlink info failed";
       }
     }
     std::vector<uint32_t> routing_road;
@@ -194,7 +194,7 @@ void MapService::BaiduProc() {
     if (!routing_road.empty()) {
       std::lock_guard<std::mutex> lock(ld_routing_mtx_);
       routing_road_id_ = std::make_shared<std::vector<uint32_t>>(routing_road);
-      HLOG_ERROR << "ld routing road size" << routing_road_id_->size();
+      HLOG_ERROR << "route: ld routing road size" << routing_road_id_->size();
     }
     hozon::hdmap::Map test_map;
     GLOBAL_HD_MAP->GetMap(&test_map);
@@ -348,6 +348,7 @@ void MapService::SetCurrentPathId(const hozon::common::PointENU& utm_pos,
 }
 void MapService::UpdateHMINavService(
     const std::shared_ptr<hozon::hmi::NAVDataService>& nav_data) {
+  HLOG_ERROR << "route: start to UpdateHMINavService";
   rev_nav_flag_ = true;
   hmi_nav_data_ = nav_data;
 }

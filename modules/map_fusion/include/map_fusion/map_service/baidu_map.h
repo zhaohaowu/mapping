@@ -72,9 +72,11 @@ struct INSPos {
 
 class BaiDuMapEngine : public hozon::netaos::adf_lite::Executor {
  public:
-  BaiDuMapEngine(std::string& path, std::string& id) : dbpath(path), vid(id) {
-    // do nothing
-  }
+  BaiDuMapEngine() {}
+  //  BaiDuMapEngine(std::string& path, std::string& id) : dbpath(path), vid(id)
+  //  {
+  //   // do nothing
+  // }
 
   ~BaiDuMapEngine();
   int32_t AlgInit() override;
@@ -82,7 +84,6 @@ class BaiDuMapEngine : public hozon::netaos::adf_lite::Executor {
 
   // void UpdateBaiDuMap(const INSPos& pos);
   const hozon::hdmap::Map& GetNetaMap() const { return neta_map_; }
-  BaiDuMapEngine() {}
   void UpdateBaiDuMap(
       const INSPos& pos,
       const std::shared_ptr<hozon::hmi::NAVDataService>& hmi_nav,

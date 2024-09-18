@@ -61,11 +61,13 @@ int MapFusion::Init(const YAML::Node& conf) {
 
 void MapFusion::UpdateHMINavData(
     const std::shared_ptr<hozon::hmi::NAVDataService>& nav_data) {
+  HLOG_ERROR << "route: start to UpdateHMINavData";
   if (nav_data != nullptr) {
     // hmi_nav_data_ = nav_data;
+    HLOG_ERROR << "route: hmi_nav_data_ is not nullptr";
     map_service_->UpdateHMINavService(nav_data);
   } else {
-    HLOG_WARN << "hmi_nav_data_ is nullptr when load hd map";
+    HLOG_ERROR << "route: hmi_nav_data_ is nullptr";
   }
 }
 

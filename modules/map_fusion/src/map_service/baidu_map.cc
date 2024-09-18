@@ -26,15 +26,24 @@ int32_t BaiDuMapEngine::AlgInit() {
   // 可放置baidu map路径
   if (map_engine_ptr_ == nullptr) {
     map_engine_ptr_ = baidu::imap::sdk::get_map_engine();
-    baidu::imap::InitParameter init_param(
-        "202408271000003413", "",
-        baidu::imap::LogControl(5, 100 * 1024, "./hdmap_log",
-                                baidu::imap::LogControl::INFO));
+    // baidu::imap::InitParameter init_param(
+    //     "202408271000003413", "",
+    //     baidu::imap::LogControl(5, 100 * 1024, "./hdmap_log",
+    //                             baidu::imap::LogControl::INFO));
+
     std::string dbpath = FLAGS_ldmap_dir + "/";
+    std::string logpath = "./hdmap_log";
 #ifdef ISORIN
     dbpath = "/hd_map/ld_map/";
+    logpath = "/hd_map/ld_map/";
 #endif
     HLOG_ERROR << "dbpath " << dbpath;
+    HLOG_ERROR << "logpath " << logpath;
+    baidu::imap::InitParameter init_param(
+        "202408271000003413", "",
+        baidu::imap::LogControl(5, 100 * 1024, logpath,
+                                baidu::imap::LogControl::INFO));
+
     std::string vid = "HeZhong2024010166";
     if (map_engine_ptr_->initialize(dbpath, vid, init_param) !=
         baidu::imap::IMAP_STATUS_OK) {
@@ -65,7 +74,7 @@ void BaiDuMapEngine::SetLenLine(
     hozon::common::math::LineSegment2d* l,
     hozon::common::math::LineSegment2d* width) {
   if (geometries.size() < 4) {
-    std::cout << "error: geometries size<4" << std::endl;
+    HLOG_ERROR << "error: geometries size<4";
     return;
   }
   std::vector<Vec2d> points;
@@ -124,7 +133,7 @@ void BaiDuMapEngine::SetLenLine(
       }
 
     } else {
-      std::cout << "crosswalk set length width fail \n";
+      HLOG_ERROR << "crosswalk set length width fail";
     }
   }
 }
@@ -133,7 +142,7 @@ bool BaiDuMapEngine::Get2lineInterPoint(const Vec2d& p1, const Vec2d& p2,
                                         const Vec2d& p3, const Vec2d& p4,
                                         Vec2d* point) {
   if (abs((p2 - p1).CrossProd(p4 - p3)) < 1e-6) {
-    std::cout << "lines parallel" << std::endl;
+    HLOG_ERROR << "lines parallel";
     return false;
   }
 
@@ -163,7 +172,6 @@ bool BaiDuMapEngine::LinePointsIntersectAB(const LineSegment2d& l,
   int point_size = points.size();
   Vec2d point;
   int number(-1);
-  HLOG_ERROR << " cross line: ";
   double dis = __DBL_MAX__;
   int best_index = -1;
   for (int i = 0; i < point_size - 1; ++i) {
@@ -179,7 +187,6 @@ bool BaiDuMapEngine::LinePointsIntersectAB(const LineSegment2d& l,
     }
   }
 
-  HLOG_ERROR << "intersection point: " << point.DebugString();
   if (number != -1) {
     *s = 0;
     std::vector<hozon::common::math::LineSegment2d> segments;
@@ -216,7 +223,7 @@ bool BaiDuMapEngine::LinePointsIntersectAB(const LineSegment2d& l,
     return true;
   }
 
-  std::cout << "not find inter point \n";
+  HLOG_ERROR << "not find inter point \n";
   return false;
 }
 
@@ -248,7 +255,7 @@ bool BaiDuMapEngine::LinePointsIntersect(const LineSegment2d& l,
     }
     return true;
   }
-  std::cout << "not find inter point \n";
+  HLOG_ERROR << "not find inter point \n";
   return false;
 }
 
@@ -256,8 +263,7 @@ bool BaiDuMapEngine::GetLineLaneIntersect(const LineSegment2d& l,
                                           const hozon::hdmap::Lane& lane,
                                           double* s, bool sure) {
   if (lane.central_curve().segment().empty()) {
-    std::cout << "lane curve is empty, lane id: " << lane.id().id()
-              << std::endl;
+    HLOG_ERROR << "lane curve is empty, lane id: ";
   }
   std::vector<Vec2d> lane_points;
   for (const auto& segment : lane.central_curve().segment()) {
@@ -284,7 +290,6 @@ void BaiDuMapEngine::MapTransition(
     SetSectionType(bd_link.second->get_link_type(), section);
     auto* section_lane_id = section->mutable_lane_id();
     const auto& bd_lane_ids = bd_link.second->get_laneids();
-    HLOG_ERROR << "link has lanes size: " << bd_lane_ids.size();
     std::vector<baidu::imap::HdLaneBoundaryPtr> bd_left_road_boundarys;
     std::vector<baidu::imap::HdLaneBoundaryPtr> bd_right_road_boundarys;
     for (int i = 0; i < bd_lane_ids.size(); i++) {
@@ -437,9 +442,6 @@ void BaiDuMapEngine::SetSectionBoundary(
       edge->set_is_plane(true);
     }
     edge->mutable_id()->set_id(std::to_string(bd_boundary->get_id()));
-    // std::cout << "section boundart id: " << bd_boundary->get_id()
-    //           << " type: " << bd_boundary->get_type()
-    //           << " material: " << bd_boundary->get_material() << std::endl;
     SetBoundaryPoint(bd_boundary, edge->mutable_curve());
   }
 }
@@ -458,10 +460,10 @@ void BaiDuMapEngine::LaneBuild(
   auto* cent_curve = neta_lane.mutable_central_curve();
   SetCenterPoint(bd_lane, cent_curve);
 
-  HLOG_ERROR << "lane id: " << neta_lane.id().id()
-             << " bd lane type: " << bd_lane->get_lane_type()
-             << " in junction: " << bd_lane->has_junction_id()
-             << " junction id: " << bd_lane->get_junction_id();
+  // HLOG_ERROR << "lane id: " << neta_lane.id().id()
+  //            << " bd lane type: " << bd_lane->get_lane_type()
+  //            << " in junction: " << bd_lane->has_junction_id()
+  //            << " junction id: " << bd_lane->get_junction_id();
 
   const auto& left_marks = bd_lane->get_left_marking_list();
   SetLaneBoundary(bd_lane, &neta_lane);
@@ -568,11 +570,6 @@ void BaiDuMapEngine::SetBoundaryType(
     bool is_left, bool in_junction,
     const std::vector<baidu::imap::HdLaneBoundaryPtr>& bd_marks,
     hozon::hdmap::LaneBoundary* boundary) {
-  HLOG_INFO << " left boundary: " << is_left << " bdsize: " << bd_marks.size();
-  for (const auto& bd_mark : bd_marks) {
-    HLOG_INFO << " bd boundary type: " << bd_mark->get_type()
-              << " is road boundary: " << bd_mark->get_is_road_boundary();
-  }
   auto* boundary_type = boundary->add_boundary_type();
   boundary_type->set_s(0.0);
 
@@ -640,7 +637,7 @@ void BaiDuMapEngine::SetBoundaryType(
         break;
     }
   } else {
-    std::cout << "bd lane has no boundary" << std::endl;
+    HLOG_ERROR << "bd lane has no boundary";
   }
   // }
 
@@ -793,11 +790,11 @@ void BaiDuMapEngine::SetCrossWalks(
     if (cross_walk_lanes_um_.count(cross_walk.first) != 0) {
       for (const auto& lane_id : cross_walk_lanes_um_.at(cross_walk.first)) {
         if (neta_lanes_um->count(std::to_string(lane_id)) != 0) {
-          HLOG_ERROR << "xxxxxxxx cw id: " << cross_walk.first
-                     << " lane id: " << lane_id;
+          // HLOG_ERROR << "xxxxxxxx cw id: " << cross_walk.first
+          //            << " lane id: " << lane_id;
           SetLenLine(cross_walk.second->get_geometry(), &cen_line, &width);
-          HLOG_ERROR << "length : " << cen_line.DebugString()
-                     << " width: " << width.DebugString();
+          // HLOG_ERROR << "length : " << cen_line.DebugString()
+          //            << " width: " << width.DebugString();
           double s(0.0);
           if (GetLineLaneIntersect(cen_line,
                                    neta_lanes_um->at(std::to_string(lane_id)),
@@ -814,9 +811,9 @@ void BaiDuMapEngine::SetCrossWalks(
             overlap_ids.push_back(std::to_string(lane_id) + "_" +
                                   std::to_string(cross_walk.first));
           }
-          HLOG_ERROR << "crosswalk id: " << cross_walk.first
-                     << " , laneId: " << lane_id << " ,s: " << s
-                     << " width: " << crosswalk_width;
+          // HLOG_ERROR << "crosswalk id: " << cross_walk.first
+          //            << " , laneId: " << lane_id << " ,s: " << s
+          //            << " width: " << crosswalk_width;
         } else {
           HLOG_ERROR << "not find lane id: " << lane_id;
         }
@@ -879,7 +876,6 @@ void BaiDuMapEngine::SetOverlapSignal(
     std::unordered_map<std::string, hozon::hdmap::Lane>* neta_lanes_um) {
   std::unordered_map<uint32_t, std::unordered_set<std::string>> line_overlap_id;
   for (const auto& stop_line_lanes : stop_line_lanes_um_) {
-    HLOG_ERROR << "stop_line_lanes.size:  " << stop_line_lanes.second.size();
     for (const auto& lane_id : stop_line_lanes.second) {
       std::string overlap_id(std::to_string(lane_id) + "_" +
                              std::to_string(stop_line_lanes.first));
@@ -937,8 +933,8 @@ void BaiDuMapEngine::SetOverlap(
       GetLineLaneIntersect(cen_line, neta_lanes_um->at(lane_id), &s, true);
       s = neta_lanes_um->at(lane_id).length();
     }
-    HLOG_ERROR << "stop line: " << stopline_id << " lane id: " << lane_id
-               << " s: " << s;
+    // HLOG_ERROR << "stop line: " << stopline_id << " lane id: " << lane_id
+    //            << " s: " << s;
     laneoverlapinfo->set_start_s(s - stopline_width / 2);
     laneoverlapinfo->set_end_s(s + stopline_width / 2);
     laneoverlapinfo->set_is_merge(false);
@@ -949,9 +945,6 @@ void BaiDuMapEngine::SetSignal(
     const std::unordered_map<uint32_t, std::unordered_set<std::string>>&
         line_overlap_id) {
   for (const auto& line_overlaps : line_overlap_id) {
-    HLOG_ERROR << "stop line id: " << line_overlaps.first
-               << " releated overlap size: " << line_overlaps.second.size();
-
     auto* signal = neta_map_.mutable_signal()->Add();
     signal->mutable_id()->set_id(std::to_string(line_overlaps.first));
     for (const auto& overlap_id : line_overlaps.second) {
@@ -995,7 +988,7 @@ void BaiDuMapEngine::Setjunctions(
 
 void BaiDuMapEngine::SetJunctionPb(const baidu::imap::JunctionPtr& bd_jun) {
   if (bd_jun->get_geometry().size() < 3) {
-    HLOG_ERROR << ">>>filter   junction";
+    HLOG_ERROR << "filter   junction";
     return;
   }
   auto* junction = neta_map_.mutable_junction()->Add();
@@ -1043,28 +1036,24 @@ Vec2d BaiDuMapEngine::Geometry2Vec2d(const baidu::imap::Point3I& geo) {
   return {x, y};
 }
 void BaiDuMapEngine::CacheLocalMapInfo(const baidu::imap::LocalMap& local_map) {
-  HLOG_ERROR << ">>>>>>>>local_map";
-  HLOG_ERROR << "link size: " << local_map.hd_links.size();
   for (const auto& l : local_map.hd_links) {
     links_um_[l->get_id()] = l;
   }
-  HLOG_ERROR << "lane size: " << local_map.hd_lanes.size();
   for (const auto& l : local_map.hd_lanes) {
     lanes_um_[l->get_laneid()] = l;
   }
 
-  HLOG_ERROR << "object size: " << local_map.hd_objects.size();
   for (const auto& obj : local_map.hd_objects) {
     objs_um_[obj->get_id()] = obj;
-    HLOG_ERROR << "obj id: " << obj->get_id() << " type: " << obj->get_type()
-               << " sub type: " << obj->get_subtype()
-               << " lane id size: " << obj->get_laneids().size();
-    HLOG_ERROR << "obj geo size: " << obj->get_geometry().size();
-    HLOG_ERROR << "obj length: " << obj->get_length()
-               << " width: " << obj->get_width() << "\n";
-    for (const auto& lane_id : obj->get_laneids()) {
-      HLOG_ERROR << "releated lane id: " << lane_id << " ";
-    }
+    // HLOG_ERROR << "obj id: " << obj->get_id() << " type: " << obj->get_type()
+    //            << " sub type: " << obj->get_subtype()
+    //            << " lane id size: " << obj->get_laneids().size();
+    // HLOG_ERROR << "obj geo size: " << obj->get_geometry().size();
+    // HLOG_ERROR << "obj length: " << obj->get_length()
+    //            << " width: " << obj->get_width() << "\n";
+    // for (const auto& lane_id : obj->get_laneids()) {
+    //   HLOG_ERROR << "releated lane id: " << lane_id << " ";
+    // }
 
     if (obj->get_subtype() == baidu::imap::OST_ROADMAK_STOP_LINE) {
       stop_line_um_[obj->get_id()] = obj;
@@ -1083,14 +1072,13 @@ void BaiDuMapEngine::CacheLocalMapInfo(const baidu::imap::LocalMap& local_map) {
     }
   }
 
-  HLOG_ERROR << "junction size: " << local_map.hd_junctions.size();
   for (const auto& jc : local_map.hd_junctions) {
     juns_um_[jc->get_id()] = jc;
-    HLOG_ERROR << "junction id: " << jc->get_id()
-               << " lane id size:" << jc->get_laneids().size();
-    for (const auto& lane_id : jc->get_laneids()) {
-      HLOG_ERROR << "lane id: " << lane_id << ",";
-    }
+    // HLOG_ERROR << "junction id: " << jc->get_id()
+    //            << " lane id size:" << jc->get_laneids().size();
+    // for (const auto& lane_id : jc->get_laneids()) {
+    //   HLOG_ERROR << "lane id: " << lane_id << ",";
+    // }
   }
 }
 void BaiDuMapEngine::Clear() {
@@ -1106,14 +1094,20 @@ void BaiDuMapEngine::Clear() {
 }
 bool BaiDuMapEngine::UpdateHMINav(
     const std::shared_ptr<hozon::hmi::NAVDataService>& hmi_nav) {
+  HLOG_ERROR << "route: start update hmi nav";
+  if (map_engine_ptr_ == nullptr) {
+    HLOG_ERROR << "route: map_engine_ptr is nullptr ";
+  }
   if (hmi_nav == nullptr) {
-    HLOG_ERROR << "hmi_nav id nullptr ";
+    HLOG_ERROR << "route: hmi_nav is nullptr ";
     return false;
   }
   if (hmi_nav->sd_road_array().empty()) {
-    HLOG_ERROR << "hmi_nav  has no road ";
+    HLOG_ERROR << "route: hmi_nav  has no road ";
     return false;
   }
+  HLOG_ERROR << "route: hmi_nav  road size: "
+             << hmi_nav->sd_road_array().size();
   std::vector<baidu::imap::SDLinkInfo> sd_info_vec;
   for (const auto& sd_road : hmi_nav->sd_road_array()) {
     if (sd_road.road_lgt_size() != sd_road.road_lat_size()) {
@@ -1148,7 +1142,7 @@ bool BaiDuMapEngine::UpdateHMINav(
   }
 
   if (!map_engine_ptr_->set_sdlink_info(sd_info_vec)) {
-    HLOG_ERROR << "something is error when set_sdlink_info";
+    HLOG_ERROR << "route: something is error when set_sdlink_info";
     return false;
   }
   // 可选接口
@@ -1176,7 +1170,7 @@ bool BaiDuMapEngine::UpdateHMINav(
         tbt_info_vec.emplace_back(tbt_info);
       }
       if (!map_engine_ptr_->set_tbt_info(tbt_info_vec)) {
-        HLOG_ERROR << "something is error when set_tbt_info";
+        HLOG_ERROR << "route: something is error when set_tbt_info";
       }
     }
   }
@@ -1191,7 +1185,7 @@ void BaiDuMapEngine::UpdateBaiDuMap(
   // gps.lat = 31.224504;
   gps.lon = pos.y;
   gps.lat = pos.x;
-  double radius = 1000;
+  double radius = 500;
   baidu::imap::LocalMap local_map;
   std::string map_version;
   std::string engine_version;
@@ -1240,11 +1234,10 @@ void BaiDuMapEngine::UpdateBaiDuMap(
   SetCrossWalks(&neta_lanes_um);
 
   // set stop line=singal
-  HLOG_ERROR << "set signal \n";
   SetOverlapSignal(&neta_lanes_um);
 
   Setjunctions(neta_lanes_um);
-  HLOG_ERROR << ">>>>neta_lanes_um  size" << neta_lanes_um.size();
+  // HLOG_ERROR << ">>>>neta_lanes_um  size" << neta_lanes_um.size();
   for (const auto& lane : neta_lanes_um) {
     neta_map_.add_lane()->CopyFrom(lane.second);
   }
@@ -1253,7 +1246,7 @@ void BaiDuMapEngine::UpdateBaiDuMap(
   uint32_t route_res = 0;
   route_res = map_engine_ptr_->get_route(linkid_list);
   if (route_res != baidu::imap::IMAP_STATUS_OK) {
-    HLOG_ERROR << "get route from baidu failed, status: " << route_res;
+    HLOG_ERROR << "route: get route from baidu failed, status: " << route_res;
   }
   if (!linkid_list.empty()) {
     for (const auto& link_id : linkid_list) {

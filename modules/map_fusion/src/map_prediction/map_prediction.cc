@@ -2111,6 +2111,7 @@ void MapPrediction::GetRoutingFromLdRouting(
     hozon::hdmap::Id road_id;
     road_id.set_id("bd" + std::to_string(road_it));
     auto road_ptr = GLOBAL_HD_MAP->GetRoadById(road_id);
+    std::unordered_set<std::string> forward_lane_id_set;
     if (road_ptr != nullptr) {
       auto routing_road = current_routing_->add_road();
       routing_road->set_id(road_id.id());
@@ -2126,22 +2127,63 @@ void MapPrediction::GetRoutingFromLdRouting(
           auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
           if (lane_ptr != nullptr) {
             routing_segment->set_end_s(lane_ptr->lane().length());
+            // 这边先设置成left
+            routing_passage->set_can_exit(false);
+            routing_passage->set_change_lane_type(
+                hozon::routing::ChangeLaneType::LEFT);
             for (const auto& successor_id_it :
                  lane_ptr->lane().successor_id()) {
               if (default_routing_set_.count(successor_id_it.id()) != 0) {
                 routing_passage->set_can_exit(true);
                 routing_passage->set_change_lane_type(
                     hozon::routing::ChangeLaneType::FORWARD);
+                forward_lane_id_set.insert(lane_it.id());
                 break;
               }
             }
           }
         }
       }
+      for (auto passage_it = routing_road->mutable_passage()->begin();
+           passage_it != routing_road->mutable_passage()->end(); ++passage_it) {
+        if (passage_it->change_lane_type() ==
+            hozon::routing::ChangeLaneType::FORWARD)
+          continue;
+        for (const auto& segment_it : passage_it->segment()) {
+          // 找到所有右邻lane id
+          // 如果在forward_lane_id_set中能找到那就设置成RIGHT
+          DFSRightLanes(forward_lane_id_set, segment_it.id());
+        }
+        if (right_lane_forward_) {
+          passage_it->set_change_lane_type(
+              hozon::routing::ChangeLaneType::RIGHT);
+          right_lane_forward_ = false;
+        }
+      }
     }
   }
-  // 设置routing_request字段
-  // 具体 way point字段可以设置成历史信息
+}
+
+void MapPrediction::DFSRightLanes(
+    const std::unordered_set<std::string>& forward_lanes,
+    const std::string& right_lane_id) {
+  hozon::hdmap::Id lane_id;
+  lane_id.set_id(right_lane_id);
+  auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+  if (lane_ptr == nullptr) {
+    return;
+  }
+  if (lane_ptr->lane().right_neighbor_forward_lane_id().empty()) {
+    return;
+  }
+  for (const auto& right_lane_id_it :
+       lane_ptr->lane().right_neighbor_forward_lane_id()) {
+    if (forward_lanes.count(right_lane_id_it.id()) != 0) {
+      right_lane_forward_ = true;
+      break;
+    }
+    DFSRightLanes(forward_lanes, right_lane_id_it.id());
+  }
 }
 
 void MapPrediction::ConvertToLocal() {

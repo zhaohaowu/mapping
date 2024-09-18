@@ -196,7 +196,10 @@ class MapPrediction {
       const std::string& lane_id,
       const std::vector<std::vector<std::string>>& routing_lanes);
   void GetRoutingLanesFromFile();
-  void GetRoutingFromLdRouting(const hozon::common::PointENU& utm_pos, std::vector<uint32_t>* ld_routing);
+  void GetRoutingFromLdRouting(const hozon::common::PointENU& utm_pos,
+                               std::vector<uint32_t>* ld_routing);
+  void DFSRightLanes(const std::unordered_set<std::string>& forward_lanes,
+                     const std::string& right_lane_id);
 
   std::mutex mtx_;
   std::vector<std::pair<uint32_t, std::vector<Eigen::Vector3d>>>
@@ -257,6 +260,7 @@ class MapPrediction {
   std::vector<std::vector<std::string>> default_routing_lanes_;
   std::unordered_set<std::string> default_routing_set_;
   bool get_default_routing_ = false;
+  bool right_lane_forward_ = false;
 };
 
 }  // namespace mf

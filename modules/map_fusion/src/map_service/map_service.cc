@@ -194,7 +194,7 @@ void MapService::BaiduProc() {
     if (!routing_road.empty()) {
       std::lock_guard<std::mutex> lock(ld_routing_mtx_);
       routing_road_id_ = std::make_shared<std::vector<uint32_t>>(routing_road);
-      HLOG_ERROR << "route: ld routing road size" << routing_road_id_->size();
+      HLOG_ERROR << " route: ld routing road size" << routing_road_id_->size();
     }
     hozon::hdmap::Map test_map;
     GLOBAL_HD_MAP->GetMap(&test_map);

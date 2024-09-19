@@ -136,7 +136,6 @@ MapSelectResult MapSelectLite::Process(
   //   HLOG_DEBUG << "fct valid, nnp off, percep unavailable";
   //   return {MapMsg::INVALID, false, 0};
   // }
-  HLOG_INFO << "zr123 >>>>>>>>>>>>>>>>>>>>>>>>>>";
   if (FLAGS_map_service_mode == 2) {
     if (fusion_map != nullptr) {
       return {MapMsg::FUSION_NNP_MAP, true, 0};

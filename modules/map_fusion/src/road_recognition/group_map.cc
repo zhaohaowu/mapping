@@ -23,7 +23,6 @@
 #include "Eigen/src/Core/Matrix.h"
 #include "base/utils/log.h"
 #include "common/math/vec2d.h"
-
 #include "map_fusion/fusion_common/calc_util.h"
 #include "map_fusion/fusion_common/element_map.h"
 // #include "util/common.h"
@@ -48,6 +47,7 @@ void GroupMap::Clear() {
   stopline_.clear();
   overlaps_.clear();
   groups_.clear();
+  lines_.clear();
   group_segments_.clear();
   ego_line_id_.left_id = -200;
   ego_line_id_.right_id = -200;
@@ -412,6 +412,33 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
   stopline_.clear();
   overlaps_.clear();
   bool need_interp = (interp_dist > 0);
+  for (const auto& bound_pair : ele_map->boundaries) {
+    const auto& bound = bound_pair.second;
+    if (bound == nullptr) {
+      HLOG_ERROR << "found nullptr boundary";
+      continue;
+    }
+    if (bound->nodes.empty()) {
+      continue;
+    }
+    auto line = std::make_shared<LineSegment>();
+    line->id = bound->id;
+
+    for (const auto& node : bound->nodes) {
+      if (node == nullptr) {
+        HLOG_ERROR << "found nullptr node";
+        continue;
+      }
+      const auto& curr_raw = node->point;
+
+      Point pt(gm::RAW, curr_raw.x(), curr_raw.y(), curr_raw.z());
+      line->pts.emplace_back(pt);
+    }
+    if (line->pts.empty()) {
+      continue;
+    }
+    lines_[line->id] = line;
+  }
 
   for (const auto& bound_pair : ele_map->boundaries) {
     const auto& bound = bound_pair.second;
@@ -1169,14 +1196,14 @@ bool GroupMap::IsAccessLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
        lane_in_next->right_boundary->type == em::LaneType_DOUBLE_SOLID ||
        lane_in_next->right_boundary->type ==
            em::LaneType_LEFT_SOLID_RIGHT_DASHED)) {
-    HLOG_DEBUG << "NOT ACCESS RIGHT!";
+    // HLOG_INFO << "NOT ACCESS RIGHT!";
     return false;
   } else if (!is_right &&
              (lane_in_next->left_boundary->type == em::LaneType_SOLID ||
               lane_in_next->left_boundary->type == em::LaneType_DOUBLE_SOLID ||
               lane_in_next->left_boundary->type ==
                   em::LaneType_RIGHT_SOLID_LEFT_DASHED)) {
-    HLOG_DEBUG << "NOT ACCESS LEFT!";
+    // HLOG_INFO << "NOT ACCESS LEFT!";
     return false;
   }
 
@@ -3152,11 +3179,15 @@ void GroupMap::FindNearestLaneToHisVehiclePosition(Group::Ptr curr_group,
   Pose nearest;
   nearest.stamp = -1;
   float min_dist = FLT_MAX;
+  float min_dist_po = FLT_MAX;
   for (const auto& p : path_in_curr_pose_) {
     Eigen::Vector2f pt(p.pos.x(), p.pos.y());
     float dist = PointToVectorDist(curr_end_pl, curr_end_pr, pt);
-    if (dist < min_dist) {
+    float dist_to_po = Dist(p.pos, curr_grp_end_slice.po);
+    if (dist < min_dist ||
+        (dist_to_po < min_dist_po && dist_to_po < min_dist + 0.3)) {
       min_dist = dist;
+      min_dist_po = dist_to_po;
       nearest = p;
       nearest.stamp = 0;
     }
@@ -4356,7 +4387,9 @@ void GroupMap::AddVirtualLine(std::vector<Group::Ptr>* groups) {
   }
   // 判断是否有自车道
   float min_dis = FLT_MAX;
-  for (auto& lane : ego_group->lanes) {
+  int prev_pt_index = -1;
+  for (int lane_index = 0; lane_index < ego_group->lanes.size(); ++lane_index) {
+    auto& lane = ego_group->lanes[lane_index];
     if (lane->center_line_pts.size() < 1) {
       continue;
     }
@@ -4374,11 +4407,27 @@ void GroupMap::AddVirtualLine(std::vector<Group::Ptr>* groups) {
     }
     min_dis = std::min(min_dis, best_dis);
     if (index == -1) {
+      prev_pt_index = index;
       continue;
     }
-    if (lane->center_line_pts[index].pt.norm() < 1.5) {
+    float dis_line = lane->center_line_pts[index].pt.norm();
+    if (dis_line < 1.5) {
       return;
     }
+    if (dis_line < 3 && prev_pt_index > -1 && lane_index > 0 &&
+        ego_group->lanes[lane_index - 1]
+                ->center_line_pts[prev_pt_index]
+                .pt.norm() < 3) {
+      Eigen::Vector2f pre_pt = ego_group->lanes[lane_index - 1]
+                                   ->center_line_pts[prev_pt_index]
+                                   .pt.head<2>();
+      Eigen::Vector2f curr_pt =
+          ego_group->lanes[lane_index]->center_line_pts[index].pt.head<2>();
+      if (ProjectedInSegment(pre_pt, curr_pt, Eigen::Vector2f(0.0, 0.0))) {
+        return;
+      }
+    }
+    prev_pt_index = index;
   }
   int status = BesideGroup(ego_group);
   if (min_dis > 3.5 || !status) {
@@ -4462,6 +4511,9 @@ bool GroupMap::IsNearLine(LineSegment::Ptr line1, LineSegment::Ptr line2) {
 }
 void GroupMap::NeighborLane(std::vector<Group::Ptr>* groups) {
   for (auto& grp : *groups) {
+    if (grp->str_id.find("V") < grp->str_id.length()) {
+      continue;
+    }
     std::sort(grp->lanes.begin(), grp->lanes.end(),
               [](const Lane::Ptr& a, const Lane::Ptr& b) {
                 return a->right_lane_str_id_with_group.size() >
@@ -5433,6 +5485,9 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
           next_lane_exit = true;
           // HLOG_ERROR << "the next lane is "
           //            << next_group->lanes.back()->str_id_with_group;
+        } else if (shrink) {
+          lane_in_curr->next_lane_str_id_with_group.emplace_back(
+              lane_in_curr->str_id_with_group);
         }
       }
       if (!next_lane_exit) {
@@ -7007,17 +7062,87 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
           PointToLineDis(left_bound,
                          lane_in_curr->left_boundary->pts.back().pt.x(),
                          lane_in_curr->left_boundary->pts.back().pt.y()) >
-              conf_.min_lane_width + 0.5) {
+              conf_.min_lane_width) {
         left_bound.pts.clear();
         left_bound_exist = 0;
+        for (auto& lane_in_next : next_group->lanes) {
+          if (lane_in_next->left_boundary->id ==
+                  lane_in_curr->left_boundary->id &&
+              !lane_in_next->left_boundary->pts.empty() &&
+              lane_in_next->left_boundary->pts[0].type == gm::RAW &&
+              !left_bound_exist) {
+            // left_bound = *(lane_in_next->left_boundary);
+            // FillLineSegment(lane_in_next->left_boundary, &left_bound);
+            for (auto& line_pt : lane_in_next->left_boundary->pts) {
+              if (line_pt.type != gm::RAW) {
+                break;
+              }
+              Point pt_pre(gm::RAW, line_pt.pt.x(), line_pt.pt.y(),
+                           line_pt.pt.z());
+              left_bound.pts.emplace_back(pt_pre);
+            }
+            left_bound_exist = 1;
+          } else if (lane_in_next->right_boundary->id ==
+                         lane_in_curr->left_boundary->id &&
+                     !lane_in_next->right_boundary->pts.empty() &&
+                     lane_in_next->right_boundary->pts[0].type == gm::RAW &&
+                     !left_bound_exist) {
+            // left_bound = *(lane_in_next->right_boundary);
+            // FillLineSegment(lane_in_next->right_boundary, &left_bound);
+            for (auto& line_pt : lane_in_next->right_boundary->pts) {
+              if (line_pt.type != gm::RAW) {
+                break;
+              }
+              Point pt_pre(gm::RAW, line_pt.pt.x(), line_pt.pt.y(),
+                           line_pt.pt.z());
+              left_bound.pts.emplace_back(pt_pre);
+            }
+            left_bound_exist = 1;
+          }
+        }
       }
       if (right_bound_exist &&
           PointToLineDis(right_bound,
                          lane_in_curr->right_boundary->pts.back().pt.x(),
                          lane_in_curr->right_boundary->pts.back().pt.y()) >
-              conf_.min_lane_width + 0.5) {
+              conf_.min_lane_width) {
         right_bound.pts.clear();
         right_bound_exist = 0;
+        for (auto& lane_in_next : next_group->lanes) {
+          if (lane_in_next->left_boundary->id ==
+                  lane_in_curr->right_boundary->id &&
+              !lane_in_next->left_boundary->pts.empty() &&
+              lane_in_next->left_boundary->pts[0].type == gm::RAW &&
+              !right_bound_exist) {
+            // right_bound = *(lane_in_next->left_boundary);
+            // FillLineSegment(lane_in_next->left_boundary, &right_bound);
+            for (auto& line_pt : lane_in_next->left_boundary->pts) {
+              if (line_pt.type != gm::RAW) {
+                break;
+              }
+              Point pt_pre(gm::RAW, line_pt.pt.x(), line_pt.pt.y(),
+                           line_pt.pt.z());
+              right_bound.pts.emplace_back(pt_pre);
+            }
+            right_bound_exist = 1;
+          } else if (lane_in_next->right_boundary->id ==
+                         lane_in_curr->right_boundary->id &&
+                     !lane_in_next->right_boundary->pts.empty() &&
+                     lane_in_next->right_boundary->pts[0].type == gm::RAW &&
+                     !right_bound_exist) {
+            // right_bound = *(lane_in_next->right_boundary);
+            // FillLineSegment(lane_in_next->right_boundary, &right_bound);
+            for (auto& line_pt : lane_in_next->right_boundary->pts) {
+              if (line_pt.type != gm::RAW) {
+                break;
+              }
+              Point pt_pre(gm::RAW, line_pt.pt.x(), line_pt.pt.y(),
+                           line_pt.pt.z());
+              right_bound.pts.emplace_back(pt_pre);
+            }
+            right_bound_exist = 1;
+          }
+        }
       }
 
       // HLOG_DEBUG << "left_bound_exist " << left_bound_exist
@@ -7976,13 +8101,24 @@ bool GroupMap::IsLaneShrink(Lane::Ptr lane) {
   Eigen::Vector2f rbvpt1(right_back_v_pt1.x(), right_back_v_pt1.y());
   Eigen::Vector2f rmvpt0(right_mid_v_pt0.x(), right_mid_v_pt0.y());
   Eigen::Vector2f rmvpt1(right_mid_v_pt1.x(), right_mid_v_pt1.y());
-
   auto left_back_dist = PointToVectorDist(rbvpt0, rbvpt1, lfbt);
   auto left_mid_dist = PointToVectorDist(rmvpt0, rmvpt1, lmpt);
+  LineSegment::Ptr& line_left = lines_[lane->left_boundary->id];
+  LineSegment::Ptr& line_right = lines_[lane->right_boundary->id];
+
+  if (line_left != nullptr && !line_left->pts.empty() &&
+      line_right != nullptr && !line_right->pts.empty()) {
+    left_back_dist = std::min(
+        DistPointNew(line_left->pts.back().pt, *line_right), left_back_dist);
+    left_back_dist = std::min(
+        DistPointNew(line_right->pts.back().pt, *line_left), left_back_dist);
+  }
+
   auto left_diff_dist = left_mid_dist - left_back_dist;
   const float kShrinkDiffThreshold = 0.5;
-  if (left_diff_dist > 0 && std::abs(left_diff_dist) > kShrinkDiffThreshold &&
-      left_back_dist < conf_.min_lane_width + 0.5) {
+  if ((left_diff_dist > 0 && std::abs(left_diff_dist) > kShrinkDiffThreshold &&
+       left_back_dist < conf_.min_lane_width + 0.5) ||
+      left_back_dist < 0.5) {
     return true;
   }
 

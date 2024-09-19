@@ -157,7 +157,7 @@ void BrokenPointSearch::ComputeLineHeading(const Line::Ptr& line) {
 void BrokenPointSearch::RetrieveBoundaries(const ElementMap::Ptr& ele_map,
                                            float interp_dist,
                                            std::deque<Line::Ptr>* lines) {
-  HLOG_DEBUG << "RetrieveBoundaries";
+  HLOG_DEBUG << "RetrieveBoundaries" << ele_map->lane_boundaries.size();
   if (ele_map == nullptr || lines == nullptr) {
     return;
   }
@@ -252,6 +252,7 @@ bool BrokenPointSearch::PoseLineAdapter2Cpt(
     }
     LaneLine::Ptr tmp = std::make_shared<LaneLine>();
     tmp->SetId(line->id);
+    tmp->SetType(line->type);
     std::vector<Point3D> points;
     // 把车道线转到local系
     for (const auto& pt : line->pts) {

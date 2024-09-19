@@ -44,7 +44,7 @@ bool RoadTopoConstruct::ConstructTopology(
   HLOG_INFO << "Road Scene Type: "
             << static_cast<int>(junc_info.road_scene_type);
 
-  if (groups->size() < 2) {
+  if (groups->size() < 1) {
     return true;
   }
 

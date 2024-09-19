@@ -25,6 +25,7 @@
 #include <Sophus/se3.hpp>
 #include <Sophus/so3.hpp>
 
+#include "modules/map_fusion_02/base/element_base.h"
 #include "modules/map_fusion_02/common/common_data.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/ctp_util.h"
 #include "modules/map_fusion_02/modules/lane/road_builder/cut_point.h"
@@ -85,12 +86,15 @@ class LaneLine {
   void SetPoints(const std::vector<Point3D>& points) { points_ = points; }
   id_t GetId() const { return id_; }
   void SetId(const id_t id) { id_ = id; }
+  LineType GetType() const { return type_; }
+  void SetType(const LineType& type) { type_ = type; }
   void SetJunctionPoints(const std::vector<JunctionPoint>& pts) {
     junction_points_ = pts;
   }
 
  private:
   id_t id_;
+  LineType type_;
   std::vector<Point3D> points_;
   std::vector<JunctionPoint> junction_points_;
 };

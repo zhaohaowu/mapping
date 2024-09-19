@@ -44,6 +44,8 @@ class LaneTopoConstruct {
   void ConstructTopology(std::vector<Group::Ptr>* groups);
 
  private:
+  bool LeftRightTopoProcess(std::vector<Group::Ptr>* groups);
+
   void ForwardTopoProcess(const Group::Ptr& curr_group,
                           const Group::Ptr& next_group,
                           bool* is_any_next_lane_exist,
@@ -53,6 +55,8 @@ class LaneTopoConstruct {
                            const Group::Ptr& next_group,
                            bool* is_any_next_lane_exist,
                            bool* is_all_next_lane_exist);
+
+  void SmoothCenterline(std::vector<Group::Ptr>* groups);
 
   void SetLaneStatus(std::vector<Group::Ptr>* groups);
 

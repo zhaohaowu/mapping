@@ -8,6 +8,7 @@
 
 #include <chrono>
 #include <unordered_set>
+#include <vector>
 
 #include "base/utils/log.h"
 #include "common/calc_util.h"
@@ -23,10 +24,12 @@ void LaneTopoConstruct::Init(const LaneFusionProcessOption& conf) {
   HLOG_INFO << "Lane construct init";
 }
 
-void LaneTopoConstruct::Clear() {
-}
+void LaneTopoConstruct::Clear() {}
 
 void LaneTopoConstruct::ConstructTopology(std::vector<Group::Ptr>* groups) {
+  SmoothCenterline(groups);
+  LeftRightTopoProcess(groups);
+
   // 从前往后
   for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
     auto& curr_group = groups->at(i);
@@ -145,6 +148,32 @@ void LaneTopoConstruct::ConstructTopology(std::vector<Group::Ptr>* groups) {
 
   // 设置lane属性(is_ego、is_tran)
   SetLaneStatus(groups);
+}
+
+bool LaneTopoConstruct::LeftRightTopoProcess(std::vector<Group::Ptr>* groups) {
+  for (auto& grp : *groups) {
+    HLOG_INFO << "group lane size: " << grp->lanes.size();
+    if (grp->lanes.size() > 1) {
+      for (int i = 0; i < static_cast<int>(grp->lanes.size()); ++i) {
+        auto& curr = grp->lanes.at(i);
+        HLOG_INFO << "cur lane: " << curr->str_id_with_group;
+        if (i - 1 >= 0) {
+          const auto& left = grp->lanes.at(i - 1);
+          curr->left_lane_str_id_with_group.emplace_back(
+              left->str_id_with_group);
+          HLOG_INFO << "l lane: " << left->str_id_with_group;
+        }
+
+        if (i + 1 < static_cast<int>(grp->lanes.size())) {
+          const auto& right = grp->lanes.at(i + 1);
+          curr->right_lane_str_id_with_group.emplace_back(
+              right->str_id_with_group);
+          HLOG_INFO << "r lane: " << right->str_id_with_group;
+        }
+      }
+    }
+  }
+  return true;
 }
 
 void LaneTopoConstruct::ForwardTopoProcess(const Group::Ptr& curr_group,
@@ -300,6 +329,258 @@ void LaneTopoConstruct::BackwardTopoProcess(const Group::Ptr& curr_group,
     }
     if (!next_lane_exist) {
       *is_all_next_lane_exist = false;
+    }
+  }
+}
+
+void LaneTopoConstruct::SmoothCenterline(std::vector<Group::Ptr>* groups) {
+  if (groups->empty()) {
+    return;
+  }
+  std::unordered_map<std::string, int>
+      lane_grp_index;  // lane所在对应group的index
+  for (auto& grp : *groups) {
+    for (int index = 0; index < static_cast<int>(grp->lanes.size()); ++index) {
+      lane_grp_index[grp->lanes[index]->str_id_with_group] = index;
+    }
+  }
+  // forbiden lane->next_lane_str_id_with_group and
+  // lane->prev_lane_str_id_with_group don't exist grouplane
+  for (auto& grp : *groups) {
+    for (auto lane : grp->lanes) {
+      for (int index =
+               static_cast<int>(lane->next_lane_str_id_with_group.size()) - 1;
+           index >= 0; --index) {
+        if (lane_grp_index.find(lane->next_lane_str_id_with_group[index]) ==
+            lane_grp_index.end()) {
+          lane->next_lane_str_id_with_group.erase(
+              lane->next_lane_str_id_with_group.begin() + index);
+        }
+      }
+      for (int index =
+               static_cast<int>(lane->prev_lane_str_id_with_group.size()) - 1;
+           index >= 0; --index) {
+        if (lane_grp_index.find(lane->prev_lane_str_id_with_group[index]) ==
+            lane_grp_index.end()) {
+          lane->prev_lane_str_id_with_group.erase(
+              lane->prev_lane_str_id_with_group.begin() + index);
+        }
+      }
+    }
+  }
+  for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
+    auto& curr_grp = groups->at(i);
+    auto& next_grp = groups->at(i + 1);
+    // 过路口不平滑
+    if (curr_grp->str_id.find("V") < curr_grp->str_id.length()) {
+      continue;
+    }
+    for (auto lane : curr_grp->lanes) {
+      if (lane->is_smooth || lane->next_lane_str_id_with_group.empty()) {
+        continue;
+      }
+      // 前后继直接相连不平滑
+      if (lane->next_lane_str_id_with_group.size() == 1) {
+        int index_next_ = lane_grp_index[lane->next_lane_str_id_with_group[0]];
+        if (next_grp->lanes[index_next_]->prev_lane_str_id_with_group.size() ==
+            1) {
+          continue;
+        }
+      }
+      if (lane->next_lane_str_id_with_group.size() == 1) {
+        // 从后往前滑动窗口
+        //! TD:后续用距离不用点
+        //! TBD:每个点计算曲率，抑制最大曲率
+        int lane_index = lane_grp_index[lane->next_lane_str_id_with_group[0]];
+        std::vector<Point> centerpt;
+        auto& cur_centerline = lane->center_line_pts;
+        int crr_size = static_cast<int>(cur_centerline.size());
+        if (crr_size >= 10) {
+          centerpt.insert(centerpt.begin(), cur_centerline.end() - 10,
+                          cur_centerline.end());
+        } else {
+          centerpt.insert(centerpt.begin(), cur_centerline.begin(),
+                          cur_centerline.end());
+          int ctpt_size = static_cast<int>(centerpt.size());
+          if (lane->prev_lane_str_id_with_group.size() == 1) {
+            int pre_index =
+                lane_grp_index[lane->prev_lane_str_id_with_group[0]];
+            auto& prev_centerline =
+                groups->at(i - 1)->lanes[pre_index]->center_line_pts;
+            if (static_cast<int>(prev_centerline.size()) >= 10 - ctpt_size) {
+              centerpt.insert(centerpt.begin(),
+                              prev_centerline.end() - (10 - ctpt_size),
+                              prev_centerline.end());
+            } else {
+              centerpt.insert(centerpt.begin(), prev_centerline.begin(),
+                              prev_centerline.end());
+            }
+          }
+        }
+        std::vector<Point> res = TopoUtils::SigmoidFunc(centerpt, 5.0);
+        int res_size = static_cast<int>(res.size());
+        if (crr_size >= res_size) {
+          std::copy(res.begin(), res.end(),
+                    lane->center_line_pts.end() - res_size);
+          if ((lane->center_line_pts.back().pt -
+               next_grp->lanes[lane_index]->center_line_pts[0].pt)
+                  .norm() > 0.1) {
+            lane->center_line_pts.emplace_back(
+                next_grp->lanes[lane_index]->center_line_pts[0]);
+          }
+        } else {
+          std::copy(res.end() - crr_size, res.end(),
+                    lane->center_line_pts.begin());
+          int pre_index = lane_grp_index[lane->prev_lane_str_id_with_group[0]];
+          auto& prev_centerline =
+              groups->at(i - 1)->lanes[pre_index]->center_line_pts;
+          std::copy(res.begin(), res.end() - crr_size,
+                    prev_centerline.end() - (res_size - crr_size));
+          if ((lane->center_line_pts.back().pt -
+               next_grp->lanes[lane_index]->center_line_pts[0].pt)
+                  .norm() > 0.1) {
+            lane->center_line_pts.emplace_back(
+                next_grp->lanes[lane_index]->center_line_pts[0]);
+          }
+          if ((prev_centerline.back().pt - lane->center_line_pts[0].pt).norm() >
+              0.1) {
+            prev_centerline.emplace_back(lane->center_line_pts[0]);
+          }
+        }
+      } else {
+        // 从前往后滑动
+        // 一根车道最多两根后继
+        std::vector<Point> next_centerpt;
+        int lane_index_next_f =
+            lane_grp_index[lane->next_lane_str_id_with_group[0]];
+        auto& next_first_lane = next_grp->lanes[lane_index_next_f];
+        auto& lane_next_f_centerline =
+            next_grp->lanes[lane_index_next_f]->center_line_pts;
+        int next_f_ctl_size = static_cast<int>(lane_next_f_centerline.size());
+        if (next_f_ctl_size >= 10) {
+          next_centerpt.insert(next_centerpt.end(),
+                               lane_next_f_centerline.begin(),
+                               lane_next_f_centerline.begin() + 10);
+        } else {
+          next_centerpt.insert(next_centerpt.end(),
+                               lane_next_f_centerline.begin(),
+                               lane_next_f_centerline.end());
+          int ctpt_size = static_cast<int>(next_centerpt.size());
+
+          if (next_first_lane->next_lane_str_id_with_group.size() == 1) {
+            int next_next_index =
+                lane_grp_index[next_first_lane->next_lane_str_id_with_group[0]];
+            auto& next_next_ctline =
+                groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
+            if (static_cast<int>(next_next_ctline.size()) >= 10 - ctpt_size) {
+              next_centerpt.insert(next_centerpt.end(),
+                                   next_next_ctline.begin(),
+                                   next_next_ctline.begin() + (10 - ctpt_size));
+
+            } else {
+              next_centerpt.insert(next_centerpt.end(),
+                                   next_next_ctline.begin(),
+                                   next_next_ctline.end());
+            }
+          }
+        }
+        std::vector<Point> first_ctl =
+            TopoUtils::SigmoidFunc(next_centerpt, 5.0);
+        int first_ctl_size = static_cast<int>(first_ctl.size());
+        if (next_f_ctl_size >= first_ctl_size) {
+          std::copy(first_ctl.begin(), first_ctl.end(),
+                    lane_next_f_centerline.begin());
+          if ((lane_next_f_centerline[0].pt - lane->center_line_pts.back().pt)
+                  .norm() > 0.1) {
+            lane_next_f_centerline.insert(lane_next_f_centerline.begin(),
+                                          lane->center_line_pts.back());
+          }
+        } else {
+          std::copy(first_ctl.begin(), first_ctl.begin() + next_f_ctl_size,
+                    lane_next_f_centerline.begin());
+          int next_next_index =
+              lane_grp_index[next_first_lane->next_lane_str_id_with_group[0]];
+          auto& next_next_ctline =
+              groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
+          std::copy(first_ctl.begin() + next_f_ctl_size, first_ctl.end(),
+                    next_next_ctline.begin());
+          if ((lane_next_f_centerline[0].pt - lane->center_line_pts.back().pt)
+                  .norm() > 0.1) {
+            lane_next_f_centerline.insert(lane_next_f_centerline.begin(),
+                                          lane->center_line_pts.back());
+          }
+          if ((lane_next_f_centerline.back().pt - next_next_ctline[0].pt)
+                  .norm() > 0.1) {
+            next_next_ctline.insert(next_next_ctline.begin(),
+                                    lane_next_f_centerline.back());
+          }
+        }
+
+        next_centerpt.clear();
+        int lane_index_next_s =
+            lane_grp_index[lane->next_lane_str_id_with_group[1]];
+        auto& next_second_lane = next_grp->lanes[lane_index_next_s];
+        auto& lane_next_s_centerline =
+            next_grp->lanes[lane_index_next_s]->center_line_pts;
+        int next_s_ctl_size = static_cast<int>(lane_next_s_centerline.size());
+        if (next_s_ctl_size >= 10) {
+          next_centerpt.insert(next_centerpt.end(),
+                               lane_next_s_centerline.begin(),
+                               lane_next_s_centerline.begin() + 10);
+        } else {
+          next_centerpt.insert(next_centerpt.end(),
+                               lane_next_s_centerline.begin(),
+                               lane_next_s_centerline.end());
+          int ctpt_size = static_cast<int>(next_centerpt.size());
+          if (next_second_lane->next_lane_str_id_with_group.size() == 1) {
+            int next_next_index =
+                lane_grp_index[next_second_lane
+                                   ->next_lane_str_id_with_group[0]];
+            auto& next_next_ctline =
+                groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
+            if (static_cast<int>(next_next_ctline.size()) >= 10 - ctpt_size) {
+              next_centerpt.insert(next_centerpt.end(),
+                                   next_next_ctline.begin(),
+                                   next_next_ctline.begin() + (10 - ctpt_size));
+            } else {
+              next_centerpt.insert(next_centerpt.end(),
+                                   next_next_ctline.begin(),
+                                   next_next_ctline.end());
+            }
+          }
+        }
+        std::vector<Point> second_ctl =
+            TopoUtils::SigmoidFunc(next_centerpt, 5.0);
+        int second_ctl_size = static_cast<int>(second_ctl.size());
+        if (next_s_ctl_size >= second_ctl_size) {
+          std::copy(second_ctl.begin(), second_ctl.end(),
+                    lane_next_s_centerline.begin());
+          if ((lane_next_s_centerline[0].pt - lane->center_line_pts.back().pt)
+                  .norm() > 0.1) {
+            lane_next_s_centerline.insert(lane_next_s_centerline.begin(),
+                                          lane->center_line_pts.back());
+          }
+        } else {
+          std::copy(second_ctl.begin(), second_ctl.begin() + next_s_ctl_size,
+                    lane_next_s_centerline.begin());
+          int next_next_index =
+              lane_grp_index[next_second_lane->next_lane_str_id_with_group[0]];
+          auto& next_next_line =
+              groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
+          std::copy(second_ctl.begin() + next_s_ctl_size, second_ctl.end(),
+                    next_next_line.begin());
+          if ((lane_next_s_centerline[0].pt - lane->center_line_pts.back().pt)
+                  .norm() > 0.1) {
+            lane_next_s_centerline.insert(lane_next_s_centerline.begin(),
+                                          lane->center_line_pts.back());
+          }
+          if ((next_next_line[0].pt - lane_next_s_centerline.back().pt).norm() >
+              0.1) {
+            next_next_line.insert(next_next_line.begin(),
+                                  lane_next_s_centerline.back());
+          }
+        }
+      }
     }
   }
 }

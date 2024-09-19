@@ -10,6 +10,7 @@
 #include <Eigen/Geometry>
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <iostream>
 #include <limits>
 #include <utility>
@@ -76,6 +77,10 @@ SMStatus DistBetweenTwoLine(const std::vector<Point3D>& points_a,
 SMStatus Point2LineProject3D(const Point3D& pt, const Point3D& line_start_pt,
                              const Point3D& line_end_pt, Point3D* project_pt,
                              float64_t* coef = nullptr);
+
+double FindMinDist(const Point3D& query_point,
+                   const std::vector<Point3D>& source_points, size_t start,
+                   size_t end);
 
 float64_t InnerProd3d(const Point3D& v1, const Point3D& v2);
 

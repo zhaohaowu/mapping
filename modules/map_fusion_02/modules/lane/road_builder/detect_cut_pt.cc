@@ -823,6 +823,10 @@ void DetectCutPt::GroupCutInfos(const std::vector<DetectPointInfo>& infos,
       cut_pt_type = CutPointType::Single2Multi;
     } else if (info.point_type == 4) {
       cut_pt_type = CutPointType::Multi2Single;
+    } else if (info.point_type == 5) {
+      cut_pt_type = CutPointType::V_Shaped;
+    } else if (info.point_type == 6) {
+      cut_pt_type = CutPointType::V_Shaped_Inv;
     } else if (info.point_type == 7) {
       cut_pt_type = CutPointType::Broken;
     } else {
@@ -870,6 +874,7 @@ bool DetectCutPt::DoCompleteBrokenCategory(
         continue;
       }
       HLOG_DEBUG << " select line " << line1->GetId();
+      HLOG_DEBUG << " select line " << line1->GetType();
       HLOG_DEBUG << " select line " << line1->GetPoints().size();
       HLOG_DEBUG << " start point " << line1->GetPoints().front().x << ", "
                  << line1->GetPoints().front().y;
@@ -881,6 +886,7 @@ bool DetectCutPt::DoCompleteBrokenCategory(
       for (auto next_it = it + 1; next_it != input_lines.end();) {
         const auto& line2 = (*next_it);
         HLOG_DEBUG << " select line2 " << line2->GetId();
+        HLOG_DEBUG << " select line2 " << line2->GetType();
         HLOG_DEBUG << " select line2 " << line2->GetPoints().size();
         HLOG_DEBUG << " start point " << line2->GetPoints().front().x << ", "
                    << line2->GetPoints().front().y;
@@ -1351,7 +1357,10 @@ bool DetectCutPt::DetectCategories(
         const auto& pote_info = *iter;
         if ((info.source_line_id == pote_info.source_line_id) &&
             ((info.point_type == 1 && pote_info.point_type == 3) ||
-             (info.point_type == 2 && pote_info.point_type == 4))) {
+             (info.point_type == 2 && pote_info.point_type == 4) ||
+             (info.point_type == 5 && pote_info.point_type == 3) ||
+             (info.point_type == 6 && pote_info.point_type == 4))) {
+          HLOG_INFO << "erase pote_info";
           iter = potential_infos.erase(iter);
           break;
         } else {
@@ -1420,10 +1429,10 @@ bool DetectCutPt::DetectSplitMergePt(
   // detect
   for (size_t i = 0; i < input_lines.size() - 1; ++i) {
     for (size_t j = i + 1; j < input_lines.size(); ++j) {
-      auto line1 = input_lines[i].first;
-      auto line2 = input_lines[j].first;
-      auto point1 = input_lines[i].second;
-      auto point2 = input_lines[j].second;
+      const auto& line1 = input_lines[i].first;
+      const auto& line2 = input_lines[j].first;
+      const auto& point1 = input_lines[i].second;
+      const auto& point2 = input_lines[j].second;
       if (point1.size() <= 2 || point2.size() <= 2) {
         continue;
       }
@@ -1447,7 +1456,12 @@ bool DetectCutPt::DetectSplitMergePt(
           DetectSplitPt(point2, point1, &split_pt) == true) {
         // create new info
         DetectPointInfo detect_info;
-        detect_info.point_type = 1;
+        if (line1->GetType() == LineType::LaneType_SOLID &&
+            line2->GetType() == LineType::LaneType_SOLID) {
+          detect_info.point_type = 5;
+        } else {
+          detect_info.point_type = 1;
+        }
         if (JudgeSource(line1->GetPoints(), line2->GetPoints(), Twv * split_pt,
                         true) == true) {
           detect_info.source_line_id = line1->GetId();
@@ -1471,10 +1485,17 @@ bool DetectCutPt::DetectSplitMergePt(
       Point3D merge_pt;
       if (DetectMergePt(point1, point2, &merge_pt) == true ||
           DetectMergePt(point2, point1, &merge_pt) == true) {
+        HLOG_DEBUG << "type: " << static_cast<int>(line1->GetType()) << ","
+                   << static_cast<int>(line2->GetType());
         // create new info
         DetectPointInfo detect_info;
         detect_info.world_pt = Twv * merge_pt;  // proj pt
-        detect_info.point_type = 2;
+        if (line1->GetType() == LineType::LaneType_SOLID &&
+            line2->GetType() == LineType::LaneType_SOLID) {
+          detect_info.point_type = 6;
+        } else {
+          detect_info.point_type = 2;
+        }
 
         if (JudgeSource(point1, point2, merge_pt, false) == true) {
           detect_info.source_line_id = line1->GetId();
@@ -1849,53 +1870,26 @@ bool DetectCutPt::DetectSplitPt(const std::vector<Point3D>& pts1,
     return false;
   }
 
-  // 2. calculate average distance with next 8 pts
-  // Judge condition2: next_pt distance > first_pt distance
-  // Judge condition3: next_pts average distance - first_pt distance > th2
-  size_t compare_cnt = std::min(8, static_cast<int>(pts1.size()));
-  double avemindis_points = 0;
-  for (size_t k = 1; k < compare_cnt; ++k) {
-    Point3D pointafterpoint1 = pts1.at(k);
-    double mindis_cur = DBL_MAX;
-    for (size_t m = index; m < pts2.size() - 1; ++m) {
-      const auto& pt1 = pts2[m];
-      const auto& pt2 = pts2[m + 1];
-      Point3D proj_pt;
-      float64_t coef = 0;
-      if (Point2LineProject3D(pointafterpoint1, pt1, pt2, &proj_pt, &coef) !=
-          SMStatus::SUCCESS) {
-        continue;
-      }
-      if (coef >= 0 && coef <= 1) {
-        double dist = std::sqrt((pointafterpoint1.x - proj_pt.x) *
-                                    (pointafterpoint1.x - proj_pt.x) +
-                                (pointafterpoint1.y - proj_pt.y) *
-                                    (pointafterpoint1.y - proj_pt.y));
-        mindis_cur = std::min(mindis_cur, dist);
-      } else if (coef > 1) {
-        double dist = std::sqrt(
-            (pointafterpoint1.x - pt2.x) * (pointafterpoint1.x - pt2.x) +
-            (pointafterpoint1.y - pt2.y) * (pointafterpoint1.y - pt2.y));
-        mindis_cur = std::min(mindis_cur, dist);
-      } else {
-        double dist = std::sqrt(
-            (pointafterpoint1.x - pt1.x) * (pointafterpoint1.x - pt1.x) +
-            (pointafterpoint1.y - pt1.y) * (pointafterpoint1.y - pt1.y));
-        mindis_cur = std::min(mindis_cur, dist);
-      }
-    }
-    if (mindis_cur <= front_dist) {
-      return false;
-    }
-    HLOG_DEBUG << "mindist: " << mindis_cur;
-    avemindis_points += mindis_cur;
+  // 2. calculate average distance
+  // 从算8个点改成算较短的一条车道线的中点到另一条车道线的最近距离
+  double mindis_cur = 0;
+  if (pts1[pts1.size() - 1].x <= pts2[pts2.size() - 1].x) {
+    size_t compare_cnt = pts1.size() / 2 - 1;  // pts1 size一定大于2
+    Point3D query_pt = pts1.at(compare_cnt);
+    mindis_cur = FindMinDist(query_pt, pts2, index, pts2.size() - 1);
+  } else {
+    size_t compare_cnt =
+        index + (pts2.size() - 1 - index) / 2;  // pts2 size一定大于2
+    Point3D query_pt = pts2.at(compare_cnt);
+    mindis_cur = FindMinDist(query_pt, pts1, 0, pts1.size() - 1);
   }
-  avemindis_points /= (compare_cnt - 1);
-  HLOG_DEBUG << "avemindis_points: " << avemindis_points
-             << ", diff:" << avemindis_points - front_dist;
+  HLOG_DEBUG << "mindist: " << mindis_cur;
+  if (mindis_cur >= 5.0 || mindis_cur <= front_dist) {
+    return false;
+  }
   const double split_dist_th2 = 0.5;
-  if (avemindis_points - front_dist > split_dist_th2) {
-    (*split_pt) = candi_pt;
+  if (mindis_cur - front_dist > split_dist_th2) {
+    (*split_pt) = pts1.front();
   } else {
     return false;
   }
@@ -1929,53 +1923,25 @@ bool DetectCutPt::DetectMergePt(const std::vector<Point3D>& pts1,
     return false;
   }
 
-  // 2. calculate average distance with next 8 pts
-  // Judge condition2: next_pt distance > first_pt distance
-  // Judge condition3: next_pts average distance - first_pt distance > th2
-  size_t compare_cnt = std::min(8, static_cast<int>(pts1.size()));
-  double avemindis_points = 0;
-  for (size_t k = 1; k < compare_cnt; ++k) {
-    Point3D pointbeforepoint1 = pts1.at(pts1.size() - 1 - k);
-    double mindis_cur = DBL_MAX;
-    for (size_t m = index; m > 0; m--) {
-      const auto& pt1 = pts2[m - 1];
-      const auto& pt2 = pts2[m];
-      Point3D proj_pt;
-      float64_t coef = 0;
-      if (Point2LineProject3D(pointbeforepoint1, pt1, pt2, &proj_pt, &coef) !=
-          SMStatus::SUCCESS) {
-        continue;
-      }
-      if (coef >= 0 && coef <= 1) {
-        double dist = std::sqrt((pointbeforepoint1.x - proj_pt.x) *
-                                    (pointbeforepoint1.x - proj_pt.x) +
-                                (pointbeforepoint1.y - proj_pt.y) *
-                                    (pointbeforepoint1.y - proj_pt.y));
-        mindis_cur = std::min(mindis_cur, dist);
-      } else if (coef > 1) {
-        double dist = std::sqrt(
-            (pointbeforepoint1.x - pt2.x) * (pointbeforepoint1.x - pt2.x) +
-            (pointbeforepoint1.y - pt2.y) * (pointbeforepoint1.y - pt2.y));
-        mindis_cur = std::min(mindis_cur, dist);
-      } else {
-        double dist = std::sqrt(
-            (pointbeforepoint1.x - pt1.x) * (pointbeforepoint1.x - pt1.x) +
-            (pointbeforepoint1.y - pt1.y) * (pointbeforepoint1.y - pt1.y));
-        mindis_cur = std::min(mindis_cur, dist);
-      }
-    }
-    if (mindis_cur <= end_dist) {
-      return false;
-    }
-    HLOG_DEBUG << "mindist: " << mindis_cur;
-    avemindis_points += mindis_cur;
+  // 2. calculate average distance
+  double mindis_cur = 0;
+  if (pts1[0].x >= pts2[0].x) {
+    size_t compare_cnt = pts1.size() / 2 - 1;  // pts1 size一定大于2
+    Point3D query_pt = pts1.at(compare_cnt);
+    mindis_cur = FindMinDist(query_pt, pts2, 0, index - 1);
+  } else {
+    size_t compare_cnt = index / 2;  // pts2 size一定大于2
+    Point3D query_pt = pts2.at(compare_cnt);
+    mindis_cur = FindMinDist(query_pt, pts1, 0, pts1.size() - 1);
   }
-  avemindis_points /= (compare_cnt - 1);
-  HLOG_DEBUG << "avemindis_points: " << avemindis_points
-             << ", diff:" << avemindis_points - end_dist;
+  HLOG_DEBUG << "mindist: " << mindis_cur;
+  if (mindis_cur >= 5.0 || mindis_cur <= end_dist) {
+    return false;
+  }
+
   const double merge_dist_th2 = 0.5;
-  if (avemindis_points - end_dist > merge_dist_th2) {
-    (*merge_pt) = candi_pt;
+  if (mindis_cur - end_dist > merge_dist_th2) {
+    (*merge_pt) = pts1.back();
   } else {
     return false;
   }

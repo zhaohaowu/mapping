@@ -57,8 +57,7 @@ SMStatus DistBetweenTwoLine(const std::vector<Point3D>& points_a,
   timer.Tic();
 
   if (points_a.size() < 2 || points_b.size() < 2) {
-    HLOG_ERROR
-        << "Check failed: (points_a.size() < 2 || points_b.size() < 2)";
+    HLOG_ERROR << "Check failed: (points_a.size() < 2 || points_b.size() < 2)";
     return SMStatus::ERROR;
   }
   *_overlap_status = 0;
@@ -154,6 +153,41 @@ SMStatus Point2LineProject3D(const Point3D& pt, const Point3D& line_start_pt,
     *coef = _coef;
   }
   return SMStatus::SUCCESS;
+}
+
+double FindMinDist(const Point3D& query_point,
+                   const std::vector<Point3D>& source_points, size_t start,
+                   size_t end) {
+  double mindis_cur = DBL_MAX;
+  int step = std::min(5, static_cast<int>(source_points.size()));
+  for (size_t m = start; m < end; m += step) {
+    const auto& pt1 = source_points[m];
+    const auto& pt2 = source_points[m + 1];
+    Point3D proj_pt;
+    float64_t coef = 0;
+    if (Point2LineProject3D(query_point, pt1, pt2, &proj_pt, &coef) !=
+        SMStatus::SUCCESS) {
+      continue;
+    }
+    if (coef >= 0 && coef <= 1) {
+      double dist =
+          std::sqrt((query_point.x - proj_pt.x) * (query_point.x - proj_pt.x) +
+                    (query_point.y - proj_pt.y) * (query_point.y - proj_pt.y));
+      mindis_cur = std::min(mindis_cur, dist);
+    } else if (coef > 1) {
+      double dist =
+          std::sqrt((query_point.x - pt2.x) * (query_point.x - pt2.x) +
+                    (query_point.y - pt2.y) * (query_point.y - pt2.y));
+      mindis_cur = std::min(mindis_cur, dist);
+    } else {
+      double dist =
+          std::sqrt((query_point.x - pt1.x) * (query_point.x - pt1.x) +
+                    (query_point.y - pt1.y) * (query_point.y - pt1.y));
+      mindis_cur = std::min(mindis_cur, dist);
+    }
+  }
+
+  return mindis_cur;
 }
 
 float64_t InnerProd3d(const Point3D& v1, const Point3D& v2) {

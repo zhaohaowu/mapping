@@ -81,6 +81,9 @@ class TopoUtils {
   static bool IsBoundaryValid(const LineSegment& line);
 
   static bool IsIntersect(const Lane::Ptr& line1, const Lane::Ptr& line2);
+
+  static std::vector<Point> SigmoidFunc(const std::vector<Point>& centerline,
+                                        float sigma);
 };
 
 }  // namespace mf

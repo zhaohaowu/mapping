@@ -497,6 +497,49 @@ bool TopoUtils::IsIntersect(const Lane::Ptr& line1, const Lane::Ptr& line2) {
   return true;
 }
 
+std::vector<Point> TopoUtils::SigmoidFunc(
+    const std::vector<Point>& centerline, float sigma) {
+  int size_ct = static_cast<int>(centerline.size());
+  // 中心点数目少于两个点不拟合
+  if (centerline.size() < 2) {
+    return centerline;
+  }
+  float dis_x = centerline.back().pt.x() - centerline.front().pt.x();
+  float dis_y = centerline.back().pt.y() - centerline.front().pt.y();
+
+  // 距离过小不拟合
+  if (dis_x < 0.1) {
+    return centerline;
+  }
+  std::vector<Point> center;
+  center.emplace_back(centerline[0]);
+
+  for (int i = 1; i < static_cast<int>(centerline.size()) - 1; ++i) {
+    Point center_p(VIRTUAL, 0.0, 0.0, 0.0);
+    if (center.back().pt.x() < centerline[i + 1].pt.x()) {
+      center_p.pt.x() = centerline[i + 1].pt.x();
+      float deta_x = centerline[i + 1].pt.x() - center[0].pt.x();
+      // 1/(1+e^(-x)) sigmoid函数
+      // 把x的范围圈定在[-sigma,sigma]范围内，deta_x的范围是(0,dis_x]
+      // y的范围是(centerline[0].pt.y(),centerline[0].y()+dis_y)
+      center_p.pt.y() =
+          centerline[0].pt.y() +
+          dis_y / (1 + exp(-(2 * deta_x - dis_x) / dis_x * sigma));
+    } else {
+      float x_to_end = centerline.back().pt.x() - center.back().pt.x();
+      float interval = x_to_end / static_cast<float>(centerline.size() - i - 1);
+      center_p.pt.x() = center.back().pt.x() + interval;
+      float deta_x = center_p.pt.x() - center[0].pt.x();
+      center_p.pt.y() =
+          centerline[0].pt.y() +
+          dis_y / (1 + exp(-(2 * deta_x - dis_x) / dis_x * sigma));
+    }
+    center.emplace_back(center_p);
+  }
+  center.emplace_back(centerline.back());
+  return center;
+}
+
 }  // namespace mf
 }  // namespace mp
 }  // namespace hozon

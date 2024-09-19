@@ -195,6 +195,7 @@ class BaiDuMapEngine : public hozon::netaos::adf_lite::Executor {
       stop_line_lanes_um_;
   hozon::hdmap::Map neta_map_;
   baidu::imap::sdk::MapEnginePtr map_engine_ptr_ = nullptr;
+  uint64_t temp_link_id_ = 0;
 };
 
 }  // namespace mf

@@ -1110,13 +1110,21 @@ bool BaiDuMapEngine::UpdateHMINav(
              << hmi_nav->sd_road_array().size();
   std::vector<baidu::imap::SDLinkInfo> sd_info_vec;
   for (const auto& sd_road : hmi_nav->sd_road_array()) {
-    if (sd_road.road_lgt_size() != sd_road.road_lat_size()) {
+    auto sd_road_lgt_size = sd_road.road_lgt_size();
+    auto sd_road_lat_size = sd_road.road_lat_size();
+    if ((sd_road_lgt_size != sd_road_lat_size) || (sd_road_lgt_size < 1)) {
       HLOG_ERROR << "hmi nav lat and lgt num is not same, road id : "
                  << sd_road.road_id();
       continue;
     }
+    HLOG_ERROR << "route: temp_link_id_ : " << temp_link_id_;
+    HLOG_ERROR << "route: road name: " << sd_road.link_name();
     baidu::imap::SDLinkInfo sd_road_info;
-    sd_road_info.linkid = sd_road.road_id();
+    // sd_road_info.linkid = sd_road.road_id();
+    if (temp_link_id_ > (std::numeric_limits<uint64_t>::max() - 2)) {
+      temp_link_id_ = 0;
+    }
+    sd_road_info.linkid = temp_link_id_++;
     sd_road_info.formway = sd_road.road_kind();
     sd_road_info.func_class = sd_road.road_type();
     sd_road_info.name = sd_road.link_name();

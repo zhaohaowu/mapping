@@ -5487,7 +5487,8 @@ bool GroupMap::InferenceLaneLength(std::vector<Group::Ptr>* groups) {
           //            << next_group->lanes.back()->str_id_with_group;
         } else if (shrink) {
           lane_in_curr->next_lane_str_id_with_group.emplace_back(
-              lane_in_curr->str_id_with_group);
+              "0");  // 假merge后继标识
+          next_lane_exit = true;
         }
       }
       if (!next_lane_exit) {
@@ -6421,7 +6422,7 @@ std::vector<double> GroupMap::FitLaneline(
     y2 = centerline[idx].pt.y();
     x2 = centerline[idx].pt.x();
   }
-  if (idx < 0) {
+  if (idx < 0 || sqrt(pow(y1 - y2, 2) + pow(x1 - x2, 2)) < 4) {
     return {};
   } else {
     kk = (y2 - y1) / (x2 - x1);
@@ -6443,7 +6444,7 @@ std::vector<double> GroupMap::FitLanelinefront(
     x2 = centerline[idx].pt.x();
     idx++;
   }
-  if (idx >= size_c) {
+  if (idx >= size_c || sqrt(pow(y1 - y2, 2) + pow(x1 - x2, 2)) < 4) {
     return {};
   } else {
     kk = (y2 - y1) / (x2 - x1);
@@ -7377,6 +7378,8 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
 
       // next_group->lanes.emplace_back(std::make_shared<Lane>(lane_pre));
       next_group->lanes.emplace_back(lane_ptr);
+    } else if (lane_in_curr->next_lane_str_id_with_group[0] == "0") {
+      lane_in_curr->next_lane_str_id_with_group.clear();
     }
   }
 }

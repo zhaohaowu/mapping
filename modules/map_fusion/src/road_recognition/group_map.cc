@@ -2577,7 +2577,7 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
   tmp_pts.emplace_back(lane_in_curr->left_boundary->pts[index_left - 1]);
   tmp_pts.emplace_back(lane_in_next->left_boundary->pts[0]);
   std::vector<double> param_left = FitLaneline(tmp_pts);
-  while (left_pt_pred.pt.x() < lane_in_next->left_boundary->pts[0].pt.x()) {
+  while (!param_left.empty() && left_pt_pred.pt.x() < lane_in_next->left_boundary->pts[0].pt.x()) {
     left_bound.pts.emplace_back(left_pt_pred);
     float pre_x = left_pt_pred.pt.x() + 1.0;
     float pre_y = param_left[0] + param_left[1] * pre_x;
@@ -2592,7 +2592,7 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
   tmp_pts.emplace_back(lane_in_curr->right_boundary->pts[index_right - 1]);
   tmp_pts.emplace_back(lane_in_next->right_boundary->pts[0]);
   param_left = FitLaneline(tmp_pts);
-  while (right_pt_pred.pt.x() < lane_in_next->right_boundary->pts[0].pt.x()) {
+  while (!param_left.empty() && right_pt_pred.pt.x() < lane_in_next->right_boundary->pts[0].pt.x()) {
     right_bound.pts.emplace_back(right_pt_pred);
     float pre_x = right_pt_pred.pt.x() + 1.0;
     float pre_y = param_left[0] + param_left[1] * pre_x;
@@ -2606,7 +2606,7 @@ void GroupMap::GenerateTransitionLaneGeo(Lane::Ptr lane_in_curr,
   tmp_pts.emplace_back(lane_in_curr->center_line_pts[index_center - 1]);
   tmp_pts.emplace_back(lane_in_next->center_line_pts[0]);
   param_left = FitLaneline(tmp_pts);
-  while (center_pt_pred.pt.x() < lane_in_next->center_line_pts[0].pt.x()) {
+  while (!param_left.empty() && center_pt_pred.pt.x() < lane_in_next->center_line_pts[0].pt.x()) {
     ctr_pts.emplace_back(center_pt_pred);
     float pre_x = center_pt_pred.pt.x() + 1.0;
     float pre_y = param_left[0] + param_left[1] * pre_x;

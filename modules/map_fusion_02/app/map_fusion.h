@@ -19,6 +19,8 @@
 #include <string>
 #include <thread>
 #include <utility>
+#include <vector>
+#include <map>
 
 #include "base/utils/log.h"
 #include "modules/map_fusion_02/base/element_map.h"

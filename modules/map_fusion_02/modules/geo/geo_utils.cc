@@ -9,8 +9,8 @@
 
 #include "modules/map_fusion_02/modules/geo/geo_utils.h"
 
-#include <limits>
 #include <algorithm>
+#include <limits>
 
 #include "modules/map_fusion_02/common/calc_util.h"
 #include "modules/map_fusion_02/data_manager/location_data_manager.h"
@@ -38,26 +38,9 @@ double OccLineFitError(OccRoad::Ptr occ) {
   return avg_error / (static_cast<int>(occ->ori_detect_points.size()) + 1);
 }
 
-bool CheckOppositeLineByObj(
-    const std::vector<Eigen::Vector3d>& line_points,
-    const boost::circular_buffer<std::shared_ptr<Object>>& objects) {
-  std::vector<Eigen::Vector3f> obj_points;
-  const auto& cur_T_w_v_ = LOCATION_MANAGER->GetCurrentPose();
-  for (const auto& object : objects) {
-    Eigen::Vector3d p_local(object->position);
-    Eigen::Vector3f p_veh(
-        static_cast<float>((cur_T_w_v_.inverse() * p_local).x()),
-        static_cast<float>((cur_T_w_v_.inverse() * p_local).y()),
-        static_cast<float>((cur_T_w_v_.inverse() * p_local).z()));
-    obj_points.emplace_back(p_veh);
-  }
-  if (obj_points.empty()) {
-    return false;
-  }
-  int line_size = static_cast<int>(line_points.size());
-  if (line_size < 2 || line_points.at(0).x() < 0) {
-    return false;
-  }
+bool CheckOppositeLineByObj(const std::vector<Eigen::Vector3f>& line_points,
+                            const std::vector<Eigen::Vector3f>& obj_points) {
+  int line_size = line_points.size();
   for (auto& obj_point : obj_points) {
     if (obj_point.x() > line_points[line_size - 1].x() ||
         obj_point.x() < line_points[0].x()) {
@@ -66,14 +49,9 @@ bool CheckOppositeLineByObj(
     int num_thresh = 0;
     int num_calculate = 0;
     for (int line_index = 0; line_index < line_size - 1; line_index++) {
-      Eigen::Vector3f pt1(line_points[line_index].x(),
-                          line_points[line_index].y(),
-                          line_points[line_index].z());
-      Eigen::Vector3f pt2(line_points[line_index + 1].x(),
-                          line_points[line_index + 1].y(),
-                          line_points[line_index + 1].z());
       num_calculate++;
-      if (math::IsRight(obj_point, pt1, pt2)) {
+      if (math::IsRight(obj_point, line_points[line_index],
+                        line_points[line_index + 1])) {
         num_thresh++;
       }
     }
@@ -88,16 +66,14 @@ bool CheckOppositeLineByObj(
 
 void ComputeLaneLineHeading(const std::vector<Eigen::Vector3f>& line_pts,
                             Eigen::Vector3f* avg_heading) {
-  if (line_pts.empty() || line_pts.size() < 2 ||
-      avg_heading == nullptr) {
+  if (line_pts.empty() || line_pts.size() < 2 || avg_heading == nullptr) {
     return;
   }
   Eigen::Vector3f sum_heading(0.0, 0.0, 0.0);
   for (int i = 0; i < static_cast<int>(line_pts.size()) - 1; ++i) {
-    Eigen::Vector3f point1(line_pts[i].x(), line_pts[i].y(),
-                           line_pts[i].z());
+    Eigen::Vector3f point1(line_pts[i].x(), line_pts[i].y(), line_pts[i].z());
     Eigen::Vector3f point2(line_pts[i + 1].x(), line_pts[i + 1].y(),
-                          line_pts[i + 1].z());
+                           line_pts[i + 1].z());
     Eigen::Vector3f dir_heading = point2 - point1;
     sum_heading += dir_heading;
   }

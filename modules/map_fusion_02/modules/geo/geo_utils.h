@@ -20,9 +20,8 @@ namespace mf {
 // occ 拟合误差
 double OccLineFitError(OccRoad::Ptr occ);
 // 根据障碍物过滤逆向线
-bool CheckOppositeLineByObj(
-    const std::vector<Eigen::Vector3d>& line_points,
-    const boost::circular_buffer<std::shared_ptr<Object>>& objects);
+bool CheckOppositeLineByObj(const std::vector<Eigen::Vector3f>& line_points,
+                            const std::vector<Eigen::Vector3f>& obj_points);
 // 计算车道线heading
 void ComputeLaneLineHeading(const std::vector<Eigen::Vector3f>& line_pts,
                             Eigen::Vector3f* avg_heading);

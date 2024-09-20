@@ -960,6 +960,9 @@ void MapFusionRviz::VizDistpoint(const std::vector<Eigen::Vector3f>& distpoints,
 
 void MapFusionRviz::VizFitOcc(const std::deque<Line::Ptr>& occ_lines,
                               double stamp) {
+  if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
   HLOG_INFO << "viz fit occ lines size " << occ_lines.size();
 
   adsfi_proto::hz_Adsfi::AlgHeader viz_header;

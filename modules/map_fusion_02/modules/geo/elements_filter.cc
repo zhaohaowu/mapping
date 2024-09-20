@@ -185,14 +185,57 @@ void ElementsFilter::MakeRoadEdgeToLaneLine() {
   }
 }
 
-void ElementsFilter::CompareRoadAndLines(
-    const std::vector<Eigen::Vector3f>& road_pts, const int& road_id) {
-  if (road_pts.empty()) {
+void ElementsFilter::CompensatePoints(
+    const std::vector<Eigen::Vector3f>& road_pts,
+    const int& target_line_track_id, const bool flag,
+    std::vector<Eigen::Vector3f>* target_line_pts) {
+  if (target_line_pts == nullptr) {
     return;
   }
+  Eigen::Vector3f target_line_heading(0.0, 0.0, 0.0);
+  ComputeLaneLineHeading(*target_line_pts, &target_line_heading);
+  std::vector<Eigen::Vector3f> compensated_pts;
+  math::GetCompensatePoints(road_pts, *target_line_pts, flag, &compensated_pts);
+  if (compensated_pts.empty()) {
+    return;
+  }
+  if (IsBetweenLinesMid(compensated_pts, target_line_track_id, flag)) {
+    return;
+  }
+  std::vector<Eigen::Vector3f> retained_pts;
+  if (!flag) {  // 补后向
+    for (const auto& pt : *target_line_pts) {
+      retained_pts.emplace_back(pt);
+    }
+    if (!target_line_pts->empty()) {
+      target_line_pts->clear();
+    }
+  }
+  for (int i = 0; i < static_cast<int>(compensated_pts.size()) - 1; ++i) {
+    auto heading = compensated_pts[i + 1] - compensated_pts[i];
+    float angle = 0.0;
+    ComputeAngleBetweenVectors(target_line_heading, heading, &angle);
+    if (angle > 15) {
+      continue;
+    }
+    target_line_pts->emplace_back(compensated_pts[i]);
+  }
+  if (!flag && !retained_pts.empty()) {  // 补后向
+    for (const auto& retained_pt : retained_pts) {
+      target_line_pts->emplace_back(retained_pt);
+    }
+  }
+  return;
+}
+
+bool ElementsFilter::GetClosestLineToRoad(
+    const std::vector<Eigen::Vector3f>& road_pts, int* target_line_track_id,
+    double* min_dis) {
+  if (target_line_track_id == nullptr || min_dis == nullptr) {
+    return false;
+  }
   // 比较路沿和车道线
-  int target_line_track_id;
-  double min_dis = std::numeric_limits<double>::max();
+  *min_dis = std::numeric_limits<double>::max();
   for (const auto& line : line_table_) {
     if (line.second.line_pts.empty()) {
       continue;
@@ -202,124 +245,95 @@ void ElementsFilter::CompareRoadAndLines(
                                &avg_road_line_distance)) {
       continue;
     }
-    if (avg_road_line_distance < min_dis) {
-      min_dis = avg_road_line_distance;
-      target_line_track_id = line.first;
+    if (avg_road_line_distance < *min_dis) {
+      *min_dis = avg_road_line_distance;
+      *target_line_track_id = line.first;
     }
   }
-  if (line_table_.find(target_line_track_id) == line_table_.end()) {
-    return;
+  if (line_table_.find(*target_line_track_id) == line_table_.end()) {
+    return false;
   }
-  auto& target_line = line_table_[target_line_track_id];
-  auto& target_line_pts = line_table_[target_line_track_id].line_pts;
+  return true;
+}
+
+void ElementsFilter::AddNewLineByRoadPoints(
+    const std::vector<Eigen::Vector3f>& target_line_pts,
+    const std::vector<Eigen::Vector3f>& road_pts, const int& road_id) {
   Eigen::Vector3f target_line_heading(0.0, 0.0, 0.0);
   ComputeLaneLineHeading(target_line_pts, &target_line_heading);
+  GeoLineInfo new_line;
+  for (int i = 0; i < static_cast<int>(road_pts.size()) - 1; ++i) {
+    auto road_heading = road_pts[i + 1] - road_pts[i];
+    float angle = 0.0;
+    ComputeAngleBetweenVectors(target_line_heading, road_heading, &angle);
+    if (angle > 15) {
+      continue;
+    }
+    new_line.line_pts.emplace_back(road_pts[i]);
+  }
+  new_line.line_track_id = road_id + 1000;
+  new_line.line_type = LineType::LaneType_SOLID;
+  new_line.color = Color::WHITE;
+  std::vector<cv::Point2f> kdtree_points;
+  for (const auto& road_pt : road_pts) {
+    kdtree_points.emplace_back(road_pt.x(), road_pt.y());
+  }
+  cv::flann::KDTreeIndexParams index_param(1);
+  std::shared_ptr<cv::flann::Index> kdtree_ptr =
+      std::make_shared<cv::flann::Index>(cv::Mat(kdtree_points).reshape(1),
+                                         index_param);
+  new_line.line_kdtree = kdtree_ptr;
+  line_table_[new_line.line_track_id] = new_line;
+  return;
+}
+
+void ElementsFilter::CompareRoadAndLines(
+    const std::vector<Eigen::Vector3f>& road_pts, const int& road_id) {
+  if (road_pts.empty()) {
+    return;
+  }
+  int target_line_track_id;
+  double min_dis;
+  if (!GetClosestLineToRoad(road_pts, &target_line_track_id, &min_dis)) {
+    return;
+  }
+  std::vector<Eigen::Vector3f> target_line_pts =
+      line_table_[target_line_track_id].line_pts;
+  LineType target_line_type = line_table_[target_line_track_id].line_type;
   if (min_dis < 1.0) {
     // 路沿离车道线的距离小于1米,对离路沿最近的车道线进行增补
     if (road_pts.back().x() > target_line_pts.back().x()) {
       // 对车道线往前补,直至和路沿远端对齐
-      std::vector<Eigen::Vector3f> compensated_forward_pts;
-      math::GetCompensatePoints(road_pts, target_line_pts, true,
-                                &compensated_forward_pts);
-      if (compensated_forward_pts.empty()) {
-        return;
-      }
-      // 判断虚拟的点是否处于两根线中间 前向：1 后向：0
-      if (IsBetweenLinesMid(compensated_forward_pts, target_line, true)) {
-        return;
-      }
-      for (int i = 0; i < static_cast<int>(compensated_forward_pts.size()) - 1;
-           ++i) {
-        auto heading =
-            compensated_forward_pts[i + 1] - compensated_forward_pts[i];
-        float angle = 0.0;
-        ComputeAngleBetweenVectors(target_line_heading, heading, &angle);
-        if (angle > 15) {
-          continue;
-        }
-        target_line_pts.emplace_back(compensated_forward_pts[i]);
-      }
+      CompensatePoints(road_pts, target_line_track_id, true, &target_line_pts);
     }
     if (road_pts.front().x() < target_line_pts.front().x()) {
-      std::vector<Eigen::Vector3f> compensated_backward_pts;
-      math::GetCompensatePoints(road_pts, target_line_pts, false,
-                                &compensated_backward_pts);
-      if (compensated_backward_pts.empty()) {
-        return;
-      }
-      if (IsBetweenLinesMid(compensated_backward_pts, target_line, false)) {
-        return;
-      }
-      std::vector<Eigen::Vector3f> retained_pts;
-      for (const auto& pt : target_line_pts) {
-        retained_pts.emplace_back(pt);
-      }
-      target_line_pts.clear();
-      for (int i = 0; i < static_cast<int>(compensated_backward_pts.size()) - 1;
-           ++i) {
-        auto heading =
-            compensated_backward_pts[i + 1] - compensated_backward_pts[i];
-        float angle = 0.0;
-        ComputeAngleBetweenVectors(target_line_heading, heading, &angle);
-        if (angle > 15) {
-          continue;
-        }
-        target_line_pts.emplace_back(compensated_backward_pts[i]);
-      }
-      for (const auto& retained_pt : retained_pts) {
-        target_line_pts.emplace_back(retained_pt);
-      }
+      // 对车道线往后补,直至和路沿远端对齐
+      CompensatePoints(road_pts, target_line_track_id, false, &target_line_pts);
     }
   }
-  auto target_line_type = line_table_[target_line_track_id].line_type;
-  if (((target_line_type == LineType::LaneType_DASHED ||
-        target_line_type == LineType::LaneType_FISHBONE_DASHED ||
-        target_line_type == LineType::LaneType_DOUBLE_DASHED ||
-        target_line_type == LineType::LaneType_SHORT_DASHED) &&
-       min_dis > 2.0) ||
-      ((target_line_type == LineType::LaneType_SOLID ||
-        target_line_type == LineType::LaneType_DOUBLE_SOLID ||
-        target_line_type == LineType::LaneType_FISHBONE_SOLID) &&
-       min_dis > 3.0)) {
-    // 计算target_line的平均heading, 通过heading对road_pts进行裁剪
-    Eigen::Vector3f target_line_heading(0.0, 0.0, 0.0);
-    ComputeLaneLineHeading(target_line_pts, &target_line_heading);
-    GeoLineInfo new_line;
-    for (int i = 0; i < static_cast<int>(road_pts.size()) - 1; ++i) {
-      auto road_heading = road_pts[i + 1] - road_pts[i];
-      float angle = 0.0;
-      ComputeAngleBetweenVectors(target_line_heading, road_heading, &angle);
-      if (angle > 15) {
-        continue;
-      }
-      new_line.line_pts.emplace_back(road_pts[i]);
-    }
-    new_line.line_track_id = road_id + 1000;
-    new_line.line_type = LineType::LaneType_SOLID;
-    new_line.color = Color::WHITE;
-    std::vector<cv::Point2f> kdtree_points;
-    for (const auto& road_pt : road_pts) {
-      kdtree_points.emplace_back(road_pt.x(), road_pt.y());
-    }
-    cv::flann::KDTreeIndexParams index_param(1);
-    std::shared_ptr<cv::flann::Index> kdtree_ptr =
-        std::make_shared<cv::flann::Index>(cv::Mat(kdtree_points).reshape(1),
-                                           index_param);
-    new_line.line_kdtree = kdtree_ptr;
-    line_table_[new_line.line_track_id] = new_line;
+  if (!(((target_line_type == LineType::LaneType_DASHED ||
+          target_line_type == LineType::LaneType_FISHBONE_DASHED ||
+          target_line_type == LineType::LaneType_DOUBLE_DASHED ||
+          target_line_type == LineType::LaneType_SHORT_DASHED) &&
+         min_dis > 2.0) ||
+        ((target_line_type == LineType::LaneType_SOLID ||
+          target_line_type == LineType::LaneType_DOUBLE_SOLID ||
+          target_line_type == LineType::LaneType_FISHBONE_SOLID) &&
+         min_dis > 3.0))) {
+    return;
   }
+  AddNewLineByRoadPoints(target_line_pts, road_pts, road_id);
 }
 
 bool ElementsFilter::IsBetweenLinesMid(
     const std::vector<Eigen::Vector3f>& compensated_line_pts,
-    const GeoLineInfo& target_line, const bool& flag) {
+    const int& target_line_track_id, const bool& flag) {
   if (compensated_line_pts.empty() || line_table_.empty()) {
     return false;
   }
   int left_count = 0, right_count = 0;
   for (const auto& line : line_table_) {
-    if (line.second.line_pts.empty() ||
-        line.first == target_line.line_track_id) {
+    if (line.second.line_pts.empty() || line.first == target_line_track_id) {
       continue;
     }
     if (flag) {
@@ -556,10 +570,12 @@ void ElementsFilter::HandleOppisiteLineByStopline() {
   }
 }
 
-void ElementsFilter::HandleOppisiteLineByObj() {
-  boost::circular_buffer<std::shared_ptr<Object>> history_objs =
-      OBJECT_MANAGER->GetHistoryObjs();
-  std::vector<Eigen::Vector3f> obj_points;
+void ElementsFilter::GetHistoryObjsInMiddleOfLane(
+    const boost::circular_buffer<std::shared_ptr<Object>>& history_objs,
+    std::vector<Eigen::Vector3f>* obj_points) {
+  if (obj_points == nullptr) {
+    return;
+  }
   for (const auto& object : history_objs) {
     Eigen::Vector3d p_local(object->position.x(), object->position.y(),
                             object->position.z());
@@ -579,9 +595,6 @@ void ElementsFilter::HandleOppisiteLineByObj() {
     // 筛选出在车道线中间的object
     bool obj_on_line_left = false;
     bool obj_on_line_right = false;
-    if (line_table_.empty()) {
-      continue;
-    }
     for (const auto& line_elem : line_table_) {
       auto line = line_elem.second;
       auto line_pts = line.line_pts;
@@ -608,9 +621,17 @@ void ElementsFilter::HandleOppisiteLineByObj() {
       }
     }
     if (obj_on_line_left && obj_on_line_right) {
-      obj_points.emplace_back(p_veh);
+      obj_points->emplace_back(p_veh);
     }
   }
+  return;
+}
+
+void ElementsFilter::HandleOppisiteLineByObj() {
+  boost::circular_buffer<std::shared_ptr<Object>> history_objs =
+      OBJECT_MANAGER->GetHistoryObjs();
+  std::vector<Eigen::Vector3f> obj_points;
+  GetHistoryObjsInMiddleOfLane(history_objs, &obj_points);
   if (obj_points.empty()) {
     return;
   }
@@ -621,27 +642,9 @@ void ElementsFilter::HandleOppisiteLineByObj() {
     if (line_size < 2 || (line_size >= 2 && line_pts[0].x() < 0)) {
       continue;
     }
-    for (auto& obj_point : obj_points) {
-      bool stop_loop = false;
-      if (obj_point.x() > line_pts[line_size - 1].x() ||
-          obj_point.x() < line_pts[0].x()) {
-        continue;
-      }
-      for (int line_index = 0; line_index < line_size - 1; line_index++) {
-        if (line_pts[line_index].x() < obj_point.x() &&
-            line_pts[line_index + 1].x() > obj_point.x()) {
-          auto linel1 = line_pts[line_index];
-          auto linel2 = line_pts[line_index + 1];
-          if (math::IsRight(obj_point, linel1, linel2)) {
-            line.is_ego = IsEgo::Other_Road;
-            stop_loop = true;
-            break;
-          }
-        }
-      }
-      if (stop_loop) {
-        break;
-      }
+    if (CheckOppositeLineByObj(line_pts, obj_points)) {
+      line.is_ego = IsEgo::Other_Road;
+      continue;
     }
   }
 }

@@ -45,11 +45,19 @@ class ElementsFilter : public ProcessorBase {
   // void CreateLineTable();
   void MakeRoadEdgeToLaneLine();
   void HandleExtraWideLane();
+  void AddNewLineByRoadPoints(
+      const std::vector<Eigen::Vector3f>& target_line_pts,
+      const std::vector<Eigen::Vector3f>& road_pts, const int& road_id);
+  bool GetClosestLineToRoad(const std::vector<Eigen::Vector3f>& road_pts,
+                            int* target_line_track_id, double* min_dis);
   void CompareRoadAndLines(const std::vector<Eigen::Vector3f>& road_pts,
                            const int& road_id);
+  void CompensatePoints(const std::vector<Eigen::Vector3f>& road_pts,
+                        const int& target_line_track_id, const bool flag,
+                        std::vector<Eigen::Vector3f>* target_line_pts);
   bool IsBetweenLinesMid(
       const std::vector<Eigen::Vector3f>& compensated_line_pts,
-      const GeoLineInfo& target_line, const bool& flag);
+      const int& target_line_track_id, const bool& flag);
   /*识别逆向车道线*/
   void FilterReverseLine();
   void HandleOppisiteLineByObj();
@@ -59,6 +67,9 @@ class ElementsFilter : public ProcessorBase {
       const std::vector<std::vector<Eigen::Vector3f>>& forward_road_edges);
   void HandleOppisiteLine(const std::vector<Eigen::Vector3f>& target_line);
   void HandleOppisiteLineByObjAndYelloLine();
+  void GetHistoryObjsInMiddleOfLane(
+      const boost::circular_buffer<std::shared_ptr<Object>>& history_objs,
+      std::vector<Eigen::Vector3f>* obj_points);
   /*根据停止线过滤逆向车道*/
   void HandleOppisiteLineByStopline();
   void GetStopLine(

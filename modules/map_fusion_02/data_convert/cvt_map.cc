@@ -629,7 +629,6 @@ std::shared_ptr<hozon::routing::RoutingResponse> DataConvert::SetRouting(
   }
   std::shared_ptr<hozon::routing::RoutingResponse> routing =
       std::make_shared<hozon::routing::RoutingResponse>();
-  ;
   // <lane_id, lane_length>
   std::map<std::string, double> lane_length_hash;
   for (const auto& lane : percep_map->lane()) {

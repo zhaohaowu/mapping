@@ -8,6 +8,8 @@
 #include "modules/map_fusion_02/app/map_fusion.h"
 
 #include <tuple>
+#include <vector>
+#include <map>
 
 #include "modules/map_fusion_02/data_manager/ins_data_manager.h"
 #include "modules/map_fusion_02/data_manager/location_data_manager.h"

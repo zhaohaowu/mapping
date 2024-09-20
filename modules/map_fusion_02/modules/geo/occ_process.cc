@@ -12,6 +12,7 @@
 #include <numeric>
 
 #include "modules/map_fusion_02/common/calc_util.h"
+#include "modules/map_fusion_02/data_manager/location_data_manager.h"
 #include "modules/map_fusion_02/data_manager/percep_obj_manager.h"
 #include "modules/map_fusion_02/modules/geo/geo_utils.h"
 #include "modules/util/include/util/mapping_log.h"
@@ -288,8 +289,27 @@ bool OccProcessor::Process(ElementMap::Ptr element_map_ptr) {
     if (OccLineFitError(occ) > 2.0) {
       continue;
     }
-    if (CheckOppositeLineByObj(occ->road_points,
-                               OBJECT_MANAGER->GetInverseHistoryObjs())) {
+    std::vector<Eigen::Vector3f> obj_points;
+    std::vector<Eigen::Vector3f> occ_road_points;
+    const auto& cur_T_w_v_ = LOCATION_MANAGER->GetCurrentPose();
+    for (const auto& object : OBJECT_MANAGER->GetInverseHistoryObjs()) {
+      Eigen::Vector3d p_local(object->position);
+      Eigen::Vector3f p_veh(
+          static_cast<float>((cur_T_w_v_.inverse() * p_local).x()),
+          static_cast<float>((cur_T_w_v_.inverse() * p_local).y()),
+          static_cast<float>((cur_T_w_v_.inverse() * p_local).z()));
+      obj_points.emplace_back(p_veh);
+    }
+    if (obj_points.empty()) {
+      continue;
+    }
+    for (const auto& occ_point : occ->road_points) {
+      Eigen::Vector3f occ_road_point(static_cast<float>(occ_point.x()),
+                                     static_cast<float>(occ_point.y()),
+                                     static_cast<float>(occ_point.z()));
+      occ_road_points.emplace_back(occ_road_point);
+    }
+    if (CheckOppositeLineByObj(occ_road_points, obj_points)) {
       HLOG_DEBUG << "CheckOppositeLineByObj id: " << occ->track_id
                  << ", detect_id: " << occ->detect_id;
       continue;

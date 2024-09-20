@@ -8,6 +8,10 @@
 #pragma once
 
 #include <memory>
+#include <map>
+#include <utility>
+#include <vector>
+#include <string>
 
 #include "common/time/clock.h"
 #include "depend/proto/local_mapping/local_map.pb.h"

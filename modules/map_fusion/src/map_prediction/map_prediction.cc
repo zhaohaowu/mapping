@@ -2112,38 +2112,45 @@ void MapPrediction::GetRoutingFromLdRouting(
     road_id.set_id("bd" + std::to_string(road_it));
     auto road_ptr = GLOBAL_HD_MAP->GetRoadById(road_id);
     std::unordered_set<std::string> forward_lane_id_set;
-    if (road_ptr != nullptr) {
+    if (road_ptr == nullptr) {
+      continue;
+    }
+    for (const auto& section_it : road_ptr->sections()) {
       auto routing_road = current_routing_->add_road();
       routing_road->set_id(road_id.id());
-      for (const auto& section_it : road_ptr->sections()) {
+
+      std::vector<hozon::hdmap::LaneInfoConstPtr> laneInfoPtr_vec;
+      for (const auto& lane_it : section_it.lane_id()) {
+        hozon::hdmap::Id lane_id;
+        lane_id.set_id(lane_it.id());
+        auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
+        if (lane_ptr != nullptr) {
+          laneInfoPtr_vec.emplace_back(lane_ptr);
+        }
+      }
+
+      for (const auto& laneInfoPtr : laneInfoPtr_vec) {
         auto routing_passage = routing_road->add_passage();
-        for (const auto& lane_it : section_it.lane_id()) {
-          auto routing_segment = routing_passage->add_segment();
-          routing_segment->set_id(lane_it.id());
-          // 后续考虑起点在lane上面的投影情况
-          routing_segment->set_start_s(0);
-          hozon::hdmap::Id lane_id;
-          lane_id.set_id(lane_it.id());
-          auto lane_ptr = GLOBAL_HD_MAP->GetLaneById(lane_id);
-          if (lane_ptr != nullptr) {
-            routing_segment->set_end_s(lane_ptr->lane().length());
-            // 这边先设置成left
-            routing_passage->set_can_exit(false);
+        auto routing_segment = routing_passage->add_segment();
+        routing_segment->set_id(laneInfoPtr->lane().id().id());
+        // 后续考虑起点在lane上面的投影情况
+        routing_segment->set_start_s(0);
+        routing_segment->set_end_s(laneInfoPtr->lane().length());
+        // 这边先设置成left
+        routing_passage->set_can_exit(false);
+        routing_passage->set_change_lane_type(
+            hozon::routing::ChangeLaneType::LEFT);
+        for (const auto& successor_id_it : laneInfoPtr->lane().successor_id()) {
+          if (default_routing_set_.count(successor_id_it.id()) != 0) {
+            routing_passage->set_can_exit(true);
             routing_passage->set_change_lane_type(
-                hozon::routing::ChangeLaneType::LEFT);
-            for (const auto& successor_id_it :
-                 lane_ptr->lane().successor_id()) {
-              if (default_routing_set_.count(successor_id_it.id()) != 0) {
-                routing_passage->set_can_exit(true);
-                routing_passage->set_change_lane_type(
-                    hozon::routing::ChangeLaneType::FORWARD);
-                forward_lane_id_set.insert(lane_it.id());
-                break;
-              }
-            }
+                hozon::routing::ChangeLaneType::FORWARD);
+            forward_lane_id_set.insert(laneInfoPtr->lane().id().id());
+            break;
           }
         }
       }
+
       for (auto passage_it = routing_road->mutable_passage()->begin();
            passage_it != routing_road->mutable_passage()->end(); ++passage_it) {
         if (passage_it->change_lane_type() ==

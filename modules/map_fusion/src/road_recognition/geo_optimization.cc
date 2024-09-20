@@ -1538,6 +1538,34 @@ void GeoOptimization::HandleOppisiteLineByStopline() {
     Eigen::Vector2f pt_right(local_stopline.right_point().x(),
                              local_stopline.right_point().y());
     std::vector<Eigen::Vector2f> stopline_pts{pt_left, pt_right};
+    // 过滤离后向车道线back点距离很近的停止线
+    bool is_stop_line_in_exit_lane = false;
+    for (auto& line_vector : all_lines_) {
+      if (line_vector.second.empty()) {
+        continue;
+      }
+      for (auto& line : line_vector.second) {
+        // 后向车道线
+        if (line.line->points_size() < 2 ||
+            (!line.line->points().empty() &&
+             line.line->points().at(0).x() > 0)) {
+          continue;
+        }
+        Eigen::Vector2f line_end_point(line.line->points().rbegin()->x(),
+                                       line.line->points().rbegin()->y());
+        if (PointToVectorDist(stopline_pts[0], stopline_pts[1],
+                              line_end_point) < 5.0F) {
+          is_stop_line_in_exit_lane = true;
+          break;
+        }
+      }
+      if (is_stop_line_in_exit_lane) {
+        break;
+      }
+    }
+    if (is_stop_line_in_exit_lane) {
+      continue;
+    }
     forward_stoplines.emplace_back(stopline_pts);
   }
   if (forward_stoplines.empty()) {

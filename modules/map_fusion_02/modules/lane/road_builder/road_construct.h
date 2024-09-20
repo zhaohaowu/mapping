@@ -95,6 +95,12 @@ class RoadConstruct : ProcessorBase {
 
   void GenRoadEdges(std::vector<Group::Ptr>* groups);
 
+  void CombineOccAndModel(const Group::Ptr& grp);
+
+  void UpdateRoadEdgeWithAllEgde(const Group::Ptr& grp,
+                                 RoadEdge::Ptr* road_edge_left,
+                                 RoadEdge::Ptr* road_edge_right);
+
   void RemoveInvalGroups(std::vector<Group::Ptr>* groups);
 
   void CheckRoadInval(std::vector<Group::Ptr>* groups);
@@ -104,14 +110,6 @@ class RoadConstruct : ProcessorBase {
   void UpdateRoadEdgeWithLines(const Group::Ptr& grp,
                                RoadEdge::Ptr* road_edge_left,
                                RoadEdge::Ptr* road_edge_right);
-
-  void UpdateRoadEdgeWithModelEdges(const Group::Ptr& grp,
-                                    RoadEdge::Ptr* road_edge_left,
-                                    RoadEdge::Ptr* road_edge_right);
-
-  void UpdateRoadEdgeWithOccs(const Group::Ptr& grp,
-                              RoadEdge::Ptr* road_edge_left,
-                              RoadEdge::Ptr* road_edge_right);
 
   void FindNearestCaditate(const std::vector<EdgeSegment::Ptr>& edge_segments,
                            RoadEdge::Ptr* candidate_road_edge_left,
@@ -123,7 +121,7 @@ class RoadConstruct : ProcessorBase {
                            const RoadEdge::Ptr& candidate_road_edge_right);
 
   void GenLanesInGroups(std::vector<Group::Ptr>* groups,
-                        const ElementMap::Ptr& ele_map, double stamp);
+                        const ElementMap::Ptr& ele_map);
 
   void GenGroupAllLanes(const Group::Ptr& grp);
 
@@ -142,8 +140,6 @@ class RoadConstruct : ProcessorBase {
   bool FilterGroupBadLane(const std::vector<Lane::Ptr>& possible_lanes,
                           const Group::Ptr& grp);
 
-  bool MatchLRLane(const Group::Ptr& grp);
-
   bool OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups);
 
   bool GenLaneCenterLine(std::vector<Group::Ptr>* groups);
@@ -154,17 +150,12 @@ class RoadConstruct : ProcessorBase {
 
   void FitCenterLine(const Lane::Ptr& lane);
 
-  void RemoveNullGroup(std::vector<Group::Ptr>* groups);
-
-  void SmoothCenterline(std::vector<Group::Ptr>* groups);
-
-  std::vector<Point> SigmoidFunc(const std::vector<Point>& centerline,
-                                 float sigma);
-
   float Dist2Path(const Eigen::Vector3f& point);
 
   void BuildOccGroups(const ElementMap::Ptr& ele_map,
                       std::vector<Group::Ptr>* groups);
+
+  void RefineGroups(std::vector<Group::Ptr>* groups);
 
   void FitUnusedOccRoads(const ElementMap::Ptr& ele_map);
 

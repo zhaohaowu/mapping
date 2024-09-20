@@ -39,6 +39,7 @@ bool RoadConstruct::ConstructRoad(
   UpdatePathInCurrPose(*path, *curr_pose);
   BuildGroups(cutpoints, &lines, ele_map, &groups_);
   BuildOccGroups(ele_map, &groups_);
+  RefineGroups(&groups_);
   SetBrokenId(&groups_);
   GenGroupName(ele_map, &groups_);
   GenRoadEdges(&groups_);
@@ -149,11 +150,9 @@ void RoadConstruct::BuildGroups(const std::vector<CutPoint>& cutpoints,
                                 std::deque<Line::Ptr>* lines,
                                 const ElementMap::Ptr& ele_map,
                                 std::vector<Group::Ptr>* groups) {
-  double stamp = ele_map->map_info.stamp;
-
   CreatGroupsFromCutPoints(cutpoints, groups);
   SplitPtsToGroup(lines, ele_map, groups);
-  GenLanesInGroups(groups, ele_map, stamp);
+  GenLanesInGroups(groups, ele_map);
 }
 
 void RoadConstruct::CreatGroupsFromCutPoints(
@@ -291,14 +290,14 @@ void RoadConstruct::SplitOccsToGroup(
     return;
   } else {
     HLOG_DEBUG << "occ_roads size: " << occ_roads.size();
-    double dist_sum = 0.0;
-    double avg_dist = 0.0;
 
     for (const auto& occ : occ_roads) {
       auto occ_seg = std::make_shared<EdgeSegment>();
       auto& track_id = occ.first;
       auto& occ_lane = occ.second;
       occ_seg->id = track_id;
+      occ_seg->road_edge_type = OCC;
+
       if (static_cast<int>(occ_lane->road_points.size()) < 10) {
         continue;
       } else {
@@ -326,62 +325,11 @@ void RoadConstruct::SplitOccsToGroup(
           continue;
         }
       }
-      auto occ_length = Dist(occ_seg->pts.front().pt, occ_seg->pts.back().pt);
-      auto grp_length = Dist(grp->start_slice.po, grp->end_slice.po);
-      if (occ_length < 8.0 || occ_length < (grp_length * 0.3)) {
-        continue;
-      }
-
-      int size_occ_seg = static_cast<int>(occ_seg->pts.size());
-      Eigen::Vector3f point_tmp(0.0, 0.0, 0.0);
-      for (int i = 0; i < size_occ_seg; ++i) {
-        point_tmp += occ_seg->pts[i].pt;
-      }
-      occ_seg->center = point_tmp / size_occ_seg;
-      // auto dist =
-      //     PointToVectorDist(start_slice.po, end_slice.po, occ_seg->center);
-      // auto dist = occ_seg->center[1];  // !TBD: 暂时用y坐标代替距离
-      auto dist = Dist2Path(occ_seg->center);
-      HLOG_DEBUG << "occ dist: " << dist;
-      dist_sum += dist;
-
-      occ_seg->dist_to_path = dist;
-      occ_seg->road_edge_type = OCC;
 
       grp->occ_segments.emplace_back(occ_seg);
       HLOG_DEBUG << "grp->occ_segments.size():" << grp->occ_segments.size();
     }
-
-    if (grp->occ_segments.empty()) {
-      return;
-    }
-
-    avg_dist = dist_sum / static_cast<double>(grp->occ_segments.size());
-
-    if (static_cast<int>(grp->occ_segments.size()) < 2) {
-      auto& o_s = grp->occ_segments.front();
-      if (o_s->dist_to_path < 0) {
-        o_s->is_right = true;
-      } else {
-        o_s->is_left = true;
-      }
-    } else {
-      for (auto& occ_seg : grp->occ_segments) {
-        if (occ_seg->dist_to_path < avg_dist) {
-          occ_seg->is_right = true;
-          HLOG_DEBUG << "occ_seg is_right";
-        } else {
-          occ_seg->is_left = true;
-          HLOG_DEBUG << "occ_seg is_left";
-        }
-      }
-    }
   }
-
-  std::sort(grp->occ_segments.begin(), grp->occ_segments.end(),
-            [](const LineSegment::Ptr& a, const LineSegment::Ptr& b) {
-              return a->dist_to_path > b->dist_to_path;
-            });
 }
 
 void RoadConstruct::SplitModelEdgesToGroup(
@@ -399,14 +347,14 @@ void RoadConstruct::SplitModelEdgesToGroup(
     return;
   } else {
     HLOG_DEBUG << "road_edges size: " << road_edges.size();
-    double dist_sum = 0.0;
-    double avg_dist = 0.0;
 
     for (const auto& model_edge : road_edges) {
       auto model_edge_seg = std::make_shared<EdgeSegment>();
       auto& track_id = model_edge.first;
       auto& edge = model_edge.second;
       model_edge_seg->id = track_id;
+      model_edge_seg->road_edge_type = MODEL;
+
       if (edge->points.size() < 10) {
         continue;
       } else {
@@ -434,63 +382,11 @@ void RoadConstruct::SplitModelEdgesToGroup(
           continue;
         }
       }
-      auto model_length =
-          Dist(model_edge_seg->pts.front().pt, model_edge_seg->pts.back().pt);
-      auto grp_length = Dist(grp->start_slice.po, grp->end_slice.po);
-      if (model_length < 8.0 || model_length < (grp_length * 0.3)) {
-        continue;
-      }
-
-      int size_occ_seg = static_cast<int>(model_edge_seg->pts.size());
-      Eigen::Vector3f point_tmp(0.0, 0.0, 0.0);
-      for (int i = 0; i < size_occ_seg; ++i) {
-        point_tmp += model_edge_seg->pts[i].pt;
-      }
-      model_edge_seg->center = point_tmp / size_occ_seg;
-      // auto dist = PointToVectorDist(start_slice.po, end_slice.po,
-      //                               model_edge_seg->center);
-      // auto dist = model_edge_seg->center[1];  // !TBD: 暂时用y坐标代替距离
-      auto dist = Dist2Path(model_edge_seg->center);
-      HLOG_DEBUG << "model dist: " << dist;
-      dist_sum += dist;
-
-      model_edge_seg->dist_to_path = dist;
-      model_edge_seg->road_edge_type = MODEL;
       grp->model_edge_segments.emplace_back(model_edge_seg);
       HLOG_DEBUG << "grp->model_edge_segments.size():"
                  << grp->model_edge_segments.size();
     }
-
-    if (grp->model_edge_segments.empty()) {
-      return;
-    }
-
-    avg_dist = dist_sum / static_cast<double>(grp->model_edge_segments.size());
-
-    if (static_cast<int>(grp->model_edge_segments.size()) < 2) {
-      auto& m_e_s = grp->model_edge_segments.front();
-      if (m_e_s->dist_to_path < 0) {
-        m_e_s->is_right = true;
-      } else {
-        m_e_s->is_left = true;
-      }
-    } else {
-      for (auto& model_edge_seg : grp->model_edge_segments) {
-        if (model_edge_seg->dist_to_path < avg_dist) {
-          model_edge_seg->is_right = true;
-          HLOG_DEBUG << "model_edge_seg is_right";
-        } else {
-          model_edge_seg->is_left = true;
-          HLOG_DEBUG << "model_edge_seg is_left";
-        }
-      }
-    }
   }
-
-  std::sort(grp->model_edge_segments.begin(), grp->model_edge_segments.end(),
-            [](const LineSegment::Ptr& a, const LineSegment::Ptr& b) {
-              return a->dist_to_path > b->dist_to_path;
-            });
 }
 
 void RoadConstruct::SplitPtsToGroup(std::deque<Line::Ptr>* lines,
@@ -521,7 +417,6 @@ void RoadConstruct::ExtendLineToAlignSlice(const Group::Ptr& grp) {
   HLOG_DEBUG << "end_slice.po: " << end_slice.po.x() << ", "
              << end_slice.po.y();
 
-  // 向前
   for (auto& line_seg : grp->line_segments) {
     HLOG_DEBUG << "line_seg->id: " << line_seg->id;
     HLOG_DEBUG << "line_seg->pts.size(): " << line_seg->pts.size();
@@ -536,10 +431,11 @@ void RoadConstruct::ExtendLineToAlignSlice(const Group::Ptr& grp) {
     if (dist_to_start_slice > 10 || dist_to_end_slice > 10) {
       continue;
     }
+    // 向前
     if (dist_to_start_slice > 0.4) {
       auto front_p = line_seg->pts.front().pt;
       int index = 1;
-      while (index < static_cast<int>(line_seg->pts.size()) &&
+      while (index < static_cast<int>(line_seg->pts.size()) - 1 &&
              Dist(line_seg->pts[index].pt, front_p) < 5.0) {
         index++;
       }
@@ -630,8 +526,8 @@ void RoadConstruct::GenRoadEdges(std::vector<Group::Ptr>* groups) {
       continue;
     }
 
-    UpdateRoadEdgeWithOccs(grp, &road_edge_left, &road_edge_right);
-    UpdateRoadEdgeWithModelEdges(grp, &road_edge_left, &road_edge_right);
+    CombineOccAndModel(grp);
+    UpdateRoadEdgeWithAllEgde(grp, &road_edge_left, &road_edge_right);
     UpdateRoadEdgeWithLines(grp, &road_edge_left, &road_edge_right);
 
     HLOG_DEBUG << "road edge info: ";
@@ -652,44 +548,92 @@ void RoadConstruct::GenRoadEdges(std::vector<Group::Ptr>* groups) {
   }
 }
 
-void RoadConstruct::UpdateRoadEdgeWithOccs(const Group::Ptr& grp,
-                                           RoadEdge::Ptr* road_edge_left,
-                                           RoadEdge::Ptr* road_edge_right) {
+void RoadConstruct::CombineOccAndModel(const Group::Ptr& grp) {
   if (conf_.use_occ) {
-    if (grp->occ_segments.empty()) {
-      HLOG_DEBUG << "occ_segments is empty";
-    } else {
-      HLOG_DEBUG << "occ_segments size: " << grp->occ_segments.size();
-
-      RoadEdge::Ptr OCC_road_edge_left = std::make_shared<RoadEdge>();
-      RoadEdge::Ptr OCC_road_edge_right = std::make_shared<RoadEdge>();
-
-      FindNearestCaditate(grp->occ_segments, &OCC_road_edge_left,
-                          &OCC_road_edge_right);
-
-      UpdateWithCandidate(road_edge_left, road_edge_right, OCC_road_edge_left,
-                          OCC_road_edge_right);
+    if (!grp->occ_segments.empty()) {
+      grp->all_edge_segments.insert(grp->all_edge_segments.end(),
+                                    grp->occ_segments.begin(),
+                                    grp->occ_segments.end());
     }
   }
+  if (!grp->model_edge_segments.empty()) {
+    grp->all_edge_segments.insert(grp->all_edge_segments.end(),
+                                  grp->model_edge_segments.begin(),
+                                  grp->model_edge_segments.end());
+  }
+
+  double dist_sum = 0.0;
+  double avg_dist = 0.0;
+  auto grp_length = Dist(grp->start_slice.po, grp->end_slice.po);
+
+  for (auto& seg : grp->all_edge_segments) {
+    int size_seg = static_cast<int>(seg->pts.size());
+    Eigen::Vector3f point_tmp(0.0, 0.0, 0.0);
+    for (int i = 0; i < size_seg; ++i) {
+      point_tmp += seg->pts[i].pt;
+    }
+    seg->center = point_tmp / size_seg;
+    auto dist = Dist2Path(seg->center);
+    seg->dist_to_path = dist;
+    HLOG_DEBUG << "seg dist: " << dist;
+    dist_sum += dist;
+    avg_dist = dist_sum / static_cast<double>(grp->all_edge_segments.size());
+  }
+
+  grp->all_edge_segments.erase(
+      std::remove_if(
+          grp->all_edge_segments.begin(), grp->all_edge_segments.end(),
+          [&](const auto& seg) {
+            auto seg_length = Dist(seg->pts.front().pt, seg->pts.back().pt);
+            return seg_length < 8.0 || seg_length < grp_length * 0.3;
+          }),
+      grp->all_edge_segments.end());
+
+  if (grp->all_edge_segments.empty()) {
+    return;
+  }
+
+  if (static_cast<int>(grp->all_edge_segments.size()) < 2) {
+    auto& seg_one = grp->all_edge_segments.front();
+    if (seg_one->dist_to_path < 0) {
+      seg_one->is_right = true;
+    } else {
+      seg_one->is_left = true;
+    }
+  } else {
+    for (auto& seg : grp->all_edge_segments) {
+      if (seg->dist_to_path < avg_dist) {
+        seg->is_right = true;
+        HLOG_DEBUG << "seg is_right";
+      } else {
+        seg->is_left = true;
+        HLOG_DEBUG << "seg is_left";
+      }
+    }
+  }
+
+  std::sort(grp->all_edge_segments.begin(), grp->all_edge_segments.end(),
+            [](const LineSegment::Ptr& a, const LineSegment::Ptr& b) {
+              return a->dist_to_path > b->dist_to_path;
+            });
 }
 
-void RoadConstruct::UpdateRoadEdgeWithModelEdges(
-    const Group::Ptr& grp, RoadEdge::Ptr* road_edge_left,
-    RoadEdge::Ptr* road_edge_right) {
-  if (grp->model_edge_segments.empty()) {
-    HLOG_DEBUG << "model_edge_segments is empty";
+void RoadConstruct::UpdateRoadEdgeWithAllEgde(const Group::Ptr& grp,
+                                              RoadEdge::Ptr* road_edge_left,
+                                              RoadEdge::Ptr* road_edge_right) {
+  if (grp->all_edge_segments.empty()) {
+    HLOG_DEBUG << "segments is empty";
   } else {
-    HLOG_DEBUG << "model_edge_segments size: "
-               << grp->model_edge_segments.size();
+    HLOG_DEBUG << "segments size: " << grp->all_edge_segments.size();
 
-    RoadEdge::Ptr model_road_edge_left = std::make_shared<RoadEdge>();
-    RoadEdge::Ptr model_road_edge_right = std::make_shared<RoadEdge>();
+    RoadEdge::Ptr seg_road_edge_left = std::make_shared<RoadEdge>();
+    RoadEdge::Ptr seg_road_edge_right = std::make_shared<RoadEdge>();
 
-    FindNearestCaditate(grp->model_edge_segments, &model_road_edge_left,
-                        &model_road_edge_right);
+    FindNearestCaditate(grp->all_edge_segments, &seg_road_edge_left,
+                        &seg_road_edge_right);
 
-    UpdateWithCandidate(road_edge_left, road_edge_right, model_road_edge_left,
-                        model_road_edge_right);
+    UpdateWithCandidate(road_edge_left, road_edge_right, seg_road_edge_left,
+                        seg_road_edge_right);
   }
 }
 
@@ -858,12 +802,10 @@ void RoadConstruct::UpdateWithCandidate(
 }
 
 void RoadConstruct::GenLanesInGroups(std::vector<Group::Ptr>* groups,
-                                     const ElementMap::Ptr& ele_map,
-                                     double stamp) {
+                                     const ElementMap::Ptr& ele_map) {
   for (auto& grp : *groups) {
     GenGroupAllLanes(grp);
     FilterGroupBadLane(grp);
-    // MatchLRLane(grp);
     EgoLineTrajectory(grp, ele_map);
   }
   //   |   |
@@ -886,19 +828,6 @@ void RoadConstruct::GenLanesInGroups(std::vector<Group::Ptr>* groups,
 
   // 删除脑部多的ego_group，青鸾号:1273597
   // EraseEgoGroupWithNoEgoLane(groups);
-
-  // 删除空的group数据
-  int before_remove_grp_nums = static_cast<int>(groups->size());
-  // RemoveNullGroup(groups);
-  int after_remove_grp_nums = static_cast<int>(groups->size());
-  if (after_remove_grp_nums != before_remove_grp_nums) {
-    HLOG_WARN << "*********[CrossWalk]*******delete null group nums: "
-              << after_remove_grp_nums - before_remove_grp_nums;
-  }
-
-  HLOG_DEBUG << "current stamp is:" << std::to_string(stamp);
-
-  // SmoothCenterline(groups);
 }
 
 void RoadConstruct::GenGroupAllLanes(const Group::Ptr& grp) {
@@ -1200,27 +1129,6 @@ bool RoadConstruct::FilterGroupBadLane(
   return true;
 }
 
-bool RoadConstruct::MatchLRLane(const Group::Ptr& grp) {
-  if (grp->lanes.size() > 1) {
-    for (int i = 0; i < static_cast<int>(grp->lanes.size()) - 1; ++i) {
-      auto& curr = grp->lanes.at(i);
-      for (size_t j = i + 1; j < grp->lanes.size(); ++j) {
-        const auto& right = grp->lanes.at(j);
-        curr->right_lane_str_id_with_group.emplace_back(
-            right->str_id_with_group);
-      }
-    }
-    for (int i = static_cast<int>(grp->lanes.size()) - 1; i > 0; --i) {
-      auto& curr = grp->lanes.at(i);
-      for (int j = i - 1; j >= 0; --j) {
-        const auto& left = grp->lanes.at(j);
-        curr->left_lane_str_id_with_group.emplace_back(left->str_id_with_group);
-      }
-    }
-  }
-  return true;
-}
-
 bool RoadConstruct::OptiPreNextLaneBoundaryPoint(
     std::vector<Group::Ptr>* groups) {
   for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
@@ -1419,311 +1327,6 @@ void RoadConstruct::FitCenterLine(const Lane::Ptr& lane) {
   }
 }
 
-void RoadConstruct::RemoveNullGroup(std::vector<Group::Ptr>* groups) {
-  for (size_t grp_idx = 0; grp_idx < static_cast<int>(groups->size());
-       ++grp_idx) {
-    auto& curr_group = groups->at(grp_idx);
-    HLOG_DEBUG << "REMOVE1 curr_group->lanes.size()"
-               << curr_group->lanes.size();
-    if (curr_group->lanes.size() < 1) {
-      groups->erase(groups->begin() + static_cast<int>(grp_idx));
-    }
-  }
-}
-
-void RoadConstruct::SmoothCenterline(std::vector<Group::Ptr>* groups) {
-  if (groups->empty()) {
-    return;
-  }
-  std::unordered_map<std::string, int>
-      lane_grp_index;  // lane所在对应group的index
-  for (auto& grp : *groups) {
-    for (int index = 0; index < static_cast<int>(grp->lanes.size()); ++index) {
-      lane_grp_index[grp->lanes[index]->str_id_with_group] = index;
-    }
-  }
-  // forbiden lane->next_lane_str_id_with_group and
-  // lane->prev_lane_str_id_with_group don't exist grouplane
-  for (auto& grp : *groups) {
-    for (auto lane : grp->lanes) {
-      for (int index =
-               static_cast<int>(lane->next_lane_str_id_with_group.size()) - 1;
-           index >= 0; --index) {
-        if (lane_grp_index.find(lane->next_lane_str_id_with_group[index]) ==
-            lane_grp_index.end()) {
-          lane->next_lane_str_id_with_group.erase(
-              lane->next_lane_str_id_with_group.begin() + index);
-        }
-      }
-      for (int index =
-               static_cast<int>(lane->prev_lane_str_id_with_group.size()) - 1;
-           index >= 0; --index) {
-        if (lane_grp_index.find(lane->prev_lane_str_id_with_group[index]) ==
-            lane_grp_index.end()) {
-          lane->prev_lane_str_id_with_group.erase(
-              lane->prev_lane_str_id_with_group.begin() + index);
-        }
-      }
-    }
-  }
-  for (int i = 0; i < static_cast<int>(groups->size()) - 1; ++i) {
-    auto& curr_grp = groups->at(i);
-    auto& next_grp = groups->at(i + 1);
-    // 过路口不平滑
-    if (curr_grp->str_id.find("V") < curr_grp->str_id.length()) {
-      continue;
-    }
-    for (auto lane : curr_grp->lanes) {
-      if (lane->is_smooth || lane->next_lane_str_id_with_group.empty()) {
-        continue;
-      }
-      // 前后继直接相连不平滑
-      if (lane->next_lane_str_id_with_group.size() == 1) {
-        int index_next_ = lane_grp_index[lane->next_lane_str_id_with_group[0]];
-        if (next_grp->lanes[index_next_]->prev_lane_str_id_with_group.size() ==
-            1) {
-          continue;
-        }
-      }
-      if (lane->next_lane_str_id_with_group.size() == 1) {
-        // 从后往前滑动窗口
-        //! TD:后续用距离不用点
-        //! TBD:每个点计算曲率，抑制最大曲率
-        int lane_index = lane_grp_index[lane->next_lane_str_id_with_group[0]];
-        std::vector<Point> centerpt;
-        auto& cur_centerline = lane->center_line_pts;
-        int crr_size = static_cast<int>(cur_centerline.size());
-        if (crr_size >= 10) {
-          centerpt.insert(centerpt.begin(), cur_centerline.end() - 10,
-                          cur_centerline.end());
-        } else {
-          centerpt.insert(centerpt.begin(), cur_centerline.begin(),
-                          cur_centerline.end());
-          int ctpt_size = static_cast<int>(centerpt.size());
-          if (lane->prev_lane_str_id_with_group.size() == 1) {
-            int pre_index =
-                lane_grp_index[lane->prev_lane_str_id_with_group[0]];
-            auto& prev_centerline =
-                groups->at(i - 1)->lanes[pre_index]->center_line_pts;
-            if (static_cast<int>(prev_centerline.size()) >= 10 - ctpt_size) {
-              centerpt.insert(centerpt.begin(),
-                              prev_centerline.end() - (10 - ctpt_size),
-                              prev_centerline.end());
-            } else {
-              centerpt.insert(centerpt.begin(), prev_centerline.begin(),
-                              prev_centerline.end());
-            }
-          }
-        }
-        std::vector<Point> res = SigmoidFunc(centerpt, 5.0);
-        int res_size = static_cast<int>(res.size());
-        if (crr_size >= res_size) {
-          std::copy(res.begin(), res.end(),
-                    lane->center_line_pts.end() - res_size);
-          if ((lane->center_line_pts.back().pt -
-               next_grp->lanes[lane_index]->center_line_pts[0].pt)
-                  .norm() > 0.1) {
-            lane->center_line_pts.emplace_back(
-                next_grp->lanes[lane_index]->center_line_pts[0]);
-          }
-        } else {
-          std::copy(res.end() - crr_size, res.end(),
-                    lane->center_line_pts.begin());
-          int pre_index = lane_grp_index[lane->prev_lane_str_id_with_group[0]];
-          auto& prev_centerline =
-              groups->at(i - 1)->lanes[pre_index]->center_line_pts;
-          std::copy(res.begin(), res.end() - crr_size,
-                    prev_centerline.end() - (res_size - crr_size));
-          if ((lane->center_line_pts.back().pt -
-               next_grp->lanes[lane_index]->center_line_pts[0].pt)
-                  .norm() > 0.1) {
-            lane->center_line_pts.emplace_back(
-                next_grp->lanes[lane_index]->center_line_pts[0]);
-          }
-          if ((prev_centerline.back().pt - lane->center_line_pts[0].pt).norm() >
-              0.1) {
-            prev_centerline.emplace_back(lane->center_line_pts[0]);
-          }
-        }
-      } else {
-        // 从前往后滑动
-        // 一根车道最多两根后继
-        std::vector<Point> next_centerpt;
-        int lane_index_next_f =
-            lane_grp_index[lane->next_lane_str_id_with_group[0]];
-        auto& next_first_lane = next_grp->lanes[lane_index_next_f];
-        auto& lane_next_f_centerline =
-            next_grp->lanes[lane_index_next_f]->center_line_pts;
-        int next_f_ctl_size = static_cast<int>(lane_next_f_centerline.size());
-        if (next_f_ctl_size >= 10) {
-          next_centerpt.insert(next_centerpt.end(),
-                               lane_next_f_centerline.begin(),
-                               lane_next_f_centerline.begin() + 10);
-        } else {
-          next_centerpt.insert(next_centerpt.end(),
-                               lane_next_f_centerline.begin(),
-                               lane_next_f_centerline.end());
-          int ctpt_size = static_cast<int>(next_centerpt.size());
-
-          if (next_first_lane->next_lane_str_id_with_group.size() == 1) {
-            int next_next_index =
-                lane_grp_index[next_first_lane->next_lane_str_id_with_group[0]];
-            auto& next_next_ctline =
-                groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
-            if (static_cast<int>(next_next_ctline.size()) >= 10 - ctpt_size) {
-              next_centerpt.insert(next_centerpt.end(),
-                                   next_next_ctline.begin(),
-                                   next_next_ctline.begin() + (10 - ctpt_size));
-
-            } else {
-              next_centerpt.insert(next_centerpt.end(),
-                                   next_next_ctline.begin(),
-                                   next_next_ctline.end());
-            }
-          }
-        }
-        std::vector<Point> first_ctl = SigmoidFunc(next_centerpt, 5.0);
-        int first_ctl_size = static_cast<int>(first_ctl.size());
-        if (next_f_ctl_size >= first_ctl_size) {
-          std::copy(first_ctl.begin(), first_ctl.end(),
-                    lane_next_f_centerline.begin());
-          if ((lane_next_f_centerline[0].pt - lane->center_line_pts.back().pt)
-                  .norm() > 0.1) {
-            lane_next_f_centerline.insert(lane_next_f_centerline.begin(),
-                                          lane->center_line_pts.back());
-          }
-        } else {
-          std::copy(first_ctl.begin(), first_ctl.begin() + next_f_ctl_size,
-                    lane_next_f_centerline.begin());
-          int next_next_index =
-              lane_grp_index[next_first_lane->next_lane_str_id_with_group[0]];
-          auto& next_next_ctline =
-              groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
-          std::copy(first_ctl.begin() + next_f_ctl_size, first_ctl.end(),
-                    next_next_ctline.begin());
-          if ((lane_next_f_centerline[0].pt - lane->center_line_pts.back().pt)
-                  .norm() > 0.1) {
-            lane_next_f_centerline.insert(lane_next_f_centerline.begin(),
-                                          lane->center_line_pts.back());
-          }
-          if ((lane_next_f_centerline.back().pt - next_next_ctline[0].pt)
-                  .norm() > 0.1) {
-            next_next_ctline.insert(next_next_ctline.begin(),
-                                    lane_next_f_centerline.back());
-          }
-        }
-
-        next_centerpt.clear();
-        int lane_index_next_s =
-            lane_grp_index[lane->next_lane_str_id_with_group[1]];
-        auto& next_second_lane = next_grp->lanes[lane_index_next_s];
-        auto& lane_next_s_centerline =
-            next_grp->lanes[lane_index_next_s]->center_line_pts;
-        int next_s_ctl_size = static_cast<int>(lane_next_s_centerline.size());
-        if (next_s_ctl_size >= 10) {
-          next_centerpt.insert(next_centerpt.end(),
-                               lane_next_s_centerline.begin(),
-                               lane_next_s_centerline.begin() + 10);
-        } else {
-          next_centerpt.insert(next_centerpt.end(),
-                               lane_next_s_centerline.begin(),
-                               lane_next_s_centerline.end());
-          int ctpt_size = static_cast<int>(next_centerpt.size());
-          if (next_second_lane->next_lane_str_id_with_group.size() == 1) {
-            int next_next_index =
-                lane_grp_index[next_second_lane
-                                   ->next_lane_str_id_with_group[0]];
-            auto& next_next_ctline =
-                groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
-            if (static_cast<int>(next_next_ctline.size()) >= 10 - ctpt_size) {
-              next_centerpt.insert(next_centerpt.end(),
-                                   next_next_ctline.begin(),
-                                   next_next_ctline.begin() + (10 - ctpt_size));
-            } else {
-              next_centerpt.insert(next_centerpt.end(),
-                                   next_next_ctline.begin(),
-                                   next_next_ctline.end());
-            }
-          }
-        }
-        std::vector<Point> second_ctl = SigmoidFunc(next_centerpt, 5.0);
-        int second_ctl_size = static_cast<int>(second_ctl.size());
-        if (next_s_ctl_size >= second_ctl_size) {
-          std::copy(second_ctl.begin(), second_ctl.end(),
-                    lane_next_s_centerline.begin());
-          if ((lane_next_s_centerline[0].pt - lane->center_line_pts.back().pt)
-                  .norm() > 0.1) {
-            lane_next_s_centerline.insert(lane_next_s_centerline.begin(),
-                                          lane->center_line_pts.back());
-          }
-        } else {
-          std::copy(second_ctl.begin(), second_ctl.begin() + next_s_ctl_size,
-                    lane_next_s_centerline.begin());
-          int next_next_index =
-              lane_grp_index[next_second_lane->next_lane_str_id_with_group[0]];
-          auto& next_next_line =
-              groups->at(i + 2)->lanes[next_next_index]->center_line_pts;
-          std::copy(second_ctl.begin() + next_s_ctl_size, second_ctl.end(),
-                    next_next_line.begin());
-          if ((lane_next_s_centerline[0].pt - lane->center_line_pts.back().pt)
-                  .norm() > 0.1) {
-            lane_next_s_centerline.insert(lane_next_s_centerline.begin(),
-                                          lane->center_line_pts.back());
-          }
-          if ((next_next_line[0].pt - lane_next_s_centerline.back().pt).norm() >
-              0.1) {
-            next_next_line.insert(next_next_line.begin(),
-                                  lane_next_s_centerline.back());
-          }
-        }
-      }
-    }
-  }
-}
-
-std::vector<Point> RoadConstruct::SigmoidFunc(
-    const std::vector<Point>& centerline, float sigma) {
-  int size_ct = static_cast<int>(centerline.size());
-  // 中心点数目少于两个点不拟合
-  if (centerline.size() < 2) {
-    return centerline;
-  }
-  float dis_x = centerline.back().pt.x() - centerline.front().pt.x();
-  float dis_y = centerline.back().pt.y() - centerline.front().pt.y();
-
-  // 距离过小不拟合
-  if (dis_x < 0.1) {
-    return centerline;
-  }
-  std::vector<Point> center;
-  center.emplace_back(centerline[0]);
-
-  for (int i = 1; i < static_cast<int>(centerline.size()) - 1; ++i) {
-    Point center_p(VIRTUAL, 0.0, 0.0, 0.0);
-    if (center.back().pt.x() < centerline[i + 1].pt.x()) {
-      center_p.pt.x() = centerline[i + 1].pt.x();
-      float deta_x = centerline[i + 1].pt.x() - center[0].pt.x();
-      // 1/(1+e^(-x)) sigmoid函数
-      // 把x的范围圈定在[-sigma,sigma]范围内，deta_x的范围是(0,dis_x]
-      // y的范围是(centerline[0].pt.y(),centerline[0].y()+dis_y)
-      center_p.pt.y() =
-          centerline[0].pt.y() +
-          dis_y / (1 + exp(-(2 * deta_x - dis_x) / dis_x * sigma));
-    } else {
-      float x_to_end = centerline.back().pt.x() - center.back().pt.x();
-      float interval = x_to_end / static_cast<float>(centerline.size() - i - 1);
-      center_p.pt.x() = center.back().pt.x() + interval;
-      float deta_x = center_p.pt.x() - center[0].pt.x();
-      center_p.pt.y() =
-          centerline[0].pt.y() +
-          dis_y / (1 + exp(-(2 * deta_x - dis_x) / dis_x * sigma));
-    }
-    center.emplace_back(center_p);
-  }
-  center.emplace_back(centerline.back());
-  return center;
-}
-
 float RoadConstruct::Dist2Path(const Eigen::Vector3f& point) {
   if (path_in_curr_pose_.size() < 10) {
     return point.y();
@@ -1768,6 +1371,22 @@ void RoadConstruct::BuildOccGroups(const ElementMap::Ptr& ele_map,
     SplitOccsToGroup(unused_occ_roads_, grp);
     if (static_cast<int>(grp->occ_segments.size()) > 1) {
       groups->emplace_back(grp);
+    }
+  }
+}
+
+void RoadConstruct::RefineGroups(std::vector<Group::Ptr>* groups) {
+  if (groups->empty()) {
+    return;
+  }
+  if (groups->size() < 2) {
+    return;
+  }
+  for (size_t i = 1; i < groups->size(); i++) {
+    if (PointToVectorDist(groups->at(i - 1)->end_slice.pl,
+                          groups->at(i - 1)->end_slice.pr,
+                          groups->at(i)->start_slice.po) < 1.5) {
+      groups->at(i)->start_slice = groups->at(i - 1)->end_slice;
     }
   }
 }
@@ -1943,14 +1562,31 @@ void RoadConstruct::SearchOccCutPoints() {
     CutPoint ctp_b(idx++, p_b, CutPointType::Broken, occ->id, extend_dir);
     unused_occ_ctps_.push_back(ctp_b);
   }
+  std::sort(unused_occ_ctps_.begin(), unused_occ_ctps_.end(),
+            [](const CutPoint& a, const CutPoint& b) {
+              return a.GetPoint().x < b.GetPoint().x;
+            });
+  for (int i = 1; i < static_cast<int>(unused_occ_ctps_.size()); i++) {
+    const auto& ctp_front = unused_occ_ctps_[i - 1];
+    const auto& ctp = unused_occ_ctps_[i];
+    if (ctp.GetPoint().x - ctp_front.GetPoint().x < 1.0) {
+      unused_occ_ctps_.erase(unused_occ_ctps_.begin() + i);
+      i--;
+    }
+  }
 }
 
 void RoadConstruct::RemoveInvalGroups(std::vector<Group::Ptr>* groups) {
   if (groups->empty()) {
     return;
   }
+  HLOG_DEBUG << "before CheckRoadInval, groups size: " << groups->size();
   CheckRoadInval(groups);
+  HLOG_DEBUG << "after CheckRoadInval, groups size: " << groups->size();
+  HLOG_DEBUG << "before CheckMidGroupLaneInval, groups size: "
+             << groups->size();
   CheckMidGroupLaneInval(groups);
+  HLOG_DEBUG << "after CheckMidGroupLaneInval, groups size: " << groups->size();
 }
 
 void RoadConstruct::CheckRoadInval(std::vector<Group::Ptr>* groups) {
@@ -1959,6 +1595,7 @@ void RoadConstruct::CheckRoadInval(std::vector<Group::Ptr>* groups) {
   for (int i = 0; i < group_size; i++) {
     auto grp = groups->at(i);
     if (static_cast<int>(grp->road_edges.size()) < 2) {
+      HLOG_DEBUG << "(grp->road_edges.size()) < 2";
       groups->erase(groups->begin() + i);
       group_size--;
       continue;
@@ -1977,11 +1614,13 @@ void RoadConstruct::CheckRoadInval(std::vector<Group::Ptr>* groups) {
       }
     }
     if (!have_left_edge || !have_right_edge) {
+      HLOG_DEBUG << "!have_left_edge || !have_right_edge";
       groups->erase(groups->begin() + i);
       group_size--;
       continue;
     }
     if (std::fabs(left_edge->dist_to_path - right_edge->dist_to_path) < 3.0) {
+      HLOG_DEBUG << "dist too close";
       groups->erase(groups->begin() + i);
       group_size--;
       continue;

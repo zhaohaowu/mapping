@@ -519,7 +519,6 @@ class GroupMap {
   std::map<em::Id, Arrow::Ptr> arrow_;
   std::map<em::Id, Stpl::Ptr> stopline_;
   std::map<em::Id, Overlaps::Ptr> overlaps_;
-  std::map<em::Id, LineSegment::Ptr> lines_;
   GroupMapConf conf_;
   IsCross is_cross_;
   const double kMergeLengthThreshold = 10.;
@@ -541,6 +540,7 @@ class GroupMap {
   inline bool IsSpeedLimitValid(const std::pair<double, double>& speed_limit) {
     return (speed_limit.first > 0. && speed_limit.second);
   }
+
   RoadScene road_scene_ = RoadScene::NON_JUNCTION;
   float big_junction_dis_thresh_ = 30.0;
 };

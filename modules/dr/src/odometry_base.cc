@@ -180,6 +180,7 @@ OdometryData OdometryBase::get_latest_odom_data() {
   if (odom_datas_.empty()) {
     OdometryData initial_data;
     initial_data.timestamp = -1.0;
+    initial_data.odometry = WheelOdometry(0, 0, 0, 1, 0, 0, 0);
     return initial_data;
   }
   return odom_datas_.back();

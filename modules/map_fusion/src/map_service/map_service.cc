@@ -52,13 +52,6 @@ bool MapService::Init() {
   } else if (FLAGS_map_service_mode == 1) {
     amap_tsp_proc_ = std::async(&MapService::GetUidThread, this);
     ehr_ = std::make_unique<hozon::ehr::AmapEhrImpl>();
-
-//     std::string dbpath = FLAGS_ldmap_dir + "/";
-// #ifdef ISORIN
-//     dbpath = "/hd_map/ld_map/";
-// #endif
-//     HLOG_ERROR << "dbpath " << dbpath;
-//     std::string vid = "HeZhong2024010166";
     baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>();
     baidu_map_->AlgInit();
     bd_thread_flag_ = true;
@@ -66,13 +59,6 @@ bool MapService::Init() {
   } else if (FLAGS_map_service_mode == 2) {
     // todo map api
     // ld map 在线
-
-//     std::string dbpath = FLAGS_ldmap_dir + "/";
-// #ifdef ISORIN
-//     dbpath = "/hd_map/ld_map/";
-// #endif
-//     HLOG_ERROR << "dbpath " << dbpath;
-//     std::string vid = "HeZhong2024010166";
     baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>();
     bd_thread_flag_ = true;
     baidu_map_->AlgInit();
@@ -111,8 +97,8 @@ void MapService::GetUidThread() {
           ofs << uuid_ << std::endl;
           ofs.close();
         } else {
-          HLOG_ERROR << "uid code: " << uid_result.result_code;
-          HLOG_ERROR << "uid: " << uid_result.response;
+          HLOG_WARN << "uid code: " << uid_result.result_code;
+          HLOG_WARN << "uid: " << uid_result.response;
         }
       }
       ++counter;
@@ -131,20 +117,9 @@ void MapService::GetUidThread() {
 void MapService::OnInsAdcNodeInfo(
     const hozon::localization::HafNodeInfo& ins_msg,
     const hozon::planning::ADCTrajectory& adc_msg) {
-  // double x = ins_msg.pos_gcj02().y();
-  // double y = ins_msg.pos_gcj02().x();
-  // hozon::common::coordinate_convertor::GCS2UTM(51, &x, &y);
-
-  // hozon::common::PointENU enupos;
-  // enupos.set_x(x);
-  // enupos.set_y(y);
-  // enupos.set_z(0);
-  // std::vector<hozon::hdmap::LaneInfoConstPtr> lanes;
 
   if (FLAGS_map_service_mode == 0) {
     // GLOBAL_HD_MAP->GetLanes(enupos, 10, &lanes);
-    // HLOG_ERROR << "mspppppppppplane size: " << lanes.size();
-    // do nothing
     //  hd_map_ = hozon::hdmap::HDMapUtil::LoadLocalMapPtr();
     //  BinProc(ins_msg, cro_map_);
     //  if (!cro_map_->lane().empty()) {
@@ -186,7 +161,7 @@ void MapService::BaiduProc() {
       if (res_result) {
         rev_nav_flag_ = false;
       } else {
-        HLOG_ERROR << "route: set sdlink info failed";
+        HLOG_WARN << "route: set sdlink info failed";
       }
     }
     std::vector<uint32_t> routing_road;
@@ -194,31 +169,11 @@ void MapService::BaiduProc() {
     if (!routing_road.empty()) {
       std::lock_guard<std::mutex> lock(ld_routing_mtx_);
       routing_road_id_ = std::make_shared<std::vector<uint32_t>>(routing_road);
-      HLOG_ERROR << " route: ld routing road size" << routing_road_id_->size();
+      HLOG_WARN << " route: ld routing road size" << routing_road_id_->size();
     }
     hozon::hdmap::Map test_map;
     GLOBAL_HD_MAP->GetMap(&test_map);
-    HLOG_ERROR << "ld lane size :" << test_map.lane_size();
-    // auto ins_ptr = INS_MANAGER->GetIns();
-    // // auto hmi_nav_ptr = hmi_nav_ptr_->GetLatestHMINavData();
-    // // if(hmi_nav_ptr == nullptr){
-    // //   HLOG_INFO << "hmi_nav_ptr is nullptr when load ld map";
-    // // }
-    // if (ins_ptr != nullptr) {
-    //   INSPos ins_pos;
-    //   ins_pos.x = ins_ptr->pos_gcj02().x();
-    //   ins_pos.y = ins_ptr->pos_gcj02().y();
-    //   std::lock_guard<std::mutex> lock(ms_nav_mtx_);
-    //   baidu_map_->UpdateBaiDuMap(ins_pos, hmi_nav_data_);
-    //   // hozon::hdmap::Map test_map;
-    //   // GLOBAL_LD_MAP->GetMap(&test_map);
-    //   // HLOG_ERROR << "ld  lane size :" << test_map.lane_size();
-    // } else {
-    //   HLOG_WARN << "ins_ptr is nullptr when load ld map";
-    // }
-    // hozon::hdmap::Map hd_map;
-    // GLOBAL_HD_MAP->GetMap(&hd_map);
-    // HLOG_ERROR << "hd lane size :" << hd_map.lane_size();
+    HLOG_WARN << "ld lane size :" << test_map.lane_size();
     usleep(1e6);
   }
 }
@@ -348,7 +303,7 @@ void MapService::SetCurrentPathId(const hozon::common::PointENU& utm_pos,
 }
 void MapService::UpdateHMINavService(
     const std::shared_ptr<hozon::hmi::NAVDataService>& nav_data) {
-  HLOG_ERROR << "route: start to UpdateHMINavService";
+  HLOG_WARN << "route: start to UpdateHMINavService";
   rev_nav_flag_ = true;
   hmi_nav_data_ = nav_data;
 }
@@ -430,7 +385,7 @@ void MapService::SetFautl() {
   } else {
     fault_ = MS_NO_ERROR;
   }
-  HLOG_INFO << "GD:" << static_cast<int>(type) << " HZ"
+  HLOG_WARN << "GD:" << static_cast<int>(type) << " HZ"
             << static_cast<int>(fault_);
 }
 

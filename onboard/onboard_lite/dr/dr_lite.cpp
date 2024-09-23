@@ -410,7 +410,7 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
     double dr_vel_x = msg->velocity().twist_vrf().linear_vrf().x();
     Eigen::Vector3d dr_vel(dr_vel_x, 0, 0);
     deque_dr_.push_back(dr_vel);
-    if (deque_dr_.size() > 100) {
+    if (deque_dr_.size() > 1000) {
       deque_dr_.pop_front();
     }
 
@@ -419,13 +419,13 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
     double ins_vel_z = imu_proto->ins_info().linear_velocity().z();
     Eigen::Vector3d ins_vel(ins_vel_x, ins_vel_y, ins_vel_z);
     deque_ins_.push_back(ins_vel);
-    if (deque_ins_.size() > 100) {
+    if (deque_ins_.size() > 1000) {
       deque_ins_.pop_front();
     }
 
     Eigen::Vector3d mean_dr_vel = Eigen::Vector3d::Zero();
     Eigen::Vector3d mean_ins_vel = Eigen::Vector3d::Zero();
-    if (deque_ins_.size() == 100 && deque_dr_.size() == 100) {
+    if (deque_ins_.size() == 1000 && deque_dr_.size() == 1000) {
       for (auto dr_vel : deque_dr_) {
         mean_dr_vel += dr_vel;
       }
@@ -448,15 +448,15 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
         (imu_proto->ins_info().sd_position().x() < 0.05) &&
         (imu_proto->ins_info().sd_position().y() < 0.05)) {
       count++;
-      if (count > 100) {
-        count = 101;
+      if (count > 1000) {
+        count = 1001;
       }
     } else {
       count = 0;
     }
 
     HLOG_DEBUG << "count:" << count;
-    if (vel_error && count > 100) {
+    if (vel_error && count > 1000) {
       dr_fault->Report(MAKE_FM_TUPLE(
           hozon::perception::base::FmModuleId::MAPPING,
           hozon::perception::base::FaultType::DR_OUTPUT_VELOCITY_ERROR,

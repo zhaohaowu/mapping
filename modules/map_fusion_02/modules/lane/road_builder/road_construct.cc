@@ -1542,6 +1542,9 @@ void RoadConstruct::GenNewOccRoads(const double& good_k, const double& good_b,
 void RoadConstruct::SearchOccCutPoints() {
   int idx = 1000;
   for (const auto& occ : unused_occ_road_fitlines_) {
+    if (occ->pts.empty()) {
+      continue;
+    }
     Eigen::Vector3f dir(0.0, 0.0, 0.0);
     dir = (occ->pts.back().pt - occ->pts.front().pt);
     Eigen::Vector3d dir_n = dir.cast<double>().normalized();

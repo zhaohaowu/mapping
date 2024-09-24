@@ -96,6 +96,12 @@ bool MapFusionRviz::Init() {
     return false;
   }
 
+  if (!model_config->get_value("viz_road_topo_option",
+                               &viz_road_topo_option_)) {
+    HLOG_ERROR << "Get viz_road_topo_option_ viz failed!";
+    return false;
+  }
+
   std::vector<std::string> marker_topics = {viz_topic_input_ele_map_,
                                             viz_topic_output_ele_map_,
                                             viz_topic_group_,
@@ -300,13 +306,71 @@ void MapFusionRviz::VizJunctionStatus(int status, double stamp) {
     RVIZ_AGENT.Publish(viz_topic_junction_status_, marker_array);
   }
 }
+void MapFusionRviz::VizTopo(const hozon::mp::mf::Lane::Ptr& lane,
+                            const rviz_topo& tmprviz_topo,
+                            double& tmppose,  // NOLINT
+                            hozon::mp::mf::MarkerArrayPtr& marker_array) {
+  if ((nullptr == lane) || (nullptr == marker_array)) {
+    return;
+  }
+  std::vector<std::string> tmpstd;
+  if (lane->left_lane_str_id_with_group.empty()) {
+    std::string tmp = std::string("leftid: ") + " NULL ";
+    tmpstd.emplace_back(tmp);
+  }
+  for (const auto& leftid : lane->left_lane_str_id_with_group) {
+    std::string tmp = std::string("leftid: ") + leftid;
+    tmpstd.emplace_back(tmp);
+  }
+  if (lane->right_lane_str_id_with_group.empty()) {
+    std::string tmp = std::string("rightid: ") + " NULL ";
+    tmpstd.emplace_back(tmp);
+  }
+  for (const auto& rightid : lane->right_lane_str_id_with_group) {
+    std::string tmp = std::string("rightid: ") + rightid;
+    tmpstd.emplace_back(tmp);
+  }
+  auto* marker_str_id_with_group1 = marker_array->add_markers();
 
+  marker_str_id_with_group1->mutable_header()->CopyFrom(
+      tmprviz_topo.viz_header);
+  marker_str_id_with_group1->set_ns(tmprviz_topo.grp_ns + "/" +
+                                    tmprviz_topo.lane_ns);
+  marker_str_id_with_group1->set_id(12);
+  marker_str_id_with_group1->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
+  marker_str_id_with_group1->set_type(
+      adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
+  marker_str_id_with_group1->mutable_color()->set_a(1.0);
+  double tmptext_size = 0.5;
+  SetMarker(marker_str_id_with_group1, tmprviz_topo.line_rgb, tmptext_size,
+            tmprviz_topo.life_sec, tmprviz_topo.life_nsec);
+  tmppose = 0.5 + tmppose;
+  if (tmpstd.empty()) {
+    tmpstd = {"element1 = 0", "element2 = 0", "element3 = 0"};
+  }
+  std::string result =
+      std::accumulate(tmpstd.begin(), tmpstd.end(), std::string(""),
+                      [](const std::string& a, const std::string& b) {
+                        return a.empty() ? b : a + " " + b;
+                      });
+  marker_str_id_with_group1->mutable_pose()->mutable_orientation()->set_w(1);
+  marker_str_id_with_group1->mutable_pose()->mutable_orientation()->set_x(0);
+  marker_str_id_with_group1->mutable_pose()->mutable_orientation()->set_y(0);
+  marker_str_id_with_group1->mutable_pose()->mutable_orientation()->set_z(0);
+  marker_str_id_with_group1->mutable_pose()->mutable_position()->set_x(tmppose);
+  marker_str_id_with_group1->mutable_pose()->mutable_position()->set_y(-20.0);
+  marker_str_id_with_group1->mutable_pose()->mutable_position()->set_z(0.0);
+  auto* lanetopo = marker_str_id_with_group1->mutable_text();
+  if (result.empty()) {
+    result = std::string("00");
+  }
+  *lanetopo = "LANETOPO: " + lane->str_id + "  " + result;
+}
 void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
                              double stamp) {
   if (!inited_ || !map_fusion_group_rviz_ || !RVIZ_AGENT.Ok()) {
     return;
   }
-
   adsfi_proto::hz_Adsfi::AlgHeader viz_header;
   viz_header.set_frameid("vehicle");
   uint32_t sec = 0;
@@ -317,12 +381,12 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
   uint32_t life_sec = 0;
   uint32_t life_nsec = 0;
   SplitSeconds(viz_lifetime_, &life_sec, &life_nsec);
-
   auto marker_array = std::make_shared<adsfi_proto::viz::MarkerArray>();
   std::vector<RvizColor> line_colors = {RvizColor::R_ORANGE,
                                         RvizColor::R_YELLOW, RvizColor::R_GREEN,
                                         RvizColor::R_CYAN};
   int grp_idx = -1;
+  double tmppose = -2.0;
   for (const auto& grp : groups) {
     grp_idx += 1;
     std::string grp_ns =
@@ -333,7 +397,6 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
     }
 
     RvizRgb line_rgb = ColorRgb(line_colors.at(grp_idx % line_colors.size()));
-
     if (grp->group_state != Group::GroupState::VIRTUAL) {
       // start_slice
       auto* marker_start_slice = marker_array->add_markers();
@@ -383,7 +446,6 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
           grp->start_slice.po.z());
       auto* text_start = marker_start_slice_type->mutable_text();
       *text_start = "cut_type: " + std::to_string(grp->start_slice.cut_type);
-
       // end_slice
       auto* marker_end_slice = marker_array->add_markers();
       marker_end_slice->CopyFrom(*marker_start_slice);
@@ -414,7 +476,6 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
       auto* text_end = marker_end_slice_type->mutable_text();
       *text_end = "cut_type: " + std::to_string(grp->end_slice.cut_type);
     }
-
     // lanes
     if (!grp->lanes.empty()) {
       int lane_idx = -1;
@@ -432,12 +493,10 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
         marker_left_bound->mutable_color()->set_a(1.0);
         double width = 0.2;
         SetMarker(marker_left_bound, line_rgb, width, life_sec, life_nsec);
-
         // right_boundary
         auto* marker_right_bound = marker_array->add_markers();
         marker_right_bound->CopyFrom(*marker_left_bound);
         marker_right_bound->set_id(1);
-
         // center_line_pts
         auto* marker_center_line = marker_array->add_markers();
         marker_center_line->CopyFrom(*marker_left_bound);
@@ -587,7 +646,6 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
             pt->set_z(p.z());
           }
         }
-
         auto* marker_str_id_with_group = marker_array->add_markers();
         marker_str_id_with_group->mutable_header()->CopyFrom(viz_header);
         marker_str_id_with_group->set_ns(grp_ns + "/" + lane_ns);
@@ -600,7 +658,6 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
         double text_size = 0.5;
         SetMarker(marker_str_id_with_group, line_rgb, text_size, life_sec,
                   life_nsec);
-
         marker_str_id_with_group->mutable_pose()->mutable_position()->set_x(
             lane->center_line_pts.front().pt.x());
         marker_str_id_with_group->mutable_pose()->mutable_position()->set_y(
@@ -610,6 +667,12 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
         auto* text = marker_str_id_with_group->mutable_text();
         *text = lane->str_id_with_group + " broken_id-" +
                 std::to_string(grp->broken_id);
+        //  start build topoid
+        rviz_topo tmprviz_topo(line_rgb, life_sec, life_nsec, grp_ns, lane_ns,
+                               viz_header);
+        if (viz_road_topo_option_) {
+          VizTopo(lane, tmprviz_topo, tmppose, marker_array);
+        }
         if (!lane->next_lane_str_id_with_group.empty() &&
             lane->center_line_pts.size() > 2) {
           marker_str_id_with_group = marker_array->add_markers();

@@ -87,6 +87,10 @@ void RoadEdgeMatcher::SetTrackKDTree(
           std::isnan(point.z())) {
         break;
       }
+      if (std::isinf(point.x()) || std::isinf(point.y()) ||
+          std::isinf(point.z())) {
+        break;
+      }
       cv_points.emplace_back(point.x(), point.y());
     }
     if (cv_points.size() < 5) {
@@ -190,6 +194,9 @@ void RoadEdgeMatcher::AssociationKnn(
         std::vector<float> query_point =
             std::vector<float>({find_pt_x, find_pt_y});
         if (std::isnan(find_pt_x) || std::isnan(find_pt_y)) {
+          continue;
+        }
+        if (std::isinf(find_pt_x) || std::isinf(find_pt_y)) {
           continue;
         }
         if (find_pt_x > overlay_min && find_pt_x < near_max) {

@@ -119,6 +119,9 @@ void PointMatcher::SetTrackKDTree(
       if (std::isnan(point.x) || std::isnan(point.y) || std::isnan(point.z)) {
         break;
       }
+      if (std::isinf(point.x) || std::isinf(point.y) || std::isinf(point.z)) {
+        break;
+      }
       cv_points.emplace_back(point.x, point.y);
       if (j > 0) {
         std_y += std::abs(lane_line->point_set[j].vehicle_point.y - last_y);
@@ -161,6 +164,9 @@ void PointMatcher::SetTrackKDTree(
     for (size_t j = 0; j < lane_line->point_set.size(); ++j) {
       const auto& point = lane_line->point_set[j].local_point;
       if (std::isnan(point.x) || std::isnan(point.y) || std::isnan(point.z)) {
+        break;
+      }
+      if (std::isinf(point.x) || std::isinf(point.y) || std::isinf(point.z)) {
         break;
       }
       cv_points.emplace_back(point.x, point.y);
@@ -327,6 +333,9 @@ void PointMatcher::AssociationKnn(
         if (std::isnan(query_point[0]) || std::isnan(query_point[1])) {
           continue;
         }
+        if (std::isinf(query_point[0]) || std::isinf(query_point[1])) {
+          continue;
+        }
         if ((det_point_set[k].vehicle_point.x > overlay_min) &&
             (det_point_set[k].vehicle_point.x < near_max)) {
           near_count_point++;
@@ -483,6 +492,9 @@ void PointMatcher::AssociationKnn(
         std::vector<float> query_point = std::vector<float>(
             {det_point_set[k].local_point.x, det_point_set[k].local_point.y});
         if (std::isnan(query_point[0]) || std::isnan(query_point[1])) {
+          continue;
+        }
+        if (std::isinf(query_point[0]) || std::isinf(query_point[1])) {
           continue;
         }
         if ((det_point_set[k].vehicle_point.x > overlay_min) &&

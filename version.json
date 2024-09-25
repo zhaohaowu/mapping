@@ -12,7 +12,7 @@
                 "extractPath": "./depend/nos"
             },
             "third_party": {
-                "name": "v5.2.38_x86_2004_20240621",
+                "name": "v5.2.45_x86_2004_20240924",
                 "extractPath": "./depend"
             },
             "CUDA": {
@@ -33,7 +33,7 @@
                     "mal_orin"
                 ]
             },
-            "releaseVersion": "ORIN_EP41_MAL_05.10.30_20240802_0725f_20240924"
+            "releaseVersion": "ORIN_EP41_MAL_05.10.31_20240802_0725f_20240925"
         }
     }
 }

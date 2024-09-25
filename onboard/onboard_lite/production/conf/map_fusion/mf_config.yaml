@@ -21,6 +21,8 @@ input:
       capacity: 5
     - topic: percep_obj 
       capacity: 5
+    - topic: dv_nav_data 
+      capacity: 5
 
 output:
   - topic: map_fusion
@@ -71,4 +73,9 @@ trigger:
       type: EVENT
       mainSources:
         - name: percep_obj
+          timeout: 1000
+    - name: recv_dv_nav_data
+      type: EVENT
+      mainSources:
+        - name: dv_nav_data
           timeout: 1000

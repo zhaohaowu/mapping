@@ -136,6 +136,7 @@ void MapFusionLite::RegistMessageType() {
                               hozon::functionmanager::FunctionManagerIn);
   REGISTER_PROTO_MESSAGE_TYPE("percep_obj",
                               hozon::perception::PerceptionObstacles);
+  REGISTER_PROTO_MESSAGE_TYPE("dv_nav_data", hozon::hmi::NAVDataService);
 }
 
 void MapFusionLite::RegistProcessFunc() {
@@ -165,8 +166,37 @@ void MapFusionLite::RegistProcessFunc() {
                                                 std::placeholders::_1));
   RegistAlgProcessFunc("recv_percep_obj", std::bind(&MapFusionLite::OnObj, this,
                                                     std::placeholders::_1));
+  RegistAlgProcessFunc(
+      "recv_dv_nav_data",
+      std::bind(&MapFusionLite::OnNavData, this, std::placeholders::_1));
 }
 
+int32_t MapFusionLite::OnNavData(Bundle* input) {
+  if (!input) {
+    HLOG_ERROR << "input is nullptr";
+    return -1;
+  }
+  auto p_nav_data = input->GetOne("dv_nav_data");
+  if (!p_nav_data) {
+    HLOG_ERROR << "OnNavData GetOne error ";
+    return -1;
+  }
+
+  const auto nav_data_msg =
+      std::static_pointer_cast<hozon::hmi::NAVDataService>(
+          p_nav_data->proto_msg);
+  if (!nav_data_msg) {
+    HLOG_ERROR << "nav_data_msg is nullptr ";
+    return -1;
+  }
+  {
+    std::lock_guard<std::mutex> lock(hmi_nav_mtx_);
+    on_nav_data_ = std::make_shared<hozon::hmi::NAVDataService>(*nav_data_msg);
+    ms_->UpdateHMINavData(on_nav_data_);
+  }
+
+  return 0;
+}
 int32_t MapFusionLite::OnLocation(Bundle* input) {
   static int location_unavailable_frames = 0;
   static bool location_unavailable_flags = false;
@@ -1109,6 +1139,16 @@ MapFusionLite::GetLatestFCTIn() {
         *curr_fct_in_);
   }
   return latest_fct_in;
+}
+std::shared_ptr<hozon::hmi::NAVDataService>
+MapFusionLite::GetLatestHMINavData() {
+  std::shared_ptr<hozon::hmi::NAVDataService> latest_nav_data = nullptr;
+  std::lock_guard<std::mutex> lock(hmi_nav_mtx_);
+  if (on_nav_data_ != nullptr) {
+    latest_nav_data =
+        std::make_shared<hozon::hmi::NAVDataService>(*on_nav_data_);
+  }
+  return latest_nav_data;
 }
 
 int MapFusionLite::MapFusionOutputEvaluation(

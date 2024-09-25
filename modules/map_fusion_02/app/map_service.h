@@ -15,6 +15,7 @@
 #include <string>
 #include <thread>
 #include <unordered_set>
+#include <vector>
 
 #include "base/utils/log.h"
 #include "common/math/vec2d.h"
@@ -40,6 +41,7 @@
 #include "modules/map_fusion_02/modules/map_hd/global_hd_map.h"
 #include "modules/map_fusion_02/modules/map_ld/global_ld_map.h"
 #include "perception-lib/lib/config_manager/config_manager.h"
+#include "proto/routing/nav_data.pb.h"
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -78,6 +80,12 @@ class MapService {
   MapServiceFault GetFault();
   std::string Name() const;
 
+  void UpdateHMINavData(
+      const std::shared_ptr<hozon::hmi::NAVDataService>& nav_data);
+  std::shared_ptr<std::vector<uint32_t>> GetLDRoutingRoadId() const {
+    return routing_road_id_;
+  }
+
  private:
   void GetUidThread();
   void BaiduProc();
@@ -97,6 +105,7 @@ class MapService {
       std::unordered_set<hozon::hdmap::Id, IdHash, IdEqual>* lane_id_pool);
   void SetFautl();
   std::shared_ptr<hozon::routing::RoutingResponse> routing_ = nullptr;
+  std::shared_ptr<std::vector<uint32_t>> routing_road_id_ = nullptr;
   hozon::common::math::Vec2d last_pose_;
   std::chrono::steady_clock::time_point last_send_time_{};
   std::unique_ptr<hozon::ehr::Ehr> ehr_ = nullptr;
@@ -114,6 +123,12 @@ class MapService {
   std::thread hd_thread_;
   hozon::localization::HafNodeInfo ins_msg_;
   MapServiceOption ms_option_;
+  std::mutex ms_nav_mtx_;
+  std::mutex get_route_mtx_;
+  std::shared_ptr<hozon::hmi::NAVDataService> hmi_nav_data_ = nullptr;
+  std::atomic<bool> bd_thread_flag_{false};
+  std::atomic<bool> amap_thread_flag_{false};
+  std::atomic<bool> rev_nav_flag_{false};
 };
 
 }  // namespace mf

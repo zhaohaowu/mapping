@@ -52,6 +52,10 @@ dataSourcesIn:
     type: proto_proxy
     cmTopic: /perception/fsd/obj_fusion_1 
     cmDomainId: 0
+  - topic: dv_nav_data
+    type: proto_proxy
+    cmTopic: /hozon/routing/nav_data
+    cmDomainId: 0
 
 dataSourcesOut:
   - topic: localization

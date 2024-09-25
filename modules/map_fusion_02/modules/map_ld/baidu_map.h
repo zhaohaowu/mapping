@@ -35,6 +35,7 @@
 #include "proto/map/map.pb.h"
 #include "proto/map/map_lane.pb.h"
 #include "proto/map/map_road.pb.h"
+#include "proto/routing/nav_data.pb.h"
 namespace hozon {
 namespace mp {
 namespace mf {
@@ -79,8 +80,9 @@ class BaiDuMapEngine : public hozon::netaos::adf_lite::Executor {
   int32_t AlgInit() override;
   void AlgRelease() override;
 
-  void UpdateBaiDuMap(const INSPos& pos);
-  const hozon::hdmap::Map& GetNetaMap() const { return neta_map_; }
+  void UpdateBaiDuMap(const INSPos& pos, std::vector<uint32_t>* road_ids);
+  // const hozon::hdmap::Map& GetNetaMap(){return neta_map_};
+  bool UpdateHMINav(const std::shared_ptr<hozon::hmi::NAVDataService>& hmi_nav);
 
  private:
   // std::string dbpath_;
@@ -186,6 +188,7 @@ class BaiDuMapEngine : public hozon::netaos::adf_lite::Executor {
       stop_line_lanes_um_;
   hozon::hdmap::Map neta_map_;
   baidu::imap::sdk::MapEnginePtr map_engine_ptr_ = nullptr;
+  uint64_t temp_link_id_ = 0;
 };
 
 }  // namespace mf

@@ -69,12 +69,14 @@ bool MapService::Init() {
                                                "/base_map.bin");
   } else if (ms_option_.map_service_mode == 1) {
     amap_tsp_proc_ = std::async(&MapService::GetUidThread, this);
+    amap_thread_flag_ = true;
     ehr_ = std::make_unique<hozon::ehr::AmapEhrImpl>();
     amap_adapter_ = std::make_unique<hozon::mp::mf::AmapAdapter>();
     amap_adapter_->Init();
 
     baidu_map_ = std::make_unique<hozon::mp::mf::BaiDuMapEngine>();
     baidu_map_->AlgInit();
+    bd_thread_flag_ = true;
     ld_thread_ = std::thread(&MapService::BaiduProc, this);
     hd_thread_ = std::thread(&MapService::AMapProc, this);
 
@@ -130,9 +132,19 @@ void MapService::GetUidThread() {
     tsp_client.Deinit();
   }
 }
+void MapService::UpdateHMINavData(
+    const std::shared_ptr<hozon::hmi::NAVDataService>& nav_data) {
+  if (nav_data != nullptr) {
+    std::lock_guard<std::mutex> lock(ms_nav_mtx_);
+    rev_nav_flag_ = true;
+    hmi_nav_data_ = nav_data;
+  } else {
+    HLOG_WARN << "hmi_nav_data_ is nullptr when load hd map";
+  }
+}
 
 void MapService::AMapProc() {
-  while (true) {
+  while (amap_thread_flag_) {
     {
       std::lock_guard<std::mutex> lock(mutex_);
       if (!uuid_.empty() && !is_amap_tsp_thread_stop_) {
@@ -147,27 +159,44 @@ void MapService::AMapProc() {
     } else {
       HLOG_WARN << "ins_ptr is nullptr when load hd map";
     }
+    hozon::hdmap::Map test_map;
+    GLOBAL_HD_MAP->GetMap(&test_map);
+    HLOG_ERROR << "hd  lane size :" << test_map.lane_size();
     usleep(1e6);
   }
 }
 
 void MapService::BaiduProc() {
-  while (true) {
+  while (bd_thread_flag_) {
     auto ins_ptr = INS_MANAGER->GetIns();
     if (ins_ptr != nullptr) {
       INSPos ins_pos;
       ins_pos.x = ins_ptr->pos_gcj02().x();
       ins_pos.y = ins_ptr->pos_gcj02().y();
-      baidu_map_->UpdateBaiDuMap(ins_pos);
-      // hozon::hdmap::Map test_map;
-      // GLOBAL_LD_MAP->GetMap(&test_map);
-      // HLOG_ERROR << "ld  lane size :" << test_map.lane_size();
+      if (rev_nav_flag_) {
+        bool res_result = baidu_map_->UpdateHMINav(hmi_nav_data_);
+        if (res_result) {
+          rev_nav_flag_ = false;
+        } else {
+          HLOG_WARN << "set sdlink info failed";
+        }
+      }
+      // std::lock_guard<std::mutex> lock(ms_nav_mtx_);
+      std::vector<uint32_t> routing_road;
+      baidu_map_->UpdateBaiDuMap(ins_pos, &routing_road);
+      if (!routing_road.empty()) {
+        std::lock_guard<std::mutex> lock(get_route_mtx_);
+        routing_road_id_ =
+            std::make_shared<std::vector<uint32_t>>(routing_road);
+        HLOG_WARN << " route: ld routing road size" << routing_road_id_->size();
+      }
+
+      hozon::hdmap::Map test_map;
+      GLOBAL_LD_MAP->GetMap(&test_map);
+      HLOG_ERROR << "ld  lane size :" << test_map.lane_size();
     } else {
       HLOG_WARN << "ins_ptr is nullptr when load ld map";
     }
-    // hozon::hdmap::Map hd_map;
-    // GLOBAL_HD_MAP->GetMap(&hd_map);
-    // HLOG_ERROR << "hd lane size :" << hd_map.lane_size();
     usleep(1e6);
   }
 }
@@ -377,6 +406,8 @@ MapServiceFault MapService::GetFault() {
 
 MapService::~MapService() {
   is_amap_tsp_thread_stop_ = true;
+  bd_thread_flag_ = false;
+  amap_thread_flag_ = false;
   amap_tsp_proc_.get();
   if (ld_thread_.joinable()) {
     ld_thread_.join();

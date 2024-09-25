@@ -21,6 +21,7 @@
 // #include "modules/map_fusion/include/map_fusion/map_select/map_select_lite.h"
 #include "modules/map_fusion_02/app/map_service.h"
 #include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
+#include "proto/routing/nav_data.pb.h"
 namespace hozon {
 namespace perception {
 namespace common_onboard {
@@ -28,6 +29,7 @@ namespace common_onboard {
 using hozon::mp::mf::MapFusion;
 // using hozon::mp::mf::select::MapSelectLite;
 using hozon::netaos::adf_lite::Bundle;
+using hozon::mp::mf::MapService;
 
 enum WorkMode { PerceptMap, FusionMap, Normal };
 
@@ -52,7 +54,8 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   int32_t OnDR(Bundle* input);
   int32_t OnFCTIn(Bundle* input);
   int32_t OnObj(Bundle* input);
-  //   int DebugSelectMap();
+  int32_t OnNavData(Bundle* input);
+  // int DebugSelectMap();
   int32_t MapFusionOutput(Bundle* output);
 
  private:
@@ -63,6 +66,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   std::shared_ptr<hozon::perception::PerceptionObstacles> GetLatestObj();
   std::shared_ptr<hozon::dead_reckoning::DeadReckoning> GetLatestDR();
   std::shared_ptr<hozon::functionmanager::FunctionManagerIn> GetLatestFCTIn();
+  std::shared_ptr<hozon::hmi::NAVDataService> GetLatestHMINavData();
   // int SendFusionResult(
   //     const std::shared_ptr<hozon::localization::Localization>& location,
   //     const std::shared_ptr<hozon::hdmap::Map>& map,
@@ -81,7 +85,7 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   WorkMode work_mode_;
   std::shared_ptr<hozon::routing::RoutingResponse> curr_routing_ = nullptr;
   std::unique_ptr<MapFusion> mf_ = nullptr;
-  std::shared_ptr<hozon::mp::mf::MapService> ms_ = nullptr;
+  std::shared_ptr<MapService> ms_ = nullptr;
   //   std::unique_ptr<MapSelectLite> map_select_ = nullptr;
 
   std::mutex plugin_mtx_;
@@ -104,6 +108,8 @@ class MapFusionLite : public hozon::netaos::adf_lite::Executor {
   // mp::mf::select::MapSelectResult curr_map_type_ = {
   //     hozon::navigation_hdmap::MapMsg_MapType_INVALID, false, 2};
   bool select_debug_ = true;
+  std::mutex hmi_nav_mtx_;
+  std::shared_ptr<hozon::hmi::NAVDataService> on_nav_data_ = nullptr;
 };
 
 REGISTER_ADF_CLASS(MapFusionLite, MapFusionLite);

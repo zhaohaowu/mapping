@@ -35,7 +35,6 @@ bool RoadConstruct::ConstructRoad(
     const std::vector<CutPoint>& cutpoints, std::deque<Line::Ptr> lines,
     const std::shared_ptr<std::vector<KinePosePtr>>& path,
     const KinePosePtr& curr_pose, const ElementMap::Ptr& ele_map) {
-  BuildKDtrees(&lines);
   UpdatePathInCurrPose(*path, *curr_pose);
   BuildGroups(cutpoints, &lines, ele_map, &groups_);
   BuildOccGroups(ele_map, &groups_);
@@ -68,42 +67,6 @@ std::vector<Eigen::Vector3f> RoadConstruct::GetDistPoints() {
 
 std::deque<Line::Ptr> RoadConstruct::GetFitOcc() {
   return unused_occ_road_fitlines_;
-}
-
-void RoadConstruct::BuildKDtrees(std::deque<Line::Ptr>* lines) {
-  HLOG_DEBUG << "BuildKDtrees";
-  // Check if there are any lines
-  if (lines == nullptr) {
-    return;
-  }
-  if (!KDTrees_.empty()) {
-    KDTrees_.clear();
-  }
-  if (!line_points_.empty()) {
-    line_points_.clear();
-  }
-
-  for (auto& line : *lines) {
-    if (line->pts.empty()) {
-      continue;
-    }
-    auto cv_points = std::make_shared<std::vector<cv::Point2f>>();
-    for (auto& p : line->pts) {
-      if (std::isnan(p.pt.x()) || std::isnan(p.pt.y())) {
-        HLOG_DEBUG << "Nan points";
-        break;
-      }
-      cv_points->emplace_back(p.pt.x(), p.pt.y());
-    }
-    cv::flann::KDTreeIndexParams index_params(1);
-    auto kdtree = std::make_shared<cv::flann::Index>(
-        cv::Mat(*cv_points).reshape(1), index_params);
-    KDTrees_[line->id] = kdtree;
-    line_points_[line->id] = cv_points;
-    // HLOG_INFO << "build kdtree: " << line->id << ", size: " <<
-    // cv_points->size();
-  }
-  return;
 }
 
 void RoadConstruct::UpdatePathInCurrPose(const std::vector<KinePosePtr>& path,
@@ -161,6 +124,10 @@ void RoadConstruct::CreatGroupsFromCutPoints(
     HLOG_ERROR << "input nullptr";
     return;
   }
+  if (cutpoints.empty()) {
+    HLOG_ERROR << "input empty cutpoints";
+    return;
+  }
   // 用每一个cut point构建切分线
   std::vector<SliceLine> slice_lines;
 
@@ -172,6 +139,10 @@ void RoadConstruct::CreatGroupsFromCutPoints(
     Point3D p = ctp.GetPoint();
     HLOG_DEBUG << "ctp: " << p.x << " " << p.y;
     std::vector<Point3D> extre_point = ctp.GetExtrePoint();
+    if (extre_point.size() < 2) {
+      HLOG_ERROR << "extre_point too less: " << extre_point.size();
+      continue;
+    }
     Eigen::Vector3f po_veh(p.x, p.y, p.z);
     Eigen::Vector3f pr_veh(extre_point[0].x, extre_point[0].y, 0);
     Eigen::Vector3f pl_veh(extre_point[1].x, extre_point[1].y, 0);
@@ -191,10 +162,10 @@ void RoadConstruct::CreatGroupsFromCutPoints(
   }
 
   // 从SliceLines里创建出Group
-  const auto slice_num = slice_lines.size();
+  int slice_num = static_cast<int>(slice_lines.size());
   groups->clear();
   groups->reserve(slice_num);
-  for (size_t i = 0; i < slice_num - 1; ++i) {
+  for (int i = 0; i < slice_num - 1; ++i) {
     auto grp = std::make_shared<Group>();
     grp->start_slice = slice_lines.at(i);
     grp->end_slice = slice_lines.at(i + 1);
@@ -428,11 +399,9 @@ void RoadConstruct::ExtendLineToAlignSlice(const Group::Ptr& grp) {
         start_slice.po, start_slice.pl, line_seg->pts.front().pt);
     const auto dist_to_end_slice =
         PointToVectorDist(end_slice.po, end_slice.pl, line_seg->pts.back().pt);
-    if (dist_to_start_slice > 10 || dist_to_end_slice > 10) {
-      continue;
-    }
+
     // 向前
-    if (dist_to_start_slice > 0.4) {
+    if (0.4 < dist_to_start_slice && dist_to_start_slice < 10.0) {
       auto front_p = line_seg->pts.front().pt;
       int index = 1;
       while (index < static_cast<int>(line_seg->pts.size()) - 1 &&
@@ -441,32 +410,22 @@ void RoadConstruct::ExtendLineToAlignSlice(const Group::Ptr& grp) {
       }
       auto next_p = line_seg->pts[index].pt;
       auto unit = (front_p - next_p).normalized();
-      int cnt = 0;
-      int siz = static_cast<int>(line_seg->pts.size());
-      while (PointToVectorDist(start_slice.po, start_slice.pr,
-                               line_seg->pts.front().pt) > 0.4 &&
-             PointInVectorSide(
-                 Eigen::Vector2f(start_slice.po.head<2>()),
-                 Eigen::Vector2f(start_slice.pl.head<2>()),
-                 Eigen::Vector2f(line_seg->pts.front().pt.head<2>())) > 0) {
-        HLOG_DEBUG << "start dist: "
-                   << PointToVectorDist(start_slice.po, start_slice.pr,
-                                        line_seg->pts.front().pt);
-        cnt++;
-        if (cnt > siz) {
-          break;
-          HLOG_ERROR << "front cnt > siz!!!";
-        }
+      int points_to_add =
+          static_cast<int>(dist_to_start_slice - 0.4f);  // 只保留整数部分
+      HLOG_DEBUG << "initial front distance: " << dist_to_start_slice
+                 << "front points to add: " << points_to_add;
+
+      for (int i = 0; i < points_to_add; ++i) {
         auto start_point = line_seg->pts.front().pt;
-        Point t(VIRTUAL, start_point.x() + unit.x(), start_point.y() + unit.y(),
-                static_cast<float>(0.0));
-        line_seg->pts.insert(line_seg->pts.begin(), t);
-        HLOG_DEBUG << "insert start point: " << t.pt.x() << " " << t.pt.y();
+        Point new_point(VIRTUAL, start_point.x() + unit.x(),
+                        start_point.y() + unit.y(), static_cast<float>(0.0));
+        line_seg->pts.insert(line_seg->pts.begin(), new_point);
+        HLOG_DEBUG << "insert start point: " << new_point.pt.x() << " "
+                   << new_point.pt.y();
       }
     }
     // 向后
-    if (PointToVectorDist(end_slice.po, end_slice.pl, line_seg->pts.back().pt) >
-        0.4) {
+    if (0.4 < dist_to_end_slice && dist_to_end_slice < 10.0) {
       auto back_p = line_seg->pts.back().pt;
       int index = static_cast<int>(line_seg->pts.size()) - 1;
       while (index > 0 && Dist(line_seg->pts[index].pt, back_p) < 5.0) {
@@ -474,27 +433,18 @@ void RoadConstruct::ExtendLineToAlignSlice(const Group::Ptr& grp) {
       }
       auto next_p = line_seg->pts[index].pt;
       auto unit = (back_p - next_p).normalized();
-      int cnt = 0;
-      int siz = static_cast<int>(line_seg->pts.size());
-      while (PointToVectorDist(end_slice.po, end_slice.pl,
-                               line_seg->pts.back().pt) > 0.4 &&
-             PointInVectorSide(
-                 Eigen::Vector2f(end_slice.po.head<2>()),
-                 Eigen::Vector2f(end_slice.pl.head<2>()),
-                 Eigen::Vector2f(line_seg->pts.back().pt.head<2>())) < 0) {
-        HLOG_DEBUG << "end dist: "
-                   << PointToVectorDist(end_slice.po, end_slice.pl,
-                                        line_seg->pts.back().pt);
-        cnt++;
-        if (cnt > siz) {
-          break;
-          HLOG_ERROR << "back cnt > siz!!!";
-        }
-        auto end_point = line_seg->pts.back().pt;
-        Point t(VIRTUAL, end_point.x() + unit.x(), end_point.y() + unit.y(),
-                static_cast<float>(0.0));
-        line_seg->pts.insert(line_seg->pts.end(), t);
-        HLOG_DEBUG << "insert end point: " << t.pt.x() << " " << t.pt.y();
+      int points_to_add =
+          static_cast<int>(dist_to_end_slice - 0.4f);  // 只保留整数部分
+      HLOG_DEBUG << "initial back distance: " << dist_to_end_slice
+                 << "back points to add: " << points_to_add;
+
+      for (int i = 0; i < points_to_add; ++i) {
+        auto start_point = line_seg->pts.back().pt;
+        Point new_point(VIRTUAL, start_point.x() + unit.x(),
+                        start_point.y() + unit.y(), static_cast<float>(0.0));
+        line_seg->pts.insert(line_seg->pts.end(), new_point);
+        HLOG_DEBUG << "insert end point: " << new_point.pt.x() << " "
+                   << new_point.pt.y();
       }
     }
   }
@@ -832,12 +782,12 @@ void RoadConstruct::GenLanesInGroups(std::vector<Group::Ptr>* groups,
 
 void RoadConstruct::GenGroupAllLanes(const Group::Ptr& grp) {
   // 生成Lane
-  const auto line_seg_num = grp->line_segments.size();
+  int line_seg_num = static_cast<int>(grp->line_segments.size());
   if (line_seg_num > 1) {
     // 按边线距离生成Lane
-    for (size_t i = 0; i < line_seg_num - 1; ++i) {
-      auto& left_line = grp->line_segments.at(i);
-      auto& right_line = grp->line_segments.at(i + 1);
+    for (int i = 0; i < line_seg_num - 1; ++i) {
+      auto left_line = grp->line_segments.at(i);
+      auto right_line = grp->line_segments.at(i + 1);
       int l_size = static_cast<int>(left_line->pts.size());
       if (l_size == 0) {
         continue;
@@ -845,7 +795,7 @@ void RoadConstruct::GenGroupAllLanes(const Group::Ptr& grp) {
       auto& left_distp = left_line->pts[static_cast<int>(l_size * 0.5)].pt;
       auto right_center = right_line->center;
       //! 商汤切分点情况下，由于center点是用首尾两点求中值，如果在弯道，该点会在车道外，导致计算距离错误
-      auto dist = DistByKDtree(left_distp, *right_line);
+      auto dist = DistPointLine(left_distp, *right_line);
       // HLOG_INFO << "dist: " << dist;
       if (dist < conf_.min_lane_width) {
         continue;
@@ -982,49 +932,38 @@ void RoadConstruct::SetBrokenId(std::vector<Group::Ptr>* groups) {
   }
 }
 
-float RoadConstruct::DistByKDtree(const Eigen::Vector3f& ref_point,
-                                  const LineSegment& LineSegment) {
-  distpoits_.push_back(ref_point);
-  int id = LineSegment.id;
-  if (KDTrees_[id] == nullptr) {
+float RoadConstruct::DistPointLine(const Eigen::Vector3f& ref_point,
+                                   const LineSegment& lineSegment) {
+  if (std::isnan(ref_point.x()) || std::isnan(ref_point.y())) {
+    return 0.0;
+  }
+  if (lineSegment.pts.empty()) {
     return 0.0;
   }
 
-  float ref_x = static_cast<float>(ref_point.x());
-  float ref_y = static_cast<float>(ref_point.y());
-  if (std::isnan(ref_x) || std::isnan(ref_y)) {
-    return 0.0;
-  }
+  // 找到最近的点
+  const auto it = std::min_element(
+      lineSegment.pts.begin(), lineSegment.pts.end(),
+      [&ref_point](const Point& a, const Point& b) {
+        return (ref_point - a.pt).norm() < (ref_point - b.pt).norm();
+      });
 
-  const int dim = 1;
-  std::vector<int> nearest_index(dim);
-  std::vector<float> nearest_dist(dim);
-  std::vector<float> query_point = {ref_x, ref_y};
-  auto kdtree_tofind = KDTrees_[id];
-  auto line_tofind = *line_points_[id];
-
-  kdtree_tofind->knnSearch(query_point, nearest_index, nearest_dist, dim,
-                           cv::flann::SearchParams(-1));
-
-  Eigen::Vector3f tar_point;
-  tar_point.x() = line_tofind[nearest_index[0]].x;
-  tar_point.y() = line_tofind[nearest_index[0]].y;
-  distpoits_.push_back(tar_point);
-
-  if (line_tofind.size() == 1) {
-    return nearest_dist[0];
+  // 找到最近的点在向量中的位置
+  int tar_idx = static_cast<int>(std::distance(lineSegment.pts.begin(), it));
+  const Eigen::Vector3f tar_point = lineSegment.pts[tar_idx].pt;
+  int linept_size = static_cast<int>(lineSegment.pts.size());
+  if (linept_size == 1) {
+    return (ref_point - tar_point).norm();
   } else {
     int id_next = 0;
-    if (nearest_index[0] < static_cast<int>(line_tofind.size()) - 1) {
-      id_next = nearest_index[0] + 1;
+    // 获取后一个点
+    if (tar_idx < (linept_size - 1)) {
+      id_next = static_cast<int>(tar_idx) + 1;
     } else {
-      id_next = nearest_index[0] - 1;
+      // 获取前一个点
+      id_next = static_cast<int>(tar_idx) - 1;
     }
-    Eigen::Vector3f tar_point_next;
-    tar_point_next.x() = line_tofind[id_next].x;
-    tar_point_next.y() = line_tofind[id_next].y;
-    distpoits_.push_back(tar_point_next);
-
+    Eigen::Vector3f tar_point_next = lineSegment.pts[id_next].pt;
     return GetDistPointLane(ref_point, tar_point, tar_point_next);
   }
 }
@@ -1112,21 +1051,6 @@ void RoadConstruct::FitLaneline(const ElementMap::Ptr& ele_map, int id_1,
   // HLOG_ERROR << "predict_line_params_ = " << predict_line_params_[0] << "  "
   //            << predict_line_params_[1] << "  " << predict_line_params_[2]
   //            << "  " << predict_line_params_[3];
-}
-
-bool RoadConstruct::FilterGroupBadLane(
-    const std::vector<Lane::Ptr>& possible_lanes, const Group::Ptr& grp) {
-  // 过滤掉边线只有一个点的lane
-  std::vector<Lane::Ptr> valid_lanes;
-  for (const auto& lane : possible_lanes) {
-    if (lane != nullptr && lane->left_boundary != nullptr &&
-        lane->left_boundary->pts.size() > 1 &&
-        lane->right_boundary != nullptr &&
-        lane->right_boundary->pts.size() > 1) {
-      grp->lanes.emplace_back(lane);
-    }
-  }
-  return true;
 }
 
 bool RoadConstruct::OptiPreNextLaneBoundaryPoint(
@@ -1277,12 +1201,13 @@ void RoadConstruct::EraseEgoGroupWithNoEgoLane(
   }
   // 判断是否有自车道和邻车道
   for (auto& lane : ego_group->lanes) {
-    if (lane->center_line_pts.size() < 1) {
+    int pts_size = static_cast<int>(lane->center_line_pts.size());
+    if (pts_size < 1) {
       continue;
     }
     int index = -1;  // centerpoint_index;
     float best_dis = FLT_MAX;
-    for (int i = 0; i < lane->center_line_pts.size(); ++i) {
+    for (int i = 0; i < pts_size; ++i) {
       float dis = lane->center_line_pts[i].pt.norm();
       if (dis < best_dis) {
         index = i;
@@ -1379,10 +1304,11 @@ void RoadConstruct::RefineGroups(std::vector<Group::Ptr>* groups) {
   if (groups->empty()) {
     return;
   }
+  int grp_size = static_cast<int>(groups->size());
   if (groups->size() < 2) {
     return;
   }
-  for (size_t i = 1; i < groups->size(); i++) {
+  for (int i = 1; i < grp_size; i++) {
     if (PointToVectorDist(groups->at(i - 1)->end_slice.pl,
                           groups->at(i - 1)->end_slice.pr,
                           groups->at(i)->start_slice.po) < 1.5) {

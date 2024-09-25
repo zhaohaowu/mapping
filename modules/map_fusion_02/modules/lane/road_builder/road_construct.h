@@ -58,12 +58,11 @@ class RoadConstruct : ProcessorBase {
   void Clear() override;
 
  private:
-  void BuildKDtrees(std::deque<Line::Ptr>* lines);
-
   void UpdatePathInCurrPose(const std::vector<KinePosePtr>& path,
                             const KinePose& curr_pose);
 
-  float DistByKDtree(const Eigen::Vector3f& ref_point, const LineSegment& line);
+  float DistPointLine(const Eigen::Vector3f& ref_point,
+                     const LineSegment& lineSegment);
 
   float GetDistPointLane(const Eigen::Vector3f& point_a,
                          const Eigen::Vector3f& point_b,
@@ -136,9 +135,6 @@ class RoadConstruct : ProcessorBase {
 
   void CollectGroupPossibleLanes(const Group::Ptr& grp,
                                  std::vector<Lane::Ptr>* possible_lanes);
-
-  bool FilterGroupBadLane(const std::vector<Lane::Ptr>& possible_lanes,
-                          const Group::Ptr& grp);
 
   bool OptiPreNextLaneBoundaryPoint(std::vector<Group::Ptr>* groups);
 

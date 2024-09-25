@@ -68,9 +68,7 @@ class LocationRviz {
                            int location_state, double timestamp,
                            double velocity, double fc_heading,
                            double ins_heading, const std::string& conv,
-                           double gps_week, double gps_sec,
-                           const Eigen::Vector3d& FC_KF_kydiff,
-                           const Eigen::Vector3d& FC_KF_cov, uint64_t sec,
+                           double gps_week, double gps_sec, uint64_t sec,
                            uint64_t nsec, const std::string& topic);
   void PubOriginConnectMapPoints(const hozon::mp::loc::Connect& origin_connect,
                                  uint64_t sec, uint64_t nsec,

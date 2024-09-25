@@ -758,8 +758,8 @@ bool Reloc::FilterPrediction(
     return false;
   }
   // check if need reset filter
-  hozon::mp::loc::fc::Node curr_global_node;
-  hozon::mp::loc::fc::Node curr_dr_node;
+  Node curr_global_node;
+  Node curr_dr_node;
   LocalizationToNode(*localization, &curr_global_node, &curr_dr_node);
   bool timestamp_large_gap =
       localization->header().data_stamp() -
@@ -785,8 +785,8 @@ bool Reloc::FilterPrediction(
     return true;
   }
 
-  hozon::mp::loc::fc::Node last_global_node;
-  hozon::mp::loc::fc::Node last_dr_node;
+  Node last_global_node;
+  Node last_dr_node;
   LocalizationToNode(*last_localization_node_, &last_global_node,
                      &last_dr_node);
   // grid center prediction
@@ -1016,12 +1016,12 @@ bool Reloc::FilterConvergenceCheck() {
   // }
 
   // 如果前面某一步失败导致未收敛，需要连续重定位的距离大于5m满足重定位条件
-  hozon::mp::loc::fc::Node last_odom_state_global_node;
-  hozon::mp::loc::fc::Node last_odom_state_dr_node;
+  Node last_odom_state_global_node;
+  Node last_odom_state_dr_node;
   LocalizationToNode(*odom_state_last_converge_, &last_odom_state_global_node,
                      &last_odom_state_dr_node);
-  hozon::mp::loc::fc::Node last_global_node;
-  hozon::mp::loc::fc::Node last_dr_node;
+  Node last_global_node;
+  Node last_dr_node;
   LocalizationToNode(*last_localization_node_, &last_global_node,
                      &last_dr_node);
 
@@ -1433,19 +1433,17 @@ void Reloc::GetFinalMatchIndex() {
   }
 }
 
-Sophus::SE3d Reloc::Node2SE3(const hozon::mp::loc::fc::Node& node) {
+Sophus::SE3d Reloc::Node2SE3(const Node& node) {
   return {Sophus::SO3d::exp(node.orientation), node.enu};
 }
 
-Sophus::SE3d Reloc::Node2SE3(
-    const std::shared_ptr<hozon::mp::loc::fc::Node>& node) {
+Sophus::SE3d Reloc::Node2SE3(const std::shared_ptr<Node>& node) {
   return Node2SE3(*node);
 }
 
 void Reloc::LocalizationToNode(
     const ::hozon::localization::Localization& localization,
-    hozon::mp::loc::fc::Node* const global_pose,
-    hozon::mp::loc::fc::Node* const dr_pose) {
+    Node* const global_pose, Node* const dr_pose) {
   Point3dToVector3d(localization.pose().angular_velocity(),
                     &global_pose->angular_velocity);
   Point3dToVector3d(localization.pose().linear_velocity(),

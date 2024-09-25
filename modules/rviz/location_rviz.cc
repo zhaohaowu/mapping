@@ -77,7 +77,7 @@ void LocationRviz::PubFcOdom(const Eigen::Affine3d& T_W_V, uint64_t sec,
   odom_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
   odom_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
   odom_msg.mutable_header()->set_frameid("map");
-  odom_msg.set_child_frame_id("vehicle");
+  odom_msg.set_child_frame_id("base");
   SetXYZ(p, odom_msg.mutable_pose()->mutable_pose()->mutable_position());
   SetXYZW(q, odom_msg.mutable_pose()->mutable_pose()->mutable_orientation());
   for (size_t i = 0; i < 36; ++i) {
@@ -102,7 +102,7 @@ void LocationRviz::PubMmOdom(const Eigen::Affine3d& T_W_V, uint64_t sec,
   odom_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
   odom_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
   odom_msg.mutable_header()->set_frameid("map");
-  odom_msg.set_child_frame_id("vehicle");
+  odom_msg.set_child_frame_id("base");
   SetXYZ(p, odom_msg.mutable_pose()->mutable_pose()->mutable_position());
   SetXYZW(q, odom_msg.mutable_pose()->mutable_pose()->mutable_orientation());
   for (size_t i = 0; i < 36; ++i) {
@@ -127,7 +127,7 @@ void LocationRviz::PubDrOdom(const Eigen::Affine3d& T_W_V, uint64_t sec,
   odom_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
   odom_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
   odom_msg.mutable_header()->set_frameid("localmap");
-  odom_msg.set_child_frame_id("vehicle");
+  odom_msg.set_child_frame_id("base");
   SetXYZ(p, odom_msg.mutable_pose()->mutable_pose()->mutable_position());
   SetXYZW(q, odom_msg.mutable_pose()->mutable_pose()->mutable_orientation());
   for (size_t i = 0; i < 36; ++i) {
@@ -152,7 +152,7 @@ void LocationRviz::PubInsOdom(const Eigen::Affine3d& T_W_V, uint64_t sec,
   odom_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
   odom_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
   odom_msg.mutable_header()->set_frameid("map");
-  odom_msg.set_child_frame_id("vehicle");
+  odom_msg.set_child_frame_id("base");
   SetXYZ(p, odom_msg.mutable_pose()->mutable_pose()->mutable_position());
   SetXYZW(q, odom_msg.mutable_pose()->mutable_pose()->mutable_orientation());
   for (size_t i = 0; i < 36; ++i) {
@@ -177,7 +177,7 @@ void LocationRviz::PubInputOdom(const Eigen::Affine3d& T_W_V, uint64_t sec,
   odom_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
   odom_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
   odom_msg.mutable_header()->set_frameid("map");
-  odom_msg.set_child_frame_id("vehicle");
+  odom_msg.set_child_frame_id("base");
   SetXYZ(p, odom_msg.mutable_pose()->mutable_pose()->mutable_position());
   SetXYZW(q, odom_msg.mutable_pose()->mutable_pose()->mutable_orientation());
   for (size_t i = 0; i < 36; ++i) {
@@ -202,7 +202,7 @@ void LocationRviz::PubRelocOdom(const Eigen::Affine3d& T_W_V, uint64_t sec,
   odom_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
   odom_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
   odom_msg.mutable_header()->set_frameid("map");
-  odom_msg.set_child_frame_id("vehicle");
+  odom_msg.set_child_frame_id("base");
   SetXYZ(p, odom_msg.mutable_pose()->mutable_pose()->mutable_position());
   SetXYZW(q, odom_msg.mutable_pose()->mutable_pose()->mutable_orientation());
   for (size_t i = 0; i < 36; ++i) {
@@ -229,7 +229,7 @@ void LocationRviz::PubFcTf(const Eigen::Affine3d& T_W_V, uint64_t sec,
   tf_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
   tf_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
   tf_msg.mutable_header()->set_frameid("map");
-  tf_msg.set_child_frame_id("vehicle");
+  tf_msg.set_child_frame_id("base");
   SetXYZ(p, tf_msg.mutable_transform()->mutable_translation());
   SetXYZW(q, tf_msg.mutable_transform()->mutable_rotation());
   RVIZ_AGENT.Publish(topic, tf_msg);
@@ -738,9 +738,8 @@ void LocationRviz::PubHdmapMarker(const Eigen::Affine3d& T_W_V,
 void LocationRviz::PubInsLocationState(
     int ins_state, double sd_position, int location_state, double timestamp,
     double velocity, double fc_heading, double ins_heading,
-    const std::string& conv, double gps_week, double gps_sec,
-    const Eigen::Vector3d& FC_KF_kydiff, const Eigen::Vector3d& FC_KF_cov,
-    uint64_t sec, uint64_t nsec, const std::string& topic) {
+    const std::string& conv, double gps_week, double gps_sec, uint64_t sec,
+    uint64_t nsec, const std::string& topic) {
   if (!inited_ || !RVIZ_AGENT.Ok()) {
     return;
   }
@@ -756,7 +755,7 @@ void LocationRviz::PubInsLocationState(
   text_marker.mutable_lifetime()->set_sec(0);
   text_marker.mutable_header()->mutable_timestamp()->set_sec(sec);
   text_marker.mutable_header()->mutable_timestamp()->set_nsec(nsec);
-  text_marker.mutable_header()->set_frameid("vehicle");
+  text_marker.mutable_header()->set_frameid("base");
   text_marker.mutable_pose()->mutable_position()->set_x(-5);
   text_marker.mutable_pose()->mutable_position()->set_y(0);
   text_marker.mutable_pose()->mutable_position()->set_z(0);
@@ -783,17 +782,14 @@ void LocationRviz::PubInsLocationState(
            bjTime.tm_hour, bjTime.tm_min,
            bjTime.tm_sec + milliseconds / 1000.0);
 
-  text_marker.set_text(
-      "location_state: " + std::to_string(location_state) + "\nins_state: " +
-      std::to_string(ins_state) + "\nsd_position: " + ToString(sd_position) +
-      "\ntimestamp: " + ToString(timestamp) +
-      "\nvelocity: " + ToString(velocity * 3.6) + "km/h" + "\nfc_heading: " +
-      ToString(fc_heading) + " ins_heading: " + ToString(ins_heading) +
-      "\nconv (*e-11): " + conv + "\nChinaTime: " + chinaTime +
-      "\nFC_KF_kydiff: " + ToString(FC_KF_kydiff[0]) + " " +
-      ToString(FC_KF_kydiff[1]) + " " + ToString(FC_KF_kydiff[2]) +
-      "\nFC_KF_cov: " + ToString(FC_KF_cov[0]) + " " + ToString(FC_KF_cov[1]) +
-      " " + ToString(FC_KF_cov[2]));
+  text_marker.set_text("location_state: " + std::to_string(location_state) +
+                       "\nins_state: " + std::to_string(ins_state) +
+                       "\nsd_position: " + ToString(sd_position) +
+                       "\ntimestamp: " + ToString(timestamp) +
+                       "\nvelocity: " + ToString(velocity * 3.6) + "km/h" +
+                       "\nfc_heading: " + ToString(fc_heading) +
+                       " ins_heading: " + ToString(ins_heading) +
+                       "\nconv (*e-4): " + conv + "\nChinaTime: " + chinaTime);
   text_marker.mutable_scale()->set_x(0.1);
   text_marker.mutable_scale()->set_y(0);
   text_marker.mutable_scale()->set_z(0.8);

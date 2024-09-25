@@ -388,9 +388,8 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
   int grp_idx = -1;
   double tmppose = -2.0;
   for (const auto& grp : groups) {
-    grp_idx += 1;
     std::string grp_ns =
-        "grp" + std::to_string(grp_idx) + "(" + grp->str_id + ")";
+        "grp" + std::to_string(grp_idx++) + "(" + grp->str_id + ")";
     if (grp == nullptr) {
       // HLOG_ERROR << "found nullptr group";
       continue;
@@ -451,8 +450,7 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
       marker_end_slice->CopyFrom(*marker_start_slice);
       marker_end_slice->set_id(1);
       marker_end_slice->clear_points();
-      left =
-          (grp->end_slice.pl - grp->end_slice.po) * scale + grp->end_slice.po;
+      left = grp->end_slice.pl * scale + grp->end_slice.po * (1 - scale);
       center = grp->end_slice.po;
       right =
           (grp->end_slice.pr - grp->end_slice.po) * scale + grp->end_slice.po;
@@ -480,9 +478,8 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
     if (!grp->lanes.empty()) {
       int lane_idx = -1;
       for (const auto& lane : grp->lanes) {
-        lane_idx += 1;
         std::string lane_ns =
-            "lane" + std::to_string(lane_idx) + "(" + lane->str_id + ")";
+            "lane" + std::to_string(lane_idx++) + "(" + lane->str_id + ")";
         // left_boundary
         auto* marker_left_bound = marker_array->add_markers();
         marker_left_bound->mutable_header()->CopyFrom(viz_header);
@@ -742,13 +739,12 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
       int line_segment_size = -1;
       for (auto line : grp->line_segments) {
         if (line->type == LaneType_LANE_VIRTUAL_MARKING && !line->pts.empty()) {
-          line_segment_size += 1;
           std::string line_ns =
               "line_segment_virtual_" + std::to_string(line_segment_size);
           auto* marker_line_text = marker_array->add_markers();
           marker_line_text->mutable_header()->CopyFrom(viz_header);
           marker_line_text->set_ns(grp_ns + '/' + line_ns);
-          marker_line_text->set_id(line_segment_size);
+          marker_line_text->set_id(line_segment_size++);
           marker_line_text->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
           double width = 0.2;
           marker_line_text->mutable_scale()->set_x(width);
@@ -826,7 +822,6 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
         }
         // HLOG_INFO << "road edge points size: " << road_edge->points.size();
 
-        edge_id += 1;
         std::string edge_ns = "road_edge_" + std::to_string(edge_id);
         auto* marker_edge_text = marker_array->add_markers();
 

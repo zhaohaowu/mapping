@@ -331,24 +331,20 @@ void PoseEstimation::RvizFunc(const LocalizationPtr& fc_pose_ptr,
   double gps_second = fc_pose_ptr->gps_sec();
   double fc_heading = fc_pose_ptr->pose().heading();
   double ins_heading = ins_pose_ptr->pose().heading();
-  Eigen::Vector3d FC_KF_kydiff(
-      fc_pose_ptr->pose().linear_acceleration_raw_vrf().x(),
-      fc_pose_ptr->pose().linear_acceleration_raw_vrf().y(),
-      fc_pose_ptr->pose().linear_acceleration_raw_vrf().z());
-  Eigen::Vector3d FC_KF_cov(fc_pose_ptr->pose().angular_velocity_raw_vrf().x(),
-                            fc_pose_ptr->pose().angular_velocity_raw_vrf().y(),
-                            fc_pose_ptr->pose().angular_velocity_raw_vrf().z());
   auto ToString = [](double value) {
     std::stringstream ss;
     ss << std::fixed << std::setprecision(2) << value;
     return ss.str();
   };
   std::string conv = ToString(fc_pose_ptr->covariance()[0]) + " " +
+                     ToString(fc_pose_ptr->covariance()[1]) + " " +
+                     ToString(fc_pose_ptr->covariance()[2]) + " " +
+                     ToString(fc_pose_ptr->covariance()[3]) + " " +
+                     ToString(fc_pose_ptr->covariance()[4]) + " " +
+                     ToString(fc_pose_ptr->covariance()[5]) + " " +
+                     ToString(fc_pose_ptr->covariance()[6]) + " " +
                      ToString(fc_pose_ptr->covariance()[7]) + " " +
-                     ToString(fc_pose_ptr->covariance()[14]) + " " +
-                     ToString(fc_pose_ptr->covariance()[21]) + " " +
-                     ToString(fc_pose_ptr->covariance()[28]) + " " +
-                     ToString(fc_pose_ptr->covariance()[35]);
+                     ToString(fc_pose_ptr->covariance()[8]);
 
   LOC_RVIZ->PubPerceptionByFc(T_fc_10hz, tracking_manager, sec, nsec,
                               "/pe/perception_by_fc");
@@ -362,8 +358,8 @@ void PoseEstimation::RvizFunc(const LocalizationPtr& fc_pose_ptr,
   LOC_RVIZ->PubInputOdom(T_input, sec, nsec, "/pe/input_odom");
   LOC_RVIZ->PubInsLocationState(
       ins_state, sd_position, location_state, tracking_manager.timestamp,
-      velocity, fc_heading, ins_heading, conv, gps_week, gps_second,
-      FC_KF_kydiff, FC_KF_cov, sec, nsec, "/pe/ins_location_state");
+      velocity, fc_heading, ins_heading, conv, gps_week, gps_second, sec, nsec,
+      "/pe/ins_location_state");
 }
 
 Eigen::Vector3d PoseEstimation::RotionMatrix2EulerAngle321(
@@ -444,7 +440,7 @@ LocalizationPtr PoseEstimation::GetFcPoseForTimestamp(
     return nullptr;
   }
   // __ | fc队列的时间在感知时间后面很远
-  if (fc_deque.back().header().data_stamp() < timestamp + 0.01) {
+  if (fc_deque.back().header().data_stamp() < timestamp - 0.01) {
     HLOG_ERROR << "fc is too old!";
     HLOG_ERROR << "fc_deque.back().header().data_stamp() "
                << fc_deque.back().header().data_stamp() << ",percep timestamp "
@@ -546,7 +542,7 @@ LocalizationPtr PoseEstimation::GetInsPoseForTimestamp(
     return nullptr;
   }
   // __ | ins队列的时间在感知时间后面很远
-  if (ins_deque.back().header().data_stamp() < timestamp + 0.01) {
+  if (ins_deque.back().header().data_stamp() < timestamp - 0.01) {
     HLOG_ERROR << "ins is too old!";
     return nullptr;
   }

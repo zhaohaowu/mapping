@@ -1,45 +1,32 @@
 %YAML:1.0
+# imu预测
+imu_noise_v_x: 8.3e-4
+imu_noise_v_y: 8.3e-4
+imu_noise_v_z: 8.3e-4
+imu_noise_ori_x: 2.9e-4
+imu_noise_ori_y: 2.9e-4
+imu_noise_ori_z: 2.9e-4
 
-recv_imu: true
-recv_ins: true
-recv_dr: true
-recv_pe: true
-imu_deque_max_size: 600
-ins_deque_max_size: 600
-dr_deque_max_size: 600
-pe_deque_max_size: 10
+# mm观测
+use_mm: true
+mm_noise_x: 1e-2           # 1cm
+mm_noise_y: 1e-2           # 1cm
+mm_noise_z: 1e-2           # 1cm
+mm_noise_ori_x: 1.7e-4     # 0.1度 0.1/180*pi=0.0017
+mm_noise_ori_y: 1.7e-4     # 0.1度
+mm_noise_ori_z: 1.7e-4     # 0.01度
 
-passthrough_ins: false
+# ins观测
+use_ins: false
+ins_noise_x: 1e-10
+ins_noise_y: 1e-10
+ins_noise_z: 1e-10
+ins_noise_ori_x: 1e-10
+ins_noise_ori_y: 1e-10
+ins_noise_ori_z: 1e-10
 
-ins_init_status:    # INS初始化的正常状态
-  - sys_status: 2
-    gps_status: 4
-
-refpoint_update_dist: 10000.0 #refpoint切换距离-m
-search_state_cnt: 45  # 在该帧数内有mm测量，loc = 2
-# 使用INS对MM进行补帧
-use_ins_predict_mm: false
-no_mm_min_time: 0.5  # 超过min_time无mm测量，使用ins进行补帧
-no_mm_max_time: 3    # 超过max_time无mm测量，直接使用ins测量
-# ESKF时加入DR测量
-use_dr_measurement: false
-# fc线程频率
-run_fusion_interval_ms: 10
-window_size: 100      # fc队列长度
-smooth_outputs: true # 开启KF平滑滤波
-use_smooth_yaw: true
-# fc使用txt调试mm,fc与INS差值
-use_debug_txt: false
-# LOC=2、5 进入退出协方差限制条件 * 1e-11
-loc2_posx_conv: 65.0
-loc2_posy_conv: 65.0
-loc2_yaw_conv: 0.25
-pos_exit_multiple: 62
-ang_exit_multiple: 12.2
-check_pe_dis: 0.5
-
-require_local_pose: false
-lateral_error_compensation: false
-max_dr_pe_horizontal_dist_error: 1.0
-max_dr_pe_heading_error: 5
-max_fc_pe_horizontal_dist_error: 0.5
+# chassis观测
+use_chassis: true
+chassis_noise_v_x: 1e-1    # 0.1m/s
+chassis_noise_v_y: 1e-1
+chassis_noise_v_z: 1e-1

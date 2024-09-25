@@ -8,46 +8,39 @@
 #include <gflags/gflags.h>
 #include <perception-lib/lib/environment/environment.h>
 
-#include "depend/proto/local_mapping/local_map.pb.h"
+#include <string>
+#include <utility>
+
+#include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
+#include "depend/perception-lib/lib/fault_manager/fault_manager.h"
+#include "depend/proto/soc/chassis.pb.h"
 #include "onboard/onboard_lite/location/fusion_center/fusion_center_lite.h"
+#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 #include "perception-base/base/state_machine/state_machine_info.h"
+#include "proto/soc/sensor_imu_ins.pb.h"
 
 namespace hozon {
-namespace perception {
-namespace common_onboard {
+namespace mp {
+namespace loc {
 
 const char* const kImuTopic = "imu_ins";
+const char* const kChassisTopic = "chassis";
 const char* const kInsFusionTopic = "/location/ins_fusion";
-const char* const kDrFusionTopic = "dr";
-const char* const kPoseEstimationTopic = "/location/pose_estimation";
-const char* const kLocalMapTopic = "local_map";
+const char* const kDrTopic = "dr";
+const char* const kMmTopic = "/location/pose_estimation";
 const char* const kFcTopic = "localization";
 const char* const kRunningModeTopic = "running_mode";
 const char* const kFcConfSuffix =
     "runtime_service/mapping/conf/mapping/"
     "location/fusion_center/fc_config.yaml";
-const char* const kFcKfConfSuffix =
-    "runtime_service/mapping/conf/mapping/location/fusion_center/kalman.yaml";
-const char* const kFcEskfConfSuffix =
-    "runtime_service/mapping/conf/mapping/location/fusion_center/eskf.yaml";
-const char* const kFcMonitorConfSuffix =
-    "runtime_service/mapping/conf/mapping/location/fusion_center/monitor.yaml";
-const char* const kCoordAdapterConf =
-    "runtime_service/mapping/conf/mapping/location/coord_adapter/config.yaml";
 
 int32_t FusionCenterLite::AlgInit() {
   const std::string adflite_root_path =
       hozon::perception::lib::GetEnv("ADFLITE_ROOT_PATH", ".");
   const std::string fc_config = adflite_root_path + "/" + kFcConfSuffix;
-  const std::string fc_kf_config = adflite_root_path + "/" + kFcKfConfSuffix;
-  const std::string fc_eskf_config =
-      adflite_root_path + "/" + kFcEskfConfSuffix;
-  const std::string fc_monitor_config =
-      adflite_root_path + "/" + kFcMonitorConfSuffix;
 
   fusion_center_ = std::make_unique<FusionCenter>();
-  if (!fusion_center_->Init(fc_config, fc_kf_config, fc_eskf_config,
-                            fc_monitor_config)) {
+  if (!fusion_center_->Init(fc_config)) {
     return -1;
   }
   RegistMessageType();
@@ -60,45 +53,46 @@ void FusionCenterLite::AlgRelease() {}
 
 void FusionCenterLite::RegistMessageType() const {
   REGISTER_PROTO_MESSAGE_TYPE(kImuTopic, hozon::soc::ImuIns);
+  REGISTER_PROTO_MESSAGE_TYPE(kChassisTopic, hozon::soc::Chassis);
   REGISTER_PROTO_MESSAGE_TYPE(kInsFusionTopic,
                               hozon::localization::HafNodeInfo);
-  REGISTER_PROTO_MESSAGE_TYPE(kDrFusionTopic, hozon::dead_reckoning::DeadReckoning);
-  REGISTER_PROTO_MESSAGE_TYPE(kPoseEstimationTopic,
-                              hozon::localization::HafNodeInfo);
+  REGISTER_PROTO_MESSAGE_TYPE(kDrTopic, hozon::dead_reckoning::DeadReckoning);
+  REGISTER_PROTO_MESSAGE_TYPE(kMmTopic, hozon::localization::HafNodeInfo);
   REGISTER_PROTO_MESSAGE_TYPE(kFcTopic, hozon::localization::Localization);
   REGISTER_PROTO_MESSAGE_TYPE(kRunningModeTopic,
                               hozon::perception::common_onboard::running_mode);
 }
 
 void FusionCenterLite::RegistProcessFunc() {
-  RegistAlgProcessFunc(
-      "recv_ins_fusion",
-      std::bind(&FusionCenterLite::OnInsFusion, this, std::placeholders::_1));
-  RegistAlgProcessFunc(
-      "recv_dr_fusion",
-      std::bind(&FusionCenterLite::OnDrFusion, this, std::placeholders::_1));
-  // temp remove
-  // RegistAlgProcessFunc(
-  //     "recv_local_map",
-  //     std::bind(&FusionCenterLite::OnLocalMap, this, std::placeholders::_1));
-  RegistAlgProcessFunc("recv_pose_estimation",
-                       std::bind(&FusionCenterLite::OnPoseEstimation, this,
-                                 std::placeholders::_1));
-  RegistAlgProcessFunc(
-      "recv_running_mode",
-      std::bind(&FusionCenterLite::OnRunningMode, this, std::placeholders::_1));
+  RegistAlgProcessFunc("recv_ins_fusion", [this](auto&& PH1) {
+    return OnInsFusion(std::forward<decltype(PH1)>(PH1));
+  });
+  RegistAlgProcessFunc("recv_dr", [this](auto&& PH1) {
+    return OnDr(std::forward<decltype(PH1)>(PH1));
+  });
+  RegistAlgProcessFunc("recv_mm", [this](auto&& PH1) {
+    return OnMm(std::forward<decltype(PH1)>(PH1));
+  });
+  RegistAlgProcessFunc("recv_imu", [this](auto&& PH1) {
+    return OnImu(std::forward<decltype(PH1)>(PH1));
+  });
+  RegistAlgProcessFunc("recv_chassis", [this](auto&& PH1) {
+    return OnChassis(std::forward<decltype(PH1)>(PH1));
+  });
+  RegistAlgProcessFunc("recv_running_mode", [this](auto&& PH1) {
+    return OnRunningMode(std::forward<decltype(PH1)>(PH1));
+  });
 }
 
 int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
-  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
+  auto* phm_fault = hozon::perception::lib::FaultManager::Instance();
   static bool input_data_init_error_flag = false;
-  static int ins_fusion_count = 0;
-  if (!input) {
+  if (input == nullptr) {
     return -1;
   }
-
   auto p_ins_fusion = input->GetOne(kInsFusionTopic);
   if (!p_ins_fusion) {
+    HLOG_WARN << "ins get_one failed";
     return -1;
   }
 
@@ -114,18 +108,18 @@ int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
     input_data_init_error_flag = true;
     HLOG_ERROR << "Location init failed!!!";
     return -1;
-  } else {
-    if (input_data_init_error_flag) {
-      phm_fault->Report(MAKE_FM_TUPLE(
-          hozon::perception::base::FmModuleId::MAPPING,
-          hozon::perception::base::FaultType::LOCALIZATION_CAN_NOT_INIT,
-          hozon::perception::base::FaultStatus::RESET,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
-      input_data_init_error_flag = false;
-    }
   }
-
+  if (input_data_init_error_flag) {
+    phm_fault->Report(MAKE_FM_TUPLE(
+        hozon::perception::base::FmModuleId::MAPPING,
+        hozon::perception::base::FaultType::LOCALIZATION_CAN_NOT_INIT,
+        hozon::perception::base::FaultStatus::RESET,
+        hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
+    input_data_init_error_flag = false;
+  }
   fusion_center_->OnIns(*ins_fusion);
+
+  static int ins_fusion_count = 0;
   ++ins_fusion_count;
   if (ins_fusion_count >= 100) {
     ins_fusion_count = 0;
@@ -134,155 +128,113 @@ int32_t FusionCenterLite::OnInsFusion(Bundle* input) {
   return 0;
 }
 
-int32_t FusionCenterLite::OnDrFusion(Bundle* input) {
-  auto phm_fault = hozon::perception::lib::FaultManager::Instance();
-  static bool input_data_value_error_flag = false;
-  static int dr_fusion_count = 0;
-  static int dr_fusion_begin_count = 0;
-
-  ++dr_fusion_begin_count;
-  if (dr_fusion_begin_count >= 100) {
-    dr_fusion_begin_count = 0;
-    HLOG_INFO << "rev dr_fusion lite begin heartbeat";
-  }
-
-  if (!input) {
+int32_t FusionCenterLite::OnDr(Bundle* input) {
+  auto* phm_fault = hozon::perception::lib::FaultManager::Instance();
+  if (input == nullptr) {
     return -1;
   }
-  auto p_dr_fusion = input->GetOne(kDrFusionTopic);
-  if (!p_dr_fusion) {
+  auto p_dr = input->GetOne(kDrTopic);
+  if (!p_dr) {
+    HLOG_WARN << "dr get_one failed";
     return -1;
   }
-  const auto dr_fusion =
+  const auto dr =
       std::static_pointer_cast<hozon::dead_reckoning::DeadReckoning>(
-          p_dr_fusion->proto_msg);
-  if (!dr_fusion) {
+          p_dr->proto_msg);
+  if (!dr) {
     return -1;
   }
-  fusion_center_->OnDR(*dr_fusion);
+  fusion_center_->OnDr(*dr);
 
-  // send output
-  auto localization = std::make_shared<hozon::localization::Localization>();
-  if (!fusion_center_->GetCurrentOutput(localization.get())) {
-    HLOG_ERROR << "onboard get localization result error";
+  static int dr_count = 0;
+  ++dr_count;
+  if (dr_count >= 100) {
+    dr_count = 0;
+    HLOG_INFO << "rev dr lite begin heartbeat";
+  }
+  return 0;
+}
+
+int32_t FusionCenterLite::OnMm(Bundle* input) {
+  if (input == nullptr) {
     return -1;
   }
-  double pose_x = localization->pose_local().position().x();
-  double pose_y = localization->pose_local().position().y();
-  double qua_w = localization->pose_local().quaternion().w();
-  double qua_x = localization->pose_local().quaternion().x();
-  double qua_y = localization->pose_local().quaternion().y();
-  double qua_z = localization->pose_local().quaternion().z();
-  if (std::isnan(pose_x) || std::isnan(pose_y) ||
-      (qua_w == 0 && qua_x == 0 && qua_y == 0 && qua_z == 0)) {
-    phm_fault->Report(MAKE_FM_TUPLE(
-        hozon::perception::base::FmModuleId::MAPPING,
-        hozon::perception::base::FaultType::
-                        LOCALIZATION_POSE_AND_ATTITUDE_CRITICAL_ABNORMALITY,
-        hozon::perception::base::FaultStatus::OCCUR,
-        hozon::perception::base::SensorOrientation::UNKNOWN, 3, 50));
-    input_data_value_error_flag = true;
-    HLOG_ERROR << "Location: output Nan";
-  } else {
-    if (input_data_value_error_flag) {
-      phm_fault->Report(MAKE_FM_TUPLE(
-          hozon::perception::base::FmModuleId::MAPPING,
-          hozon::perception::base::FaultType::
-                          LOCALIZATION_POSE_AND_ATTITUDE_CRITICAL_ABNORMALITY,
-          hozon::perception::base::FaultStatus::RESET,
-          hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
-      input_data_value_error_flag = false;
-    }
+  auto p_mm = input->GetOne(kMmTopic);
+  if (!p_mm) {
+    HLOG_WARN << "mm get_one failed";
+    return -1;
+  }
+  const auto mm = std::static_pointer_cast<hozon::localization::HafNodeInfo>(
+      p_mm->proto_msg);
+  if (!mm) {
+    return -1;
+  }
+  fusion_center_->OnMm(*mm);
+
+  static int mm_count = 0;
+  ++mm_count;
+  if (mm_count >= 100) {
+    mm_count = 0;
+    HLOG_INFO << "rev mm lite heartbeat";
+  }
+  return 0;
+}
+
+int32_t FusionCenterLite::OnImu(Bundle* input) {
+  static int imu_count = 0;
+  if (input == nullptr) {
+    return -1;
+  }
+  auto p_imu = input->GetOne(kImuTopic);
+  if (!p_imu) {
+    HLOG_WARN << "imu get_one failed";
+    return -1;
+  }
+  const auto imu =
+      std::static_pointer_cast<hozon::soc::ImuIns>(p_imu->proto_msg);
+  if (!imu) {
+    return -1;
+  }
+  fusion_center_->OnImu(*imu);
+  auto localization = fusion_center_->GetFcOutput();
+  if (!localization) {
+    HLOG_ERROR << "pub fc failed";
+    return -1;
   }
   auto localization_pack =
       std::make_shared<hozon::netaos::adf_lite::BaseData>();
   localization_pack->proto_msg = localization;
   SendOutput(kFcTopic, localization_pack);
-  ++dr_fusion_count;
-  if (dr_fusion_count >= 100) {
-    dr_fusion_count = 0;
-    HLOG_INFO << "rev dr_fusion lite end heartbeat";
+
+  ++imu_count;
+  if (imu_count >= 100) {
+    imu_count = 0;
+    HLOG_INFO << "rev imu lite heartbeat";
   }
   return 0;
 }
-// 目前fc没有用到local_map，当前放开会上报无效故障，暂时注释，后续接入时放开
-// int32_t FusionCenterLite::OnLocalMap(Bundle* input) {
-//   if (!input) {
-//     return -1;
-//   }
-//   if (init_dr_) {
-//     return 0;
-//   }
-//   static double last_lm_time = -1.0;
-//   auto phm_fault = hozon::perception::lib::FaultManager::Instance();
-//   auto p_local_map = input->GetOne(kLocalMapTopic);
-//   if (!p_local_map) {
-//     phm_fault->Report(MAKE_FM_TUPLE(
-//         hozon::perception::base::FmModuleId::MAPPING,
-//         hozon::perception::base::FaultType::
-//             MULTI_FRAME_LOCALMAPPING_INPUT_DATA_LOSS,
-//         hozon::perception::base::FaultStatus::OCCUR,
-//         hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
-//     HLOG_ERROR << "Location:localmap input data loss";
-//     return -1;
-//   }
-//   phm_fault->Report(
-//       MAKE_FM_TUPLE(hozon::perception::base::FmModuleId::MAPPING,
-//                     hozon::perception::base::FaultType::
-//                         MULTI_FRAME_LOCALMAPPING_INPUT_DATA_LOSS,
-//                     hozon::perception::base::FaultStatus::RESET,
-//                     hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
-//   const auto local_map = std::static_pointer_cast<hozon::mapping::LocalMap>(
-//       p_local_map->proto_msg);
-//   if (!local_map) {
-//     return -1;
-//   }
-//   double cur_lm_time = local_map->header().data_stamp();
-//   if (last_lm_time > 0) {
-//     if (last_lm_time - cur_lm_time > 0) {
-//       phm_fault->Report(MAKE_FM_TUPLE(
-//           hozon::perception::base::FmModuleId::MAPPING,
-//           hozon::perception::base::FaultType::
-//               MULTI_FRAME_LOCALMAPPING_INPUT_TIME_ERROR,
-//           hozon::perception::base::FaultStatus::OCCUR,
-//           hozon::perception::base::SensorOrientation::UNKNOWN, 3, 500));
-//       HLOG_ERROR << "Location:receieve localmap time error";
-//     } else {
-//       phm_fault->Report(MAKE_FM_TUPLE(
-//           hozon::perception::base::FmModuleId::MAPPING,
-//           hozon::perception::base::FaultType::
-//               MULTI_FRAME_LOCALMAPPING_INPUT_TIME_ERROR,
-//           hozon::perception::base::FaultStatus::RESET,
-//           hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
-//     }
-//   }
-//   last_lm_time = cur_lm_time;
-//   return 0;
-// }
 
-int32_t FusionCenterLite::OnPoseEstimation(Bundle* input) {
-  static int pe_count = 0;
-  if (!input) {
+int32_t FusionCenterLite::OnChassis(Bundle* input) {
+  static int chassis_count = 0;
+  if (input == nullptr) {
     return -1;
   }
-  auto p_pose_estimation = input->GetOne(kPoseEstimationTopic);
-  if (!p_pose_estimation) {
-    HLOG_ERROR << "FC !p_pose_estimation";
+  auto p_chassis = input->GetOne(kChassisTopic);
+  if (!p_chassis) {
+    HLOG_ERROR << "chassis get_one failed";
     return -1;
   }
-
-  const auto pose_estimation =
-      std::static_pointer_cast<hozon::localization::HafNodeInfo>(
-          p_pose_estimation->proto_msg);
-  if (!pose_estimation) {
+  const auto chassis =
+      std::static_pointer_cast<hozon::soc::Chassis>(p_chassis->proto_msg);
+  if (!chassis) {
     return -1;
   }
+  fusion_center_->OnChassis(*chassis);
 
-  fusion_center_->OnPoseEstimate(*pose_estimation);
-  ++pe_count;
-  if (pe_count >= 100) {
-    pe_count = 0;
-    HLOG_INFO << "rev PoseEstimation lite heartbeat";
+  ++chassis_count;
+  if (chassis_count >= 100) {
+    chassis_count = 0;
+    HLOG_INFO << "rev chassis lite heartbeat";
   }
   return 0;
 }
@@ -310,7 +262,7 @@ int32_t FusionCenterLite::OnRunningMode(Bundle* input) {
     if (last_runmode != runmode) {
       PauseTrigger("recv_ins_fusion");
       PauseTrigger("recv_pose_estimation");
-      PauseTrigger("recv_dr_fusion");
+      PauseTrigger("recv_dr");
       HLOG_INFO << "!!!!!!!!!!get run mode PARKING";
       last_runmode = runmode;
     }
@@ -322,7 +274,7 @@ int32_t FusionCenterLite::OnRunningMode(Bundle* input) {
     if (last_runmode != runmode) {
       ResumeTrigger("recv_ins_fusion");
       ResumeTrigger("recv_pose_estimation");
-      ResumeTrigger("recv_dr_fusion");
+      ResumeTrigger("recv_dr");
       HLOG_INFO << "!!!!!!!!!!get run mode DRIVER & UNKNOWN";
       last_runmode = runmode;
     }
@@ -336,6 +288,6 @@ int32_t FusionCenterLite::OnRunningMode(Bundle* input) {
   return 0;
 }
 
-}  // namespace common_onboard
-}  // namespace perception
+}  // namespace loc
+}  // namespace mp
 }  // namespace hozon

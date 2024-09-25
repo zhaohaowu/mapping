@@ -7,14 +7,14 @@ executorName: FusionCenterLite
 input:
   - topic: imu_ins
     capacity: 2
+  - topic: chassis
+    capacity: 2
   - topic: /location/ins_fusion
     capacity: 2
   - topic: dr
     capacity: 2
   - topic: /location/pose_estimation
     capacity: 2
-  # - topic: local_map
-  #   capacity: 2
   - topic: running_mode 
     capacity: 2
 
@@ -28,12 +28,12 @@ trigger:
     mainSources:
       - name: /location/ins_fusion
         timeout: 100
-  - name: recv_pose_estimation
+  - name: recv_mm
     type: EVENT
     mainSources:
       - name: /location/pose_estimation
         timeout: 1000
-  - name: recv_dr_fusion
+  - name: recv_dr
     type: EVENT
     mainSources:
       - name: dr
@@ -43,8 +43,13 @@ trigger:
     mainSources:
       - name: running_mode
         timeout: 1000
-  # - name: recv_local_map
-  #   type: EVENT
-  #   mainSources:
-  #     - name: local_map
-  #       timeout: 1000
+  - name: recv_imu
+    type: EVENT
+    mainSources:
+      - name: imu_ins
+        timeout: 1000
+  - name: recv_chassis
+    type: EVENT
+    mainSources:
+      - name: chassis
+        timeout: 1000

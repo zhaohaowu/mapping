@@ -309,6 +309,9 @@ bool OccProcessor::Process(ElementMap::Ptr element_map_ptr) {
                                      static_cast<float>(occ_point.z()));
       occ_road_points.emplace_back(occ_road_point);
     }
+    if (occ_road_points.empty()) {
+      continue;
+    }
     if (CheckOppositeLineByObj(occ_road_points, obj_points)) {
       HLOG_DEBUG << "CheckOppositeLineByObj id: " << occ->track_id
                  << ", detect_id: " << occ->detect_id;

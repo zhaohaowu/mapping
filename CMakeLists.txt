@@ -176,12 +176,21 @@ install(FILES version.json DESTINATION ${CMAKE_INSTALL_PREFIX} RENAME version.js
 install(
     DIRECTORY conf
     DESTINATION ${CMAKE_INSTALL_PREFIX_RS}
+    PATTERN "conf/mapping/map_fusion/modules" EXCLUDE
+    PATTERN "conf/mapping/map_fusion/map_fusion_module_config_manager.config" EXCLUDE
 )
 
 install(
     DIRECTORY conf/mapping/local_mapping
     DESTINATION ${CMAKE_INSTALL_PREFIX}/conf/mapping)
 
+install(
+    FILES conf/mapping/map_fusion/map_fusion_module_config_manager.config
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/conf/mapping/map_fusion)
+
+install(
+    DIRECTORY conf/mapping/map_fusion/modules
+    DESTINATION ${CMAKE_INSTALL_PREFIX}/conf/mapping/map_fusion)
 
 install(
     DIRECTORY conf/mapping/laneline_postprocess

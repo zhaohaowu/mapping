@@ -287,7 +287,6 @@ bool Odometry2D::Initialize() {
   gyro_bias_.setZero();
   qat_3D_ = Eigen::Quaterniond(1.0, 0., 0., 0.);  // w, x, y, z
   imu_acc_buffer_.reserve(50);
-  initialized_ = true;
 
   clear_imu_wheel_datas();
 
@@ -308,6 +307,9 @@ bool Odometry2D::Initialize() {
   cur_odom_data.loc_acc = {0, 0, 0};
   cur_odom_data.gear = 0;
   AddOdomData(cur_odom_data /*, 0.0*/);
+
+  initialized_ = true;
+
   // HLOG_DEBUG << "DR initialize done";
   std::cout << "DR initialize done" << std::endl;
   return true;

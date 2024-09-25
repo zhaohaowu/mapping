@@ -39,7 +39,7 @@ class MappingPositionManager {
   bool IsUnknownLaneline(const LaneLinePtr& laneline_ptrs,
                          bool has_main_line_flag);
   void SetLaneLinePosition(const std::vector<LaneLinePtr>& lane_lines);
-
+  void removeDuplicatesWithSet(std::vector<LaneLinePtr>* vec_lane);
  private:
   bool inited_ = false;
   std::unordered_map<int, std::tuple<float, float>>* lane_d_map;

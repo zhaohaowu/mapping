@@ -51,8 +51,10 @@ void LaneLineMergeTrack::MergeTrackPoints(
   for (const auto& pt : right_pts) {
     if (std::abs(pt.x() - begin_left_x) < 4.0) {
       auto y = curve_fitter.evalueValue(pt.x());
-      insert_pts.emplace_back(pt.x(), y, 0.0);
-      continue;
+      if (std::abs(y - pt.y()) < 2.0) {
+        insert_pts.emplace_back(pt.x(), y, 0.0);
+        continue;
+      }
     }
     insert_pts.emplace_back(pt);
   }

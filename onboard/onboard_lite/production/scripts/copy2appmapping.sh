@@ -9,10 +9,6 @@ function copy() {
   chmod 755 -R /app/runtime_service/mapping
   popd
 
-  if [ -f ${TOP_DIR}/../lib/libglobalproto.so ]; then
-      echo "rm libglobalproto.so!!!"
-      rm -rf ${TOP_DIR}/../lib/libglobalproto.so
-  fi
   cp -rf ${TOP_DIR}/../lib/* /app/lib/
   chown nvidia:nvidia -R /app/lib/
   chmod 755 -R /app/lib/
@@ -39,6 +35,24 @@ function remove() {
 
 function backup() {
   pushd /opt/usr/
+  mkdir -p mapping_backup/runtime_service
+  cp -rf /app/runtime_service/mapping mapping_backup/runtime_service/
+  sync
+
+  mkdir -p mapping_backup/lib
+  cp -rf /app/lib/libeuropa_common.so mapping_backup/lib/
+  cp -rf /app/lib/libeuropa_hdmap.so mapping_backup/lib/
+  cp -rf /app/lib/libperception-base-mal.so mapping_backup/lib/
+  cp -rf /app/lib/libperception-lib-mal.so mapping_backup/lib/
+  sync
+
+  mkdir -p mapping_backup/conf
+  cp -rf /app/conf/mapping  mapping_backup/conf/
+
+  mkdir -p mapping_backup/scripts/
+  cp -rf /app/scripts/mal_start.sh mapping_backup/scripts/
+  cp -rf /app/scripts/copy2appmapping.sh mapping_backup/scripts/
+  cp -rf /app/scripts/copy2appmapping_plugin.sh mapping_backup/scripts/
   popd
 }
 

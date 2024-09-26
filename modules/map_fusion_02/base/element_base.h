@@ -463,7 +463,7 @@ struct Line {
   // 末端heading角的标准差
   double mean_end_heading_std_dev = 0;
   // 末端平均点间距
-  double mean_end_interval = 0;
+  double mean_end_interval = 1.0;
   DEFINE_PTR(Line)
 };
 

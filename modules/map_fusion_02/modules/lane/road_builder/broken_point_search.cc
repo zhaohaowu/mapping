@@ -94,7 +94,6 @@ void BrokenPointSearch::ComputeLineHeading(const Line::Ptr& line) {
                            : std::accumulate(thetas.begin(), thetas.end(), 0.) /
                                  thetas.size();
   if (line->pts.size() < 2) {
-    line->mean_end_interval = 0;
     line->mean_end_heading = 0;
     line->mean_end_heading_std_dev = 0;
     line->pred_end_heading = std::make_tuple(0., 0., 0.);

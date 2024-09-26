@@ -165,9 +165,7 @@ bool LanePrediction::LaneLineNeedToPredict(const LineSegment& line,
   if (check_back && back_pt.x() < -conf_.junction_predict_distance) {
     valid_back = false;
   }
-  if (valid_back && dist_to_veh < conf_.predict_farthest_dist &&
-      mean_heading < conf_.max_heading_rad &&
-      mean_interval > conf_.min_predict_interval) {
+  if (valid_back) {
     return true;
   }
   return false;

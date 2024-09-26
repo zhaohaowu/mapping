@@ -2111,11 +2111,11 @@ void MapPrediction::GetRoutingFromLdRouting(
     hozon::hdmap::Id road_id;
     road_id.set_id("bd" + std::to_string(road_it));
     auto road_ptr = GLOBAL_HD_MAP->GetRoadById(road_id);
-    std::unordered_set<std::string> forward_lane_id_set;
     if (road_ptr == nullptr) {
       continue;
     }
     for (const auto& section_it : road_ptr->sections()) {
+      std::unordered_set<std::string> forward_lane_id_set;
       auto routing_road = current_routing_->add_road();
       routing_road->set_id(road_id.id());
 

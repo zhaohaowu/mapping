@@ -22,7 +22,6 @@
 #include "Eigen/src/Geometry/Transform.h"
 #include "base/utils/log.h"
 #include "depend/proto/localization/localization.pb.h"
-#include "modules/location/fusion_center/lib/defines.h"
 #include "modules/location/pose_estimation/lib/reloc/base.hpp"
 
 namespace hozon {
@@ -47,6 +46,35 @@ struct MappingManager {
 struct TrackingManager {
   double timestamp;
   std::unordered_map<int, LaneLine> lane_lines;
+};
+
+struct Node {
+  uint32_t seq = 0;
+  double ticktime = -1;
+  Eigen::Vector3d refpoint = Eigen::Vector3d::Zero();
+  Eigen::Vector3d blh = Eigen::Vector3d::Zero();
+  Eigen::Vector3d enu = Eigen::Vector3d::Zero();
+  Eigen::Vector3d orientation = Eigen::Vector3d::Zero();
+  Eigen::Vector3d velocity = Eigen::Vector3d::Zero();
+  Eigen::Vector3d linear_vel_VRF = Eigen::Vector3d::Zero();
+  // dr透传INS的角速度
+  Eigen::Vector3d ins_angular_velocity = Eigen::Vector3d::Zero();
+  // dr本身的角速度，只有yaw
+  Eigen::Vector3d angular_velocity = Eigen::Vector3d::Zero();
+  Eigen::Vector3d linear_accel = Eigen::Vector3d::Zero();
+  Eigen::Vector3d b_a = Eigen::Vector3d::Zero();
+  Eigen::Vector3d b_g = Eigen::Vector3d::Zero();
+  Eigen::Quaterniond quaternion;
+  Eigen::Matrix<double, 15, 15> cov = Eigen::Matrix<double, 15, 15>::Zero();
+
+  Eigen::Matrix<double, 6, 1> KF_kdiff = Eigen::Matrix<double, 6, 1>::Zero();
+  Eigen::Matrix<double, 6, 6> KF_cov = Eigen::Matrix<double, 6, 6>::Zero();
+  double pe_cov_coef = 0.0;
+  uint32_t sys_status = 0;
+  uint32_t rtk_status = 0;
+  uint32_t location_state = 0;
+  double heading = 0;
+  bool state = false;
 };
 
 struct MatchParam {
@@ -189,7 +217,6 @@ class Reloc {
 
   // @brief: lane-level relocalization matching core
   bool ProcData(
-      bool use_rviz,
       const std::shared_ptr<::hozon::localization::Localization>& localization,
       const std::shared_ptr<TrackingManager>& tracking_manager,
       const std::shared_ptr<MappingManager>& map_manager);
@@ -314,12 +341,11 @@ class Reloc {
   // @brief: get local index pattern
   std::vector<VoxelIndex> LocalIndexPattern(const VoxelIndex& hit_index,
                                             LaneType type);
-  static Sophus::SE3d Node2SE3(const hozon::mp::loc::fc::Node& node);
-  static Sophus::SE3d Node2SE3(
-      const std::shared_ptr<hozon::mp::loc::fc::Node>& node);
+  static Sophus::SE3d Node2SE3(const Node& node);
+  static Sophus::SE3d Node2SE3(const std::shared_ptr<Node>& node);
   void LocalizationToNode(
       const ::hozon::localization::Localization& localization,
-      hozon::mp::loc::fc::Node* global_pose, hozon::mp::loc::fc::Node* dr_pose);
+      Node* global_pose, Node* dr_pose);
   template <typename T>
   void Point3dToVector3d(const T& enu, Eigen::Vector3d* vector);
   template <typename T>

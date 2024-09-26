@@ -5,6 +5,7 @@
  *   date       ： 2024.04
  ******************************************************************************/
 #include "modules/location/pose_estimation/lib/pose_estimation.h"
+#include <unistd.h>
 
 #include <algorithm>
 #include <memory>
@@ -16,10 +17,10 @@
 #include "Eigen/src/Geometry/Transform.h"
 #include "Sophus/se3.hpp"
 #include "base/utils/log.h"
-#include "modules/location/pose_estimation/lib/clipper/clipper.hpp"
-#include "modules/location/pose_estimation/lib/reloc/reloc_rviz.hpp"
-#include "modules/util/include/util/rviz_agent/rviz_agent.h"
+#include "modules/rviz/location_rviz.h"
 #include "modules/util/include/util/tic_toc.h"
+#include "util/rviz_agent/rviz_agent.h"
+
 namespace hozon {
 namespace mp {
 namespace loc {
@@ -34,15 +35,11 @@ PoseEstimation::PoseEstimation() : proc_thread_run_(true) {
 PoseEstimation::~PoseEstimation() {
   proc_thread_run_ = false;
   {
-    std::unique_lock<std::mutex> lock(cv_mutex_);
-    cv_.notify_one();
+    std::unique_lock<std::mutex> lock(pe_cv_mutex_);
+    pe_cv_.notify_one();
   }
   if (proc_thread_.joinable()) {
     proc_thread_.join();
-  }
-  if (use_rviz_ && RVIZ_AGENT.Ok() && rviz_thread_.joinable()) {
-    stop_rviz_thread_ = true;
-    rviz_thread_.join();
   }
 }
 
@@ -57,9 +54,12 @@ bool PoseEstimation::LoadParams(const std::string& configfile) {
   ins_deque_max_size_ = node["ins_deque_max_size"].as<int>();
   perception_deque_max_size_ = node["perception_deque_max_size"].as<int>();
   fc_deque_max_size_ = node["fc_deque_max_size"].as<int>();
-  use_rviz_ = node["use_rviz"].as<bool>();
-  rviz_addr_ = node["rviz_addr"].as<std::string>();
   reloc_test_ = node["reloc_test"].as<bool>();
+
+  if (node["use_rviz"].as<bool>()) {
+    RVIZ_AGENT.Init("ipc:///tmp/rviz_agent_loc");
+    LOC_RVIZ->Init();
+  }
   return true;
 }
 
@@ -67,17 +67,6 @@ bool PoseEstimation::Init(const std::string& pose_estimation_yaml,
                           const std::string& map_matching_yaml) {
   if (!LoadParams(pose_estimation_yaml)) {
     return false;
-  }
-  if (use_rviz_) {
-    HLOG_DEBUG << "Start RvizAgent!!!";
-    int ret = RVIZ_AGENT.Init(rviz_addr_);
-    if (ret < 0) {
-      HLOG_ERROR << "RvizAgent start failed";
-    }
-  }
-  if (use_rviz_ && RVIZ_AGENT.Ok()) {
-    stop_rviz_thread_ = false;
-    rviz_thread_ = std::thread(&PoseEstimation::RvizFunc, this);
   }
   if (!map_matching_) {
     return false;
@@ -104,7 +93,7 @@ void PoseEstimation::OnLocation(
     return;
   }
   if (msg->location_state() == 0) {
-    HLOG_ERROR << "Global localization is error";
+    HLOG_WARN << "Global localization is error";
     return;
   }
 
@@ -113,7 +102,7 @@ void PoseEstimation::OnLocation(
       msg->pose().quaternion().w(), msg->pose().quaternion().x(),
       msg->pose().quaternion().y(), msg->pose().quaternion().z());
   if (enu_quaternion.norm() < 1e-6) {
-    HLOG_ERROR << "enu quaternion from fc is abnormal";
+    HLOG_WARN << "enu quaternion from fc is abnormal";
     return;
   }
   enu_quaternion.normalize();
@@ -125,53 +114,25 @@ void PoseEstimation::OnLocation(
   fc_deque_mutex_.unlock();
 
   // rviz可视化
-  if (use_rviz_ && RVIZ_AGENT.Ok()) {
-    Eigen::Vector3d gcj_position{msg->pose().gcj02().x(),
-                                 msg->pose().gcj02().y(),
-                                 msg->pose().gcj02().z()};
-    ref_point_mutex_.lock();
-    Eigen::Vector3d enu_position =
-        hozon::mp::util::Geo::Gcj02ToEnu(gcj_position, ref_point_);
-    ref_point_mutex_.unlock();
-    Eigen::Vector3d t_fc(enu_position.x(), enu_position.y(), enu_position.z());
-    Eigen::Quaterniond q_fc(enu_quaternion.w(), enu_quaternion.x(),
-                            enu_quaternion.y(), enu_quaternion.z());
-    Eigen::Affine3d T_fc = Eigen::Translation3d(t_fc) * Eigen::Affine3d(q_fc);
-    Eigen::Vector3d t_dr(msg->pose_local().position().x(),
-                         msg->pose_local().position().y(),
-                         msg->pose_local().position().z());
-    Eigen::Quaterniond q_dr(
-        msg->pose_local().quaternion().w(), msg->pose_local().quaternion().x(),
-        msg->pose_local().quaternion().y(), msg->pose_local().quaternion().z());
-    Eigen::Affine3d T_dr = Eigen::Translation3d(t_dr) * Eigen::Affine3d(q_dr);
-    // FC的KF协方差和Kydiff
-    Eigen::Vector4d KF_kydiff(msg->pose().linear_acceleration_raw_vrf().x(),
-                              msg->pose().linear_acceleration_raw_vrf().y(),
-                              msg->pose().linear_acceleration_raw_vrf().z(),
-                              msg->pose().wgs().x());
-    Eigen::Vector4d KF_cov(msg->pose().angular_velocity_raw_vrf().x(),
-                           msg->pose().angular_velocity_raw_vrf().y(),
-                           msg->pose().angular_velocity_raw_vrf().z(),
-                           msg->pose().wgs().y());
-    rviz_mutex_.lock();
-    T_fc_100hz_ = T_fc;
-    T_dr_100hz_ = T_dr;
-    FC_KF_kydiff_100hz_ = KF_kydiff;
-    FC_KF_cov_100hz_ = KF_cov;
-    auto ToString = [](double value) {
-      std::stringstream ss;
-      ss << std::fixed << std::setprecision(2) << value;
-      return ss.str();
-    };
-    conv_ =
-        ToString(msg->covariance()[0]) + " " + ToString(msg->covariance()[7]) +
-        " " + ToString(msg->covariance()[14]) + " " +
-        ToString(msg->covariance()[21]) + " " +
-        ToString(msg->covariance()[28]) + " " + ToString(msg->covariance()[35]);
-    rviz_mutex_.unlock();
-    rviz_init_ = true;
-    fc_heading_ = msg->pose().heading();
-  }
+  Eigen::Vector3d gcj_position{msg->pose().gcj02().x(), msg->pose().gcj02().y(),
+                               msg->pose().gcj02().z()};
+  ref_point_mutex_.lock();
+  Eigen::Vector3d enu_position =
+      hozon::mp::util::Geo::Gcj02ToEnu(gcj_position, ref_point_);
+  ref_point_mutex_.unlock();
+
+  // rviz可视化
+  Eigen::Vector3d t_fc(enu_position.x(), enu_position.y(), enu_position.z());
+  Eigen::Quaterniond q_fc(enu_quaternion.w(), enu_quaternion.x(),
+                          enu_quaternion.y(), enu_quaternion.z());
+  Eigen::Affine3d T_fc_100hz =
+      Eigen::Translation3d(t_fc) * Eigen::Affine3d(q_fc);
+  timespec cur_time{};
+  clock_gettime(CLOCK_REALTIME, &cur_time);
+  auto sec = cur_time.tv_sec;
+  auto nsec = cur_time.tv_nsec;
+  LOC_RVIZ->PubFcOdom(T_fc_100hz, sec, nsec, "/pe/fc_odom");
+  LOC_RVIZ->SetFcTf(T_fc_100hz);
 }
 
 void PoseEstimation::OnIns(const std::shared_ptr<const HafNodeInfo>& msg) {
@@ -208,10 +169,10 @@ void PoseEstimation::OnIns(const std::shared_ptr<const HafNodeInfo>& msg) {
     ins_init = true;
     ref_point_ = gcj_position;
   }
-  // enu系下的车辆运动超过20000米，重置refpoint
+  // enu系下的车辆运动超过10000米，重置refpoint
   Eigen::Vector3d enu_position =
       hozon::mp::util::Geo::Gcj02ToEnu(gcj_position, ref_point_);
-  if (enu_position.head<2>().norm() > 20000) {
+  if (enu_position.head<2>().norm() > 10000) {
     ref_point_ = gcj_position;
   }
   ref_point_mutex_.unlock();
@@ -233,21 +194,19 @@ void PoseEstimation::OnIns(const std::shared_ptr<const HafNodeInfo>& msg) {
   ins_deque_mutex_.unlock();
 
   // rviz可视化
-  if (RVIZ_AGENT.Ok() && use_rviz_) {
-    Eigen::Vector3d t_ins(enu_position.x(), enu_position.y(), enu_position.z());
-    Eigen::Quaterniond q_ins(enu_quaternion.w(), enu_quaternion.x(),
-                             enu_quaternion.y(), enu_quaternion.z());
-    Eigen::Affine3d T_ins =
-        Eigen::Translation3d(t_ins) * Eigen::Affine3d(q_ins);
-    rviz_mutex_.lock();
-    T_ins_100hz_ = T_ins;
-    rviz_mutex_.unlock();
-    ins_heading_ = msg->heading();
-  }
+  Eigen::Vector3d t_ins(enu_position.x(), enu_position.y(), enu_position.z());
+  Eigen::Quaterniond q_ins(enu_quaternion.w(), enu_quaternion.x(),
+                           enu_quaternion.y(), enu_quaternion.z());
+  Eigen::Affine3d T_ins_100hz =
+      Eigen::Translation3d(t_ins) * Eigen::Affine3d(q_ins);
+  timespec cur_time{};
+  clock_gettime(CLOCK_REALTIME, &cur_time);
+  auto sec = cur_time.tv_sec;
+  auto nsec = cur_time.tv_nsec;
+  LOC_RVIZ->PubInsOdom(T_ins_100hz, sec, nsec, "/pe/ins_odom");
 }
 
-void PoseEstimation::OnPerception(
-    const std::shared_ptr<const TransportElement>& msg) {
+void PoseEstimation::OnPerception(const std::shared_ptr<const LocalMap>& msg) {
   if (!msg) {
     return;
   }
@@ -255,8 +214,8 @@ void PoseEstimation::OnPerception(
   perception_ = *msg;
   perception_mutex_.unlock();
   {
-    std::unique_lock<std::mutex> lock(cv_mutex_);
-    cv_.notify_one();
+    std::unique_lock<std::mutex> lock(pe_cv_mutex_);
+    pe_cv_.notify_one();
   }
 }
 
@@ -264,82 +223,82 @@ void PoseEstimation::ProcData() {
   pthread_setname_np(pthread_self(), "mp_loc_proc");
   while (proc_thread_run_) {
     {
-      std::unique_lock<std::mutex> lock(cv_mutex_);
-      cv_.wait(lock);
+      std::unique_lock<std::mutex> lock(pe_cv_mutex_);
+      pe_cv_.wait(lock);
     }
-    HLOG_INFO << "pose_estimation proc_data thread heartbeat";
     util::TicToc tic;
+    HLOG_INFO << "pose_estimation proc_data thread heartbeat";
     // 获取感知数据
     perception_mutex_.lock();
-    TransportElement perception = perception_;
+    LocalMap perception = perception_;
     perception_mutex_.unlock();
-    static double last_per_timestamp = perception.header().data_stamp();
-    if (perception.header().data_stamp() - last_per_timestamp < 1e-3) {
-      HLOG_ERROR << "perception data repeat";
-      continue;
+    // 初始化感知 定位和地图为true
+    bool without_perception = false;
+    bool without_localization = false;
+    bool without_map = false;
+    if (perception.lane_lines().empty()) {
+      without_perception = true;
     }
-    last_per_timestamp = perception.header().data_stamp();
     // 获取refpoint
     ref_point_mutex_.lock();
     auto ref_point = ref_point_;
     ref_point_mutex_.unlock();
+    // 获取同步后的ins定位数据
+    LocalizationPtr ins_pose_ptr =
+        GetInsPoseForTimestamp(ref_point, perception.header().data_stamp());
+    if (!ins_pose_ptr) {
+      HLOG_WARN << "GetInsPoseForTimestamp Failed";
+      without_localization = true;
+    }
     // 获取同步后的fc定位数据
     LocalizationPtr fc_pose_ptr =
         GetFcPoseForTimestamp(ref_point, perception.header().data_stamp());
     if (!fc_pose_ptr) {
       HLOG_WARN << "GetFcPoseForTimestamp Failed";
-      continue;
+      without_localization = true;
     }
-    // 获取同步后的ins定位数据
-    LocalizationPtr ins_pose_ptr = GetInsPoseForTimestamp(
-        ref_point, perception.header().data_stamp());  // ins
-    if (!ins_pose_ptr) {
-      HLOG_ERROR << "GetInsPoseForTimestamp Failed";
-      continue;
-    }
-    // ins标准差赋值、定位状态、ins状态、线速度赋值
-    sd_position_ = std::max(ins_pose_ptr->pose().linear_acceleration().x(),
-                            ins_pose_ptr->pose().linear_acceleration().y());
-    location_state_ = static_cast<int>(fc_pose_ptr->location_state());
-    ins_state_ = static_cast<int>(fc_pose_ptr->rtk_status());
-    velocity_ = fc_pose_ptr->pose().linear_velocity_vrf().x();
-    gps_week_ = fc_pose_ptr->gps_week();
-    gps_second_ = fc_pose_ptr->gps_sec();
-    ins_height_ = ins_pose_ptr->pose().gcj02().z();
     // 获取高精地图
     std::vector<LaneInfoPtr> hdmap_lanes;
     if (!GetHdMapLane(fc_pose_ptr, &hdmap_lanes)) {
-      HLOG_ERROR << "GetHdMapLane Failed";
-      continue;
+      HLOG_WARN << "GetHdMapLane Failed";
+      without_map = true;
     }
+    // 定位状态异常判断
+    int warn_info = 0;
+    if (without_perception && without_localization && without_map) {
+      warn_info = 123;
+    } else if (without_perception && without_localization) {
+      warn_info = 12;
+    } else if (without_localization && without_map) {
+      warn_info = 23;
+    } else if (without_perception && without_map) {
+      warn_info = 13;
+    } else if (without_perception) {
+      warn_info = 1;
+    } else if (without_localization) {
+      warn_info = 2;
+    } else if (without_map) {
+      warn_info = 3;
+    }
+    map_matching_->SetWarnInfo(warn_info);
     // 感知转换
     TrackingManager tracking_manager;
-    if (!PercepConvert(perception, &tracking_manager)) {
-      HLOG_ERROR << "percep transform failed";
-      continue;
-    }
+    PercepConvert(perception, &tracking_manager);
     // 地图转换,enu系下的点
     MappingManager map_manager;
-    if (!MapConvert(*fc_pose_ptr, ref_point, hdmap_lanes, &map_manager)) {
-      HLOG_ERROR << "map transform failed";
-      continue;
-    }
-    Eigen::Affine3d T_fc = Localization2Eigen(fc_pose_ptr);
-    Eigen::Affine3d T_ins = Localization2Eigen(ins_pose_ptr);
-    // 可视化高精地图和感知
-    if (use_rviz_ && RVIZ_AGENT.Ok()) {
-      rviz_mutex_.lock();
-      tracking_manager_ = tracking_manager;
-      map_manager_ = map_manager;
-      T_fc_10hz_ = T_fc;
-      rviz_mutex_.unlock();
-    }
+    MapConvert(*fc_pose_ptr, ref_point, hdmap_lanes, &map_manager);
+    Eigen::Affine3d T_fc_10hz = Localization2Eigen(fc_pose_ptr);
+    Eigen::Affine3d T_ins_10hz = Localization2Eigen(ins_pose_ptr);
+
     // 求解mm初值
     // condition1: ins_good
     // condition2: !ins_good && location_good
     // condition3: !ins_good && !location_good
-    bool ins_good = ins_state_ == 4 && sd_position_ <= 0.05;
-    bool location_good = location_state_ == 2;
+    bool ins_good =
+        fc_pose_ptr->rtk_status() == 4 &&
+        std::max(ins_pose_ptr->pose().linear_acceleration().x(),
+                 ins_pose_ptr->pose().linear_acceleration().y()) <= 0.05;
+    bool location_good = fc_pose_ptr->location_state() == 2;
     Eigen::Affine3d T_input;
     int sys_status = 0;
     static bool mm_init = false;
@@ -351,17 +310,29 @@ void PoseEstimation::ProcData() {
       continue;
     }
     if (ins_good) {
-      T_input = T_ins;
+      T_input = T_ins_10hz;
       sys_status = 1;
     } else if (location_good || (!reloc_test_)) {
-      Eigen::Affine3d T_diff(Eigen::Matrix4d::Identity());
-      T_diff.translation().y() = (T_ins.inverse() * T_fc).translation().y();
-      T_input = T_ins * T_diff;
+      Eigen::Matrix4d T_i_f = (T_ins_10hz.inverse() * T_fc_10hz).matrix();
+      Eigen::Vector3d euler_angle_i_f =
+          RotionMatrix2EulerAngle321(T_i_f.block<3, 3>(0, 0));
+      Eigen::Matrix3d new_R =
+          (Eigen::AngleAxisd(euler_angle_i_f[2], Eigen::Vector3d::UnitZ()) *
+           Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY()) *
+           Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX()))
+              .matrix();
+      double new_y = T_i_f(1, 3);
+      Eigen::Matrix4d T_diff = Eigen::Matrix4d::Identity();
+      T_diff(1, 3) = new_y;              // 使用fc的y
+      T_diff.block<3, 3>(0, 0) = new_R;  // 使用fc的heading
+      T_input = T_ins_10hz * T_diff;
       sys_status = 2;
     } else {
       // 求解重定位位姿
-      reloc_->ResetStep(std::max(12.0, static_cast<double>(sd_position_)));
-      if (!reloc_->ProcData(use_rviz_, fc_pose_ptr,
+      reloc_->ResetStep(std::max(
+          12.0, std::max(ins_pose_ptr->pose().linear_acceleration().x(),
+                         ins_pose_ptr->pose().linear_acceleration().y())));
+      if (!reloc_->ProcData(fc_pose_ptr,
                             std::make_shared<TrackingManager>(tracking_manager),
                             std::make_shared<MappingManager>(map_manager))) {
         HLOG_ERROR << "Reloc Failed";
@@ -370,18 +341,85 @@ void PoseEstimation::ProcData() {
       reloc_->GetRelocPose(&T_input);
       sys_status = 3;
     }
-    if (use_rviz_ && RVIZ_AGENT.Ok()) {
-      rviz_mutex_.lock();
-      T_input_ = T_input;
-      rviz_mutex_.unlock();
-    }
     auto T_input_new = Sophus::SE3d(Eigen::Quaterniond(T_input.rotation()),
                                     Eigen::Vector3d(T_input.translation()));
     // mm模块
-    map_matching_->ProcData(use_rviz_, T_input_new, fc_pose_ptr, perception,
-                            hdmap_lanes, ref_point, ins_height_, sys_status);
+    map_matching_->ProcData(T_input_new, fc_pose_ptr, perception, hdmap_lanes,
+                            ref_point, fc_pose_ptr->pose().gcj02().z(),
+                            sys_status);
+    RvizFunc(fc_pose_ptr, tracking_manager, map_manager, T_input, T_fc_10hz,
+             perception.header().data_stamp());
     HLOG_DEBUG << "pose_estimation cost " << tic.Toc() << " ms";
   }
+}
+
+void PoseEstimation::RvizFunc(const LocalizationPtr& fc_pose_ptr,
+                              const TrackingManager& tracking_manager,
+                              const MappingManager& map_manager,
+                              const Eigen::Affine3d& T_input,
+                              const Eigen::Affine3d& T_fc_10hz,
+                              double per_timestamp) {
+  auto ToString = [](double value) {
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(2) << value;
+    return ss.str();
+  };
+  std::string fc_conv = ToString(fc_pose_ptr->covariance()[0]) + " " +
+                        ToString(fc_pose_ptr->covariance()[1]) + " " +
+                        ToString(fc_pose_ptr->covariance()[2]) + " " +
+                        ToString(fc_pose_ptr->covariance()[3]) + " " +
+                        ToString(fc_pose_ptr->covariance()[4]) + " " +
+                        ToString(fc_pose_ptr->covariance()[5]) + " " +
+                        ToString(fc_pose_ptr->covariance()[6]) + " " +
+                        ToString(fc_pose_ptr->covariance()[7]) + " " +
+                        ToString(fc_pose_ptr->covariance()[8]);
+  LOC_RVIZ->SetFc(T_fc_10hz);
+  LOC_RVIZ->SetInputPose(T_input);
+  LOC_RVIZ->SetHdmap(map_manager);
+  LOC_RVIZ->SetPerception(tracking_manager);
+  // ins
+  LOC_RVIZ->SetInsState(static_cast<int>(fc_pose_ptr->rtk_status()));
+  LOC_RVIZ->SetInsSdPosition(
+      fc_pose_ptr->pose().linear_acceleration_raw_vrf().x());
+  LOC_RVIZ->SetInsHeight(fc_pose_ptr->pose().linear_acceleration_raw_vrf().y());
+  LOC_RVIZ->SetInsHeading(
+      fc_pose_ptr->pose().linear_acceleration_raw_vrf().z());
+  LOC_RVIZ->SetGpsWeek(fc_pose_ptr->gps_week());
+  LOC_RVIZ->SetGpsSec(fc_pose_ptr->gps_sec());
+  // fc
+  LOC_RVIZ->SetFcState(static_cast<int>(fc_pose_ptr->location_state()));
+  LOC_RVIZ->SetVelocityVrf(fc_pose_ptr->pose().linear_velocity_vrf().x());
+  LOC_RVIZ->SetFcHeading(fc_pose_ptr->pose().heading());
+  LOC_RVIZ->SetFcConv(fc_conv);
+  // 感知
+  LOC_RVIZ->SetPerTime(per_timestamp);
+}
+
+Eigen::Vector3d PoseEstimation::RotionMatrix2EulerAngle321(
+    const Eigen::Matrix3d& rotation_matrix) {
+  double roll = NAN;
+  double pitch = NAN;
+  double yaw = NAN;
+  if (rotation_matrix(0, 2) < 1) {
+    if (rotation_matrix(0, 2) > -1) {
+      // Calculate roll, pitch, and yaw angles
+      roll = atan2(rotation_matrix(2, 1), rotation_matrix(2, 2));
+      pitch = asin(-rotation_matrix(2, 0));
+      yaw = atan2(rotation_matrix(1, 0), rotation_matrix(0, 0));
+    } else {  // rotationMatrix(0, 2) == -1
+      // Gimbal lock case: pitch = -pi/2, roll - yaw can be solved as roll +
+      // yaw
+      roll = -atan2(-rotation_matrix(1, 2), rotation_matrix(1, 1));
+      pitch = -M_PI / 2;
+      yaw = 0;
+    }
+  } else {  // rotationMatrix(0, 2) == 1
+    // Gimbal lock case: pitch = pi/2, roll + yaw can be solved as roll - yaw
+    roll = atan2(-rotation_matrix(1, 2), rotation_matrix(1, 1));
+    pitch = M_PI / 2;
+    yaw = 0;
+  }
+  return {roll, pitch, yaw};
 }
 
 Eigen::Affine3d PoseEstimation::Localization2Eigen(
@@ -435,7 +473,7 @@ LocalizationPtr PoseEstimation::GetFcPoseForTimestamp(
     return nullptr;
   }
   // __ | fc队列的时间在感知时间后面很远
-  if (fc_deque.back().header().data_stamp() < timestamp + 0.01) {
+  if (fc_deque.back().header().data_stamp() < timestamp - 0.01) {
     HLOG_ERROR << "fc is too old!";
     HLOG_ERROR << "fc_deque.back().header().data_stamp() "
                << fc_deque.back().header().data_stamp() << ",percep timestamp "
@@ -537,7 +575,7 @@ LocalizationPtr PoseEstimation::GetInsPoseForTimestamp(
     return nullptr;
   }
   // __ | ins队列的时间在感知时间后面很远
-  if (ins_deque.back().header().data_stamp() < timestamp + 0.01) {
+  if (ins_deque.back().header().data_stamp() < timestamp - 0.01) {
     HLOG_ERROR << "ins is too old!";
     return nullptr;
   }
@@ -604,6 +642,14 @@ bool PoseEstimation::GetHdMapLane(const LocalizationPtr& fc_pose_ptr,
   utm_position.set_x(y);
   utm_position.set_y(x);
   utm_position.set_z(0);
+
+  // std::vector<hozon::hdmap::JunctionInfoConstPtr> junctions;
+  // GLOBAL_HD_MAP->GetJunctions(utm_position, 20, &junctions);
+  // if (!junctions.empty()) {
+  //   HLOG_WARN << "vehicle is in juction, mm not work";
+  //   return false;
+  // }
+
   // fc的heading和ins_fusion的坐标系都是北东地方向（heading范围为0到360度），utm的坐标系为东北天方向（heading范围为-180到180度）
   // GetLanesWithHeading函数需要传入的参数为utm坐标系下的heading，因此下面6行表示将ins_fusion坐标系的heading转成utm坐标系的heading
   double heading = -fc_pose_ptr->pose().heading() * M_PI / 180.0 + M_PI / 2;
@@ -612,55 +658,19 @@ bool PoseEstimation::GetHdMapLane(const LocalizationPtr& fc_pose_ptr,
   } else if (heading < -M_PI) {
     heading += 2 * M_PI;
   }
-  is_junction_ = false;
-  std::vector<hozon::hdmap::JunctionInfoConstPtr> junctions;
-  GLOBAL_HD_MAP->GetJunctions(utm_position, 20, &junctions);
-  ClipperLib::DoublePoint point{utm_position.x(), utm_position.y()};
-  ClipperLib::DoublePath path;
-  for (const auto& junction : junctions) {
-    path.clear();
-    for (const auto& p : junction->polygon().points()) {
-      path.emplace_back(ClipperLib::DoublePoint{p.x(), p.y()});
-    }
-    if (!path.empty()) {
-      path.emplace_back(path.front());
-    } else {
-      continue;
-    }
-    if (PointInPolygon(point, path) != 0) {
-      is_junction_ = true;
-      break;
-    }
-  }
-
   GLOBAL_HD_MAP->GetLanesWithHeading(utm_position, 150, heading, M_PI_4,
                                      hdmap_lanes);
   if (hdmap_lanes->empty()) {
-    HLOG_ERROR << "Get HdMap Failed";
-    HLOG_ERROR << "x " << fc_pose_ptr->pose().gcj02().x() << " y "
-               << fc_pose_ptr->pose().gcj02().y() << " heading " << heading;
+    HLOG_WARN << "Get HdMap Failed";
+    HLOG_WARN << "x " << fc_pose_ptr->pose().gcj02().x() << " y "
+              << fc_pose_ptr->pose().gcj02().y() << " heading " << heading;
     return false;
   }
   return true;
 }
 
 std::shared_ptr<HafNodeInfo> PoseEstimation::GetMmNodeInfo() {
-  auto mm = map_matching_->getMmNodeInfo();
-  if (!mm) {
-    mm = std::make_shared<HafNodeInfo>();
-    mm->mutable_header()->set_publish_stamp(GetCurrentNsecTime());
-    mm->set_is_valid(false);
-    mm->set_valid_estimate(false);
-  }
-  if (is_junction_) {
-    mm->set_valid_estimate(false);
-  }
-  auto publish_time = GetCurrentNsecTime();
-  if (fabs(mm->header().publish_stamp() - publish_time) > 0.2) {
-    mm->mutable_header()->set_publish_stamp(GetCurrentNsecTime());
-  }
-  mm->set_gps_status(static_cast<int>(is_junction_));
-  return mm;
+  return map_matching_->getMmNodeInfo();
 }
 
 template <typename T0, typename T1, typename T2>
@@ -773,16 +783,16 @@ void PoseEstimation::AddMapLine(const Eigen::Affine3d& T_V_W,
   }
 }
 
-bool PoseEstimation::PercepConvert(const TransportElement& perception,
+bool PoseEstimation::PercepConvert(const LocalMap& perception,
                                    TrackingManager* tracking_manager) {
-  if (perception.lane().empty() && perception.road_edges().empty()) {
+  if (perception.lane_lines().empty() && perception.road_edges().empty()) {
     HLOG_ERROR << "perception: both laneline and roadedge is empty";
     return false;
   }
   tracking_manager->timestamp = perception.header().data_stamp();
   auto& lane_lines = tracking_manager->lane_lines;
   int per_id = 0;
-  for (const auto& lane_line : perception.lane()) {
+  for (const auto& lane_line : perception.lane_lines()) {
     auto& every_lane_line = lane_lines[per_id++];
     for (const auto& point : lane_line.points()) {
       // if (point.x() > 40) {
@@ -915,55 +925,6 @@ bool PoseEstimation::Pose2Eigen(const hozon::common::Pose& pose,
                     pose.position().z());
   *affine3d = Eigen::Translation3d(t) * Eigen::Affine3d(q);
   return true;
-}
-
-void PoseEstimation::RvizFunc() {
-  while (!stop_rviz_thread_) {
-    if (!rviz_init_) {
-      usleep(9 * 1e3);
-      continue;
-    }
-    rviz_mutex_.lock();
-    TrackingManager perception = tracking_manager_;
-    MappingManager hdmap = map_manager_;
-    Eigen::Affine3d T_ins_100hz = T_ins_100hz_;
-    Eigen::Affine3d T_fc_100hz = T_fc_100hz_;
-    Eigen::Affine3d T_dr_100hz = T_dr_100hz_;
-    Eigen::Affine3d T_fc_10hz = T_fc_10hz_;
-    Eigen::Affine3d T_input = T_input_;
-    Eigen::Vector4d FC_KF_kydiff_100hz = FC_KF_kydiff_100hz_;
-    Eigen::Vector4d FC_KF_cov_100hz = FC_KF_cov_100hz_;
-    std::string conv = conv_;
-    rviz_mutex_.unlock();
-    timespec cur_time{};
-    clock_gettime(CLOCK_REALTIME, &cur_time);
-    auto sec = cur_time.tv_sec;
-    auto nsec = cur_time.tv_nsec;
-    RelocRviz::PubFcOdom(T_fc_100hz, sec, nsec, "/pe/fc_odom");
-    RelocRviz::PubDrOdom(T_dr_100hz, sec, nsec, "/pe/dr_odom");
-    RelocRviz::PubFcTf(T_fc_100hz, sec, nsec, "/pe/fc_tf");
-    static Eigen::Affine3d T_map_localmap = T_fc_100hz * T_dr_100hz.inverse();
-    RelocRviz::PubMapLocalmapTf(T_map_localmap, sec, nsec,
-                                "/pe/map_localmap_tf");
-    RelocRviz::PubFcPath(T_fc_100hz, sec, nsec, "/pe/fc_path");
-    RelocRviz::PubPerceptionByFc(T_fc_10hz, perception, sec, nsec,
-                                 "/pe/perception_by_fc");
-    RelocRviz::PubPerceptionByInput(T_input, perception, sec, nsec,
-                                    "/pe/perception_by_input");
-    RelocRviz::PubPerceptionMarkerByFc(T_fc_10hz, perception, sec, nsec,
-                                       "/pe/perception_marker_by_fc");
-    RelocRviz::PubKFParamsByFc(FC_KF_kydiff_100hz, FC_KF_cov_100hz, sec, nsec,
-                               "/pe/KFParams_marker_by_fc");
-    RelocRviz::PubHdmap(T_fc_10hz, hdmap, sec, nsec, "/pe/hdmap");
-    RelocRviz::PubHdmapMarker(T_fc_10hz, hdmap, sec, nsec, "/pe/hdmap_marker");
-    RelocRviz::PubInsLocationState(
-        T_fc_100hz, ins_state_, sd_position_, location_state_,
-        perception.timestamp, velocity_, fc_heading_, ins_heading_, conv, sec,
-        nsec, "/pe/ins_location_state", gps_week_, gps_second_);
-    RelocRviz::PubInsOdom(T_ins_100hz, sec, nsec, "/pe/ins_odom");
-    RelocRviz::PubInputOdom(T_input, sec, nsec, "/pe/input_odom");
-    usleep(9 * 1e3);
-  }
 }
 
 }  // namespace pe

@@ -14,23 +14,22 @@ namespace mp {
 namespace loc {
 
 Perception::Perception() {}
-Perception::Perception(
-    const ::hozon::perception::TransportElement &transport_element) {
+Perception::Perception(const ::hozon::mapping::LocalMap& transport_element) {
   Set(transport_element);
 }
 
-void Perception::Set(
-    const ::hozon::perception::TransportElement &transport_element) {
+void Perception::Set(const ::hozon::mapping::LocalMap& transport_element) {
   SetLaneLineList(transport_element);
 }
 
 void Perception::SetLaneLineList(
-    const ::hozon::perception::TransportElement &transport_element) {
+    const ::hozon::mapping::LocalMap& transport_element) {
   auto p = std::make_shared<PerceptionLaneLineList>(transport_element);
   element_.emplace_back(p);
 }
 
-// void Perception<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>::SetRoadEdgeList(
+// void
+// Perception<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>::SetRoadEdgeList(
 //     const ::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut &lane_line) {
 //   auto p = std::make_shared<
 //       PerceptionRoadEdgeList<::adsfi_proto::hz_Adsfi::AlgLaneDetectionOut>>(

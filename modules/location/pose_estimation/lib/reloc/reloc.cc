@@ -15,8 +15,7 @@
 #include "Eigen/src/Core/Matrix.h"
 #include "Eigen/src/Geometry/Transform.h"
 #include "base/utils/log.h"
-#include "modules/location/pose_estimation/lib/reloc/reloc_rviz.hpp"
-#include "modules/util/include/util/rviz_agent/rviz_agent.h"
+#include "modules/rviz/location_rviz.h"
 #include "reloc/base.hpp"
 
 namespace hozon {
@@ -103,7 +102,6 @@ void Reloc::InitMatch() {
 }
 
 bool Reloc::ProcData(
-    bool use_rviz,
     const std::shared_ptr<::hozon::localization::Localization>& localization,
     const std::shared_ptr<TrackingManager>& tracking_manager,
     const std::shared_ptr<MappingManager>& map_manager) {
@@ -142,9 +140,11 @@ bool Reloc::ProcData(
   ComputeRelocPose(localization);
 
   // 6. rviz可视化
-  if (use_rviz && RVIZ_AGENT.Ok()) {
-    RvizFunc(tracking_manager);
-  }
+  timespec cur_time{};
+  clock_gettime(CLOCK_REALTIME, &cur_time);
+  auto sec = cur_time.tv_sec;
+  auto nsec = cur_time.tv_nsec;
+  LOC_RVIZ->PubRelocOdom(T_w_v_, sec, nsec, "/pe/reloc_odom");
 
   return true;
 }
@@ -306,9 +306,9 @@ bool Reloc::GenerateSearchPose() {
               return a.point.y() < b.point.y();
             });
 
-  int left = static_cast<int>(map_grid_points.size()) - 1;
-  int right = 0;
   for (const auto& y : search_ys_) {
+    int left = static_cast<int>(map_grid_points.size()) - 1;
+    int right = 0;
     if (y < map_grid_points.front().point.y()) {
       left = 0;
       right = -1;
@@ -756,8 +756,8 @@ bool Reloc::FilterPrediction(
     return false;
   }
   // check if need reset filter
-  hozon::mp::loc::fc::Node curr_global_node;
-  hozon::mp::loc::fc::Node curr_dr_node;
+  Node curr_global_node;
+  Node curr_dr_node;
   LocalizationToNode(*localization, &curr_global_node, &curr_dr_node);
   bool timestamp_large_gap =
       localization->header().data_stamp() -
@@ -783,8 +783,8 @@ bool Reloc::FilterPrediction(
     return true;
   }
 
-  hozon::mp::loc::fc::Node last_global_node;
-  hozon::mp::loc::fc::Node last_dr_node;
+  Node last_global_node;
+  Node last_dr_node;
   LocalizationToNode(*last_localization_node_, &last_global_node,
                      &last_dr_node);
   // grid center prediction
@@ -1014,12 +1014,12 @@ bool Reloc::FilterConvergenceCheck() {
   // }
 
   // 如果前面某一步失败导致未收敛，需要连续重定位的距离大于5m满足重定位条件
-  hozon::mp::loc::fc::Node last_odom_state_global_node;
-  hozon::mp::loc::fc::Node last_odom_state_dr_node;
+  Node last_odom_state_global_node;
+  Node last_odom_state_dr_node;
   LocalizationToNode(*odom_state_last_converge_, &last_odom_state_global_node,
                      &last_odom_state_dr_node);
-  hozon::mp::loc::fc::Node last_global_node;
-  hozon::mp::loc::fc::Node last_dr_node;
+  Node last_global_node;
+  Node last_dr_node;
   LocalizationToNode(*last_localization_node_, &last_global_node,
                      &last_dr_node);
 
@@ -1431,19 +1431,17 @@ void Reloc::GetFinalMatchIndex() {
   }
 }
 
-Sophus::SE3d Reloc::Node2SE3(const hozon::mp::loc::fc::Node& node) {
+Sophus::SE3d Reloc::Node2SE3(const Node& node) {
   return {Sophus::SO3d::exp(node.orientation), node.enu};
 }
 
-Sophus::SE3d Reloc::Node2SE3(
-    const std::shared_ptr<hozon::mp::loc::fc::Node>& node) {
+Sophus::SE3d Reloc::Node2SE3(const std::shared_ptr<Node>& node) {
   return Node2SE3(*node);
 }
 
 void Reloc::LocalizationToNode(
     const ::hozon::localization::Localization& localization,
-    hozon::mp::loc::fc::Node* const global_pose,
-    hozon::mp::loc::fc::Node* const dr_pose) {
+    Node* const global_pose, Node* const dr_pose) {
   Point3dToVector3d(localization.pose().angular_velocity(),
                     &global_pose->angular_velocity);
   Point3dToVector3d(localization.pose().linear_velocity(),
@@ -1531,16 +1529,6 @@ void Reloc::ComputeRelocPose(
   T_w_v1.topLeftCorner(3, 3) = q_w_v1.toRotationMatrix();
   // T_w_v1和T_v1_v转为T_w_v，重定位位姿
   T_w_v_ = Eigen::Affine3d(T_w_v1 * T_v1_v);
-}
-
-void Reloc::RvizFunc(const std::shared_ptr<TrackingManager>& tracking_manager) {
-  timespec cur_time{};
-  clock_gettime(CLOCK_REALTIME, &cur_time);
-  auto sec = cur_time.tv_sec;
-  auto nsec = cur_time.tv_nsec;
-  RelocRviz::PubPerceptionMarkerReloc(T_w_v_, *tracking_manager, sec, nsec,
-                                      "/pe/perception_marker_reloc");
-  RelocRviz::PubRelocOdom(T_w_v_, sec, nsec, "/pe/reloc_odom");
 }
 
 }  // namespace pe

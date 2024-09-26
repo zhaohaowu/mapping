@@ -8,31 +8,23 @@
 #pragma once
 
 #include <adf-lite/include/base.h>
-// #include <common_onboard/adapter/onboard_lite/onboard_lite.h>
 
 #include <memory>
-#include <string>
 
 #include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
-#include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
-#include "modules/location/coord_adapter/lib/coord_adapter.h"
 #include "modules/location/fusion_center/lib/fusion_center.h"
-#include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
-#include "depend/perception-lib/lib/fault_manager/fault_manager.h"
-#include "depend/perception-lib/lib/health_manager/health_manager.h"
 
 namespace hozon {
-namespace perception {
-namespace common_onboard {
+namespace mp {
+namespace loc {
 
-using hozon::mp::loc::ca::CoordAdapter;
 using hozon::mp::loc::fc::FusionCenter;
 using hozon::netaos::adf_lite::Bundle;
 
 class FusionCenterLite : public hozon::netaos::adf_lite::Executor {
  public:
   FusionCenterLite() = default;
-  ~FusionCenterLite() = default;
+  ~FusionCenterLite() override = default;
 
   int32_t AlgInit() override;
   void AlgRelease() override;
@@ -41,18 +33,18 @@ class FusionCenterLite : public hozon::netaos::adf_lite::Executor {
   void RegistMessageType() const;
   void RegistProcessFunc();
   int32_t OnInsFusion(Bundle* input);
-  int32_t OnDrFusion(Bundle* input);
-  // int32_t OnLocalMap(Bundle* input);
-  int32_t OnPoseEstimation(Bundle* input);
+  int32_t OnDr(Bundle* input);
+  int32_t OnImu(Bundle* input);
+  int32_t OnChassis(Bundle* input);
+  int32_t OnMm(Bundle* input);
   int32_t OnRunningMode(Bundle* input);
 
  private:
   std::unique_ptr<FusionCenter> fusion_center_ = nullptr;
-  bool init_dr_ = false;
 };
 
 REGISTER_ADF_CLASS(FusionCenterLite, FusionCenterLite);
 
-}  // namespace common_onboard
-}  // namespace perception
+}  // namespace loc
+}  // namespace mp
 }  // namespace hozon

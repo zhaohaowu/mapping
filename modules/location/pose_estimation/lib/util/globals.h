@@ -45,6 +45,7 @@ struct MapMatchLaneLineParams {
   bool use_map_lane_match_fault;
   double min_vel;
   double single_error_min_vel;
+  double double_error_min_vel;
   double map_lane_match_diver;
   double ramp_judg_thre;
   double fault_restore_dis;
@@ -54,6 +55,10 @@ struct MapMatchLaneLineParams {
   int map_lane_match_buff;
   int fault_restore_buff;
   double map_lane_match_ser_max;
+  double map_lane_match_max;
+  double map_lane_match_single_diff;
+  double map_lane_match_double_diff;
+  double map_percep_width_diff;
   int map_lane_match_ser_buff;
   double far_dis;
   double straight_far_dis;

@@ -18,6 +18,7 @@
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 #include "perception-base/base/state_machine/state_machine_info.h"
+#include "proto/local_mapping/local_map.pb.h"
 
 DEFINE_string(pose_estimation_yaml,
               "runtime_service/mapping/conf/mapping/location/"
@@ -118,8 +119,7 @@ void PoseEstimationLite::RegistMessageType() const {
   REGISTER_PROTO_MESSAGE_TYPE(kinsFusionTopic_,
                               hozon::localization::HafNodeInfo);
   REGISTER_PROTO_MESSAGE_TYPE(kFcTopic_, hozon::localization::Localization);
-  REGISTER_PROTO_MESSAGE_TYPE(kPerceptionTopic_,
-                              hozon::perception::TransportElement);
+  REGISTER_PROTO_MESSAGE_TYPE(kPerceptionTopic_, hozon::mapping::LocalMap);
   REGISTER_PROTO_MESSAGE_TYPE(kPoseEstimationTopic,
                               hozon::localization::HafNodeInfo);
   REGISTER_PROTO_MESSAGE_TYPE(kRunningModeTopic_,
@@ -202,9 +202,8 @@ int32_t PoseEstimationLite::OnPerception(Bundle* input) {
                     hozon::perception::base::FaultStatus::RESET,
                     hozon::perception::base::SensorOrientation::UNKNOWN, 0, 0));
 
-  const auto perception =
-      std::static_pointer_cast<hozon::perception::TransportElement>(
-          p_perception->proto_msg);
+  const auto perception = std::static_pointer_cast<hozon::mapping::LocalMap>(
+      p_perception->proto_msg);
   if (!perception) {
     return -1;
   }

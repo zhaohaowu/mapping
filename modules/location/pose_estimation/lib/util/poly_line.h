@@ -10,12 +10,12 @@
 #include <iostream>
 #include <vector>
 
-#include "proto/perception/transport_element.pb.h"
+#include "depend/proto/local_mapping/local_map.pb.h"
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_base.h"
 namespace hozon {
 namespace mp {
 namespace loc {
-using LaneLine = ::hozon::perception::LaneInfo;
+using LaneLine = ::hozon::mapping::LaneLine;
 
 template <typename T>
 class PolyLine {

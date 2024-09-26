@@ -15,12 +15,12 @@
 #include <memory>
 #include <vector>
 
+#include "depend/proto/local_mapping/local_map.pb.h"
 #include "modules/location/pose_estimation/lib/perception/perception_base.h"
 #include "modules/location/pose_estimation/lib/tracking/kalman.h"
 #include "modules/location/pose_estimation/lib/util/globals.h"
 #include "modules/location/pose_estimation/lib/util/poly_line.h"
 #include "modules/util/include/util/mapping_log.h"
-#include "proto/perception/transport_element.pb.h"
 
 namespace hozon {
 namespace mp {
@@ -29,7 +29,7 @@ namespace loc {
 class PerceptionLaneLine {
  public:
   PerceptionLaneLine();
-  explicit PerceptionLaneLine(const hozon::perception::LaneInfo& lane_line);
+  explicit PerceptionLaneLine(const hozon::mapping::LaneLine& lane_line);
   /**
    * @brief determine whether the point is on the curve equation
    *
@@ -104,8 +104,8 @@ class PerceptionLaneLine {
 
 class PerceptionLaneLineList : public PerceptionElement {
  public:
-  PerceptionLaneLineList(
-      const hozon::perception::TransportElement& transport_element);
+  explicit PerceptionLaneLineList(
+      const hozon::mapping::LocalMap& transport_element);
   PerceptionLaneLineList();
 
   /**

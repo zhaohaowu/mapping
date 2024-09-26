@@ -14,6 +14,7 @@
 #include <memory>
 #include <vector>
 
+#include "depend/proto/local_mapping/local_map.pb.h"
 #include "modules/location/pose_estimation/lib/perception/perception_base.h"
 #include "modules/location/pose_estimation/lib/perception/perception_lane_line.h"
 #include "modules/location/pose_estimation/lib/util/poly_line.h"
@@ -32,15 +33,14 @@ namespace loc {
 class Perception {
  public:
   Perception();
-  explicit Perception(
-      const ::hozon::perception::TransportElement& transport_element);
+  explicit Perception(const ::hozon::mapping::LocalMap& transport_element);
   /**
    * @brief add perception element
    *
    * @param lane_line : perception lane line and road edge
    * @return
    */
-  void Set(const ::hozon::perception::TransportElement& transport_element);
+  void Set(const ::hozon::mapping::LocalMap& transport_element);
 
   /**
    * @brief add perception lane line element
@@ -48,8 +48,7 @@ class Perception {
    * @param lane_line : perception lane line
    * @return
    */
-  void SetLaneLineList(
-      const ::hozon::perception::TransportElement& transport_element);
+  void SetLaneLineList(const ::hozon::mapping::LocalMap& transport_element);
 
   /**
    * @brief add perception road edge element
@@ -57,7 +56,7 @@ class Perception {
    * @param lane_line : perception lane line
    * @return
    */
-  // void SetRoadEdgeList(const ::hozon::perception::TransportElement
+  // void SetRoadEdgeList(const ::hozon::mapping::LocalMap
   // &transport_element);
 
   /**

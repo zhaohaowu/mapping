@@ -6,8 +6,9 @@
  ******************************************************************************/
 
 #include <poly_line.h>
-#include <limits>
+
 #include <algorithm>
+#include <limits>
 namespace hozon {
 namespace mp {
 namespace loc {
@@ -19,9 +20,9 @@ PolyLine<T>::PolyLine(T t) {
   confidence_ = t.confidence();
   lane_position_type_ = static_cast<int>(t.lanepos());
   for (auto& p : t.points()) {
-    if (p.x() < 1.0e-3) {
-      continue;
-    }
+    // if (p.x() < 1.0e-3) {
+    //   continue;
+    // }
     min_ = std::min(p.x(), static_cast<double>(min_));
     max_ = std::max(p.x(), static_cast<double>(max_));
     points.emplace_back(hozon::mp::loc::V3{p.x(), p.y(), p.z()});

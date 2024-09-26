@@ -1,199 +1,138 @@
 /******************************************************************************
  *   Copyright (C) 2023 HOZON-AUTO Ltd. All rights reserved.
  *   file       ： fusion_center.h
- *   author     ： lilanxing
- *   date       ： 2023.09
+ *   author     ： zhaohaowu
+ *   date       ： 2024.09
  ******************************************************************************/
 
 #pragma once
 
-#include <deque>
-#include <fstream>
+#include <atomic>
+#include <condition_variable>
+#include <map>
 #include <memory>
 #include <string>
 #include <thread>
-#include <utility>
+#include <vector>
 
 #include <Sophus/se3.hpp>
 
 #include "Eigen/src/Core/Matrix.h"
-#include "Eigen/src/Geometry/Transform.h"
-#include "modules/location/fusion_center/lib/defines.h"
-#include "modules/location/fusion_center/lib/eskf.h"
-#include "modules/location/fusion_center/lib/kalman_filter.h"
-#include "modules/location/fusion_center/lib/monitor.h"
-#include "proto/dead_reckoning/dr.pb.h"
-#include "proto/localization/localization.pb.h"
-#include "proto/localization/node_info.pb.h"
-#include "proto/soc/sensor_imu_ins.pb.h"
-
+#include "depend/proto/dead_reckoning/dr.pb.h"
+#include "depend/proto/localization/localization.pb.h"
+#include "depend/proto/localization/node_info.pb.h"
+#include "depend/proto/soc/chassis.pb.h"
+#include "depend/proto/soc/sensor_imu_ins.pb.h"
+#include "modules/location/fusion_center/lib/data_buffer.h"
+#include "modules/location/fusion_center/lib/type.h"
+#include "modules/util/include/util/geo.h"
 namespace hozon {
 namespace mp {
 namespace loc {
 namespace fc {
 
+using hozon::dead_reckoning::DeadReckoning;
 using hozon::localization::HafNodeInfo;
 using hozon::localization::Localization;
+using hozon::soc::Chassis;
 using hozon::soc::ImuIns;
 
-struct InsOffset {
-  bool init = false;
-  int smooth_cnt = -1;
-  Eigen::Isometry3d offset;
-  Node latest_ins_node;
-  Node latest_pe_node;
-};
 class FusionCenter {
  public:
   FusionCenter() = default;
   ~FusionCenter();
-
-  bool Init(const std::string& configfile, const std::string& filterconf,
-            const std::string& eskfconf, const std::string& monitorconf);
-  void OnImu(const ImuIns& imuins);
+  bool Init(const std::string& config_file);
   void OnIns(const HafNodeInfo& ins);
-  void OnDR(const hozon::dead_reckoning::DeadReckoning& dr);
-  void OnInitDR(const Node& initdr);
-  void OnPoseEstimate(const HafNodeInfo& pe);
-  void SetEhpCounter(int32_t counter);
-  int32_t GetEhpCounter() const;
-  bool GetCurrentOutput(Localization* const location);
+  void OnDr(const DeadReckoning& dr);
+  void OnChassis(const Chassis& chassis);
+  void OnImu(const ImuIns& imu);
+  void OnMm(const HafNodeInfo& mm);
+  std::shared_ptr<Localization> GetFcOutput();
+  Eigen::Vector3d RotionMatrix2EulerAngle321(
+      const Eigen::Matrix3d& rotation_matrix);
 
  private:
-  bool LoadParams(const std::string& configfile);
-  template <typename T>
-  void ShrinkQueue(T* const deque, uint32_t maxsize);
-  bool ExtractBasicInfo(const HafNodeInfo& msg, Node* const node);
-  bool DrToBasicInfo(const hozon::dead_reckoning::DeadReckoning& msg,
-                     Node* const node);
-  void SetRefpoint(const Eigen::Vector3d& blh);
-  Eigen::Vector3d Refpoint();
-  void Node2Localization(const Context& ctx, Localization* const location);
-  Eigen::Isometry3d Node2Eigen(const Node& node);
+  void Run();
+  void Clear();
+  bool PreConditionCheck();
+  bool StateInit();
+  bool GetFirstFc();
+  void BackEskf();
+  void UpdateLatestFc();
+  void StatePredict(double dt, const Predict::ConstPtr& cur_imu,
+                    FcState* fc_state);
+  Measure::Ptr GetNewIns(const Measure::ConstPtr& cur_ins);
+  void StateMeasure(const Measure::ConstPtr& measure, FcState* fc_state);
+  Measure::ConstPtr GetChassisByTimestamp(double timestamp);
+  Measure::ConstPtr GetInsByTimestamp(double timestamp);
+  Predict::ConstPtr GetImuByTimestamp(
+      const std::vector<Predict::ConstPtr>& imu_vector, double timestamp);
+  Dr::ConstPtr GetDrByTimestamp(double timestamp);
 
-  void RunFusion();
-  bool PoseInit(const Eigen::Vector3d& refpoint);
-  bool GenerateNewESKFPre();  // 用于收集融合的预测
-  bool GenerateNewESKFMeas(
-      const Eigen::Vector3d& refpoint);  // 用于收集融合的观测
-  Node State2Node(const State& state, const Eigen::Vector3d& refpoint);
-  void InsertESKFFusionNode(const Node& node);
-  void InsertESKFFusionTmpNode(const Node& node);
-  void RunESKFFusion(const Eigen::Vector3d& refpoint);
-  bool AllowInsMeas(uint32_t sys_status, uint32_t rtk_status);
-  bool InsertESKFMeasDR();  // 用于插入DR相对测量值
-  bool PredictMMMeas();     // 当无MM测量时，用INS递推MM
-  void PruneDeques();
-  bool AllowInit(uint32_t sys_status, uint32_t rtk_status);
-  bool GetCurrentContext(Context* const ctx);
-  static bool IsInterpolable(const std::shared_ptr<Node>& n1,
-                             const std::shared_ptr<Node>& n2,
-                             double dis_tol = 5.0, double ang_tol = 0.3,
-                             double time_tol = 0.5);
-  static bool Interpolate(double ticktime,
-                          const std::deque<std::shared_ptr<Node>>& d,
-                          Node* const node, double dis_tol = 5.0,
-                          double ang_tol = 0.3, double time_tol = 0.5);
-  static Sophus::SE3d Node2SE3(const Node& node);
-  static Sophus::SE3d Node2SE3(const std::shared_ptr<Node>& node);
-  void KalmanFiltering(Node* const node, const Eigen::Vector3d& ref_point);
-
-  template <typename T>
-  void CutoffDeque(double timestamp, std::deque<std::shared_ptr<T>>* const d);
-
-  // Get blh pose to ctx.global_node
-  bool GetGlobalPose(Context* const ctx);
-  uint32_t GetGlobalLocationState();
-
-  // Get local pose in local mapping coord to ctx.local_node
-  bool GetLocalPose(Context* const ctx);
-  std::string GetHdCurrLaneId(const Eigen::Vector3d& utm, double heading);
-  uint32_t FaultCodeAssign(uint32_t state);
-  void DebugDiffTxt(std::ofstream& diff_file, const Node& compare_node,
-                    const Node& ins_node);
-  double OrientationToHeading(const Eigen::Vector3d& orientation);
-  bool FilterPoseEstimation(const Node& node);
-  // mapping trigger
-  void CheckTriggerInsStatePose(const std::shared_ptr<Node> i_node);
-  bool IsInsDrift(const std::shared_ptr<Node> ins_node);
-  bool IsInsStateChange(const std::shared_ptr<Node> node);
-  void CheckTriggerLocState(Context* const ctx);
+  Measure::Ptr GetNewInsFilter(const Measure::ConstPtr& cur_ins,
+                               const Measure::ConstPtr& cur_mm,
+                               const Eigen::Vector3d& ref_point_mm);
 
  private:
-  Params params_;
-  int32_t seq_ = 0;
-  int32_t ehp_counter_ = 0;
-  Node init_dr_node_;
+  std::shared_ptr<MessageBuffer<Predict::ConstPtr>> imu_buffer_ = nullptr;
+  std::shared_ptr<MessageBuffer<Measure::ConstPtr>> mm_buffer_ = nullptr;
+  std::shared_ptr<MessageBuffer<Measure::ConstPtr>> ins_buffer_ = nullptr;
+  std::shared_ptr<MessageBuffer<Measure::ConstPtr>> chassis_buffer_ = nullptr;
+  std::shared_ptr<MessageBuffer<Dr::ConstPtr>> dr_buffer_ = nullptr;
+  Option option_;
+  class Ref {
+   private:
+    bool refpoint_inited_ = false;
+    Eigen::Vector3d ref_point_ = Eigen::Vector3d::Zero();
+    std::mutex ref_point_mutex_;
 
-  std::atomic<bool> fusion_run_{false};
-  std::atomic<bool> filter_valid_pe_{false};
-  std::atomic<bool> ref_init_{false};
-  std::atomic<bool> mm_is_valid_{false};
+   public:
+    bool init() {
+      ref_point_mutex_.lock();
+      bool init_flag = refpoint_inited_;
+      ref_point_mutex_.unlock();
+      return init_flag;
+    }
+    void UpdateRefpoint(const Eigen::Vector3d& gcj_position) {
+      ref_point_mutex_.lock();
+      if (!refpoint_inited_) {
+        refpoint_inited_ = true;
+        ref_point_ = gcj_position;
+      }
+      // enu系下的车辆运动超过10000米，重置refpoint
+      Eigen::Vector3d enu_position =
+          util::Geo::Gcj02ToEnu(gcj_position, ref_point_);
+      if (enu_position.head<2>().norm() > 10000) {
+        ref_point_ = gcj_position;
+      }
+      ref_point_mutex_.unlock();
+    }
+    Eigen::Vector3d GetRefPoint() {
+      ref_point_mutex_.lock();
+      Eigen::Vector3d ref_point = ref_point_;
+      ref_point_mutex_.unlock();
+      return ref_point;
+    }
+  };
 
-  std::mutex refpoint_mutex_;
-  Eigen::Vector3d init_refpoint_ = Eigen::Vector3d::Zero();
-  Eigen::Vector3d refpoint_ = Eigen::Vector3d::Zero();
+  Ref ref_point;
 
-  std::mutex imuins_deque_mutex_;
-  std::deque<std::shared_ptr<ImuIns>> imuins_deque_;
-
-  std::mutex ins_deque_mutex_;
-  std::deque<std::shared_ptr<Node>> ins_deque_;
-
-  std::mutex dr_deque_mutex_;
-  std::deque<std::shared_ptr<Node>> dr_deque_;
-
-  // pe means pose estimation
-  std::mutex pe_deque_mutex_;
-  std::deque<std::shared_ptr<Node>> pe_deque_;
-
-  std::mutex fusion_deque_mutex_;
-  std::deque<std::shared_ptr<Node>> fusion_deque_;
-  std::deque<std::shared_ptr<Node>> fusion_deque_tmp_;
-
-  std::mutex lastest_valid_pe_mutex_;
-  Node lastest_valid_pe_;
-
-  std::mutex latest_ins_mutex_;
-  HafNodeInfo latest_ins_data_;
-
-  ImuIns prev_imuins_;
-  ImuIns curr_imuins_;
-  hozon::dead_reckoning::DeadReckoning prev_raw_dr_;
-  HafNodeInfo prev_raw_pe_;
-
-  std::shared_ptr<std::thread> th_fusion_ = nullptr;
-  std::shared_ptr<ESKF> eskf_ = nullptr;
-  KalmanFilter kalman_filter_;
-  std::shared_ptr<Monitor> monitor_ = nullptr;
-
-  bool init_ins_ = false;
-  bool can_output_ = false;
-  double last_meas_time_ = 0.0;
-  std::atomic<bool> prev_global_valid_{false};
-  std::mutex prev_global_node_mutex_;
-  Node prev_global_node_;
-  std::atomic<bool> init_dr_{false};
-
-  std::deque<std::shared_ptr<Node>> pre_deque_;
-  std::deque<std::shared_ptr<Node>> meas_deque_;
-  std::ofstream fc_ins_diff_file_;
-  std::ofstream mm_ins_diff_file_;
-  double x_lateral_error_ = 0;
-  double y_lateral_error_ = 0;
-  bool init_dr_ins_ = false;
-  Node init_ins_node_;
-  Eigen::Vector3d kalman_blh_;
-
-  // mapping trigger
-  std::deque<std::shared_ptr<Node>> ins_trig_deque_;
-
-  // ins measure
-  std::mutex ins_offset_mutex_;
-  InsOffset ins_offset_;
-  std::mutex ins_meas_deque_mutex_;
-  std::deque<std::shared_ptr<Node>> ins_meas_deque_;
-  int ins_meas_cnt_ = 0;
+  Eigen::Vector3d fc_ref_point_ = Eigen::Vector3d::Zero();
+  std::shared_ptr<std::thread> fc_thread_ = nullptr;
+  std::atomic<bool> fc_thread_run_{false};
+  std::condition_variable imu_cv_;
+  std::mutex imu_cv_mutex_;
+  std::vector<Predict::ConstPtr> imu_vector_;
+  std::vector<Measure::ConstPtr> measure_vector_;
+  std::map<double, FcState> fc_map_;
+  std::mutex fc_map_mutex_;
+  Predict latest_imu_;
+  Measure latest_ins_;
+  Measure latest_chassis_;
+  Measure latest_mm_;
+  FcState first_fc_;
+  std::mutex offset_mutex_;
+  Offset offset_;
 };
 
 }  // namespace fc

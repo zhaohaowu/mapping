@@ -9,14 +9,14 @@
 #include <yaml-cpp/yaml.h>
 
 #include <chrono>
+
 #include <Sophus/se3.hpp>
 #include <boost/filesystem.hpp>
 
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
-#include "util/rviz_agent/rviz_agent.h"
 #include "modules/util/include/util/orin_trigger_manager.h"
-
+#include "util/rviz_agent/rviz_agent.h"
 
 namespace hozon {
 namespace mp {
@@ -60,19 +60,6 @@ Eigen::Matrix<double, 3, 1> Rot2Euler312(
   return v;
 }
 
-double InsFusion::QuaternionToHeading(const Eigen::Quaterniond& q) {
-  Eigen::Vector3d orientation = Sophus::SO3d(q).log();
-  const Sophus::SO3d& rot = Sophus::SO3d::exp(orientation);
-  Eigen::Vector3d euler = Rot2Euler312(rot.matrix());
-  euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
-  double heading = 90.0 - euler.z() / M_PI * 180;
-  if (heading < 0.0) {
-    heading += 360.0;
-  }
-  return heading;
-}
-
-
 void InsFusion::LoadConfigParams(const std::string& configfile) {
   YAML::Node config_parser = YAML::LoadFile(configfile);
   config_.smooth = config_parser["smooth"].as<bool>();
@@ -114,7 +101,8 @@ void InsFusion::LoadConfigParams(const std::string& configfile) {
       config_parser["fix_deflection_repeat"].as<bool>();
 }
 
-bool InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins, hozon::localization::HafNodeInfo* const node_info) {
+bool InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins,
+                            hozon::localization::HafNodeInfo* const node_info) {
   InsNode ins84_node;
   static int ins_count = 0;
 
@@ -159,10 +147,10 @@ bool InsFusion::OnOriginIns(const hozon::soc::ImuIns& origin_ins, hozon::localiz
   }
   Convert(origin_ins, node_info);
 
-  #ifdef ISORIN
-    // mapping trigger imu/ins帧率异常 帧间差 > 50ms
-    CheckTriggerInsTime(latest_origin_ins_);
-  #endif
+#ifdef ISORIN
+  // mapping trigger imu/ins帧率异常 帧间差 > 50ms
+  CheckTriggerInsTime(latest_origin_ins_);
+#endif
   ++ins_count;
   if (ins_count >= 100) {
     ins_count = 0;
@@ -243,17 +231,32 @@ bool InsFusion::OnInspva(const hozon::localization::HafNodeInfo& inspva,
                        latest_inspva_data_.quaternion().z());
   double heading = QuaternionToHeading(q);
   node_info->set_heading(static_cast<float>(heading));
+
   return true;
 }
 
-void InsFusion::Convert(const hozon::soc::ImuIns& origin_ins, hozon::localization::HafNodeInfo* const node_info) {
+double InsFusion::QuaternionToHeading(const Eigen::Quaterniond& q) {
+  Eigen::Vector3d orientation = Sophus::SO3d(q).log();
+  const Sophus::SO3d& rot = Sophus::SO3d::exp(orientation);
+  Eigen::Vector3d euler = Rot2Euler312(rot.matrix());
+  euler = euler - ((euler.array() > M_PI).cast<double>() * 2.0 * M_PI).matrix();
+  double heading = 90.0 - euler.z() / M_PI * 180;
+  if (heading < 0.0) {
+    heading += 360.0;
+  }
+  return heading;
+}
+
+void InsFusion::Convert(const hozon::soc::ImuIns& origin_ins,
+                        hozon::localization::HafNodeInfo* const node_info) {
   node_info->set_type(hozon::localization::HafNodeInfo_NodeType_INS);
   node_info->mutable_header()->set_seq(origin_ins.header().seq());
   node_info->mutable_header()->set_frame_id("ins_fusion");
   std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
       tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
           std::chrono::system_clock::now());
-  node_info->mutable_header()->set_publish_stamp(tp.time_since_epoch().count() * 1.0e-9);
+  node_info->mutable_header()->set_publish_stamp(tp.time_since_epoch().count() *
+                                                 1.0e-9);
   node_info->mutable_header()->set_gnss_stamp(origin_ins.header().gnss_stamp());
   node_info->mutable_header()->set_data_stamp(
       origin_ins.header().sensor_stamp().imuins_stamp());
@@ -344,6 +347,8 @@ void InsFusion::Convert(const hozon::soc::ImuIns& origin_ins, hozon::localizatio
   for (int i = 0; i < 36; ++i) {
     node_info->add_covariance(0.);
   }
+
+  Eigen::Quaterniond quat;
   if (config_.use_fixed_quat) {
     node_info->mutable_quaternion()->set_x(0.0);
     node_info->mutable_quaternion()->set_y(0.0);
@@ -359,12 +364,15 @@ void InsFusion::Convert(const hozon::soc::ImuIns& origin_ins, hozon::localizatio
     Eigen::AngleAxisd roll(attitude[0], Eigen::Vector3d::UnitX());
     Eigen::AngleAxisd pitch(attitude[1], Eigen::Vector3d::UnitY());
     Eigen::AngleAxisd yaw(attitude[2], Eigen::Vector3d::UnitZ());
-    Eigen::Quaterniond quat = yaw * roll * pitch;
+    quat = yaw * roll * pitch;
     node_info->mutable_quaternion()->set_x(quat.x());
     node_info->mutable_quaternion()->set_y(quat.y());
     node_info->mutable_quaternion()->set_z(quat.z());
     node_info->mutable_quaternion()->set_w(quat.w());
   }
+  // 取出INS四元数并转heading
+  double heading = QuaternionToHeading(quat);
+  node_info->set_heading(heading);
 
   if (config_.use_deflection) {
     Eigen::Vector3d wgs84(origin_ins.ins_info().latitude(),
@@ -436,7 +444,8 @@ bool InsFusion::Extract02InsNode(const hozon::localization::HafNodeInfo& inspva,
   }
 
   const auto& mq = inspva.quaternion();
-  if (std::isnan(mq.w()) || std::isnan(mq.x()) || std::isnan(mq.y()) || std::isnan(mq.z())) {
+  if (std::isnan(mq.w()) || std::isnan(mq.x()) || std::isnan(mq.y()) ||
+      std::isnan(mq.z())) {
     HLOG_WARN << "Inspva_quaternion is nan";
     return false;
   }
@@ -444,16 +453,14 @@ bool InsFusion::Extract02InsNode(const hozon::localization::HafNodeInfo& inspva,
   Eigen::Quaterniond q(inspva.quaternion().w(), inspva.quaternion().x(),
                        inspva.quaternion().y(), inspva.quaternion().z());
   if (q.norm() < 1e-10) {
-    HLOG_WARN << "Inspva_fusion_HafNodeInfo quaternion(w,x,y,z) "
-              << q.w() << "," << q.x() << ","
-              << q.y() << "," << q.z();
+    HLOG_WARN << "Inspva_fusion_HafNodeInfo quaternion(w,x,y,z) " << q.w()
+              << "," << q.x() << "," << q.y() << "," << q.z();
     return false;
   }
 
-  if (std::fabs(q.norm()-1) > 1e-3) {
-    HLOG_WARN << "Inspva_fusion_HafNodeInfo quaternion(w,x,y,z) "
-              << q.w() << "," << q.x() << ","
-              << q.y() << "," << q.z();
+  if (std::fabs(q.norm() - 1) > 1e-3) {
+    HLOG_WARN << "Inspva_fusion_HafNodeInfo quaternion(w,x,y,z) " << q.w()
+              << "," << q.x() << "," << q.y() << "," << q.z();
     return false;
   }
 

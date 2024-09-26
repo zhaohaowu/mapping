@@ -8,8 +8,10 @@
 #pragma once
 #include <Eigen/Dense>
 #include <atomic>
+#include <condition_variable>
 #include <deque>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -18,10 +20,10 @@
 
 #include "Eigen/src/Core/Matrix.h"
 #include "Eigen/src/Geometry/Transform.h"
-#include "depend/proto/perception/transport_element.pb.h"
+#include "depend/proto/local_mapping/local_map.pb.h"
 #include "modules/location/pose_estimation/lib/map_matching.h"
-#include "modules/location/pose_estimation/lib/reloc/base.hpp"
 #include "modules/location/pose_estimation/lib/reloc/reloc.hpp"
+#include "proto/local_mapping/local_map.pb.h"
 #include "proto/localization/localization.pb.h"
 #include "proto/localization/node_info.pb.h"
 namespace hozon {
@@ -31,7 +33,7 @@ namespace pe {
 
 using HafNodeInfo = hozon::localization::HafNodeInfo;
 using Localization = hozon::localization::Localization;
-using TransportElement = hozon::perception::TransportElement;
+using LocalMap = hozon::mapping::LocalMap;
 using LocalizationPtr = std::shared_ptr<Localization>;
 using LaneInfoPtr = hozon::hdmap::LaneInfoConstPtr;
 
@@ -48,7 +50,7 @@ class PoseEstimation {
   bool Init(const std::string& pose_estimation_yaml,
             const std::string& map_matching_yaml);
   void OnIns(const std::shared_ptr<const HafNodeInfo>& msg);
-  void OnPerception(const std::shared_ptr<const TransportElement>& msg);
+  void OnPerception(const std::shared_ptr<const LocalMap>& msg);
   void OnLocation(const std::shared_ptr<const Localization>& msg);
   std::shared_ptr<HafNodeInfo> GetMmNodeInfo();
   bool GetHdMapLane(const LocalizationPtr& fc_pose_ptr,
@@ -63,6 +65,11 @@ class PoseEstimation {
   bool CheckMmTrackingState();
 
   void ProcData();
+  void RvizFunc(const LocalizationPtr& fc_pose_ptr,
+                const TrackingManager& tracking_manager,
+                const MappingManager& map_manager,
+                const Eigen::Affine3d& T_input,
+                const Eigen::Affine3d& T_fc_10hz, double per_timestamp);
   Eigen::Affine3d Localization2Eigen(const LocalizationPtr& pose_ptr);
   template <typename T>
   void ShrinkQueue(T* deque, int maxsize);
@@ -78,13 +85,12 @@ class PoseEstimation {
   void SetXYZ(const T0& t0, T1* const t1);
   template <typename T0, typename T1>
   void SetXYZW(const T0& t0, T1* const t1);
-  void RvizFunc();
   bool CheckLocalizationState(const Localization& localization);
   void AddMapLine(const Eigen::Affine3d& T_V_W,
                   const Eigen::Vector3d& fc_ref_point,
                   const hozon::hdmap::LaneBoundary& lane_boundary,
                   MappingManager* map_manager);
-  bool PercepConvert(const TransportElement& perception,
+  bool PercepConvert(const LocalMap& perception,
                      TrackingManager* tracking_manager);
   bool MapConvert(
       const Localization& localization, const Eigen::Vector3d& fc_ref_point,
@@ -94,68 +100,75 @@ class PoseEstimation {
                   Eigen::Affine3d* const affine3d);
   bool ExtractInsMsg(const LocalizationPtr& cur_ins, Sophus::SE3d* T02_W_V_ins,
                      const Eigen::Vector3d& ref_point);
-  double GetCurrentNsecTime() {
-    std::chrono::time_point<std::chrono::system_clock, std::chrono::nanoseconds>
-        tp = std::chrono::time_point_cast<std::chrono::nanoseconds>(
-            std::chrono::system_clock::now());
-
-    time_t time = tp.time_since_epoch().count();
-    double result = time * 1e-9;
-    return result;
-  }
+  Eigen::Vector3d RotionMatrix2EulerAngle321(
+      const Eigen::Matrix3d& rotation_matrix);
 
  private:
   std::deque<Localization> ins_deque_;
   std::deque<Localization> fc_deque_;
-  TransportElement perception_;
+  LocalMap perception_;
 
   std::mutex ins_deque_mutex_;
   std::mutex fc_deque_mutex_;
   std::mutex perception_mutex_;
   std::mutex ref_point_mutex_;
   std::mutex rviz_mutex_;
-  std::mutex cv_mutex_;
-  std::condition_variable cv_;
+  std::mutex pe_cv_mutex_;
+
+  std::condition_variable pe_cv_;
 
   int ins_deque_max_size_ = 100;
   int fc_deque_max_size_ = 100;
   int perception_deque_max_size_ = 2;
 
-  std::atomic<int> ins_state_{4};
-  std::atomic<double> sd_position_{0.0};
-  std::atomic<int> location_state_{2};
-  std::atomic<double> velocity_{0.0};
-  std::atomic<double> gps_week_{0.0};
-  std::atomic<double> gps_second_{0.0};
-  std::atomic<bool> use_rviz_{false};
   std::atomic<bool> reloc_test_ = false;
-  std::atomic<double> ins_height_ = 0.0;
-  std::atomic<bool> rviz_init_ = false;
-  std::atomic<double> fc_heading_ = 0.0;
-  std::atomic<double> ins_heading_ = 0.0;
-  std::atomic<bool> is_junction_{false};
-  std::string conv_;
 
-  std::string rviz_addr_;
-  Eigen::Affine3d T_fc_100hz_;
-  Eigen::Affine3d T_dr_100hz_;
-  Eigen::Affine3d T_ins_100hz_;
-  Eigen::Affine3d T_fc_10hz_;
-  Eigen::Affine3d T_input_;
-  Eigen::Vector4d FC_KF_kydiff_100hz_;
-  Eigen::Vector4d FC_KF_cov_100hz_;
   TrackingManager tracking_manager_;
   MappingManager map_manager_;
 
   std::thread proc_thread_;
-  std::thread rviz_thread_;
   bool proc_thread_run_{false};
-  bool stop_rviz_thread_{false};
   Eigen::Vector3d ref_point_;
 
   std::unique_ptr<MapMatching> map_matching_ = nullptr;
   std::unique_ptr<Reloc> reloc_ = nullptr;
 
+  class Ref {
+   private:
+    bool refpoint_inited_ = false;
+    Eigen::Vector3d ref_point_ = Eigen::Vector3d::Zero();
+    std::mutex ref_point_mutex_;
+
+   public:
+    bool init() {
+      ref_point_mutex_.lock();
+      bool init_flag = refpoint_inited_;
+      ref_point_mutex_.unlock();
+      return init_flag;
+    }
+    void UpdateRefpoint(const Eigen::Vector3d& gcj_position) {
+      ref_point_mutex_.lock();
+      if (!refpoint_inited_) {
+        refpoint_inited_ = true;
+        ref_point_ = gcj_position;
+      }
+      // enu系下的车辆运动超过10000米，重置refpoint
+      Eigen::Vector3d enu_position =
+          util::Geo::Gcj02ToEnu(gcj_position, ref_point_);
+      if (enu_position.head<2>().norm() > 10000) {
+        ref_point_ = gcj_position;
+      }
+      ref_point_mutex_.unlock();
+    }
+    Eigen::Vector3d GetRefPoint() {
+      ref_point_mutex_.lock();
+      Eigen::Vector3d ref_point = ref_point_;
+      ref_point_mutex_.unlock();
+      return ref_point;
+    }
+  };
+
+  Ref ref_point;
 };
 
 }  // namespace pe

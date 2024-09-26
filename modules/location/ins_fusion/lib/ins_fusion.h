@@ -17,6 +17,7 @@
 #include "modules/location/ins_fusion/lib/smoother.h"
 #include "proto/localization/node_info.pb.h"
 #include "proto/soc/sensor_imu_ins.pb.h"
+#include <Sophus/se3.hpp>
 
 namespace hozon {
 namespace mp {

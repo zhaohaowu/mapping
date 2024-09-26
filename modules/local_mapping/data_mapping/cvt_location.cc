@@ -24,17 +24,17 @@ bool DataMapping::CvtPbLocation2Location(
   location_ptr->quaternion.z() = pb_location->pose_local().quaternion().z();
 
   location_ptr->linear_vrf.x() =
-      pb_location->pose_local().linear_velocity().x();
+      pb_location->pose_local().linear_velocity_vrf().x();
   location_ptr->linear_vrf.y() =
-      pb_location->pose_local().linear_velocity().y();
+      pb_location->pose_local().linear_velocity_vrf().y();
   location_ptr->linear_vrf.z() =
-      pb_location->pose_local().linear_velocity().z();
+      pb_location->pose_local().linear_velocity_vrf().z();
   location_ptr->angular_vrf.x() =
-      pb_location->pose_local().angular_velocity().x();
+      pb_location->pose_local().angular_velocity_vrf().x();
   location_ptr->angular_vrf.y() =
-      pb_location->pose_local().angular_velocity().y();
+      pb_location->pose_local().angular_velocity_vrf().y();
   location_ptr->angular_vrf.z() =
-      pb_location->pose_local().angular_velocity().z();
+      pb_location->pose_local().angular_velocity_vrf().z();
   location_ptr->pose = Eigen::Translation3d(location_ptr->position) *
                        Eigen::Affine3d(location_ptr->quaternion);
 

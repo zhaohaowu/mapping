@@ -142,8 +142,8 @@ struct EdgeSegment : public LineSegment {
 };
 
 struct Lane {
-  LineSegment::Ptr left_boundary;
-  LineSegment::Ptr right_boundary;
+  LineSegment::Ptr left_boundary = nullptr;
+  LineSegment::Ptr right_boundary = nullptr;
   std::vector<Point> center_line_pts;
   std::vector<std::string> left_lane_str_id_with_group;
   std::vector<std::string> right_lane_str_id_with_group;

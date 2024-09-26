@@ -447,15 +447,15 @@ struct Point {
 };
 
 struct Line {
-  Id id;
+  Id id = -1;
   Id id_next = -1000;           // 下一根line的id号
   std::vector<Id> deteled_ids;  // 这根id的被删的其他ids
-  LineType type;
-  Color color;
-  LanePos lanepos;
-  IsEgo isego;
+  LineType type = LineType::LaneType_UNKNOWN;
+  Color color = Color::UNKNOWN_COLOR;
+  LanePos lanepos = LanePos::LanePositionType_OTHER;
+  IsEgo isego = IsEgo::Ego_Road;
   std::deque<Point> pts;
-  bool is_near_road_edge;
+  bool is_near_road_edge = false;
   // 末端方向向量与x轴夹角
   double mean_end_heading = 0;  // in rad, [-pi, +pi]
   // 1.heading 2.kappa 3.dkappa
@@ -470,8 +470,8 @@ struct Line {
 struct GeoLineInfo {
   int line_track_id = -999;
   int flag = 2;  // 0-->最左车道线，1-->最右车道线，2-->普通车道线
-  LineType line_type;
-  Color color;
+  LineType line_type = LineType::LaneType_UNKNOWN;
+  Color color = Color::UNKNOWN_COLOR;
   bool store = true;  // 是否存储该线
   bool is_continue = false;  // 是否跟别的线融合了，如果被融合则不添加该线
   bool is_merge = false;  // 是否是汇入的线，如果是汇入的线则保留

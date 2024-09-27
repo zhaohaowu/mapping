@@ -161,6 +161,50 @@ struct local_line_info {
   Line_kd kd_line;
 };
 
+struct opening {
+  int opening_id;
+  std::vector<Eigen::Vector3d> left_boundary;
+  std::vector<Eigen::Vector3d> right_boundary;
+  std::vector<Eigen::Vector3d> boundary_center_points;
+  double start_x;
+  double end_x;
+  std::vector<int> line_ids;
+  double heading;
+  double heading_err;
+  struct objection {
+    bool exist = false;
+    std::vector<int> ids;
+    int left_id;
+    int right_id;
+    Eigen::Vector3d left_point;
+    Eigen::Vector3d right_point;
+    double left_dis;
+    double right_dis;
+  };
+
+  objection opposite_obs;
+  objection same_direction_obs;
+  objection stop_line;
+  objection double_solid_yellow;
+  objection perception_line;
+};
+
+struct geoobjs {
+  int id;
+  Eigen::Vector3d position;
+  boost::circular_buffer<Eigen::Vector3d> his_positions;
+  Eigen::Vector3d velocity;
+  double theta;
+  double length;
+  double width;
+  bool is_inverse;
+  bool is_update;
+  void Init(int size) {
+    his_positions.set_capacity(size);
+    his_positions.clear();
+  }
+};
+
 class GeoOptimization {
  public:
   GeoOptimization() = default;
@@ -182,12 +226,20 @@ class GeoOptimization {
 
   inline RoadScene GetRoadScene() { return road_scene_; }
 
+  inline em::ExitLaneInfo GetExitLane() { return exit_lane_info_; }
+
+  inline std::map<int, em::Boundary::Ptr> GetStableOcc() {
+    return stable_occ_roads_;
+  }
+
   inline void SetPose(const KinePose& curr_pose) { curr_pose_ = curr_pose; }
 
   inline KinePose GetPose() { return curr_pose_; }
 
  private:
   RoadScene road_scene_;
+  em::ExitLaneInfo exit_lane_info_;  // 路口退出车道在local系下的几何点
+  std::map<int, em::Boundary::Ptr> stable_occ_roads_;  // 稳定的occ路沿
   KinePose curr_pose_;
   std::shared_ptr<OccGuideLineManager> occ_guideline_manager_ = nullptr;
   std::shared_ptr<hozon::mp::mf::em::ElementMap> elem_map_ = nullptr;
@@ -200,11 +252,17 @@ class GeoOptimization {
       inverse_history_objs_;
   int history_objs_size_ = 10;
   int inverse_history_objs_size_ = 20;
+  std::unordered_map<int, geoobjs> geo_objs_;
+  std::unordered_set<int> geo_obj_ids_;
+  int objs_size_{50};
   std::shared_ptr<hozon::mapping::LocalMap> local_map_use_ =
       nullptr;  // 滤除一些不对的laneline,最终是可用的一些线
   // std::shared_ptr<std::vector<LanePilot>> map_lanes_ = nullptr;
   // std::shared_ptr<hozon::hdmap::Map> pilot_map_ = nullptr;
   std::map<int, std::vector<Line_kd>> all_lines_;  // 用于存储当前所有line信息
+  std::unordered_map<int, Line_kd> opening_all_lines_;
+  std::vector<int> opening_all_line_ids_;
+  int last_opening_stopline_correlated_line_id_ = -1;
   std::unordered_map<int, local_line_info> local_line_table_;
   int32_t extra_val_ = 0;  // 暂时临时这样设定，后面需要整合优化
   base_line_info base_line_;
@@ -249,6 +307,7 @@ class GeoOptimization {
   std::string init_pose_ser_;
   adsfi_proto::viz::Path location_path_;
   std::unordered_set<int> is_not_ego_lane_track_id_;
+  std::vector<opening> openings_;
   void VizLocation(const Eigen::Vector3d& pose, const Eigen::Quaterniond& q_W_V,
                    const double stamp);
 
@@ -332,6 +391,10 @@ class GeoOptimization {
 
   void AlignmentVecLane();
 
+  bool ComputerLineDisNoOverlap(
+      const std::vector<Eigen::Vector3d>& edge_line_pts,
+      const std::vector<Eigen::Vector3d>& line_pts, double* avg_width);
+
   bool ComputerLineDis(const std::vector<Eigen::Vector3d>& line_pts,
                        const std::vector<Eigen::Vector3d>& right_line_pts,
                        double* avg_width, int pts_interval = 2);
@@ -412,6 +475,19 @@ class GeoOptimization {
   void FilterOppositeLine();
   void FilterNoEgoLineNoCrossing();
   void FilterReverseLine();
+  void FilterOpeningLine();
+  void CollectOpenings();
+  void DealOpenings();
+  opening SelectOpening();
+  void FilterOpening(const opening& selected_opening);
+  void OpeningDealObs();
+  void OpeningDealStopline();
+  void OpeningDealSolidYellow();
+  void OpeningDealHeading();
+  bool GetBoundaryLineObs(const std::vector<int> line_ids,
+                          const Eigen::Vector3d& point, int obj_id,
+                          std::unordered_map<int, std::vector<int>>* ids);
+
   void HandleOppisiteLine(const std::vector<Eigen::Vector3d>& target_line);
   void HandleOppisiteLineByStopline();
   void HandleOppisiteLineByObj();
@@ -422,6 +498,8 @@ class GeoOptimization {
   double CalMeanLineHeading(const std::vector<Eigen::Vector3d>& points);
   RelativePosition IsRoadEdgeOnVehicleRight(
       const std::vector<Eigen::Vector3d>& points, const double& heading);
+  RelativePosition IsRoadEdgeOnVehicleRightNocrossing(
+      const std::vector<Eigen::Vector3d>& points);
   void MergeSplitLine();
   void FitLaneLine(const std::vector<Eigen::Vector3d>& pts,
                    std::vector<double>* c);
@@ -460,7 +538,7 @@ class GeoOptimization {
 
   RelativePosition IsTargetOnLineRight(
       const std::vector<Eigen::Vector3d>& target_line,
-      const Line_kd& lane_line);
+      const std::vector<Eigen::Vector3d>& line);
   bool FindOCCGuidePoint();
   void UpdateOCCRoadPoints();
   double OccWidth(const em::OccRoad::Ptr& occ_road_ptr);

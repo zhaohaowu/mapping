@@ -424,13 +424,19 @@ struct TrafficLight : public BaseElement {
   DEFINE_PTR(TrafficLight)
 };
 
+struct ExitLaneInfo {
+  std::vector<em::Point> left_boundary_points;
+  std::vector<em::Point> right_boundary_points;
+  bool exist = false;
+};
+
 // enum CoordType { kCoordLocalEnu = 0, kCoordWgs, kCoordGcj, kCoordUtm };
 
 struct OccRoad {
   Id track_id;
   Id detect_id;
   Id group_id;  // 车后方最近一个group或车所在的group为0,车前方最近一个group为1,以此向前向后推
-  bool is_forward;  // 车前方true,车侧或车后false(且满足条件)
+  bool is_forward = false;  // 车前方true,车侧或车后false(且满足条件)
   std::vector<Eigen::Vector3d> road_points;      // 默认front为豁口点
   std::vector<Eigen::Vector3d> ori_road_points;  // 原始occ点，调试使用
   std::vector<Eigen::Vector3d> ori_detect_points;  // 原始detect occ点，调试使用
@@ -443,7 +449,7 @@ struct OccRoad {
 
   std::vector<Id> left_occ_ids;   // 左侧能构成道的全部id
   std::vector<Id> right_occ_ids;  // 右侧能构成道的全部id
-  int valid_index = -1;            // 标记有效的起始
+  int valid_index = -1;           // 标记有效的起始
 
   DEFINE_PTR(OccRoad)
 };

@@ -23,7 +23,6 @@
 #include "Eigen/src/Core/Matrix.h"
 #include "base/utils/log.h"
 #include "common/math/vec2d.h"
-
 #include "map_fusion/fusion_common/calc_util.h"
 #include "map_fusion/fusion_common/element_map.h"
 // #include "util/common.h"
@@ -183,6 +182,20 @@ void GroupMap::SetCurrentRoadScene(const std::vector<Group::Ptr>* groups) {
     road_scene_ = RoadScene::BIG_JUNCTUIN;
     return;
   }
+
+  int index = FindEgoGroup(groups);
+  if (index >= 0 || index < groups->size()) {
+    for (const auto& lane : groups->at(index)->lanes) {
+      if (lane->left_boundary->type ==
+              em::LaneType_INTERSECTION_VIRTUAL_MARKING ||
+          lane->right_boundary->type ==
+              em::LaneType_INTERSECTION_VIRTUAL_MARKING) {
+        road_scene_ = RoadScene::SMALL_JUNCTION;
+        return;
+      }
+    }
+  }
+
   if (groups->size() == 1) {
     auto& last_group = groups->back();
     if (last_group->group_state == Group::GroupState::VIRTUAL ||
@@ -4203,7 +4216,7 @@ void GroupMap::AvoidSplitMergeLane(std::vector<Group::Ptr>* groups) {
     }
   }
 }
-int GroupMap::FindEgoGroup(std::vector<Group::Ptr>* groups) {
+int GroupMap::FindEgoGroup(const std::vector<Group::Ptr>* groups) {
   int index = -1;
   for (auto& grp : *groups) {
     index++;

@@ -31,12 +31,6 @@ namespace hozon {
 namespace mp {
 namespace mf {
 
-struct ExitLaneInfo {
-  std::vector<em::Point> left_boundary_points;
-  std::vector<em::Point> right_boundary_points;
-  bool exist = false;
-};
-
 class OccGuideLineManager {
  public:
   OccGuideLineManager() {
@@ -50,6 +44,11 @@ class OccGuideLineManager {
   void Process(const em::ElementMap::Ptr& ele_map,
                std::map<int, std::vector<Line_kd>>* bev_lanelines,
                const KinePose& curr_pose, const RoadScene& road_scene);
+
+  inline em::ExitLaneInfo GetExitLaneInfo() { return exit_lane_info_; }
+  inline std::map<int, em::Boundary::Ptr> GetStableOccRoads() {
+    return stable_occ_roads_;
+  }
 
   void Reset() {
     is_occ_stable_state_ = false;
@@ -68,30 +67,30 @@ class OccGuideLineManager {
 
  protected:
   void ReplaceOccLocByBevRoadEdge();
-  std::vector<em::Boundary::Ptr> GetBevLaneLineInOcc();
+  std::vector<em::Boundary::Ptr> GetBevLaneLineInOcc(
+      const std::vector<em::Boundary::Ptr>& stable_occ);
   std::vector<em::Boundary> FineTuneGuideLine(
-      const std::vector<em::Boundary::Ptr>& bev_linelines);
-  std::vector<em::Boundary> FineTuneGuideLineV2(
-      const std::vector<em::Boundary::Ptr>& bev_linelines);
+      const std::vector<em::Boundary::Ptr>& bev_linelines,
+      const std::vector<em::Boundary::Ptr>& stable_occ);
   void FineTuneOccPair(std::vector<em::Boundary::Ptr> best_occ_pair);
 
-  bool IsLineBetweenOcc(const em::Boundary::Ptr& line);
-
+  bool IsLineBetweenOcc(const em::Boundary::Ptr& line,
+                        const std::vector<em::Boundary::Ptr>& stable_occ);
+  bool IsNearbyBevLane(const em::Boundary::Ptr& virtual_line);
   std::vector<em::Boundary> OccRegionSplit(
       const std::vector<em::Boundary::Ptr>& best_occ_pair);
 
-  Eigen::Vector3f CalcuDirectionVec(const em::Boundary::Ptr& right_occ,
-                                    const em::Boundary::Ptr& left_occ);
-
-  Eigen::Vector3f CalcuDirectionVecV2(em::Boundary::Ptr right_occ,
-                                      em::Boundary::Ptr left_occ);
+  Eigen::Vector3f CalcuDirectionVec(em::Boundary::Ptr right_occ,
+                                    em::Boundary::Ptr left_occ);
   double ComputeCurvature(const em::Boundary::Ptr& boundary_ptr);
   void RecordExitLaneInfos();
   void SetStableOcc();
   std::vector<em::Boundary::Ptr> GetStableOcc();
+  std::vector<std::vector<em::Boundary::Ptr>> GetStableOccGroups();
   void AddCurrentMeasurementOcc();
   bool CheckOccWhetherStable();
-  std::vector<em::Boundary> InferGuideLineOnlyByOcc();
+  std::vector<em::Boundary> InferGuideLineOnlyByOcc(
+      const std::vector<em::Boundary::Ptr>& stable_occ);
   std::vector<std::pair<em::Id, em::OccRoad::Ptr>> GetFrontOccRoadPair();
   std::vector<std::pair<em::Id, em::OccRoad::Ptr>> GetBestOccPair(
       const std::vector<std::pair<em::Id, em::OccRoad::Ptr>>& front_occ_set);
@@ -144,6 +143,21 @@ class OccGuideLineManager {
   bool IsPointOnOccRightSide(const em::BoundaryNode::Ptr& node,
                              const em::Boundary::Ptr& occ_data);
 
+  double CalcLaneLength(const em::OccRoad::Ptr& lane);
+
+  em::Boundary::Ptr TransVehicleToLocal(const em::OccRoad::Ptr& occ);
+
+  double GetCurrentTime() {
+    std::chrono::time_point<std::chrono::system_clock,
+                            std::chrono::microseconds>
+        tpMicro = std::chrono::time_point_cast<std::chrono::microseconds>(
+            std::chrono::system_clock::now());
+
+    // (微秒精度的)时间点 => (微秒精度的)时间戳
+    time_t totalMicroSeconds = tpMicro.time_since_epoch().count();
+    return totalMicroSeconds;
+  }
+
   em::ElementMap::Ptr input_ele_map_ = nullptr;
   std::map<int, std::vector<Line_kd>>* bevlanelines_ = nullptr;
   std::vector<std::pair<int, em::Boundary::Ptr>> bev_laneline_boundarys_;
@@ -153,8 +167,23 @@ class OccGuideLineManager {
   float x_distance_error_thresh_ = 4.0;
   float y_distance_error_thresh_ = 0.8;
   float virtual_occ_line_length_thresh_ = 10.0;
+  float occ_pair_dis_thresh_ = 5.8;
   KinePose last_pose_;
   KinePose curr_pose_;
+
+  // 超过 20条就要考虑移除部分. 
+  struct OccInfo{
+    em::Boundary::Ptr boundary_ptr;
+    double timestamp;
+    double length;
+    int num;
+    em::OccRoad::Ptr occ_ptr;
+
+    bool operator()(OccInfo a, OccInfo b) {
+        return a.timestamp < b.timestamp;
+    }
+  };
+  std::vector<OccInfo> pre_occ_buffer_;
 
   boost::circular_buffer<std::vector<em::Boundary::Ptr>> history_n_best_occs_;
   int history_measure_size_ = 4;
@@ -167,9 +196,11 @@ class OccGuideLineManager {
   Eigen::Vector3f occ_dir_vec_;
   float occ_width_ = 0.0;
   std::vector<em::Boundary::Ptr> stable_occ_datas_;
+  std::vector<std::vector<em::Boundary::Ptr>> stable_occ_groups_;
 
   std::vector<float> ego_bevlines_x_dis_;
-  ExitLaneInfo exit_lane_info_;
+  em::ExitLaneInfo exit_lane_info_;
+  std::map<int, em::Boundary::Ptr> stable_occ_roads_;
 };
 
 }  // namespace mf

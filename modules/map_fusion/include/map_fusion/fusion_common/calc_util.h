@@ -143,6 +143,28 @@ T PointToVectorDist(const Eigen::Matrix<T, ROWS, 1>& p0,
   return d.norm();
 }
 
+template <typename T, typename M>
+float PointToVectorDist(const T& p0, const T& p1, const M& pt) {
+  Eigen::Matrix<float, 2, 1> p0_p1(p1.x() - p0.x(), p1.y() - p0.y());
+  p0_p1.normalize();
+  Eigen::Matrix<float, 2, 1> pt_p0(p0.x() - pt.x(), p0.y() - pt.y());
+  Eigen::Matrix<float, 2, 1> d = pt_p0 - (pt_p0.transpose() * p0_p1) * p0_p1;
+  return d.norm();
+}
+
+template <typename T, typename M>
+double PointToLineDis(const T& line, const M& pt) {
+  if (line.size() < 2) {
+    return -1.0;
+  }
+  auto it = std::find_if(line.begin() + 1, line.end(),
+                         [&](const auto& a) { return a.x() > pt.x(); });
+  if (it == line.end()) {
+    return -1.0;
+  }
+  return PointToVectorDist(*(it - 1), *it, pt);
+}
+
 template <typename pointType>
 double GetLength(const std::vector<pointType>& point_sets) {
   double total_length = 0;
@@ -205,6 +227,28 @@ T PointInVectorSide(const Eigen::Matrix<T, 2, 1>& p0,
 
   T cross = p0_pt.x() * p0_p1.y() - p0_p1.x() * p0_pt.y();
   return cross;
+}
+
+template <typename T, typename M>
+double PointInVectorSide(const T& p0, const T& p1, const M& pt) {
+  Eigen::Matrix<double, 2, 1> p0_p1(p1.x() - p0.x(), p1.y() - p0.y());
+  Eigen::Matrix<double, 2, 1> p0_pt(pt.x() - p0.x(), pt.y() - p0.y());
+
+  double cross = p0_pt.x() * p0_p1.y() - p0_p1.x() * p0_pt.y();
+  return cross;
+}
+template <typename T, typename M>
+bool PointInLineRight(const T& line, const M& pt) {
+  if (line.size() < 2) {
+    return false;
+  }
+  auto it =
+      std::lower_bound(line.begin(), line.end() - 2, pt.x(),
+                       [&](const auto& a, double b) { return a.x() < b; });
+  if (it == line.end()) {
+    return false;
+  }
+  return PointInVectorSide(*it, *(it + 1), pt) > 0;
 }
 
 /// 判断pt在p0p1的投影点是否在线段内

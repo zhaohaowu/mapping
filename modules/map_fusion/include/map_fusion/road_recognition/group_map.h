@@ -479,7 +479,7 @@ class GroupMap {
   void EraseSucessorRelation(Group::Ptr curr_group, int curr_erase_index,
                              Group::Ptr next_group, int next_index);
   bool ContainEgoLane(std::vector<Group::Ptr>* groups, int next_grp_index);
-  int FindEgoGroup(std::vector<Group::Ptr>*
+  int FindEgoGroup(const std::vector<Group::Ptr>*
                        groups);  // 找到自车所在的group 返回值是groups的index
   float PointToLineDis(const LineSegment& line, float line_front_x,
                        float line_front_y);

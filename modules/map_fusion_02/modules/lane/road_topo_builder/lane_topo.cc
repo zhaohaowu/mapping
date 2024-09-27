@@ -152,9 +152,10 @@ void LaneTopoConstruct::ConstructTopology(std::vector<Group::Ptr>* groups) {
 
 bool LaneTopoConstruct::LeftRightTopoProcess(std::vector<Group::Ptr>* groups) {
   for (auto& grp : *groups) {
-    HLOG_INFO << "group lane size: " << grp->lanes.size();
-    if (grp->lanes.size() > 1) {
-      for (int i = 0; i < static_cast<int>(grp->lanes.size()); ++i) {
+    int Lane_size = static_cast<int>(grp->lanes.size());
+    HLOG_INFO << "group lane size: " << Lane_size;
+    if (Lane_size > 1) {
+      for (int i = 0; i < Lane_size; ++i) {
         auto& curr = grp->lanes.at(i);
         HLOG_INFO << "cur lane: " << curr->str_id_with_group;
         if (i - 1 >= 0) {
@@ -164,7 +165,7 @@ bool LaneTopoConstruct::LeftRightTopoProcess(std::vector<Group::Ptr>* groups) {
           HLOG_INFO << "l lane: " << left->str_id_with_group;
         }
 
-        if (i + 1 < static_cast<int>(grp->lanes.size())) {
+        if (i + 1 < Lane_size) {
           const auto& right = grp->lanes.at(i + 1);
           curr->right_lane_str_id_with_group.emplace_back(
               right->str_id_with_group);

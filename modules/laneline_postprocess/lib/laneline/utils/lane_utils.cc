@@ -54,7 +54,7 @@ bool IsConvergePair(const LaneLineSceneType& scene_type1,
 
 void GetRefValueForLineCurve(const LaneLineCurve& curve, float* d,
                              float ref_min, float ref_length, int sample_num) {
-  if (d == nullptr) {
+  if (d == nullptr || sample_num < 1) {
     return;
   }
   float ref_max_lane = ref_min + ref_length;
@@ -66,9 +66,19 @@ void GetRefValueForLineCurve(const LaneLineCurve& curve, float* d,
   float sample_interval = (ref_max_lane - ref_min_lane) / sample_num;
   sample_interval = std::max(sample_interval, 1.0f);
   *d = 0.0f;
+  if (std::abs(ref_min_lane) > 200.0F || std::abs(ref_max_lane) > 200.0F) {
+    return;
+  }
+  int count_num = 0;
   for (float y = ref_min_lane; y < ref_max_lane; y += sample_interval) {
-    for (int i = 0; i < curve.coeffs.size(); ++i) {
-      *d += curve.coeffs[i] * powf(y, i);
+    count_num++;
+    if (count_num > 400) {
+      HLOG_WARN << "GetRefValueForLineCurve: ref_min_lane=" << ref_min_lane
+                << ", " << "ref_max_lane=" << ref_max_lane
+                << ", sample_interval=" << sample_interval << ", y=" << y;
+    }
+    for (int i = 0; i < curve.coeffs.size() && i < 4; ++i) {
+      *d += curve.coeffs[i] * pow(y, i);
     }
   }
   *d = *d / sample_num;

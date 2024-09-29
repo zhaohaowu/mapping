@@ -1072,6 +1072,7 @@ bool BaiDuMapEngine::UpdateHMINav(
   HLOG_WARN << "route: start update hmi nav";
   if (map_engine_ptr_ == nullptr) {
     HLOG_WARN << "route: map_engine_ptr is nullptr ";
+    return false;
   }
   if (hmi_nav == nullptr) {
     HLOG_WARN << "route: hmi_nav is nullptr ";

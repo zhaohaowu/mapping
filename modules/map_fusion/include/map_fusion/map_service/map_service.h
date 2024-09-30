@@ -98,6 +98,8 @@ class MapService {
       const ::google::protobuf::RepeatedPtrField<::hozon::hdmap::Id>& ids,
       std::unordered_set<hozon::hdmap::Id, IdHash, IdEqual>* lane_id_pool);
   void SetFautl();
+  bool IsNavDataSame(
+      const std::shared_ptr<hozon::hmi::NAVDataService>& nav_data);
   std::shared_ptr<hozon::routing::RoutingResponse> routing_ = nullptr;
   std::shared_ptr<std::vector<uint32_t>> routing_road_id_ = nullptr;
   hozon::common::math::Vec2d last_pose_;
@@ -119,7 +121,9 @@ class MapService {
   std::mutex ins_msg_mtx_;
   std::mutex ms_nav_mtx_;
   std::mutex ld_routing_mtx_;
+  std::mutex nav_data_mtx_;
   std::shared_ptr<hozon::hmi::NAVDataService> hmi_nav_data_ = nullptr;
+  std::shared_ptr<hozon::hmi::NAVDataService> last_hmi_nav_data_ = nullptr;
   std::atomic<bool> bd_thread_flag_{false};
   std::atomic<bool> rev_nav_flag_{false};
 };

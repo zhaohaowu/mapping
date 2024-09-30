@@ -41,7 +41,7 @@ int32_t BaiDuMapEngine::AlgInit() {
     HLOG_WARN << "logpath " << logpath;
     baidu::imap::InitParameter init_param(
         "202408271000003413", "",
-        baidu::imap::LogControl(5, 100 * 1024, logpath,
+        baidu::imap::LogControl(5, 20 * 1024, logpath,
                                 baidu::imap::LogControl::INFO));
 
     std::string vid = "HeZhong2024010166";
@@ -1161,7 +1161,6 @@ bool BaiDuMapEngine::UpdateHMINav(
 }
 void BaiDuMapEngine::UpdateBaiDuMap(
     const INSPos& pos,
-    const std::shared_ptr<hozon::hmi::NAVDataService>& hmi_nav,
     std::vector<uint32_t>* road_ids) {
   baidu::imap::GpsCoord gps;
   // gps.lon = 121.395844;

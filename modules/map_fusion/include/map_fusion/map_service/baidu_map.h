@@ -84,10 +84,7 @@ class BaiDuMapEngine : public hozon::netaos::adf_lite::Executor {
 
   // void UpdateBaiDuMap(const INSPos& pos);
   const hozon::hdmap::Map& GetNetaMap() const { return neta_map_; }
-  void UpdateBaiDuMap(
-      const INSPos& pos,
-      const std::shared_ptr<hozon::hmi::NAVDataService>& hmi_nav,
-      std::vector<uint32_t>* road_ids);
+  void UpdateBaiDuMap(const INSPos& pos, std::vector<uint32_t>* road_ids);
   // const hozon::hdmap::Map& GetNetaMap(){return neta_map_};
   bool UpdateHMINav(const std::shared_ptr<hozon::hmi::NAVDataService>& hmi_nav);
 

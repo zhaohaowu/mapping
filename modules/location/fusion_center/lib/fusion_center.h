@@ -48,6 +48,8 @@ class FusionCenter {
   void OnImu(const ImuIns& imu);
   void OnMm(const HafNodeInfo& mm);
   std::shared_ptr<Localization> GetFcOutput();
+  Eigen::Vector3d RotionMatrix2EulerAngle321(
+      const Eigen::Matrix3d& rotation_matrix);
 
  private:
   void Run();
@@ -62,8 +64,6 @@ class FusionCenter {
   Measure::ConstPtr GetNewIns(const Measure::ConstPtr& cur_ins,
                               const Measure& latest_mm,
                               const Eigen::Vector3d& refpoint);
-  Eigen::Vector3d RotionMatrix2EulerAngle321(
-      const Eigen::Matrix3d& rotation_matrix);
   void StateMeasure(const Measure::ConstPtr& measure, FcState* fc_state);
   Measure::ConstPtr GetChassisByTimestamp(double timestamp);
   Measure::ConstPtr GetInsByTimestamp(double timestamp);

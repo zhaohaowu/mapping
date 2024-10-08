@@ -8,6 +8,7 @@
 #pragma once
 #include <Eigen/Dense>
 #include <atomic>
+#include <condition_variable>
 #include <deque>
 #include <memory>
 #include <string>
@@ -63,11 +64,11 @@ class PoseEstimation {
 
   void ProcData();
   void RvizFunc(const LocalizationPtr& fc_pose_ptr,
-                 const LocalizationPtr& ins_pose_ptr,
-                 const TrackingManager& tracking_manager,
-                 const MappingManager& map_manager,
-                 const Eigen::Affine3d& T_input,
-                 const Eigen::Affine3d& T_fc_10hz);
+                const LocalizationPtr& ins_pose_ptr,
+                const TrackingManager& tracking_manager,
+                const MappingManager& map_manager,
+                const Eigen::Affine3d& T_input,
+                const Eigen::Affine3d& T_fc_10hz);
   Eigen::Affine3d Localization2Eigen(const LocalizationPtr& pose_ptr);
   template <typename T>
   void ShrinkQueue(T* deque, int maxsize);
@@ -112,6 +113,9 @@ class PoseEstimation {
   std::mutex perception_mutex_;
   std::mutex ref_point_mutex_;
   std::mutex rviz_mutex_;
+
+  std::mutex pe_cv_mutex_;
+  std::condition_variable pe_cv_;
 
   int ins_deque_max_size_ = 100;
   int fc_deque_max_size_ = 100;

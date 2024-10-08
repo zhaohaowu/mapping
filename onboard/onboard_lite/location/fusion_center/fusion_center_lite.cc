@@ -8,6 +8,7 @@
 #include <gflags/gflags.h>
 #include <perception-lib/lib/environment/environment.h>
 
+#include <Eigen/Dense>
 #include <string>
 #include <utility>
 
@@ -146,6 +147,60 @@ int32_t FusionCenterLite::OnDr(Bundle* input) {
   }
   fusion_center_->OnDr(*dr);
 
+  // 发送fc的proto
+  auto localization = fusion_center_->GetFcOutput();
+  if (!localization) {
+    HLOG_ERROR << "pub fc failed";
+    return -1;
+  }
+  // dr时间戳
+  localization->mutable_header()->set_data_stamp(dr->header().data_stamp());
+  // dr位置
+  localization->mutable_pose_local()->mutable_position()->set_x(
+      dr->pose().pose_local().position().x());  // 规控需要
+  localization->mutable_pose_local()->mutable_position()->set_y(
+      dr->pose().pose_local().position().y());  // 规控需要
+  localization->mutable_pose_local()->mutable_position()->set_z(
+      dr->pose().pose_local().position().z());  // 规控需要
+  // dr姿态
+  localization->mutable_pose_local()->mutable_quaternion()->set_w(
+      dr->pose().pose_local().quaternion().w());
+  localization->mutable_pose_local()->mutable_quaternion()->set_x(
+      dr->pose().pose_local().quaternion().x());
+  localization->mutable_pose_local()->mutable_quaternion()->set_y(
+      dr->pose().pose_local().quaternion().y());
+  localization->mutable_pose_local()->mutable_quaternion()->set_z(
+      dr->pose().pose_local().quaternion().z());
+  // dr yaw和pitch
+  Eigen::Quaterniond q_dr(dr->pose().pose_local().quaternion().w(),
+                          dr->pose().pose_local().quaternion().x(),
+                          dr->pose().pose_local().quaternion().y(),
+                          dr->pose().pose_local().quaternion().z());
+  auto euler_angle = fusion_center_->RotionMatrix2EulerAngle321(q_dr.matrix());
+  localization->mutable_pose_local()->set_local_heading(
+      static_cast<float>(euler_angle[2]));  // 规控需要
+  localization->mutable_pose()->mutable_euler_angle()->set_x(
+      euler_angle[1]);  // 规控需要
+  // dr速度
+  localization->mutable_pose_local()->mutable_linear_velocity_vrf()->set_x(
+      dr->velocity().twist_vrf().linear_vrf().x());  // local_mapping需要
+  localization->mutable_pose_local()->mutable_linear_velocity_vrf()->set_y(
+      dr->velocity().twist_vrf().linear_vrf().y());  // local_mapping需要
+  localization->mutable_pose_local()->mutable_linear_velocity_vrf()->set_z(
+      dr->velocity().twist_vrf().linear_vrf().z());  // local_mapping需要
+  // dr角速度
+  localization->mutable_pose_local()->mutable_angular_velocity_vrf()->set_x(
+      dr->velocity().twist_vrf().angular_vrf().x());  // local_mapping需要
+  localization->mutable_pose_local()->mutable_angular_velocity_vrf()->set_y(
+      dr->velocity().twist_vrf().angular_vrf().y());  // local_mapping需要
+  localization->mutable_pose_local()->mutable_angular_velocity_vrf()->set_z(
+      dr->velocity().twist_vrf().angular_vrf().z());  // local_mapping需要
+
+  auto localization_pack =
+      std::make_shared<hozon::netaos::adf_lite::BaseData>();
+  localization_pack->proto_msg = localization;
+  SendOutput(kFcTopic, localization_pack);
+
   static int dr_count = 0;
   ++dr_count;
   if (dr_count >= 100) {
@@ -196,15 +251,6 @@ int32_t FusionCenterLite::OnImu(Bundle* input) {
     return -1;
   }
   fusion_center_->OnImu(*imu);
-  auto localization = fusion_center_->GetFcOutput();
-  if (!localization) {
-    HLOG_ERROR << "pub fc failed";
-    return -1;
-  }
-  auto localization_pack =
-      std::make_shared<hozon::netaos::adf_lite::BaseData>();
-  localization_pack->proto_msg = localization;
-  SendOutput(kFcTopic, localization_pack);
 
   ++imu_count;
   if (imu_count >= 100) {

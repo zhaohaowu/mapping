@@ -1181,26 +1181,26 @@ std::shared_ptr<Localization> FusionCenter::GetFcOutput() {
       fc_state->second.linear_acceleration_vrf.y());  // 规控需要
   fc_output->mutable_pose()->mutable_linear_acceleration_vrf()->set_z(
       fc_state->second.linear_acceleration_vrf.z());  // 规控需要
-  // dr位置
-  fc_output->mutable_pose_local()->mutable_position()->set_x(
-      fc_state->second.p_dr.x());  // 规控需要
-  fc_output->mutable_pose_local()->mutable_position()->set_y(
-      fc_state->second.p_dr.y());  // 规控需要
-  fc_output->mutable_pose_local()->mutable_position()->set_z(
-      fc_state->second.p_dr.z());  // 规控需要
-  // dr姿态
-  fc_output->mutable_pose_local()->mutable_quaternion()->set_w(
-      static_cast<float>(fc_state->second.q_dr.w()));
-  fc_output->mutable_pose_local()->mutable_quaternion()->set_x(
-      static_cast<float>(fc_state->second.q_dr.x()));
-  fc_output->mutable_pose_local()->mutable_quaternion()->set_y(
-      static_cast<float>(fc_state->second.q_dr.y()));
-  fc_output->mutable_pose_local()->mutable_quaternion()->set_z(
-      static_cast<float>(fc_state->second.q_dr.z()));
-  fc_output->mutable_pose_local()->set_local_heading(
-      static_cast<float>(fc_state->second.yaw_dr));  // 规控需要
-  fc_output->mutable_pose()->mutable_euler_angle()->set_x(
-      fc_state->second.pitch_dr);  // 规控需要
+  // // dr位置
+  // fc_output->mutable_pose_local()->mutable_position()->set_x(
+  //     fc_state->second.p_dr.x());  // 规控需要
+  // fc_output->mutable_pose_local()->mutable_position()->set_y(
+  //     fc_state->second.p_dr.y());  // 规控需要
+  // fc_output->mutable_pose_local()->mutable_position()->set_z(
+  //     fc_state->second.p_dr.z());  // 规控需要
+  // // dr姿态
+  // fc_output->mutable_pose_local()->mutable_quaternion()->set_w(
+  //     static_cast<float>(fc_state->second.q_dr.w()));
+  // fc_output->mutable_pose_local()->mutable_quaternion()->set_x(
+  //     static_cast<float>(fc_state->second.q_dr.x()));
+  // fc_output->mutable_pose_local()->mutable_quaternion()->set_y(
+  //     static_cast<float>(fc_state->second.q_dr.y()));
+  // fc_output->mutable_pose_local()->mutable_quaternion()->set_z(
+  //     static_cast<float>(fc_state->second.q_dr.z()));
+  // fc_output->mutable_pose_local()->set_local_heading(
+  //     static_cast<float>(fc_state->second.yaw_dr));  // 规控需要
+  // fc_output->mutable_pose()->mutable_euler_angle()->set_x(
+  //     fc_state->second.pitch_dr);  // 规控需要
 
   return fc_output;
 }

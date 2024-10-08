@@ -33,6 +33,10 @@ PoseEstimation::PoseEstimation() : proc_thread_run_(true) {
 
 PoseEstimation::~PoseEstimation() {
   proc_thread_run_ = false;
+  {
+    std::unique_lock<std::mutex> lock(pe_cv_mutex_);
+    pe_cv_.notify_one();
+  }
   if (proc_thread_.joinable()) {
     proc_thread_.join();
   }
@@ -204,11 +208,19 @@ void PoseEstimation::OnPerception(
   perception_mutex_.lock();
   perception_ = *msg;
   perception_mutex_.unlock();
+  {
+    std::unique_lock<std::mutex> lock(pe_cv_mutex_);
+    pe_cv_.notify_one();
+  }
 }
 
 void PoseEstimation::ProcData() {
   pthread_setname_np(pthread_self(), "mp_loc_proc");
   while (proc_thread_run_) {
+    {
+      std::unique_lock<std::mutex> lock(pe_cv_mutex_);
+      pe_cv_.wait(lock);
+    }
     util::TicToc tic;
     HLOG_INFO << "pose_estimation proc_data thread heartbeat";
     // 获取感知数据
@@ -306,7 +318,6 @@ void PoseEstimation::ProcData() {
     RvizFunc(fc_pose_ptr, ins_pose_ptr, tracking_manager, map_manager, T_input,
              T_fc_10hz);
     HLOG_DEBUG << "pose_estimation cost " << tic.Toc() << " ms";
-    usleep(static_cast<unsigned int>(1e5 - tic.Toc()));
   }
 }
 

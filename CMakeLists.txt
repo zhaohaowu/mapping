@@ -173,12 +173,19 @@ endif()
 
 install(FILES version.json DESTINATION ${CMAKE_INSTALL_PREFIX} RENAME version.json)
 
-install(
-    DIRECTORY conf
-    DESTINATION ${CMAKE_INSTALL_PREFIX_RS}
-    PATTERN "conf/mapping/map_fusion/modules" EXCLUDE
-    PATTERN "conf/mapping/map_fusion/map_fusion_module_config_manager.config" EXCLUDE
-)
+if(${LOCAL_TARGET_PLATFORM} STREQUAL "orin")
+    install(
+        DIRECTORY conf
+        DESTINATION ${CMAKE_INSTALL_PREFIX_RS}
+        PATTERN "conf/mapping/map_fusion/modules" EXCLUDE
+        PATTERN "conf/mapping/map_fusion/map_fusion_module_config_manager.config" EXCLUDE
+    )
+elseif(${LOCAL_TARGET_PLATFORM} STREQUAL "x86")
+    install(
+        DIRECTORY conf
+        DESTINATION ${CMAKE_INSTALL_PREFIX_RS}
+    )
+endif()
 
 install(
     DIRECTORY conf/mapping/local_mapping

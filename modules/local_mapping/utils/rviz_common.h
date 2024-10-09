@@ -26,7 +26,7 @@
 #include "modules/local_mapping/base/scene/stopline.h"
 #include "modules/local_mapping/base/scene/zebracrossing.h"
 #include "modules/local_mapping/utils/common.h"
-#include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
+#include "modules/map_fusion_02/modules/map_hd/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
@@ -817,10 +817,10 @@ class RvizUtil {
     util::RvizAgent::Instance().Publish(topic, markers);
   }
 
-  static void PubMapOccEdge(const Eigen::Affine3d& T_W_V,
-                            const std::vector<OccEdge>& map_occ_edges,
-                            const uint64_t& sec, const uint64_t& nsec,
-                            const std::string& topic) {
+  static void PubMapImmatureOccEdge(const Eigen::Affine3d& T_W_V,
+                                    const std::vector<OccEdge>& map_occ_edges,
+                                    const uint64_t& sec, const uint64_t& nsec,
+                                    const std::string& topic) {
     static bool register_flag = true;
     if (register_flag) {
       util::RvizAgent::Instance().Register<adsfi_proto::viz::PointCloud>(topic);
@@ -886,7 +886,7 @@ class RvizUtil {
       point_marker.mutable_color()->set_r(0.0);
       point_marker.mutable_color()->set_g(1.0);
       point_marker.mutable_color()->set_b(0.0);
-      for (const auto& point : occ_edge.vehicle_points) {
+      for (const auto& point : occ_edge.fit_points) {
         auto point_world = T_W_V * point;
         auto* point_msg = point_marker.add_points();
         point_msg->set_x(point_world.x());

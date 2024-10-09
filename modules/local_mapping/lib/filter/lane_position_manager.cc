@@ -6,6 +6,7 @@
 #include "modules/local_mapping/lib/filter/lane_position_manager.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "modules/local_mapping/utils/lane_utils.h"
 
@@ -58,8 +59,8 @@ void LanePositionManager::SetLaneLinePosition(
   std::vector<std::pair<int, float>> left_lane_index;
   std::vector<std::pair<int, float>> right_lane_index;
   int size = lane_lines.size();
-  static int maintain_num = 0;
-  static float ref_thresh = 0;
+  static int maintain_num_mf = 0;
+  static float ref_thresh_mf = 0;
   for (int i = 0; i < size; ++i) {
     float d = 0.f;
     // 理论c0相距过近则用参考c0,如果参考和理论符号相反，相信理论cO
@@ -72,35 +73,36 @@ void LanePositionManager::SetLaneLinePosition(
       d = lane_lines[i]->refer_c0;
     }
 
-    if ((lane_lines[i]->history_mf_line_pos.size() == 2) && maintain_num == 0) {
+    if ((lane_lines[i]->history_mf_line_pos.size() == 2) &&
+        maintain_num_mf == 0) {
       int first_pos = static_cast<int>(lane_lines[i]->history_mf_line_pos[0]);
       int sec_pos = static_cast<int>(lane_lines[i]->history_mf_line_pos[1]);
       HLOG_DEBUG << "id:" << lane_lines[i]->id << " ,d:" << d
                  << " ,first_pos:" << first_pos << " ,sec_pos" << sec_pos;
       if ((first_pos + sec_pos == 0) && first_pos > 0) {
-        ref_thresh = -0.2;
-        maintain_num++;
+        ref_thresh_mf = -0.5;
+        maintain_num_mf++;
 
       } else if ((first_pos + sec_pos == 0) && first_pos < 0) {
-        ref_thresh = 0.2;
-        maintain_num++;
+        ref_thresh_mf = 0.5;
+        maintain_num_mf++;
       }
     }
     // 阈值保持5帧（两次调用）
-    if (maintain_num > 10) {
-      ref_thresh = 0;
-      maintain_num = 0;
+    if (maintain_num_mf > 10) {
+      ref_thresh_mf = 0;
+      maintain_num_mf = 0;
     }
-    HLOG_DEBUG << "ref_thresh:" << ref_thresh
-               << " ,maintain_num:" << maintain_num;
-    if (d > ref_thresh) {
+    HLOG_DEBUG << "ref_thresh_mf:" << ref_thresh_mf
+               << " ,maintain_num_mf:" << maintain_num_mf;
+    if (d > ref_thresh_mf) {
       left_lane_index.push_back(std::pair<int, float>(i, d));
     } else {
       right_lane_index.push_back(std::pair<int, float>(i, d));
     }
   }
-  if (maintain_num > 0) {
-    maintain_num++;
+  if (maintain_num_mf > 0) {
+    maintain_num_mf++;
   }
 
   // left_lane: sort by decrease
@@ -260,21 +262,98 @@ void LanePositionManager::IfCross(const LaneLinesPtr& laneline_ptrs) {
     }
   }
 }
+void removeDuplicatesWithSet(std::vector<LaneLinePtr>* vec_lane) {
+  std::unordered_set<LaneLinePtr> seen;
+  std::vector<LaneLinePtr> result;
+
+  for (auto& lane : *vec_lane) {
+    if (seen.find(lane) == seen.end()) {
+      seen.insert(lane);
+      result.push_back(lane);
+    }
+  }
+
+  vec_lane->swap(result);
+}
 void LanePositionManager::SelectLaneLines(
     const std::vector<LaneLinePtr>& normal_lanelines,
     std::vector<LaneLinePtr>* selected_lanelines) {
+  bool left_valid = false;
+  bool right_valid = false;
+  // 判断自车左右是否有主车道线
   for (const auto& lane_line : normal_lanelines) {
     if (lane_line->vehicle_points.empty()) {
       continue;
     }
+    float d = 0.f;
+    // 理论c0相距过近则用参考c0,如果参考和理论符号相反，相信理论cO
+    if (lane_line->theory_c0 * lane_line->refer_c0 < 0) {
+      d = lane_line->theory_c0;
+    }
+    if (!lane_line->cross) {
+      d = lane_line->theory_c0;
+    } else {
+      d = lane_line->refer_c0;
+    }
     if (lane_line->vehicle_points.front().x() < 0 &&
         lane_line->vehicle_points.back().x() > 0) {
-      selected_lanelines->emplace_back(lane_line);
+      // d>0 左边,d<0，右边
+      if (d > 0 && std::fabs(d) < 4) {
+        left_valid = true;
+        selected_lanelines->emplace_back(lane_line);
+      }
+      if (d < 0 && std::fabs(d) < 4) {
+        right_valid = true;
+        selected_lanelines->emplace_back(lane_line);
+      }
+    }
+    // else {
+    //   lane_line->mf_position = LaneLinePosition::OTHER;
+    // }
+  }
+  // 选择需要排序的主车道线
+  for (const auto& lane_line : normal_lanelines) {
+    if (lane_line->vehicle_points.empty()) {
+      continue;
+    }
+    float d = 0.f;
+    // 理论c0相距过近则用参考c0,如果参考和理论符号相反，相信理论cO
+    if (lane_line->theory_c0 * lane_line->refer_c0 < 0) {
+      d = lane_line->theory_c0;
+    }
+    if (!lane_line->cross) {
+      d = lane_line->theory_c0;
     } else {
-      lane_line->mf_position = LaneLinePosition::OTHER;
+      d = lane_line->refer_c0;
+    }
+    if (left_valid && right_valid) {
+      if (lane_line->vehicle_points.front().x() < 0 &&
+          lane_line->vehicle_points.back().x() > 0) {
+        selected_lanelines->emplace_back(lane_line);
+      } else {
+        lane_line->mf_position = LaneLinePosition::OTHER;
+      }
+    } else if (left_valid && !right_valid) {
+      if (d < 0 && std::fabs(d) < 4 &&
+          lane_line->vehicle_points.front().x() > 0) {
+        selected_lanelines->emplace_back(lane_line);
+      }
+    } else if (!left_valid && right_valid) {
+      if (d > 0 && std::fabs(d) < 4 &&
+          lane_line->vehicle_points.front().x() > 0) {
+        selected_lanelines->emplace_back(lane_line);
+      }
+    } else if (!left_valid && !right_valid) {
+      // 如果左右都没有，则排前方最多4条车道线
+      if (std::fabs(d) < 8 && lane_line->vehicle_points.front().x() > 0) {
+        selected_lanelines->emplace_back(lane_line);
+      }
     }
   }
+  // 对选择的线进行去重
+  removeDuplicatesWithSet(selected_lanelines);
 }
+
 }  // namespace lm
 }  // namespace mp
 }  // namespace hozon

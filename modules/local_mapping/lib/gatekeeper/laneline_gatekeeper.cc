@@ -98,9 +98,11 @@ bool LaneGatekeeper::AbleToOutput(
         is_short = target->Count() < targets[i]->Count();
       }
 
-      bool is_not_intersection = !IsForkOrConvergePair(
-          target->GetConstTrackedObject()->scene_type,
-          targets[i]->GetConstTrackedObject()->scene_type);
+      bool is_not_intersection =
+          !IsForkOrConvergePair(
+              target->GetConstTrackedObject()->scene_type,
+              targets[i]->GetConstTrackedObject()->scene_type) &&
+          !IsForkConvergelike(target, targets[i]);
       float overlap_start =
           std::max(point_set1.front().x(), point_set2.front().x());
       float overlap_end =

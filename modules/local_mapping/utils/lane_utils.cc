@@ -68,6 +68,7 @@ void GetRefValueForLineCurve(const LaneLineCurve& curve, float* d,
     ref_max_lane = std::min(curve.min + ref_length, curve.max);
   }
   float sample_interval = (ref_max_lane - ref_min_lane) / sample_num;
+  sample_interval = std::max(sample_interval, 1.0f);
   *d = 0.0f;
   for (float y = ref_min_lane; y < ref_max_lane; y += sample_interval) {
     for (int i = 0; i < curve.coeffs.size(); ++i) {
@@ -327,7 +328,6 @@ bool TransformLaneLineCurveInNovatelPolyfit(
     *transform_line_curve = curve;
     return true;
   }
-
   if ((curve.max - curve.min < 1e-9) || (curve.coeffs.size() != 4)) {
     return false;
   }
@@ -412,8 +412,7 @@ bool TransformLaneLineCurveInNovatel(const LaneLineCurve& curve,
     // Eigen::Vector3d point_old(curve_p, point, 0);
     Eigen::Vector3d point_old(point, curve_p, 0);
     Eigen::Vector3d point_new = transform_matrix * point_old;
-    HLOG_DEBUG << "point x:" << point << ","
-               << "curve y:" << curve_p << ","
+    HLOG_DEBUG << "point x:" << point << "," << "curve y:" << curve_p << ","
                << "x new:" << point_new.x() << ", y new:" << point_new.y();
     float x = point_new.x();
     float x2 = x * x;
@@ -899,6 +898,341 @@ void DeepCopy(const LocalMapFramePtr& src_data,
       dst_data->occ_edges_ptr->occ_edges.push_back(copy_occ_edge);
     }
   }
+}
+
+double InnerProd2d(const Eigen::Vector3d& pt1, const Eigen::Vector3d& pt2) {
+  return pt1.x() * pt2.x() + pt1.y() * pt2.y();
+}
+
+LMStatus Point2LineProject2D(const Eigen::Vector3d& pt,
+                             const Eigen::Vector3d& line_start_pt,
+                             const Eigen::Vector3d& line_end_pt,
+                             Eigen::Vector3d* project_pt, float* coef) {
+  auto direction = line_end_pt - line_start_pt;
+  auto line_len = direction.norm();
+  if (line_len == 0) {
+    *project_pt = line_start_pt;
+    *coef = 0;
+    HLOG_INFO << "line_len == 0, start == end";
+    return LMStatus::ERROR;
+  }
+
+  auto unit_direction = direction / line_len;
+  auto v1 = pt - line_start_pt;
+  auto project_len = InnerProd2d(v1, unit_direction);
+  auto _coef = project_len / line_len;
+  project_pt->x() =
+      (line_end_pt.x() - line_start_pt.x()) * _coef + line_start_pt.x();
+  project_pt->y() =
+      (line_end_pt.y() - line_start_pt.y()) * _coef + line_start_pt.y();
+  project_pt->z() =
+      (line_end_pt.z() - line_start_pt.z()) * _coef + line_start_pt.z();
+  if (coef != nullptr) {
+    *coef = static_cast<float>(_coef);
+  }
+
+  return LMStatus::SUCCESS;
+}
+
+LMStatus GetProjectPoint(const std::vector<Eigen::Vector3d>& points,
+                         const Eigen::Vector3d& ref_point,
+                         Eigen::Vector3d* proj_point, size_t* next_idx,
+                         int* pos_flag) {
+  if (!(points.size() >= 2)) {
+    HLOG_ERROR << "GetProjectPoint Check failed: (points.size() >= 2)";
+    return LMStatus::ERROR;
+  }
+
+  double min_dist = std::numeric_limits<double>::max();
+  size_t min_idx = 0;
+  for (size_t i = 0; i < points.size(); i++) {
+    const auto& point = points[i];
+    double dist = (ref_point - point).norm();
+    if (dist < min_dist) {
+      min_dist = dist;
+      min_idx = i;
+    }
+  }
+
+  if (min_idx == 0) {
+    const auto& p1 = points[0];
+    const auto& p2 = points[1];
+
+    Eigen::Vector3d proj_pt;
+    float coef = 0;
+    Point2LineProject2D(ref_point, p1, p2, &proj_pt, &coef);
+    HLOG_DEBUG << "coef: " << coef;
+    if (coef <= 0) {
+      *proj_point = p1;
+      *next_idx = 0;
+      *pos_flag = -1;
+      return LMStatus::SUCCESS;
+    }
+    if (coef > 0 && coef <= 1) {
+      *proj_point = proj_pt;
+      *next_idx = 1;
+      *pos_flag = 0;
+      return LMStatus::SUCCESS;
+    }
+    if (coef > 1) {
+      *proj_point = p2;
+      *next_idx = 1;
+      *pos_flag = 0;
+      return LMStatus::SUCCESS;
+    }
+
+  } else if (min_idx == points.size() - 1) {
+    const auto& p2 = points[points.size() - 1];
+    const auto& p1 = points[points.size() - 2];
+
+    Eigen::Vector3d proj_pt;
+    float coef = 0;
+    Point2LineProject2D(ref_point, p1, p2, &proj_pt, &coef);
+    HLOG_DEBUG << "coef: " << coef;
+    if (coef <= 0) {
+      *proj_point = p1;
+      *next_idx = points.size() - 2;
+      *pos_flag = 0;
+      return LMStatus::SUCCESS;
+    }
+    if (coef > 0 && coef <= 1) {
+      *proj_point = proj_pt;
+      *next_idx = points.size() - 1;
+      *pos_flag = 0;
+      return LMStatus::SUCCESS;
+    }
+    if (coef > 1) {
+      *proj_point = p2;
+      *next_idx = points.size() - 1;
+      *pos_flag = 1;
+      return LMStatus::SUCCESS;
+    }
+
+  } else {
+    // min_idx is not the start or end
+    const auto& p1 = points[min_idx - 1];
+    const auto& p2 = points[min_idx];
+    const auto& p3 = points[min_idx + 1];
+
+    Eigen::Vector3d proj_pt1;
+    float coef1 = 0;
+    Point2LineProject2D(ref_point, p1, p2, &proj_pt1, &coef1);
+    if (coef1 <= 0) {
+      *proj_point = p1;
+      *next_idx = min_idx - 1;
+      *pos_flag = 0;
+      return LMStatus::SUCCESS;
+    }
+    if (coef1 > 0 && coef1 <= 1) {
+      *proj_point = proj_pt1;
+      *next_idx = min_idx;
+      *pos_flag = 0;
+      return LMStatus::SUCCESS;
+    }
+
+    Eigen::Vector3d proj_pt2;
+    float coef2 = 0;
+    Point2LineProject2D(ref_point, p2, p3, &proj_pt2, &coef2);
+    if (coef2 <= 0) {
+      *proj_point = p2;
+      *next_idx = min_idx;
+      *pos_flag = 0;
+      return LMStatus::SUCCESS;
+    }
+    if (coef2 > 0 && coef2 <= 1) {
+      *proj_point = proj_pt2;
+      *next_idx = min_idx + 1;
+      *pos_flag = 0;
+      return LMStatus::SUCCESS;
+    }
+    if (coef2 > 1) {
+      *proj_point = p3;
+      *next_idx = min_idx + 1;
+      *pos_flag = 0;
+      return LMStatus::SUCCESS;
+    }
+  }
+
+  return LMStatus::SUCCESS;
+}
+
+bool DetectSplitPt(const std::vector<Eigen::Vector3d>& pts1,
+                   const std::vector<Eigen::Vector3d>& pts2,
+                   Eigen::Vector3d* split_pt) {
+  if (pts1.size() <= 2 || pts2.size() <= 2) {
+    return false;
+  }
+  // 1. get proj_pt and calculate first_pt distance
+  // Judge condition1: first_pt distance < th1
+  Eigen::Vector3d candi_pt;
+  size_t index;
+  int pos_flag;
+  if (GetProjectPoint(pts2, pts1.front(), &candi_pt, &index, &pos_flag) !=
+      LMStatus::SUCCESS) {
+    return false;
+  }
+  double front_dist = (pts1.front() - candi_pt).norm();
+  const double split_dist_th1 = 1.5;
+  if (front_dist > split_dist_th1) {
+    return false;
+  }
+
+  // 2. 计算后面点的平均距离
+  // condition2: next_pt distance > first_pt distance
+  // condition3: next_pts average distance - first_pt distance > th2
+  size_t compare_cnt = std::min(20, static_cast<int>(pts1.size()));
+  double avemindis_points = 0;
+  int count_min_num = 0;
+  for (size_t k = 1; k < compare_cnt; ++k) {
+    Eigen::Vector3d pointafterpoint1 = pts1.at(k);
+    double mindis_cur = DBL_MAX;
+    bool overlay_flag = false;
+    for (size_t m = index; m < pts2.size() - 1; ++m) {
+      const auto& pt1 = pts2[m];
+      const auto& pt2 = pts2[m + 1];
+      Eigen::Vector3d proj_pt;
+      float coef = 0;
+      if (Point2LineProject2D(pointafterpoint1, pt1, pt2, &proj_pt, &coef) !=
+          LMStatus::SUCCESS) {
+        continue;
+      }
+      if (coef >= 0 && coef <= 1) {
+        double dist = std::sqrt((pointafterpoint1.x() - proj_pt.x()) *
+                                    (pointafterpoint1.x() - proj_pt.x()) +
+                                (pointafterpoint1.y() - proj_pt.y()) *
+                                    (pointafterpoint1.y() - proj_pt.y()));
+        mindis_cur = std::min(mindis_cur, dist);
+        overlay_flag = true;
+      }
+    }
+    if (overlay_flag) {
+      if (mindis_cur <= front_dist - 0.5) {
+        return false;
+      }
+      // 差距小的地方不计入平均距离
+      if (mindis_cur < front_dist + 0.2) {
+        continue;
+      }
+      count_min_num++;
+      avemindis_points += mindis_cur;
+    }
+  }
+  avemindis_points = count_min_num > 0 ? avemindis_points / count_min_num : 0.0;
+  HLOG_DEBUG << "avemindis_points: " << avemindis_points
+             << ", diff:" << avemindis_points - front_dist;
+  const double split_dist_th2 = 0.5;
+  if (avemindis_points - front_dist > split_dist_th2) {
+    (*split_pt) = candi_pt;
+  } else {
+    return false;
+  }
+  return true;
+}
+
+bool DetectMergePt(const std::vector<Eigen::Vector3d>& pts1,
+                   const std::vector<Eigen::Vector3d>& pts2,
+                   Eigen::Vector3d* merge_pt) {
+  if (pts1.size() <= 2 || pts2.size() <= 2) {
+    return false;
+  }
+  // 1. get proj_pt and calculate first_pt distance
+  // Judge condition1: first_pt distance < th1
+  Eigen::Vector3d candi_pt;
+  size_t index;
+  int pos_flag;
+  if (GetProjectPoint(pts2, pts1.back(), &candi_pt, &index, &pos_flag) !=
+      LMStatus::SUCCESS) {
+    return false;
+  }
+  double end_dist = (pts1.back() - candi_pt).norm();
+  const double merge_dist_th1 = 1.5;
+  if (end_dist > merge_dist_th1) {
+    return false;
+  }
+
+  // 2. 计算后面点的平均距离
+  // condition2: next_pt distance > first_pt distance
+  // condition3: next_pts average distance - first_pt distance > th2
+  size_t compare_cnt = std::min(20, static_cast<int>(pts1.size()));
+  double avemindis_points = 0;
+  int count_min_num = 0;
+  for (size_t k = 1; k < compare_cnt; ++k) {
+    Eigen::Vector3d pointbeforepoint1 = pts1.at(pts1.size() - 1 - k);
+    double mindis_cur = DBL_MAX;
+    bool overlay_flag = false;
+    for (size_t m = index; m > 0; m--) {
+      const auto& pt1 = pts2[m - 1];
+      const auto& pt2 = pts2[m];
+      Eigen::Vector3d proj_pt;
+      float coef = 0;
+      if (Point2LineProject2D(pointbeforepoint1, pt1, pt2, &proj_pt, &coef) !=
+          LMStatus::SUCCESS) {
+        continue;
+      }
+      if (coef >= 0 && coef <= 1) {
+        double dist = std::sqrt((pointbeforepoint1.x() - proj_pt.x()) *
+                                    (pointbeforepoint1.x() - proj_pt.x()) +
+                                (pointbeforepoint1.y() - proj_pt.y()) *
+                                    (pointbeforepoint1.y() - proj_pt.y()));
+        mindis_cur = std::min(mindis_cur, dist);
+        overlay_flag = true;
+      }
+    }
+    if (overlay_flag) {
+      if (mindis_cur <= end_dist - 0.5) {
+        return false;
+      }
+      // 差距小的地方不计入平均距离
+      if (mindis_cur < end_dist + 0.2) {
+        continue;
+      }
+      count_min_num++;
+      avemindis_points += mindis_cur;
+    }
+  }
+  avemindis_points = count_min_num > 0 ? avemindis_points / count_min_num : 0.0;
+  HLOG_DEBUG << "avemindis_points: " << avemindis_points
+             << ", diff:" << avemindis_points - end_dist;
+  const double merge_dist_th2 = 0.5;
+  if (avemindis_points - end_dist > merge_dist_th2) {
+    (*merge_pt) = candi_pt;
+  } else {
+    return false;
+  }
+  return true;
+}
+
+bool IsForkConvergelike(const LaneTargetConstPtr& left_line,
+                        const LaneTargetConstPtr& right_line) {
+  const std::vector<Eigen::Vector3d>& point_set1 =
+      left_line->GetConstTrackedObject()->vehicle_points;
+
+  const std::vector<Eigen::Vector3d>& point_set2 =
+      right_line->GetConstTrackedObject()->vehicle_points;
+
+  if (point_set1.empty() || point_set2.empty()) {
+    return false;
+  }
+  Eigen::Vector3d merge_pt;
+  HLOG_DEBUG << "DetectMergePt left_id: " << left_line->Id() << ", right_id "
+             << right_line->Id();
+  if (DetectMergePt(point_set1, point_set2, &merge_pt) ||
+      DetectMergePt(point_set2, point_set1, &merge_pt)) {
+    HLOG_DEBUG << "DetectMergePtTrue left_id: " << left_line->Id()
+               << ", right_id " << right_line->Id();
+    return true;
+  }
+  Eigen::Vector3d split_pt;
+
+  HLOG_DEBUG << "DetectSplitPt left_id: " << left_line->Id() << ", right_id "
+             << right_line->Id();
+  if (DetectSplitPt(point_set1, point_set2, &split_pt) ||
+      DetectSplitPt(point_set2, point_set1, &split_pt)) {
+    HLOG_DEBUG << "DetectSplitPtTrue left_id: " << left_line->Id()
+               << ", right_id " << right_line->Id();
+    return true;
+  }
+  return false;
 }
 
 }  // namespace lm

@@ -35,8 +35,10 @@ bool MappingPositionManager::IsUnknownLaneline(const LaneLinePtr& laneline_ptr,
       laneline_ptr->vehicle_points.front().x() > 50) {
     return true;
   }
-  // 与自车左右车道线中有横向距离小于1m的，则是unknow
+  // flag_near是指与自车左右车道线中有横向距离小于2m,且没有纵向重叠区域的线的标志位
+  // over_lap_flag与自车左右车道线纵向重叠区域大于0.5
   bool flag_near = false;
+  bool over_lap_flag = false;
   for (auto& line : lane_lines_ego_) {
     float avg_dist = GetDistBetweenTwoLane(laneline_ptr->vehicle_points,
                                            line->vehicle_points);
@@ -44,10 +46,21 @@ bool MappingPositionManager::IsUnknownLaneline(const LaneLinePtr& laneline_ptr,
     if (avg_dist < 2 && over_lay_ratio == 0) {
       flag_near = true;
     }
+    if (over_lay_ratio > 0.5) {
+      over_lap_flag = true;
+    }
   }
 
-  // 如果本车左右近处有车道线，且不是路口，则不再排序远处的线
-  if (has_main_line_flag && laneline_ptr->vehicle_points.front().x() > 4 ||
+  if (flag_near) {
+    over_lap_flag = false;
+  }
+  HLOG_DEBUG << "has_main_line_flag:" << has_main_line_flag
+             << "flag_near:" << flag_near
+             << " ,over_lap_flag:" << over_lap_flag;
+  // 如果本车左右近处有车道线，且和它们没有大于0.5的重叠区域，且前面车道线的起始端点在车前方，则归为unknown
+  // 如果本车左右近处有车道线，且和它们横向区域距离较近的前方车道线，也归为unknown
+  if (has_main_line_flag && laneline_ptr->vehicle_points.front().x() > 4 &&
+          !over_lap_flag ||
       has_main_line_flag && flag_near) {
     return true;
   }
@@ -135,7 +148,7 @@ void MappingPositionManager::Process(const LaneLinesPtr& laneline_ptrs) {
 void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
   const auto& last_local_map = MAP_MANAGER->GetLocalMap();
   double min_intersection_x = FLT_MAX;
-  bool zebra_enable = true;
+  bool zebra_enable = false;
   int cross_num = 0;
   if (last_local_map->stop_lines_ptr != nullptr) {
     for (const auto& stop_line_ptr :
@@ -143,6 +156,7 @@ void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
       if (stop_line_ptr->center_point.x() < min_intersection_x &&
           (stop_line_ptr->center_point.x() >= -10)) {
         min_intersection_x = stop_line_ptr->center_point.x();
+        zebra_enable = true;
       }
     }
   }
@@ -152,6 +166,7 @@ void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
       if (zebra_crossing_ptr->center_point.x() < min_intersection_x &&
           (zebra_crossing_ptr->center_point.x() >= -10)) {
         min_intersection_x = zebra_crossing_ptr->center_point.x();
+        zebra_enable = true;
       }
     }
   }
@@ -170,6 +185,7 @@ void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
     zebra_enable = false;
   }
   HLOG_DEBUG << "min_intersection_x:" << min_intersection_x
+             << " ,cross_num: " << cross_num
              << " ,zebra_enable:" << zebra_enable;
   for (auto& lane_line : laneline_ptrs->lanelines) {
     if (lane_line->vehicle_points.size() == 0) {
@@ -184,7 +200,7 @@ void MappingPositionManager::SetJunction(const LaneLinesPtr& laneline_ptrs) {
       // true。2.5(斑马线的宽度5m的一半)+4m的车辆后轴到前面的长度=6.5
       lane_line->after_intersection =
           !(start_point_x <= min_intersection_x && min_intersection_x >= 6.5 &&
-            start_point_x <= 0);
+            start_point_x <= 4);
     } else {
       lane_line->after_intersection = false;
     }
@@ -218,11 +234,11 @@ void MappingPositionManager::SetLaneLinePosition(
       HLOG_DEBUG << "id:" << lane_lines[i]->id << " ,d:" << d
                  << " ,first_pos:" << first_pos << " ,sec_pos" << sec_pos;
       if ((first_pos + sec_pos == 0) && first_pos > 0) {
-        ref_thresh = -0.2;
+        ref_thresh = -0.5;
         maintain_num++;
 
       } else if ((first_pos + sec_pos == 0) && first_pos < 0) {
-        ref_thresh = 0.2;
+        ref_thresh = 0.5;
         maintain_num++;
       }
     }

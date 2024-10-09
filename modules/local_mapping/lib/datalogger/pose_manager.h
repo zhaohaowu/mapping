@@ -33,6 +33,7 @@ class PoseManager {
   bool PushDrData(const LocationConstPtr& latest_localization);
   void PushLocalDrData(double timestamp, const DrDataConstPtr& local_pose);
   void SetTimeStampDrPose(DrDataConstPtr);
+  void SetMapUpdatePose(const Eigen::Affine3d& pose);
   ~PoseManager() = default;
 
  private:
@@ -46,6 +47,8 @@ class PoseManager {
   bool turn_state_ = false;
   double static_dist_accu_ = 0.0;
   double static_angular_accu_ = 0.0;
+  // 更新map时的pose
+  Eigen::Affine3d map_update_pose_;
 
   bool use_idle_strategy_ = true;
   float u_turn_angle_velocity_limit_;

@@ -52,6 +52,7 @@ bool RoadTopoConstruct::ConstructTopology(
     case RoadSceneType::GENERAL_ROAD:
     case RoadSceneType::NEAR_JUNCTION:
       lane_topo_->ConstructTopology(groups);
+      break;
     case RoadSceneType::IN_JUNCTION:
       junc_topo_->ConstructTopology(stamp, groups, path, curr_pose);
   }

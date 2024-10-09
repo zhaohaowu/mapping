@@ -34,7 +34,7 @@
 #include "modules/local_mapping/utils/common.h"
 #include "modules/local_mapping/utils/fetch_hq.h"
 #include "modules/local_mapping/utils/rviz_common.h"
-#include "modules/map_fusion/include/map_fusion/map_service/global_hd_map.h"
+#include "modules/map_fusion_02/modules/map_hd/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
 #include "modules/util/include/util/tic_toc.h"

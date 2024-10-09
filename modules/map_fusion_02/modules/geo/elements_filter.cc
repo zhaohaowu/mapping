@@ -165,7 +165,7 @@ void ElementsFilter::CompensateElementMapLine() {
   if (line_table_.empty() || road_edge_table_.empty()) {
     return;
   }
-  MakeRoadEdgeToLaneLine();
+  // MakeRoadEdgeToLaneLine();
   HandleExtraWideLane();
 }
 

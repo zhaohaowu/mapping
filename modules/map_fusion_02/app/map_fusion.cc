@@ -7,9 +7,9 @@
 
 #include "modules/map_fusion_02/app/map_fusion.h"
 
+#include <map>
 #include <tuple>
 #include <vector>
-#include <map>
 
 #include "modules/map_fusion_02/data_manager/ins_data_manager.h"
 #include "modules/map_fusion_02/data_manager/location_data_manager.h"
@@ -115,6 +115,7 @@ int MapFusion::ProcPercep(
   if (!OutDataMapping(fusion_map, routing, groups, cur_elem_map_, zebra,
                       stopline)) {
     HLOG_ERROR << "Output data mapping failed";
+    Clear();
     return -1;
   }
   // 单帧处理结束各个pipeline清理内部元素

@@ -201,10 +201,10 @@ void LocalMapApp::RvizFunc() {
     for (const auto& occ_edge : local_map->occ_edges_ptr->occ_edges) {
       map_occ_edges.emplace_back(*occ_edge);
     }
-    RvizUtil::PubMapOccEdge(T_W_V, map_occ_edges, sec, nsec,
-                            "/localmap/map_occ_edge");
-    RvizUtil::PubMapOccEdgeMarker(T_W_V, map_occ_edges, sec, nsec,
-                                  "/localmap/mature_map_occ_edge_marker");
+    RvizUtil::PubMapImmatureOccEdge(T_W_V, map_occ_edges, sec, nsec,
+                                    "/localmap/immature_map_occ_edge");
+    // RvizUtil::PubMapOccEdgeMarker(T_W_V, map_occ_edges, sec, nsec,
+    //                               "/localmap/mature_map_occ_edge_marker");
     RvizUtil::PubMapImmatureOccEdgeMarker(
         T_W_V, map_occ_edges, sec, nsec,
         "/localmap/immature_map_occ_edge_marker");

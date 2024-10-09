@@ -74,6 +74,8 @@ bool MapWorker::Process(const MeasurementFrameConstPtr& measurement_frame_ptr) {
   static_copy_map_once_ = false;
   // 1. 清空地图数据
   auto local_map_ptr_ = MAP_MANAGER->GetWriteLocalMap();
+  // 记录更新map的pose
+  POSE_MANAGER->SetMapUpdatePose(POSE_MANAGER->GetCurrentPose());
   ClearLocalMap(local_map_ptr_);
   // 更新一下数据面时间和序列号
   local_map_ptr_->header.timestamp = measurement_frame_ptr->header.timestamp;
@@ -193,7 +195,7 @@ void MapWorker::CutLocalMap(std::shared_ptr<LocalMapFrame> local_map_ptr,
   // occ路沿目标范围裁剪
   // occ 看得远单独设置裁剪范围
   const double occ_length_x = 200.0;
-  const double occ_length_y = 30.0;
+  const double occ_length_y = 50.0;
   for (auto& occ_roadedge_ptr : local_map_ptr->occ_edges_ptr->occ_edges) {
     auto& vehicle_points = occ_roadedge_ptr->vehicle_points;
     vehicle_points.erase(

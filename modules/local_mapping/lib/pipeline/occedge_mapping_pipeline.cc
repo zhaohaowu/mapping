@@ -261,7 +261,7 @@ std::vector<OccEdgePtr> OccEdgeMappingPipeline::CleanMeasureData(
   const double length_threshold = 10.0;
   for (const auto& measure_edge : *measurement_datas) {
     auto measure_data = std::make_shared<OccEdge>(*measure_edge);
-    if (measure_data->vehicle_points.size() < 4) {
+    if (measure_data->vehicle_points.size() < 8) {
       continue;
     }
     // 长度小于10m
@@ -311,8 +311,7 @@ std::vector<OccEdgePtr> OccEdgeMappingPipeline::CurveFitMeasureData(
   std::vector<OccEdgePtr> output_measurement_data;
   CurveFitter curve_fitter(3);
   for (const auto& measure_data : *measurement_datas) {
-    if (!curve_fitter.RandomPointsPolyFitProcess(
-            measure_data->vehicle_points)) {
+    if (!curve_fitter.RandomPointsPolyFitProcess(measure_data->fit_points)) {
       continue;
     }
     measure_data->vehicle_curve.min = curve_fitter.x_min;
@@ -320,8 +319,7 @@ std::vector<OccEdgePtr> OccEdgeMappingPipeline::CurveFitMeasureData(
     measure_data->vehicle_curve.coeffs = curve_fitter.params;
     HLOG_DEBUG << "CleanMeasureData: " << curve_fitter.x_min << ", "
                << curve_fitter.x_max << ", " << curve_fitter.params[0];
-    std::sort(measure_data->vehicle_points.begin(),
-              measure_data->vehicle_points.end(),
+    std::sort(measure_data->fit_points.begin(), measure_data->fit_points.end(),
               [=](const auto& left, const auto& right) {
                 return left.x() < right.x();
               });
@@ -459,6 +457,8 @@ void OccEdgeMappingPipeline::CollectOutputObjects(
     OccEdgePtr output_occedge_object =
         std::make_shared<OccEdge>(*occedge_target->GetConstTrackedObject());
     output_occedge_object->detect_id = occedge_target->occ_detect_id;
+    // 只发送拟合曲线的点
+    output_occedge_object->vehicle_points = output_occedge_object->fit_points;
     if (!occedge_gate_keeper_->AbleToOutput(occedge_tracker->GetConstTarget(),
                                             GetAllConstTarget())) {
       HLOG_ERROR << "OccedgeTarget TrackStatus trackId: "
@@ -525,79 +525,104 @@ void OccEdgeMappingPipeline::CatmullRomFit(OccEdgesPtr tracked_occedges) {
   }
 }
 
+// 从起点附近找15米以内的点计算平均y,若没找到点则第一个点的y
+double calculateOccY(const std::vector<Eigen::Vector3d>& pts, int fix_pos,
+                     int pos, double threshold) {
+  double y_val = 0.0;
+  int count_pts = 0;
+  if (fix_pos > pos) {
+    for (int i = fix_pos - 1; i >= pos; --i) {
+      if ((pts[i] - pts[fix_pos]).norm() < threshold ||
+          std::abs(pts[i].x() - pts[fix_pos].x()) < threshold) {
+        y_val += std::abs(pts[i].y());
+        count_pts++;
+      }
+    }
+  } else {
+    for (int i = fix_pos + 1; i <= pos; ++i) {
+      if ((pts[i] - pts[fix_pos]).norm() < threshold ||
+          std::abs(pts[i].x() - pts[fix_pos].x()) < threshold) {
+        y_val += std::abs(pts[i].y());
+        count_pts++;
+      }
+    }
+  }
+  if (count_pts == 0) {
+    int select_pos = fix_pos > pos ? fix_pos - 1 : fix_pos + 1;
+    if (select_pos >= 0 && select_pos < static_cast<int>(pts.size())) {
+      y_val = std::abs(pts[select_pos].y());
+    } else {
+      y_val = std::numeric_limits<double>::max();
+    }
+  } else {
+    y_val /= count_pts;
+  }
+  return y_val;
+}
+
 void OccEdgeMappingPipeline::InterpolatePoint(
     std::vector<OccEdgePtr> detect_measurements) {
   for (auto& occedge_ptr : detect_measurements) {
     const auto& pts = occedge_ptr->vehicle_points;
-    // 找拐点
-    bool split_flag = false;
-    auto fix_iter = std::min_element(pts.begin(), pts.end(),
-                                     [](const auto& left, const auto& right) {
-                                       return left.norm() < right.norm();
-                                     });
-    int fix_pos = static_cast<int>(std::distance(pts.begin(), fix_iter));
-    double left_y_val = std::accumulate(
-        pts.begin(), fix_iter, 0.0, [](double left, const auto& right) {
-          return std::abs(left) + std::abs(right.y());
-        });
-    left_y_val /= (fix_pos + 1);
-    auto left_y_max = std::max_element(
-        pts.begin(), fix_iter, [](const auto& left, const auto& right) {
-          return std::abs(left.y()) < std::abs(right.y());
-        });
-    double right_y_val = std::accumulate(
-        fix_iter, pts.end(), 0.0, [](double left, const auto& right) {
-          return std::abs(left) + std::abs(right.y());
-        });
-    right_y_val /= (std::distance(fix_iter, pts.end()) + 1);
-    auto right_y_max = std::max_element(
-        fix_iter, pts.end(), [](const auto& left, const auto& right) {
-          return std::abs(left.y()) < std::abs(right.y());
-        });
-    int range_begin = 0;
-    int range_end = static_cast<int>(pts.size()) - 1;
-    // 求平均y决定选哪边插值
-    split_flag = (fix_iter != pts.begin() && fix_iter != pts.end()) &&
-                 (std::abs(right_y_max->y() - left_y_max->y()) > 2.5);
-    if (split_flag) {
-      if (left_y_val < right_y_val) {
-        range_begin = 0;
-        range_end = fix_pos;
-      } else {
-        range_begin = fix_pos;
-        range_end = static_cast<int>(pts.size()) - 1;
-      }
-    }
-    HLOG_DEBUG << "occedge_id: " << occedge_ptr->detect_id
-               << ", split_flag: " << split_flag << ", fix_pos: " << fix_pos
-               << ", fix_point x: " << fix_iter->x() << ", y: " << fix_iter->y()
-               << ", left_y_val: " << left_y_val
-               << ", left_y_max: " << left_y_max->y()
-               << ", right_y_val: " << right_y_val
-               << ", right_y_max: " << right_y_max->y()
-               << ", range_begin: " << range_begin
-               << ", range_end: " << range_end;
+    // 先插值
     const double interpolate_step = 1.0;
     std::vector<Eigen::Vector3d> new_pts;
     for (int i = 0; i < static_cast<int>(pts.size()) - 1; ++i) {
       new_pts.emplace_back(pts[i]);
       // 包络上两个点x方向距离小于1m则跳过
       double length = std::abs(pts[i + 1].x() - pts[i].x());
-      if (length <= interpolate_step) {
-        continue;
-      }
-      // 插值范围内才插值
-      if (i >= range_begin && i < range_end) {
-        // 1m一个点开始插值
-        int interpolate_pts = static_cast<int>(length / interpolate_step);
-        for (int j = 1; j < interpolate_pts; ++j) {
-          double weight = (j * interpolate_step) / length;
-          new_pts.emplace_back((1 - weight) * pts[i] + weight * pts[i + 1]);
-        }
+      // 1m一个点开始插值
+      int interpolate_pts = static_cast<int>(length / interpolate_step);
+      for (int j = 1; j < interpolate_pts; ++j) {
+        double weight = (j * interpolate_step) / length;
+        auto new_pt = (1 - weight) * pts[i] + weight * pts[i + 1];
+        new_pts.emplace_back(new_pt);
       }
     }
     new_pts.emplace_back(pts[pts.size() - 1]);
     occedge_ptr->vehicle_points = new_pts;
+    // 找拐点
+    int range_begin = 0;
+    int range_end = static_cast<int>(pts.size()) - 1;
+    bool split_flag = false;
+    auto fix_iter = std::min_element(pts.begin(), pts.end(),
+                                     [](const auto& left, const auto& right) {
+                                       return left.norm() < right.norm();
+                                     });
+    int fix_pos = static_cast<int>(std::distance(pts.begin(), fix_iter));
+    // 求平均y决定选哪边插值
+    double left_y_val = calculateOccY(pts, fix_pos, range_begin, 20.0);
+    double left_length = (pts[fix_pos] - pts[range_begin]).norm();
+    double right_y_val = calculateOccY(pts, fix_pos, range_end, 20.0);
+    double right_length = (pts[fix_pos] - pts[range_end]).norm();
+    split_flag = (fix_pos != 0 && fix_pos != range_end) &&
+                 (std::abs(left_y_val - right_y_val) > 2.0);
+    int left_pts_size = fix_pos;
+    int right_pts_size = range_end - fix_pos;
+    if (split_flag) {
+      if (left_length - right_length > 20 || right_pts_size < 4) {
+        range_begin = 0;
+        range_end = fix_pos;
+      } else if (right_length - left_length > 20 || left_pts_size < 4) {
+        range_begin = fix_pos;
+        range_end = static_cast<int>(pts.size()) - 1;
+      } else {
+        if (left_y_val < right_y_val) {
+          range_begin = 0;
+          range_end = fix_pos;
+        } else {
+          range_begin = fix_pos;
+          range_end = static_cast<int>(pts.size()) - 1;
+        }
+      }
+    }
+    occedge_ptr->fit_points.assign(pts.begin() + range_begin,
+                                   pts.begin() + range_end);
+    HLOG_DEBUG << "split_flag: " << split_flag << ", left_y: " << left_y_val
+               << ", right_y: " << right_y_val << ", fix_pos: " << fix_pos
+               << ", range_begin: " << range_begin
+               << ", range_end: " << range_end
+               << ", detect_id: " << occedge_ptr->detect_id;
   }
 }
 

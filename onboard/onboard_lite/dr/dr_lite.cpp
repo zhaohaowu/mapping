@@ -76,8 +76,8 @@ class DeadReckoning : public hozon::netaos::adf_lite::Executor {
 
  private:
   std::shared_ptr<hozon::mp::dr::DRInterface> dr_interface_ = nullptr;
-  std::deque<Eigen::Vector3d> deque_dr_;
-  std::deque<Eigen::Vector3d> deque_ins_;
+  std::deque<double> deque_dr_;
+  std::deque<double> deque_ins_;
   double vel_error_threshold_;
 };
 
@@ -409,7 +409,9 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
      */
     double dr_vel_x = msg->velocity().twist_vrf().linear_vrf().x();
     Eigen::Vector3d dr_vel(dr_vel_x, 0, 0);
-    deque_dr_.push_back(dr_vel);
+    // 计算dr速度模长并存到队列
+    double dr_vel_norm = dr_vel.norm();
+    deque_dr_.push_back(dr_vel_norm);
     if (deque_dr_.size() > 1000) {
       deque_dr_.pop_front();
     }
@@ -418,31 +420,31 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
     double ins_vel_y = imu_proto->ins_info().linear_velocity().y();
     double ins_vel_z = imu_proto->ins_info().linear_velocity().z();
     Eigen::Vector3d ins_vel(ins_vel_x, ins_vel_y, ins_vel_z);
-    deque_ins_.push_back(ins_vel);
+    // 计算ins速度模长并存到队列
+    double ins_vel_norm = ins_vel.norm();
+    deque_ins_.push_back(ins_vel_norm);
     if (deque_ins_.size() > 1000) {
       deque_ins_.pop_front();
     }
 
-    Eigen::Vector3d mean_dr_vel = Eigen::Vector3d::Zero();
-    Eigen::Vector3d mean_ins_vel = Eigen::Vector3d::Zero();
+    double mean_dr_vel_norm = 0;
+    double mean_ins_vel_norm = 0;
     if (deque_ins_.size() == 1000 && deque_dr_.size() == 1000) {
       for (auto dr_vel : deque_dr_) {
-        mean_dr_vel += dr_vel;
+        mean_dr_vel_norm += dr_vel;
       }
-      mean_dr_vel /= deque_dr_.size();
+      mean_dr_vel_norm /= deque_dr_.size();
 
       for (auto ins_vel : deque_ins_) {
-        mean_ins_vel += ins_vel;
+        mean_ins_vel_norm += ins_vel;
       }
-      mean_ins_vel /= deque_ins_.size();
+      mean_ins_vel_norm /= deque_ins_.size();
     }
 
-    HLOG_DEBUG << "mean_dr_vel:" << mean_dr_vel.x() << "," << mean_dr_vel.y()
-               << "," << mean_dr_vel.z();
-    HLOG_DEBUG << "mean_ins_vel:" << mean_ins_vel.x() << "," << mean_ins_vel.y()
-               << "," << mean_ins_vel.z();
+    HLOG_DEBUG << "mean_dr_vel_norm:" << mean_dr_vel_norm;
+    HLOG_DEBUG << "mean_ins_vel_norm:" << mean_ins_vel_norm;
 
-    bool vel_error = isVelError(mean_dr_vel, mean_ins_vel);
+    bool vel_error = isVelError(mean_dr_vel_norm, mean_ins_vel_norm);
     static int count = 0;
     if ((imu_proto->ins_info().gps_status() == 4) &&
         (imu_proto->ins_info().sd_position().x() < 0.05) &&
@@ -489,19 +491,9 @@ int32_t DeadReckoning::receive_imu(Bundle* input) {
 
 template <typename T1, typename T2>
 bool DeadReckoning::isVelError(const T1& t1, const T2& t2) {
-  double vel_dr_norm =
-      std::sqrt(t1.x() * t1.x() + t1.y() * t1.y() + t1.z() * t1.z());
-  double vel_ins_norm =
-      std::sqrt(t2.x() * t2.x() + t2.y() * t2.y() + t2.z() * t2.z());
-
-  HLOG_DEBUG << "vel_dr_norm_test:" << vel_dr_norm << ","
-             << "vel_ins_norm_test:" << vel_ins_norm;
-  HLOG_DEBUG << "vel_error_threshold_:" << vel_error_threshold_;
-
-  if (std::abs(vel_dr_norm - vel_ins_norm) > vel_error_threshold_ &&
-      vel_dr_norm != 0) {
-    HLOG_ERROR << "vel_dr_norm:" << vel_dr_norm << ","
-               << "vel_ins_norm:" << vel_ins_norm;
+  if (std::abs(t1 - t2) > vel_error_threshold_ && t1 != 0) {
+    HLOG_ERROR << "vel_dr_norm:" << t1 << ","
+               << "vel_ins_norm:" << t2;
     return true;
   }
   return false;

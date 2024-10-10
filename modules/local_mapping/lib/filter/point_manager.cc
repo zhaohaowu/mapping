@@ -55,7 +55,9 @@ void AdaptorPointManager::GetVertialIntervalOfDPs() {
     threshold_ += measurement_points[i].vehicle_point.x() -
                   measurement_points[i - 1].vehicle_point.x();
   }
-  threshold_ = threshold_ / (measurement_points.size() - 1);
+  // 限制点间隔threshold_最小1m.
+  threshold_ =
+      std::max(threshold_ / (measurement_points.size() - 1 + 0.000001), 1.0);
   return;
 }
 

@@ -47,6 +47,7 @@ void GroupMap::Clear() {
   stopline_.clear();
   overlaps_.clear();
   groups_.clear();
+  lines_.clear();
   group_segments_.clear();
   ego_line_id_.left_id = -200;
   ego_line_id_.right_id = -200;
@@ -425,6 +426,33 @@ void GroupMap::RetrieveBoundaries(const em::ElementMap::Ptr& ele_map,
   stopline_.clear();
   overlaps_.clear();
   bool need_interp = (interp_dist > 0);
+  for (const auto& bound_pair : ele_map->boundaries) {
+    const auto& bound = bound_pair.second;
+    if (bound == nullptr) {
+      HLOG_ERROR << "found nullptr boundary";
+      continue;
+    }
+    if (bound->nodes.empty()) {
+      continue;
+    }
+    auto line = std::make_shared<LineSegment>();
+    line->id = bound->id;
+
+    for (const auto& node : bound->nodes) {
+      if (node == nullptr) {
+        HLOG_ERROR << "found nullptr node";
+        continue;
+      }
+      const auto& curr_raw = node->point;
+
+      Point pt(gm::RAW, curr_raw.x(), curr_raw.y(), curr_raw.z());
+      line->pts.emplace_back(pt);
+    }
+    if (line->pts.empty()) {
+      continue;
+    }
+    lines_[line->id] = line;
+  }
 
   for (const auto& bound_pair : ele_map->boundaries) {
     const auto& bound = bound_pair.second;
@@ -1182,14 +1210,14 @@ bool GroupMap::IsAccessLane(Lane::Ptr lane_in_curr, Lane::Ptr lane_in_next) {
        lane_in_next->right_boundary->type == em::LaneType_DOUBLE_SOLID ||
        lane_in_next->right_boundary->type ==
            em::LaneType_LEFT_SOLID_RIGHT_DASHED)) {
-    HLOG_DEBUG << "NOT ACCESS RIGHT!";
+    // HLOG_INFO << "NOT ACCESS RIGHT!";
     return false;
   } else if (!is_right &&
              (lane_in_next->left_boundary->type == em::LaneType_SOLID ||
               lane_in_next->left_boundary->type == em::LaneType_DOUBLE_SOLID ||
               lane_in_next->left_boundary->type ==
                   em::LaneType_RIGHT_SOLID_LEFT_DASHED)) {
-    HLOG_DEBUG << "NOT ACCESS LEFT!";
+    // HLOG_INFO << "NOT ACCESS LEFT!";
     return false;
   }
 
@@ -3075,7 +3103,41 @@ void GroupMap::FitCenterLine(Lane::Ptr lane) {
     lane->center_line_param_front = FitLanelinefront(lane->center_line_pts);
   }
 }
-
+void GroupMap::ComputeCenterPointVirtualLane(Lane::Ptr lane) {
+  auto main_ptr = lane->left_boundary;
+  auto less_ptr = lane->right_boundary;
+  if (lane->left_boundary->pts.size() <= lane->right_boundary->pts.size()) {
+    main_ptr = lane->right_boundary;
+    less_ptr = lane->left_boundary;
+  }
+  const auto& main_pts = main_ptr->pts;
+  const auto& less_pts = less_ptr->pts;
+  size_t less_pts_start_idx = 0;
+  for (size_t i = 0; i < main_pts.size(); i++) {
+    const auto& main_pt = main_pts[i];
+    size_t nearest_idx = 0;
+    float nearest_dis = FLT_MAX;
+    for (size_t j = less_pts_start_idx; j < less_pts.size(); j++) {
+      float dis = (main_pt.pt - less_pts[j].pt).norm();
+      if (dis < nearest_dis) {
+        nearest_dis = dis;
+        nearest_idx = j;
+      }
+    }
+    less_pts_start_idx = nearest_idx;
+    const auto& less_pt = less_pts[nearest_idx];
+    auto center_pt = (main_pt.pt + less_pt.pt) / 2;
+    Point ct_pt(gm::RAW, static_cast<float>(center_pt.x()),
+                static_cast<float>(center_pt.y()),
+                static_cast<float>(center_pt.z()));
+    lane->center_line_pts.emplace_back(ct_pt);
+  }
+  if (lane->center_line_pts.size() > 3) {
+    lane->center_line_param = FitVirtualLaneline(lane->center_line_pts);
+    lane->center_line_param_front =
+        FitVirtualLanelinefront(lane->center_line_pts);
+  }
+}
 void GroupMap::ComputeCenterPoints(Lane::Ptr lane) {
   auto main_ptr = lane->left_boundary;
   auto less_ptr = lane->right_boundary;
@@ -3165,11 +3227,15 @@ void GroupMap::FindNearestLaneToHisVehiclePosition(Group::Ptr curr_group,
   Pose nearest;
   nearest.stamp = -1;
   float min_dist = FLT_MAX;
+  float min_dist_po = FLT_MAX;
   for (const auto& p : path_in_curr_pose_) {
     Eigen::Vector2f pt(p.pos.x(), p.pos.y());
     float dist = PointToVectorDist(curr_end_pl, curr_end_pr, pt);
-    if (dist < min_dist) {
+    float dist_to_po = Dist(p.pos, curr_grp_end_slice.po);
+    if (dist < min_dist ||
+        (dist_to_po < min_dist_po && dist_to_po < min_dist + 0.3)) {
       min_dist = dist;
+      min_dist_po = dist_to_po;
       nearest = p;
       nearest.stamp = 0;
     }
@@ -4369,7 +4435,9 @@ void GroupMap::AddVirtualLine(std::vector<Group::Ptr>* groups) {
   }
   // 判断是否有自车道
   float min_dis = FLT_MAX;
-  for (auto& lane : ego_group->lanes) {
+  int prev_pt_index = -1;
+  for (int lane_index = 0; lane_index < ego_group->lanes.size(); ++lane_index) {
+    auto& lane = ego_group->lanes[lane_index];
     if (lane->center_line_pts.size() < 1) {
       continue;
     }
@@ -4387,11 +4455,27 @@ void GroupMap::AddVirtualLine(std::vector<Group::Ptr>* groups) {
     }
     min_dis = std::min(min_dis, best_dis);
     if (index == -1) {
+      prev_pt_index = index;
       continue;
     }
-    if (lane->center_line_pts[index].pt.norm() < 1.5) {
+    float dis_line = lane->center_line_pts[index].pt.norm();
+    if (dis_line < 1.5) {
       return;
     }
+    if (dis_line < 3 && prev_pt_index > -1 && lane_index > 0 &&
+        ego_group->lanes[lane_index - 1]
+                ->center_line_pts[prev_pt_index]
+                .pt.norm() < 3) {
+      Eigen::Vector2f pre_pt = ego_group->lanes[lane_index - 1]
+                                   ->center_line_pts[prev_pt_index]
+                                   .pt.head<2>();
+      Eigen::Vector2f curr_pt =
+          ego_group->lanes[lane_index]->center_line_pts[index].pt.head<2>();
+      if (ProjectedInSegment(pre_pt, curr_pt, Eigen::Vector2f(0.0, 0.0))) {
+        return;
+      }
+    }
+    prev_pt_index = index;
   }
   int status = BesideGroup(ego_group);
   if (min_dis > 3.5 || !status) {
@@ -4475,6 +4559,9 @@ bool GroupMap::IsNearLine(LineSegment::Ptr line1, LineSegment::Ptr line2) {
 }
 void GroupMap::NeighborLane(std::vector<Group::Ptr>* groups) {
   for (auto& grp : *groups) {
+    if (grp->str_id.find("V") < grp->str_id.length()) {
+      continue;
+    }
     std::sort(grp->lanes.begin(), grp->lanes.end(),
               [](const Lane::Ptr& a, const Lane::Ptr& b) {
                 return a->right_lane_str_id_with_group.size() >
@@ -6409,6 +6496,50 @@ std::vector<double> GroupMap::FitLanelinefront(
   }
   return {k, kk};
 }
+
+std::vector<double> GroupMap::FitVirtualLaneline(
+    const std::vector<Point>& centerline) {
+  int size_c = centerline.size();
+
+  double k = 0.0, kk = 0.0;
+  double y1 = centerline[size_c - 1].pt.y(), x1 = centerline[size_c - 1].pt.x();
+  double y2 = centerline[size_c - 2].pt.y(), x2 = centerline[size_c - 2].pt.x();
+  int idx = size_c - 2;
+  while (sqrt(pow(y1 - y2, 2) + pow(x1 - x2, 2)) < 4 && idx > 0) {
+    idx--;
+    y2 = centerline[idx].pt.y();
+    x2 = centerline[idx].pt.x();
+  }
+  if (idx < 0 || sqrt(pow(y1 - y2, 2) + pow(x1 - x2, 2)) < 4) {
+    return {};
+  } else {
+    kk = (y2 - y1) / (x2 - x1);
+    k = y1 - kk * x1;
+  }
+  return {k, kk};
+}
+
+std::vector<double> GroupMap::FitVirtualLanelinefront(
+    const std::vector<Point>& centerline) {
+  int size_c = centerline.size();
+
+  double k = 0.0, kk = 0.0;
+  double y1 = centerline[0].pt.y(), x1 = centerline[0].pt.x();
+  double y2 = centerline[1].pt.y(), x2 = centerline[1].pt.x();
+  int idx = 1;
+  while (sqrt(pow(y1 - y2, 2) + pow(x1 - x2, 2)) < 4 && idx < size_c) {
+    y2 = centerline[idx].pt.y();
+    x2 = centerline[idx].pt.x();
+    idx++;
+  }
+  if (idx >= size_c || sqrt(pow(y1 - y2, 2) + pow(x1 - x2, 2)) < 4) {
+    return {};
+  } else {
+    kk = (y2 - y1) / (x2 - x1);
+    k = y1 - kk * x1;
+  }
+  return {k, kk};
+}
 void GroupMap::BuildConnectLane(Lane::Ptr lane_in_curr, Group::Ptr next_group,
                                 Lane::Ptr lane_in_next_next) {
   if (lane_in_curr->next_lane_str_id_with_group.empty()) {
@@ -7210,7 +7341,8 @@ void GroupMap::BuildVirtualLaneAfter(Group::Ptr curr_group,
       lane_pre.right_boundary = std::make_shared<LineSegment>(right_bound);
       Lane::Ptr lane_ptr = std::make_shared<Lane>(lane_pre);
       // FitCenterLine(lane_ptr);
-      ComputeCenterPoints(lane_ptr);
+      // ComputeCenterPoints(lane_ptr);
+      ComputeCenterPointVirtualLane(lane_ptr);
       if (lane_ptr->center_line_param.empty()) {
         // lane_ptr->center_line_para_line_pts.size() = "
         //            << lane_pre.center_line_pts.size() << "   "
@@ -7472,7 +7604,8 @@ void GroupMap::BuildVirtualLaneBefore(Group::Ptr curr_group,
       // ctr_pts;
       Lane::Ptr lane_ptr = std::make_shared<Lane>(lane_pre);
       // FitCenterLine(lane_ptr);
-      ComputeCenterPoints(lane_ptr);
+      // ComputeCenterPoints(lane_ptr);
+      ComputeCenterPointVirtualLane(lane_ptr);
       if (lane_ptr->center_line_param.empty()) {
         lane_ptr->center_line_param = lane_in_next->center_line_param_front;
       }
@@ -7989,13 +8122,24 @@ bool GroupMap::IsLaneShrink(Lane::Ptr lane) {
   Eigen::Vector2f rbvpt1(right_back_v_pt1.x(), right_back_v_pt1.y());
   Eigen::Vector2f rmvpt0(right_mid_v_pt0.x(), right_mid_v_pt0.y());
   Eigen::Vector2f rmvpt1(right_mid_v_pt1.x(), right_mid_v_pt1.y());
-
   auto left_back_dist = PointToVectorDist(rbvpt0, rbvpt1, lfbt);
   auto left_mid_dist = PointToVectorDist(rmvpt0, rmvpt1, lmpt);
+  LineSegment::Ptr& line_left = lines_[lane->left_boundary->id];
+  LineSegment::Ptr& line_right = lines_[lane->right_boundary->id];
+
+  if (line_left != nullptr && !line_left->pts.empty() &&
+      line_right != nullptr && !line_right->pts.empty()) {
+    left_back_dist = std::min(
+        DistPointNew(line_left->pts.back().pt, *line_right), left_back_dist);
+    left_back_dist = std::min(
+        DistPointNew(line_right->pts.back().pt, *line_left), left_back_dist);
+  }
+
   auto left_diff_dist = left_mid_dist - left_back_dist;
   const float kShrinkDiffThreshold = 0.5;
-  if (left_diff_dist > 0 && std::abs(left_diff_dist) > kShrinkDiffThreshold &&
-      left_back_dist < conf_.min_lane_width + 0.5) {
+  if ((left_diff_dist > 0 && std::abs(left_diff_dist) > kShrinkDiffThreshold &&
+       left_back_dist < conf_.min_lane_width + 0.5) ||
+      left_back_dist < 0.5) {
     return true;
   }
 

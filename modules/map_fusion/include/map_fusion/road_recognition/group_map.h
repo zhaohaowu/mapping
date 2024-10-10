@@ -514,11 +514,16 @@ class GroupMap {
       Group::Ptr next_group);  // 从后往前补的车道左右邻添加
   bool IsNearLine(LineSegment::Ptr line1, LineSegment::Ptr line2);
   void ComputeCenterPoints(Lane::Ptr lane);
+  void ComputeCenterPointVirtualLane(Lane::Ptr lane);
+  std::vector<double> FitVirtualLaneline(const std::vector<Point>& centerline);
+  std::vector<double> FitVirtualLanelinefront(
+      const std::vector<Point>& centerline);
   const double pi_ = acos(-1);
   std::map<em::Id, Zebra::Ptr> zebra_;
   std::map<em::Id, Arrow::Ptr> arrow_;
   std::map<em::Id, Stpl::Ptr> stopline_;
   std::map<em::Id, Overlaps::Ptr> overlaps_;
+  std::map<em::Id, LineSegment::Ptr> lines_;
   GroupMapConf conf_;
   IsCross is_cross_;
   const double kMergeLengthThreshold = 10.;
@@ -540,7 +545,6 @@ class GroupMap {
   inline bool IsSpeedLimitValid(const std::pair<double, double>& speed_limit) {
     return (speed_limit.first > 0. && speed_limit.second);
   }
-
   RoadScene road_scene_ = RoadScene::NON_JUNCTION;
   float big_junction_dis_thresh_ = 30.0;
 };

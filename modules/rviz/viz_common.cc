@@ -10,9 +10,10 @@
 #include <iostream>
 #include <string>
 #include <vector>
+
 #include <opencv2/opencv.hpp>
 
-#include "modules/map_fusion_02/common/calc_util.h"
+#include "modules/map_fusion/common/calc_util.h"
 #include "util/mapping_log.h"
 
 namespace hozon {

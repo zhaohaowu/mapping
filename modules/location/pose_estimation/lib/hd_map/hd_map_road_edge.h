@@ -12,14 +12,15 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <vector>
 #include <unordered_set>
+#include <vector>
+
+#include "depend/common/utm_projection/coordinate_convertor.h"
 #include "depend/proto/common/types.pb.h"
 #include "modules/location/pose_estimation/lib/hd_map/hd_map_base.h"
 #include "modules/location/pose_estimation/lib/util/euler.h"
-#include "modules/map_fusion_02/modules/map_hd/global_hd_map.h"
+#include "modules/map_fusion/modules/map_hd/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
-#include "depend/common/utm_projection/coordinate_convertor.h"
 namespace hozon {
 namespace mp {
 namespace loc {

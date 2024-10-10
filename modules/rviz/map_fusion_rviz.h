@@ -18,10 +18,10 @@
 #include <utility>
 #include <vector>
 
-#include "modules/map_fusion_02/base/element_base.h"
-#include "modules/map_fusion_02/common/calc_util.h"
-#include "modules/map_fusion_02/modules/lane/road_builder/cut_point.h"
-#include "modules/map_fusion_02/modules/lane_loc/base_lane_loc.h"
+#include "modules/map_fusion/base/element_base.h"
+#include "modules/map_fusion/common/calc_util.h"
+#include "modules/map_fusion/modules/lane/road_builder/cut_point.h"
+#include "modules/map_fusion/modules/lane_loc/base_lane_loc.h"
 #include "modules/rviz/viz_common.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"
 #include "perception-base/base/utils/macros.h"

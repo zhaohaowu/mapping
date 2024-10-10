@@ -17,9 +17,9 @@
 #include "depend/nos/x86_2004/include/adf-lite/include/executor.h"
 #include "depend/nos/x86_2004/include/adf/include/node_proto_register.h"
 // #include "modules/map_fusion/include/map_fusion/map_fusion.h"
-#include "modules/map_fusion_02/app/map_fusion.h"
+#include "modules/map_fusion/app/map_fusion.h"
 // #include "modules/map_fusion/include/map_fusion/map_select/map_select_lite.h"
-#include "modules/map_fusion_02/app/map_service.h"
+#include "modules/map_fusion/app/map_service.h"
 #include "onboard/onboard_lite/phm_comment_lite/proto/running_mode.pb.h"
 #include "proto/routing/nav_data.pb.h"
 namespace hozon {
@@ -28,8 +28,8 @@ namespace common_onboard {
 
 using hozon::mp::mf::MapFusion;
 // using hozon::mp::mf::select::MapSelectLite;
-using hozon::netaos::adf_lite::Bundle;
 using hozon::mp::mf::MapService;
+using hozon::netaos::adf_lite::Bundle;
 
 enum WorkMode { PerceptMap, FusionMap, Normal };
 

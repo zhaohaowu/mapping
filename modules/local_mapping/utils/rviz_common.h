@@ -26,7 +26,7 @@
 #include "modules/local_mapping/base/scene/stopline.h"
 #include "modules/local_mapping/base/scene/zebracrossing.h"
 #include "modules/local_mapping/utils/common.h"
-#include "modules/map_fusion_02/modules/map_hd/global_hd_map.h"
+#include "modules/map_fusion/modules/map_hd/global_hd_map.h"
 #include "modules/util/include/util/geo.h"
 #include "modules/util/include/util/mapping_log.h"
 #include "modules/util/include/util/rviz_agent/rviz_agent.h"

@@ -18,8 +18,8 @@
 #include <string>
 #include <vector>
 
-#include "modules/map_fusion_02/base/element_map.h"
-#include "modules/map_fusion_02/common/common_data.h"
+#include "modules/map_fusion/base/element_map.h"
+#include "modules/map_fusion/common/common_data.h"
 
 namespace hozon {
 namespace mp {

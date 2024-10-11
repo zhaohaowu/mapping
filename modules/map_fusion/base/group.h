@@ -187,7 +187,9 @@ struct Group {
   std::vector<EdgeSegment::Ptr> occ_segments;
   std::vector<EdgeSegment::Ptr> model_edge_segments;
   std::vector<EdgeSegment::Ptr> all_edge_segments;
-  std::vector<RoadEdge::Ptr> road_edges;
+  // std::vector<RoadEdge::Ptr> road_edges;
+  RoadEdge::Ptr left_road_edge = nullptr;
+  RoadEdge::Ptr right_road_edge = nullptr;
 
   std::vector<Lane::Ptr> lanes;
   std::string str_id;

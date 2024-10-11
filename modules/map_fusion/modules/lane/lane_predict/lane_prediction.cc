@@ -127,6 +127,7 @@ bool LanePrediction::LaneForwardPredict(std::vector<Group::Ptr>* groups,
         grp.group_state = Group::GroupState::VIRTUAL;
         grp.str_id = last_grp->str_id + "P";
         grp.lanes = center_line_pred;
+        grp.broken_id = last_grp->broken_id;
         (*groups).emplace_back(std::make_shared<Group>(grp));
       }
     }

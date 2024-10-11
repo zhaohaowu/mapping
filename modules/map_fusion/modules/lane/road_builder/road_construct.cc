@@ -38,11 +38,11 @@ bool RoadConstruct::ConstructRoad(
   UpdatePathInCurrPose(*path, *curr_pose);
   BuildGroups(cutpoints, &lines, ele_map, &groups_);
   BuildOccGroups(ele_map, &groups_);
-  RefineGroups(&groups_);
-  SetBrokenId(&groups_);
   GenGroupName(ele_map, &groups_);
   GenRoadEdges(&groups_);
   RemoveInvalGroups(&groups_);
+  RefineGroups(&groups_);
+  SetBrokenId(&groups_);
   return true;
 }
 
@@ -466,7 +466,6 @@ void RoadConstruct::GenRoadEdges(std::vector<Group::Ptr>* groups) {
   for (auto& grp : *groups) {
     HLOG_DEBUG << "grp name: " << grp->str_id;
 
-    grp->road_edges.clear();
     RoadEdge::Ptr road_edge_left = std::make_shared<RoadEdge>();
     RoadEdge::Ptr road_edge_right = std::make_shared<RoadEdge>();
 
@@ -481,22 +480,20 @@ void RoadConstruct::GenRoadEdges(std::vector<Group::Ptr>* groups) {
     UpdateRoadEdgeWithLines(grp, &road_edge_left, &road_edge_right);
 
     HLOG_DEBUG << "road edge info: ";
-    HLOG_DEBUG << "road_edge_left: \t"
-               << "id: " << road_edge_left->id << " \t"
+    HLOG_DEBUG << "road_edge_left: \t" << "id: " << road_edge_left->id << " \t"
                << "is_left: " << road_edge_left->is_left << " \t"
                << "road_edge_type: " << road_edge_left->road_edge_type << " \t"
                << "dist_to_path: " << road_edge_left->dist_to_path << " \t"
                << "points: " << road_edge_left->points.size();
 
-    HLOG_DEBUG << "road_edge_right: \t"
-               << "id: " << road_edge_right->id << " \t"
-               << "is_right: " << road_edge_right->is_right << " \t"
+    HLOG_DEBUG << "road_edge_right: \t" << "id: " << road_edge_right->id
+               << " \t" << "is_right: " << road_edge_right->is_right << " \t"
                << "road_edge_type: " << road_edge_right->road_edge_type << " \t"
                << "dist_to_path: " << road_edge_right->dist_to_path << " \t"
                << "points: " << road_edge_right->points.size();
 
-    grp->road_edges.emplace_back(road_edge_left);
-    grp->road_edges.emplace_back(road_edge_right);
+    grp->left_road_edge = road_edge_left;
+    grp->right_road_edge = road_edge_right;
   }
 }
 
@@ -518,7 +515,15 @@ void RoadConstruct::CombineOccAndModel(const Group::Ptr& grp) {
   double avg_dist = 0.0;
   auto grp_length = Dist(grp->start_slice.po, grp->end_slice.po);
 
+  if (grp->all_edge_segments.empty()) {
+    return;
+  }
+
   for (auto& seg : grp->all_edge_segments) {
+    if (seg->pts.empty()) {
+      continue;
+    }
+
     int size_seg = static_cast<int>(seg->pts.size());
     Eigen::Vector3f point_tmp(0.0, 0.0, 0.0);
     for (int i = 0; i < size_seg; ++i) {
@@ -553,13 +558,26 @@ void RoadConstruct::CombineOccAndModel(const Group::Ptr& grp) {
       seg_one->is_left = true;
     }
   } else {
-    for (auto& seg : grp->all_edge_segments) {
-      if (seg->dist_to_path < avg_dist) {
-        seg->is_right = true;
-        HLOG_DEBUG << "seg is_right";
-      } else {
-        seg->is_left = true;
-        HLOG_DEBUG << "seg is_left";
+    // 有车道的group，按照dist_to_path区分左右，否则按照平均dist_to_path区分左右
+    if (!grp->line_segments.empty()) {
+      for (auto& seg : grp->all_edge_segments) {
+        if (seg->dist_to_path < 0.0) {
+          seg->is_right = true;
+          HLOG_DEBUG << "have lane, seg is_right";
+        } else {
+          seg->is_left = true;
+          HLOG_DEBUG << "have lane, seg is_left";
+        }
+      }
+    } else {
+      for (auto& seg : grp->all_edge_segments) {
+        if (seg->dist_to_path < avg_dist) {
+          seg->is_right = true;
+          HLOG_DEBUG << "have no lane, seg is_right";
+        } else {
+          seg->is_left = true;
+          HLOG_DEBUG << "have no lane, seg is_left";
+        }
       }
     }
   }
@@ -918,18 +936,16 @@ void RoadConstruct::SetBrokenId(std::vector<Group::Ptr>* groups) {
     groups->front()->broken_id = 0;
     return;
   } else {
-    int broken_idx = -1;
     groups->front()->broken_id = 0;
-
-    auto last_end_slice = groups->front()->end_slice;
-    for (auto& grp : *groups) {
-      if (grp->start_slice.po == last_end_slice.po) {
-        grp->broken_id = broken_idx;
+    int broken_idx = 1;
+    for (int i = 1; i < static_cast<int>(groups->size()); i++) {
+      auto& cur_grp = groups->at(i);
+      auto& pre_grp = groups->at(i - 1);
+      if ((cur_grp->start_slice.po - pre_grp->end_slice.po).norm() < 1e-3) {
+        cur_grp->broken_id = pre_grp->broken_id;
       } else {
-        ++broken_idx;
-        grp->broken_id = broken_idx;
+        cur_grp->broken_id = broken_idx++;
       }
-      last_end_slice = grp->end_slice;
     }
   }
 }
@@ -1358,8 +1374,8 @@ void RoadConstruct::CheckBestOccRoad(double* good_k, double* good_b,
       continue;
     }
     FitLineTLS(occr.second->road_points, &k, &b, &r_squared);
-    if (&r_squared > max_r_squared) {
-      max_r_squared = &r_squared;
+    if (r_squared > *max_r_squared) {
+      *max_r_squared = r_squared;
       *good_k = k;
       *good_b = b;
       *good_id = occr.first;
@@ -1497,13 +1513,16 @@ void RoadConstruct::SearchOccCutPoints() {
             [](const CutPoint& a, const CutPoint& b) {
               return a.GetPoint().x < b.GetPoint().x;
             });
-  for (int i = 1; i < static_cast<int>(unused_occ_ctps_.size()); i++) {
-    const auto& ctp_front = unused_occ_ctps_[i - 1];
-    const auto& ctp = unused_occ_ctps_[i];
-    if (ctp.GetPoint().x - ctp_front.GetPoint().x < 1.0) {
-      unused_occ_ctps_.erase(unused_occ_ctps_.begin() + i);
-      i--;
+  auto it = unused_occ_ctps_.begin();
+  while (it != unused_occ_ctps_.end()) {
+    if (it != unused_occ_ctps_.begin()) {
+      auto prev = it - 1;
+      if (it->GetPoint().x - prev->GetPoint().x < 1.5) {
+        it = unused_occ_ctps_.erase(it);
+        continue;
+      }
     }
+    ++it;
   }
 }
 
@@ -1521,57 +1540,49 @@ void RoadConstruct::RemoveInvalGroups(std::vector<Group::Ptr>* groups) {
 }
 
 void RoadConstruct::CheckRoadInval(std::vector<Group::Ptr>* groups) {
-  int group_size = static_cast<int>(groups->size());
-
-  for (int i = 0; i < group_size; i++) {
-    auto grp = groups->at(i);
-    if (static_cast<int>(grp->road_edges.size()) < 2) {
-      HLOG_DEBUG << "(grp->road_edges.size()) < 2";
-      groups->erase(groups->begin() + i);
-      group_size--;
+  if (groups->empty()) {
+    return;
+  }
+  auto it = groups->begin();
+  while (it != groups->end()) {
+    auto grp = *it;
+    if (!grp) {
+      HLOG_DEBUG << "invalid group";
+      it = groups->erase(it);
       continue;
     }
-    bool have_left_edge = false;
-    bool have_right_edge = false;
-    RoadEdge::Ptr left_edge = std::make_shared<RoadEdge>();
-    RoadEdge::Ptr right_edge = std::make_shared<RoadEdge>();
-    for (auto& road_edge : grp->road_edges) {
-      if (road_edge->is_left) {
-        have_left_edge = true;
-        left_edge = road_edge;
-      } else if (road_edge->is_right) {
-        have_right_edge = true;
-        right_edge = road_edge;
-      }
-    }
-    if (!have_left_edge || !have_right_edge) {
-      HLOG_DEBUG << "!have_left_edge || !have_right_edge";
-      groups->erase(groups->begin() + i);
-      group_size--;
+    if (!grp->left_road_edge || !grp->right_road_edge) {
+      HLOG_DEBUG << "no enough road edges";
+      it = groups->erase(it);
       continue;
     }
-    if (std::fabs(left_edge->dist_to_path - right_edge->dist_to_path) < 3.0) {
-      HLOG_DEBUG << "dist too close";
-      groups->erase(groups->begin() + i);
-      group_size--;
+    if (std::fabs(grp->left_road_edge->dist_to_path -
+                  grp->right_road_edge->dist_to_path) < 3.0) {
+      HLOG_DEBUG << "rode edges dist too close";
+      it = groups->erase(it);
       continue;
     }
+    ++it;
   }
 }
 
 void RoadConstruct::CheckMidGroupLaneInval(std::vector<Group::Ptr>* groups) {
-  int group_size = static_cast<int>(groups->size());
-
-  for (int i = 0; i < group_size; i++) {
-    auto grp = groups->at(i);
-    if (0 < i && i < (static_cast<int>(groups->size()) - 1)) {
-      if (!groups->at(i - 1)->line_segments.empty() &&
-          !groups->at(i + 1)->line_segments.empty() && grp->lanes.empty()) {
-        groups->erase(groups->begin() + i);
-        group_size--;
+  if (groups->size() < 3) {
+    return;
+  }
+  auto it = groups->begin();
+  while (it != groups->end()) {
+    if (it != groups->begin() && it != std::prev(groups->end(), 1)) {
+      auto prev = std::prev(it, 1);
+      auto next = std::next(it, 1);
+      if (!(*prev)->line_segments.empty() && !(*next)->line_segments.empty() &&
+          ((*it)->lanes.empty() ||
+           Dist((*it)->start_slice.po, (*it)->end_slice.po) < 3.0)) {
+        it = groups->erase(it);
         continue;
       }
     }
+    ++it;
   }
 }
 

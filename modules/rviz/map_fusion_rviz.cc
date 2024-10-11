@@ -747,20 +747,9 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
           marker_line_text->set_id(line_segment_size++);
           marker_line_text->set_action(adsfi_proto::viz::MarkerAction::MODIFY);
           double width = 0.2;
-          marker_line_text->mutable_scale()->set_x(width);
-          marker_line_text->mutable_scale()->set_y(width);
-          marker_line_text->mutable_scale()->set_z(width);
-          marker_line_text->mutable_lifetime()->set_sec(life_sec);
-          marker_line_text->mutable_lifetime()->set_nsec(life_nsec);
           marker_line_text->mutable_color()->set_a(0.5);
-          marker_line_text->mutable_color()->set_r(line_rgb.r);
-          marker_line_text->mutable_color()->set_g(line_rgb.g);
-          marker_line_text->mutable_color()->set_b(line_rgb.b);
           marker_line_text->set_type(adsfi_proto::viz::MarkerType::LINE_STRIP);
-          marker_line_text->mutable_pose()->mutable_orientation()->set_w(1);
-          marker_line_text->mutable_pose()->mutable_orientation()->set_x(0);
-          marker_line_text->mutable_pose()->mutable_orientation()->set_y(0);
-          marker_line_text->mutable_pose()->mutable_orientation()->set_z(0);
+          SetMarker(marker_line_text, line_rgb, width, life_sec, life_nsec);
 
           for (const auto& p : line->pts) {
             auto* pt = marker_line_text->add_points();
@@ -775,33 +764,16 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
           marker_str_id_with_group->set_action(
               adsfi_proto::viz::MarkerAction::MODIFY);
           double text_size = 0.5;
-          marker_str_id_with_group->mutable_scale()->set_z(text_size);
-          marker_str_id_with_group->mutable_lifetime()->set_sec(life_sec);
-          marker_str_id_with_group->mutable_lifetime()->set_nsec(life_nsec);
           marker_str_id_with_group->mutable_color()->set_a(0.2);
-          marker_str_id_with_group->mutable_color()->set_r(line_rgb.r);
-          marker_str_id_with_group->mutable_color()->set_g(line_rgb.g);
-          marker_str_id_with_group->mutable_color()->set_b(line_rgb.b);
           marker_str_id_with_group->set_type(
               adsfi_proto::viz::MarkerType::TEXT_VIEW_FACING);
-          marker_str_id_with_group->mutable_pose()
-              ->mutable_orientation()
-              ->set_w(1);
-          marker_str_id_with_group->mutable_pose()
-              ->mutable_orientation()
-              ->set_x(0);
-          marker_str_id_with_group->mutable_pose()
-              ->mutable_orientation()
-              ->set_y(0);
-          marker_str_id_with_group->mutable_pose()
-              ->mutable_orientation()
-              ->set_z(0);
           marker_str_id_with_group->mutable_pose()->mutable_position()->set_x(
               line->pts.front().pt.x());
           marker_str_id_with_group->mutable_pose()->mutable_position()->set_y(
               line->pts.front().pt.y());
           marker_str_id_with_group->mutable_pose()->mutable_position()->set_z(
               line->pts.front().pt.z());
+          SetMarker(marker_str_id_with_group, line_rgb, text_size, life_sec, life_nsec);
           auto* text = marker_str_id_with_group->mutable_text();
           *text = " Virtual Line " + std::to_string(line->id);
         }
@@ -809,11 +781,12 @@ void MapFusionRviz::VizGroup(const std::vector<Group::Ptr>& groups,
     }
 
     // road edges
-    if (!grp->road_edges.empty()) {
+    if (grp->left_road_edge && grp->right_road_edge) {
       // HLOG_INFO << "road edges size: " << grp->road_edges.size();
-
+      std::vector<RoadEdge::Ptr> road_edges = {grp->left_road_edge,
+                                               grp->right_road_edge};
       int edge_id = -1;
-      for (const auto& road_edge : grp->road_edges) {
+      for (const auto& road_edge : road_edges) {
         if (road_edge == nullptr) {
           continue;
         }

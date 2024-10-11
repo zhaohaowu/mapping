@@ -459,7 +459,7 @@ struct Line {
   // 末端方向向量与x轴夹角
   double mean_end_heading = 0;  // in rad, [-pi, +pi]
   // 1.heading 2.kappa 3.dkappa
-  std::tuple<double, double, double> pred_end_heading{};
+  std::tuple<double, double, double> pred_end_heading{0, 0, 0};
   // 末端heading角的标准差
   double mean_end_heading_std_dev = 0;
   // 末端平均点间距

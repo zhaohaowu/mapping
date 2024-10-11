@@ -57,18 +57,18 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
   }
 
   for (auto& grp : *groups) {
-    if (grp->group_state == Group::NORMAL && grp->road_edges.size() >= 2) {
-      if (grp->road_edges[0]->points.empty() ||
-          grp->road_edges[1]->points.empty()) {
+    if (grp->group_state == Group::NORMAL && grp->left_road_edge && grp->right_road_edge) {
+      if (grp->left_road_edge->points.empty() ||
+          grp->right_road_edge->points.empty()) {
         continue;
       }
       GroupVirtualLine grp_lines;
-      grp_lines.lines.emplace_back(RoadEdgecvtLine(grp->road_edges[0]));
-      // HLOG_ERROR << "RoadEdgecvtLine(grp->road_edges[0])->DIS = "
-      //            << RoadEdgecvtLine(grp->road_edges[0])->dist_to_path;
-      // if (grp->road_edges[0]->road_edge_type == RoadEdgeType::OCC) {
+      grp_lines.lines.emplace_back(RoadEdgecvtLine(grp->left_road_edge));
+      // HLOG_ERROR << "RoadEdgecvtLine(grp->left_road_edge)->DIS = "
+      //            << RoadEdgecvtLine(grp->left_road_edge)->dist_to_path;
+      // if (grp->left_road_edge->road_edge_type == RoadEdgeType::OCC) {
       //   grp_lines.lines_type.emplace_back(1);
-      // } else if (grp->road_edges[0]->road_edge_type == RoadEdgeType::MODEL) {
+      // } else if (grp->left_road_edge->road_edge_type == RoadEdgeType::MODEL) {
       //   grp_lines.lines_type.emplace_back(2);
       // } else {
       //   grp_lines.lines_type.emplace_back(1);
@@ -79,12 +79,12 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
         grp_lines.lines_type.emplace_back(1);
         // HLOG_ERROR << "line->DIS = " << line->dist_to_path;
       }
-      grp_lines.lines.emplace_back(RoadEdgecvtLine(grp->road_edges[1]));
-      // HLOG_ERROR << "RoadEdgecvtLine(grp->road_edges[1])->DIS = "
-      //            << RoadEdgecvtLine(grp->road_edges[1])->dist_to_path;
-      // if (grp->road_edges[1]->road_edge_type == RoadEdgeType::OCC) {
+      grp_lines.lines.emplace_back(RoadEdgecvtLine(grp->right_road_edge));
+      // HLOG_ERROR << "RoadEdgecvtLine(grp->right_road_edge)->DIS = "
+      //            << RoadEdgecvtLine(grp->right_road_edge)->dist_to_path;
+      // if (grp->right_road_edge->road_edge_type == RoadEdgeType::OCC) {
       //   grp_lines.lines_type.emplace_back(1);
-      // } else if (grp->road_edges[1]->road_edge_type == RoadEdgeType::MODEL) {
+      // } else if (grp->right_road_edge->road_edge_type == RoadEdgeType::MODEL) {
       //   grp_lines.lines_type.emplace_back(2);
       // } else {
       //   grp_lines.lines_type.emplace_back(1);
@@ -126,22 +126,22 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
         next_grp_lines = groups_lines_[next_grp->str_id];
       }
     }
-    if (curr_grp->road_edges.size() < 2) {
+    if (!curr_grp->left_road_edge || !curr_grp->right_road_edge) {
       // HLOG_INFO << "curr_grp->road_edges.size() = "
       //            << curr_grp->road_edges.size();
       continue;
     }
-    if (curr_grp->road_edges[0]->points.empty() ||
-        curr_grp->road_edges[1]->points.empty()) {
-      // HLOG_INFO << "  curr_grp->road_edges[0]->points.size() = "
-      //            << curr_grp->road_edges[0]->points.size()
-      //            << "  curr_grp->road_edges[1]->points.size() = "
-      //            << curr_grp->road_edges[1]->points.size();
+    if (curr_grp->left_road_edge->points.empty() ||
+        curr_grp->right_road_edge->points.empty()) {
+      // HLOG_INFO << "  curr_grp->left_road_edge->points.size() = "
+      //            << curr_grp->left_road_edge->points.size()
+      //            << "  curr_grp->right_road_edge->points.size() = "
+      //            << curr_grp->right_road_edge->points.size();
       continue;
     }
     // 道路宽度
     // float road_width =
-    //     GetTwoBoundayDis(curr_grp->road_edges[0], curr_grp->road_edges[1]);
+    //     GetTwoBoundayDis(curr_grp->left_road_edge, curr_grp->right_road_edge);
     float road_width =
         GetTwoBoundayDis(curr_grp_lines.lines[0], curr_grp_lines.lines.back());
     if (road_width < conf_.min_lane_width) {
@@ -264,14 +264,14 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
             0.3)), 1.0F));
         std::vector<LineSegment::Ptr> line_virtual_vec;  // 虚拟车道线
         std::vector<float> road_edge_dis = GetTwoBoundayFrontBackDis(
-            curr_grp->road_edges[0], curr_grp->road_edges[1]);
+            curr_grp->left_road_edge, curr_grp->right_road_edge);
         std::vector<float> start_between_lr;
         std::vector<float> end_between_lr;
         NeighborLineStSlP(start_po, start_pr, end_po, end_pr,
-                          curr_grp->road_edges[0]->points[0],
-                          curr_grp->road_edges[1]->points[0],
-                          curr_grp->road_edges[0]->points.back(),
-                          curr_grp->road_edges[1]->points.back(),
+                          curr_grp->left_road_edge->points[0],
+                          curr_grp->right_road_edge->points[0],
+                          curr_grp->left_road_edge->points.back(),
+                          curr_grp->right_road_edge->points.back(),
                           prev_grp_lines2start_slice,
                           next_grp_lines2end_slice, &start_between_lr,
                           &end_between_lr);
@@ -281,14 +281,14 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
             if (start_between_lr.empty() && end_between_lr.empty()) {
               SameLineNumVirtualBuild(curr_grp, &line_virtual_vec,
               road_edge_dis,
-                                      curr_grp->road_edges[0],
-                                      curr_grp->road_edges[1], lane_width);
+                                      curr_grp->left_road_edge,
+                                      curr_grp->right_road_edge, lane_width);
             } else {
               SlicePointVirtualLine(curr_grp, &line_virtual_vec,
               start_between_lr,
                                     end_between_lr, road_edge_dis,
-                                    curr_grp->road_edges[0],
-                                    curr_grp->road_edges[1], lane_width);
+                                    curr_grp->left_road_edge,
+                                    curr_grp->right_road_edge, lane_width);
             }
           }
         }
@@ -301,7 +301,7 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
 
         // 1. road_edge_left between line dis
         std::vector<float> road_edge_left_between_line_dis =
-            GetRoadedgeLineFrontEndDis(curr_grp->road_edges[0],
+            GetRoadedgeLineFrontEndDis(curr_grp->left_road_edge,
                                        curr_grp->line_segments[0]);
         HLOG_ERROR << "road_edge_left_between_line_dis[0] = "
                    << road_edge_left_between_line_dis[0]
@@ -310,9 +310,9 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
         std::vector<float> start_between_lr;
         std::vector<float> end_between_lr;
         NeighborLineStSlP(start_po, start_pr, end_po, end_pr,
-                          curr_grp->road_edges[0]->points[0],
+                          curr_grp->left_road_edge->points[0],
                           curr_grp->line_segments[0]->pts[0].pt,
-                          curr_grp->road_edges[0]->points.back(),
+                          curr_grp->left_road_edge->points.back(),
                           curr_grp->line_segments[0]->pts.back().pt,
                           prev_grp_lines2start_slice,
                           next_grp_lines2end_slice, &start_between_lr,
@@ -326,14 +326,14 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
             if (start_between_lr.empty() && end_between_lr.empty()) {
               SameLineNumVirtualBuild(curr_grp, &line_virtual_vec,
                                       road_edge_left_between_line_dis,
-                                      curr_grp->road_edges[0],
+                                      curr_grp->left_road_edge,
                                       curr_grp->line_segments[0],
                                       lane_width);
             } else {
               SlicePointVirtualLine(
                   curr_grp, &line_virtual_vec, start_between_lr,
                   end_between_lr, road_edge_left_between_line_dis,
-                  curr_grp->road_edges[0], curr_grp->line_segments[0],
+                  curr_grp->left_road_edge, curr_grp->line_segments[0],
                   lane_width, 1);
             }
           }
@@ -344,7 +344,7 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
 
         // 2. line between road_edge_right dis
         std::vector<float> line_between_road_edge_right =
-            GetRoadedgeLineFrontEndDis(curr_grp->road_edges[1],
+            GetRoadedgeLineFrontEndDis(curr_grp->right_road_edge,
                                        curr_grp->line_segments[0]);
         HLOG_ERROR << "line_between_road_edge_right[0] = "
                    << line_between_road_edge_right[0]
@@ -354,9 +354,9 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
         end_between_lr.clear();
         NeighborLineStSlP(start_po, start_pr, end_po, end_pr,
                           curr_grp->line_segments[0]->pts[0].pt,
-                          curr_grp->road_edges[1]->points[0],
+                          curr_grp->right_road_edge->points[0],
                           curr_grp->line_segments[0]->pts.back().pt,
-                          curr_grp->road_edges[1]->points.back(),
+                          curr_grp->right_road_edge->points.back(),
                           prev_grp_lines2start_slice,
                           next_grp_lines2end_slice, &start_between_lr,
                           &end_between_lr);
@@ -367,14 +367,14 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
             if (start_between_lr.empty() && end_between_lr.empty()) {
               SameLineNumVirtualBuild(curr_grp, &line_virtual_vec,
                                       line_between_road_edge_right,
-                                      curr_grp->road_edges[1],
+                                      curr_grp->right_road_edge,
                                       curr_grp->line_segments[0],
                                       lane_width);
             } else {
               SlicePointVirtualLine(
                   curr_grp, &line_virtual_vec, start_between_lr,
                   end_between_lr, road_edge_left_between_line_dis,
-                  curr_grp->road_edges[1], curr_grp->line_segments[0],
+                  curr_grp->right_road_edge, curr_grp->line_segments[0],
                   lane_width, 0);
             }
           }
@@ -387,7 +387,7 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
         std::vector<LineSegment::Ptr> line_virtual_vec;  // 虚拟车道线
         // 1. road_edge_left between left_line dis
         std::vector<float> road_edge_left_between_left_line_dis =
-            GetRoadedgeLineFrontEndDis(curr_grp->road_edges[0],
+            GetRoadedgeLineFrontEndDis(curr_grp->left_road_edge,
                                        curr_grp->line_segments[0]);
         HLOG_ERROR << "road_edge_left_between_left_line_dis[0] = "
                    << road_edge_left_between_left_line_dis[0]
@@ -396,9 +396,9 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
         std::vector<float> start_between_lr;
         std::vector<float> end_between_lr;
         NeighborLineStSlP(start_po, start_pr, end_po, end_pr,
-                          curr_grp->road_edges[0]->points[0],
+                          curr_grp->left_road_edge->points[0],
                           curr_grp->line_segments[0]->pts[0].pt,
-                          curr_grp->road_edges[0]->points.back(),
+                          curr_grp->left_road_edge->points.back(),
                           curr_grp->line_segments[0]->pts.back().pt,
                           prev_grp_lines2start_slice,
                           next_grp_lines2end_slice, &start_between_lr,
@@ -412,14 +412,14 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
             if (start_between_lr.empty() && end_between_lr.empty()) {
               SameLineNumVirtualBuild(curr_grp, &line_virtual_vec,
                                       road_edge_left_between_left_line_dis,
-                                      curr_grp->road_edges[0],
+                                      curr_grp->left_road_edge,
                                       curr_grp->line_segments[0],
                                       lane_width);
             } else {
               SlicePointVirtualLine(
                   curr_grp, &line_virtual_vec, start_between_lr,
                   end_between_lr, road_edge_left_between_left_line_dis,
-                  curr_grp->road_edges[0], curr_grp->line_segments[0],
+                  curr_grp->left_road_edge, curr_grp->line_segments[0],
                   lane_width, 1);
             }
           }
@@ -481,9 +481,9 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
         end_between_lr.clear();
         NeighborLineStSlP(start_po, start_pr, end_po, end_pr,
                           curr_grp->line_segments.back()->pts[0].pt,
-                          curr_grp->road_edges[1]->points[0],
+                          curr_grp->right_road_edge->points[0],
                           curr_grp->line_segments.back()->pts.back().pt,
-                          curr_grp->road_edges[1]->points.back(),
+                          curr_grp->right_road_edge->points.back(),
                           prev_grp_lines2start_slice,
                           next_grp_lines2end_slice, &start_between_lr,
                           &end_between_lr);
@@ -504,7 +504,7 @@ bool VirtualLineGen::ConstructVirtualLine(std::vector<Group::Ptr>* groups) {
               SlicePointVirtualLine(
                   curr_grp, &line_virtual_vec, start_between_lr,
                   end_between_lr, road_edge_right_between_right_line_dis,
-                  curr_grp->road_edges[1], curr_grp->line_segments[0],
+                  curr_grp->right_road_edge, curr_grp->line_segments[0],
                   lane_width, 0);
             }
           }

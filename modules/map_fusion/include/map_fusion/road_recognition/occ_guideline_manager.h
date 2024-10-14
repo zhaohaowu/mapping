@@ -171,7 +171,7 @@ class OccGuideLineManager {
   KinePose last_pose_;
   KinePose curr_pose_;
 
-  // 超过 20条就要考虑移除部分. 
+  // 超过 20条就要考虑移除部分.
   struct OccInfo{
     em::Boundary::Ptr boundary_ptr;
     double timestamp;

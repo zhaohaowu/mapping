@@ -15,6 +15,22 @@ namespace hozon {
 namespace mp {
 namespace loc {
 
+class CustomCallback : public ceres::IterationCallback {
+ public:
+  CustomCallback(double* x, double* y, double* yaw) : x_(x), y_(y), yaw_(yaw) {}
+  virtual ceres::CallbackReturnType operator()(
+      const ceres::IterationSummary& summary) override {
+    // 打印当前状态参数
+    HLOG_DEBUG << "x: " << *x_ << ", y: " << *y_ << ", yaw: " << *yaw_;
+    return ceres::SOLVER_CONTINUE;
+  }
+
+ private:
+  double* x_;
+  double* y_;
+  double* yaw_;
+};
+
 bool MapMatchSolver::solve2D(const Connect& connect,
                              const Sophus::SE3d& input_pose,
                              Sophus::SE3d* result_pose) {
@@ -37,21 +53,21 @@ bool MapMatchSolver::solve2D(const Connect& connect,
   double roll = euler[0];   // Roll
   double pitch = euler[1];  // Pitch
   double yaw = euler[2];    // Yaw
-  Eigen::Vector3d pose_plane(x, y, yaw);
   ceres::Solver::Options options;
   ceres::Solver::Summary summary;
   options.minimizer_progress_to_stdout = false;
   options.linear_solver_type = ceres::DENSE_QR;
   options.max_num_iterations = 100;
   options.logging_type = ceres::SILENT;
+  // options.callbacks.push_back(new CustomCallback(&x, &y, &yaw));
   ceres::Problem problem;
   for (int i = 0; i < match_pairs_num; i++) {
     const auto& mp_i = connect.lane_line_match_pairs[i];
     Eigen::Vector2d p_v(mp_i.pecep_pv.x(), mp_i.pecep_pv.y());
     Eigen::Vector2d p_w(mp_i.map_pw.x(), mp_i.map_pw.y());
     double weight = mp_i.weight;
-    problem.AddResidualBlock(Pose2DError::CreateNumericDiff(p_v, p_w, weight),
-                             nullptr, &x, &y, &yaw);
+    problem.AddResidualBlock(Pose2DError::CreateNumericDiff(p_v, p_w, x, weight),
+                             nullptr, &y, &yaw);
   }
   ceres::Solve(options, &problem, &summary);
   if (summary.num_successful_steps <= 0) {

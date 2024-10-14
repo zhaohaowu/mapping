@@ -30,19 +30,24 @@ class Pose2DError {
  public:
   Pose2DError() {}
   Pose2DError(const Eigen::Vector2d& p_v, const Eigen::Vector2d& p_w,
-              const double& weight)
-      : p_v_(p_v.x(), p_v.y(), 1), p_w_(p_w.x(), p_w.y(), 1), weight_(weight) {}
+              const double& x, const double& weight)
+      : p_v_(p_v.x(), p_v.y(), 1),
+        p_w_(p_w.x(), p_w.y(), 1),
+        x_(x),
+        weight_(weight) {}
 
   template <class T>
-  bool operator()(const T* const x, const T* const y, const T* const yaw,
+  bool operator()(const T* const y, const T* const yaw,
                   T* residuals_ptr) const {
     // 齐次坐标下的2d向量运算
     Eigen::Matrix<T, 3, 1> res =
-        p_v_.cast<T>() - XYYaw2Matrix(*x, *y, *yaw).inverse() * p_w_.cast<T>();
+        p_v_.cast<T>() -
+        XYYaw2Matrix(T(x_), *y, *yaw).inverse() * p_w_.cast<T>();
     res.array() *= T(weight_);
     Eigen::Vector<T, 2> pv(p_v_.x(), p_v_.y());
-    Eigen::Vector<T, 2> pw((XYYaw2Matrix(*x, *y, *yaw).inverse() * p_w_).x(),
-                           (XYYaw2Matrix(*x, *y, *yaw).inverse() * p_w_).y());
+    Eigen::Vector<T, 2> pw(
+        (XYYaw2Matrix(T(x_), *y, *yaw).inverse() * p_w_).x(),
+        (XYYaw2Matrix(T(x_), *y, *yaw).inverse() * p_w_).y());
     residuals_ptr[0] = (pv - pw).norm();
 
     return true;
@@ -50,23 +55,26 @@ class Pose2DError {
 
   static ceres::CostFunction* CreateAutoDiff(const Eigen::Vector2d& p_v,
                                              const Eigen::Vector2d& p_w,
+                                             const double& x,
                                              const double& weight) {
-    return (new ceres::AutoDiffCostFunction<Pose2DError, 2, 1, 1, 1>(
-        new Pose2DError(p_v, p_w, weight)));
+    return (new ceres::AutoDiffCostFunction<Pose2DError, 1, 1, 1>(
+        new Pose2DError(p_v, p_w, x, weight)));
   }
 
   static ceres::CostFunction* CreateNumericDiff(const Eigen::Vector2d& p_v,
                                                 const Eigen::Vector2d& p_w,
+                                                const double& x,
                                                 const double& weight) {
     return (new ceres::NumericDiffCostFunction<Pose2DError, ceres::CENTRAL, 1,
-                                               1, 1, 1>(
-        new Pose2DError(p_v, p_w, weight)));
+                                               1, 1>(
+        new Pose2DError(p_v, p_w, x, weight)));
   }
 
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
  private:
   Eigen::Matrix<double, 3, 1> p_v_, p_w_;
+  double x_;
   double weight_;
 };
 

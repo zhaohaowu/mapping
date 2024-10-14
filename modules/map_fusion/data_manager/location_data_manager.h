@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "modules/map_fusion/common/common_data.h"
 #include "modules/map_fusion/base/element_map.h"
 #include "modules/map_fusion/data_manager/data_buffer.h"
 #include "modules/util/include/util/mapping_log.h"
@@ -31,6 +32,7 @@ class LocationDataManager {
   LocInfo::ConstPtr GetLocationByTimeStamp(double timestamp);
   Eigen::Affine3d GetDeltaPose();
   Eigen::Affine3d GetCurrentPose();
+  KinePosePtr GetLatestKinePose();
   bool IsStaticState();
   bool IsTurnState();
   bool GetTurnState() const;
@@ -71,6 +73,8 @@ class LocationDataManager {
   Eigen::Affine3d last_T_w_v_;
   // 自车左右车道线id
   EgoLane ego_line_id_;
+  // 最新kinepose位姿
+  KinePose latest_kinepose_;
 
   // get instance by Instance()
   DECLARE_SINGLETON_PERCEPTION(LocationDataManager)

@@ -292,6 +292,8 @@ bool OccProcessor::Process(ElementMap::Ptr element_map_ptr) {
     std::vector<Eigen::Vector3f> obj_points;
     std::vector<Eigen::Vector3f> occ_road_points;
     const auto& cur_T_w_v_ = LOCATION_MANAGER->GetCurrentPose();
+    const auto& cur_kinepose = LOCATION_MANAGER->GetLatestKinePose();
+
     for (const auto& object : OBJECT_MANAGER->GetInverseHistoryObjs()) {
       Eigen::Vector3d p_local(object->position);
       Eigen::Vector3f p_veh(

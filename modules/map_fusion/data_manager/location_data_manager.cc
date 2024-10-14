@@ -134,6 +134,26 @@ void LocationDataManager::SetTimeStampLocation(
     cur_T_w_v_ = dr_pose_ptr->pose;
     T_cur_last_ = cur_T_w_v_.inverse() * last_T_w_v_;
     last_T_w_v_ = cur_T_w_v_;
+    KinePose curr;
+    curr.stamp = dr_pose_ptr->timestamp;
+    curr.pos << static_cast<float>(dr_pose_ptr->translation.x()),
+        static_cast<float>(dr_pose_ptr->translation.y()),
+        static_cast<float>(dr_pose_ptr->translation.z());
+    curr.quat.w() = static_cast<float>(dr_pose_ptr->quaternion.w());
+    curr.quat.x() = static_cast<float>(dr_pose_ptr->quaternion.x());
+    curr.quat.y() = static_cast<float>(dr_pose_ptr->quaternion.y());
+    curr.quat.z() = static_cast<float>(dr_pose_ptr->quaternion.z());
+    // 注意：上游发过来的速度、加速度、角速度都是车体系下的
+    curr.vel << static_cast<float>(dr_pose_ptr->linear_velocity.x()),
+        static_cast<float>(dr_pose_ptr->linear_velocity.y()),
+        static_cast<float>(dr_pose_ptr->linear_velocity.z());
+    curr.acc << static_cast<float>(dr_pose_ptr->acceleration.x()),
+        static_cast<float>(dr_pose_ptr->acceleration.y()),
+        static_cast<float>(dr_pose_ptr->acceleration.z());
+    curr.ang_vel << static_cast<float>(dr_pose_ptr->angular_velocity.x()),
+        static_cast<float>(dr_pose_ptr->angular_velocity.y()),
+        static_cast<float>(dr_pose_ptr->angular_velocity.z());
+    latest_kinepose_ = curr;
   }
 }
 
@@ -214,6 +234,15 @@ bool LocationDataManager::GetTurnState() const { return turn_state_; }
 Eigen::Affine3d LocationDataManager::GetDeltaPose() { return T_cur_last_; }
 
 Eigen::Affine3d LocationDataManager::GetCurrentPose() { return cur_T_w_v_; }
+
+KinePosePtr LocationDataManager::GetLatestKinePose() {
+  if (latest_kinepose_.stamp < 0) {
+    return nullptr;
+  }
+
+  auto latest = std::make_shared<KinePose>(latest_kinepose_);
+  return latest;
+}
 
 EgoLane LocationDataManager::GetEgoLane() { return ego_line_id_; }
 

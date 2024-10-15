@@ -356,11 +356,11 @@ class CutPoint {
   double stamp_;
 
   // 当前切分点,处于哪根线上
-  id_t main_line_id_ = 0;
+  id_t main_line_id_ = -1;
 
   // 对于 split, merge , V/Y型 还有 target line id
   // 目前仅支持单根target line
-  id_t target_line_id_ = 0;
+  id_t target_line_id_ = -1;
 
   // 待切分的line ids
   std::vector<id_t> line_ids_;

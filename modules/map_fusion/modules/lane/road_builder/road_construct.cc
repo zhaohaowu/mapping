@@ -152,7 +152,12 @@ void RoadConstruct::CreatGroupsFromCutPoints(
     slice.pl = pl_veh;
     slice.pr = pr_veh;
     slice.cut_type = ctp.GetType();
-    HLOG_DEBUG << "ctp type: " << ctp.GetType();
+    slice.main_lane_id = ctp.GetMainLineId();
+    slice.target_lane_id = ctp.GetTargetLineId();
+
+    HLOG_DEBUG << "ctp type: " << ctp.GetType()
+               << " main lane id: " << slice.main_lane_id
+               << " target lane id: " << slice.target_lane_id;
     slice_lines.emplace_back(slice);
   }
 
@@ -1292,7 +1297,9 @@ float RoadConstruct::Dist2Path(const Eigen::Vector3f& point) {
   float dist_proj = BA.dot(BC) / BC.squaredNorm();
 
   Eigen::Vector2f proj_p = B + dist_proj * BC;
-  float dist = A.y() > 0 ? (A - proj_p).norm() : -(A - proj_p).norm();
+  float dist = PointInVectorSide(tar_path, tar_point_next, point) < 0
+                   ? (A - proj_p).norm()
+                   : -(A - proj_p).norm();
   return dist;
 }
 

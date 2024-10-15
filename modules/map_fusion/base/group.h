@@ -172,6 +172,8 @@ struct SliceLine {
   Eigen::Vector3f pl;  // 左边点
   Eigen::Vector3f pr;  // 右边点
   CutPointType cut_type;
+  int main_lane_id = -1;    // 切分点所在线id
+  int target_lane_id = -1;  // 切分点目标线id
 };
 
 struct Group {

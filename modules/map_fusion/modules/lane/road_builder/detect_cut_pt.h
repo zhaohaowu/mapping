@@ -108,8 +108,8 @@ struct DetectPointInfo {
 
   Point3D world_pt;
 
-  id_t source_line_id = 0;
-  id_t target_line_id = 0;
+  id_t source_line_id = -1;
+  id_t target_line_id = -1;
 
   std::vector<id_t> involve_line_ids;
 

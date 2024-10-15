@@ -69,8 +69,6 @@ int MapFusion::OnLocalization(
     return -1;
   }
 
-  lane_fusion_ptr_->InsertPose(cur_loc_info_);
-
   return 0;
 }
 
@@ -100,6 +98,7 @@ int MapFusion::ProcPercep(
     HLOG_ERROR << "Input data mapping failed";
     return -1;
   }
+  lane_fusion_ptr_->InsertPose();
   // 各个pipeline处理
   HLOG_INFO << "Proc Pilot start!";
   geo_optimization_ptr_->Process(option, cur_elem_map_);

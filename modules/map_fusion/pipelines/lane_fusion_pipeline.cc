@@ -173,32 +173,14 @@ void LaneFusionPipeline::Clear() {
   groups_.clear();
 }
 
-void LaneFusionPipeline::InsertPose(const LocInfo::Ptr& pose) {
+void LaneFusionPipeline::InsertPose() {
   if (!path_manager_) {
     HLOG_ERROR << "Path manager is nullptr";
     return;
   }
 
-  KinePose curr;
-  curr.stamp = pose->timestamp;
-  curr.pos << static_cast<float>(pose->translation.x()),
-      static_cast<float>(pose->translation.y()),
-      static_cast<float>(pose->translation.z());
-  curr.quat.w() = static_cast<float>(pose->quaternion.w());
-  curr.quat.x() = static_cast<float>(pose->quaternion.x());
-  curr.quat.y() = static_cast<float>(pose->quaternion.y());
-  curr.quat.z() = static_cast<float>(pose->quaternion.z());
-  // 注意：上游发过来的速度、加速度、角速度都是车体系下的
-  curr.vel << static_cast<float>(pose->linear_velocity.x()),
-      static_cast<float>(pose->linear_velocity.y()),
-      static_cast<float>(pose->linear_velocity.z());
-  curr.acc << static_cast<float>(pose->acceleration.x()),
-      static_cast<float>(pose->acceleration.y()),
-      static_cast<float>(pose->acceleration.z());
-  curr.ang_vel << static_cast<float>(pose->angular_velocity.x()),
-      static_cast<float>(pose->angular_velocity.y()),
-      static_cast<float>(pose->angular_velocity.z());
-  path_manager_->AddPose(curr);
+  const auto curr = LOCATION_MANAGER->GetLatestKinePose();
+  path_manager_->AddPose(*curr);
 }
 
 bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) {
@@ -212,7 +194,8 @@ bool LaneFusionPipeline::Process(const ElementMap::Ptr& element_map_ptr) {
   // 获取历史和预测轨迹
   auto path = std::make_shared<std::vector<KinePosePtr>>();
   path_manager_->GetPath(path.get());
-  auto curr_pose = path_manager_->LatestPose();
+  // auto curr_pose = path_manager_->LatestPose();
+  auto curr_pose = LOCATION_MANAGER->GetLatestKinePose();
   MF_RVIZ->VizPath(*path, *curr_pose);
 
   // 计算切分点和切分线

@@ -38,7 +38,7 @@ class LaneFusionPipeline : public BaseFusionPipeline {
   bool Init() override;
   void Clear() override;
 
-  void InsertPose(const LocInfo::Ptr& pose);
+  void InsertPose();
   bool Process(const ElementMap::Ptr& element_map_ptr);
   std::vector<Group::Ptr> GetGroups();
   std::string Name() const override;

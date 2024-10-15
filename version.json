@@ -17,7 +17,7 @@
             },
             "CUDA": {
                 "name": "cuda_11.4.327_20231011",
-                "extractPath": "./depend/third_party/x86"
+                "extractPath": "./depend/third_party/x86_2004"
             },
             "release": {
                 "compileCmd": "bash build.sh orin --release --clean --plugin -j32",

@@ -607,7 +607,7 @@ int32_t MapFusionLite::MapFusionOutput(Bundle* output) {
             hozon::navigation_hdmap::MapMsg_MapType_FUSION_NNP_MAP ||
         curr_map_type_.map_type ==
             hozon::navigation_hdmap::MapMsg_MapType_FUSION_NCP_MAP) {
-      if (0 == FLAGS_map_service_mode) {
+      if ((0 == FLAGS_map_service_mode) || (2 == FLAGS_map_service_mode)) {
         curr_map_type_.map_type =
             hozon::navigation_hdmap::MapMsg_MapType_FUSION_NCP_MAP;
       }

@@ -72,6 +72,9 @@ class FusionCenter {
   Measure::Ptr GetNewInsFilter(const Measure::ConstPtr& cur_ins,
                                const Measure::ConstPtr& cur_mm,
                                const Eigen::Vector3d& ref_point_mm);
+  Measure::Ptr GetNewInsReal(const Measure::ConstPtr& cur_ins,
+                             const Measure::ConstPtr& cur_mm,
+                             const Eigen::Vector3d& ref_point_mm);
 
  private:
   std::shared_ptr<MessageBuffer<Predict::ConstPtr>> imu_buffer_ = nullptr;

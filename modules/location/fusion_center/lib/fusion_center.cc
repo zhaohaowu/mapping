@@ -701,6 +701,64 @@ Measure::Ptr FusionCenter::GetNewInsFilter(
   }
 }
 
+Measure::Ptr FusionCenter::GetNewInsReal(const Measure::ConstPtr& cur_ins,
+                                         const Measure::ConstPtr& cur_mm,
+                                         const Eigen::Vector3d& ref_point_mm) {
+  // HLOG_INFO << "GetNewInsReal in";
+  Measure::Ptr new_ins = std::make_shared<Measure>(*cur_ins);
+
+  // 记录当前ins的位置和时间
+  Eigen::Vector3d ins_position =
+      util::Geo::Gcj02ToEnu(cur_ins->gcj_position, ref_point_mm);
+  double ins_time = cur_ins->timestamp;
+  // 记录当前mm的位置和时间
+  Eigen::Vector3d mm_position =
+      util::Geo::Gcj02ToEnu(cur_mm->gcj_position, ref_point_mm);
+  double mm_time = cur_mm->timestamp;
+
+  // 车系下ins和mm的位置
+  Eigen::Vector3d ins_position_vrf = (cur_ins->enu_q).inverse() * ins_position;
+  Eigen::Vector3d mm_position_vrf = (cur_mm->enu_q).inverse() * mm_position;
+  // HLOG_INFO << "mm_position:" << mm_time << "," << mm_position_vrf.x() << ","
+  //           << mm_position_vrf.y() << "," << mm_position_vrf.z();
+  // HLOG_INFO << "ins_position:" << ins_time << "," << ins_position_vrf.x() << ","
+  //           << ins_position_vrf.y() << "," << ins_position_vrf.z();
+
+  // 不管rtk状态　mm有效就进行偏差估计
+  if (ins_time - mm_time < 3.0) {
+    // HLOG_INFO << "ins_time - mm_time < 3.0";
+    Eigen::Affine3d T_w_mm =
+        Eigen::Translation3d(mm_position) * Eigen::Affine3d(cur_mm->enu_q);
+    Eigen::Affine3d T_w_ins =
+        Eigen::Translation3d(ins_position) * Eigen::Affine3d(cur_ins->enu_q);
+    // 获取mm和ins在车系下y和heading偏差
+    Eigen::Matrix4d T_ins_mm = (T_w_ins.inverse() * T_w_mm).matrix();
+    Eigen::Vector3d euler_angle_ins_mm =
+        RotionMatrix2EulerAngle321(T_ins_mm.block<3, 3>(0, 0));
+    Eigen::Matrix3d new_R =
+        (Eigen::AngleAxisd(euler_angle_ins_mm[2], Eigen::Vector3d::UnitZ()) *
+         Eigen::AngleAxisd(0, Eigen::Vector3d::UnitY()) *
+         Eigen::AngleAxisd(0, Eigen::Vector3d::UnitX()))
+            .matrix();
+    double new_y = T_ins_mm(1, 3);
+    Eigen::Matrix4d T_diff = Eigen::Matrix4d::Identity();
+    T_diff(1, 3) = new_y;              // 补偿量横向y
+    T_diff.block<3, 3>(0, 0) = new_R;  // 补偿量heading
+
+    // 将mm和ins偏差结果对ins进行更新，获取偏差估计后的ins
+    auto T_w_ins_new = T_w_ins * T_diff;
+    new_ins->enu_position = T_w_ins_new.block<3, 1>(0, 3);
+    new_ins->enu_q = Eigen::Quaterniond(T_w_ins_new.block<3, 3>(0, 0));
+
+    return new_ins;
+  } else {
+    new_ins->enu_position = ins_position;
+    new_ins->enu_q = cur_ins->enu_q;
+
+    return new_ins;
+  }
+}
+
 Eigen::Vector3d FusionCenter::RotionMatrix2EulerAngle321(
     const Eigen::Matrix3d& rotation_matrix) {
   double roll = NAN;
@@ -1129,6 +1187,14 @@ void FusionCenter::OnIns(const HafNodeInfo& ins) {
     ins_data->gcj_position =
         util::Geo::EnuToGcj02(new_ins_filter->enu_position, ref_point_ins);
     ins_data->enu_q = new_ins_filter->enu_q;
+
+    if (ins_data->rtk_state != 4) {
+      Measure::Ptr new_ins_real =
+          GetNewInsReal(ins_data, mm_data, ref_point_ins);
+      ins_data->gcj_position =
+          util::Geo::EnuToGcj02(new_ins_real->enu_position, ref_point_ins);
+      ins_data->enu_q = new_ins_real->enu_q;
+    }
   }
 
   ins_buffer_->push_new_message(ins.header().data_stamp(), ins_data);

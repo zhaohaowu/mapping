@@ -84,6 +84,8 @@ bool FusionCenter::Init(const std::string& config_file) {
   dr_buffer_ = std::make_shared<MessageBuffer<Dr::ConstPtr>>(300);
   mm_buffer_ = std::make_shared<MessageBuffer<Measure::ConstPtr>>(30);
 
+  offset_.init = true;
+
   fc_thread_run_.store(true);
   fc_thread_ = std::make_shared<std::thread>(&FusionCenter::Run, this);
   return true;
@@ -476,6 +478,11 @@ void FusionCenter::UpdateLatestFc() {
   fc_state.linear_velocity_vrf = fc_state.q.inverse() * fc_state.v;
   fc_state.angular_velocity_vrf = latest_imu_.angular_velocity_vrf;
   fc_state.linear_acceleration_vrf = latest_imu_.linear_acceleration_vrf;
+
+  // 可视化ins偏差估计
+  fc_state.p_ins_estimate = latest_ins_.gcj_position;
+  fc_state.q_ins_estimate = latest_ins_.enu_q;
+
   fc_map_[latest_imu_.timestamp] = fc_state;
 }
 
@@ -573,7 +580,7 @@ Measure::Ptr FusionCenter::GetNewIns(const Measure::ConstPtr& cur_ins) {
 Measure::Ptr FusionCenter::GetNewInsFilter(
     const Measure::ConstPtr& cur_ins, const Measure::ConstPtr& cur_mm,
     const Eigen::Vector3d& ref_point_mm) {
-  // HLOG_FATAL << "GetNewInsFilter in";
+  // HLOG_INFO << "GetNewInsFilter in";
   Measure::Ptr new_ins = std::make_shared<Measure>(*cur_ins);
 
   // 记录当前ins的位置和时间
@@ -588,10 +595,9 @@ Measure::Ptr FusionCenter::GetNewInsFilter(
   // 车系下ins和mm的位置
   Eigen::Vector3d ins_position_vrf = (cur_ins->enu_q).inverse() * ins_position;
   Eigen::Vector3d mm_position_vrf = (cur_mm->enu_q).inverse() * mm_position;
-  // HLOG_FATAL << "mm_position:" << mm_time << "," << mm_position_vrf.x() <<
-  // ","
+  // HLOG_INFO << "mm_position:" << mm_time << "," << mm_position_vrf.x() << ","
   //           << mm_position_vrf.y() << "," << mm_position_vrf.z();
-  // HLOG_FATAL << "ins_position:" << ins_time << "," << ins_position_vrf.x() <<
+  // HLOG_INFO << "ins_position:" << ins_time << "," << ins_position_vrf.x() <<
   // ","
   //           << ins_position_vrf.y() << "," << ins_position_vrf.z();
 
@@ -602,7 +608,7 @@ Measure::Ptr FusionCenter::GetNewInsFilter(
   if (cur_ins->rtk_state == 4 && cur_ins->sd_position.x() <= 0.05 &&
       cur_ins->sd_position.y() <= 0.05 &&
       (cur_ins->timestamp - cur_mm->timestamp) < 3) {
-    // HLOG_FATAL << "get in rtk=4";
+    // HLOG_INFO << "get in rtk=4";
     // 用ins和mm做偏差估计
     Eigen::Affine3d T_w_mm =
         Eigen::Translation3d(mm_position) * Eigen::Affine3d(cur_mm->enu_q);
@@ -622,10 +628,24 @@ Measure::Ptr FusionCenter::GetNewInsFilter(
     T_diff(1, 3) = new_y;              // 补偿量横向y
     T_diff.block<3, 3>(0, 0) = new_R;  // 补偿量heading
 
-    // HLOG_FATAL << "T_diff_y" << T_diff(1, 3);
+    // HLOG_INFO << "T_diff_y" << T_diff(1, 3);
     /*对偏差进行低通滤波*/
     static Eigen::Vector3d last_ins_position = Eigen::Vector3d::Zero();
     static double last_ins_time = 0;
+
+    // 偏差量过大直接返回ins值
+    if (std::abs(T_diff(1, 3)) > 1.75) {
+      // HLOG_INFO << "T_diff is large";
+      new_ins->enu_position = ins_position;
+      new_ins->enu_q = cur_ins->enu_q;
+      // 偏差估计结果转到车体系debug
+      Eigen::Vector3d new_ins_vrf =
+          (new_ins->enu_q).inverse() * new_ins->enu_position;
+      // HLOG_INFO << "new_ins->enu_position:" << new_ins->timestamp << ","
+      //           << new_ins_vrf.x() << "," << new_ins_vrf.y() << ","
+      //           << new_ins_vrf.z();
+      return new_ins;
+    }
 
     // 判断是否是第一次做偏差估计
     // HLOG_FATAL << "offset_.init:" << offset_.init;
@@ -633,35 +653,49 @@ Measure::Ptr FusionCenter::GetNewInsFilter(
       // 判断上一时刻偏差估计和当前时刻偏差估计的距离,如果大于一定距离则不进行滤波
       if ((ins_position.norm() - offset_.pos.norm() > 200) ||
           (ins_time - offset_.time) > 3.0) {
-        // HLOG_FATAL << "ins_time - offset_.time) > 2.0";
-        offset_.T_offset = 0.8 * T_diff + 0.2 * offset_.T_offset;
+        // HLOG_INFO << "ins_time - offset_.time) > 2.0";
+        offset_.T_offset = T_diff;
         offset_.pos = ins_position;
         offset_.time = ins_time;
       } else {
-        // HLOG_FATAL << "get in filter";
+        // HLOG_INFO << "get in filter";
         offset_.T_offset = 0.2 * T_diff + 0.8 * offset_.T_offset;
         offset_.pos = ins_position;
         offset_.time = ins_time;
       }
     } else {
-      // HLOG_FATAL << "offset_.init = false";
+      // HLOG_INFO << "offset_.init = false";
       offset_.init = false;
       offset_.T_offset = T_diff;
       offset_.pos = ins_position;
       offset_.time = ins_time;
     }
-    // HLOG_FATAL << "offset_.T_offset_y" << offset_.T_offset(1, 3);
+    // HLOG_INFO << "offset_.T_offset_y" << offset_.T_offset(1, 3);
 
     // 将mm和ins偏差结果对ins进行更新，获取偏差估计后的ins
     auto T_w_ins_new = T_w_ins * offset_.T_offset;
     new_ins->enu_position = T_w_ins_new.block<3, 1>(0, 3);
     new_ins->enu_q = Eigen::Quaterniond(T_w_ins_new.block<3, 3>(0, 0));
+
+    // 偏差估计结果转到车体系debug
+    Eigen::Vector3d new_ins_vrf =
+        (new_ins->enu_q).inverse() * new_ins->enu_position;
+    // HLOG_INFO << "new_ins->enu_position:" << new_ins->timestamp << ","
+    //           << new_ins_vrf.x() << "," << new_ins_vrf.y() << ","
+    //           << new_ins_vrf.z();
     return new_ins;
   } else {
     // 测试有mm但rtk！＝４的低通滤波效果
-    // HLOG_FATAL << "rtk!=4 && 2s没有mm";
+    // HLOG_INFO << "rtk!=4 && 2s没有mm";
     new_ins->enu_position = ins_position;
     new_ins->enu_q = cur_ins->enu_q;
+
+    // 偏差估计结果转到车体系debug
+    Eigen::Vector3d new_ins_vrf =
+        (new_ins->enu_q).inverse() * new_ins->enu_position;
+    // HLOG_INFO << "new_ins->enu_position:" << new_ins->timestamp << ","
+    //           << new_ins_vrf.x() << "," << new_ins_vrf.y() << ","
+    //           << new_ins_vrf.z();
 
     return new_ins;
   }
@@ -1404,6 +1438,23 @@ std::shared_ptr<Localization> FusionCenter::GetFcOutput() {
   //     static_cast<float>(fc_state->second.yaw_dr));  // 规控需要
   // fc_output->mutable_pose()->mutable_euler_angle()->set_x(
   //     fc_state->second.pitch_dr);  // 规控需要
+
+  // 用于ins偏差估计可视化
+  fc_output->mutable_pose_dr()->mutable_position()->set_x(
+      fc_state->second.p_ins_estimate.x());
+  fc_output->mutable_pose_dr()->mutable_position()->set_y(
+      fc_state->second.p_ins_estimate.y());
+  fc_output->mutable_pose_dr()->mutable_position()->set_z(
+      fc_state->second.p_ins_estimate.z());
+
+  fc_output->mutable_pose_dr()->mutable_quaternion()->set_w(
+      static_cast<float>(fc_state->second.q_ins_estimate.w()));
+  fc_output->mutable_pose_dr()->mutable_quaternion()->set_x(
+      static_cast<float>(fc_state->second.q_ins_estimate.x()));
+  fc_output->mutable_pose_dr()->mutable_quaternion()->set_y(
+      static_cast<float>(fc_state->second.q_ins_estimate.y()));
+  fc_output->mutable_pose_dr()->mutable_quaternion()->set_z(
+      static_cast<float>(fc_state->second.q_ins_estimate.z()));
 
   return fc_output;
 }

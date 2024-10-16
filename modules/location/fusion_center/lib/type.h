@@ -91,6 +91,10 @@ struct FcState : FcBase {
   // 线加速度
   Eigen::Vector3d linear_acceleration_vrf;
 
+  // 可视化ins偏差估计
+  Eigen::Vector3d p_ins_estimate;
+  Eigen::Quaterniond q_ins_estimate;
+
   DEFINE_PTR(FcState);
   DEFINE_CONST_PTR(FcState);
 };

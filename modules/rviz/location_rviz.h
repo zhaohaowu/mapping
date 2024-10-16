@@ -29,6 +29,8 @@ class LocationRviz {
 
   void PubFcOdom(const Eigen::Affine3d& T_W_V, uint64_t sec, uint64_t nsec,
                  const std::string& topic);
+  void PubInsEstimateOdom(const Eigen::Affine3d& T_W_V, uint64_t sec,
+                          uint64_t nsec, const std::string& topic);
   void PubMmOdom(const Eigen::Affine3d& T_W_V, uint64_t sec, uint64_t nsec,
                  const std::string& topic);
   void PubDrOdom(const Eigen::Affine3d& T_W_V, uint64_t sec, uint64_t nsec,

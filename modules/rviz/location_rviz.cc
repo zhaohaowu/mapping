@@ -99,6 +99,32 @@ void LocationRviz::PubFcOdom(const Eigen::Affine3d& T_W_V, uint64_t sec,
   RVIZ_AGENT.Publish(topic, odom_msg);
 }
 
+void LocationRviz::PubInsEstimateOdom(const Eigen::Affine3d& T_W_V,
+                                      uint64_t sec, uint64_t nsec,
+                                      const std::string& topic) {
+  if (!inited_ || !RVIZ_AGENT.Ok()) {
+    return;
+  }
+  static bool register_flag = true;
+  if (register_flag) {
+    RVIZ_AGENT.Register<adsfi_proto::viz::Odometry>(topic);
+    register_flag = false;
+  }
+  Eigen::Vector3d p = T_W_V.translation();
+  Eigen::Quaterniond q(T_W_V.rotation());
+  adsfi_proto::viz::Odometry odom_msg;
+  odom_msg.mutable_header()->mutable_timestamp()->set_sec(sec);
+  odom_msg.mutable_header()->mutable_timestamp()->set_nsec(nsec);
+  odom_msg.mutable_header()->set_frameid("map");
+  odom_msg.set_child_frame_id("base");
+  SetXYZ(p, odom_msg.mutable_pose()->mutable_pose()->mutable_position());
+  SetXYZW(q, odom_msg.mutable_pose()->mutable_pose()->mutable_orientation());
+  for (size_t i = 0; i < 36; ++i) {
+    odom_msg.mutable_pose()->add_covariance(0.);
+  }
+  RVIZ_AGENT.Publish(topic, odom_msg);
+}
+
 void LocationRviz::PubMmOdom(const Eigen::Affine3d& T_W_V, uint64_t sec,
                              uint64_t nsec, const std::string& topic) {
   if (!inited_ || !RVIZ_AGENT.Ok()) {

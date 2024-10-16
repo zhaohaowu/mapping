@@ -18,12 +18,12 @@ mm_noise_ori_z: 1.7e-4     # 0.01度
 
 # ins观测
 use_ins: true
-ins_noise_x: 1e-1
-ins_noise_y: 1e-1
-ins_noise_z: 1e-1
-ins_noise_ori_x: 1e-2
-ins_noise_ori_y: 1e-2
-ins_noise_ori_z: 1e-2
+ins_noise_x: 5e-2
+ins_noise_y: 5e-2
+ins_noise_z: 5e-2
+ins_noise_ori_x: 5e-4
+ins_noise_ori_y: 5e-4
+ins_noise_ori_z: 5e-4
 
 # chassis观测
 use_chassis: true

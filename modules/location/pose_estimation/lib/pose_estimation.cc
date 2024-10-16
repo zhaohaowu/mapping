@@ -132,6 +132,30 @@ void PoseEstimation::OnLocation(
   auto sec = cur_time.tv_sec;
   auto nsec = cur_time.tv_nsec;
   LOC_RVIZ->PubFcOdom(T_fc_100hz, sec, nsec, "/pe/fc_odom");
+
+  // 可视化ins偏差估计
+  Eigen::Quaternionf enu_quaternion_ins_e(
+      msg->pose_dr().quaternion().w(), msg->pose_dr().quaternion().x(),
+      msg->pose_dr().quaternion().y(), msg->pose_dr().quaternion().z());
+  Eigen::Vector3d gcj_position_ins_e{msg->pose_dr().position().x(),
+                                     msg->pose_dr().position().y(),
+                                     msg->pose_dr().position().z()};
+
+  ref_point_mutex_.lock();
+  Eigen::Vector3d enu_position_ins_e =
+      hozon::mp::util::Geo::Gcj02ToEnu(gcj_position_ins_e, ref_point_);
+  ref_point_mutex_.unlock();
+
+  Eigen::Vector3d t_ins_e(enu_position_ins_e.x(), enu_position_ins_e.y(),
+                          enu_position_ins_e.z());
+  Eigen::Quaterniond q_ins_e(enu_quaternion_ins_e.w(), enu_quaternion_ins_e.x(),
+                             enu_quaternion_ins_e.y(),
+                             enu_quaternion_ins_e.z());
+  Eigen::Affine3d T_ins_e_100hz =
+      Eigen::Translation3d(t_ins_e) * Eigen::Affine3d(q_ins_e);
+  LOC_RVIZ->PubInsEstimateOdom(T_ins_e_100hz, sec, nsec,
+                               "/pe/ins_estimate_odom");
+
   LOC_RVIZ->SetFcTf(T_fc_100hz);
 }
 
